@@ -8,7 +8,8 @@ use golden_core::{
     node::{
         DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
         NodeReference, NodeUuid, NodeUserPermissions, UserContainerRules,
-        UserCreatableItem,
+        UserContextNode, UserCreatableItem, USER_CONTEXT_DEFAULT_LABEL,
+        USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
     },
     parameter::{
         ParamValue, Parameter, ParameterChangeCheck, ReferenceTargetKind,
@@ -171,7 +172,11 @@ pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
 
 fn processor_container_rules() -> UserContainerRules {
-    UserContainerRules::new(&[PROCESSOR_ITEM_KIND, PROCESSOR_FOLDER_ITEM_KIND])
+    UserContainerRules::new(&[
+        PROCESSOR_ITEM_KIND,
+        PROCESSOR_FOLDER_ITEM_KIND,
+        USER_CONTEXT_ITEM_KIND,
+    ])
 }
 
 fn processor_container_accepts(item_type: &str, item_kind: &str) -> bool {
@@ -180,8 +185,28 @@ fn processor_container_accepts(item_type: &str, item_kind: &str) -> bool {
             item_type == StateProcessor::NODE_TYPE || item_type.starts_with("state_processor:")
         }
         PROCESSOR_FOLDER_ITEM_KIND => item_type == PROCESSOR_FOLDER_NODE_TYPE,
+        USER_CONTEXT_ITEM_KIND => item_type == USER_CONTEXT_NODE_TYPE,
         _ => false,
     }
+}
+
+fn processor_context_creatable_item(separator_before: bool) -> UserCreatableItem {
+    UserCreatableItem::new(
+        USER_CONTEXT_NODE_TYPE,
+        USER_CONTEXT_ITEM_KIND,
+        USER_CONTEXT_DEFAULT_LABEL,
+    )
+    .with_separator_before(separator_before)
+    .with_select_when_created(false)
+}
+
+fn create_processor_context_item(node_type: &str) -> Option<Box<dyn Node>> {
+    (node_type == USER_CONTEXT_NODE_TYPE).then(|| {
+        Box::new(UserContextNode::new_with_multiplex(
+            USER_CONTEXT_DEFAULT_LABEL,
+            true,
+        )) as Box<dyn Node>
+    })
 }
 
 fn initialize_processor_item(node: &mut dyn Node) {
@@ -655,7 +680,11 @@ pub struct StateProcessorManager {
     formula_items: Vec<UserCreatableItem>,
 }
 
-#[node("state_processor_manager", from_struct)]
+#[node(
+    "state_processor_manager",
+    from_struct,
+    contextualizable = golden_core::node::UserContextHostPolicy::multiplex_contextualizable()
+)]
 impl Node for StateProcessorManager {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(processor_container_rules())
@@ -671,10 +700,14 @@ impl Node for StateProcessorManager {
             UserCreatableItem::new(PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_FOLDER_ITEM_KIND, "Folder")
                 .with_separator_before(!items.is_empty()),
         );
+        items.push(processor_context_creatable_item(!items.is_empty()));
         items
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        if let Some(context) = create_processor_context_item(node_type) {
+            return Some(context);
+        }
         if node_type == PROCESSOR_FOLDER_NODE_TYPE {
             return Some(Box::new(StateProcessorFolder::new()));
         }
@@ -760,7 +793,11 @@ pub struct StateProcessorFolder {
     formula_items: Vec<UserCreatableItem>,
 }
 
-#[node("state_processor_folder", from_struct)]
+#[node(
+    "state_processor_folder",
+    from_struct,
+    contextualizable = golden_core::node::UserContextHostPolicy::multiplex_contextualizable()
+)]
 impl Node for StateProcessorFolder {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(processor_container_rules())
@@ -776,10 +813,14 @@ impl Node for StateProcessorFolder {
             UserCreatableItem::new(PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_FOLDER_ITEM_KIND, "Folder")
                 .with_separator_before(!items.is_empty()),
         );
+        items.push(processor_context_creatable_item(!items.is_empty()));
         items
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        if let Some(context) = create_processor_context_item(node_type) {
+            return Some(context);
+        }
         if node_type == PROCESSOR_FOLDER_NODE_TYPE {
             return Some(Box::new(StateProcessorFolder::new()));
         }
@@ -871,8 +912,28 @@ pub struct StateProcessor {
     subscribed_formula: Option<NodeId>,
 }
 
-#[node("state_processor", from_struct)]
+#[node(
+    "state_processor",
+    from_struct,
+    contextualizable = golden_core::node::UserContextHostPolicy::multiplex_contextualizable()
+)]
 impl Node for StateProcessor {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[USER_CONTEXT_ITEM_KIND]))
+    }
+
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        item_kind == USER_CONTEXT_ITEM_KIND && item_type == USER_CONTEXT_NODE_TYPE
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        vec![processor_context_creatable_item(false)]
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        create_processor_context_item(node_type)
+    }
+
     fn init(&mut self, ctx: &mut ProcessCtx) {
         initialize_processor_item(self);
         self.sync_formula_source_key();

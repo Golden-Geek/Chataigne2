@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import Slider from 'golden_ui/components/common/Slider.svelte';
 	import {
 		GraphCanvas,
@@ -36,6 +37,8 @@
 
 	interface SpatializerEditorPersistedState {
 		camera?: GraphCamera;
+		debugView?: boolean;
+		spatialUnitRem?: number;
 	}
 
 	type EndpointKind = 'source' | 'target';
@@ -87,14 +90,38 @@
 		source: SpatialEndpoint;
 		target: SpatialEndpoint;
 		weight: number;
+		role: 'current' | 'neighbor' | 'frozen' | 'direct';
 	}
 
 	interface DebugVoronoiGuide {
 		key: string;
+		source: SpatialEndpoint;
 		current: SpatialEndpoint;
 		neighbor: SpatialEndpoint;
-		freezePoint: Point2 | null;
-		boundaryPoint: Point2;
+		edgeStart: Point2;
+		edgeEnd: Point2;
+		closestPoint: Point2;
+		neighborMeasurePoint: Point2;
+		edgeDistance: number;
+		neighborDistance: number;
+		weight: number;
+	}
+
+	interface DebugVoronoiComputation {
+		key: string;
+		source: SpatialEndpoint;
+		current: SpatialEndpoint | null;
+		frozenTargets: SpatialEndpoint[];
+		cellPoints: Point2[];
+		guides: DebugVoronoiGuide[];
+	}
+
+	interface DeadzoneHole {
+		key: string;
+		x: number;
+		y: number;
+		radius: number;
+		color: string;
 	}
 
 	type DragGesture =
@@ -141,10 +168,19 @@
 	const VALUE_LAYOUT_SOURCE_CENTRIC: ValueLayout = 'sourceCentric';
 	const VALUE_LAYOUT_TARGET_CENTRIC: ValueLayout = 'targetCentric';
 	const MODE_VORONOI = 'voronoi';
+	const MODE_TARGET_RADIUS = 'targetRadius';
+	const MODE_SOURCE_RADIUS = 'sourceRadius';
+	const MODE_OVERLAP = 'overlap';
+	const VORONOI_TIE_EPSILON = 1.0e-9;
+	const VORONOI_EDGE_EPSILON = 1.0e-6;
+	const DEBUG_WEIGHT_EPSILON = 0.000001;
+	const HIGHLIGHT_FADE_MS = 220;
 	const CAMERA_PERSIST_DELAY_MS = 150;
-	const DEFAULT_BOUNDS: GraphWorldBounds = { left: -10, top: -10, right: 10, bottom: 10 };
-	const TARGET_ZONE_PADDING_REM = 10;
-	const ENDPOINT_BOUNDS_PADDING_REM = 6;
+	const SPATIALIZER_UNIT_REM = 4;
+	const SPATIALIZER_MIN_ZOOM = 0.05;
+	const DEFAULT_SPATIAL_BOUNDS: GraphWorldBounds = { left: -5, top: -5, right: 5, bottom: 5 };
+	const TARGET_ZONE_PADDING_UNITS = 1;
+	const ENDPOINT_BOUNDS_PADDING_UNITS = 1;
 	const MIN_INSPECTOR_WIDTH = 160;
 	const MAX_INSPECTOR_WIDTH = 520;
 	const DEFAULT_INSPECTOR_WIDTH = 272;
@@ -172,6 +208,9 @@
 		updatedPanelState = next;
 	};
 
+	const persistedDebugView = (params: PanelState['params']): boolean =>
+		readPanelPersistedState<SpatializerEditorPersistedState>(params).debugView === true;
+
 	let panelRoot: HTMLElement | null = $state(null);
 	let worldSvg: SVGSVGElement | null = $state(null);
 	let graphCanvas: {
@@ -186,6 +225,7 @@
 	let radiusPreviews = $state<Record<string, number>>({});
 	let freezeRadiusPreviews = $state<Record<string, number>>({});
 	let debugView = $state(false);
+	let appliedPersistedDebugView = $state(false);
 	let inspectorVisible = $state(true);
 	let inspectorWidth = $state(DEFAULT_INSPECTOR_WIDTH);
 	let pendingCamera: GraphCamera | null = null;
@@ -215,9 +255,22 @@
 		Math.abs(left.y - right.y) < 0.0001 &&
 		Math.abs(left.zoom - right.zoom) < 0.0001;
 
-	let initialCamera = $derived.by(() =>
-		graphCamera(readPanelPersistedState<SpatializerEditorPersistedState>(panelState.params).camera)
-	);
+	const persistedCameraForScale = (params: PanelState['params']): GraphCamera | undefined => {
+		const persisted = readPanelPersistedState<SpatializerEditorPersistedState>(params);
+		return persisted.spatialUnitRem === SPATIALIZER_UNIT_REM
+			? graphCamera(persisted.camera)
+			: undefined;
+	};
+
+	let initialCamera = $derived.by(() => persistedCameraForScale(panelState.params));
+
+	$effect(() => {
+		const persisted = persistedDebugView(panelState.params);
+		if (persisted !== appliedPersistedDebugView) {
+			appliedPersistedDebugView = persisted;
+			debugView = persisted;
+		}
+	});
 
 	const declLast = (declId: string): string => {
 		const slash = declId.lastIndexOf('/');
@@ -280,6 +333,13 @@
 		node?.data.kind === 'parameter' && node.data.param.value.kind === 'enum'
 			? node.data.param.value.value
 			: '';
+
+	const enumToken = (value: string): string => value.trim().toLowerCase().replace(/[\s_-]/g, '');
+
+	const valueLayoutFromEnum = (value: string): ValueLayout =>
+		enumToken(value) === 'targetcentric'
+			? VALUE_LAYOUT_TARGET_CENTRIC
+			: VALUE_LAYOUT_SOURCE_CENTRIC;
 
 	const enumLabel = (node: UiNodeDto | null): string => {
 		if (node?.data.kind !== 'parameter' || node.data.param.value.kind !== 'enum') {
@@ -403,12 +463,7 @@
 	let targetList = $derived(childByType(parametersFolder, TARGET_LIST_TYPE));
 	let dimensionMode = $derived(enumValue(dimensionsParam) || '2d');
 	let spatializerMode = $derived(enumValue(modeParam) || MODE_VORONOI);
-	let valueLayout = $derived.by(
-		(): ValueLayout =>
-			enumValue(valueLayoutParam) === VALUE_LAYOUT_TARGET_CENTRIC
-				? VALUE_LAYOUT_TARGET_CENTRIC
-				: VALUE_LAYOUT_SOURCE_CENTRIC
-	);
+	let valueLayout = $derived.by((): ValueLayout => valueLayoutFromEnum(enumValue(valueLayoutParam)));
 	let prefer3d = $derived(dimensionMode === '3d');
 
 	let rawEndpoints = $derived.by((): SpatialEndpoint[] => {
@@ -506,65 +561,11 @@
 		return best;
 	};
 
-	let debugConnections = $derived.by((): DebugConnection[] => {
-		if (!debugView || !selectedEndpoint) {
-			return [];
-		}
-		if (selectedEndpoint.kind === 'source') {
-			return relatedValues.map((item) => ({
-				key: item.key,
-				source: selectedEndpoint,
-				target: item.endpoint,
-				weight: relatedValueAmount(item.valueParam)
-			}));
-		}
-		return relatedValues.map((item) => ({
-			key: item.key,
-			source: item.endpoint,
-			target: selectedEndpoint,
-			weight: relatedValueAmount(item.valueParam)
-		}));
-	});
-
-	let debugVoronoiGuides = $derived.by((): DebugVoronoiGuide[] => {
-		if (!debugView || spatializerMode !== MODE_VORONOI || !selectedEndpoint) {
-			return [];
-		}
-		const current =
-			selectedEndpoint.kind === 'target' ? selectedEndpoint : nearestTargetTo(selectedEndpoint);
-		if (!current) {
-			return [];
-		}
-		return enabledTargets.flatMap((neighbor) => {
-			if (neighbor.key === current.key) {
-				return [];
-			}
-			const distance = endpointDistance(current, neighbor);
-			if (!Number.isFinite(distance) || distance <= 0.000001) {
-				return [];
-			}
-			const freezeRadius = Math.max(0, current.freezeRadius ?? 0);
-			const freezeFraction = Math.min(0.5, freezeRadius / distance);
-			return [
-				{
-					key: `${current.key}:${neighbor.key}`,
-					current,
-					neighbor,
-					freezePoint: freezeFraction > 0 ? pointBetween(current, neighbor, freezeFraction) : null,
-					boundaryPoint: pointBetween(current, neighbor, 0.5)
-				}
-			];
-		});
-	});
-
 	let spatialWorldBounds = $derived.by((): GraphWorldBounds => {
-		if (endpoints.length === 0) {
-			return DEFAULT_BOUNDS;
-		}
-		let left = Infinity;
-		let top = Infinity;
-		let right = -Infinity;
-		let bottom = -Infinity;
+		let left = DEFAULT_SPATIAL_BOUNDS.left;
+		let top = DEFAULT_SPATIAL_BOUNDS.top;
+		let right = DEFAULT_SPATIAL_BOUNDS.right;
+		let bottom = DEFAULT_SPATIAL_BOUNDS.bottom;
 		for (const endpoint of endpoints) {
 			const radius = Math.max(endpoint.radius ?? 0, endpoint.freezeRadius ?? 0);
 			left = Math.min(left, endpoint.x - radius);
@@ -573,12 +574,21 @@
 			bottom = Math.max(bottom, endpoint.y + radius);
 		}
 		return {
-			left: left - ENDPOINT_BOUNDS_PADDING_REM,
-			top: top - ENDPOINT_BOUNDS_PADDING_REM,
-			right: right + ENDPOINT_BOUNDS_PADDING_REM,
-			bottom: bottom + ENDPOINT_BOUNDS_PADDING_REM
+			left: left - ENDPOINT_BOUNDS_PADDING_UNITS,
+			top: top - ENDPOINT_BOUNDS_PADDING_UNITS,
+			right: right + ENDPOINT_BOUNDS_PADDING_UNITS,
+			bottom: bottom + ENDPOINT_BOUNDS_PADDING_UNITS
 		};
 	});
+
+	const spatialBoundsToGraphBounds = (bounds: GraphWorldBounds): GraphWorldBounds => ({
+		left: bounds.left * SPATIALIZER_UNIT_REM,
+		top: bounds.top * SPATIALIZER_UNIT_REM,
+		right: bounds.right * SPATIALIZER_UNIT_REM,
+		bottom: bounds.bottom * SPATIALIZER_UNIT_REM
+	});
+
+	let graphWorldBounds = $derived(spatialBoundsToGraphBounds(spatialWorldBounds));
 
 	const rectanglePolygon = (bounds: GraphWorldBounds): Point2[] => [
 		{ x: bounds.left, y: bounds.top },
@@ -587,22 +597,28 @@
 		{ x: bounds.left, y: bounds.bottom }
 	];
 
+	const closerHalfPlaneValue = (point: Point2, site: Point2, other: Point2): number => {
+		const dx = other.x - site.x;
+		const dy = other.y - site.y;
+		return (
+			2 * (dx * point.x + dy * point.y) -
+			(other.x * other.x + other.y * other.y - site.x * site.x - site.y * site.y)
+		);
+	};
+
 	const clipVoronoiCell = (polygon: Point2[], target: Point2, other: Point2): Point2[] => {
 		const dx = other.x - target.x;
 		const dy = other.y - target.y;
-		if (Math.hypot(dx, dy) < 0.000001) {
+		if (Math.hypot(dx, dy) < VORONOI_EDGE_EPSILON) {
 			return polygon;
 		}
-		const a = 2 * dx;
-		const b = 2 * dy;
-		const c = other.x * other.x + other.y * other.y - target.x * target.x - target.y * target.y;
-		const valueAt = (point: Point2): number => a * point.x + b * point.y - c;
-		const inside = (point: Point2): boolean => valueAt(point) <= 0.000001;
+		const valueAt = (point: Point2): number => closerHalfPlaneValue(point, target, other);
+		const inside = (point: Point2): boolean => valueAt(point) <= VORONOI_TIE_EPSILON;
 		const intersect = (start: Point2, end: Point2): Point2 => {
 			const startValue = valueAt(start);
 			const endValue = valueAt(end);
 			const denominator = startValue - endValue;
-			if (Math.abs(denominator) < 0.000001) {
+			if (Math.abs(denominator) <= VORONOI_TIE_EPSILON) {
 				return end;
 			}
 			const t = Math.min(1, Math.max(0, startValue / denominator));
@@ -630,16 +646,224 @@
 		return result;
 	};
 
-	let voronoiCells = $derived.by((): VoronoiCell[] => {
+	const voronoiBoundsForSource = (source: SpatialEndpoint): GraphWorldBounds => {
+		let left = source.x;
+		let right = source.x;
+		let top = source.y;
+		let bottom = source.y;
+		for (const target of enabledTargets) {
+			left = Math.min(left, target.x);
+			right = Math.max(right, target.x);
+			top = Math.min(top, target.y);
+			bottom = Math.max(bottom, target.y);
+		}
+		const padding = Math.max(Math.abs(right - left), Math.abs(bottom - top), 1) * 4;
+		return {
+			left: left - padding,
+			top: top - padding,
+			right: right + padding,
+			bottom: bottom + padding
+		};
+	};
+
+	const voronoiCellPolygon = (target: SpatialEndpoint, bounds: GraphWorldBounds): Point2[] => {
+		let polygon = rectanglePolygon(bounds);
+		for (const other of enabledTargets) {
+			if (other.key === target.key) {
+				continue;
+			}
+			polygon = clipVoronoiCell(polygon, target, other);
+			if (polygon.length < 3) {
+				break;
+			}
+		}
+		return polygon;
+	};
+
+	const distancesTie = (left: number, right: number): boolean =>
+		Number.isFinite(left) &&
+		Number.isFinite(right) &&
+		Math.abs(left - right) <= VORONOI_TIE_EPSILON;
+
+	const targetWeightForSource = (target: SpatialEndpoint, source: SpatialEndpoint): number =>
+		relatedValueAmount(valueParameterForPair(target, source));
+
+	const sourceWeightTotal = (source: SpatialEndpoint): number =>
+		targets.reduce((total, target) => total + targetWeightForSource(target, source), 0);
+
+	const activeRadiusForTarget = (source: SpatialEndpoint, target: SpatialEndpoint): number => {
+		if (spatializerMode === MODE_TARGET_RADIUS) {
+			return Math.max(0, target.radius ?? 0);
+		}
+		if (spatializerMode === MODE_SOURCE_RADIUS) {
+			return Math.max(0, source.radius ?? 0);
+		}
+		if (spatializerMode === MODE_OVERLAP) {
+			return Math.max(0, source.radius ?? 0) + Math.max(0, target.radius ?? 0);
+		}
+		return 0;
+	};
+
+	const deadzoneHolesForSource = (source: SpatialEndpoint): DeadzoneHole[] =>
+		enabledTargets.flatMap((target) => {
+			const radius = activeRadiusForTarget(source, target);
+			return radius > 0
+				? [{ key: target.key, x: target.x, y: target.y, radius, color: target.color }]
+				: [];
+		});
+
+	const selectedDeadzoneSource = (): SpatialEndpoint | null =>
+		selectedEndpoint?.kind === 'source' &&
+		selectedEndpoint.enabled &&
+		spatializerMode !== MODE_VORONOI &&
+		sourceWeightTotal(selectedEndpoint) <= DEBUG_WEIGHT_EPSILON
+			? selectedEndpoint
+			: null;
+
+	const selectedVoronoiDeadzoneSource = (): SpatialEndpoint | null =>
+		selectedEndpoint?.kind === 'source' &&
+		selectedEndpoint.enabled &&
+		spatializerMode === MODE_VORONOI &&
+		frozenTargetsForSource(selectedEndpoint).length > 0
+			? selectedEndpoint
+			: null;
+
+	const highlightedVoronoiCell = (cell: VoronoiCell): boolean => {
+		if (!selectedEndpoint || spatializerMode !== MODE_VORONOI) {
+			return false;
+		}
+		if (selectedEndpoint.kind === 'target') {
+			return cell.key === selectedEndpoint.key;
+		}
+		return nearestTargetTo(selectedEndpoint)?.key === cell.key;
+	};
+
+	const frozenTargetsForSource = (source: SpatialEndpoint): SpatialEndpoint[] => {
+		const frozenDistances = enabledTargets.flatMap((target) => {
+			const freezeRadius = Math.max(0, target.freezeRadius ?? 0);
+			const distance = endpointDistance(source, target);
+			return distance <= freezeRadius + VORONOI_TIE_EPSILON ? [distance] : [];
+		});
+		const frozenDistance = frozenDistances.reduce(
+			(best, distance) => Math.min(best, distance),
+			Infinity
+		);
+		if (!Number.isFinite(frozenDistance)) {
+			return [];
+		}
+		return enabledTargets.filter((target) => distancesTie(endpointDistance(source, target), frozenDistance));
+	};
+
+	const closestPointOnSegment = (point: Point2, start: Point2, end: Point2): Point2 => {
+		const dx = end.x - start.x;
+		const dy = end.y - start.y;
+		const lengthSquared = dx * dx + dy * dy;
+		if (lengthSquared <= VORONOI_TIE_EPSILON) {
+			return start;
+		}
+		const t = Math.min(
+			1,
+			Math.max(0, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared)
+		);
+		return { x: start.x + dx * t, y: start.y + dy * t };
+	};
+
+	const closestCellEdgeForNeighbor = (
+		source: SpatialEndpoint,
+		current: SpatialEndpoint,
+		neighbor: SpatialEndpoint,
+		cell: Point2[]
+	): Omit<DebugVoronoiGuide, 'key' | 'source' | 'current' | 'neighbor' | 'weight'> | null => {
+		let best:
+			| {
+					edgeStart: Point2;
+					edgeEnd: Point2;
+					closestPoint: Point2;
+					neighborMeasurePoint: Point2;
+					edgeDistance: number;
+					neighborDistance: number;
+			  }
+			| null = null;
+		for (let edgeIndex = 0; edgeIndex < cell.length; edgeIndex += 1) {
+			const edgeStart = cell[edgeIndex];
+			const edgeEnd = cell[(edgeIndex + 1) % cell.length];
+			const startValue = Math.abs(closerHalfPlaneValue(edgeStart, current, neighbor));
+			const endValue = Math.abs(closerHalfPlaneValue(edgeEnd, current, neighbor));
+			if (startValue > VORONOI_EDGE_EPSILON || endValue > VORONOI_EDGE_EPSILON) {
+				continue;
+			}
+			const closestPoint = closestPointOnSegment(source, edgeStart, edgeEnd);
+			const edgeDistance = Math.hypot(closestPoint.x - source.x, closestPoint.y - source.y);
+			if (best && edgeDistance >= best.edgeDistance) {
+				continue;
+			}
+			const rawNeighborDistance = Math.hypot(
+				closestPoint.x - neighbor.x,
+				closestPoint.y - neighbor.y
+			);
+			const neighborDistance = Math.max(
+				0,
+				rawNeighborDistance - Math.max(0, neighbor.freezeRadius ?? 0)
+			);
+			const neighborFraction =
+				rawNeighborDistance <= VORONOI_TIE_EPSILON ? 0 : neighborDistance / rawNeighborDistance;
+			const neighborMeasurePoint = pointBetween(closestPoint, neighbor, neighborFraction);
+			best = {
+				edgeStart,
+				edgeEnd,
+				closestPoint,
+				neighborMeasurePoint,
+				edgeDistance,
+				neighborDistance
+			};
+		}
+		return best;
+	};
+
+	const voronoiViewBounds = (world: GraphWorldContentContext): GraphWorldBounds => {
+		const zoom = Math.max(0.000001, world.camera.zoom);
+		const left = -world.camera.x / zoom / world.remPx / SPATIALIZER_UNIT_REM;
+		const top = -world.camera.y / zoom / world.remPx / SPATIALIZER_UNIT_REM;
+		const right =
+			(world.viewportWidth - world.camera.x) / zoom / world.remPx / SPATIALIZER_UNIT_REM;
+		const bottom =
+			(world.viewportHeight - world.camera.y) / zoom / world.remPx / SPATIALIZER_UNIT_REM;
+		return {
+			left: left - TARGET_ZONE_PADDING_UNITS,
+			top: top - TARGET_ZONE_PADDING_UNITS,
+			right: right + TARGET_ZONE_PADDING_UNITS,
+			bottom: bottom + TARGET_ZONE_PADDING_UNITS
+		};
+	};
+
+	const deadzonePath = (
+		bounds: GraphWorldBounds,
+		holes: DeadzoneHole[],
+		world: GraphWorldContentContext
+	): string => {
+		const left = pointPx(bounds.left, world);
+		const top = pointPx(bounds.top, world);
+		const right = pointPx(bounds.right, world);
+		const bottom = pointPx(bounds.bottom, world);
+		const rect = `M ${left} ${top} H ${right} V ${bottom} H ${left} Z`;
+		const circles = holes
+			.map((hole) => {
+				const radius = pointPx(Math.max(0, hole.radius), world);
+				const x = pointPx(hole.x, world);
+				const y = pointPx(hole.y, world);
+				return radius > 0
+					? `M ${x - radius} ${y} a ${radius} ${radius} 0 1 0 ${radius * 2} 0 a ${radius} ${radius} 0 1 0 ${-radius * 2} 0`
+					: '';
+			})
+			.filter(Boolean)
+			.join(' ');
+		return `${rect} ${circles}`;
+	};
+
+	const voronoiCellsForBounds = (bounds: GraphWorldBounds): VoronoiCell[] => {
 		if (spatializerMode !== MODE_VORONOI || enabledTargets.length === 0) {
 			return [];
 		}
-		const bounds = {
-			left: spatialWorldBounds.left - TARGET_ZONE_PADDING_REM,
-			top: spatialWorldBounds.top - TARGET_ZONE_PADDING_REM,
-			right: spatialWorldBounds.right + TARGET_ZONE_PADDING_REM,
-			bottom: spatialWorldBounds.bottom + TARGET_ZONE_PADDING_REM
-		};
 		return enabledTargets.flatMap((target) => {
 			let polygon = rectanglePolygon(bounds);
 			for (const other of enabledTargets) {
@@ -653,6 +877,144 @@
 			}
 			return polygon.length > 0 ? [{ key: target.key, color: target.color, points: polygon }] : [];
 		});
+	};
+
+	const debugSources = (): SpatialEndpoint[] => {
+		if (!debugView || spatializerMode !== MODE_VORONOI || !selectedEndpoint) {
+			return [];
+		}
+		if (selectedEndpoint.kind === 'source') {
+			return selectedEndpoint.enabled ? [selectedEndpoint] : [];
+		}
+		return sources.filter((source) => source.enabled);
+	};
+
+	const debugVoronoiComputationForSource = (
+		source: SpatialEndpoint
+	): DebugVoronoiComputation | null => {
+		const frozenTargets = frozenTargetsForSource(source);
+		const current = nearestTargetTo(source);
+		if (!current) {
+			return null;
+		}
+		const bounds = voronoiBoundsForSource(source);
+		const cellPoints = voronoiCellPolygon(current, bounds);
+		const guides =
+			cellPoints.length < 3
+				? []
+				: enabledTargets.flatMap((neighbor) => {
+						if (neighbor.key === current.key) {
+							return [];
+						}
+						const edge = closestCellEdgeForNeighbor(source, current, neighbor, cellPoints);
+						if (!edge) {
+							return [];
+						}
+						return [
+							{
+								key: `${source.key}:${current.key}:${neighbor.key}`,
+								source,
+								current,
+								neighbor,
+								weight: targetWeightForSource(neighbor, source),
+								...edge
+							}
+						];
+					});
+		return {
+			key: source.key,
+			source,
+			current,
+			frozenTargets,
+			cellPoints,
+			guides
+		};
+	};
+
+	const computationIncludesTarget = (
+		computation: DebugVoronoiComputation,
+		target: SpatialEndpoint
+	): boolean =>
+		computation.current?.key === target.key ||
+		computation.frozenTargets.some((frozenTarget) => frozenTarget.key === target.key) ||
+		computation.guides.some((guide) => guide.neighbor.key === target.key);
+
+	let debugVoronoiComputations = $derived.by((): DebugVoronoiComputation[] =>
+		debugSources().flatMap((source) => {
+			const computation = debugVoronoiComputationForSource(source);
+			if (!computation) {
+				return [];
+			}
+			if (selectedEndpoint?.kind === 'target' && !computationIncludesTarget(computation, selectedEndpoint)) {
+				return [];
+			}
+			return [computation];
+		})
+	);
+
+	let debugVoronoiGuides = $derived.by((): DebugVoronoiGuide[] =>
+		debugVoronoiComputations.flatMap((computation) => computation.guides)
+	);
+
+	let debugConnections = $derived.by((): DebugConnection[] => {
+		if (!debugView || !selectedEndpoint) {
+			return [];
+		}
+		if (spatializerMode === MODE_VORONOI) {
+			return debugVoronoiComputations.flatMap((computation): DebugConnection[] => {
+				if (computation.frozenTargets.length > 0) {
+					return computation.frozenTargets.map((target): DebugConnection => ({
+						key: `${computation.source.key}:${target.key}:frozen`,
+						source: computation.source,
+						target,
+						weight: targetWeightForSource(target, computation.source),
+						role: 'frozen' as const
+					}));
+				}
+				const currentConnections: DebugConnection[] =
+					computation.current
+						? [
+								{
+									key: `${computation.source.key}:${computation.current.key}:current`,
+									source: computation.source,
+									target: computation.current,
+									weight: targetWeightForSource(computation.current, computation.source),
+									role: 'current' as const
+								}
+							]
+						: [];
+				const neighborConnections: DebugConnection[] = computation.guides.flatMap((guide): DebugConnection[] =>
+					[
+						{
+							key: `${guide.source.key}:${guide.neighbor.key}:neighbor`,
+							source: guide.source,
+							target: guide.neighbor,
+							weight: guide.weight,
+							role: 'neighbor' as const
+						}
+					]
+				);
+				return [...currentConnections, ...neighborConnections];
+			});
+		}
+		if (selectedEndpoint.kind === 'source') {
+			return relatedValues
+				.map((item) => ({
+					key: item.key,
+					source: selectedEndpoint,
+					target: item.endpoint,
+					weight: relatedValueAmount(item.valueParam),
+					role: 'direct' as const
+				}));
+		}
+		return relatedValues
+			.map((item) => ({
+				key: item.key,
+				source: item.endpoint,
+				target: selectedEndpoint,
+				weight: relatedValueAmount(item.valueParam),
+				role: 'direct' as const
+			}));
 	});
 
 	$effect(() => {
@@ -730,13 +1092,14 @@
 		if (!nextCamera) {
 			return;
 		}
-		const currentCamera = graphCamera(
-			readPanelPersistedState<SpatializerEditorPersistedState>(props.panelApi.getParams()).camera
-		);
+		const currentCamera = persistedCameraForScale(props.panelApi.getParams());
 		if (camerasMatch(currentCamera, nextCamera)) {
 			return;
 		}
-		writePanelPersistedState(props.panelApi, { camera: nextCamera });
+		writePanelPersistedState(props.panelApi, {
+			camera: nextCamera,
+			spatialUnitRem: SPATIALIZER_UNIT_REM
+		});
 	};
 
 	const persistCamera = (camera: GraphCamera): void => {
@@ -745,6 +1108,13 @@
 			clearTimeout(cameraPersistenceTimer);
 		}
 		cameraPersistenceTimer = setTimeout(flushCameraPersistence, CAMERA_PERSIST_DELAY_MS);
+	};
+
+	const setDebugView = (event: Event): void => {
+		const enabled = (event.currentTarget as HTMLInputElement).checked;
+		debugView = enabled;
+		appliedPersistedDebugView = enabled;
+		writePanelPersistedState(props.panelApi, { debugView: enabled });
 	};
 
 	const selectModule = (event: Event): void => {
@@ -766,10 +1136,10 @@
 		const startX = event.clientX;
 		const startWidth = inspectorWidth;
 		const handle = event.currentTarget as HTMLElement;
-		handle.setPointerCapture(event.pointerId);
-		handle.onpointermove = (moveEvent) => {
-			inspectorWidth = clampInspectorWidth(startWidth + startX - moveEvent.clientX);
-		};
+	handle.setPointerCapture(event.pointerId);
+	handle.onpointermove = (moveEvent) => {
+		inspectorWidth = clampInspectorWidth(startWidth + moveEvent.clientX - startX);
+	};
 		handle.onpointerup = handle.onpointercancel = (endEvent) => {
 			if (handle.hasPointerCapture(endEvent.pointerId)) {
 				handle.releasePointerCapture(endEvent.pointerId);
@@ -785,7 +1155,12 @@
 		value
 	});
 
-	const targetPositionValue = (position: GraphNodePosition): ParamValue =>
+	const graphPositionToSpatialPosition = (position: GraphNodePosition): Point2 => ({
+		x: position.x / SPATIALIZER_UNIT_REM,
+		y: position.y / SPATIALIZER_UNIT_REM
+	});
+
+	const targetPositionValue = (position: Point2): ParamValue =>
 		prefer3d
 			? { kind: 'vec3', value: [position.x, 0, position.y] }
 			: { kind: 'vec2', value: [position.x, position.y] };
@@ -801,6 +1176,7 @@
 		event.preventDefault();
 		event.stopPropagation();
 		graphCanvas?.focus();
+		const spatialPosition = graphPositionToSpatialPosition(position);
 		const result = await sendCreateUserItemByTypeIntent(
 			targetList.node_id,
 			item.node_type,
@@ -811,7 +1187,7 @@
 					...(item.initial_params ?? []),
 					initialParam(
 						prefer3d ? POSITION_3D_DECL_ID : POSITION_2D_DECL_ID,
-						targetPositionValue(position)
+						targetPositionValue(spatialPosition)
 					)
 				]
 			}
@@ -819,11 +1195,6 @@
 		if (result.selectWhenCreated && result.createdNodeId !== null) {
 			session?.selectNode(result.createdNodeId, 'REPLACE');
 		}
-	};
-
-	const numberFromEvent = (event: Event): number | null => {
-		const value = (event.currentTarget as HTMLInputElement).valueAsNumber;
-		return Number.isFinite(value) ? value : null;
 	};
 
 	const clearPositionPreview = (key: string): void => {
@@ -925,35 +1296,10 @@
 			});
 	};
 
-	const updateEndpointAxis = (endpoint: SpatialEndpoint, axis: 'x' | 'y', event: Event): void => {
-		const value = numberFromEvent(event);
-		if (value === null) {
-			return;
-		}
-		void setEndpointPosition(endpoint, {
-			x: axis === 'x' ? value : endpoint.x,
-			y: axis === 'y' ? value : endpoint.y
-		});
-	};
-
-	const updateEndpointRadius = (endpoint: SpatialEndpoint, event: Event): void => {
-		const value = numberFromEvent(event);
-		if (value === null) {
-			return;
-		}
-		void setEndpointRadius(endpoint, value);
-	};
-
-	const updateEndpointFreezeRadius = (endpoint: SpatialEndpoint, event: Event): void => {
-		const value = numberFromEvent(event);
-		if (value === null) {
-			return;
-		}
-		void setEndpointFreezeRadius(endpoint, value);
-	};
-
 	const pointerWorld = (event: PointerEvent): Point2 =>
-		graphCanvas?.clientToWorld(event.clientX, event.clientY) ?? { x: 0, y: 0 };
+		graphPositionToSpatialPosition(
+			graphCanvas?.clientToWorld(event.clientX, event.clientY) ?? { x: 0, y: 0 }
+		);
 
 	const dragEditSession = (
 		endpoint: SpatialEndpoint,
@@ -1169,9 +1515,6 @@
 	const isSelected = (endpoint: SpatialEndpoint): boolean =>
 		session?.selectedNodeId === endpoint.node.node_id;
 
-	const coordinateLabel = (endpoint: SpatialEndpoint | null): string =>
-		endpoint?.positionKind === 'vec3' ? 'Z' : 'Y';
-
 	const endpointKindLabel = (endpoint: SpatialEndpoint): string =>
 		endpoint.kind === 'source' ? 'Source' : 'Target';
 
@@ -1180,44 +1523,38 @@
 
 	const relatedValueAmount = (node: UiNodeDto | null): number => clamp01(floatValue(node));
 
-	const debugLineOpacity = (weight: number): number => 0.18 + clamp01(weight) * 0.72;
+	const debugLineOpacity = (weight: number): number =>
+		weight <= DEBUG_WEIGHT_EPSILON ? 0.055 : 0.16 + clamp01(weight) * 0.74;
+
+	const screenPx = (value: number, world: GraphWorldContentContext): number =>
+		(value * world.remPx) / Math.max(0.000001, world.camera.zoom);
+
+	const dashArray = (world: GraphWorldContentContext, ...values: number[]): string =>
+		values.map((value) => `${screenPx(value, world)}`).join(' ');
+
+	const debugConnectionDashArray = (
+		role: DebugConnection['role'],
+		world: GraphWorldContentContext
+	): string | undefined => {
+		if (role === 'neighbor') {
+			return dashArray(world, 0.36, 0.2);
+		}
+		if (role === 'frozen') {
+			return dashArray(world, 0.12, 0.14);
+		}
+		return undefined;
+	};
 
 	const debugLineWidth = (weight: number, world: GraphWorldContentContext): number =>
-		(0.045 + clamp01(weight) * 0.16) * world.remPx;
+		screenPx(0.035 + clamp01(weight) * 0.17, world);
 
 	const debugWeightLabel = (weight: number): string => `${Math.round(clamp01(weight) * 100)}%`;
 
-	const debugTickStart = (
-		point: Point2,
-		start: SpatialEndpoint,
-		end: SpatialEndpoint,
-		size: number
-	): Point2 => {
-		const dx = end.x - start.x;
-		const dy = end.y - start.y;
-		const length = Math.hypot(dx, dy);
-		if (length <= 0.000001) {
-			return point;
-		}
-		return { x: point.x + (dy / length) * size, y: point.y - (dx / length) * size };
-	};
+	const debugDistanceLabel = (distance: number): string =>
+		Number.isFinite(distance) ? `d ${distance < 10 ? distance.toFixed(2) : distance.toFixed(1)}` : '';
 
-	const debugTickEnd = (
-		point: Point2,
-		start: SpatialEndpoint,
-		end: SpatialEndpoint,
-		size: number
-	): Point2 => {
-		const dx = end.x - start.x;
-		const dy = end.y - start.y;
-		const length = Math.hypot(dx, dy);
-		if (length <= 0.000001) {
-			return point;
-		}
-		return { x: point.x - (dy / length) * size, y: point.y + (dx / length) * size };
-	};
-
-	const pointPx = (value: number, world: GraphWorldContentContext): number => value * world.remPx;
+	const pointPx = (value: number, world: GraphWorldContentContext): number =>
+		value * SPATIALIZER_UNIT_REM * world.remPx;
 
 	const polygonPoints = (points: Point2[], world: GraphWorldContentContext): string =>
 		points.map((point) => `${pointPx(point.x, world)},${pointPx(point.y, world)}`).join(' ');
@@ -1250,100 +1587,158 @@
 		onpointermove={handleWorldPointerMove}
 		onpointerup={finishWorldPointer}
 		onpointercancel={cancelWorldPointer}>
-		{#each voronoiCells as cell (cell.key)}
+		{#each voronoiCellsForBounds(voronoiViewBounds(world)) as cell (cell.key)}
 			<polygon
 				class="voronoi-cell"
+				class:highlighted={highlightedVoronoiCell(cell)}
 				points={polygonPoints(cell.points, world)}
 				fill={cell.color}
 				stroke={cell.color}
-				stroke-width={0.04 * world.remPx} />
+				stroke-width={screenPx(0.04, world)} />
 		{/each}
+
+		{#if selectedDeadzoneSource()}
+			{@const deadzoneSource = selectedDeadzoneSource()}
+			{@const deadzoneBounds = voronoiViewBounds(world)}
+			{@const deadzoneHoles = deadzoneSource ? deadzoneHolesForSource(deadzoneSource) : []}
+			<path
+				class="deadzone-highlight"
+				d={deadzonePath(deadzoneBounds, deadzoneHoles, world)}
+				fill={deadzoneSource?.color ?? 'currentColor'}
+				fill-rule="evenodd"
+				transition:fade={{ duration: HIGHLIGHT_FADE_MS }} />
+			{#each deadzoneHoles as hole (hole.key)}
+				<circle
+					class="deadzone-hole-edge"
+					cx={pointPx(hole.x, world)}
+					cy={pointPx(hole.y, world)}
+					r={pointPx(hole.radius, world)}
+					stroke={hole.color}
+					stroke-width={screenPx(0.06, world)}
+					stroke-dasharray={dashArray(world, 0.38, 0.22)}
+					transition:fade={{ duration: HIGHLIGHT_FADE_MS }} />
+				{/each}
+		{/if}
+
+		{#if selectedVoronoiDeadzoneSource()}
+			{@const voronoiDeadzoneSource = selectedVoronoiDeadzoneSource()}
+			{@const frozenTargets = voronoiDeadzoneSource ? frozenTargetsForSource(voronoiDeadzoneSource) : []}
+			{#each frozenTargets as target (target.key)}
+				{#if target.freezeRadius !== null && target.freezeRadius > 0}
+					<circle
+						class="deadzone-freeze-highlight"
+						cx={pointPx(target.x, world)}
+						cy={pointPx(target.y, world)}
+						r={pointPx(target.freezeRadius, world)}
+						fill={target.color}
+						stroke={target.color}
+						stroke-width={screenPx(0.08, world)}
+						stroke-dasharray={dashArray(world, 0.34, 0.2)}
+						transition:fade={{ duration: HIGHLIGHT_FADE_MS }} />
+				{/if}
+			{/each}
+		{/if}
 
 		{#if debugView && selectedEndpoint}
 			<g class="debug-layer" aria-hidden="true">
-				{#each debugVoronoiGuides as guide (guide.key)}
-					{@const boundaryStart = debugTickStart(
-						guide.boundaryPoint,
-						guide.current,
-						guide.neighbor,
-						0.46
-					)}
-					{@const boundaryEnd = debugTickEnd(
-						guide.boundaryPoint,
-						guide.current,
-						guide.neighbor,
-						0.46
-					)}
-					<line
-						class="debug-voronoi-axis"
-						x1={pointPx(guide.current.x, world)}
-						y1={pointPx(guide.current.y, world)}
-						x2={pointPx(guide.neighbor.x, world)}
-						y2={pointPx(guide.neighbor.y, world)}
-						stroke={guide.current.color}
-						stroke-width={0.035 * world.remPx} />
-					<line
-						class="debug-boundary-tick"
-						x1={pointPx(boundaryStart.x, world)}
-						y1={pointPx(boundaryStart.y, world)}
-						x2={pointPx(boundaryEnd.x, world)}
-						y2={pointPx(boundaryEnd.y, world)}
-						stroke={guide.neighbor.color}
-						stroke-width={0.08 * world.remPx} />
-					<circle
-						class="debug-boundary-dot"
-						cx={pointPx(guide.boundaryPoint.x, world)}
-						cy={pointPx(guide.boundaryPoint.y, world)}
-						r={0.13 * world.remPx}
-						fill={guide.neighbor.color} />
-					{#if guide.freezePoint}
-						{@const freezeStart = debugTickStart(
-							guide.freezePoint,
-							guide.current,
-							guide.neighbor,
-							0.32
-						)}
-						{@const freezeEnd = debugTickEnd(
-							guide.freezePoint,
-							guide.current,
-							guide.neighbor,
-							0.32
-						)}
-						<line
-							class="debug-freeze-tick"
-							x1={pointPx(freezeStart.x, world)}
-							y1={pointPx(freezeStart.y, world)}
-							x2={pointPx(freezeEnd.x, world)}
-							y2={pointPx(freezeEnd.y, world)}
-							stroke={guide.current.color}
-							stroke-width={0.08 * world.remPx} />
+				{#each debugVoronoiComputations as computation (computation.key)}
+					{#if computation.current && computation.cellPoints.length > 0}
+						<polygon
+							class="debug-current-cell"
+							points={polygonPoints(computation.cellPoints, world)}
+							fill={computation.current.color}
+							stroke={computation.current.color}
+							stroke-width={screenPx(0.06, world)}
+							stroke-dasharray={dashArray(world, 0.46, 0.28)} />
 					{/if}
+				{/each}
+
+				{#each debugVoronoiGuides as guide (guide.key)}
+					{@const neighborMid = pointBetween(guide.closestPoint, guide.neighborMeasurePoint, 0.5)}
+					<line
+						class="debug-neighbor-edge"
+						x1={pointPx(guide.edgeStart.x, world)}
+						y1={pointPx(guide.edgeStart.y, world)}
+						x2={pointPx(guide.edgeEnd.x, world)}
+						y2={pointPx(guide.edgeEnd.y, world)}
+						stroke={guide.neighbor.color}
+						stroke-width={screenPx(0.08, world)} />
+					<line
+						class="debug-edge-distance"
+						x1={pointPx(guide.source.x, world)}
+						y1={pointPx(guide.source.y, world)}
+						x2={pointPx(guide.closestPoint.x, world)}
+						y2={pointPx(guide.closestPoint.y, world)}
+						stroke={guide.current.color}
+						stroke-width={screenPx(0.05, world)}
+						stroke-dasharray={dashArray(world, 0.22, 0.18)} />
+					<line
+						class="debug-neighbor-distance"
+						x1={pointPx(guide.closestPoint.x, world)}
+						y1={pointPx(guide.closestPoint.y, world)}
+						x2={pointPx(guide.neighborMeasurePoint.x, world)}
+						y2={pointPx(guide.neighborMeasurePoint.y, world)}
+						stroke={guide.neighbor.color}
+						stroke-width={screenPx(0.045, world)}
+						stroke-dasharray={dashArray(world, 0.12, 0.2)} />
+					<circle
+						class="debug-edge-dot"
+						cx={pointPx(guide.closestPoint.x, world)}
+						cy={pointPx(guide.closestPoint.y, world)}
+						r={screenPx(0.12, world)}
+						fill={guide.neighbor.color}
+						stroke-width={screenPx(0.05, world)} />
+					<text
+						class="debug-edge-label"
+						x={pointPx(guide.closestPoint.x, world) + screenPx(0.18, world)}
+						y={pointPx(guide.closestPoint.y, world) + screenPx(0.42, world)}
+						fill={guide.neighbor.color}
+						font-size={screenPx(0.48, world)}
+						stroke-width={screenPx(0.18, world)}>
+						{debugDistanceLabel(guide.edgeDistance)}
+					</text>
+					<text
+						class="debug-edge-label"
+						x={pointPx(neighborMid.x, world) + screenPx(0.18, world)}
+						y={pointPx(neighborMid.y, world) - screenPx(0.18, world)}
+						fill={guide.neighbor.color}
+						font-size={screenPx(0.48, world)}
+						stroke-width={screenPx(0.18, world)}>
+						{debugDistanceLabel(guide.neighborDistance)}
+					</text>
 				{/each}
 
 				{#each debugConnections as connection (connection.key)}
 					{@const mid = pointBetween(connection.source, connection.target, 0.5)}
 					<line
 						class="debug-weight-line"
+						class:current={connection.role === 'current'}
+						class:neighbor={connection.role === 'neighbor'}
+						class:frozen={connection.role === 'frozen'}
 						x1={pointPx(connection.source.x, world)}
 						y1={pointPx(connection.source.y, world)}
 						x2={pointPx(connection.target.x, world)}
 						y2={pointPx(connection.target.y, world)}
 						stroke={connection.target.color}
 						stroke-opacity={debugLineOpacity(connection.weight)}
-						stroke-width={debugLineWidth(connection.weight, world)} />
+						stroke-width={debugLineWidth(connection.weight, world)}
+						stroke-dasharray={debugConnectionDashArray(connection.role, world)} />
 					<circle
 						class="debug-weight-dot"
+						class:frozen={connection.role === 'frozen'}
 						cx={pointPx(mid.x, world)}
 						cy={pointPx(mid.y, world)}
-						r={(0.09 + connection.weight * 0.18) * world.remPx}
+						r={screenPx(0.09 + connection.weight * 0.18, world)}
 						fill={connection.target.color}
-						fill-opacity={debugLineOpacity(connection.weight)} />
+						fill-opacity={debugLineOpacity(connection.weight)}
+						stroke-width={screenPx(connection.role === 'frozen' ? 0.1 : 0.06, world)} />
 					<text
 						class="debug-weight-label"
-						x={pointPx(mid.x, world) + 0.25 * world.remPx}
-						y={pointPx(mid.y, world) - 0.18 * world.remPx}
+						x={pointPx(mid.x, world) + screenPx(0.25, world)}
+						y={pointPx(mid.y, world) - screenPx(0.18, world)}
 						fill={connection.target.color}
-						font-size={0.58 * world.remPx}>
+						font-size={screenPx(0.58, world)}
+						stroke-width={screenPx(0.18, world)}>
 						{debugWeightLabel(connection.weight)}
 					</text>
 				{/each}
@@ -1362,7 +1757,8 @@
 						r={pointPx(endpoint.freezeRadius, world)}
 						fill={endpoint.color}
 						stroke={endpoint.color}
-						stroke-width={0.06 * world.remPx} />
+						stroke-width={screenPx(0.06, world)}
+						stroke-dasharray={dashArray(world, 0.42, 0.26)} />
 					{#if endpoint.freezeRadiusWritable}
 						<circle
 							class="radius-hit freeze-radius-hit"
@@ -1370,7 +1766,7 @@
 							tabindex="0"
 							aria-label={`Resize ${endpoint.node.meta.label} freeze radius`}
 							r={pointPx(endpoint.freezeRadius, world)}
-							stroke-width={0.55 * world.remPx}
+							stroke-width={screenPx(0.55, world)}
 							onkeydown={(event) => selectEndpointWithKeyboard(event, endpoint)}
 							onpointerdown={(event) => startEndpointDrag(event, endpoint, 'freezeRadius')} />
 					{/if}
@@ -1381,7 +1777,7 @@
 						r={pointPx(endpoint.radius, world)}
 						fill={endpoint.color}
 						stroke={endpoint.color}
-						stroke-width={0.06 * world.remPx} />
+						stroke-width={screenPx(0.06, world)} />
 					{#if endpoint.radiusWritable}
 						<circle
 							class="radius-hit"
@@ -1389,33 +1785,33 @@
 							tabindex="0"
 							aria-label={`Resize ${endpoint.node.meta.label} radius`}
 							r={pointPx(endpoint.radius, world)}
-							stroke-width={0.55 * world.remPx}
+							stroke-width={screenPx(0.55, world)}
 							onkeydown={(event) => selectEndpointWithKeyboard(event, endpoint)}
 							onpointerdown={(event) => startEndpointDrag(event, endpoint, 'radius')} />
 					{/if}
 				{/if}
 				<line
-					x1={-0.42 * world.remPx}
-					y1={-0.42 * world.remPx}
-					x2={0.42 * world.remPx}
-					y2={0.42 * world.remPx}
+					x1={-screenPx(0.42, world)}
+					y1={-screenPx(0.42, world)}
+					x2={screenPx(0.42, world)}
+					y2={screenPx(0.42, world)}
 					stroke={endpoint.color}
-					stroke-width={0.16 * world.remPx}
+					stroke-width={screenPx(0.16, world)}
 					stroke-linecap="round" />
 				<line
-					x1={-0.42 * world.remPx}
-					y1={0.42 * world.remPx}
-					x2={0.42 * world.remPx}
-					y2={-0.42 * world.remPx}
+					x1={-screenPx(0.42, world)}
+					y1={screenPx(0.42, world)}
+					x2={screenPx(0.42, world)}
+					y2={-screenPx(0.42, world)}
 					stroke={endpoint.color}
-					stroke-width={0.16 * world.remPx}
+					stroke-width={screenPx(0.16, world)}
 					stroke-linecap="round" />
 				<circle
 					class="endpoint-hit"
 					role="button"
 					tabindex="0"
 					aria-label={`Move ${endpoint.node.meta.label}`}
-					r={0.72 * world.remPx}
+					r={screenPx(0.72, world)}
 					onkeydown={(event) => selectEndpointWithKeyboard(event, endpoint)}
 					onpointerdown={(event) => startEndpointDrag(event, endpoint, 'position')} />
 			</g>
@@ -1433,7 +1829,7 @@
 						r={pointPx(endpoint.radius, world)}
 						fill={endpoint.color}
 						stroke={endpoint.color}
-						stroke-width={0.06 * world.remPx} />
+						stroke-width={screenPx(0.06, world)} />
 					{#if endpoint.radiusWritable}
 						<circle
 							class="radius-hit"
@@ -1441,23 +1837,23 @@
 							tabindex="0"
 							aria-label={`Resize ${endpoint.node.meta.label} radius`}
 							r={pointPx(endpoint.radius, world)}
-							stroke-width={0.55 * world.remPx}
+							stroke-width={screenPx(0.55, world)}
 							onkeydown={(event) => selectEndpointWithKeyboard(event, endpoint)}
 							onpointerdown={(event) => startEndpointDrag(event, endpoint, 'radius')} />
 					{/if}
 				{/if}
 				<circle
 					class="source-dot"
-					r={0.36 * world.remPx}
+					r={screenPx(0.36, world)}
 					fill={endpoint.color}
 					stroke={endpoint.color}
-					stroke-width={0.12 * world.remPx} />
+					stroke-width={screenPx(0.12, world)} />
 				<circle
 					class="endpoint-hit"
 					role="button"
 					tabindex="0"
 					aria-label={`Move ${endpoint.node.meta.label}`}
-					r={0.72 * world.remPx}
+					r={screenPx(0.72, world)}
 					onkeydown={(event) => selectEndpointWithKeyboard(event, endpoint)}
 					onpointerdown={(event) => startEndpointDrag(event, endpoint, 'position')} />
 			</g>
@@ -1478,7 +1874,7 @@
 		<span class="toolbar-chip">{dimensionLabel}</span>
 		<span class="toolbar-chip">{modeLabel}</span>
 		<label class="debug-toggle">
-			<input type="checkbox" bind:checked={debugView} />
+			<input type="checkbox" checked={debugView} onchange={setDebugView} />
 			<span>Debug</span>
 		</label>
 	</header>
@@ -1491,11 +1887,12 @@
 					nodes={[]}
 					edges={[]}
 					worldContent={spatializerWorld}
-					worldBounds={spatialWorldBounds}
+					worldBounds={graphWorldBounds}
 					{initialCamera}
+					minZoom={SPATIALIZER_MIN_ZOOM}
 					onCameraChange={persistCamera}
 					onBackgroundDoubleClick={createTargetAt}
-					viewportInset={{ right: inspectorVisible ? inspectorWidth : 0 }}
+					viewportInset={{ left: inspectorVisible ? inspectorWidth : 0 }}
 					autoHomeOnMount={true}
 					emptyLabel="" />
 			</div>
@@ -1504,16 +1901,16 @@
 				class="endpoint-inspector"
 				class:visible={inspectorVisible}
 				style:width={`${inspectorWidth}px`}
-				aria-label="Spatializer endpoint">
+				aria-label="Spatializer preview">
 				<div class="endpoint-inspector-heading">
 					<button
 						type="button"
 						class="endpoint-inspector-toggle"
 						aria-pressed={inspectorVisible}
-						title="Hide endpoint panel"
+						title="Hide preview panel"
 						onclick={() => (inspectorVisible = false)}>
-						<span class="endpoint-inspector-chevron">›</span>
-						<span class="endpoint-inspector-label">Endpoint</span>
+						<span class="endpoint-inspector-chevron">‹</span>
+						<span class="endpoint-inspector-label">Preview</span>
 					</button>
 				</div>
 				<div class="endpoint-inspector-body">
@@ -1524,51 +1921,6 @@
 								<strong>{selectedEndpoint.node.meta.label}</strong>
 								<span>{endpointKindLabel(selectedEndpoint)}</span>
 							</div>
-						</div>
-
-						<div class="field-grid">
-							<label>
-								<span>X</span>
-								<input
-									type="number"
-									step="0.1"
-									value={selectedEndpoint.x}
-									disabled={!selectedEndpoint.positionWritable}
-									onchange={(event) => updateEndpointAxis(selectedEndpoint, 'x', event)} />
-							</label>
-							<label>
-								<span>{coordinateLabel(selectedEndpoint)}</span>
-								<input
-									type="number"
-									step="0.1"
-									value={selectedEndpoint.y}
-									disabled={!selectedEndpoint.positionWritable}
-									onchange={(event) => updateEndpointAxis(selectedEndpoint, 'y', event)} />
-							</label>
-							{#if selectedEndpoint.radius !== null}
-								<label>
-									<span>R</span>
-									<input
-										type="number"
-										min="0"
-										step="0.1"
-										value={selectedEndpoint.radius}
-										disabled={!selectedEndpoint.radiusWritable}
-										onchange={(event) => updateEndpointRadius(selectedEndpoint, event)} />
-								</label>
-							{/if}
-							{#if spatializerMode === MODE_VORONOI && selectedEndpoint.freezeRadius !== null}
-								<label>
-									<span>FR</span>
-									<input
-										type="number"
-										min="0"
-										step="0.1"
-										value={selectedEndpoint.freezeRadius}
-										disabled={!selectedEndpoint.freezeRadiusWritable}
-										onchange={(event) => updateEndpointFreezeRadius(selectedEndpoint, event)} />
-								</label>
-							{/if}
 						</div>
 
 						<section class="related-values" aria-label="Computed values">
@@ -1606,13 +1958,13 @@
 							</div>
 						</section>
 					{:else}
-						<p class="empty-selection">No endpoint selected.</p>
+						<p class="empty-selection">No selection.</p>
 					{/if}
 				</div>
 				<div
 					class="endpoint-resize-handle"
 					role="separator"
-					aria-label="Resize endpoint panel"
+					aria-label="Resize preview panel"
 					aria-orientation="vertical"
 					onpointerdown={startInspectorResize}>
 				</div>
@@ -1622,10 +1974,10 @@
 				class="endpoint-show-tab"
 				class:panel-visible={inspectorVisible}
 				aria-hidden={inspectorVisible}
-				title="Show endpoint panel"
+				title="Show preview panel"
 				onclick={() => (inspectorVisible = true)}>
-				<span class="endpoint-inspector-chevron">‹</span>
-				<span class="endpoint-inspector-label">Endpoint</span>
+				<span class="endpoint-inspector-chevron">›</span>
+				<span class="endpoint-inspector-label">Preview</span>
 			</button>
 		</div>
 	{:else}
@@ -1644,6 +1996,7 @@
 		overflow: hidden;
 		color: var(--gc-color-text);
 		background: var(--gc-color-background);
+		--spatializer-highlight-transition: 0.22s ease;
 	}
 
 	.editor-toolbar {
@@ -1726,19 +2079,19 @@
 	.endpoint-inspector {
 		position: absolute;
 		inset-block: 0;
-		inset-inline-end: 0;
+		inset-inline-start: 0;
 		z-index: 30;
 		display: grid;
 		grid-template-rows: auto minmax(0, 1fr);
 		min-inline-size: 0;
 		max-inline-size: calc(100% - 2rem);
 		min-block-size: 0;
-		border-inline-start: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+		border-inline-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
 		background: color-mix(in srgb, var(--gc-color-background-soft, #1a1a1a) 72%, transparent);
 		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
-		box-shadow: -0.5rem 0 2rem color-mix(in srgb, black 32%, transparent);
-		transform: translateX(100%);
+		box-shadow: 0.5rem 0 2rem color-mix(in srgb, black 32%, transparent);
+		transform: translateX(-100%);
 		transition: transform 0.22s cubic-bezier(0.2, 0, 0.13, 1);
 		pointer-events: none;
 	}
@@ -1799,16 +2152,16 @@
 	.endpoint-show-tab {
 		position: absolute;
 		top: 0;
-		right: 0;
+		left: 0;
 		z-index: 35;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
-		padding: 0.35rem 0.4rem 0.35rem 0.55rem;
+		padding: 0.35rem 0.55rem 0.35rem 0.4rem;
 		border: none;
 		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
-		border-inline-start: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
-		border-end-start-radius: 0.4rem;
+		border-inline-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+		border-end-end-radius: 0.4rem;
 		background: color-mix(in srgb, var(--gc-color-background-soft, #1a1a1a) 72%, transparent);
 		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
@@ -1836,7 +2189,7 @@
 	.endpoint-resize-handle {
 		position: absolute;
 		inset-block: 0;
-		inset-inline-start: 0;
+		inset-inline-end: 0;
 		z-index: 5;
 		inline-size: 0.35rem;
 		cursor: col-resize;
@@ -1878,34 +2231,6 @@
 		block-size: 0.9rem;
 		border-radius: 50%;
 		box-shadow: 0 0 0 0.08rem color-mix(in srgb, var(--gc-color-text) 35%, transparent);
-	}
-
-	.field-grid {
-		display: grid;
-		gap: 0.45rem;
-	}
-
-	.field-grid label {
-		display: grid;
-		grid-template-columns: 1.6rem minmax(0, 1fr);
-		align-items: center;
-		gap: 0.45rem;
-		font-size: 0.74rem;
-		color: color-mix(in srgb, var(--gc-color-text) 70%, transparent);
-	}
-
-	.field-grid input {
-		min-inline-size: 0;
-		padding: 0.28rem 0.4rem;
-		border: 0.06rem solid color-mix(in srgb, var(--gc-color-text) 18%, transparent);
-		border-radius: 0.25rem;
-		background: var(--gc-color-panel, var(--gc-color-background));
-		color: var(--gc-color-text);
-		font: inherit;
-	}
-
-	.field-grid input:disabled {
-		opacity: 0.48;
 	}
 
 	.related-values {
@@ -2029,48 +2354,137 @@
 		fill-opacity: 0.16;
 		stroke-opacity: 0.32;
 		pointer-events: none;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition),
+			filter var(--spatializer-highlight-transition);
+	}
+
+	.voronoi-cell.highlighted {
+		fill-opacity: 0.2;
+		stroke-opacity: 0.44;
+	}
+
+	.deadzone-highlight {
+		fill-opacity: 0.09;
+		pointer-events: none;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition);
+	}
+
+	.deadzone-hole-edge {
+		fill: none;
+		stroke-opacity: 0.34;
+		pointer-events: none;
+		transition:
+			stroke var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
+	}
+
+	.deadzone-freeze-highlight {
+		fill-opacity: 0.075;
+		stroke-opacity: 0.38;
+		pointer-events: none;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
 	}
 
 	.debug-layer {
 		pointer-events: none;
 	}
 
-	.debug-voronoi-axis {
-		stroke-opacity: 0.34;
-		stroke-dasharray: 0.32rem 0.28rem;
+	.debug-current-cell {
+		fill-opacity: 0.05;
+		stroke-opacity: 0.42;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
 	}
 
-	.debug-boundary-tick {
-		stroke-opacity: 0.78;
+	.debug-neighbor-edge {
+		stroke-opacity: 0.9;
 		stroke-linecap: round;
+		transition:
+			stroke var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
 	}
 
-	.debug-boundary-dot {
-		fill-opacity: 0.78;
-	}
-
-	.debug-freeze-tick {
-		stroke-opacity: 0.82;
+	.debug-edge-distance {
+		stroke-opacity: 0.68;
 		stroke-linecap: round;
+		transition:
+			stroke var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
 	}
 
-	.debug-weight-line {
+	.debug-neighbor-distance {
+		stroke-opacity: 0.46;
 		stroke-linecap: round;
+		transition:
+			stroke var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
 	}
 
-	.debug-weight-dot {
-		stroke: color-mix(in srgb, var(--gc-color-background) 80%, transparent);
-		stroke-width: 0.06rem;
+	.debug-edge-dot {
+		fill-opacity: 0.86;
+		stroke: var(--gc-color-background);
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition),
+			stroke-width var(--spatializer-highlight-transition);
 	}
 
+	.debug-edge-label,
 	.debug-weight-label {
 		paint-order: stroke;
 		stroke: var(--gc-color-background);
-		stroke-width: 0.18rem;
 		stroke-linejoin: round;
 		font-weight: 750;
 		pointer-events: none;
 		user-select: none;
+	}
+
+	.debug-edge-label {
+		opacity: 0.82;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			opacity var(--spatializer-highlight-transition);
+	}
+
+	.debug-weight-line {
+		stroke-opacity: 0.72;
+		stroke-linecap: round;
+		transition:
+			stroke var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition),
+			stroke-width var(--spatializer-highlight-transition);
+	}
+
+	.debug-weight-line.current {
+		stroke-opacity: 0.9;
+	}
+
+	.debug-weight-line.frozen {
+		stroke-opacity: 0.95;
+	}
+
+	.debug-weight-dot {
+		stroke: color-mix(in srgb, var(--gc-color-background) 80%, transparent);
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition),
+			stroke-width var(--spatializer-highlight-transition);
 	}
 
 	.endpoint {
@@ -2091,13 +2505,22 @@
 		fill-opacity: 0.08;
 		stroke-opacity: 0.48;
 		pointer-events: none;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
 	}
 
 	.freeze-radius-fill {
 		fill-opacity: 0.04;
 		stroke-opacity: 0.62;
-		stroke-dasharray: 0.42rem 0.26rem;
 		pointer-events: none;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition),
+			stroke-opacity var(--spatializer-highlight-transition);
 	}
 
 	.radius-hit {
@@ -2108,6 +2531,10 @@
 
 	.source-dot {
 		fill-opacity: 0.95;
+		transition:
+			fill var(--spatializer-highlight-transition),
+			stroke var(--spatializer-highlight-transition),
+			fill-opacity var(--spatializer-highlight-transition);
 	}
 
 	.endpoint-hit {
@@ -2118,10 +2545,6 @@
 	@media (max-width: 54rem) {
 		.endpoint-inspector {
 			max-inline-size: calc(100% - 1.4rem);
-		}
-
-		.field-grid {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
 	}
 </style>

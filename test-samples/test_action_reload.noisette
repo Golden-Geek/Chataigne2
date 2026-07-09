@@ -2,9 +2,9 @@
   "version": "1.0",
   "ui_state": {
     "dock_layout": {
-      "activeGroup": "2",
+      "activeGroup": "3",
       "grid": {
-        "height": 976.796875,
+        "height": 1153.59375,
         "orientation": "HORIZONTAL",
         "root": {
           "data": [
@@ -18,7 +18,7 @@
                       "modules-1"
                     ]
                   },
-                  "size": 486,
+                  "size": 576,
                   "type": "leaf"
                 },
                 {
@@ -29,28 +29,44 @@
                       "outliner"
                     ]
                   },
-                  "size": 484.796875,
+                  "size": 571.59375,
                   "type": "leaf"
                 }
               ],
-              "size": 352,
+              "size": 286,
               "type": "branch"
             },
             {
               "data": [
                 {
-                  "data": {
-                    "activeView": "spatializerEditor-1",
-                    "id": "2",
-                    "views": [
-                      "state-machine",
-                      "dashboard",
-                      "warnings",
-                      "spatializerEditor-1"
-                    ]
-                  },
-                  "size": 515,
-                  "type": "leaf"
+                  "data": [
+                    {
+                      "data": {
+                        "activeView": "warnings",
+                        "id": "2",
+                        "views": [
+                          "state-machine",
+                          "dashboard",
+                          "warnings"
+                        ]
+                      },
+                      "size": 610,
+                      "type": "leaf"
+                    },
+                    {
+                      "data": {
+                        "activeView": "spatializerEditor-1",
+                        "id": "3",
+                        "views": [
+                          "spatializerEditor-1"
+                        ]
+                      },
+                      "size": 612,
+                      "type": "leaf"
+                    }
+                  ],
+                  "size": 690,
+                  "type": "branch"
                 },
                 {
                   "data": [
@@ -62,7 +78,7 @@
                           "formula-library"
                         ]
                       },
-                      "size": 332,
+                      "size": 288,
                       "type": "leaf"
                     },
                     {
@@ -73,15 +89,15 @@
                           "alchemistEditor-1"
                         ]
                       },
-                      "size": 514,
+                      "size": 934,
                       "type": "leaf"
                     }
                   ],
-                  "size": 455.796875,
+                  "size": 457.59375,
                   "type": "branch"
                 }
               ],
-              "size": 852,
+              "size": 1228,
               "type": "branch"
             },
             {
@@ -94,7 +110,7 @@
                       "inspector"
                     ]
                   },
-                  "size": 654,
+                  "size": 796,
                   "type": "leaf"
                 },
                 {
@@ -105,18 +121,18 @@
                       "logger"
                     ]
                   },
-                  "size": 316.796875,
+                  "size": 351.59375,
                   "type": "leaf"
                 }
               ],
-              "size": 428.796875,
+              "size": 509.1875,
               "type": "branch"
             }
           ],
-          "size": 976.796875,
+          "size": 1153.59375,
           "type": "branch"
         },
-        "width": 1644.796875
+        "width": 2035.1875
       },
       "panels": {
         "alchemistEditor-1": {
@@ -152,6 +168,9 @@
                 "07c0667e-4f4a-48fc-bd02-2432dc0bd37b": {
                   "decimationMode": "off"
                 },
+                "0b90e549-deca-4dbc-a4ce-7c09eabb0716": {
+                  "decimationMode": "off"
+                },
                 "1451b13c-ef2e-4496-aaf4-30d163f9c375": {
                   "decimationMode": "off"
                 },
@@ -168,6 +187,9 @@
                   "decimationMode": "off"
                 },
                 "3917d290-1e7e-409f-a948-3991e1df39c5": {
+                  "decimationMode": "off"
+                },
+                "42a6f1c0-0e1a-4d9e-a3a7-5313e1062ded": {
                   "decimationMode": "off"
                 },
                 "63707677-1586-4b14-955e-519a8a43b6de": {
@@ -240,7 +262,7 @@
             }
           },
           "tabComponent": "golden-tab",
-          "title": "Inspector: Source"
+          "title": "Inspector: Sourcesdfkj"
         },
         "logger": {
           "contentComponent": "logger",
@@ -261,11 +283,11 @@
             "__gc_panel_state": {
               "opennessByNodeId": {
                 "4294967297": true,
+                "4294967299": true,
                 "4294967358": true,
                 "4294967450": true,
                 "4294967457": true,
-                "4294967461": true,
-                "4294967464": true
+                "4294967461": true
               }
             }
           },
@@ -278,10 +300,11 @@
           "params": {
             "__gc_panel_state": {
               "camera": {
-                "x": 68.86042111598559,
-                "y": 119.68377636301923,
-                "zoom": 0.49547523195054466
-              }
+                "x": 410.5953369140625,
+                "y": 283.6953125,
+                "zoom": 0.65545654296875
+              },
+              "spatialUnitRem": 4
             },
             "moduleNodeId": 4294967450
           },
@@ -1438,6 +1461,18 @@
                 },
                 "children": [
                   {
+                    "uuid": "d8119736-1a87-4c63-b379-deb611e1f7c9",
+                    "type": "enum",
+                    "meta": {
+                      "decl_id": "parameters/value_layout"
+                    },
+                    "data": {
+                      "value": {
+                        "Enum": "targetCentric"
+                      }
+                    }
+                  },
+                  {
                     "uuid": "6aff7676-ec42-4aee-bd6f-92782d74c81b",
                     "type": "spatializer_source_list",
                     "meta": {
@@ -1449,7 +1484,8 @@
                         "type": "spatializer_source",
                         "user_role": "itemRoot",
                         "meta": {
-                          "decl_id": "source"
+                          "decl_id": "source",
+                          "label": "Sourcesdfkj"
                         },
                         "children": [
                           {
@@ -1470,8 +1506,43 @@
                             "data": {
                               "value": {
                                 "Vec2": [
-                                  25.167456930275183,
-                                  -3.3038546832361835
+                                  -0.256038475307378,
+                                  -0.9690594625537292
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "1679c2c5-7b14-4078-812d-55d411a24fd7",
+                        "type": "spatializer_source",
+                        "user_role": "itemRoot",
+                        "meta": {
+                          "decl_id": "source",
+                          "label": "Source 2"
+                        },
+                        "children": [
+                          {
+                            "uuid": "491f74d7-8e77-456d-9217-c68319016364",
+                            "type": "vec2",
+                            "meta": {
+                              "decl_id": "position_2d",
+                              "short_name": "position_2d",
+                              "label": "Position",
+                              "user_permissions": {
+                                "can_edit_name": true,
+                                "can_remove_and_duplicate": true,
+                                "can_edit_constraints": true,
+                                "can_edit_tags": true,
+                                "can_edit_color": true
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Vec2": [
+                                  2.210641971409495,
+                                  0.3397147147358175
                                 ]
                               }
                             }
@@ -1488,11 +1559,71 @@
                     },
                     "children": [
                       {
+                        "uuid": "5ef32718-fd35-41b3-a19e-69fc30bec4d3",
+                        "type": "spatializer_target",
+                        "user_role": "itemRoot",
+                        "meta": {
+                          "decl_id": "target"
+                        },
+                        "children": [
+                          {
+                            "uuid": "4d82eca9-8216-42c4-a581-2247eddb02ed",
+                            "type": "vec2",
+                            "meta": {
+                              "decl_id": "position_2d",
+                              "short_name": "position_2d",
+                              "label": "Position",
+                              "user_permissions": {
+                                "can_edit_name": true,
+                                "can_remove_and_duplicate": true,
+                                "can_edit_constraints": true,
+                                "can_edit_tags": true,
+                                "can_edit_color": true
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Vec2": [
+                                  -0.5915551915778524,
+                                  0.5277088613859506
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "11b5ca0f-dd2c-484f-846e-a61ddf389f5d",
+                            "type": "float",
+                            "meta": {
+                              "decl_id": "freeze_radius",
+                              "short_name": "freeze_radius",
+                              "label": "Freeze Radius",
+                              "user_permissions": {
+                                "can_edit_name": true,
+                                "can_remove_and_duplicate": true,
+                                "can_edit_constraints": true,
+                                "can_edit_tags": true,
+                                "can_edit_color": true
+                              }
+                            },
+                            "data": {
+                              "constraints": {
+                                "policy": "ClampAdapt",
+                                "range": {
+                                  "kind": "uniform",
+                                  "min": 0.0
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
                         "uuid": "b87789ec-a06e-47b0-9a59-2854c07992cc",
                         "type": "spatializer_target",
                         "user_role": "itemRoot",
                         "meta": {
                           "decl_id": "target",
+                          "label": "dfd",
                           "presentation": {
                             "color": {
                               "r": 0.1964,
@@ -1521,8 +1652,8 @@
                             "data": {
                               "value": {
                                 "Vec2": [
-                                  0.968764610611518,
-                                  -5.312779297589691
+                                  -1.168978799707373,
+                                  -1.671659507153122
                                 ]
                               }
                             }
@@ -1551,7 +1682,7 @@
                                 }
                               },
                               "value": {
-                                "Float": 2.5996906259629053
+                                "Float": 0.846011663310196
                               }
                             }
                           }
@@ -1584,8 +1715,8 @@
                             "data": {
                               "value": {
                                 "Vec2": [
-                                  -14.5908723147976,
-                                  7.691490580863943
+                                  2.032777314347574,
+                                  -1.283266131725534
                                 ]
                               }
                             }
@@ -1614,14 +1745,14 @@
                                 }
                               },
                               "value": {
-                                "Float": 6.840996115256611
+                                "Float": 0.05
                               }
                             }
                           }
                         ]
                       },
                       {
-                        "uuid": "881104c7-17b9-4823-a81e-aaec70af8b14",
+                        "uuid": "f3510896-3a7a-46b6-97c4-62be8d59fa94",
                         "type": "spatializer_target",
                         "user_role": "itemRoot",
                         "meta": {
@@ -1630,7 +1761,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "821da571-be38-440a-a9d9-f2d1ada27f63",
+                            "uuid": "5a48d70d-3fd6-4b43-83c6-508cfd41e166",
                             "type": "vec2",
                             "meta": {
                               "decl_id": "position_2d",
@@ -1647,14 +1778,14 @@
                             "data": {
                               "value": {
                                 "Vec2": [
-                                  8.636763945157083,
-                                  13.823479358425889
+                                  2.1208817478585043,
+                                  1.610454992729962
                                 ]
                               }
                             }
                           },
                           {
-                            "uuid": "0c8be666-804a-4fc7-9d95-bc1889b2da32",
+                            "uuid": "d3776615-ebf4-4323-ad08-e8863a4e8748",
                             "type": "float",
                             "meta": {
                               "decl_id": "freeze_radius",
@@ -1675,72 +1806,6 @@
                                   "kind": "uniform",
                                   "min": 0.0
                                 }
-                              },
-                              "value": {
-                                "Float": 3.1195218067000705
-                              }
-                            }
-                          }
-                        ]
-                      },
-                      {
-                        "uuid": "fb5d2139-3029-49ba-839b-1a3cb983546e",
-                        "type": "spatializer_target",
-                        "user_role": "itemRoot",
-                        "meta": {
-                          "decl_id": "target",
-                          "label": "Target 4"
-                        },
-                        "children": [
-                          {
-                            "uuid": "730cba5a-94c7-42a9-acde-2245bc91d381",
-                            "type": "vec2",
-                            "meta": {
-                              "decl_id": "position_2d",
-                              "short_name": "position_2d",
-                              "label": "Position",
-                              "user_permissions": {
-                                "can_edit_name": true,
-                                "can_remove_and_duplicate": true,
-                                "can_edit_constraints": true,
-                                "can_edit_tags": true,
-                                "can_edit_color": true
-                              }
-                            },
-                            "data": {
-                              "value": {
-                                "Vec2": [
-                                  36.21795874727276,
-                                  3.46008674859722
-                                ]
-                              }
-                            }
-                          },
-                          {
-                            "uuid": "a5e6d430-b252-4442-bed8-f3aee9b27f93",
-                            "type": "float",
-                            "meta": {
-                              "decl_id": "freeze_radius",
-                              "short_name": "freeze_radius",
-                              "label": "Freeze Radius",
-                              "user_permissions": {
-                                "can_edit_name": true,
-                                "can_remove_and_duplicate": true,
-                                "can_edit_constraints": true,
-                                "can_edit_tags": true,
-                                "can_edit_color": true
-                              }
-                            },
-                            "data": {
-                              "constraints": {
-                                "policy": "ClampAdapt",
-                                "range": {
-                                  "kind": "uniform",
-                                  "min": 0.0
-                                }
-                              },
-                              "value": {
-                                "Float": 4.485492079576515
                               }
                             }
                           }
@@ -1763,7 +1828,7 @@
                     "meta": {
                       "decl_id": "spatializer_source_3a2879252fed45d59dd34d9504b1a4f0",
                       "short_name": "spatializer_source_3a2879252fed45d59dd34d9504b1a4f0",
-                      "label": "Source",
+                      "label": "Sourcesdfkj",
                       "user_permissions": {
                         "can_edit_name": true,
                         "can_remove_and_duplicate": true,
@@ -1779,7 +1844,7 @@
                         "meta": {
                           "decl_id": "spatializer_target_b87789eca06e47b09a592854c07992cc",
                           "short_name": "spatializer_target_b87789eca06e47b09a592854c07992cc",
-                          "label": "Target",
+                          "label": "dfd",
                           "user_permissions": {
                             "can_edit_name": true,
                             "can_remove_and_duplicate": true,
@@ -1834,12 +1899,88 @@
                         }
                       },
                       {
-                        "uuid": "4328115d-bd67-43d3-95cc-bc0345428c6a",
+                        "uuid": "a85900b2-4821-471b-910c-dd8b654a2b89",
                         "type": "float",
                         "meta": {
-                          "decl_id": "spatializer_target_881104c717b94823a81eaaec70af8b14",
-                          "short_name": "spatializer_target_881104c717b94823a81eaaec70af8b14",
+                          "decl_id": "spatializer_target_5ef32718fd3541b3a19e69fc30bec4d3",
+                          "short_name": "spatializer_target_5ef32718fd3541b3a19e69fc30bec4d3",
+                          "label": "Target",
+                          "user_permissions": {
+                            "can_remove_and_duplicate": true,
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        },
+                        "data": {
+                          "constraints": {
+                            "policy": "ClampAdapt",
+                            "range": {
+                              "kind": "uniform",
+                              "max": 1.0,
+                              "min": 0.0
+                            }
+                          },
+                          "default_value": {
+                            "Float": 0.03791171544066871
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "7e881775-2b86-c499-0a21-d82a3bb9b4aa",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "spatializer_target_f35108963a7a46b697c462be8d59fa94",
+                          "short_name": "spatializer_target_f35108963a7a46b697c462be8d59fa94",
                           "label": "Target 3",
+                          "user_permissions": {
+                            "can_remove_and_duplicate": true,
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        },
+                        "data": {
+                          "constraints": {
+                            "policy": "ClampAdapt",
+                            "range": {
+                              "kind": "uniform",
+                              "max": 1.0,
+                              "min": 0.0
+                            }
+                          },
+                          "default_value": {
+                            "Float": 0.1771636597542156
+                          },
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "6509a3b1-1275-2c11-fb48-278b62c44fd7",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "spatializer_source_1679c2c57b144078812d55d411a24fd7",
+                      "short_name": "spatializer_source_1679c2c57b144078812d55d411a24fd7",
+                      "label": "Source 2",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "03b82008-cf7e-cf40-3513-4ddd370e56c8",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "spatializer_target_b87789eca06e47b09a592854c07992cc",
+                          "short_name": "spatializer_target_b87789eca06e47b09a592854c07992cc",
+                          "label": "dfd",
                           "user_permissions": {
                             "can_edit_name": true,
                             "can_remove_and_duplicate": true,
@@ -1858,18 +1999,18 @@
                             }
                           },
                           "default_value": {
-                            "Float": 1.0
+                            "Float": 0.6369033275115453
                           },
                           "read_only": true
                         }
                       },
                       {
-                        "uuid": "7a8e03a2-aeaf-431f-000e-646b21d4e3d7",
+                        "uuid": "6123b046-e597-4b89-31f9-bc700c1c40aa",
                         "type": "float",
                         "meta": {
-                          "decl_id": "spatializer_target_fb5d2139302949ba839b1a3cb983546e",
-                          "short_name": "spatializer_target_fb5d2139302949ba839b1a3cb983546e",
-                          "label": "Target 4",
+                          "decl_id": "spatializer_target_7d40a970f5bd4e22938ccb0eb65dbe08",
+                          "short_name": "spatializer_target_7d40a970f5bd4e22938ccb0eb65dbe08",
+                          "label": "Target 2",
                           "user_permissions": {
                             "can_edit_name": true,
                             "can_remove_and_duplicate": true,
@@ -1886,6 +2027,67 @@
                               "max": 1.0,
                               "min": 0.0
                             }
+                          },
+                          "default_value": {
+                            "Float": 0.03443338563280755
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "f0fa7772-e1d3-4c41-a8f0-ed094f6dfdc7",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "spatializer_target_5ef32718fd3541b3a19e69fc30bec4d3",
+                          "short_name": "spatializer_target_5ef32718fd3541b3a19e69fc30bec4d3",
+                          "label": "Target",
+                          "user_permissions": {
+                            "can_remove_and_duplicate": true,
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        },
+                        "data": {
+                          "constraints": {
+                            "policy": "ClampAdapt",
+                            "range": {
+                              "kind": "uniform",
+                              "max": 1.0,
+                              "min": 0.0
+                            }
+                          },
+                          "default_value": {
+                            "Float": 0.23206265704870083
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "262b60b5-8274-cfc3-33dd-e8a8119e62e4",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "spatializer_target_f35108963a7a46b697c462be8d59fa94",
+                          "short_name": "spatializer_target_f35108963a7a46b697c462be8d59fa94",
+                          "label": "Target 3",
+                          "user_permissions": {
+                            "can_remove_and_duplicate": true,
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        },
+                        "data": {
+                          "constraints": {
+                            "policy": "ClampAdapt",
+                            "range": {
+                              "kind": "uniform",
+                              "max": 1.0,
+                              "min": 0.0
+                            }
+                          },
+                          "default_value": {
+                            "Float": 0.07041879488634585
                           },
                           "read_only": true
                         }
@@ -3774,6 +3976,370 @@
                                     "show_in_inspector_content": false
                                   }
                                 }
+                              },
+                              {
+                                "uuid": "098a31b5-703b-442f-9035-a86b4e7abb7d",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "e6746723-3f0f-43d8-941c-d7dcc883c09e",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "f9eafc4f-c3fe-4f66-82dc-bac4ab58a43a",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "25ca1934-ee69-4fd1-afd6-0035bbde9393",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "9f43065f-d925-4843-aefa-3fbb440d1018",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "27d9624a-9a2f-4266-947c-196520a8d439",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "6114bf8d-ee6e-4e89-ba6b-c9319f58b756",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "9e08f2a5-7279-41a5-9f79-c2b8ce87138c",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "f2e90064-5ca4-45c7-9400-7d48cdb44efd",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "dc813e73-40de-4751-bd65-95f94762c7ef",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "3f975925-7dc5-4028-97cf-9183a0e264f6",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "7f0eeb0c-572e-478f-99ad-2c1ac8a70054",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "fb8fb8a5-91bf-40cf-b97e-2537399e1263",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "5f750b86-553b-4368-b56d-ee9c888e140e",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "f04e716e-7856-4e21-9c49-5ce6b9eab69f",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "9d28269c-8de4-489d-b47f-9113e726beac",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "2948bb8d-83d3-4be1-b74b-2840f3c6e647",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "6c0c00af-7cac-440f-81a0-c5df9aa692d2",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "67ba9ac7-c8e2-4f90-86b9-feb1818b3434",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "a77df4ec-3830-4b3b-a01c-61f99ab30c0d",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "6664de07-a35c-4e69-9831-cc7b0c383bd1",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
                               }
                             ]
                           },
@@ -5443,6 +6009,370 @@
                               },
                               {
                                 "uuid": "522a4fbf-9a2a-4a04-a784-e0b90fa8771c",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "568313c5-8f0a-4ce8-bd0b-eadf2a633553",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "45ab0e54-8ba3-454b-bf25-eed4937f053d",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "8fc50387-4c04-45ec-83a4-e2dc6eff9102",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "a3fcdca5-25f4-4b81-b8e1-fc4507fe17f0",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "29474677-38ba-482b-a115-9c2860db5bbb",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "1abfe9d1-21a1-469c-9a6b-9b706a20bd8a",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "e77a463f-890a-48c5-964b-83ff60009ac4",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "173beb4a-8372-4cab-885f-0a1c8e92382a",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "ff7b36c8-42be-47fd-8521-400b16e4aea8",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "735de8f9-9852-4b6b-8585-0888112ddc0b",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "6577ce71-cb0a-4d35-83fb-203f1fb3dc46",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "a86c9556-d334-49db-913e-08c07251720c",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "e9122156-63cb-46d4-8baa-3613990f8a72",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "0982092d-c262-41ac-b070-ff79f1d09d14",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "056831e0-a135-46dd-9ec6-b7279c15e887",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "c1a36833-af7a-40e5-b300-526680ccdb0d",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "acffa788-f315-4bf8-85da-0ea45b7f96fd",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "dd6e8053-0bee-4820-8697-45c0ce83c399",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "f5c3937b-03f1-495d-a5df-cb3c9d65712f",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "66354ab6-dd41-4b48-883a-d8a06445adcc",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "0fb4219d-71eb-4745-9a54-aed0a169792b",
                                 "type": "bool",
                                 "meta": {
                                   "decl_id": "advanced/cancel_on_trigger",

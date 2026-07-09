@@ -8,28 +8,32 @@ use chataigne_state_machine::{
     ANodeOutputPreviewSample, ANodeOutputPreviewSampleDto, ContextKeyDto,
     DefaultProcessorContextProvider, Processor, ProcessorDebugCapture,
     ProcessorFormulaUiState, ProcessorId, ProcessorLaneSummaryDto, ProcessorUiDto,
-    ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
+    ProcessorContextProvider, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
     StateMachineProtocolBundle, processor_output_preview_samples,
     ValueLaneKey, ValueSet, ValueSetEntry,
     alchemist::{CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, node_registry, value_type_registry},
 };
 use golden_alchemist::{
-    ANodeId, AlchemistFormula, CompiledAlchemistFormula, ContextKey, EvaluationCtx,
-    DebugValueSample, FormulaCompileKey, FormulaRef, ManagedItemId, ManagedItemInstance,
+    ANodeId, AlchemistFormula, AxisSet, CompiledAlchemistFormula, ContextAxisId, ContextItemId,
+    ContextKey, ContextKeyPart, ContextValuePath, EvaluationCtx, DebugValueSample, FormulaCompileKey, FormulaRef,
+    ManagedItemId, ManagedItemInstance,
     ManagedItemUiState, ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
     RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, SocketId, StableRef,
     SurfaceItemId, TriggerValue, ValueTypeId, compile_graph, formula_input_value_ref,
 };
 use golden_core::{
+    contexts::UserContextValueType,
     engine::NodeExecutionRule,
     events::{Event, EventFrame, EventKind},
     log,
     node,
     node::{
         Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUserPermissions,
-        NodeUuid, UserContainerRules, UserCreatableItem,
+        NodeUuid, UserContainerRules, UserCreatableItem, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID,
+        USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE,
+        user_context_multiplex_list_value_type,
     },
-    parameter::ParamValue,
+    parameter::{ParamValue, project_param_value},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -129,6 +133,346 @@ struct ConditionValidity {
 struct InputValueConditionSourceSample {
     source_uuid: NodeUuid,
     value: ParamValue,
+}
+
+#[derive(Clone, Debug, Default)]
+struct SnapshotProcessorContextProvider {
+    processors: HashMap<ProcessorId, ProcessorContextRuntime>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct ProcessorContextRuntime {
+    axes: Vec<ProcessorContextAxisRuntime>,
+    lists: Vec<ProcessorContextListRuntime>,
+}
+
+#[derive(Clone, Debug)]
+struct ProcessorContextAxisRuntime {
+    axis: ContextAxisId,
+    items: Vec<ContextItemId>,
+}
+
+#[derive(Clone, Debug)]
+struct ProcessorContextListRuntime {
+    axis: ContextAxisId,
+    symbol: String,
+    list_id: String,
+    entries: Vec<ProcessorContextEntryRuntime>,
+}
+
+#[derive(Clone, Debug)]
+struct ProcessorContextEntryRuntime {
+    item: ContextItemId,
+    value: RuntimeValue,
+}
+
+impl SnapshotProcessorContextProvider {
+    fn from_snapshot(
+        snapshot: &ProcessTreeSnapshot,
+        processor_nodes: impl IntoIterator<Item = NodeId>,
+    ) -> Self {
+        let mut provider = Self::default();
+        for processor_node in processor_nodes {
+            let Some(processor_snapshot) = snapshot.node(processor_node) else {
+                continue;
+            };
+            let processor_id = ProcessorId::from_uuid(processor_snapshot.uuid.0);
+            let runtime = collect_processor_context_runtime(snapshot, processor_node);
+            provider.processors.insert(processor_id, runtime);
+        }
+        provider
+    }
+}
+
+impl ProcessorContextProvider for SnapshotProcessorContextProvider {
+    fn available_axes(&self, processor_id: ProcessorId) -> AxisSet {
+        let mut axes = AxisSet::new();
+        if let Some(runtime) = self.processors.get(&processor_id) {
+            axes.extend(runtime.axes.iter().map(|axis| axis.axis.clone()));
+        }
+        axes
+    }
+
+    fn iter_context_keys<'a>(
+        &'a self,
+        processor_id: ProcessorId,
+        axes: &'a AxisSet,
+    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+        if axes.is_empty() {
+            return Box::new(std::iter::once(ContextKey::default_lane()));
+        }
+        let Some(runtime) = self.processors.get(&processor_id) else {
+            return Box::new(std::iter::empty());
+        };
+
+        let mut required_axes = Vec::<(&ContextAxisId, Vec<ContextItemId>)>::new();
+        for axis in axes {
+            let Some(runtime_axis) = runtime.axes.iter().find(|candidate| &candidate.axis == axis)
+            else {
+                return Box::new(std::iter::empty());
+            };
+            if runtime_axis.items.is_empty() {
+                return Box::new(std::iter::empty());
+            }
+            required_axes.push((axis, runtime_axis.items.clone()));
+        }
+
+        let mut key_parts = vec![Vec::<ContextKeyPart>::new()];
+        for (axis, items) in required_axes {
+            let mut next = Vec::<Vec<ContextKeyPart>>::new();
+            for prefix in &key_parts {
+                for item in &items {
+                    let mut parts = prefix.clone();
+                    parts.push(ContextKeyPart::new(axis.clone(), item.clone()));
+                    next.push(parts);
+                }
+            }
+            key_parts = next;
+        }
+
+        Box::new(key_parts.into_iter().map(ContextKey::new))
+    }
+
+    fn resolve_context_value(
+        &self,
+        key: &ContextKey,
+        axis: &ContextAxisId,
+        path: &ContextValuePath,
+    ) -> Option<RuntimeValue> {
+        let item = key
+            .iter()
+            .find(|part| &part.axis == axis)
+            .map(|part| &part.item)?;
+        let selector = path.segments.first().map(|segment| segment.as_str());
+
+        self.processors
+            .values()
+            .flat_map(|runtime| runtime.lists.iter())
+            .filter(|list| &list.axis == axis)
+            .find(|list| {
+                selector.is_none_or(|selector| {
+                    list.symbol == selector || list.list_id == selector
+                })
+            })?
+            .entries
+            .iter()
+            .find(|entry| &entry.item == item)
+            .map(|entry| entry.value.clone())
+    }
+}
+
+fn collect_processor_context_runtime(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+) -> ProcessorContextRuntime {
+    let mut runtime = ProcessorContextRuntime::default();
+    let mut seen_symbols = HashSet::<String>::new();
+    let mut cursor = Some(processor_node);
+    while let Some(owner) = cursor {
+        for child in snapshot.child_ids(owner) {
+            let Some(child_snapshot) = snapshot.node(child) else {
+                continue;
+            };
+            if child_snapshot.node_type == USER_CONTEXT_NODE_TYPE {
+                collect_context_scope_multiplexes(snapshot, child, &mut seen_symbols, &mut runtime);
+            }
+        }
+        cursor = snapshot.node(owner).and_then(|node| node.parent);
+    }
+    runtime
+}
+
+fn collect_context_scope_multiplexes(
+    snapshot: &ProcessTreeSnapshot,
+    scope_node: NodeId,
+    seen_symbols: &mut HashSet<String>,
+    runtime: &mut ProcessorContextRuntime,
+) {
+    let mut stack = snapshot.child_ids(scope_node);
+    stack.reverse();
+    while let Some(node_id) = stack.pop() {
+        let Some(node) = snapshot.node(node_id) else {
+            continue;
+        };
+        if node.node_type == USER_CONTEXT_NODE_TYPE {
+            continue;
+        }
+        if node.node_type == USER_CONTEXT_MULTIPLEX_NODE_TYPE {
+            collect_multiplex_lists(snapshot, node_id, seen_symbols, runtime);
+            continue;
+        }
+        let mut children = snapshot.child_ids(node_id);
+        children.reverse();
+        stack.extend(children);
+    }
+}
+
+fn collect_multiplex_lists(
+    snapshot: &ProcessTreeSnapshot,
+    multiplex_node: NodeId,
+    seen_symbols: &mut HashSet<String>,
+    runtime: &mut ProcessorContextRuntime,
+) {
+    let Some(multiplex_snapshot) = snapshot.node(multiplex_node) else {
+        return;
+    };
+    let axis = ContextAxisId::new(multiplex_snapshot.uuid.0.to_string());
+    let mut pending_lists = Vec::<PendingProcessorContextList>::new();
+    let mut canonical_items = Vec::<ContextItemId>::new();
+
+    for list_node in snapshot.child_ids(multiplex_node) {
+        let Some(list_snapshot) = snapshot.node(list_node) else {
+            continue;
+        };
+        if list_snapshot
+            .decl_id
+            .eq_ignore_ascii_case(USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+        {
+            continue;
+        }
+        let Some(value_type_id) =
+            user_context_multiplex_list_value_type(list_snapshot.node_type.as_str())
+        else {
+            continue;
+        };
+        let Some(value_type) = UserContextValueType::from_parameter_node_type(value_type_id) else {
+            continue;
+        };
+        let symbol = list_snapshot.decl_id.trim().to_string();
+        if symbol.is_empty() || !seen_symbols.insert(symbol.clone()) {
+            continue;
+        }
+
+        let own_entries = collect_multiplex_list_entry_values(snapshot, list_node, value_type_id, value_type);
+        if canonical_items.is_empty() {
+            canonical_items.extend(
+                own_entries
+                    .iter()
+                    .map(|entry| ContextItemId::new(entry.item_id.clone())),
+            );
+        }
+        pending_lists.push(PendingProcessorContextList {
+            symbol,
+            list_id: list_snapshot.uuid.0.to_string(),
+            entries: own_entries,
+        });
+    }
+
+    if canonical_items.is_empty() {
+        return;
+    }
+    if runtime.axes.iter().all(|existing| existing.axis != axis) {
+        runtime.axes.push(ProcessorContextAxisRuntime {
+            axis: axis.clone(),
+            items: canonical_items.clone(),
+        });
+    }
+
+    for pending in pending_lists {
+        let entries = pending
+            .entries
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, pending_entry)| {
+                let value = pending_entry.value?;
+                let item = canonical_items
+                    .get(index)
+                    .cloned()
+                    .unwrap_or_else(|| ContextItemId::new(pending_entry.item_id));
+                Some(ProcessorContextEntryRuntime { item, value })
+            })
+            .collect::<Vec<_>>();
+        runtime.lists.push(ProcessorContextListRuntime {
+            axis: axis.clone(),
+            symbol: pending.symbol,
+            list_id: pending.list_id,
+            entries,
+        });
+    }
+}
+
+struct PendingProcessorContextList {
+    symbol: String,
+    list_id: String,
+    entries: Vec<PendingProcessorContextEntry>,
+}
+
+struct PendingProcessorContextEntry {
+    item_id: String,
+    value: Option<RuntimeValue>,
+}
+
+fn collect_multiplex_list_entry_values(
+    snapshot: &ProcessTreeSnapshot,
+    list_node: NodeId,
+    value_type_id: &str,
+    value_type: UserContextValueType,
+) -> Vec<PendingProcessorContextEntry> {
+    let mut entries = Vec::new();
+    for entry_node in snapshot.child_ids(list_node) {
+        let Some(entry_snapshot) = snapshot.node(entry_node) else {
+            continue;
+        };
+        if !entry_snapshot.is_parameter()
+            || !entry_snapshot
+                .node_type
+                .eq_ignore_ascii_case(value_type_id)
+        {
+            continue;
+        }
+        let item_id = entry_snapshot.uuid.0.to_string();
+        let value = entry_snapshot
+            .param_value
+            .as_ref()
+            .and_then(|param_value| context_entry_runtime_value(snapshot, param_value, value_type));
+        entries.push(PendingProcessorContextEntry { item_id, value });
+    }
+    entries
+}
+
+fn context_entry_runtime_value(
+    snapshot: &ProcessTreeSnapshot,
+    value: &ParamValue,
+    value_type: UserContextValueType,
+) -> Option<RuntimeValue> {
+    if value_type == UserContextValueType::Reference {
+        return reference_context_entry_runtime_value(snapshot, value);
+    }
+    runtime_value_type_for_context(value_type)
+        .as_ref()
+        .and_then(|runtime_type| formula_param_to_runtime_value(value, runtime_type).ok())
+}
+
+fn reference_context_entry_runtime_value(
+    snapshot: &ProcessTreeSnapshot,
+    value: &ParamValue,
+) -> Option<RuntimeValue> {
+    let ParamValue::Reference(reference) = value else {
+        return None;
+    };
+    let target = snapshot.node_id_by_uuid(reference.uuid())?;
+    let target_value = snapshot.node(target)?.param_value.as_ref()?;
+    let projected_value = reference
+        .projection()
+        .and_then(|projection| project_param_value(target_value, projection));
+    param_to_runtime_value(projected_value.as_ref().unwrap_or(target_value))
+}
+
+fn runtime_value_type_for_context(value_type: UserContextValueType) -> Option<ValueTypeId> {
+    match value_type {
+        UserContextValueType::Trigger => Some(ValueTypeId::new("trigger")),
+        UserContextValueType::Int => Some(ValueTypeId::new("int")),
+        UserContextValueType::Float => Some(ValueTypeId::new("float")),
+        UserContextValueType::Str | UserContextValueType::File | UserContextValueType::Enum => {
+            Some(ValueTypeId::new("string"))
+        }
+        UserContextValueType::Bool => Some(ValueTypeId::new("bool")),
+        UserContextValueType::CssValue => Some(ValueTypeId::new("float")),
+        UserContextValueType::Vec2 => Some(ValueTypeId::new("vec2")),
+        UserContextValueType::Vec3 => Some(ValueTypeId::new("vec3")),
+        UserContextValueType::Color => Some(ValueTypeId::new("color")),
+        UserContextValueType::Reference => None,
+    }
 }
 
 impl ConditionValidity {
@@ -563,6 +907,11 @@ impl StateMachineManager {
         };
         let snapshot = snapshot.as_ref();
         let active_states = active_state_nodes(snapshot, self.id());
+        let active_processor_nodes = active_states
+            .iter()
+            .filter_map(|state| snapshot.find_child_by_decl_id(*state, PROCESSOR_MANAGER_DECL_ID))
+            .flat_map(|processor_manager| processor_nodes(snapshot, processor_manager))
+            .collect::<Vec<_>>();
         let cache_rebuilt =
             self.runtime_cache.topology_dirty || !self.runtime_cache.structure_dirty.is_empty();
         let overrides_dirty = !self.runtime_cache.dirty_processor_overrides.is_empty();
@@ -587,7 +936,11 @@ impl StateMachineManager {
         let registries = RuntimeRegistries {
             value_types: &value_types,
         };
-        let provider = DefaultProcessorContextProvider;
+        let provider = SnapshotProcessorContextProvider::from_snapshot(
+            snapshot,
+            active_processor_nodes.iter().copied(),
+        );
+        let default_provider = DefaultProcessorContextProvider;
         let capture_output_previews = *RUNTIME_OUTPUT_PREVIEWS_ENABLED;
         let capture = if capture_output_previews {
             ProcessorDebugCapture::All {
@@ -714,7 +1067,7 @@ impl StateMachineManager {
                                 compiled_formula,
                                 &runtime_processor.formula,
                                 &eval_ctx,
-                                &provider,
+                                &default_provider,
                                 &capture,
                             ));
                         }

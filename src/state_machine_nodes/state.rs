@@ -1,7 +1,11 @@
 use golden_core::{
     color::Color,
     item, node,
-    node::{Node, NodeId, NodeMetaPatch, NodeUserPermissions},
+    node::{
+        Node, NodeId, NodeMetaPatch, NodeUserPermissions, UserContainerRules, UserContextNode,
+        UserCreatableItem, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND,
+        USER_CONTEXT_NODE_TYPE,
+    },
     process_ctx::ProcessCtx,
 };
 
@@ -37,8 +41,41 @@ use golden_core::{
 )]
 pub struct StateMachineState {}
 
-#[item("state", node = "state", from_struct)]
+#[item(
+    "state",
+    node = "state",
+    from_struct,
+    contextualizable = golden_core::node::UserContextHostPolicy::multiplex_contextualizable()
+)]
 impl Node for StateMachineState {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[USER_CONTEXT_ITEM_KIND]))
+    }
+
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        item_kind == USER_CONTEXT_ITEM_KIND && item_type == USER_CONTEXT_NODE_TYPE
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        vec![
+            UserCreatableItem::new(
+                USER_CONTEXT_NODE_TYPE,
+                USER_CONTEXT_ITEM_KIND,
+                USER_CONTEXT_DEFAULT_LABEL,
+            )
+            .with_select_when_created(false),
+        ]
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        (node_type == USER_CONTEXT_NODE_TYPE).then(|| {
+            Box::new(UserContextNode::new_with_multiplex(
+                USER_CONTEXT_DEFAULT_LABEL,
+                true,
+            )) as Box<dyn Node>
+        })
+    }
+
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         let meta = &mut self.node_data_mut().meta;
         meta.user_permissions = NodeUserPermissions::all();

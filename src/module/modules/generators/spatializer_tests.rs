@@ -42,12 +42,34 @@ fn spatializer_creates_default_source_target_and_matrix_value() {
     assert!(
         !engine
             .nodes
+            .get(sources)
+            .expect("sources list node")
+            .node_data()
+            .meta
+            .user_permissions
+            .can_edit_name,
+        "Source manager should not be renameable"
+    );
+    assert!(
+        !engine
+            .nodes
             .get(targets)
             .expect("targets list node")
             .node_data()
             .meta
             .can_be_disabled,
         "Target manager should not be disableable"
+    );
+    assert!(
+        !engine
+            .nodes
+            .get(targets)
+            .expect("targets list node")
+            .node_data()
+            .meta
+            .user_permissions
+            .can_edit_name,
+        "Target manager should not be renameable"
     );
 
     let source = nth_child(&engine, sources, 0).expect("default source");
@@ -61,6 +83,17 @@ fn spatializer_creates_default_source_target_and_matrix_value() {
             .meta
             .can_be_disabled,
         "Source items should remain disableable"
+    );
+    assert!(
+        engine
+            .nodes
+            .get(source)
+            .expect("source node")
+            .node_data()
+            .meta
+            .user_permissions
+            .can_edit_name,
+        "Source items should remain renameable"
     );
     assert!(find_child_by_key(&engine, source, "position_2d").is_some());
     assert!(find_child_by_key(&engine, target, "position_2d").is_some());
@@ -167,6 +200,18 @@ fn adding_sources_expands_source_centric_value_rows() {
 #[test]
 fn value_layout_switches_between_source_and_target_centric_trees() {
     let (mut engine, module_id) = create_spatializer_module();
+    let sources = find_path(&engine, module_id, "parameters/sources").expect("sources list");
+    let targets = find_path(&engine, module_id, "parameters/targets").expect("targets list");
+
+    engine.add_user_item(SpatializerSourceItem::new().into(), Some(sources));
+    engine
+        .apply_edits()
+        .expect("second source should attach under sources");
+    engine.add_user_item(SpatializerTargetItem::new().into(), Some(targets));
+    engine
+        .apply_edits()
+        .expect("second target should attach under targets");
+    stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
     let source_values = find_child_by_key(&engine, values_root, "Source")
@@ -179,6 +224,7 @@ fn value_layout_switches_between_source_and_target_centric_trees() {
         find_child_by_key(&engine, values_root, "Target").is_none(),
         "target folders should not remain at values root in source-centric layout"
     );
+    assert_eq!(child_count(&engine, values_root), 2);
 
     let value_layout =
         find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
@@ -199,6 +245,131 @@ fn value_layout_switches_between_source_and_target_centric_trees() {
     assert!(
         find_child_by_key(&engine, values_root, "Source").is_none(),
         "source folders should be removed from values root in target-centric layout"
+    );
+    assert_eq!(child_count(&engine, values_root), 2);
+    assert_eq!(child_count(&engine, target_values), 2);
+
+    set_param(
+        &mut engine,
+        value_layout,
+        ParamValue::Enum("sourceCentric".to_string()),
+    );
+    stabilize(&mut engine);
+
+    let values_root = find_path(&engine, module_id, "values").expect("values root");
+    let source_values = find_child_by_key(&engine, values_root, "Source")
+        .expect("source-centric layout should be restored");
+    assert!(
+        find_child_by_key(&engine, source_values, "Target").is_some(),
+        "restored source-centric rows should contain target values"
+    );
+    assert!(
+        find_child_by_key(&engine, values_root, "Target").is_none(),
+        "target folders should be removed again after switching back"
+    );
+    assert_eq!(child_count(&engine, values_root), 2);
+    assert_eq!(child_count(&engine, source_values), 2);
+}
+
+#[test]
+fn value_layout_parser_accepts_label_tokens() {
+    assert_eq!(
+        super::parse_spatializer_value_layout("Target Centric"),
+        SpatializerValueLayout::TargetCentric
+    );
+    assert_eq!(
+        super::parse_spatializer_value_layout("target_centric"),
+        SpatializerValueLayout::TargetCentric
+    );
+    assert_eq!(
+        super::parse_spatializer_value_layout("source centric"),
+        SpatializerValueLayout::SourceCentric
+    );
+}
+
+#[test]
+fn endpoint_renames_update_generated_value_names_without_reload() {
+    let (mut engine, module_id) = create_spatializer_module();
+    let sources = find_path(&engine, module_id, "parameters/sources").expect("sources list");
+    let targets = find_path(&engine, module_id, "parameters/targets").expect("targets list");
+    let source = nth_child(&engine, sources, 0).expect("default source");
+    let target = nth_child(&engine, targets, 0).expect("default target");
+
+    rename_node(&mut engine, source, "Projector");
+    stabilize(&mut engine);
+
+    let values_root = find_path(&engine, module_id, "values").expect("values root");
+    let source_values = find_child_by_key(&engine, values_root, "Projector")
+        .expect("source-centric row should follow source rename");
+    assert!(
+        find_child_by_key(&engine, values_root, "Source").is_none(),
+        "old source value row label should be replaced"
+    );
+    assert!(
+        find_child_by_key(&engine, source_values, "Target").is_some(),
+        "source-centric row should still contain target values"
+    );
+
+    rename_node(&mut engine, target, "Screen");
+    stabilize(&mut engine);
+
+    let values_root = find_path(&engine, module_id, "values").expect("values root");
+    let source_values = find_child_by_key(&engine, values_root, "Projector")
+        .expect("renamed source row should remain");
+    assert!(
+        find_child_by_key(&engine, source_values, "Screen").is_some(),
+        "source-centric value should follow target rename"
+    );
+    assert!(
+        find_child_by_key(&engine, source_values, "Target").is_none(),
+        "old target value label should be replaced"
+    );
+
+    let value_layout =
+        find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
+    set_param(
+        &mut engine,
+        value_layout,
+        ParamValue::Enum("targetCentric".to_string()),
+    );
+    stabilize(&mut engine);
+
+    let values_root = find_path(&engine, module_id, "values").expect("values root");
+    let target_values = find_child_by_key(&engine, values_root, "Screen")
+        .expect("target-centric row should use target label");
+    assert!(
+        find_child_by_key(&engine, target_values, "Projector").is_some(),
+        "target-centric row should contain source values"
+    );
+
+    rename_node(&mut engine, source, "Camera");
+    stabilize(&mut engine);
+
+    let values_root = find_path(&engine, module_id, "values").expect("values root");
+    let target_values = find_child_by_key(&engine, values_root, "Screen")
+        .expect("target row should remain after source rename");
+    assert!(
+        find_child_by_key(&engine, target_values, "Camera").is_some(),
+        "target-centric source value should follow source rename"
+    );
+    assert!(
+        find_child_by_key(&engine, target_values, "Projector").is_none(),
+        "old source value label should be replaced"
+    );
+
+    rename_node(&mut engine, target, "Wall");
+    stabilize(&mut engine);
+
+    let values_root = find_path(&engine, module_id, "values").expect("values root");
+    let target_values = find_child_by_key(&engine, values_root, "Wall")
+        .expect("target-centric row should follow target rename");
+    assert!(
+        find_child_by_key(&engine, values_root, "Screen").is_none(),
+        "old target row label should be replaced"
+    );
+    assert!(
+        find_child_by_key(&engine, target_values, "Camera").is_some(),
+        "renamed target row should still contain source values"
     );
 }
 
@@ -585,6 +756,17 @@ fn patch_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: bool
         },
     });
     engine.apply_edits().expect("enabled patch should apply");
+}
+
+fn rename_node(engine: &mut crate::app::AppEngine, node: NodeId, label: &str) {
+    engine.edits.push(Edit::PatchMeta {
+        node,
+        patch: NodeMetaPatch {
+            label: Some(label.to_string()),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().expect("rename patch should apply");
 }
 
 fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {

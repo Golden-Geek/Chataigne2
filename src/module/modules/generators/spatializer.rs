@@ -184,6 +184,7 @@ pub struct SpatializerModule {
     pending_endpoint_freeze_radii: HashSet<NodeId>,
     pending_value_folders: HashSet<NodeId>,
     pending_value_pairs: HashSet<(NodeId, NodeId)>,
+    synced_value_layout: Option<SpatializerValueLayout>,
     config_dirty: bool,
 }
 
@@ -199,6 +200,7 @@ impl SpatializerModule {
             HashSet::new(),
             HashSet::new(),
             HashSet::new(),
+            None,
             true,
         )
     }
@@ -207,6 +209,12 @@ impl SpatializerModule {
         let dimension = self.current_dimension(snapshot);
         let mode = self.current_mode(snapshot);
         let value_layout = self.current_value_layout(snapshot);
+        if self
+            .synced_value_layout
+            .is_some_and(|synced_layout| synced_layout != value_layout)
+        {
+            self.clear_generated_value_tracking();
+        }
         let deduped_parameters = self.dedupe_declared_parameter_children(ctx, snapshot);
         let structure_dirty = self.sync_endpoint_items(ctx, snapshot, dimension, mode);
 
@@ -228,6 +236,7 @@ impl SpatializerModule {
             &mut self.pending_value_folders,
             &mut self.pending_value_pairs,
         );
+        self.synced_value_layout = Some(value_layout);
         self.config_dirty = deduped_parameters || structure_dirty || waiting_for_values;
     }
 
@@ -438,14 +447,19 @@ impl SpatializerModule {
     }
 
     fn clear_value_tracking(&mut self) {
-        self.value_folders_by_outer.clear();
-        self.value_outputs_by_pair.clear();
-        self.value_output_nodes.clear();
+        self.clear_generated_value_tracking();
         self.pending_endpoint_positions.clear();
         self.pending_endpoint_radii.clear();
         self.pending_endpoint_freeze_radii.clear();
+    }
+
+    fn clear_generated_value_tracking(&mut self) {
+        self.value_folders_by_outer.clear();
+        self.value_outputs_by_pair.clear();
+        self.value_output_nodes.clear();
         self.pending_value_folders.clear();
         self.pending_value_pairs.clear();
+        self.synced_value_layout = None;
     }
 
     fn is_value_output(&self, node_id: NodeId) -> bool {
@@ -494,6 +508,7 @@ impl Node for SpatializerModule {
             | EventKind::ChildAdded { .. }
             | EventKind::ChildRemoved { .. }
             | EventKind::ChildReplaced { .. }
+            | EventKind::MetaChanged { .. }
             | EventKind::Custom(_) => u32::MAX,
             _ => 1,
         }
@@ -538,6 +553,7 @@ impl Node for SpatializerModule {
             | EventKind::ChildRemoved { .. }
             | EventKind::ChildReplaced { .. }
             | EventKind::Custom(_) => true,
+            EventKind::MetaChanged { patch, .. } => patch.label.is_some(),
             _ => false,
         })
     }
@@ -549,10 +565,42 @@ impl Node for SpatializerModule {
         self.config_dirty = true;
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
             let snapshot = snapshot_arc.as_ref();
+            let needs_followup_sync =
+                node_decl_tail_matches(snapshot, param, "dimensions")
+                    || node_decl_tail_matches(snapshot, param, "mode")
+                    || node_decl_tail_matches(snapshot, param, "value_layout");
             self.sync_configuration(ctx, snapshot);
             self.base
                 .emit_script_param_callback(ctx, snapshot, param, &old_value);
+            if needs_followup_sync {
+                self.config_dirty = true;
+            }
         }
+    }
+
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+        if patch.label.is_none() {
+            return;
+        }
+
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            self.config_dirty = true;
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
+        let under_sources = self
+            .source_list_id(snapshot)
+            .is_some_and(|list| node_is_descendant_or_self(snapshot, node, list));
+        let under_targets = self
+            .target_list_id(snapshot)
+            .is_some_and(|list| node_is_descendant_or_self(snapshot, node, list));
+        if !under_sources && !under_targets {
+            return;
+        }
+
+        self.config_dirty = true;
+        self.sync_configuration(ctx, snapshot);
+        self.config_dirty = true;
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
@@ -594,7 +642,7 @@ pub struct SpatializerSourceList {}
 #[node("spatializer_source_list", from_struct)]
 impl Node for SpatializerSourceList {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        crate::app::module::enable_module_authoring(self.node_data_mut());
+        crate::app::module::enable_module_manager_authoring(self.node_data_mut());
         self.node_data_mut().meta.can_be_disabled = false;
     }
 
@@ -633,7 +681,7 @@ pub struct SpatializerTargetList {}
 #[node("spatializer_target_list", from_struct)]
 impl Node for SpatializerTargetList {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        crate::app::module::enable_module_authoring(self.node_data_mut());
+        crate::app::module::enable_module_manager_authoring(self.node_data_mut());
         self.node_data_mut().meta.can_be_disabled = false;
     }
 
@@ -776,8 +824,14 @@ fn parse_spatializer_mode(value: &str) -> SpatializerMode {
 }
 
 fn parse_spatializer_value_layout(value: &str) -> SpatializerValueLayout {
-    match value {
-        SPATIALIZER_VALUE_LAYOUT_TARGET_CENTRIC => SpatializerValueLayout::TargetCentric,
+    let normalized = value
+        .trim()
+        .chars()
+        .filter(|ch| !matches!(ch, ' ' | '_' | '-'))
+        .flat_map(char::to_lowercase)
+        .collect::<String>();
+    match normalized.as_str() {
+        "targetcentric" => SpatializerValueLayout::TargetCentric,
         _ => SpatializerValueLayout::SourceCentric,
     }
 }
@@ -1482,6 +1536,7 @@ fn value_folder(label: &str, decl_id: &str, uuid: NodeUuid) -> Folder {
     meta.uuid = uuid;
     meta.decl_id = DeclId(decl_id.to_string());
     meta.short_name = decl_id.to_string();
+    meta.user_permissions.can_edit_name = false;
     folder
 }
 
@@ -1523,6 +1578,7 @@ fn read_only_param(label: &str, decl_id: &str, uuid: NodeUuid, value: ParamValue
     meta.uuid = uuid;
     meta.decl_id = DeclId(decl_id.to_string());
     meta.short_name = decl_id.to_string();
+    meta.user_permissions.can_edit_name = false;
     parameter
 }
 
@@ -2285,6 +2341,16 @@ fn direct_child_ids_by_decl_tail(
             })
         })
         .collect()
+}
+
+fn node_decl_tail_matches(
+    snapshot: &ProcessTreeSnapshot,
+    node_id: NodeId,
+    decl_tail: &str,
+) -> bool {
+    snapshot.node(node_id).is_some_and(|node| {
+        node.decl_id == decl_tail || node.decl_id.rsplit('/').next() == Some(decl_tail)
+    })
 }
 
 fn value_decl_id(prefix: &str, item_uuid: NodeUuid) -> String {
