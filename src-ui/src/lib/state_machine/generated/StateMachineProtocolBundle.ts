@@ -2,9 +2,10 @@
 import type { ANodeOutputPreviewSampleDto } from "./ANodeOutputPreviewSampleDto";
 import type { DiagnosticDto } from "./DiagnosticDto";
 import type { FormulaPreviewModeDto } from "./FormulaPreviewModeDto";
+import type { ProcessorLaneInspectionDto } from "./ProcessorLaneInspectionDto";
 import type { ProcessorLaneSummaryDto } from "./ProcessorLaneSummaryDto";
 import type { ProcessorUiDto } from "./ProcessorUiDto";
 import type { RuntimeDebugDeltaDto } from "./RuntimeDebugDeltaDto";
 import type { StatechartDeltaDto } from "./StatechartDeltaDto";
 
-export type StateMachineProtocolBundle = { statechart_deltas: Array<StatechartDeltaDto>, processors: Array<ProcessorUiDto>, diagnostics: Array<DiagnosticDto>, runtime_debug: Array<RuntimeDebugDeltaDto>, processor_lanes: Array<ProcessorLaneSummaryDto>, preview_mode: FormulaPreviewModeDto | null, output_preview: Array<ANodeOutputPreviewSampleDto>, };
+export type StateMachineProtocolBundle = { statechart_deltas: Array<StatechartDeltaDto>, processors: Array<ProcessorUiDto>, diagnostics: Array<DiagnosticDto>, runtime_debug: Array<RuntimeDebugDeltaDto>, processor_lanes: Array<ProcessorLaneSummaryDto>, processor_lane_inspections: Array<ProcessorLaneInspectionDto>, preview_mode: FormulaPreviewModeDto | null, output_preview: Array<ANodeOutputPreviewSampleDto>, };

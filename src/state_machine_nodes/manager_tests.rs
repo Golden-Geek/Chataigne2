@@ -25,7 +25,8 @@ use golden_core::{
 };
 
 use super::{
-    compile_processor_runtime_for_cache_rebuild, condition_manager_edge_previous,
+    collect_processor_lane_inspection, compile_processor_runtime_for_cache_rebuild,
+    condition_manager_edge_previous,
     condition_manager_value_set, param_alpha, param_luminance, param_magnitude, param_speed,
     param_values_equal, project_condition_source_value, ConditionReference,
     merge_output_preview_snapshot, next_input_value_condition_validity,
@@ -200,6 +201,21 @@ fn output_param_overrides_resolve_context_links_per_lane() {
         ))
         .expect("multiplex index link should be valid for a float parameter");
     engine.add_node(lane_number.into(), Some(command_id));
+    let mut template = Parameter::new(
+        "Template",
+        ParamValue::Str("Lane {list:msg}".to_owned()),
+        ParameterChangeCheck::ValueChange,
+    );
+    template.node_data_mut().meta.decl_id = DeclId("template".to_owned());
+    template
+        .engine_set_param_control_state(ParameterControlState::new(
+            ParameterControlMode::TemplateText,
+            ParameterControlSpec::TemplateText {
+                template: "Lane {list:msg}".to_owned(),
+            },
+        ))
+        .expect("template text should be valid for a string parameter");
+    engine.add_node(template.into(), Some(command_id));
     engine
         .apply_edits()
         .expect("output parameters should attach");
@@ -211,6 +227,9 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     let lane_number_id = snapshot
         .find_child_by_decl_id(command_id, "lane_number")
         .expect("lane number parameter should exist");
+    let template_id = snapshot
+        .find_child_by_decl_id(command_id, "template")
+        .expect("template parameter should exist");
     let processor_id = ProcessorId::new();
     let left_item = ContextItemId::new("left");
     let right_item = ContextItemId::new("right");
@@ -250,7 +269,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     };
     let left_overrides =
         resolved_output_param_overrides(&snapshot, command_id, Some(&left_resolver));
-    assert_eq!(left_overrides.len(), 2);
+    assert_eq!(left_overrides.len(), 3);
     assert_eq!(
         &left_overrides
             .iter()
@@ -267,6 +286,14 @@ fn output_param_overrides_resolve_context_links_per_lane() {
             .value,
         &ParamValue::Float(1.0)
     );
+    assert_eq!(
+        &left_overrides
+            .iter()
+            .find(|override_value| override_value.param_id == template_id)
+            .expect("template override should exist")
+            .value,
+        &ParamValue::Str("Lane left lane".to_owned())
+    );
 
     let right_key = ContextKey::single("lane", "right");
     let right_resolver = LaneParamResolver {
@@ -276,7 +303,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     };
     let right_overrides =
         resolved_output_param_overrides(&snapshot, command_id, Some(&right_resolver));
-    assert_eq!(right_overrides.len(), 2);
+    assert_eq!(right_overrides.len(), 3);
     assert_eq!(
         &right_overrides
             .iter()
@@ -292,6 +319,32 @@ fn output_param_overrides_resolve_context_links_per_lane() {
             .expect("lane number override should exist")
             .value,
         &ParamValue::Float(2.0)
+    );
+
+    let mut parameter_previews = Vec::new();
+    let mut condition_previews = Vec::new();
+    collect_processor_lane_inspection(
+        &snapshot,
+        command_id,
+        Some(&right_resolver),
+        &mut parameter_previews,
+        &mut condition_previews,
+    );
+    let preview_by_node = parameter_previews
+        .into_iter()
+        .map(|preview| (preview.node_id, preview.value))
+        .collect::<HashMap<_, _>>();
+    assert_eq!(
+        preview_by_node.get(&snapshot.node(message_id).unwrap().uuid.0.to_string()),
+        Some(&"right lane".to_owned())
+    );
+    assert_eq!(
+        preview_by_node.get(&snapshot.node(lane_number_id).unwrap().uuid.0.to_string()),
+        Some(&"2.000".to_owned())
+    );
+    assert_eq!(
+        preview_by_node.get(&snapshot.node(template_id).unwrap().uuid.0.to_string()),
+        Some(&"Lane right lane".to_owned())
     );
 }
 
