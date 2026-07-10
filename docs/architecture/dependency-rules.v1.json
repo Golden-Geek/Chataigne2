@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "status": "frozen",
+  "root_layers": [
+    "golden-model",
+    "golden-values",
+    "golden-parameters",
+    "golden-context"
+  ],
+  "rules": [
+    { "from": "golden-model", "may_depend_on": [] },
+    { "from": "golden-values", "may_depend_on": ["golden-model"] },
+    { "from": "golden-parameters", "may_depend_on": ["golden-model", "golden-values"] },
+    { "from": "golden-context", "may_depend_on": ["golden-model", "golden-values"] },
+    { "from": "golden-graph", "may_depend_on": ["golden-model"] },
+    { "from": "golden-alchemist", "may_depend_on": ["golden-model", "golden-values", "golden-graph"] },
+    { "from": "golden-statechart", "may_depend_on": ["golden-model", "golden-graph"] },
+    { "from": "golden-condition", "may_depend_on": ["golden-model", "golden-values", "golden-context", "golden-script"] },
+    { "from": "golden-processor", "may_depend_on": ["golden-model", "golden-values", "golden-context", "golden-alchemist", "golden-condition"] },
+    { "from": "golden-runtime", "may_depend_on": ["golden-model", "golden-values", "golden-context", "golden-statechart", "golden-processor", "golden-condition"] },
+    { "from": "golden-protocol", "may_depend_on": ["golden-model", "golden-values", "golden-graph"] },
+    { "from": "golden-persistence", "may_depend_on": ["golden-model", "golden-values", "golden-graph", "golden-protocol"] },
+    { "from": "golden-transport", "may_depend_on": ["golden-model", "golden-protocol"] },
+    { "from": "golden-host", "may_depend_on": ["golden-model", "golden-protocol", "golden-transport", "golden-persistence", "golden-runtime"] }
+  ],
+  "forbidden": [
+    { "layer": "golden-graph", "imports": ["golden-alchemist", "golden-statechart", "apps/chataigne"] },
+    { "layer": "golden-statechart", "imports": ["golden-alchemist", "apps/chataigne"] },
+    { "layer": "golden-runtime", "imports": ["apps/chataigne", "golden-ui", "golden-graph-ui"] },
+    { "layer": "golden-ui", "imports": ["golden-alchemist", "golden-statechart", "apps/chataigne"] },
+    { "layer": "golden-graph-ui", "imports": ["golden-alchemist-ui", "golden-statechart-ui", "apps/chataigne"] }
+  ]
+}

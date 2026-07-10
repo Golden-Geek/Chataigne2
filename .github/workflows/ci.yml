@@ -48,6 +48,8 @@ jobs:
       - name: Install UI dependencies without lifecycle code generation
         working-directory: src-ui
         run: npm ci --ignore-scripts
+      - name: Validate architecture contract and parity evidence
+        run: python tools/check_architecture_contract.py
       - name: Root formatting
         run: cargo fmt --all --check
       - name: golden_core formatting
