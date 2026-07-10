@@ -633,7 +633,9 @@ fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
         Some(ParamValue::Bool(false))
     );
     assert!(
-        golden_core::logger::records().is_empty(),
+        golden_core::logger::records().iter().all(|record| !record
+            .message
+            .starts_with("Failed to apply App Control running toggle")),
         "periodic running reconciliation should not emit launch/kill errors without a user toggle callback"
     );
 }

@@ -12,7 +12,8 @@ use golden_statechart::{LifecycleEvent, StateId, Statechart, TransitionId, Trans
 use crate::{
     CommandIntent, CommandPolicy, DefaultProcessorContextProvider, IntentOrigin, Processor, ProcessorCommandPolicy,
     ProcessorContextProvider, ProcessorGroup, ProcessorGroupId, ProcessorId, ProcessorLaneOutput,
-    ProcessorLifecycleEvent, ProcessorManager, ProcessorManagerError, ProcessorManagerId, ProcessorRuntime,
+    ProcessorLifecycleEvent, ProcessorManager, ProcessorManagerError, ProcessorManagerId, ProcessorMultiplexError,
+    ProcessorMultiplexLimits, ProcessorRuntime,
 };
 
 #[derive(Clone, Debug)]
@@ -186,6 +187,7 @@ pub struct ChataigneStateMachineRuntime {
     pub processor_runtimes: IndexMap<ProcessorId, ProcessorRuntime>,
     transition_runtimes: IndexMap<TransitionId, StateMachineTransitionRuntime>,
     pub execution: RuntimeExecutionMatrix,
+    multiplex_limits: ProcessorMultiplexLimits,
 }
 
 impl ChataigneStateMachineRuntime {
@@ -261,7 +263,15 @@ impl ChataigneStateMachineRuntime {
             processor_runtimes,
             transition_runtimes,
             execution: RuntimeExecutionMatrix::default(),
+            multiplex_limits: ProcessorMultiplexLimits::default(),
         })
+    }
+
+    pub fn set_multiplex_limits(&mut self, limits: ProcessorMultiplexLimits) {
+        self.multiplex_limits = limits;
+        for runtime in self.processor_runtimes.values_mut() {
+            runtime.set_multiplex_limits(limits);
+        }
     }
 
     pub fn initialize(
@@ -330,10 +340,35 @@ impl ChataigneStateMachineRuntime {
             );
             result.transition_outputs.insert(transition_id, output);
         }
+        let active_lane_count = self
+            .execution
+            .active_processors
+            .iter()
+            .try_fold(0usize, |total, processor_id| {
+                let lane_count = self.processor_runtimes[processor_id].planned_lane_count(context_provider)?;
+                total
+                    .checked_add(lane_count)
+                    .ok_or(ProcessorMultiplexError::RuntimeCardinalityOverflow)
+            });
+        let runtime_budget_error = match active_lane_count {
+            Ok(lanes) if lanes > self.multiplex_limits.max_total_active_lanes => {
+                Some(ProcessorMultiplexError::RuntimeLaneBudgetExceeded {
+                    lanes,
+                    limit: self.multiplex_limits.max_total_active_lanes,
+                })
+            }
+            Err(error @ ProcessorMultiplexError::RuntimeCardinalityOverflow) => Some(error),
+            _ => None,
+        };
         for processor_id in self.execution.active_processors.clone() {
             let Some(processor) = machine.processor(processor_id) else {
                 continue;
             };
+            if let Some(error) = runtime_budget_error.clone() {
+                let output = self.processor_runtimes[&processor_id].multiplex_diagnostic_output(error);
+                result.processor_outputs.insert(processor_id, output);
+                continue;
+            }
             let lanes = self.processor_runtimes[&processor_id].evaluate_processor_with_context_provider(
                 processor,
                 ctx,

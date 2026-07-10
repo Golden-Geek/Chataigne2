@@ -4,11 +4,11 @@ use uuid::Uuid;
 
 use golden_alchemist::{
     ANodeId, AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
-    ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin,
-    EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
-    FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame,
-    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription,
-    RuntimeValue, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
+    ContextItemId, ContextKey, ContextKeyPart, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample,
+    Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId,
+    FormulaPropertyId, FormulaRef, FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus,
+    RuntimeContextFrame, RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError,
+    RuntimeSubscription, RuntimeValue, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
     evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
@@ -89,11 +89,40 @@ pub enum ProcessorLifecycleEvent {
 pub trait ProcessorContextProvider {
     fn available_axes(&self, processor_id: ProcessorId) -> AxisSet;
 
-    fn iter_context_keys<'a>(
-        &'a self,
+    fn context_axis_items(
+        &self,
         processor_id: ProcessorId,
-        axes: &'a AxisSet,
-    ) -> Box<dyn Iterator<Item = ContextKey> + 'a>;
+        axes: &AxisSet,
+    ) -> Result<Vec<(ContextAxisId, Vec<ContextItemId>)>, ProcessorMultiplexError>;
+
+    fn lane_count(
+        &self,
+        processor_id: ProcessorId,
+        axes: &AxisSet,
+        limits: ProcessorMultiplexLimits,
+    ) -> Result<usize, ProcessorMultiplexError> {
+        let axis_items = self.context_axis_items(processor_id, axes)?;
+        let axis_lengths = axis_items
+            .iter()
+            .map(|(axis, items)| (axis.clone(), items.len()))
+            .collect::<Vec<_>>();
+        checked_context_cardinality(&axis_lengths, limits)
+    }
+
+    fn iter_context_keys(
+        &self,
+        processor_id: ProcessorId,
+        axes: &AxisSet,
+        limits: ProcessorMultiplexLimits,
+    ) -> Result<ContextKeyProduct, ProcessorMultiplexError> {
+        let axis_items = self.context_axis_items(processor_id, axes)?;
+        let axis_lengths = axis_items
+            .iter()
+            .map(|(axis, items)| (axis.clone(), items.len()))
+            .collect::<Vec<_>>();
+        checked_context_cardinality(&axis_lengths, limits)?;
+        Ok(ContextKeyProduct::new(axis_items))
+    }
 
     fn resolve_context_value(
         &self,
@@ -101,6 +130,121 @@ pub trait ProcessorContextProvider {
         axis: &ContextAxisId,
         path: &ContextValuePath,
     ) -> Option<RuntimeValue>;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcessorMultiplexLimits {
+    pub max_items_per_axis: usize,
+    pub max_lanes_per_processor: usize,
+    pub max_total_active_lanes: usize,
+}
+
+impl Default for ProcessorMultiplexLimits {
+    fn default() -> Self {
+        Self {
+            max_items_per_axis: 4_096,
+            max_lanes_per_processor: 16_384,
+            max_total_active_lanes: 65_536,
+        }
+    }
+}
+
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ProcessorMultiplexError {
+    #[error("processor {processor_id} has no context runtime")]
+    MissingProcessor { processor_id: ProcessorId },
+    #[error("processor {processor_id} does not provide context axis {axis:?}")]
+    MissingAxis {
+        processor_id: ProcessorId,
+        axis: ContextAxisId,
+    },
+    #[error("context axis {axis:?} contains {items} items, exceeding the per-axis budget of {limit}")]
+    AxisBudgetExceeded {
+        axis: ContextAxisId,
+        items: usize,
+        limit: usize,
+    },
+    #[error("context lane cardinality overflowed while multiplying axis {axis:?}")]
+    CardinalityOverflow { axis: ContextAxisId },
+    #[error("context lane cardinality {lanes} exceeds the per-processor budget of {limit}")]
+    LaneBudgetExceeded { lanes: usize, limit: usize },
+    #[error("active processor lane cardinality {lanes} exceeds the runtime budget of {limit}")]
+    RuntimeLaneBudgetExceeded { lanes: usize, limit: usize },
+    #[error("active processor lane cardinality overflowed the platform size")]
+    RuntimeCardinalityOverflow,
+}
+
+pub fn checked_context_cardinality(
+    axis_lengths: &[(ContextAxisId, usize)],
+    limits: ProcessorMultiplexLimits,
+) -> Result<usize, ProcessorMultiplexError> {
+    let mut cardinality = 1usize;
+    for (axis, item_count) in axis_lengths {
+        if *item_count > limits.max_items_per_axis {
+            return Err(ProcessorMultiplexError::AxisBudgetExceeded {
+                axis: axis.clone(),
+                items: *item_count,
+                limit: limits.max_items_per_axis,
+            });
+        }
+        cardinality = cardinality
+            .checked_mul(*item_count)
+            .ok_or_else(|| ProcessorMultiplexError::CardinalityOverflow { axis: axis.clone() })?;
+        if cardinality > limits.max_lanes_per_processor {
+            return Err(ProcessorMultiplexError::LaneBudgetExceeded {
+                lanes: cardinality,
+                limit: limits.max_lanes_per_processor,
+            });
+        }
+    }
+    Ok(cardinality)
+}
+
+pub struct ContextKeyProduct {
+    axes: Vec<(ContextAxisId, Vec<ContextItemId>)>,
+    indexes: Vec<usize>,
+    exhausted: bool,
+}
+
+impl ContextKeyProduct {
+    fn new(axes: Vec<(ContextAxisId, Vec<ContextItemId>)>) -> Self {
+        let exhausted = axes.iter().any(|(_, items)| items.is_empty());
+        let indexes = vec![0; axes.len()];
+        Self {
+            axes,
+            indexes,
+            exhausted,
+        }
+    }
+}
+
+impl Iterator for ContextKeyProduct {
+    type Item = ContextKey;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.exhausted {
+            return None;
+        }
+        let key = ContextKey::new(
+            self.axes
+                .iter()
+                .zip(&self.indexes)
+                .map(|((axis, items), index)| ContextKeyPart::new(axis.clone(), items[*index].clone())),
+        );
+        if self.axes.is_empty() {
+            self.exhausted = true;
+            return Some(key);
+        }
+        for axis_index in (0..self.axes.len()).rev() {
+            self.indexes[axis_index] += 1;
+            if self.indexes[axis_index] < self.axes[axis_index].1.len() {
+                return Some(key);
+            }
+            self.indexes[axis_index] = 0;
+        }
+        self.exhausted = true;
+        Some(key)
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -184,15 +328,18 @@ impl ProcessorContextProvider for DefaultProcessorContextProvider {
         AxisSet::new()
     }
 
-    fn iter_context_keys<'a>(
-        &'a self,
-        _processor_id: ProcessorId,
-        axes: &'a AxisSet,
-    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+    fn context_axis_items(
+        &self,
+        processor_id: ProcessorId,
+        axes: &AxisSet,
+    ) -> Result<Vec<(ContextAxisId, Vec<ContextItemId>)>, ProcessorMultiplexError> {
         if axes.is_empty() {
-            Box::new(std::iter::once(ContextKey::default_lane()))
+            Ok(Vec::new())
         } else {
-            Box::new(std::iter::empty())
+            Err(ProcessorMultiplexError::MissingAxis {
+                processor_id,
+                axis: axes.first().cloned().expect("non-empty axis set"),
+            })
         }
     }
 
@@ -298,6 +445,7 @@ pub struct ProcessorRuntime {
     pub dirty: ProcessorDirtyFlags,
     pub subscriptions: Vec<RuntimeSubscription>,
     pub diagnostics: Vec<Diagnostic>,
+    pub multiplex_limits: ProcessorMultiplexLimits,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -363,6 +511,47 @@ impl ProcessorRuntime {
             },
             subscriptions: Vec::new(),
             diagnostics: Vec::new(),
+            multiplex_limits: ProcessorMultiplexLimits::default(),
+        }
+    }
+
+    pub fn set_multiplex_limits(&mut self, limits: ProcessorMultiplexLimits) {
+        self.multiplex_limits = limits;
+    }
+
+    pub fn planned_lane_count(
+        &self,
+        context_provider: &dyn ProcessorContextProvider,
+    ) -> Result<usize, ProcessorMultiplexError> {
+        if !self.active || self.compiled.is_none() {
+            return Ok(0);
+        }
+        if self.managed_formula.is_some() {
+            return Ok(1);
+        }
+        let compiled = self.compiled.as_ref().expect("compiled runtime checked above");
+        let plan = self.plan.clone().unwrap_or_else(|| {
+            ProcessorExecutionPlan::analyze(
+                self.id,
+                &compiled.analysis,
+                &ProcessorBindingAnalysis::default(),
+                context_provider.available_axes(self.id),
+            )
+        });
+        context_provider.lane_count(self.id, &plan.required_eval_axes, self.multiplex_limits)
+    }
+
+    pub fn multiplex_diagnostic_output(&self, error: ProcessorMultiplexError) -> RuntimeOutput {
+        if let Some(compiled) = self.compiled.as_ref() {
+            multiplex_error_lane(compiled, error).output
+        } else {
+            RuntimeOutput {
+                diagnostics: vec![RuntimeDiagnostic {
+                    exec_node: ExecNodeId::new(0),
+                    message: error.to_string(),
+                }],
+                ..RuntimeOutput::default()
+            }
         }
     }
 
@@ -712,9 +901,19 @@ impl ProcessorRuntime {
                 context_provider.available_axes(self.id),
             )
         });
-        let mut context_keys = context_provider
-            .iter_context_keys(self.id, &plan.required_eval_axes)
-            .collect::<IndexSet<_>>();
+        let lane_count = match context_provider.lane_count(self.id, &plan.required_eval_axes, self.multiplex_limits) {
+            Ok(lane_count) => lane_count,
+            Err(error) => return vec![multiplex_error_lane(&compiled, error)],
+        };
+        let context_keys =
+            match context_provider.iter_context_keys(self.id, &plan.required_eval_axes, self.multiplex_limits) {
+                Ok(context_keys) => context_keys,
+                Err(error) => return vec![multiplex_error_lane(&compiled, error)],
+            };
+        let mut bounded_context_keys = IndexSet::with_capacity(lane_count);
+        bounded_context_keys.extend(context_keys);
+        let mut context_keys = bounded_context_keys;
+        debug_assert!(context_keys.len() <= lane_count);
         if context_keys.is_empty() && plan.required_eval_axes.is_empty() {
             context_keys.insert(ContextKey::default_lane());
         }
@@ -815,6 +1014,25 @@ fn property_frame_error_output(error: RuntimePropertyFrameError) -> RuntimeOutpu
             message: error.to_string(),
         }],
         ..RuntimeOutput::default()
+    }
+}
+
+fn multiplex_error_lane(compiled: &CompiledAlchemistFormula, error: ProcessorMultiplexError) -> ProcessorLaneOutput {
+    let exec_node = compiled
+        .graph
+        .topo_order
+        .first()
+        .copied()
+        .unwrap_or_else(|| ExecNodeId::new(0));
+    ProcessorLaneOutput {
+        context_key: None,
+        output: RuntimeOutput {
+            diagnostics: vec![RuntimeDiagnostic {
+                exec_node,
+                message: error.to_string(),
+            }],
+            ..RuntimeOutput::default()
+        },
     }
 }
 

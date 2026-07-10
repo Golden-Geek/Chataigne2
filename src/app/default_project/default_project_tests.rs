@@ -82,6 +82,7 @@ fn default_project_contains_builtin_external_formulas() {
 /// Restores the previous value (if any) when dropped.
 struct SharedFormulaDirTestOverride {
     previous: Option<std::ffi::OsString>,
+    _lock: std::sync::MutexGuard<'static, ()>,
 }
 
 impl Drop for SharedFormulaDirTestOverride {
@@ -94,6 +95,9 @@ impl Drop for SharedFormulaDirTestOverride {
 }
 
 fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let lock = crate::app::SHARED_FORMULA_DIR_ENV_LOCK
+        .lock()
+        .expect("shared formula env lock should not be poisoned");
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
     unsafe {
         std::env::set_var(
@@ -101,5 +105,5 @@ fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
             "chataigne2-tests-nonexistent-shared-formulas-dir",
         );
     }
-    SharedFormulaDirTestOverride { previous }
+    SharedFormulaDirTestOverride { previous, _lock: lock }
 }

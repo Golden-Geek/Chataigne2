@@ -8,16 +8,17 @@ use std::{
 
 use golden_alchemist::{
     ANodeDeclaration, ANodeInstance, ANodeSignature, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet,
-    CompileCtx, CompiledNodeEvaluator, CompiledNodeOperation, ContextAxisId, ContextKey, ContextValuePath,
-    EvaluationCtx, ExecutionKind, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface,
-    InputSocketRef, LaneRuntimePool, NodeEvaluation, OutputSocketDecl, OutputSocketRef, ResolvedANodeSignature,
-    RuntimeInputSnapshot, RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, StableRef, TriggerValue,
-    TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+    CompileCtx, CompiledNodeEvaluator, CompiledNodeOperation, ContextAxisId, ContextItemId, ContextKey,
+    ContextValuePath, EvaluationCtx, ExecutionKind, FormulaContextContract, FormulaId, FormulaPropertySchema,
+    FormulaSurface, InputSocketRef, LaneRuntimePool, NodeEvaluation, OutputSocketDecl, OutputSocketRef,
+    ResolvedANodeSignature, RuntimeInputSnapshot, RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx,
+    StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
 
 use crate::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, Processor, ProcessorContextProvider, ProcessorId,
+    ProcessorMultiplexLimits,
     alchemist::{register_nodes, register_value_types},
 };
 
@@ -310,7 +311,7 @@ impl CompiledNodeEvaluator for CommandEmitterEval {
 
 #[derive(Clone, Debug)]
 struct TestContextProvider {
-    keys: Vec<ContextKey>,
+    items: Vec<ContextItemId>,
     axes: AxisSet,
 }
 
@@ -318,10 +319,10 @@ impl TestContextProvider {
     fn with_device_count(count: usize) -> Self {
         let mut axes = AxisSet::new();
         axes.insert(ContextAxisId::new("device"));
-        let keys = (0..count)
-            .map(|index| ContextKey::single("device", format!("device-{index}")))
+        let items = (0..count)
+            .map(|index| ContextItemId::new(format!("device-{index}")))
             .collect();
-        Self { keys, axes }
+        Self { items, axes }
     }
 }
 
@@ -330,15 +331,15 @@ impl ProcessorContextProvider for TestContextProvider {
         self.axes.clone()
     }
 
-    fn iter_context_keys<'a>(
-        &'a self,
+    fn context_axis_items(
+        &self,
         _processor_id: ProcessorId,
-        axes: &'a AxisSet,
-    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+        axes: &AxisSet,
+    ) -> Result<Vec<(ContextAxisId, Vec<ContextItemId>)>, crate::ProcessorMultiplexError> {
         if axes.is_empty() {
-            Box::new(std::iter::once(ContextKey::default_lane()))
+            Ok(Vec::new())
         } else {
-            Box::new(self.keys.clone().into_iter())
+            Ok(vec![(ContextAxisId::new("device"), self.items.clone())])
         }
     }
 
@@ -458,6 +459,30 @@ fn guard_evaluates_once_even_when_active_processors_have_30_lanes() {
     assert_eq!(guard_count.load(Ordering::SeqCst), 1);
     assert_eq!(runtime.execution.active_scopes, machine.chart.active.active_scopes);
     assert!(output.processor_outputs[&processor_id].debug_samples.is_empty());
+
+    runtime.set_multiplex_limits(ProcessorMultiplexLimits {
+        max_total_active_lanes: 29,
+        ..ProcessorMultiplexLimits::default()
+    });
+    let over_budget = runtime
+        .tick_with_context_provider(
+            &mut machine,
+            &EvaluationCtx {
+                logical_tick: 2,
+                delta_time: Duration::ZERO,
+                events: &[],
+                inputs: &inputs,
+                registries: &registries,
+            },
+            &provider,
+        )
+        .unwrap();
+    assert!(
+        over_budget.processor_outputs[&processor_id]
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("runtime budget of 29"))
+    );
 }
 
 #[test]

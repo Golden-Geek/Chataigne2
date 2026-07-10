@@ -5,6 +5,8 @@ include!(concat!(env!("OUT_DIR"), "/app_nodes.rs"));
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));
 
 pub type AppEngine = golden_core::engine::Engine<AppNode>;
+#[cfg(test)]
+pub(crate) static SHARED_FORMULA_DIR_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 pub(crate) use module_modules_protocol_midi_commands::MidiSendRequest;
 pub(crate) use module_modules_protocol_midi_midi_module::midi_message::{
     cc_supports_14_bit, clamp_channel_i32, clamp_i32_to_u14, clamp_i32_to_u7, encode_14_bit_control_change,

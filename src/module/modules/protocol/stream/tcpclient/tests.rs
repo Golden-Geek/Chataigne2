@@ -2,7 +2,7 @@ use std::{
     net::TcpListener,
     sync::mpsc,
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use golden_core::{
@@ -113,8 +113,7 @@ fn tcp_module_recovers_when_server_appears_and_after_connection_loss() {
         stage_rx.recv_timeout(Duration::from_secs(2)).expect("TCP client should connect once the server appears"),
         1
     );
-    wait_for_transport_io();
-    settle_transport_state(&mut engine);
+    wait_for_connected(&mut engine, module_id, true);
     assert_eq!(
         connected_value(&engine, module_id),
         Some(true),
@@ -128,8 +127,7 @@ fn tcp_module_recovers_when_server_appears_and_after_connection_loss() {
         stage_rx.recv_timeout(Duration::from_secs(3)).expect("TCP client should reconnect after the connection drops"),
         2
     );
-    wait_for_transport_io();
-    settle_transport_state(&mut engine);
+    wait_for_connected(&mut engine, module_id, true);
     assert_eq!(
         connected_value(&engine, module_id),
         Some(true),
@@ -202,6 +200,21 @@ fn settle_transport_state(engine: &mut crate::app::AppEngine) {
 
 fn wait_for_transport_io() {
     thread::sleep(Duration::from_millis(40));
+}
+
+fn wait_for_connected(engine: &mut crate::app::AppEngine, module_id: NodeId, expected: bool) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        settle_transport_state(engine);
+        if connected_value(engine, module_id) == Some(expected) {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "TCP connected state should become {expected} before the timeout"
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
 }
 
 fn free_tcp_port() -> u16 {

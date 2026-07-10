@@ -41,8 +41,8 @@ The release is ready to carry an “AAA-grade foundation” claim only when all 
 | Stage | Status | Supercommit scope |
 |---|---|---|
 | 0 | Complete (2026-07-10) | Truthful CI, exact toolchains, dependency triage, versioned benchmark manifest/baseline, direct trigger result prerequisite, and persistence-baseline correctness |
-| 1 | In progress | Checked, lazy, budgeted multiplex execution |
-| 2 | Pending | Open-network hardening and observability |
+| 1 | Complete (2026-07-10) | Checked, lazy, budgeted multiplex execution and incremental canonical reconciliation |
+| 2 | In progress | Open-network hardening and observability |
 | 3 | Pending | ValueSet direct output and cache invalidation |
 | 4 | Pending | Incremental, deterministic, bounded events |
 | 5 | Pending | Revision- and visibility-driven graph UI |
@@ -104,6 +104,19 @@ Capture wall time, p50/p95/p99 latency, allocations, peak resident memory, queue
 - Baseline reports are committed in machine-readable form with hardware/toolchain metadata.
 
 ### Stage 1 — Contain multiplex cardinality and allocation risk
+
+**Status: Complete (2026-07-10).**
+
+Evidence:
+
+- `ProcessorContextProvider` now exposes owned axis items once, derives lane counts directly from axis lengths, and produces context keys through a lazy mixed-radix iterator. Counting is O(number of axes), while the last axis advances fastest in stable order.
+- Checked multiplication rejects per-axis, per-processor, runtime-total, and platform-size overflow before lane enumeration. Defaults are 4,096 items per axis, 16,384 lanes per processor, and 65,536 active lanes per runtime; `ProcessorMultiplexLimits` provides the expert override while checked arithmetic remains mandatory.
+- The 64, 1,024, and 16,384 fixture cardinalities, intentional over-budget input, `usize` overflow, deterministic ordering, and runtime-total rejection have dedicated state-machine tests. Over-budget processors return runtime diagnostics without creating lane keys.
+- Processor UI lane counts no longer enumerate context keys, and the manager constructs full processor DTOs only after the preview throttle has made a publish decision.
+- `golden_core` is now the sole owner of multiplex list reconciliation. The duplicate `UserContextMultiplexNode` resize implementation and listener plumbing were removed.
+- Reconcile targets are coalesced per list with monotonic generations, revalidated against the live count before execution, and drained in stable node order. Defaults cap an operation at 16,384 new nodes and one tick at 256 structural edits; all three reconcile limits are expert-configurable through `RuntimeLimits`.
+- A changed count replaces stale work, over-budget requests leave the graph unchanged with a node warning, and each tick applies its reconcile slice as one edit transaction. The core test covers chunking, cancellation, and diagnostics; the complete `golden_engine` suite passes 332 tests with one benchmark intentionally ignored (333 total).
+- The root workspace passes 379 app tests plus 77 state-machine tests (two stale tests remain explicitly ignored). Shared-formula environment tests now serialize their process-global override, App Control logger assertions match only their own diagnostic, and TCP recovery tests poll a bounded state transition instead of relying on a fixed scheduler delay.
 
 This is the highest-priority runtime issue. Current multiplex context generation eagerly materializes a Cartesian product, clones prefixes, and is also used merely to count lanes. Large axis counts can create explosive CPU, memory, and queued work.
 

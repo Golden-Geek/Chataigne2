@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs,
-    sync::{Mutex, MutexGuard},
+    sync::MutexGuard,
     time::SystemTime,
 };
 
@@ -896,7 +896,7 @@ fn catalog_with_shared_and_project_formulas(
 /// what the current machine's real Shared formulas folder contains, and
 /// tests that need to build a path "inside" the shared folder have a known
 /// value to build against. Restores the previous value (if any) when dropped.
-struct SharedFormulaDirTestOverride {
+pub(super) struct SharedFormulaDirTestOverride {
     previous: Option<std::ffi::OsString>,
     _lock: MutexGuard<'static, ()>,
 }
@@ -910,10 +910,8 @@ impl Drop for SharedFormulaDirTestOverride {
     }
 }
 
-static SHARED_FORMULA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
-
-fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
-    let lock = SHARED_FORMULA_DIR_ENV_LOCK
+pub(super) fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let lock = crate::app::SHARED_FORMULA_DIR_ENV_LOCK
         .lock()
         .expect("shared formula env lock should not be poisoned");
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
@@ -930,7 +928,7 @@ fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
 }
 
 fn shared_formula_dir_test_override_to(path: &std::path::Path) -> SharedFormulaDirTestOverride {
-    let lock = SHARED_FORMULA_DIR_ENV_LOCK
+    let lock = crate::app::SHARED_FORMULA_DIR_ENV_LOCK
         .lock()
         .expect("shared formula env lock should not be poisoned");
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
@@ -944,7 +942,7 @@ fn shared_formula_dir_test_override_to(path: &std::path::Path) -> SharedFormulaD
 }
 
 fn shared_formula_dir_env_removed() -> SharedFormulaDirTestOverride {
-    let lock = SHARED_FORMULA_DIR_ENV_LOCK
+    let lock = crate::app::SHARED_FORMULA_DIR_ENV_LOCK
         .lock()
         .expect("shared formula env lock should not be poisoned");
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");

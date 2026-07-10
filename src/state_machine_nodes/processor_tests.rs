@@ -20,6 +20,7 @@ use super::{
     StateProcessorManagedRegions, StateProcessorManager,
     processor_managed_region_decl_id,
 };
+use super::catalog_tests::shared_formula_dir_test_override;
 use crate::app::state_machine_nodes_formula::{
     AlchemistProperty, ANODE_CREATE_PREFIX, ANODE_NODE_TYPE,
     FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
@@ -1508,34 +1509,6 @@ fn processor_mirrors_formula_icon() {
         Some(icon),
         "Processor should mirror its formula's icon"
     );
-}
-
-/// Points CHATAIGNE_SHARED_FORMULAS_DIR at a directory that doesn't exist,
-/// so `default_shared_formula_trees()` sees zero shared formulas regardless
-/// of what the current machine's real Shared formulas folder contains.
-/// Restores the previous value (if any) when dropped.
-struct SharedFormulaDirTestOverride {
-    previous: Option<std::ffi::OsString>,
-}
-
-impl Drop for SharedFormulaDirTestOverride {
-    fn drop(&mut self) {
-        match self.previous.take() {
-            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
-            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
-        }
-    }
-}
-
-fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
-    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
-    unsafe {
-        std::env::set_var(
-            "CHATAIGNE_SHARED_FORMULAS_DIR",
-            "chataigne2-tests-nonexistent-shared-formulas-dir",
-        );
-    }
-    SharedFormulaDirTestOverride { previous }
 }
 
 fn project_json_contains_node_type(value: &serde_json::Value, node_type: &str) -> bool {

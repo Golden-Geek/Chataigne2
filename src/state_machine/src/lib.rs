@@ -31,7 +31,8 @@ pub use processor::{
     ProcessorCommandPolicy, ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorDebugCapture,
     ProcessorDirtyFlags, ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorFormulaSourceKind,
     ProcessorFormulaUiState, ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
-    ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel, processor_output_preview_samples,
+    ProcessorMemoryPolicy, ProcessorMultiplexError, ProcessorMultiplexLimits, ProcessorRuntime, ProcessorUiModel,
+    checked_context_cardinality, processor_output_preview_samples,
 };
 pub use protocol::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, ManagedItemDto, ManagedItemUiStateDto,

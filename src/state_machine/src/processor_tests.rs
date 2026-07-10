@@ -1,18 +1,19 @@
 use std::{sync::Arc, time::Duration};
 
 use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextKey,
-    ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId,
-    FormulaPropertySchema, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
-    ManagedRegionDefinition, ManagedRegionId, ManagedRegionKind, OutputPreviewStatus, OutputSocketRef,
-    RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue, StableRef, SurfaceItem, SurfaceItemId,
-    SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry,
+    ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextItemId,
+    ContextKey, ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl,
+    FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance,
+    ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionKind, OutputPreviewStatus,
+    OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue, StableRef, SurfaceItem,
+    SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry,
     primitive_node_registry,
 };
 
 use crate::{
     DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorContextProvider,
-    ProcessorDebugCapture, ProcessorExecutionStrategy, ProcessorId, ProcessorLifecycleEvent, ProcessorRuntime,
+    ProcessorDebugCapture, ProcessorExecutionStrategy, ProcessorId, ProcessorLifecycleEvent, ProcessorMultiplexError,
+    ProcessorMultiplexLimits, ProcessorRuntime, checked_context_cardinality,
 };
 
 fn formula() -> AlchemistFormula {
@@ -87,7 +88,7 @@ fn formula_with_graph(graph: AlchemistGraph) -> AlchemistFormula {
 
 #[derive(Clone, Debug)]
 struct TestContextProvider {
-    keys: Vec<ContextKey>,
+    items: Vec<ContextItemId>,
     axes: AxisSet,
 }
 
@@ -95,7 +96,11 @@ impl TestContextProvider {
     fn new(keys: Vec<ContextKey>) -> Self {
         let mut axes = AxisSet::new();
         axes.insert(ContextAxisId::new("device"));
-        Self { keys, axes }
+        let items = keys
+            .into_iter()
+            .filter_map(|key| key.iter().next().map(|part| part.item.clone()))
+            .collect();
+        Self { items, axes }
     }
 }
 
@@ -110,15 +115,15 @@ impl ProcessorContextProvider for TestContextProvider {
         self.axes.clone()
     }
 
-    fn iter_context_keys<'a>(
-        &'a self,
+    fn context_axis_items(
+        &self,
         _processor_id: ProcessorId,
-        axes: &'a AxisSet,
-    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+        axes: &AxisSet,
+    ) -> Result<Vec<(ContextAxisId, Vec<ContextItemId>)>, crate::ProcessorMultiplexError> {
         if axes.is_empty() {
-            Box::new(std::iter::once(ContextKey::default_lane()))
+            Ok(Vec::new())
         } else {
-            Box::new(self.keys.clone().into_iter())
+            Ok(vec![(ContextAxisId::new("device"), self.items.clone())])
         }
     }
 
@@ -130,6 +135,113 @@ impl ProcessorContextProvider for TestContextProvider {
     ) -> Option<RuntimeValue> {
         None
     }
+}
+
+#[derive(Clone, Debug)]
+struct AxisItemsProvider {
+    axis_items: Vec<(ContextAxisId, Vec<ContextItemId>)>,
+}
+
+impl ProcessorContextProvider for AxisItemsProvider {
+    fn available_axes(&self, _processor_id: ProcessorId) -> AxisSet {
+        self.axis_items.iter().map(|(axis, _)| axis.clone()).collect()
+    }
+
+    fn context_axis_items(
+        &self,
+        _processor_id: ProcessorId,
+        axes: &AxisSet,
+    ) -> Result<Vec<(ContextAxisId, Vec<ContextItemId>)>, ProcessorMultiplexError> {
+        Ok(self
+            .axis_items
+            .iter()
+            .filter(|(axis, _)| axes.contains(axis))
+            .cloned()
+            .collect())
+    }
+
+    fn resolve_context_value(
+        &self,
+        _key: &ContextKey,
+        _axis: &ContextAxisId,
+        _path: &ContextValuePath,
+    ) -> Option<RuntimeValue> {
+        None
+    }
+}
+
+#[test]
+fn context_cardinality_is_checked_without_enumerating_lanes() {
+    let limits = ProcessorMultiplexLimits::default();
+    for (side, expected) in [(8, 64), (32, 1_024), (128, 16_384)] {
+        let lengths = vec![(ContextAxisId::new("row"), side), (ContextAxisId::new("column"), side)];
+        assert_eq!(checked_context_cardinality(&lengths, limits), Ok(expected));
+    }
+
+    let over_budget = checked_context_cardinality(
+        &[(ContextAxisId::new("row"), 129), (ContextAxisId::new("column"), 129)],
+        limits,
+    );
+    assert!(matches!(
+        over_budget,
+        Err(ProcessorMultiplexError::LaneBudgetExceeded { lanes: 16_641, .. })
+    ));
+
+    let unlimited = ProcessorMultiplexLimits {
+        max_items_per_axis: usize::MAX,
+        max_lanes_per_processor: usize::MAX,
+        max_total_active_lanes: usize::MAX,
+    };
+    let overflow = checked_context_cardinality(
+        &[
+            (ContextAxisId::new("row"), usize::MAX),
+            (ContextAxisId::new("column"), 2),
+        ],
+        unlimited,
+    );
+    assert!(matches!(
+        overflow,
+        Err(ProcessorMultiplexError::CardinalityOverflow { .. })
+    ));
+}
+
+#[test]
+fn context_key_product_is_lazy_and_uses_stable_mixed_radix_order() {
+    let provider = AxisItemsProvider {
+        axis_items: vec![
+            (
+                ContextAxisId::new("row"),
+                ["r0", "r1"].into_iter().map(ContextItemId::new).collect(),
+            ),
+            (
+                ContextAxisId::new("column"),
+                ["c0", "c1", "c2"].into_iter().map(ContextItemId::new).collect(),
+            ),
+        ],
+    };
+    let processor_id = ProcessorId::new();
+    let axes = provider.available_axes(processor_id);
+    assert_eq!(
+        provider.lane_count(processor_id, &axes, ProcessorMultiplexLimits::default()),
+        Ok(6)
+    );
+
+    let keys = provider
+        .iter_context_keys(processor_id, &axes, ProcessorMultiplexLimits::default())
+        .unwrap()
+        .map(|key| key.parts.iter().map(|part| part.item.clone()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        keys,
+        vec![
+            vec![ContextItemId::new("r0"), ContextItemId::new("c0")],
+            vec![ContextItemId::new("r0"), ContextItemId::new("c1")],
+            vec![ContextItemId::new("r0"), ContextItemId::new("c2")],
+            vec![ContextItemId::new("r1"), ContextItemId::new("c0")],
+            vec![ContextItemId::new("r1"), ContextItemId::new("c1")],
+            vec![ContextItemId::new("r1"), ContextItemId::new("c2")],
+        ]
+    );
 }
 
 fn compile_active_runtime(formula: &AlchemistFormula) -> (Processor, ProcessorRuntime) {

@@ -17,7 +17,7 @@ use chataigne_state_machine::{
 };
 use golden_alchemist::{
     ANodeId, AlchemistFormula, AxisSet, CompiledAlchemistFormula, ContextAxisId, ContextItemId,
-    ContextKey, ContextKeyPart, ContextValuePath, EvaluationCtx, DebugValueSample, FormulaCompileKey, FormulaRef,
+    ContextKey, ContextValuePath, EvaluationCtx, DebugValueSample, FormulaCompileKey, FormulaRef,
     ManagedItemId, ManagedItemInstance,
     ManagedItemUiState, ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
     RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, SocketId, StableRef,
@@ -324,7 +324,13 @@ impl SnapshotProcessorContextProvider {
         if axes.is_empty() {
             return 0;
         }
-        self.iter_context_keys(processor_id, axes).count()
+        ProcessorContextProvider::lane_count(
+            self,
+            processor_id,
+            axes,
+            chataigne_state_machine::ProcessorMultiplexLimits::default(),
+        )
+        .unwrap_or(0)
     }
 }
 
@@ -337,44 +343,35 @@ impl ProcessorContextProvider for SnapshotProcessorContextProvider {
         axes
     }
 
-    fn iter_context_keys<'a>(
-        &'a self,
+    fn context_axis_items(
+        &self,
         processor_id: ProcessorId,
-        axes: &'a AxisSet,
-    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+        axes: &AxisSet,
+    ) -> Result<
+        Vec<(ContextAxisId, Vec<ContextItemId>)>,
+        chataigne_state_machine::ProcessorMultiplexError,
+    > {
         if axes.is_empty() {
-            return Box::new(std::iter::once(ContextKey::default_lane()));
+            return Ok(Vec::new());
         }
         let Some(runtime) = self.processors.get(&processor_id) else {
-            return Box::new(std::iter::empty());
+            return Err(chataigne_state_machine::ProcessorMultiplexError::MissingProcessor {
+                processor_id,
+            });
         };
 
-        let mut required_axes = Vec::<(&ContextAxisId, Vec<ContextItemId>)>::new();
+        let mut required_axes = Vec::<(ContextAxisId, Vec<ContextItemId>)>::new();
         for axis in axes {
             let Some(runtime_axis) = runtime.axes.iter().find(|candidate| &candidate.axis == axis)
             else {
-                return Box::new(std::iter::empty());
+                return Err(chataigne_state_machine::ProcessorMultiplexError::MissingAxis {
+                    processor_id,
+                    axis: axis.clone(),
+                });
             };
-            if runtime_axis.items.is_empty() {
-                return Box::new(std::iter::empty());
-            }
-            required_axes.push((axis, runtime_axis.items.clone()));
+            required_axes.push((axis.clone(), runtime_axis.items.clone()));
         }
-
-        let mut key_parts = vec![Vec::<ContextKeyPart>::new()];
-        for (axis, items) in required_axes {
-            let mut next = Vec::<Vec<ContextKeyPart>>::new();
-            for prefix in &key_parts {
-                for item in &items {
-                    let mut parts = prefix.clone();
-                    parts.push(ContextKeyPart::new(axis.clone(), item.clone()));
-                    next.push(parts);
-                }
-            }
-            key_parts = next;
-        }
-
-        Box::new(key_parts.into_iter().map(ContextKey::new))
+        Ok(required_axes)
     }
 
     fn resolve_context_value(
@@ -1437,7 +1434,6 @@ impl StateMachineManager {
         }
         self.runtime_cache.dirty_input_source_params.clear();
         self.runtime_cache.dirty_formula_values.clear();
-        let processors = processor_ui_dtos(&self.runtime_cache.processors, &provider);
         if evaluated_any || cache_rebuilt {
             let output_preview = if capture_output_previews {
                 merge_output_preview_snapshot(
@@ -1448,13 +1444,16 @@ impl StateMachineManager {
                 self.runtime_cache.output_preview_snapshot.clear();
                 Vec::new()
             };
+            let should_publish = self.should_publish_output_preview(ctx.time.tick, &output_preview);
             if cache_rebuilt {
                 self.runtime_cache.processor_lane_snapshot.clear();
                 self.runtime_cache.processor_lane_inspection_snapshot.clear();
             }
-            let active_processor_ids = processors
-                .iter()
-                .map(|processor| processor.id.as_str())
+            let active_processor_ids = self
+                .runtime_cache
+                .processors
+                .values()
+                .map(|processor| processor.processor.id.to_string())
                 .collect::<HashSet<_>>();
             self.runtime_cache
                 .processor_lane_snapshot
@@ -1490,13 +1489,38 @@ impl StateMachineManager {
                 .values()
                 .cloned()
                 .collect::<Vec<_>>();
-            self.publish_output_preview(
-                ctx,
-                processors,
-                output_preview,
-                processor_lanes,
-                processor_lane_inspections,
-            );
+            if should_publish {
+                let processors = processor_ui_dtos(&self.runtime_cache.processors, &provider);
+                self.publish_output_preview(
+                    ctx,
+                    processors,
+                    output_preview,
+                    processor_lanes,
+                    processor_lane_inspections,
+                );
+            }
+        }
+    }
+
+    fn should_publish_output_preview(
+        &self,
+        tick: u64,
+        samples: &[chataigne_state_machine::ANodeOutputPreviewSample],
+    ) -> bool {
+        let signature = output_preview_signature(samples);
+        let changed = self
+            .runtime_cache
+            .last_preview_signature
+            .as_ref()
+            .is_none_or(|previous| previous != &signature);
+        match self
+            .runtime_cache
+            .last_preview_tick
+            .map(|last_tick| tick.saturating_sub(last_tick))
+        {
+            None => true,
+            Some(elapsed) if changed => elapsed >= STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS,
+            Some(elapsed) => elapsed >= STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS,
         }
     }
 
@@ -3237,7 +3261,14 @@ fn collect_condition_manager_runtime_input(
         let source_dirty =
             condition_tree_has_dirty_source(snapshot, manager, dirty_input_source_params);
         let mut aggregate_values = Vec::new();
-        for context_key in context_provider.iter_context_keys(processor_id, &manager_axes) {
+        let Ok(context_keys) = context_provider.iter_context_keys(
+            processor_id,
+            &manager_axes,
+            chataigne_state_machine::ProcessorMultiplexLimits::default(),
+        ) else {
+            return;
+        };
+        for context_key in context_keys {
             let lane_key = format!("{}:{}", signal_key, context_key_cache_id(&context_key));
             let previous = condition_manager_valid_states.get(&lane_key).copied();
             let resolver = LaneParamResolver {
