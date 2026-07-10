@@ -139,6 +139,10 @@ pub struct Engine<T: Node> {
     blueprints: crate::blueprints::BlueprintRegistry<T>,
     /// User-defined lexical context scopes and resolver cache.
     user_contexts: crate::contexts::UserContextRegistry,
+    /// Versioned, coalesced multiplex reconciliation jobs keyed by list node.
+    pub(crate) user_context_reconcile_jobs: HashMap<NodeId, contexts::UserContextReconcileJob>,
+    /// Monotonic generation assigned whenever a reconcile target is replaced.
+    pub(crate) next_user_context_reconcile_version: u64,
     /// Persistent node UUID -> runtime node id lookup maintained with node-store mutations.
     uuid_index: HashMap<NodeUuid, NodeId>,
     /// UI-facing append-only event log used for replay/subscription.
@@ -271,6 +275,8 @@ impl<T: Node> Engine<T> {
             reference_filters: HashMap::new(),
             blueprints: crate::blueprints::BlueprintRegistry::new(),
             user_contexts: crate::contexts::UserContextRegistry::new(),
+            user_context_reconcile_jobs: HashMap::new(),
+            next_user_context_reconcile_version: 1,
             uuid_index,
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,

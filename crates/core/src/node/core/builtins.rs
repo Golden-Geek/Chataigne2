@@ -2,7 +2,7 @@ use std::any::Any;
 
 use crate::{
     edit::{Edit, NodeTree},
-    events::{Event, EventFrame, EventKind},
+    events::{Event, EventFrame},
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ReferenceTargetKind},
     process_ctx::ProcessCtx,
 };
@@ -336,7 +336,6 @@ impl Node for UserContextFolder {
 /// Multiplex axis node inside a user-context scope.
 pub struct UserContextMultiplexNode {
     node_data: NodeData,
-    count_listener_ready: bool,
 }
 
 impl UserContextMultiplexNode {
@@ -344,10 +343,7 @@ impl UserContextMultiplexNode {
     pub fn new(label: impl Into<String>) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
-        Self {
-            node_data,
-            count_listener_ready: false,
-        }
+        Self { node_data }
     }
 }
 
@@ -435,12 +431,11 @@ impl Node for UserContextMultiplexNode {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        self.count_listener_ready = false;
-        if ctx.tree_snapshot().is_some() {
-            ctx.add_event_listener_subtree(self.id(), self.id(), 1);
-        }
-        if self.ensure_count_listener(ctx) {
-            self.reconcile_entry_counts(ctx);
+        if ctx.tree_snapshot().is_some_and(|snapshot| {
+            snapshot
+                .find_child_by_decl_id(self.id(), USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+                .is_some()
+        }) {
             return;
         }
         ctx.edits.push(Edit::AddNode {
@@ -450,146 +445,12 @@ impl Node for UserContextMultiplexNode {
         });
     }
 
-    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
-        if ctx
-            .events
-            .iter()
-            .any(|event| matches!(&event.kind, EventKind::ParamChanged { .. }))
-        {
-            self.count_listener_ready = false;
-        }
-        self.dispatch_inbox(ctx);
-    }
-
-    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-        let Some(snapshot) = ctx.tree_snapshot() else {
-            return;
-        };
-        let Some(count_param) = snapshot.find_child_by_decl_id(self.id(), USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID) else {
-            return;
-        };
-        if param == count_param {
-            self.reconcile_entry_counts(ctx);
-        }
-    }
-
-    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
-        if parent == self.id() {
-            self.count_listener_ready = false;
-            ctx.add_event_listener_subtree(self.id(), child, 1);
-        }
-    }
-
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        if self.ensure_count_listener(ctx) {
-            self.reconcile_entry_counts(ctx);
-        }
-    }
-
     fn needs_update(&self) -> bool {
         false
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
         false
-    }
-
-    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
-        1
-    }
-
-    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        events
-            .iter()
-            .any(|event| matches!(&event.kind, EventKind::ParamChanged { .. }))
-    }
-
-    fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
-    }
-}
-
-impl UserContextMultiplexNode {
-    fn ensure_count_listener(&mut self, ctx: &mut ProcessCtx) -> bool {
-        let Some(count_param) = ctx
-            .tree_snapshot()
-            .and_then(|snapshot| snapshot.find_child_by_decl_id(self.id(), USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID))
-        else {
-            self.count_listener_ready = false;
-            return false;
-        };
-        ctx.add_event_listener(self.id(), count_param);
-        self.count_listener_ready = true;
-        true
-    }
-
-    fn reconcile_entry_counts(&self, ctx: &mut ProcessCtx) {
-        let pending_edits = {
-            let Some(snapshot) = ctx.tree_snapshot() else {
-                return;
-            };
-            let Some(count_param) = snapshot.find_child_by_decl_id(self.id(), USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
-            else {
-                return;
-            };
-            let target_count = snapshot
-                .node(count_param)
-                .and_then(|node| node.param_value.as_ref())
-                .and_then(|value| match value {
-                    ParamValue::Int(value) => Some((*value).max(0) as usize),
-                    _ => None,
-                })
-                .unwrap_or(0);
-
-            let mut pending_edits = Vec::<Edit>::new();
-            for list_id in snapshot.child_ids(self.id()) {
-                let Some(list_snapshot) = snapshot.node(list_id) else {
-                    continue;
-                };
-                let Some(value_type) =
-                    user_context_multiplex_list_value_type(list_snapshot.node_type.as_str()).map(str::to_string)
-                else {
-                    continue;
-                };
-
-                let entry_ids = snapshot
-                    .child_ids(list_id)
-                    .into_iter()
-                    .filter(|entry_id| {
-                        snapshot.node(*entry_id).is_some_and(|entry| {
-                            entry.is_parameter() && entry.node_type.eq_ignore_ascii_case(value_type.as_str())
-                        })
-                    })
-                    .collect::<Vec<_>>();
-
-                if entry_ids.len() > target_count {
-                    for entry_id in entry_ids.iter().skip(target_count).rev() {
-                        pending_edits.push(Edit::RemoveNode { node: *entry_id });
-                    }
-                    continue;
-                }
-
-                for _ in entry_ids.len()..target_count {
-                    let Some(default_value) = default_parameter_value_for_node_type(value_type.as_str()) else {
-                        continue;
-                    };
-                    pending_edits.push(Edit::AddNode {
-                        parent: list_id,
-                        prev_sibling: None,
-                        node: Box::new(Parameter::new(
-                            user_context_parameter_type_label(value_type.as_str()),
-                            default_value,
-                            ParameterChangeCheck::ValueChange,
-                        )),
-                    });
-                }
-            }
-            pending_edits
-        };
-
-        for edit in pending_edits {
-            ctx.edits.push(edit);
-        }
     }
 }
 

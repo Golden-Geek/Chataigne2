@@ -86,6 +86,12 @@ impl Default for NodeExecutionRule {
 /// Runtime guardrails used while ticking the engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuntimeLimits {
+    /// Maximum number of entries allowed on one user-context multiplex axis.
+    pub max_user_context_items_per_axis: usize,
+    /// Maximum number of new nodes accepted from one multiplex reconcile request.
+    pub max_user_context_new_nodes_per_reconcile: usize,
+    /// Maximum structural multiplex reconcile edits queued in one engine tick.
+    pub max_user_context_reconcile_edits_per_tick: usize,
     /// Maximum number of stabilization rounds allowed in one tick.
     pub max_stabilization_passes_per_tick: usize,
     /// Maximum number of update callbacks allowed in one tick.
@@ -111,6 +117,9 @@ impl RuntimeLimits {
 impl Default for RuntimeLimits {
     fn default() -> Self {
         Self {
+            max_user_context_items_per_axis: 4_096,
+            max_user_context_new_nodes_per_reconcile: 16_384,
+            max_user_context_reconcile_edits_per_tick: 256,
             max_stabilization_passes_per_tick: 16,
             max_update_callbacks_per_tick: 100_000,
             max_bucket_catch_up_per_tick: 4,

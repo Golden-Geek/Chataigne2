@@ -13,6 +13,16 @@ use crate::parameter::{ParamValue, compatibility_for_values};
 
 use super::Engine;
 
+const USER_CONTEXT_RECONCILE_WARNING_ID: &str = "user_context_reconcile_budget";
+
+#[derive(Clone, Debug)]
+pub(crate) struct UserContextReconcileJob {
+    list_id: NodeId,
+    value_type: String,
+    target_count: usize,
+    version: u64,
+}
+
 impl<T: Node> Engine<T> {
     /// Ensures one `UserContext` scope exists for `owner`.
     pub fn ensure_user_context_scope(&mut self, owner: NodeId) -> Result<bool, String> {
@@ -233,7 +243,7 @@ impl<T: Node> Engine<T> {
             _ => return false,
         };
 
-        let mut changed = false;
+        let mut lists = Vec::<(NodeId, String, usize)>::new();
         let mut list_child = self
             .nodes
             .get(multiplex_node)
@@ -248,6 +258,45 @@ impl<T: Node> Engine<T> {
                 continue;
             };
 
+            let entry_count = self.user_context_multiplex_entry_count(list_id, value_type.as_str());
+            lists.push((list_id, value_type, entry_count));
+        }
+
+        if target_count > self.runtime_limits.max_user_context_items_per_axis {
+            for (list_id, _, _) in &lists {
+                self.user_context_reconcile_jobs.remove(list_id);
+            }
+            self.set_node_warning_with(
+                count_param,
+                Some(USER_CONTEXT_RECONCILE_WARNING_ID),
+                format!(
+                    "Multiplex count {target_count} exceeds the configured per-axis limit of {}",
+                    self.runtime_limits.max_user_context_items_per_axis
+                ),
+                Some("Raise the expert runtime limit only after validating the resulting lane cardinality."),
+            );
+            return false;
+        }
+
+        let additions = lists.iter().try_fold(0usize, |total, (_, _, current)| {
+            total.checked_add(target_count.saturating_sub(*current))
+        });
+        if additions.is_none_or(|count| count > self.runtime_limits.max_user_context_new_nodes_per_reconcile) {
+            for (list_id, _, _) in &lists {
+                self.user_context_reconcile_jobs.remove(list_id);
+            }
+            self.set_node_warning_with(
+                count_param,
+                Some(USER_CONTEXT_RECONCILE_WARNING_ID),
+                "Multiplex reconciliation exceeds the configured new-node budget",
+                Some("Reduce the count or the number of lists, or raise the expert runtime limit."),
+            );
+            return false;
+        }
+        self.clear_node_warning(count_param, Some(USER_CONTEXT_RECONCILE_WARNING_ID));
+
+        let mut changed = false;
+        for (list_id, value_type, _) in lists {
             changed |= self.queue_user_context_multiplex_sync_list_to_count(list_id, value_type.as_str(), target_count);
         }
         changed
@@ -273,6 +322,13 @@ impl<T: Node> Engine<T> {
         let Some(target_count) = self.user_context_multiplex_target_count(multiplex_node) else {
             return false;
         };
+        let current_count = self.user_context_multiplex_entry_count(list_id, value_type.as_str());
+        if target_count > self.runtime_limits.max_user_context_items_per_axis
+            || target_count.saturating_sub(current_count) > self.runtime_limits.max_user_context_new_nodes_per_reconcile
+        {
+            self.user_context_reconcile_jobs.remove(&list_id);
+            return false;
+        }
         self.queue_user_context_multiplex_sync_list_to_count(list_id, value_type.as_str(), target_count)
     }
 
@@ -309,7 +365,20 @@ impl<T: Node> Engine<T> {
         value_type: &str,
         target_count: usize,
     ) -> bool {
-        let mut entries = Vec::new();
+        let version = self.next_user_context_reconcile_version;
+        self.next_user_context_reconcile_version = self.next_user_context_reconcile_version.saturating_add(1);
+        let job = UserContextReconcileJob {
+            list_id,
+            value_type: value_type.to_owned(),
+            target_count,
+            version,
+        };
+        self.user_context_reconcile_jobs.insert(list_id, job);
+        true
+    }
+
+    fn user_context_multiplex_entry_count(&self, list_id: NodeId, value_type: &str) -> usize {
+        let mut count = 0usize;
         let mut entry_child = self.nodes.get(list_id).and_then(|node| node.node_data().first_child);
         while let Some(entry_id) = entry_child {
             let Some(entry_node) = self.nodes.get(entry_id) else {
@@ -317,31 +386,85 @@ impl<T: Node> Engine<T> {
             };
             entry_child = entry_node.node_data().next_sibling;
             if entry_node.engine_param_snapshot().is_some() && entry_node.get_type().eq_ignore_ascii_case(value_type) {
-                entries.push(entry_id);
+                count = count.saturating_add(1);
             }
         }
+        count
+    }
 
-        let mut changed = false;
-        if entries.len() > target_count {
-            for entry_id in entries.iter().skip(target_count).rev() {
-                self.edits.push(Edit::RemoveNode { node: *entry_id });
-                changed = true;
-            }
-            return changed;
+    pub(crate) fn drain_user_context_reconcile_edits(&mut self) {
+        let mut remaining = self.runtime_limits.max_user_context_reconcile_edits_per_tick;
+        if remaining == 0 || self.user_context_reconcile_jobs.is_empty() {
+            return;
         }
 
-        for _ in entries.len()..target_count {
-            let Some(entry) = user_context_multiplex_entry_parameter(value_type) else {
+        let mut list_ids = self.user_context_reconcile_jobs.keys().copied().collect::<Vec<_>>();
+        list_ids.sort_by_key(|node| node.0);
+        for list_id in list_ids {
+            if remaining == 0 {
+                break;
+            }
+            let Some(job) = self.user_context_reconcile_jobs.get(&list_id).cloned() else {
                 continue;
             };
-            self.edits.push(Edit::AddNode {
-                parent: list_id,
-                prev_sibling: None,
-                node: Box::new(entry),
-            });
-            changed = true;
+            let Some(list_node) = self.nodes.get(job.list_id) else {
+                self.user_context_reconcile_jobs.remove(&list_id);
+                continue;
+            };
+            if user_context_multiplex_list_value_type(list_node.get_type()) != Some(job.value_type.as_str()) {
+                self.user_context_reconcile_jobs.remove(&list_id);
+                continue;
+            }
+            let Some(multiplex_node) = list_node.node_data().parent else {
+                self.user_context_reconcile_jobs.remove(&list_id);
+                continue;
+            };
+            if self.user_context_multiplex_target_count(multiplex_node) != Some(job.target_count)
+                || self
+                    .user_context_reconcile_jobs
+                    .get(&list_id)
+                    .is_none_or(|current| current.version != job.version)
+            {
+                self.user_context_reconcile_jobs.remove(&list_id);
+                continue;
+            }
+
+            let mut entries = Vec::new();
+            let mut entry_child = self.nodes.get(list_id).and_then(|node| node.node_data().first_child);
+            while let Some(entry_id) = entry_child {
+                let Some(entry_node) = self.nodes.get(entry_id) else {
+                    break;
+                };
+                entry_child = entry_node.node_data().next_sibling;
+                if entry_node.engine_param_snapshot().is_some()
+                    && entry_node.get_type().eq_ignore_ascii_case(job.value_type.as_str())
+                {
+                    entries.push(entry_id);
+                }
+            }
+
+            let pending_count = entries.len().abs_diff(job.target_count).min(remaining);
+            if entries.len() > job.target_count {
+                for entry_id in entries.iter().skip(job.target_count).rev().take(pending_count) {
+                    self.edits.push(Edit::RemoveNode { node: *entry_id });
+                }
+            } else {
+                for _ in 0..pending_count {
+                    let Some(entry) = user_context_multiplex_entry_parameter(job.value_type.as_str()) else {
+                        continue;
+                    };
+                    self.edits.push(Edit::AddNode {
+                        parent: list_id,
+                        prev_sibling: None,
+                        node: Box::new(entry),
+                    });
+                }
+            }
+            remaining -= pending_count;
+            if pending_count == entries.len().abs_diff(job.target_count) {
+                self.user_context_reconcile_jobs.remove(&list_id);
+            }
         }
-        changed
     }
 
     pub(crate) fn node_within_user_context_scope(&self, node: NodeId) -> bool {

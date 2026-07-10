@@ -3652,7 +3652,9 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
         .queue_catalog_create(multiplex, trigger_list_type.clone(), Some("Triggers".to_string()), None)
         .expect("queueing trigger list creation should succeed");
     engine.apply_edits().expect("trigger list creation should apply");
-    engine.apply_edits().expect("new list count sync should apply");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("new list count sync should run in the next reconcile tick");
     let trigger_list = direct_children_of_type(&engine, multiplex, trigger_list_type.as_str())
         .into_iter()
         .next()
@@ -3660,7 +3662,7 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
     assert_eq!(
         direct_children_of_type(&engine, trigger_list, "trigger").len(),
         5,
-        "new lists should immediately sync to the current multiplex count"
+        "new lists should sync to the current multiplex count on the next tick"
     );
 
     set_param_and_tick(&mut engine, count, ParamValue::Int(6));
@@ -3680,6 +3682,74 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
     set_param_and_tick(&mut engine, count, ParamValue::Int(2));
     let shrunk_uuids = node_uuids(&engine, &direct_children_of_type(&engine, list, "float"));
     assert_eq!(shrunk_uuids, first_uuids[..2]);
+}
+
+#[test]
+fn multiplex_reconcile_is_chunked_cancellable_and_budgeted() {
+    let root: MacroTestNode = UiMultiplexContextHostNode::new().into();
+    let mut engine = Engine::new(root);
+    engine.set_runtime_limits(RuntimeLimits {
+        max_user_context_items_per_axis: 4,
+        max_user_context_new_nodes_per_reconcile: 4,
+        max_user_context_reconcile_edits_per_tick: 2,
+        ..RuntimeLimits::default()
+    });
+
+    engine
+        .queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None)
+        .expect("queueing user_context creation should succeed");
+    engine.apply_edits().expect("user_context creation should apply");
+    let scope = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("scope should exist");
+    engine
+        .queue_catalog_create(scope, USER_CONTEXT_MULTIPLEX_NODE_TYPE, Some("Mux".to_string()), None)
+        .expect("queueing multiplex creation should succeed");
+    for _ in 0..3 {
+        engine.apply_edits().expect("multiplex creation should apply");
+    }
+    let multiplex = direct_children_of_type(&engine, scope, USER_CONTEXT_MULTIPLEX_NODE_TYPE)[0];
+    let count = find_child_by_decl(&engine, multiplex, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+        .expect("multiplex should create count parameter");
+    let list_type = user_context_multiplex_list_node_type("float");
+    engine
+        .queue_catalog_create(multiplex, list_type.clone(), Some("Values".to_string()), None)
+        .expect("queueing list creation should succeed");
+    engine.apply_edits().expect("list creation should apply");
+    let list = direct_children_of_type(&engine, multiplex, list_type.as_str())[0];
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(4));
+    assert_eq!(
+        direct_children_of_type(&engine, list, "float").len(),
+        2,
+        "one tick must not exceed the configured reconcile chunk"
+    );
+    assert_eq!(engine.user_context_reconcile_jobs.len(), 1);
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(1));
+    assert_eq!(direct_children_of_type(&engine, list, "float").len(), 1);
+    assert!(
+        engine.user_context_reconcile_jobs.is_empty(),
+        "the new generation should cancel the stale growth job"
+    );
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(5));
+    assert_eq!(direct_children_of_type(&engine, list, "float").len(), 1);
+    assert!(
+        engine
+            .nodes
+            .get(count)
+            .and_then(|node| {
+                node.node_data()
+                    .meta
+                    .presentation
+                    .warning(Some("user_context_reconcile_budget"))
+            })
+            .is_some(),
+        "over-budget input should leave the graph unchanged and expose a diagnostic"
+    );
 }
 
 #[test]

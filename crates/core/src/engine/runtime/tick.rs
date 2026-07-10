@@ -56,6 +56,7 @@ impl<T: Node> Engine<T> {
         for edit in self.deferred_structural_edits.drain(..) {
             self.edits.push(edit);
         }
+        self.drain_user_context_reconcile_edits();
 
         let resolve1_started = Instant::now();
         self.resolve_if_needed()?;
