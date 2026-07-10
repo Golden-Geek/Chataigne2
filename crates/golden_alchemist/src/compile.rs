@@ -186,6 +186,22 @@ pub struct CompiledAlchemistGraph {
     pub debug_map: DebugSourceMap,
 }
 
+impl CompiledAlchemistGraph {
+    /// Resolves an authored output socket to its runtime value slot.
+    #[must_use]
+    pub fn output_slot(&self, author_node: ANodeId, output_socket: &SocketId) -> Option<ValueSlotId> {
+        self.exec_nodes
+            .iter()
+            .find(|node| node.authored_id == author_node)
+            .and_then(|node| {
+                node.output_sockets
+                    .iter()
+                    .position(|socket| socket == output_socket)
+                    .and_then(|index| node.outputs.get(index).copied())
+            })
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct CompileResult {
     pub compiled: Option<Arc<CompiledAlchemistGraph>>,

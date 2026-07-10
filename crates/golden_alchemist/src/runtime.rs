@@ -395,6 +395,16 @@ impl AlchemistMemory {
         self.values.get(slot.index())
     }
 
+    /// Returns a runtime value only after its producing node initialized the slot.
+    #[must_use]
+    pub fn initialized_value(&self, slot: ValueSlotId) -> Option<&RuntimeValue> {
+        self.value_initialized
+            .get(slot.index())
+            .copied()
+            .unwrap_or(false)
+            .then(|| &self.values[slot.index()])
+    }
+
     #[must_use]
     pub fn value_len(&self) -> usize {
         self.values.len()
