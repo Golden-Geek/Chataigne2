@@ -35,9 +35,9 @@ pub use processor::{
     checked_context_cardinality, processor_output_preview_samples,
 };
 pub use protocol::{
-    ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, ManagedItemDto, ManagedItemUiStateDto,
-    ManagedRegionDefinitionDto, ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto,
-    ProcessorFormulaSourceKindDto, ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto,
+    ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, FormulaPreviewModeDto, ManagedItemDto,
+    ManagedItemUiStateDto, ManagedRegionDefinitionDto, ManagedRegionInstanceDto, ManagedRegionKindDto,
+    ManagedSocketRefDto, ProcessorFormulaSourceKindDto, ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto,
     ProcessorLaneParameterPreviewDto, ProcessorLaneSummaryDto, ProcessorUiDto, StateMachineProtocolBundle,
     export_typescript,
 };

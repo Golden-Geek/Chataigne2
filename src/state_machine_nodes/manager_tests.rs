@@ -259,6 +259,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
                 }],
             },
         )]),
+        declared_children: HashMap::new(),
     };
 
     let left_key = ContextKey::single("lane", "left");
@@ -405,6 +406,7 @@ fn multiplex_template_tokens_resolve_indexes_and_lists_across_named_axes() {
                 ],
             },
         )]),
+        declared_children: HashMap::new(),
     };
     let key = ContextKey::new([
         golden_alchemist::ContextKeyPart::new(primary_axis, primary_items[1].clone()),
@@ -447,6 +449,7 @@ fn multiplex_index_context_links_resolve_both_index_bases() {
                 lists: Vec::new(),
             },
         )]),
+        declared_children: HashMap::new(),
     };
     let key = ContextKey::single("axis", "second");
 
@@ -520,7 +523,6 @@ fn input_value_condition_projects_vector_and_color_components() {
 fn input_value_condition_compares_vector_and_color_references() {
     let reference = ConditionReference {
         number: 5.0,
-        number_max: 10.0,
         boolean: true,
         text: "",
         vec2: Some((3.0, 4.0)),

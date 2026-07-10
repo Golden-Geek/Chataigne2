@@ -19,9 +19,10 @@ repository = "https://github.com/Golden-Geek/Chataigne2"
 [workspace.dependencies]
 golden_alchemist = { path = "submodules/golden_alchemist_core/crates/golden_alchemist" }
 golden_statechart = { path = "submodules/golden_alchemist_core/crates/golden_statechart" }
-indexmap = { version = "2", features = ["serde"] }
+indexmap = { version = "2", features = ["serde", "rayon"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
+rayon = "1"
 smol_str = { version = "0.3", features = ["serde"] }
 thiserror = "2"
 ts-rs = "12"
@@ -48,6 +49,7 @@ golden_alchemist.workspace = true
 gilrs = "0.11.1"
 if-addrs = "0.15.0"
 image = { version = "0.25", optional = true }
+indexmap.workspace = true
 # Pinned to the hidapi 2.x branch so the native `hidapi` link is shared with
 # elgato-streamdeck (Cargo allows only one crate to link `hidapi`).
 joycon-rs = { git = "https://github.com/KaiseiYokoyama/joycon-rs", branch = "dependabot/cargo/hidapi-2.2" }

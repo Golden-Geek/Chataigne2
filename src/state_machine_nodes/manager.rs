@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     ffi::OsStr,
     sync::{Arc, LazyLock},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use chataigne_state_machine::{
@@ -11,13 +11,14 @@ use chataigne_state_machine::{
     ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorFormulaUiState, ProcessorId,
     ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto,
     ProcessorLaneSummaryDto, ProcessorUiDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
-    ProcessorRuntime, StateMachineProtocolBundle, processor_output_preview_samples,
+    ProcessorRuntime, StateMachineProtocolBundle, FormulaPreviewModeDto,
+    processor_output_preview_samples,
     ValueLaneKey, ValueSet, ValueSetEntry, lane_scoped_stable_ref,
     alchemist::{CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, node_registry, value_type_registry},
 };
 use golden_alchemist::{
     ANodeId, AlchemistFormula, AxisSet, CompiledAlchemistFormula, ContextAxisId, ContextItemId,
-    ContextKey, ContextValuePath, EvaluationCtx, DebugValueSample, FormulaCompileKey, FormulaRef,
+    ContextKey, ContextKeyPart, ContextValuePath, EvaluationCtx, DebugValueSample, FormulaCompileKey, FormulaRef,
     ManagedItemId, ManagedItemInstance,
     ManagedItemUiState, ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
     RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, SocketId, StableRef,
@@ -66,6 +67,8 @@ const PROCESSOR_NODE_TYPE: &str = "state_processor";
 const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
 const STATE_MACHINE_RUNTIME_HZ: u32 = 60;
 const STATE_MACHINE_RUNTIME_PREVIEW_TOPIC: &str = "chataigne.state_machine.runtime_preview";
+const STATE_MACHINE_RUNTIME_PREVIEW_INTEREST_TOPIC: &str =
+    "chataigne.state_machine.runtime_preview_interest";
 const STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS: u64 = 1;
 const CONDITION_PULSE_HOLD_TICKS: u64 = 6;
 const STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS: u64 = 60;
@@ -85,6 +88,14 @@ struct RuntimeProcessor {
     formula_node: Option<NodeId>,
     formula_ui: ProcessorFormulaUiState,
     formula_source_key: String,
+    lane_inspection_plan: ProcessorLaneInspectionPlan,
+}
+
+#[derive(Default)]
+struct ProcessorLaneInspectionPlan {
+    parameter_nodes: Vec<(NodeId, String)>,
+    condition_roots: Vec<NodeId>,
+    condition_node_ids: HashMap<NodeId, String>,
 }
 
 struct RuntimeLogRecord {
@@ -144,9 +155,25 @@ struct InputValueConditionSourceSample {
     value: ParamValue,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct InputValueConditionLaneKey {
+    condition_uuid: NodeUuid,
+    context_key: Option<ContextKey>,
+}
+
+impl InputValueConditionLaneKey {
+    fn new(condition_uuid: NodeUuid, lane_resolver: Option<&LaneParamResolver<'_>>) -> Self {
+        Self {
+            condition_uuid,
+            context_key: lane_resolver.map(|resolver| resolver.context_key.clone()),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 struct SnapshotProcessorContextProvider {
     processors: HashMap<ProcessorId, ProcessorContextRuntime>,
+    declared_children: HashMap<NodeId, HashMap<String, NodeId>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -189,8 +216,16 @@ impl SnapshotProcessorContextProvider {
             let processor_id = ProcessorId::from_uuid(processor_snapshot.uuid.0);
             let runtime = collect_processor_context_runtime(snapshot, processor_node);
             provider.processors.insert(processor_id, runtime);
+            collect_declared_children(snapshot, processor_node, &mut provider.declared_children);
         }
         provider
+    }
+
+    fn declared_child(&self, parent: NodeId, decl_id: &str) -> Option<NodeId> {
+        self.declared_children
+            .get(&parent)
+            .and_then(|children| children.get(decl_id))
+            .copied()
     }
 
     fn multiplex_link_for_symbol(
@@ -458,6 +493,25 @@ fn collect_processor_context_runtime(
         cursor = snapshot.node(owner).and_then(|node| node.parent);
     }
     runtime
+}
+
+fn collect_declared_children(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    declared_children: &mut HashMap<NodeId, HashMap<String, NodeId>>,
+) {
+    for child in snapshot.child_ids(parent) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if !node.decl_id.is_empty() {
+            declared_children
+                .entry(parent)
+                .or_default()
+                .insert(node.decl_id.clone(), child);
+        }
+        collect_declared_children(snapshot, child, declared_children);
+    }
 }
 
 fn collect_context_scope_multiplexes(
@@ -740,6 +794,22 @@ pub(crate) struct StateMachineRuntimePerfStats {
     pub formula_materializations: u64,
     pub formula_compiles: u64,
     pub debug_samples_captured: u64,
+    pub processor_evaluations: u64,
+    pub lanes_evaluated: u64,
+    pub command_intents_dispatched: u64,
+    pub context_provider_ns: u64,
+    pub runtime_inputs_ns: u64,
+    pub semantic_evaluation_ns: u64,
+    pub preview_projection_ns: u64,
+    pub lane_preview_ns: u64,
+    pub lane_effects_ns: u64,
+    pub preview_aggregation_ns: u64,
+    pub preview_publish_ns: u64,
+    pub run_processors_ns: u64,
+}
+
+fn elapsed_nanos(started: Instant) -> u64 {
+    started.elapsed().as_nanos().min(u64::MAX as u128) as u64
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -876,8 +946,9 @@ struct StateMachineRuntimeCache {
     input_manager_signal_ticks: HashMap<String, u64>,
     condition_manager_values: HashMap<String, RuntimeValue>,
     condition_manager_valid_states: HashMap<String, bool>,
-    input_value_condition_inner_valid_states: HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: HashMap<NodeUuid, InputValueConditionSourceSample>,
+    input_value_condition_inner_valid_states: HashMap<InputValueConditionLaneKey, bool>,
+    input_value_condition_source_samples:
+        HashMap<InputValueConditionLaneKey, InputValueConditionSourceSample>,
     transient_condition_valid_resets: HashMap<NodeId, u64>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
@@ -895,6 +966,80 @@ fn runtime_output_previews_enabled(value: Option<&OsStr>) -> bool {
     value.is_none_or(|value| {
         let value = value.to_string_lossy();
         !matches!(value.trim().to_ascii_lowercase().as_str(), "" | "0" | "false" | "off")
+    })
+}
+
+fn context_key_from_dto(value: &ContextKeyDto) -> ContextKey {
+    ContextKey::new(
+        value
+            .parts
+            .iter()
+            .map(|part| ContextKeyPart::new(part.axis_id.as_str(), part.item_id.as_str())),
+    )
+}
+
+fn processor_debug_capture(
+    processor_id: ProcessorId,
+    preview_modes: &[FormulaPreviewModeDto],
+) -> ProcessorDebugCapture {
+    let processor_id = processor_id.to_string();
+    let context_keys = preview_modes
+        .iter()
+        .filter_map(|mode| match mode {
+            FormulaPreviewModeDto::ProcessorDefaultLane {
+                processor_id: requested,
+            } if requested == &processor_id => Some(None),
+            FormulaPreviewModeDto::ProcessorLane {
+                processor_id: requested,
+                context_key,
+            } if requested == &processor_id => Some(Some(context_key_from_dto(context_key))),
+            _ => None,
+        })
+        .collect::<indexmap::IndexSet<_>>();
+    match context_keys.len() {
+        0 => ProcessorDebugCapture::Off,
+        1 => ProcessorDebugCapture::ProcessorLane {
+            context_key: context_keys.into_iter().next().flatten(),
+            history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
+        },
+        _ => ProcessorDebugCapture::ProcessorLanes {
+            context_keys,
+            history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
+        },
+    }
+}
+
+fn processor_debug_capture_contains_lane(
+    capture: &ProcessorDebugCapture,
+    context_key: Option<&ContextKey>,
+) -> bool {
+    match capture {
+        ProcessorDebugCapture::Off => false,
+        ProcessorDebugCapture::All { .. } => true,
+        ProcessorDebugCapture::ProcessorLane {
+            context_key: selected,
+            ..
+        }
+        | ProcessorDebugCapture::SelectedNodes {
+            context_key: selected,
+            ..
+        } => selected.as_ref() == context_key,
+        ProcessorDebugCapture::ProcessorLanes { context_keys, .. } => {
+            context_keys.contains(&context_key.cloned())
+        }
+    }
+}
+
+fn preview_mode_requests_formula_defaults(
+    preview_modes: &[FormulaPreviewModeDto],
+    formula_id: &str,
+) -> bool {
+    preview_modes.iter().any(|mode| {
+        matches!(
+            mode,
+            FormulaPreviewModeDto::FormulaDefaults { formula_id: requested }
+                if requested == formula_id
+        )
     })
 }
 
@@ -1049,6 +1194,15 @@ impl StateMachineManager {
     }
 
     #[cfg(test)]
+    pub(crate) fn runtime_preview_lanes(&self) -> Vec<ProcessorLaneSummaryDto> {
+        self.runtime_cache
+            .processor_lane_snapshot
+            .values()
+            .cloned()
+            .collect()
+    }
+
+    #[cfg(test)]
     pub(crate) fn runtime_topology_dirty(&self) -> bool {
         self.runtime_cache.topology_dirty
     }
@@ -1180,6 +1334,7 @@ impl StateMachineManager {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
+        let run_processors_started = Instant::now();
         let snapshot = snapshot.as_ref();
         let active_states = active_state_nodes(snapshot, self.id());
         let active_processor_nodes = active_states
@@ -1192,10 +1347,16 @@ impl StateMachineManager {
         let overrides_dirty = !self.runtime_cache.dirty_processor_overrides.is_empty();
         let dirty_input_source_params = self.runtime_cache.dirty_input_source_params.clone();
         let dirty_formula_values = self.runtime_cache.dirty_formula_values.clone();
+        let context_provider_started = Instant::now();
         let provider = SnapshotProcessorContextProvider::from_snapshot(
             snapshot,
             active_processor_nodes.iter().copied(),
         );
+        self.runtime_cache.perf_stats.context_provider_ns = self
+            .runtime_cache
+            .perf_stats
+            .context_provider_ns
+            .saturating_add(elapsed_nanos(context_provider_started));
 
         if cache_rebuilt {
             self.refresh_formula_cache(snapshot);
@@ -1216,14 +1377,13 @@ impl StateMachineManager {
             value_types: &value_types,
         };
         let default_provider = DefaultProcessorContextProvider;
-        let capture_output_previews = *RUNTIME_OUTPUT_PREVIEWS_ENABLED;
-        let capture = if capture_output_previews {
-            ProcessorDebugCapture::All {
-                history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
-            }
-        } else {
-            ProcessorDebugCapture::Off
-        };
+        let preview_modes = ctx
+            .runtime_view_interests(STATE_MACHINE_RUNTIME_PREVIEW_INTEREST_TOPIC)
+            .filter_map(|interest| {
+                serde_json::from_value::<FormulaPreviewModeDto>(interest.payload.clone()).ok()
+            })
+            .collect::<Vec<_>>();
+        let capture_output_previews = *RUNTIME_OUTPUT_PREVIEWS_ENABLED && !preview_modes.is_empty();
         let mut output_preview = Vec::new();
         let mut previewed_formula_defaults = HashSet::new();
         let mut processor_lanes = Vec::new();
@@ -1262,6 +1422,7 @@ impl StateMachineManager {
                 if !should_evaluate {
                     continue;
                 }
+                let runtime_inputs_started = Instant::now();
                 let inputs = processor_runtime_inputs(
                     snapshot,
                     processor_node,
@@ -1280,10 +1441,20 @@ impl StateMachineManager {
                     &mut self.runtime_cache.next_trigger_edge_id,
                     ctx,
                 );
+                self.runtime_cache.perf_stats.runtime_inputs_ns = self
+                    .runtime_cache
+                    .perf_stats
+                    .runtime_inputs_ns
+                    .saturating_add(elapsed_nanos(runtime_inputs_started));
                 let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node)
                 else {
                     continue;
                 };
+                let capture = processor_debug_capture(
+                    runtime_processor.processor.id,
+                    preview_modes.as_slice(),
+                );
+                let processor_preview_requested = !matches!(capture, ProcessorDebugCapture::Off);
                 let compiled_formula = capture_output_previews
                     .then(|| runtime_processor.runtime.compiled.as_ref().map(Arc::clone))
                     .flatten();
@@ -1301,6 +1472,7 @@ impl StateMachineManager {
                     inputs: &inputs,
                     registries: &registries,
                 };
+                let semantic_evaluation_started = Instant::now();
                 let lanes = runtime_processor
                     .runtime
                     .evaluate_processor_with_context_provider_and_runtime_capture(
@@ -1309,6 +1481,21 @@ impl StateMachineManager {
                         &provider,
                         &capture,
                     );
+                self.runtime_cache.perf_stats.processor_evaluations = self
+                    .runtime_cache
+                    .perf_stats
+                    .processor_evaluations
+                    .saturating_add(1);
+                self.runtime_cache.perf_stats.lanes_evaluated = self
+                    .runtime_cache
+                    .perf_stats
+                    .lanes_evaluated
+                    .saturating_add(lanes.len() as u64);
+                self.runtime_cache.perf_stats.semantic_evaluation_ns = self
+                    .runtime_cache
+                    .perf_stats
+                    .semantic_evaluation_ns
+                    .saturating_add(elapsed_nanos(semantic_evaluation_started));
                 self.runtime_cache.perf_stats.debug_samples_captured += lanes
                     .iter()
                     .map(|lane| lane.output.debug_samples.len() as u64)
@@ -1333,12 +1520,17 @@ impl StateMachineManager {
                     }
                 }
                 if let (true, Some(formula_id)) = (capture_output_previews, formula_id.as_ref()) {
+                    let preview_projection_started = Instant::now();
                     output_preview.extend(processor_output_preview_samples(
                         runtime_processor.processor.id,
                         formula_id,
-                        lanes.clone(),
+                        &lanes,
                     ));
-                    if previewed_formula_defaults.insert(formula_id.clone()) {
+                    if preview_mode_requests_formula_defaults(
+                        preview_modes.as_slice(),
+                        formula_id.to_string().as_str(),
+                    ) && previewed_formula_defaults.insert(formula_id.clone())
+                    {
                         if let Some(compiled_formula) =
                             compiled_formula.as_ref().map(Arc::clone)
                         {
@@ -1348,26 +1540,47 @@ impl StateMachineManager {
                                 &runtime_processor.formula,
                                 &eval_ctx,
                                 &default_provider,
-                                &capture,
+                                &ProcessorDebugCapture::All {
+                                    history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
+                                },
                             ));
                         }
                     }
+                    self.runtime_cache.perf_stats.preview_projection_ns = self
+                        .runtime_cache
+                        .perf_stats
+                        .preview_projection_ns
+                        .saturating_add(elapsed_nanos(preview_projection_started));
                 }
+                if processor_preview_requested {
+                    let lane_preview_started = Instant::now();
+                    for lane in &lanes {
+                        processor_lanes.push(processor_lane_summary(
+                            runtime_processor.processor.id,
+                            lane,
+                            ctx.time.tick,
+                            processor_needs_continuous_evaluation(&runtime_processor.runtime),
+                            &provider,
+                        ));
+                        if processor_debug_capture_contains_lane(&capture, lane.context_key.as_ref()) {
+                            processor_lane_inspections.push(processor_lane_inspection(
+                                snapshot,
+                                runtime_processor.processor.id,
+                                lane,
+                                &provider,
+                                &runtime_processor.lane_inspection_plan,
+                            ));
+                        }
+                    }
+                    self.runtime_cache.perf_stats.lane_preview_ns = self
+                        .runtime_cache
+                        .perf_stats
+                        .lane_preview_ns
+                        .saturating_add(elapsed_nanos(lane_preview_started));
+                }
+                let lane_effects_started = Instant::now();
+                let mut command_intents_dispatched = 0u64;
                 for lane in &lanes {
-                    processor_lanes.push(processor_lane_summary(
-                        runtime_processor.processor.id,
-                        lane,
-                        ctx.time.tick,
-                        processor_needs_continuous_evaluation(&runtime_processor.runtime),
-                        &provider,
-                    ));
-                    processor_lane_inspections.push(processor_lane_inspection(
-                        snapshot,
-                        processor_node,
-                        runtime_processor.processor.id,
-                        lane,
-                        &provider,
-                    ));
                     for diagnostic in &lane.output.diagnostics {
                         if should_emit_runtime_log(
                             &mut self.runtime_cache.last_log_values,
@@ -1397,6 +1610,7 @@ impl StateMachineManager {
                                 format!("{}", message)
                             );
                         } else if kind == chataigne_state_machine::COMMAND_INTENT_KIND {
+                            command_intents_dispatched = command_intents_dispatched.saturating_add(1);
                             dispatch_command_intent(
                                 ctx,
                                 snapshot,
@@ -1430,11 +1644,22 @@ impl StateMachineManager {
                         );
                     }
                 }
+                self.runtime_cache.perf_stats.lane_effects_ns = self
+                    .runtime_cache
+                    .perf_stats
+                    .lane_effects_ns
+                    .saturating_add(elapsed_nanos(lane_effects_started));
+                self.runtime_cache.perf_stats.command_intents_dispatched = self
+                    .runtime_cache
+                    .perf_stats
+                    .command_intents_dispatched
+                    .saturating_add(command_intents_dispatched);
             }
         }
         self.runtime_cache.dirty_input_source_params.clear();
         self.runtime_cache.dirty_formula_values.clear();
         if evaluated_any || cache_rebuilt {
+            let preview_aggregation_started = Instant::now();
             let output_preview = if capture_output_previews {
                 merge_output_preview_snapshot(
                     &mut self.runtime_cache.output_preview_snapshot,
@@ -1489,7 +1714,13 @@ impl StateMachineManager {
                 .values()
                 .cloned()
                 .collect::<Vec<_>>();
+            self.runtime_cache.perf_stats.preview_aggregation_ns = self
+                .runtime_cache
+                .perf_stats
+                .preview_aggregation_ns
+                .saturating_add(elapsed_nanos(preview_aggregation_started));
             if should_publish {
+                let preview_publish_started = Instant::now();
                 let processors = processor_ui_dtos(&self.runtime_cache.processors, &provider);
                 self.publish_output_preview(
                     ctx,
@@ -1498,8 +1729,18 @@ impl StateMachineManager {
                     processor_lanes,
                     processor_lane_inspections,
                 );
+                self.runtime_cache.perf_stats.preview_publish_ns = self
+                    .runtime_cache
+                    .perf_stats
+                    .preview_publish_ns
+                    .saturating_add(elapsed_nanos(preview_publish_started));
             }
         }
+        self.runtime_cache.perf_stats.run_processors_ns = self
+            .runtime_cache
+            .perf_stats
+            .run_processors_ns
+            .saturating_add(elapsed_nanos(run_processors_started));
     }
 
     fn should_publish_output_preview(
@@ -1641,6 +1882,8 @@ impl StateMachineManager {
             let bindings =
                 processor_binding_analysis(snapshot, processor_node, processor.id, context_provider);
             runtime.rebuild_execution_plan(context_provider, &bindings);
+            let lane_inspection_plan =
+                build_processor_lane_inspection_plan(snapshot, processor_node);
             next_processors.insert(
                 processor_node,
                 RuntimeProcessor {
@@ -1650,6 +1893,7 @@ impl StateMachineManager {
                     formula_node,
                     formula_ui,
                     formula_source_key,
+                    lane_inspection_plan,
                 },
             );
         }
@@ -2121,7 +2365,7 @@ fn formula_default_output_preview_samples(
         provider,
         capture,
     );
-    let mut samples = processor_output_preview_samples(entry.processor.id, &formula.id, lanes);
+    let mut samples = processor_output_preview_samples(entry.processor.id, &formula.id, &lanes);
     for sample in &mut samples {
         sample.processor_id = None;
         sample.status = OutputPreviewStatus::DefaultPreview;
@@ -2221,12 +2465,56 @@ fn context_key_dto_cache_id(context_key: Option<&ContextKeyDto>) -> String {
     )
 }
 
-fn processor_lane_inspection(
+fn build_processor_lane_inspection_plan(
     snapshot: &ProcessTreeSnapshot,
     processor_node: NodeId,
+) -> ProcessorLaneInspectionPlan {
+    fn visit(
+        snapshot: &ProcessTreeSnapshot,
+        node_id: NodeId,
+        plan: &mut ProcessorLaneInspectionPlan,
+    ) {
+        let Some(node) = snapshot.node(node_id) else {
+            return;
+        };
+        if node.is_parameter() {
+            if node.param_control.as_ref().is_some_and(|control| {
+                matches!(
+                    control.mode,
+                    ParameterControlMode::ContextLink | ParameterControlMode::TemplateText
+                )
+            }) {
+                plan.parameter_nodes
+                    .push((node_id, node.uuid.0.to_string()));
+            }
+            return;
+        }
+        if node.node_type == CONDITION_MANAGER_NODE_TYPE {
+            plan.condition_roots.push(node_id);
+        }
+        if matches!(
+            node.node_type.as_str(),
+            CONDITION_MANAGER_NODE_TYPE | CONDITION_GROUP_NODE_TYPE | INPUT_VALUE_CONDITION_NODE_TYPE
+        ) {
+            plan.condition_node_ids
+                .insert(node_id, node.uuid.0.to_string());
+        }
+        for child in snapshot.child_ids(node_id) {
+            visit(snapshot, child, plan);
+        }
+    }
+
+    let mut plan = ProcessorLaneInspectionPlan::default();
+    visit(snapshot, processor_node, &mut plan);
+    plan
+}
+
+fn processor_lane_inspection(
+    snapshot: &ProcessTreeSnapshot,
     processor_id: ProcessorId,
     lane: &chataigne_state_machine::ProcessorLaneOutput,
     context_provider: &SnapshotProcessorContextProvider,
+    plan: &ProcessorLaneInspectionPlan,
 ) -> ProcessorLaneInspectionDto {
     let resolver = lane.context_key.as_ref().map(|context_key| LaneParamResolver {
         processor_id,
@@ -2235,13 +2523,29 @@ fn processor_lane_inspection(
     });
     let mut parameter_values = Vec::new();
     let mut condition_states = Vec::new();
-    collect_processor_lane_inspection(
-        snapshot,
-        processor_node,
-        resolver.as_ref(),
-        &mut parameter_values,
-        &mut condition_states,
-    );
+    if let Some(resolver) = resolver.as_ref() {
+        for (param, node_id) in &plan.parameter_nodes {
+            if let Some(value) = resolver
+                .param_value(snapshot, *param)
+                .as_ref()
+                .and_then(param_to_runtime_value)
+            {
+                parameter_values.push(ProcessorLaneParameterPreviewDto {
+                    node_id: node_id.clone(),
+                    value: runtime_value_label(&value),
+                });
+            }
+        }
+    }
+    for condition_root in &plan.condition_roots {
+        collect_processor_lane_condition_inspection(
+            snapshot,
+            *condition_root,
+            resolver.as_ref(),
+            &plan.condition_node_ids,
+            &mut condition_states,
+        );
+    }
     ProcessorLaneInspectionDto {
         processor_id: processor_id.to_string(),
         context_key: lane
@@ -2253,6 +2557,51 @@ fn processor_lane_inspection(
     }
 }
 
+fn collect_processor_lane_condition_inspection(
+    snapshot: &ProcessTreeSnapshot,
+    node_id: NodeId,
+    resolver: Option<&LaneParamResolver<'_>>,
+    condition_node_ids: &HashMap<NodeId, String>,
+    condition_states: &mut Vec<ProcessorLaneConditionPreviewDto>,
+) -> Option<bool> {
+    let node = snapshot.node(node_id)?;
+    if node.is_parameter() {
+        return None;
+    }
+    let mut child_condition_values = Vec::new();
+    for child in snapshot.child_ids(node_id) {
+        if let Some(valid) = collect_processor_lane_condition_inspection(
+            snapshot,
+            child,
+            resolver,
+            condition_node_ids,
+            condition_states,
+        ) {
+            child_condition_values.push(valid);
+        }
+    }
+    if !node.enabled {
+        return None;
+    }
+    let valid = match node.node_type.as_str() {
+        INPUT_VALUE_CONDITION_NODE_TYPE => lane_input_value_condition_valid(snapshot, node_id, resolver),
+        CONDITION_MANAGER_NODE_TYPE | CONDITION_GROUP_NODE_TYPE => resolver.map_or_else(
+            || visible_condition_valid(snapshot, node_id),
+            |_| Some(reduce_condition_values(snapshot, node_id, &child_condition_values)),
+        ),
+        _ => None,
+    }?;
+    condition_states.push(ProcessorLaneConditionPreviewDto {
+        node_id: condition_node_ids
+            .get(&node_id)
+            .cloned()
+            .unwrap_or_else(|| node.uuid.0.to_string()),
+        valid,
+    });
+    Some(valid)
+}
+
+#[cfg(test)]
 fn collect_processor_lane_inspection(
     snapshot: &ProcessTreeSnapshot,
     node_id: NodeId,
@@ -2983,8 +3332,11 @@ fn processor_runtime_inputs(
     input_manager_signal_ticks: &mut HashMap<String, u64>,
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
+    input_value_condition_inner_valid_states: &mut HashMap<InputValueConditionLaneKey, bool>,
+    input_value_condition_source_samples: &mut HashMap<
+        InputValueConditionLaneKey,
+        InputValueConditionSourceSample,
+    >,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
@@ -3118,8 +3470,11 @@ fn collect_processor_runtime_inputs(
     input_manager_signal_ticks: &mut HashMap<String, u64>,
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
+    input_value_condition_inner_valid_states: &mut HashMap<InputValueConditionLaneKey, bool>,
+    input_value_condition_source_samples: &mut HashMap<
+        InputValueConditionLaneKey,
+        InputValueConditionSourceSample,
+    >,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
@@ -3238,8 +3593,11 @@ fn collect_condition_manager_runtime_input(
     force_processor_recompute: bool,
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
+    input_value_condition_inner_valid_states: &mut HashMap<InputValueConditionLaneKey, bool>,
+    input_value_condition_source_samples: &mut HashMap<
+        InputValueConditionLaneKey,
+        InputValueConditionSourceSample,
+    >,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
@@ -3290,7 +3648,7 @@ fn collect_condition_manager_runtime_input(
             .unwrap_or_else(|| ConditionValidity::steady(false));
             condition_manager_valid_states.insert(lane_key.clone(), validity.settled);
 
-            let value_set = if previous != Some(validity.current) {
+            let value = if previous != Some(validity.current) {
                 let edge_source_dirty =
                     source_dirty || (force_processor_recompute && previous.is_some());
                 let previous = condition_manager_edge_previous(
@@ -3298,22 +3656,18 @@ fn collect_condition_manager_runtime_input(
                     validity.current,
                     edge_source_dirty,
                 );
-                condition_manager_value_set(
+                let value_set = condition_manager_value_set(
                     logical_tick,
                     validity.current,
                     previous,
                     next_trigger_edge_id,
-                )
+                );
+                let Ok(value) = value_set.to_runtime_value() else {
+                    continue;
+                };
+                value
             } else {
-                condition_manager_value_set(
-                    logical_tick,
-                    validity.settled,
-                    Some(validity.settled),
-                    next_trigger_edge_id,
-                )
-            };
-            let Ok(value) = value_set.to_runtime_value() else {
-                continue;
+                condition_manager_steady_runtime_value(validity.settled)
             };
             inputs.insert(lane_scoped_stable_ref(&input_ref, &context_key), value.clone());
             condition_manager_values.insert(lane_key, value.clone());
@@ -3452,6 +3806,23 @@ fn condition_manager_value_set(
     value_set
 }
 
+fn condition_manager_steady_runtime_value(valid: bool) -> RuntimeValue {
+    static VALUES: LazyLock<[RuntimeValue; 2]> = LazyLock::new(|| {
+        let mut next_trigger_edge_id = 1;
+        [false, true].map(|valid| {
+            condition_manager_value_set(
+                0,
+                valid,
+                Some(valid),
+                &mut next_trigger_edge_id,
+            )
+            .to_runtime_value()
+            .expect("static condition ValueSet should encode")
+        })
+    });
+    VALUES[usize::from(valid)].clone()
+}
+
 fn next_trigger(next_trigger_edge_id: &mut u64, logical_tick: u64) -> TriggerValue {
     let edge_id = *next_trigger_edge_id;
     *next_trigger_edge_id = (*next_trigger_edge_id).wrapping_add(1);
@@ -3586,8 +3957,11 @@ fn condition_group_valid(
     group: NodeId,
     ctx: &mut ProcessCtx,
     dirty_input_source_params: &HashSet<NodeUuid>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
+    input_value_condition_inner_valid_states: &mut HashMap<InputValueConditionLaneKey, bool>,
+    input_value_condition_source_samples: &mut HashMap<
+        InputValueConditionLaneKey,
+        InputValueConditionSourceSample,
+    >,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     lane_resolver: Option<&LaneParamResolver<'_>>,
     write_visible_state: bool,
@@ -3644,13 +4018,17 @@ fn input_value_condition_valid(
     condition: NodeId,
     ctx: &mut ProcessCtx,
     dirty_input_source_params: &HashSet<NodeUuid>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
+    input_value_condition_inner_valid_states: &mut HashMap<InputValueConditionLaneKey, bool>,
+    input_value_condition_source_samples: &mut HashMap<
+        InputValueConditionLaneKey,
+        InputValueConditionSourceSample,
+    >,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     lane_resolver: Option<&LaneParamResolver<'_>>,
     write_visible_state: bool,
 ) -> Option<ConditionValidity> {
     let condition_uuid = snapshot.node(condition)?.uuid;
+    let lane_key = InputValueConditionLaneKey::new(condition_uuid, lane_resolver);
     let source_uuid = child_reference_uuid_resolved(snapshot, condition, "source", lane_resolver)?;
     let source_id = snapshot.node_id_by_uuid(source_uuid)?;
     let raw_source_value = snapshot.node(source_id)?.param_value.as_ref()?;
@@ -3668,7 +4046,7 @@ fn input_value_condition_valid(
     let source_changed = dirty_input_source_params.contains(&source_uuid);
     let source_speed = input_value_condition_source_speed(
         input_value_condition_source_samples,
-        condition_uuid,
+        &lane_key,
         source_uuid,
         source_value,
         ctx.delta_time,
@@ -3686,7 +4064,7 @@ fn input_value_condition_valid(
         )
     };
     let previous_inner_valid = input_value_condition_inner_valid_states
-        .get(&condition_uuid)
+        .get(&lane_key)
         .copied()
         .unwrap_or(false);
     let toggle_mode = child_bool_resolved(snapshot, condition, "toggle_mode", lane_resolver)
@@ -3701,7 +4079,7 @@ fn input_value_condition_valid(
         transient,
     );
     input_value_condition_inner_valid_states.insert(
-        condition_uuid,
+        lane_key,
         if transient { false } else { comparator_valid },
     );
     if write_visible_state {
@@ -3721,19 +4099,19 @@ fn input_value_condition_is_transient(source_value: &ParamValue, comparator: &st
 }
 
 fn input_value_condition_source_speed(
-    samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
-    condition_uuid: NodeUuid,
+    samples: &mut HashMap<InputValueConditionLaneKey, InputValueConditionSourceSample>,
+    lane_key: &InputValueConditionLaneKey,
     source_uuid: NodeUuid,
     source_value: &ParamValue,
     delta_time: Duration,
 ) -> Option<f64> {
     let speed = samples
-        .get(&condition_uuid)
+        .get(lane_key)
         .filter(|sample| sample.source_uuid == source_uuid)
         .and_then(|sample| param_speed(&sample.value, source_value, delta_time));
 
     samples.insert(
-        condition_uuid,
+        lane_key.clone(),
         InputValueConditionSourceSample {
             source_uuid,
             value: source_value.clone(),
@@ -3863,95 +4241,142 @@ fn compare_condition_value(
     source_speed: Option<f64>,
     lane_resolver: Option<&LaneParamResolver<'_>>,
 ) -> bool {
-    let reference_number = child_param_resolved(snapshot, condition, "reference", lane_resolver)
-        .as_ref()
-        .and_then(param_numeric)
-        .unwrap_or(0.0);
-    let reference_number_max = child_param_resolved(snapshot, condition, "reference_max", lane_resolver)
-        .as_ref()
-        .and_then(param_numeric)
-        .unwrap_or(1.0);
-    let reference_string =
+    let reference_number = || {
+        child_param_resolved(snapshot, condition, "reference", lane_resolver)
+            .as_ref()
+            .and_then(param_numeric)
+            .unwrap_or(0.0)
+    };
+    let reference_number_max = || {
+        child_param_resolved(snapshot, condition, "reference_max", lane_resolver)
+            .as_ref()
+            .and_then(param_numeric)
+            .unwrap_or(1.0)
+    };
+    let reference_string = || {
         child_string_resolved(snapshot, condition, "reference_string", lane_resolver)
-            .unwrap_or_default();
-    let reference = ConditionReference {
-        number: reference_number,
-        number_max: reference_number_max,
-        boolean: child_bool_resolved(snapshot, condition, "reference_bool", lane_resolver)
-            .unwrap_or(true),
-        text: reference_string.as_str(),
-        vec2: child_param_resolved(snapshot, condition, "reference_vec2", lane_resolver)
-            .as_ref()
-            .and_then(param_vec2),
-        vec3: child_param_resolved(snapshot, condition, "reference_vec3", lane_resolver)
-            .as_ref()
-            .and_then(param_vec3),
-        color: child_param_resolved(snapshot, condition, "reference_color", lane_resolver)
-            .as_ref()
-            .and_then(param_color),
+            .unwrap_or_default()
+    };
+    let values_equal = || match source_value {
+        ParamValue::Bool(value) => {
+            *value
+                == child_bool_resolved(snapshot, condition, "reference_bool", lane_resolver)
+                    .unwrap_or(true)
+        }
+        ParamValue::Vec2(x, y) => child_param_resolved(
+            snapshot,
+            condition,
+            "reference_vec2",
+            lane_resolver,
+        )
+        .as_ref()
+        .and_then(param_vec2)
+        .is_some_and(|(rx, ry)| floats_equal(*x, rx) && floats_equal(*y, ry)),
+        ParamValue::Vec3(x, y, z) => child_param_resolved(
+            snapshot,
+            condition,
+            "reference_vec3",
+            lane_resolver,
+        )
+        .as_ref()
+        .and_then(param_vec3)
+        .is_some_and(|(rx, ry, rz)| {
+            floats_equal(*x, rx) && floats_equal(*y, ry) && floats_equal(*z, rz)
+        }),
+        ParamValue::Color(r, g, b, a) => child_param_resolved(
+            snapshot,
+            condition,
+            "reference_color",
+            lane_resolver,
+        )
+        .as_ref()
+        .and_then(param_color)
+        .is_some_and(|(rr, rg, rb, ra)| {
+            floats_equal(*r, rr)
+                && floats_equal(*g, rg)
+                && floats_equal(*b, rb)
+                && floats_equal(*a, ra)
+        }),
+        value if param_numeric(value).is_some() => {
+            param_scalar_values_equal(value, reference_number(), "")
+        }
+        value => {
+            let reference = reference_string();
+            param_scalar_values_equal(value, 0.0, reference.as_str())
+        }
     };
     match comparator {
-        "not_equal" => !param_values_equal(source_value, &reference),
-        "greater_than" => param_numeric(source_value).is_some_and(|value| value > reference.number),
-        "greater_than_or_equal" => {
-            param_numeric(source_value).is_some_and(|value| value >= reference.number)
+        "not_equal" => !values_equal(),
+        "greater_than" => {
+            param_numeric(source_value).is_some_and(|value| value > reference_number())
         }
-        "less_than" => param_numeric(source_value).is_some_and(|value| value < reference.number),
+        "greater_than_or_equal" => {
+            param_numeric(source_value).is_some_and(|value| value >= reference_number())
+        }
+        "less_than" => {
+            param_numeric(source_value).is_some_and(|value| value < reference_number())
+        }
         "less_than_or_equal" => {
-            param_numeric(source_value).is_some_and(|value| value <= reference.number)
+            param_numeric(source_value).is_some_and(|value| value <= reference_number())
         }
         "between" => param_numeric(source_value).is_some_and(|value| {
-            let min = reference.number.min(reference.number_max);
-            let max = reference.number.max(reference.number_max);
+            let reference_number = reference_number();
+            let reference_number_max = reference_number_max();
+            let min = reference_number.min(reference_number_max);
+            let max = reference_number.max(reference_number_max);
             value >= min && value <= max
         }),
         "outside" => param_numeric(source_value).is_some_and(|value| {
-            let min = reference.number.min(reference.number_max);
-            let max = reference.number.max(reference.number_max);
+            let reference_number = reference_number();
+            let reference_number_max = reference_number_max();
+            let min = reference_number.min(reference_number_max);
+            let max = reference_number.max(reference_number_max);
             value < min || value > max
         }),
-        "contains" => param_string(source_value).contains(reference.text),
-        "does_not_contain" => !param_string(source_value).contains(reference.text),
-        "starts_with" => param_string(source_value).starts_with(reference.text),
-        "ends_with" => param_string(source_value).ends_with(reference.text),
-        "regex_match" => regex::Regex::new(reference.text)
+        "contains" => param_string(source_value).contains(reference_string().as_str()),
+        "does_not_contain" => !param_string(source_value).contains(reference_string().as_str()),
+        "starts_with" => param_string(source_value).starts_with(reference_string().as_str()),
+        "ends_with" => param_string(source_value).ends_with(reference_string().as_str()),
+        "regex_match" => regex::Regex::new(reference_string().as_str())
             .is_ok_and(|regex| regex.is_match(param_string(source_value).as_str())),
         "magnitude_greater_than" => {
-            param_magnitude(source_value).is_some_and(|value| value > reference.number)
+            param_magnitude(source_value).is_some_and(|value| value > reference_number())
         }
         "magnitude_less_than" => {
-            param_magnitude(source_value).is_some_and(|value| value < reference.number)
+            param_magnitude(source_value).is_some_and(|value| value < reference_number())
         }
-        "speed_greater_than" => source_speed.is_some_and(|value| value > reference.number),
-        "speed_less_than" => source_speed.is_some_and(|value| value < reference.number),
+        "speed_greater_than" => source_speed.is_some_and(|value| value > reference_number()),
+        "speed_less_than" => source_speed.is_some_and(|value| value < reference_number()),
         "abs_speed_greater_than" => {
             source_speed
                 .map(f64::abs)
-                .is_some_and(|value| value > reference.number)
+                .is_some_and(|value| value > reference_number())
         }
         "abs_speed_less_than" => {
             source_speed
                 .map(f64::abs)
-                .is_some_and(|value| value < reference.number)
+                .is_some_and(|value| value < reference_number())
         }
         "luminance_greater_than" => {
-            param_luminance(source_value).is_some_and(|value| value > reference.number)
+            param_luminance(source_value).is_some_and(|value| value > reference_number())
         }
         "luminance_less_than" => {
-            param_luminance(source_value).is_some_and(|value| value < reference.number)
+            param_luminance(source_value).is_some_and(|value| value < reference_number())
         }
         "alpha_greater_than" => {
-            param_alpha(source_value).is_some_and(|value| value > reference.number)
+            param_alpha(source_value).is_some_and(|value| value > reference_number())
         }
-        "alpha_less_than" => param_alpha(source_value).is_some_and(|value| value < reference.number),
+        "alpha_less_than" => {
+            param_alpha(source_value).is_some_and(|value| value < reference_number())
+        }
         "value_changed" => false,
-        _ => param_values_equal(source_value, &reference),
+        _ => values_equal(),
     }
 }
 
+#[cfg(test)]
 struct ConditionReference<'a> {
     number: f64,
-    number_max: f64,
     boolean: bool,
     text: &'a str,
     vec2: Option<(f64, f64)>,
@@ -3959,6 +4384,7 @@ struct ConditionReference<'a> {
     color: Option<(f64, f64, f64, f64)>,
 }
 
+#[cfg(test)]
 fn param_values_equal(value: &ParamValue, reference: &ConditionReference<'_>) -> bool {
     match value {
         ParamValue::Bool(value) => *value == reference.boolean,
@@ -4210,7 +4636,9 @@ fn child_param_resolved(
     decl_id: &str,
     lane_resolver: Option<&LaneParamResolver<'_>>,
 ) -> Option<ParamValue> {
-    let param = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    let param = lane_resolver
+        .and_then(|resolver| resolver.context_provider.declared_child(parent, decl_id))
+        .or_else(|| snapshot.find_child_by_decl_id(parent, decl_id))?;
     if let Some(resolver) = lane_resolver {
         return resolver.param_value(snapshot, param);
     }

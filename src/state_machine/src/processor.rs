@@ -1,18 +1,19 @@
-use std::{fmt, sync::Arc};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use uuid::Uuid;
 
 use golden_alchemist::{
-    ANodeId, AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
-    ContextItemId, ContextKey, ContextKeyPart, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample,
-    Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId,
-    FormulaPropertyId, FormulaRef, FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus,
-    RuntimeContextFrame, RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError,
-    RuntimeSubscription, RuntimeValue, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
-    evaluate_compiled_graph_stateless,
+    ANodeId, AlchemistFormula, AlchemistFormulaInstance, AlchemistMemory, AxisSet, CompileCtx,
+    CompiledAlchemistFormula, ContextAxisId, ContextItemId, ContextKey, ContextKeyPart, ContextValuePath,
+    DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame,
+    ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef, FormulaSurface, LaneRuntimePool,
+    ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeOutput,
+    RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription, RuntimeValue, SocketId, SurfaceItemId,
+    ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
 use indexmap::{IndexMap, IndexSet};
+use rayon::prelude::*;
 
 use crate::ManagedFormulaRuntime;
 
@@ -86,7 +87,7 @@ pub enum ProcessorLifecycleEvent {
     ProjectStop,
 }
 
-pub trait ProcessorContextProvider {
+pub trait ProcessorContextProvider: Sync {
     fn available_axes(&self, processor_id: ProcessorId) -> AxisSet;
 
     fn context_axis_items(
@@ -459,6 +460,10 @@ pub enum ProcessorDebugCapture {
         context_key: Option<ContextKey>,
         history_len: usize,
     },
+    ProcessorLanes {
+        context_keys: IndexSet<Option<ContextKey>>,
+        history_len: usize,
+    },
     SelectedNodes {
         context_key: Option<ContextKey>,
         nodes: IndexSet<ANodeId>,
@@ -479,6 +484,14 @@ impl ProcessorDebugCapture {
             } => DebugCaptureMode::ProcessorLane {
                 formula_id: formula_id.clone(),
                 context_key: context_key.clone(),
+                history_len: *history_len,
+            },
+            Self::ProcessorLanes {
+                context_keys,
+                history_len,
+            } => DebugCaptureMode::ProcessorLanes {
+                formula_id: formula_id.clone(),
+                context_keys: context_keys.clone(),
                 history_len: *history_len,
             },
             Self::SelectedNodes {
@@ -792,7 +805,7 @@ impl ProcessorRuntime {
         let Some(formula_id) = formula_id else {
             return Vec::new();
         };
-        processor_output_preview_samples(processor.id, &formula_id, lanes)
+        processor_output_preview_samples(processor.id, &formula_id, &lanes)
     }
 
     pub fn evaluate_processor_with_context_provider_and_capture(
@@ -854,7 +867,7 @@ impl ProcessorRuntime {
                 let context_key = ContextKey::default_lane();
                 let context = RuntimeContextFrame::new(context_key.clone());
                 if let Ok(properties) =
-                    self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
+                    resolve_processor_property_frame(processor, &compiled, &context_key, context_provider)
                 {
                     let mut debug = DebugCaptureSink::new(capture_mode);
                     let preview = match self.lanes.memory_for_key(context_key, &compiled.graph) {
@@ -923,21 +936,79 @@ impl ProcessorRuntime {
             .collect::<IndexSet<_>>();
         self.lanes.retain_keys(&memory_keys);
 
+        let context_keys = context_keys.into_iter().collect::<Vec<_>>();
+        if self.lanes.is_stateless() && context_keys.len() >= 32 && matches!(capture, ProcessorDebugCapture::Off) {
+            return context_keys
+                .into_par_iter()
+                .map(|context_key| {
+                    evaluate_stateless_processor_lane(
+                        processor,
+                        &compiled,
+                        context_key,
+                        ctx,
+                        context_provider,
+                        capture,
+                        force_process_unchanged_inputs,
+                        capture_unchanged_outputs,
+                    )
+                })
+                .collect();
+        }
+
+        let one_memory_per_lane = context_keys
+            .iter()
+            .all(|context_key| context_key.project(&plan.required_memory_axes) == *context_key);
+        if one_memory_per_lane && context_keys.len() >= 32 && !self.lanes.is_stateless() {
+            for context_key in &context_keys {
+                let _ = self.lanes.memory_for_key(context_key.clone(), &compiled.graph);
+            }
+            let lane_order = context_keys
+                .iter()
+                .cloned()
+                .enumerate()
+                .map(|(index, key)| (key, index))
+                .collect::<HashMap<_, _>>();
+            let lanes = self
+                .lanes
+                .stateful_memories_mut()
+                .expect("stateful lane pool was checked above");
+            let mut outputs = lanes
+                .par_iter_mut()
+                .map(|(context_key, memory)| {
+                    let index = lane_order[context_key];
+                    let output = evaluate_stateful_processor_lane(
+                        processor,
+                        &compiled,
+                        context_key.clone(),
+                        memory,
+                        ctx,
+                        context_provider,
+                        capture,
+                        force_process_unchanged_inputs,
+                        capture_unchanged_outputs,
+                    );
+                    (index, output)
+                })
+                .collect::<Vec<_>>();
+            outputs.sort_unstable_by_key(|(index, _)| *index);
+            return outputs.into_iter().map(|(_, output)| output).collect();
+        }
+
         context_keys
             .into_iter()
             .map(|context_key| {
                 let mut debug = DebugCaptureSink::new(capture.debug_capture_mode(&compiled.formula_ref.id));
                 let context = RuntimeContextFrame::new(context_key.clone());
-                let properties = match self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
-                {
-                    Ok(properties) => properties,
-                    Err(error) => {
-                        return ProcessorLaneOutput {
-                            context_key: (!context_key.is_default_lane()).then_some(context_key),
-                            output: property_frame_error_output(error),
-                        };
-                    }
-                };
+                let properties =
+                    match resolve_processor_property_frame(processor, &compiled, &context_key, context_provider) {
+                        Ok(properties) => properties,
+                        Err(error) => {
+                            return ProcessorLaneOutput {
+                                context_key: (!context_key.is_default_lane()).then_some(context_key),
+                                output: property_frame_error_output(error),
+                            };
+                        }
+                    };
                 let memory_key = context_key.project(&plan.required_memory_axes);
                 let output = match self.lanes.memory_for_key(memory_key, &compiled.graph) {
                     Some(memory) => evaluate_compiled_graph(
@@ -971,29 +1042,106 @@ impl ProcessorRuntime {
             })
             .collect()
     }
+}
 
-    fn resolve_property_frame(
-        &self,
-        processor: &Processor,
-        compiled: &CompiledAlchemistFormula,
-        context_key: &ContextKey,
-        context_provider: &dyn ProcessorContextProvider,
-    ) -> Result<RuntimePropertyFrame, RuntimePropertyFrameError> {
-        let mut overrides = IndexMap::new();
-        for (surface_item, value) in &processor.formula_instance.overrides.values {
-            let property_id = FormulaPropertyId::new(surface_item.as_str());
-            if compiled.properties.get(&property_id).is_some() {
-                let value = processor
-                    .context_property_bindings
-                    .get(surface_item)
-                    .and_then(|binding| {
-                        context_provider.resolve_context_value(context_key, &binding.axis, &binding.path)
-                    })
-                    .unwrap_or_else(|| value.clone());
-                overrides.insert(property_id, value);
-            }
+fn resolve_processor_property_frame(
+    processor: &Processor,
+    compiled: &CompiledAlchemistFormula,
+    context_key: &ContextKey,
+    context_provider: &dyn ProcessorContextProvider,
+) -> Result<RuntimePropertyFrame, RuntimePropertyFrameError> {
+    let mut overrides = IndexMap::new();
+    for (surface_item, value) in &processor.formula_instance.overrides.values {
+        let property_id = FormulaPropertyId::new(surface_item.as_str());
+        if compiled.properties.get(&property_id).is_some() {
+            let value = processor
+                .context_property_bindings
+                .get(surface_item)
+                .and_then(|binding| context_provider.resolve_context_value(context_key, &binding.axis, &binding.path))
+                .unwrap_or_else(|| value.clone());
+            overrides.insert(property_id, value);
         }
-        RuntimePropertyFrame::with_overrides(&compiled.properties, &overrides)
+    }
+    RuntimePropertyFrame::with_overrides(&compiled.properties, &overrides)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_stateless_processor_lane(
+    processor: &Processor,
+    compiled: &CompiledAlchemistFormula,
+    context_key: ContextKey,
+    ctx: &EvaluationCtx<'_>,
+    context_provider: &dyn ProcessorContextProvider,
+    capture: &ProcessorDebugCapture,
+    force_process_unchanged_inputs: bool,
+    capture_unchanged_outputs: bool,
+) -> ProcessorLaneOutput {
+    let mut debug = DebugCaptureSink::new(capture.debug_capture_mode(&compiled.formula_ref.id));
+    let context = RuntimeContextFrame::new(context_key.clone());
+    let properties = match resolve_processor_property_frame(processor, compiled, &context_key, context_provider) {
+        Ok(properties) => properties,
+        Err(error) => {
+            return ProcessorLaneOutput {
+                context_key: (!context_key.is_default_lane()).then_some(context_key),
+                output: property_frame_error_output(error),
+            };
+        }
+    };
+    let output = evaluate_compiled_graph_stateless(
+        &compiled.graph,
+        EvaluationFrame {
+            ctx,
+            properties: &properties,
+            context: &context,
+            debug: &mut debug,
+            force_process_unchanged_inputs,
+            capture_unchanged_outputs,
+        },
+    );
+    ProcessorLaneOutput {
+        context_key: (!context_key.is_default_lane()).then_some(context_key),
+        output,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_stateful_processor_lane(
+    processor: &Processor,
+    compiled: &CompiledAlchemistFormula,
+    context_key: ContextKey,
+    memory: &mut AlchemistMemory,
+    ctx: &EvaluationCtx<'_>,
+    context_provider: &dyn ProcessorContextProvider,
+    capture: &ProcessorDebugCapture,
+    force_process_unchanged_inputs: bool,
+    capture_unchanged_outputs: bool,
+) -> ProcessorLaneOutput {
+    let mut debug = DebugCaptureSink::new(capture.debug_capture_mode(&compiled.formula_ref.id));
+    let context = RuntimeContextFrame::new(context_key.clone());
+    let properties = match resolve_processor_property_frame(processor, compiled, &context_key, context_provider) {
+        Ok(properties) => properties,
+        Err(error) => {
+            return ProcessorLaneOutput {
+                context_key: (!context_key.is_default_lane()).then_some(context_key),
+                output: property_frame_error_output(error),
+            };
+        }
+    };
+    let output = evaluate_compiled_graph(
+        &compiled.graph,
+        memory,
+        EvaluationFrame {
+            ctx,
+            properties: &properties,
+            context: &context,
+            debug: &mut debug,
+            force_process_unchanged_inputs,
+            capture_unchanged_outputs,
+        },
+    );
+    ProcessorLaneOutput {
+        context_key: (!context_key.is_default_lane()).then_some(context_key),
+        output,
     }
 }
 
@@ -1080,14 +1228,15 @@ impl ANodeOutputPreviewSample {
 pub fn processor_output_preview_samples(
     processor_id: ProcessorId,
     formula_id: &FormulaId,
-    lanes: Vec<ProcessorLaneOutput>,
+    lanes: &[ProcessorLaneOutput],
 ) -> Vec<ANodeOutputPreviewSample> {
     lanes
-        .into_iter()
+        .iter()
         .flat_map(|lane| {
             lane.output
                 .debug_samples
-                .into_iter()
+                .iter()
+                .cloned()
                 .map(move |sample| ANodeOutputPreviewSample::from_debug_sample(Some(processor_id), formula_id, sample))
         })
         .collect()

@@ -41,7 +41,7 @@ The release is ready to carry an “AAA-grade foundation” claim only when all 
 | Stage | Status | Supercommit scope |
 |---|---|---|
 | 0 | Complete (2026-07-10) | Truthful CI, exact toolchains, dependency triage, versioned benchmark manifest/baseline, direct trigger result prerequisite, and persistence-baseline correctness |
-| 1 | Complete (2026-07-10) | Checked, lazy, budgeted multiplex execution and incremental canonical reconciliation |
+| 1 | Correction reopened (2026-07-10) | Checked cardinality and reconciliation are complete; 60 Hz multiplex action execution and UI feedback are not yet qualified |
 | 2 | Complete; live-connectivity correction (2026-07-10) | Open-network hardening, observability, and real runtime connectivity gate |
 | 3 | Complete (2026-07-10) | ValueSet direct output and cache invalidation |
 | 4 | Pending (next discussion) | Incremental, deterministic, bounded events |
@@ -54,7 +54,7 @@ Progress is updated in the same Supercommit that completes each stage. A stage i
 
 ### Stage 0 — Establish truthful gates and performance baselines
 
-**Status: Complete (2026-07-10).**
+**Status: Correction reopened (2026-07-10).** Cardinality and reconciliation containment are complete, but live `test_multiplex.noisette` testing exposed an unqualified steady-state execution path: one 127-lane action reduced the engine to roughly 15 Hz and two actions to roughly 8 Hz. Stage 1 is not complete until semantic execution and visible feedback meet the correction gate below.
 
 Evidence:
 
@@ -144,6 +144,42 @@ This is the highest-priority runtime issue. Current multiplex context generation
 - Memory remains bounded during adversarial axis inputs.
 - Reconciliation remains interruptible and does not create an unbounded command queue.
 - Duplicate resize algorithms are removed.
+
+### Stage 1 correction — 60 Hz multiplex actions and feedback
+
+**Status: In progress (2026-07-10).**
+
+Reducing preview frequency is not an acceptable fix. The product target is smooth 60 Hz feedback while multiplex actions execute at engine frequency. Work that does not belong to semantic graph mutation must be removed from the engine thread or prepared asynchronously from immutable data.
+
+Correction evidence on 2026-07-10 identified three structural faults rather than one slow call: every evaluated lane was globally debug-captured and inspected, every condition lane JSON-encoded a `ValueSet` every tick, and stateful lane memory forced otherwise-independent lanes through a serial loop. The first correction replaces global capture with per-client runtime-view interests owned by the Alchemist editor and processor inspector, shares immutable steady condition values, and evaluates independently owned stateful lanes in parallel. The live debug-build fixture dropped from roughly 108–129 ms median to roughly 28–33 ms with two observed lanes; an optimized two-action control measured roughly 9–10 ms median and 14–15 ms p95. This is progress evidence only: the stage remains open until the normalized five-action and hundred-action gates pass.
+
+#### Reproduction and instrumentation
+
+- Promote `test_multiplex.noisette` into an active runtime fixture with a changing Signal source, one and two enabled `MAction` processors, 127 lanes per processor, runtime-preview subscription, and frontend consumption.
+- Record p50/p95/p99 and allocation counts separately for context-condition evaluation, formula evaluation, intent dispatch, lane-summary construction, lane inspection, preview projection, protocol serialization, transport enqueue, UI ingestion, and paint.
+- Preserve a machine-readable before/after baseline. A load-only or idle-project test does not qualify this path.
+
+#### Backend work packages
+
+- Compile condition and lane-inspection traversal into reusable descriptors; do not rediscover processor subtrees or format cache keys for every lane on every tick.
+- Reuse lane/context storage and write outputs into stable buffers. Remove `lanes.clone()` and other whole-output duplication from preview preparation.
+- Separate semantic lane results from observational preview data. Produce compact immutable preview deltas containing only changed summaries and explicitly requested lane details.
+- Move preview DTO projection, serialization, and transport publication off the engine thread behind a bounded latest-wins handoff. The worker may drop superseded observational snapshots, but semantic ticks, intents, and the newest UI state must never be dropped.
+- Keep selection/request state explicit and per client. The Alchemist editor and processor inspector own separate stable view interests, interests are deduplicated by client/view, and disconnect removes them. The backend materializes only the union of requested lanes; no client implicitly enables all-lane capture.
+
+#### UI work packages
+
+- Consume keyed preview deltas without replacing or rescanning the full processor/lane bundle.
+- Update only visible formula nodes, selected lane inspection, and changed lane badges while preserving 60 Hz motion and value feedback.
+- Measure event receipt, store application, Svelte update, and paint independently so backend improvements cannot hide a frontend long task.
+
+#### Correction exit criteria
+
+- On named reference hardware, five enabled 127-lane actions with a 60 Hz changing source sustain 60 engine ticks per second with engine-tick p95 at or below 8 ms, p99 at or below 12 ms, and no sustained missed 16.67 ms deadlines.
+- Visible runtime values and lane feedback are produced at 60 Hz for the active/visible selection; there is no fixed 15 Hz sampling cap.
+- Adding an identical action does not divide engine frequency. Scaling is measured at 1, 5, 10, 32, and 100 actions; the 100-action case has an explicit CPU/allocation budget and must remain interactive rather than falling back to global observation or unbounded work.
+- The engine thread performs no protocol serialization, full-lane inspection walk, or unbounded preview cloning.
+- Automated regression coverage fails when the active fixture exceeds its engine or UI frame budget.
 
 ### Stage 2 — Keep open networking, harden it invisibly
 
@@ -391,7 +427,7 @@ Final numeric thresholds should be selected from Stage 0 baselines on named refe
 |---|---|
 | Engine tick | p95 and p99 budget for idle, sparse-change, and heavy-change fixtures |
 | UI interaction | p95 frame time, long-task count, and input-to-paint latency |
-| Multiplex | maximum checked lanes, allocation ceiling, and reconcile work per tick |
+| Multiplex | maximum checked lanes, allocation ceiling, reconcile work per tick, active-action p95/p99, and 60 Hz preview frame budget |
 | ValueSet | per-entry evaluation latency and allocations for changed vs unchanged input |
 | Event system | dispatch latency, replay scan count, and bounded queue memory |
 | Spatializer | backend update time and UI preview frame time at each supported scale |
@@ -436,17 +472,18 @@ Keep changes reviewable and avoid combining behavioral refactors with broad form
 1. CI truthfulness, lint cleanup, codegen drift gate, baseline harness.
 2. Checked multiplex cardinality and lazy iterator.
 3. Incremental/bounded multiplex reconciliation and resize deduplication.
-4. Open-network origin/Host policy and protocol limits.
-5. Bounded network runtime, slow-client resync, observability, and soak tests.
-6. ValueSet direct-output path and debug decoupling.
-7. Precise control/event invalidation, replay cursor fix, deterministic topology.
-8. Graph store revisions and incremental selectors.
-9. Canvas spatial indexing, routing cache, and bundle splitting.
-10. Spatializer algorithm/cache replacement.
-11. Protocol canonicalization and adapter deduplication.
-12. Manager/formula/UI-sync modularization and import-cycle removal.
-13. Persistence migrations, atomic save, backups, and recovery tests.
-14. Full release-candidate performance, fuzz, and soak qualification.
+4. Multiplex active-action 60 Hz correction: compiled lane descriptors, stable buffers, preview deltas, worker handoff, and UI regression gate.
+5. Open-network origin/Host policy and protocol limits.
+6. Bounded network runtime, slow-client resync, observability, and soak tests.
+7. ValueSet direct-output path and debug decoupling.
+8. Precise control/event invalidation, replay cursor fix, deterministic topology.
+9. Graph store revisions and incremental selectors.
+10. Canvas spatial indexing, routing cache, and bundle splitting.
+11. Spatializer algorithm/cache replacement.
+12. Protocol canonicalization and adapter deduplication.
+13. Manager/formula/UI-sync modularization and import-cycle removal.
+14. Persistence migrations, atomic save, backups, and recovery tests.
+15. Full release-candidate performance, fuzz, and soak qualification.
 
 ## Release checkpoints
 

@@ -20,6 +20,7 @@ dependencies = [
  "golden_core",
  "if-addrs",
  "image",
+ "indexmap 2.13.0",
  "joycon-rs",
  "leap-sys",
  "libloading 0.8.9",
@@ -926,6 +927,7 @@ dependencies = [
  "golden_alchemist",
  "golden_statechart",
  "indexmap 2.13.0",
+ "rayon",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2944,6 +2946,7 @@ checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
 dependencies = [
  "equivalent",
  "hashbrown 0.16.1",
+ "rayon",
  "serde",
  "serde_core",
 ]

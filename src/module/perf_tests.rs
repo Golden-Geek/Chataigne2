@@ -56,6 +56,56 @@ fn sample_project_path(name: &str) -> std::path::PathBuf {
         .join(name)
 }
 
+fn direct_child_by_decl(
+    engine: &crate::app::AppEngine,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<NodeId> {
+    engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.node_data().parent == Some(parent)
+                && node.node_data().meta.decl_id.0 == decl_id
+        })
+        .map(|(node_id, _)| node_id)
+}
+
+fn first_node_by_label(engine: &crate::app::AppEngine, label: &str) -> Option<NodeId> {
+    engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == label)
+        .map(|(node_id, _)| node_id)
+}
+
+fn ancestor_by_type(
+    engine: &crate::app::AppEngine,
+    node: NodeId,
+    node_type: &str,
+) -> Option<NodeId> {
+    let mut current = engine
+        .nodes
+        .get(node)
+        .and_then(|candidate| candidate.node_data().parent);
+    while let Some(node_id) = current {
+        let candidate = engine.nodes.get(node_id)?;
+        if candidate.get_type() == node_type {
+            return Some(node_id);
+        }
+        current = candidate.node_data().parent;
+    }
+    None
+}
+
+fn run_full_engine_tick(engine: &mut crate::app::AppEngine, delta: Duration) {
+    engine
+        .dispatch_inbox(golden_core::process_ctx::ExecutionPhase::EngineTick)
+        .expect("engine inbox should dispatch");
+    engine.run_tick(delta).expect("engine tick should run");
+    engine.apply_edits().expect("engine tick edits should apply");
+}
+
 fn elapsed_ms<T>(operation: impl FnOnce() -> T) -> (T, u128) {
     let started = Instant::now();
     let result = operation();
@@ -167,6 +217,214 @@ fn multiplex_sample_project_loads_and_round_trips() {
 
     let saved_json = to_sparse_project_json_pretty(&engine).expect("multiplex sample should save");
     from_sparse_project_json::<AppNode>(&saved_json).expect("saved multiplex sample should reload");
+}
+
+#[test]
+#[ignore = "AAA performance benchmark: run explicitly with --ignored --nocapture"]
+fn benchmark_multiplex_sample_active_actions_with_runtime_preview() {
+    const SAMPLE: &str = "test_multiplex.noisette";
+    const WARMUP: usize = 5;
+    const MEASURED: usize = 30;
+    const DELTA: Duration = Duration::from_micros(16_667);
+
+    let path = sample_project_path(SAMPLE);
+    let mut engine = load_sparse_project_file::<AppNode, _>(&path).expect("multiplex sample should load");
+    golden_core::app::configure_loaded_engine(&mut engine)
+        .expect("multiplex sample runtime should configure");
+    golden_core::app::prepare_engine_for_runtime(&mut engine)
+        .expect("multiplex sample runtime should prepare");
+    let formula = first_node_by_label(&engine, "ActionTest").expect("ActionTest formula should exist");
+    let formula_uuid = engine
+        .nodes
+        .get(formula)
+        .expect("ActionTest formula should exist")
+        .node_data()
+        .meta
+        .uuid;
+    let actions = ["MAction", "MAction 2"].map(|label| {
+        let action = first_node_by_label(&engine, label)
+            .unwrap_or_else(|| panic!("multiplex sample should contain {label}"));
+        assert_eq!(
+            engine.nodes.get(action).expect("action should exist").get_type(),
+            "state_processor",
+            "{label} should identify the processor itself",
+        );
+        action
+    });
+    let manager_id = ancestor_by_type(&engine, actions[0], "state_machine_manager")
+        .expect("MAction should belong to a state machine manager");
+    for action in actions {
+        let formula_param = direct_child_by_decl(&engine, action, "formula")
+            .expect("processor Formula parameter should exist");
+        engine.edits.push(golden_core::edit::Edit::PatchMeta {
+            node: action,
+            patch: golden_core::node::NodeMetaPatch {
+                enabled: Some(true),
+                ..Default::default()
+            },
+        });
+        engine.edits.push(golden_core::edit::Edit::SetParam {
+            node: formula_param,
+            value: golden_core::parameter::ParamValue::Reference(
+                golden_core::node::NodeReference::new(formula_uuid),
+            ),
+            behaviour: golden_core::parameter::ParameterEventBehaviour::Coalesce,
+        });
+    }
+    engine.apply_edits().expect("benchmark setup should apply");
+    let preview_processors = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.get_type() == "state_processor")
+        .map(|(_, node)| node.node_data().meta.uuid.0.to_string())
+        .collect::<Vec<_>>();
+    for processor_id in preview_processors {
+        let ack = engine.apply_ui_intent_from_client(
+            golden_core::ui_sync::UiEditIntent::SetRuntimeViewInterest {
+                view_id: format!("benchmark-processor-{processor_id}"),
+                topic: "chataigne.state_machine.runtime_preview_interest".to_string(),
+                payload: Some(serde_json::json!({
+                    "kind": "processor_default_lane",
+                    "processor_id": processor_id,
+                })),
+            },
+            Some("multiplex-benchmark"),
+        );
+        assert!(ack.success, "benchmark preview interest should apply");
+    }
+    for _ in 0..4 {
+        run_full_engine_tick(&mut engine, DELTA);
+    }
+    let preview_lanes = engine
+        .nodes
+        .get(manager_id)
+        .and_then(|node| match node {
+            crate::app::AppNode::StateMachineManager(manager) => {
+                Some(manager.runtime_preview_lanes())
+            }
+            _ => None,
+        })
+        .expect("state machine manager should exist");
+    let bootstrap_view_ids = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.get_type() == "state_processor")
+        .map(|(_, node)| {
+            format!(
+                "benchmark-processor-{}",
+                node.node_data().meta.uuid.0
+            )
+        })
+        .collect::<Vec<_>>();
+    for view_id in bootstrap_view_ids {
+        let ack = engine.apply_ui_intent_from_client(
+            golden_core::ui_sync::UiEditIntent::SetRuntimeViewInterest {
+                view_id,
+                topic: "chataigne.state_machine.runtime_preview_interest".to_string(),
+                payload: None,
+            },
+            Some("multiplex-benchmark"),
+        );
+        assert!(ack.success, "benchmark bootstrap interest should clear");
+    }
+    let mut previewed_processors = std::collections::HashSet::new();
+    for (view_index, lane) in preview_lanes.into_iter().enumerate() {
+        if !previewed_processors.insert(lane.processor_id.clone()) {
+            continue;
+        }
+        if previewed_processors.len() > 2 {
+            break;
+        }
+        let ack = engine.apply_ui_intent_from_client(
+            golden_core::ui_sync::UiEditIntent::SetRuntimeViewInterest {
+                view_id: format!("benchmark-observer-{view_index}"),
+                topic: "chataigne.state_machine.runtime_preview_interest".to_string(),
+                payload: Some(serde_json::json!({
+                    "kind": "processor_lane",
+                    "processor_id": lane.processor_id,
+                    "context_key": lane.context_key,
+                })),
+            },
+            Some("multiplex-benchmark"),
+        );
+        assert!(ack.success, "benchmark lane preview interest should apply");
+    }
+
+    let signal = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.node_data().meta.uuid.0.to_string() == "15673b51-9ef7-4ff3-8415-af13d32de7c3"
+        })
+        .map(|(node_id, _)| node_id)
+        .expect("Signal source should resolve");
+    for tick in 0..WARMUP {
+        engine.edits.push(golden_core::edit::Edit::SetParam {
+            node: signal,
+            value: golden_core::parameter::ParamValue::Float(tick as f64 / WARMUP as f64),
+            behaviour: golden_core::parameter::ParameterEventBehaviour::Coalesce,
+        });
+        engine.apply_edits().expect("warmup Signal edit should apply");
+        run_full_engine_tick(&mut engine, DELTA);
+    }
+
+    let manager_stats_before = engine
+        .nodes
+        .get(manager_id)
+        .and_then(|node| match node {
+            crate::app::AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats()),
+            _ => None,
+        })
+        .expect("state machine manager should exist");
+    let mut samples = Vec::with_capacity(MEASURED);
+    for tick in 0..MEASURED {
+        let phase = tick as f64 / MEASURED as f64 * std::f64::consts::TAU;
+        engine.edits.push(golden_core::edit::Edit::SetParam {
+            node: signal,
+            value: golden_core::parameter::ParamValue::Float(phase.sin()),
+            behaviour: golden_core::parameter::ParameterEventBehaviour::Coalesce,
+        });
+        engine.apply_edits().expect("measured Signal edit should apply");
+        let started = Instant::now();
+        run_full_engine_tick(&mut engine, DELTA);
+        samples.push(started.elapsed());
+    }
+    let manager_stats_after = engine
+        .nodes
+        .get(manager_id)
+        .and_then(|node| match node {
+            crate::app::AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats()),
+            _ => None,
+        })
+        .expect("state machine manager should exist");
+
+    samples.sort_unstable();
+    let percentile = |percent: usize| {
+        samples[(samples.len() - 1) * percent / 100].as_secs_f64() * 1_000.0
+    };
+    let evaluations = manager_stats_after.processor_evaluations
+        - manager_stats_before.processor_evaluations;
+    let lanes = manager_stats_after.lanes_evaluated - manager_stats_before.lanes_evaluated;
+    let command_intents = manager_stats_after.command_intents_dispatched
+        - manager_stats_before.command_intents_dispatched;
+    let elapsed_ms = |after: u64, before: u64| (after - before) as f64 / 1_000_000.0;
+    eprintln!(
+        "multiplex_sample ticks={MEASURED} p50_ms={:.3} p95_ms={:.3} p99_ms={:.3} evaluations={evaluations} lanes={lanes} command_intents={command_intents} provider_ms={:.3} inputs_ms={:.3} semantic_ms={:.3} projection_ms={:.3} inspection_ms={:.3} effects_ms={:.3} aggregation_ms={:.3} publish_ms={:.3} manager_total_ms={:.3}",
+        percentile(50),
+        percentile(95),
+        percentile(99),
+        elapsed_ms(manager_stats_after.context_provider_ns, manager_stats_before.context_provider_ns),
+        elapsed_ms(manager_stats_after.runtime_inputs_ns, manager_stats_before.runtime_inputs_ns),
+        elapsed_ms(manager_stats_after.semantic_evaluation_ns, manager_stats_before.semantic_evaluation_ns),
+        elapsed_ms(manager_stats_after.preview_projection_ns, manager_stats_before.preview_projection_ns),
+        elapsed_ms(manager_stats_after.lane_preview_ns, manager_stats_before.lane_preview_ns),
+        elapsed_ms(manager_stats_after.lane_effects_ns, manager_stats_before.lane_effects_ns),
+        elapsed_ms(manager_stats_after.preview_aggregation_ns, manager_stats_before.preview_aggregation_ns),
+        elapsed_ms(manager_stats_after.preview_publish_ns, manager_stats_before.preview_publish_ns),
+        elapsed_ms(manager_stats_after.run_processors_ns, manager_stats_before.run_processors_ns),
+    );
+    assert!(evaluations >= MEASURED as u64);
+    assert_eq!(lanes, evaluations * 127);
 }
 
 #[test]

@@ -7,6 +7,7 @@ import {
 	formulaPreviewSessionStore,
 	processorPreviewLaneOptions
 } from './formulaPreviewSessionStore.svelte';
+import { setRuntimePreviewInterest } from './runtimePreviewInterest';
 
 interface SelectedProcessorLaneInspection {
 	inspection: ProcessorLaneInspectionDto;
@@ -36,12 +37,39 @@ const processorAncestor = (node: UiNodeDto): UiNodeDto | null => {
 	return null;
 };
 
+export const syncProcessorInspectorInterest = (node: UiNodeDto | null): void => {
+	const processor = node ? processorAncestor(node) : null;
+	if (!processor) {
+		setRuntimePreviewInterest('processor-inspector', null);
+		return;
+	}
+	const bundle = runtimePreviewBundle();
+	const lanes = bundle
+		? processorPreviewLaneOptions(
+				bundle.processor_lanes.filter((lane) => lane.processor_id === processor.uuid)
+			)
+		: [];
+	const selectedLane = formulaPreviewSessionStore.processorLane(processor.node_id, lanes);
+	setRuntimePreviewInterest(
+		'processor-inspector',
+		selectedLane?.contextKey
+			? {
+					kind: 'processor_lane',
+					processor_id: processor.uuid,
+					context_key: selectedLane.contextKey
+				}
+			: { kind: 'processor_default_lane', processor_id: processor.uuid }
+	);
+};
+
 export const selectedProcessorLaneInspection = (
 	node: UiNodeDto
 ): SelectedProcessorLaneInspection | null => {
 	const processor = processorAncestor(node);
+	syncProcessorInspectorInterest(node);
 	const bundle = runtimePreviewBundle();
-	if (!processor || !bundle) return null;
+	if (!processor) return null;
+	if (!bundle) return null;
 	const lanes = processorPreviewLaneOptions(
 		bundle.processor_lanes.filter((lane) => lane.processor_id === processor.uuid)
 	);

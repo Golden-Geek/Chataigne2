@@ -82,6 +82,7 @@
 		type FormulaOutputPreviewChip
 	} from '../preview/formulaOutputPreviewStore.svelte';
 	import { formulaPreviewSessionStore } from '../preview/formulaPreviewSessionStore.svelte';
+	import { setRuntimePreviewInterest } from '../preview/runtimePreviewInterest';
 	import {
 		formulaIsExternalFile,
 		formulaIsReadOnly,
@@ -561,6 +562,11 @@
 	let previewSessionModel = $derived(
 		formulaPreviewSessionStore.model(formula, processorNode, processorLaneSummaries)
 	);
+	let alchemistPreviewViewId = $derived(`alchemist-editor:${props.panelId}`);
+	$effect(() => {
+		setRuntimePreviewInterest(alchemistPreviewViewId, previewSessionModel.mode);
+	});
+	onMount(() => () => setRuntimePreviewInterest(alchemistPreviewViewId, null));
 	let incomingOutputPreviews = $derived.by(() =>
 		formulaOutputPreviewMap(
 			formula,

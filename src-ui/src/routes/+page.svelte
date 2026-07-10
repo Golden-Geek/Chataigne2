@@ -7,6 +7,7 @@
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
+	import { appState } from 'golden_ui/store/workbench.svelte';
 	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
 	import ModuleInspectorPanelHeader from '$lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
@@ -21,10 +22,22 @@
 	import ProcessorFormulaInspectorPanelHeader from '$lib/state_machine/components/ProcessorFormulaInspectorPanelHeader.svelte';
 	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
 	import { registerSharedFormulaRemovalGuard } from '$lib/state_machine/sharedFormulaRemoval';
-	import { registerProcessorLaneParameterPreviews } from '$lib/state_machine/preview/processorLaneInspection.svelte';
+	import {
+		registerProcessorLaneParameterPreviews,
+		syncProcessorInspectorInterest
+	} from '$lib/state_machine/preview/processorLaneInspection.svelte';
 
 	registerSharedFormulaRemovalGuard();
 	registerProcessorLaneParameterPreviews();
+	$effect(() => {
+		const session = appState.session;
+		const selectedNodeId = session ? [...session.selectedNodesIds][0] : undefined;
+		const selectedNode =
+			selectedNodeId === undefined
+				? null
+				: (session?.graph.state.nodesById.get(selectedNodeId) ?? null);
+		syncProcessorInspectorInterest(selectedNode);
+	});
 
 	registerNodeInspector('module_command', {
 		component: ModuleCommandInspector

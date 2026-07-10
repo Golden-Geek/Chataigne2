@@ -12,6 +12,7 @@ serde = []
 golden_alchemist.workspace = true
 golden_statechart.workspace = true
 indexmap.workspace = true
+rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
