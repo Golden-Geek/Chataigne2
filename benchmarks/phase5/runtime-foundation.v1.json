@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "phase": 5,
+  "status": "passed",
+  "debug_command": "cargo test -p golden-runtime",
+  "release_command": "cargo test --release -p golden-runtime canonical_p50_l1_and_p5_l127_value_ticks_pass_debug_and_release_gates",
+  "workloads": [
+    {
+      "id": "P50-L1",
+      "processors": 50,
+      "lanes_per_processor": 1,
+      "dense_slots": 150,
+      "operations": 100,
+      "debug_gate_ms": 500,
+      "release_gate_ms": 100
+    },
+    {
+      "id": "P5-L127",
+      "processors": 5,
+      "lanes_per_processor": 127,
+      "dense_slots": 1905,
+      "operations": 1270,
+      "debug_gate_ms": 500,
+      "release_gate_ms": 100
+    }
+  ],
+  "value_tick_invariants": {
+    "project_snapshots": 0,
+    "topology_traversals": 0,
+    "binding_rebuilds": 0,
+    "semantic_buffer_growth": 0
+  },
+  "generation": {
+    "background_compilation": true,
+    "previous_valid_generation_continues": true,
+    "atomic_publication": true,
+    "stable_state_migration": true,
+    "stale_direct_slot_rejection": true
+  },
+  "execution": {
+    "typed_dense_arenas": ["bool", "integer", "float"],
+    "sparse_dependency_routes": true,
+    "deterministic_dense_batches": true,
+    "deterministic_effect_commit": true,
+    "editable_graph_dependency": false
+  }
+}

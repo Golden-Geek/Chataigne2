@@ -1,0 +1,15 @@
+[package]
+name = "golden-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+arc-swap.workspace = true
+golden-model.workspace = true
+golden-values.workspace = true
+smol_str.workspace = true
+thiserror.workspace = true

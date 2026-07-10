@@ -13,6 +13,7 @@
     { "id": "statechart.authoring_and_runtime", "final_owner": "golden-statechart + golden-statechart-ui", "evidence": "automated", "evidence_path": "crates/golden-statechart/src/tests.rs" },
     { "id": "processor.conditions", "final_owner": "golden-condition", "evidence": "automated", "evidence_path": "crates/golden-condition/src/tests.rs" },
     { "id": "processor.instances_and_lanes", "final_owner": "golden-processor", "evidence": "automated", "evidence_path": "crates/golden-processor/src/tests.rs" },
+    { "id": "runtime.compiled_generation", "final_owner": "golden-runtime", "evidence": "automated", "evidence_path": "crates/golden-runtime/src/tests.rs" },
     { "id": "runtime.preview", "final_owner": "golden-runtime observation + domain UI", "evidence": "pending" },
     { "id": "module.signal", "final_owner": "apps/chataigne/modules", "evidence": "automated", "evidence_path": "legacy/repositories/chataigne/src/module/modules/generators/signals_tests.rs" },
     { "id": "module.metronome", "final_owner": "apps/chataigne/modules", "evidence": "automated", "evidence_path": "legacy/repositories/chataigne/src/module/modules/generators/metronomes_tests.rs" },

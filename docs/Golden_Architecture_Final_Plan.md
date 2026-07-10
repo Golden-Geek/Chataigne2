@@ -1141,6 +1141,8 @@ Exit:
 
 ### Phase 5 — Build the control/compiler/data/effect runtime
 
+Implementation status (2026-07-11): complete for the clean rewritten workspace on `rewrite/golden-architecture`. The single-owner control plane compiles immutable graph-free generations in the background, migrates stable state, atomically publishes successful candidates, and keeps the prior valid generation active on rejected work. The semantic plane uses generation-stamped direct inputs, dense typed arenas, flattened routes, sparse/dense scheduling, and deterministic staged effects. Debug and release workload evidence is recorded in `benchmarks/phase5/runtime-foundation.v1.json`; ownership guidance lives in `docs/architecture/runtime.md`.
+
 Deliver:
 
 - actor-owned control plane;
