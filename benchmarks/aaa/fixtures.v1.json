@@ -14,6 +14,26 @@
     ]
   },
   "fixtures": [
+    {
+      "id": "P50-L1",
+      "phase": 0,
+      "project": "test-samples/test_many_actions.noisette",
+      "required_processors": 50,
+      "current_processors": 49,
+      "lanes_per_processor": 1,
+      "shared_inputs": 1,
+      "qualification_status": "fixture_pending"
+    },
+    {
+      "id": "P5-L127",
+      "phase": 0,
+      "project": "test-samples/test_multiplex.noisette",
+      "required_processors": 5,
+      "current_processors": 5,
+      "lanes_per_processor": 127,
+      "shared_inputs": 1,
+      "qualification_status": "topology_only"
+    },
     { "id": "graph_sparse_change", "stage": 5, "sizes": [1000, 10000, 50000] },
     { "id": "multiplex_product", "stage": 1, "sizes": [64, 1024, 16384, 65537], "last_case": "over_budget" },
     { "id": "value_set_pipeline", "stage": 3, "sizes": [1, 10, 100, 1000] },

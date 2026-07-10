@@ -56,6 +56,47 @@ fn sample_project_path(name: &str) -> std::path::PathBuf {
         .join(name)
 }
 
+fn assert_sample_topology_round_trips(
+    sample: &str,
+    expected_signal_modules: usize,
+    expected_state_processors: usize,
+) {
+    let path = sample_project_path(sample);
+    let engine = load_sparse_project_file::<AppNode, _>(&path)
+        .unwrap_or_else(|error| panic!("{sample} should load: {error}"));
+
+    let count_type = |engine: &crate::app::AppEngine, node_type: &str| {
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == node_type)
+            .count()
+    };
+    assert_eq!(
+        count_type(&engine, "signals_module"),
+        expected_signal_modules,
+        "{sample} should preserve its shared input topology",
+    );
+    assert_eq!(
+        count_type(&engine, "state_processor"),
+        expected_state_processors,
+        "{sample} should preserve its processor topology",
+    );
+
+    let saved_json = to_sparse_project_json_pretty(&engine)
+        .unwrap_or_else(|error| panic!("{sample} should save: {error}"));
+    let reloaded = from_sparse_project_json::<AppNode>(&saved_json)
+        .unwrap_or_else(|error| panic!("saved {sample} should reload: {error}"));
+    assert_eq!(
+        count_type(&reloaded, "signals_module"),
+        expected_signal_modules,
+    );
+    assert_eq!(
+        count_type(&reloaded, "state_processor"),
+        expected_state_processors,
+    );
+}
+
 fn direct_child_by_decl(
     engine: &crate::app::AppEngine,
     parent: NodeId,
@@ -203,20 +244,16 @@ fn simple_sample_project_loads_and_round_trips() {
 fn multiplex_sample_project_loads_and_round_trips() {
     const SAMPLE: &str = "test_multiplex.noisette";
 
-    let path = sample_project_path(SAMPLE);
-    let engine = load_sparse_project_file::<AppNode, _>(&path).expect("multiplex sample should load");
-    assert_eq!(
-        engine
-            .nodes
-            .iter()
-            .filter(|(_, node)| node.get_type() == "signals_module")
-            .count(),
-        1,
-        "multiplex sample should contain one signals module"
-    );
+    assert_sample_topology_round_trips(SAMPLE, 1, 5);
+}
 
-    let saved_json = to_sparse_project_json_pretty(&engine).expect("multiplex sample should save");
-    from_sparse_project_json::<AppNode>(&saved_json).expect("saved multiplex sample should reload");
+#[test]
+fn many_actions_sample_project_loads_and_round_trips() {
+    const SAMPLE: &str = "test_many_actions.noisette";
+
+    // The reported project currently contains 49 processors. Keep that fact
+    // executable until the canonical P50-L1 fixture is completed explicitly.
+    assert_sample_topology_round_trips(SAMPLE, 1, 49);
 }
 
 #[test]
