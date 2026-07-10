@@ -238,6 +238,15 @@ where
     let frontend_url = configured_frontend_url
         .clone()
         .unwrap_or_else(|| default_frontend_url(&endpoint, frontend_assets, args.dev, dev_server));
+    if let Some(origin) = frontend_origin(&frontend_url) {
+        config.transport.allowed_origins.push(origin);
+    }
+    if let Ok(origins) = std::env::var("GC_UI_ALLOWED_ORIGINS") {
+        config
+            .transport
+            .allowed_origins
+            .extend(origins.split(',').filter_map(frontend_origin));
+    }
 
     if args.headless {
         let dev_server_process = if args.dev && configured_frontend_url.is_none() {
@@ -460,6 +469,19 @@ fn default_frontend_url(
     }
 
     detect_or_default_frontend_url()
+}
+
+pub(crate) fn frontend_origin(url: &str) -> Option<String> {
+    let url = url.trim();
+    let (scheme, remainder) = url.split_once("://")?;
+    if !matches!(scheme.to_ascii_lowercase().as_str(), "http" | "https") {
+        return None;
+    }
+    let authority = remainder.split(['/', '?', '#']).next()?.trim();
+    if authority.is_empty() {
+        return None;
+    }
+    Some(format!("{}://{authority}", scheme.to_ascii_lowercase()))
 }
 
 fn spawn_frontend_dev_server(

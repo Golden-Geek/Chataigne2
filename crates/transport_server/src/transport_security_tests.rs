@@ -53,6 +53,21 @@ fn same_origin_and_explicit_origin_are_allowed() {
 }
 
 #[test]
+fn configured_dev_frontend_can_reach_localhost_runtime() {
+    let mut security = UiTransportSecurityConfig::default();
+    security.allowed_origins.push("http://127.0.0.1:5173".to_string());
+
+    assert_eq!(
+        validate_browser_request(
+            &headers("localhost:7010", Some("http://127.0.0.1:5173")),
+            local_addr(),
+            &security,
+        ),
+        Ok(Some("http://127.0.0.1:5173".to_string()))
+    );
+}
+
+#[test]
 fn foreign_origin_and_rebound_host_are_rejected() {
     assert!(matches!(
         validate_browser_request(
