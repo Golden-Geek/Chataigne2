@@ -279,6 +279,7 @@ fn earliest_ui_event_time_since<T: Node>(
 
 fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
     match intent {
+        UiEditIntent::SetRuntimeViewInterest { .. } => "set_runtime_view_interest",
         UiEditIntent::BeginEdit { .. } => "begin_edit",
         UiEditIntent::EndEdit { .. } => "end_edit",
         UiEditIntent::SetParam { .. } => "set_param",
@@ -1042,6 +1043,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                         let mut guard = lock_engine(engine);
                         let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                         let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
+                        guard.clear_runtime_view_interests_for_client(&client_instance_id);
                         read_model.collect_event_batch(&*guard, before_event_time)
                     };
                     read_model.apply_event_capture(capture);
@@ -1063,6 +1065,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     let mut guard = lock_engine(engine);
                     let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                     let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
+                    guard.clear_runtime_view_interests_for_client(client_instance_id);
                     read_model.collect_event_batch(&*guard, before_event_time)
                 };
                 read_model.apply_event_capture(capture);

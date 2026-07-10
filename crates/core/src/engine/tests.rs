@@ -7137,6 +7137,49 @@ fn cancel_active_ui_edit_session_only_cancels_matching_client_owner() {
 }
 
 #[test]
+fn runtime_view_interests_are_replaced_per_client_view_and_cleared_on_disconnect() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+    let interest = |value| UiEditIntent::SetRuntimeViewInterest {
+        view_id: "inspector".to_string(),
+        topic: "app.preview".to_string(),
+        payload: Some(serde_json::json!({ "lane": value })),
+    };
+
+    assert!(!engine.apply_ui_intent_from_client(interest("missing"), None).success);
+    assert!(
+        engine
+            .apply_ui_intent_from_client(interest("a-1"), Some("client-a"))
+            .success
+    );
+    assert!(
+        engine
+            .apply_ui_intent_from_client(interest("a-2"), Some("client-a"))
+            .success
+    );
+    assert_eq!(engine.ui_runtime_view_interests.len(), 1);
+    assert_eq!(engine.ui_runtime_view_interest_snapshot.len(), 1);
+    assert_eq!(
+        engine.ui_runtime_view_interest_snapshot[0].payload,
+        serde_json::json!({ "lane": "a-2" })
+    );
+
+    assert!(
+        engine
+            .apply_ui_intent_from_client(interest("b"), Some("client-b"))
+            .success
+    );
+    assert_eq!(engine.ui_runtime_view_interests.len(), 2);
+    engine.clear_runtime_view_interests_for_client("client-a");
+    assert_eq!(engine.ui_runtime_view_interests.len(), 1);
+    assert_eq!(engine.ui_runtime_view_interest_snapshot.len(), 1);
+    assert_eq!(
+        engine.ui_runtime_view_interest_snapshot[0].client_instance_id,
+        "client-b"
+    );
+}
+
+#[test]
 fn ui_intents_manage_user_context_scope_and_entries() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);

@@ -1223,6 +1223,15 @@ pub struct UiRuntimeStatsDto {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum UiEditIntent {
+    /// Adds, replaces, or removes one non-persistent runtime observation.
+    SetRuntimeViewInterest {
+        /// Stable id for one UI surface such as an editor or inspector.
+        view_id: String,
+        /// App-owned observation topic.
+        topic: String,
+        /// Topic-specific selection, or `null` to remove this view.
+        payload: Option<serde_json::Value>,
+    },
     /// Begin a grouped edit session.
     BeginEdit {
         /// Client-generated id.
@@ -2635,6 +2644,25 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
+    /// Removes every non-persistent runtime observation owned by one UI client.
+    pub fn clear_runtime_view_interests_for_client(&mut self, client_instance_id: &str) {
+        let previous_len = self.ui_runtime_view_interests.len();
+        self.ui_runtime_view_interests
+            .retain(|(client_id, _), _| client_id != client_instance_id);
+        if self.ui_runtime_view_interests.len() != previous_len {
+            self.refresh_runtime_view_interest_snapshot();
+        }
+    }
+
+    fn refresh_runtime_view_interest_snapshot(&mut self) {
+        self.ui_runtime_view_interest_snapshot = self
+            .ui_runtime_view_interests
+            .values()
+            .cloned()
+            .collect::<Vec<_>>()
+            .into();
+    }
+
     /// Applies one UI edit intent and returns an acknowledgement payload.
     pub fn apply_ui_intent(&mut self, intent: UiEditIntent) -> UiAck {
         self.apply_ui_intent_from_client(intent, None)
@@ -2646,6 +2674,45 @@ impl<T: Node> Engine<T> {
         // eprintln!("[gc-ui] intent recv: {intent:?} | undo_len={} redo_len={} active_session={}", self.undo_len(), self.redo_len(), self.has_active_edit_session());
 
         let ack = match intent {
+            UiEditIntent::SetRuntimeViewInterest {
+                view_id,
+                topic,
+                payload,
+            } => {
+                let Some(client_instance_id) = ui_client_instance_id else {
+                    return UiAck {
+                        success: false,
+                        status: UiAckStatus::Rejected,
+                        error_code: Some("runtime_view_client_required".to_string()),
+                        error_message: Some("runtime view interests require a stable UI client id".to_string()),
+                        earliest_event_time: None,
+                        history: self.ui_history_state(),
+                    };
+                };
+                let key = (client_instance_id.to_owned(), view_id.clone());
+                if let Some(payload) = payload {
+                    self.ui_runtime_view_interests.insert(
+                        key,
+                        crate::process_ctx::RuntimeViewInterest {
+                            client_instance_id: client_instance_id.to_owned(),
+                            view_id,
+                            topic,
+                            payload,
+                        },
+                    );
+                } else {
+                    self.ui_runtime_view_interests.remove(&key);
+                }
+                self.refresh_runtime_view_interest_snapshot();
+                UiAck {
+                    success: true,
+                    status: UiAckStatus::Applied,
+                    error_code: None,
+                    error_message: None,
+                    earliest_event_time: None,
+                    history: self.ui_history_state(),
+                }
+            }
             UiEditIntent::BeginEdit { client_edit_id, label } => {
                 self.edits.push(Edit::BeginEditSession {
                     origin: EditOrigin::Ui,

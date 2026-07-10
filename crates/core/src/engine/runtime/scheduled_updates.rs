@@ -84,6 +84,7 @@ impl<T: Node> Engine<T> {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.delta_time = delta_time;
             ctx.runtime_elapsed = self.runtime_elapsed;
+            ctx.set_runtime_view_interests(Arc::clone(&self.ui_runtime_view_interest_snapshot));
             if let Some(tree_snapshot) = &tree_snapshot {
                 if self
                     .nodes

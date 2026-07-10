@@ -14,6 +14,19 @@ use crate::node::{
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour};
 use serde::Serialize;
 
+/// One non-persistent UI observation requested by a connected client.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RuntimeViewInterest {
+    /// Stable identity of the client that owns the observation.
+    pub client_instance_id: String,
+    /// Stable identity of one UI surface within that client.
+    pub view_id: String,
+    /// App-owned runtime observation topic.
+    pub topic: String,
+    /// Topic-specific selection payload.
+    pub payload: serde_json::Value,
+}
+
 /// Read-only node record available during callback execution.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProcessTreeNodeSnapshot {
@@ -339,6 +352,8 @@ pub struct ProcessCtx {
     pub runtime_elapsed: Duration,
     /// Optional read-only tree snapshot shared for this callback pass.
     tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    /// Immutable observation interests active for this callback pass.
+    runtime_view_interests: Arc<[RuntimeViewInterest]>,
 }
 
 impl ProcessCtx {
@@ -352,6 +367,7 @@ impl ProcessCtx {
             delta_time: Duration::ZERO,
             runtime_elapsed: Duration::ZERO,
             tree_snapshot: None,
+            runtime_view_interests: Arc::from([]),
         }
     }
 
@@ -373,6 +389,18 @@ impl ProcessCtx {
     /// Returns a cloned shared tree snapshot handle when available.
     pub fn tree_snapshot_arc(&self) -> Option<Arc<ProcessTreeSnapshot>> {
         self.tree_snapshot.clone()
+    }
+
+    /// Attaches the current per-client runtime observation set.
+    pub fn set_runtime_view_interests(&mut self, interests: Arc<[RuntimeViewInterest]>) {
+        self.runtime_view_interests = interests;
+    }
+
+    /// Returns observation interests for one app-owned runtime topic.
+    pub fn runtime_view_interests(&self, topic: &str) -> impl Iterator<Item = &RuntimeViewInterest> {
+        self.runtime_view_interests
+            .iter()
+            .filter(move |interest| interest.topic == topic)
     }
 
     /// Queues a parameter update edit.

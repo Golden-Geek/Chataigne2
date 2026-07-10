@@ -8,7 +8,9 @@ use crate::edit::{Edit, EditQueue, EditRequest, NodeTree};
 use crate::events::Inbox;
 use crate::node::*;
 use crate::parameter::ParamValue;
-use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
+use crate::process_ctx::{
+    ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot, RuntimeViewInterest,
+};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -151,6 +153,10 @@ pub struct Engine<T: Node> {
     ui_event_log_start: usize,
     /// Maximum number of events retained in `ui_event_log`.
     ui_event_log_capacity: usize,
+    /// Non-persistent, per-client runtime observation requests.
+    pub(crate) ui_runtime_view_interests: HashMap<(String, String), RuntimeViewInterest>,
+    /// Immutable interest snapshot cloned into callback contexts without allocation.
+    pub(crate) ui_runtime_view_interest_snapshot: Arc<[RuntimeViewInterest]>,
     /// Project epoch used by UI graph transactions.
     ui_epoch: u64,
     /// Next UI graph transaction id within `ui_epoch`.
@@ -281,6 +287,8 @@ impl<T: Node> Engine<T> {
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,
             ui_event_log_capacity: ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
+            ui_runtime_view_interests: HashMap::new(),
+            ui_runtime_view_interest_snapshot: Arc::from([]),
             ui_epoch: 0,
             next_ui_tx_id: 1,
             ui_graph_version: 0,
