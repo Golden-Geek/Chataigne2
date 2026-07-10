@@ -51,3 +51,16 @@ jobs:
         run: npm run build
       - name: Production JavaScript dependency audit
         run: npm audit --omit=dev --audit-level=high
+  release-platforms:
+    name: Release qualification (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Cross-platform release workspace
+        run: cargo test --release --workspace --all-features

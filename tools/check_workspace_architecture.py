@@ -29,6 +29,27 @@ def verify_no_submodules() -> None:
         fail("gitlinks are forbidden in the Golden monorepo:\n" + "\n".join(gitlinks))
 
 
+def verify_no_obsolete_sources() -> None:
+    forbidden = (
+        "legacy",
+        "src",
+        "src-ui",
+        "submodules",
+        "builtin_formulas",
+        "capabilities",
+        "gen",
+        "build.rs",
+        "tauri.conf.json",
+    )
+    tracked = [
+        path
+        for path in command("git", "ls-files", "--", *forbidden).splitlines()
+        if (ROOT / path).exists()
+    ]
+    if tracked:
+        fail("obsolete architecture sources are forbidden:\n" + "\n".join(tracked))
+
+
 def verify_cargo_dependencies() -> None:
     metadata = json.loads(command("cargo", "metadata", "--format-version", "1", "--no-deps"))
     rules = json.loads(
@@ -40,6 +61,9 @@ def verify_cargo_dependencies() -> None:
     workspace_names = {package["name"] for package in workspace_packages.values()}
 
     for package in workspace_packages.values():
+        legacy_features = [name for name in package.get("features", {}) if "legacy" in name.lower()]
+        if legacy_features:
+            fail(f"{package['name']} exposes forbidden legacy features: {legacy_features}")
         if package["name"] not in allowed:
             continue
         actual = {
@@ -103,6 +127,7 @@ def verify_javascript_workspace() -> None:
 
 def main() -> None:
     verify_no_submodules()
+    verify_no_obsolete_sources()
     verify_cargo_dependencies()
     verify_javascript_workspace()
     print("workspace architecture: valid")

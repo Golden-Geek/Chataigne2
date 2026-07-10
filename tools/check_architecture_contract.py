@@ -74,9 +74,9 @@ def validate_parity_ledger() -> None:
         elif evidence == "manual":
             require(capability.get("acceptance"), f"{identifier} needs a manual acceptance scenario")
 
-    if ledger.get("status") == "frozen":
-        pending = [capability["id"] for capability in capabilities if capability["evidence"] == "pending"]
-        require(not pending, f"frozen parity ledger still has pending entries: {', '.join(pending)}")
+    require(ledger.get("status") == "complete", "final parity ledger must be complete")
+    pending = [capability["id"] for capability in capabilities if capability["evidence"] == "pending"]
+    require(not pending, f"final parity ledger still has pending entries: {', '.join(pending)}")
 
 
 def main() -> None:

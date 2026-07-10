@@ -37,3 +37,19 @@ fn ingress_policy_never_grows_past_its_bound() {
     lossless.push(1).unwrap();
     assert_eq!(lossless.push(2), Err(IngressError::Full));
 }
+
+#[test]
+fn endpoint_recovery_survives_a_long_disconnect_reconnect_soak() {
+    let mut recovery = RecoveryStateMachine::new(RecoveryPolicy::default()).unwrap();
+    for cycle in 0..100_000_u64 {
+        assert!(recovery.begin_connect());
+        recovery.connected(cycle * 2);
+        assert!(recovery.disconnected(cycle * 2 + 1));
+        assert!(recovery.retry_due(cycle * 2 + 1 + 250));
+        assert!(recovery.begin_connect());
+        recovery.connected(cycle * 2 + 1 + 250);
+        recovery.stop();
+        recovery = RecoveryStateMachine::new(RecoveryPolicy::default()).unwrap();
+    }
+    assert_eq!(recovery.state(), ConnectionState::Disconnected);
+}

@@ -169,3 +169,26 @@ fn canonical_transport_load_has_zero_intent_timeouts_and_binary_values_stay_late
     assert_eq!(metrics.snapshot().reliable_backpressure, 0);
     assert!(started.elapsed() < std::time::Duration::from_millis(500));
 }
+
+#[test]
+fn module_network_and_client_queues_survive_a_bounded_soak() {
+    let started = std::time::Instant::now();
+    let metrics = Arc::new(TransportMetrics::default());
+    let clients = (0..50)
+        .map(|_| ClientOutboundQueue::new(8, 8, Arc::clone(&metrics)).unwrap())
+        .collect::<Vec<_>>();
+    for sequence in 0..10_000_u32 {
+        for client in &clients {
+            client.enqueue_binary_latest(sequence.to_le_bytes().to_vec());
+        }
+    }
+    assert!(clients.iter().all(|client| client.queued_len() == 1));
+    for client in &clients {
+        assert!(matches!(
+            client.drain(1).as_slice(),
+            [OutboundFrame::Binary(frame)] if frame.as_slice() == 9_999_u32.to_le_bytes()
+        ));
+    }
+    assert_eq!(metrics.snapshot().reliable_backpressure, 0);
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+}

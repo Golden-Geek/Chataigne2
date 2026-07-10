@@ -48,17 +48,13 @@ if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT -a
 
 Run-Step "root cargo fmt --check" { cargo fmt --all --check }
 
-$LegacyGoldenCore = Join-Path $Root "legacy/repositories/golden_core/Cargo.toml"
-if (Test-Path $LegacyGoldenCore) {
-    Run-Step "legacy golden_core cargo fmt --check" {
-        cargo fmt --manifest-path $LegacyGoldenCore --all --check
-    }
-}
-
 Run-Step "workspace cargo clippy" {
     cargo clippy --workspace --all-targets --all-features -- -D warnings
 }
 Run-Step "workspace cargo test" { cargo test --workspace --all-features }
+Run-Step "100,000-value release qualification" {
+    cargo test --release -p golden-runtime one_hundred_thousand_values_pass_dense_sparse_and_idle_release_gates
+}
 Run-Step "workspace cargo check" { cargo check --workspace --all-targets --all-features }
 
 if (-not $SkipUiInstall) {

@@ -4,151 +4,33 @@
     {
       "id": "supercommitMessage",
       "type": "promptString",
-      "description": "Commit message for submodules and main repo"
+      "description": "Commit message"
     }
   ],
   "tasks": [
     {
-      "label": "jCodeMunch: watch workspace",
+      "label": "Golden: full check",
       "type": "process",
       "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\tools\\watch-jcodemunch.ps1"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "jcodemunch",
-        "pattern": {
-          "regexp": "^(.*)$",
-          "message": 1
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^jCodeMunch watcher starting$",
-          "endsPattern": "^jCodeMunch watcher ready$"
-        }
-      },
-      "runOptions": {
-        "runOn": "folderOpen",
-        "instanceLimit": 1
-      },
-      "presentation": {
-        "reveal": "never",
-        "panel": "dedicated",
-        "showReuseMessage": false,
-        "clear": false
-      }
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\tools\\check.ps1"],
+      "problemMatcher": []
     },
     {
-      "label": "jCodeMunch: status",
-      "type": "process",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\tools\\watch-jcodemunch.ps1",
-        "--status"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "showReuseMessage": false,
-        "clear": true
-      }
-    },
-    {
-      "label": "UI: Copilot dev server (4173)",
-      "type": "process",
-      "command": "npm",
-      "args": [
-        "run",
-        "dev:copilot"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}\\src-ui"
-      },
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
-    },
-    {
-      "label": "Backend: headless UI server",
+      "label": "Golden: Rust tests",
       "type": "process",
       "command": "cargo",
-      "args": [
-        "run",
-        "--",
-        "--headless"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "isBackground": true, 
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
+      "args": ["test", "--workspace", "--all-features"],
+      "problemMatcher": ["$rustc"]
     },
     {
-      "label": "UI: smoke test",
+      "label": "Golden: browser scale gates",
       "type": "process",
       "command": "npm",
-      "args": [
-        "run",
-        "smoke:ui"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}\\src-ui"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
+      "args": ["run", "test:browser"],
+      "problemMatcher": []
     },
     {
-      "label": "UI: inspect root DOM",
-      "type": "process",
-      "command": "npm",
-      "args": [
-        "run",
-        "inspect:ui",
-        "--",
-        "--selector",
-        "body"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}\\src-ui"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
-    },
-    {
-      "label": "Supercommit: full commit (submodules + main)",
+      "label": "Golden: supercommit",
       "type": "process",
       "command": "powershell",
       "args": [
@@ -159,19 +41,7 @@
         "${workspaceFolder}\\tools\\supercommit.ps1",
         "${input:supercommitMessage}"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
+      "problemMatcher": []
     }
   ]
 }

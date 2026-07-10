@@ -33,27 +33,7 @@ EXPECTED_REPOSITORIES = (
     WorkspaceRepository(
         "Chataigne2",
         WORKSPACE,
-        "app shell, app-owned nodes, app-owned UI, and workspace tooling",
-    ),
-    WorkspaceRepository(
-        "golden_core",
-        WORKSPACE / "submodules" / "golden_core",
-        "reusable engine, host runtime, protocol, persistence, and transports",
-    ),
-    WorkspaceRepository(
-        "golden_ui",
-        WORKSPACE / "src-ui" / "src" / "lib" / "golden_ui",
-        "reusable Svelte UI package",
-    ),
-    WorkspaceRepository(
-        "golden_alchemist_core",
-        WORKSPACE / "submodules" / "golden_alchemist_core",
-        "reusable alchemist engine package",
-    ),
-    WorkspaceRepository(
-        "golden_alchemist_ui",
-        WORKSPACE / "src-ui" / "src" / "lib" / "golden_alchemist_ui",
-        "reusable alchemist UI package",
+        "Golden monorepo crates, packages, Chataigne app, documentation, and tooling",
     ),
 )
 EXPECTED_SOURCE_ROOTS = tuple(repo.source_root for repo in EXPECTED_REPOSITORIES)
@@ -79,10 +59,7 @@ SKIP_DIRECTORY_NAMES = {
 }
 
 SKIP_RELATIVE_PREFIXES = (
-    Path("gen/schemas"),
-    Path("icons"),
-    Path("src-ui/static"),
-    Path("src-ui/src/lib/golden_ui/generated"),
+    Path("packages/golden-runtime-client/src/generated"),
 )
 
 

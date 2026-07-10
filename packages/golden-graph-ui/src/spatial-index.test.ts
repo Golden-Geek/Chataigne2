@@ -6,10 +6,10 @@ import type { GraphNodeId } from "./types";
 
 test("visible queries inspect nearby cells rather than the full graph", () => {
   const index = new SpatialIndex(100);
-  for (let value = 0; value < 10_000; value += 1) {
+  for (let value = 0; value < 100_000; value += 1) {
     index.upsert(`node-${value}` as GraphNodeId, {
-      x: (value % 100) * 100,
-      y: Math.floor(value / 100) * 100,
+      x: (value % 1_000) * 100,
+      y: Math.floor(value / 1_000) * 100,
       width: 20,
       height: 20,
     });

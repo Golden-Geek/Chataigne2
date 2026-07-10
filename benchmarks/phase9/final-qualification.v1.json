@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "phase": 9,
+  "status": "complete",
+  "runtime_100k": {
+    "release_gates_ms": { "idle": 50, "sparse": 100, "dense": 2000 },
+    "windows_measurement_ms": { "idle": 0.252, "sparse": 0.002, "dense": 4.5101 },
+    "semantic_allocations": 0,
+    "topology_traversals": 0,
+    "binding_rebuilds": 0
+  },
+  "graph_editor_100k": {
+    "browser": "Chromium",
+    "maximum_index_build_ms": 5000,
+    "maximum_input_to_paint_ms": 100,
+    "maximum_rendered_nodes": 9,
+    "windows_measurement_ms": { "index_build": 77.1, "input_to_paint": 12.5 },
+    "windows_rendered_nodes": 4
+  },
+  "soak": {
+    "endpoint_recovery_cycles": 100000,
+    "clients": 50,
+    "frames_per_client": 10000,
+    "queue_policy": "bounded latest-wins",
+    "reliable_backpressure": 0
+  },
+  "release_platforms": ["linux", "windows", "macos"],
+  "deleted_paths": ["legacy", "src", "src-ui", "submodules", "builtin_formulas", "capabilities", "gen", "build.rs", "tauri.conf.json"],
+  "evidence": [
+    "crates/golden-runtime/src/tests.rs",
+    "packages/golden-graph-ui/src/graph-scale.browser.test.ts",
+    "crates/golden-io/src/tests.rs",
+    "crates/golden-transport/src/tests.rs",
+    ".github/workflows/ci.yml"
+  ]
+}

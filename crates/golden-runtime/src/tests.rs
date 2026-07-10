@@ -261,6 +261,77 @@ fn canonical_p50_l1_and_p5_l127_value_ticks_pass_debug_and_release_gates() {
 }
 
 #[test]
+fn one_hundred_thousand_values_pass_dense_sparse_and_idle_release_gates() {
+    let generation = compiled(100_000, 1);
+    let inputs = generation.inputs.values().copied().collect::<Vec<_>>();
+    let mut runtime = SemanticRuntime::new(generation);
+    let mut collector = Collector::default();
+
+    runtime.tick(&[], &mut collector).unwrap();
+    collector.effects.clear();
+
+    let idle_started = Instant::now();
+    let idle = runtime.tick(&[], &mut collector).unwrap();
+    let idle_elapsed = idle_started.elapsed();
+    assert_eq!(idle.execution_mode, ExecutionMode::Idle);
+    assert_eq!(idle.executed_operations, 0);
+    assert!(collector.effects.is_empty());
+
+    let sparse_started = Instant::now();
+    let sparse = runtime
+        .tick(
+            &[InputUpdate {
+                slot: inputs[0],
+                value: ScalarValue::Float(3.0),
+            }],
+            &mut collector,
+        )
+        .unwrap();
+    let sparse_elapsed = sparse_started.elapsed();
+    assert_eq!(sparse.execution_mode, ExecutionMode::Sparse);
+    assert_eq!(sparse.executed_operations, 2);
+    assert_eq!(collector.effects.len(), 1);
+    collector.effects.clear();
+
+    let updates = inputs
+        .into_iter()
+        .enumerate()
+        .map(|(index, slot)| InputUpdate {
+            slot,
+            value: ScalarValue::Float(index as f64 + 10.0),
+        })
+        .collect::<Vec<_>>();
+    let dense_started = Instant::now();
+    let dense = runtime.tick(&updates, &mut collector).unwrap();
+    let dense_elapsed = dense_started.elapsed();
+    assert_eq!(dense.execution_mode, ExecutionMode::Dense);
+    assert_eq!(dense.executed_operations, 200_000);
+    assert_eq!(collector.effects.len(), 100_000);
+    assert_eq!(dense.project_snapshots, 0);
+    assert_eq!(dense.topology_traversals, 0);
+    assert_eq!(dense.binding_rebuilds, 0);
+    assert_eq!(dense.semantic_allocations, 0);
+
+    let (idle_gate, sparse_gate, dense_gate) = if cfg!(debug_assertions) {
+        (
+            Duration::from_millis(500),
+            Duration::from_secs(1),
+            Duration::from_secs(10),
+        )
+    } else {
+        (
+            Duration::from_millis(50),
+            Duration::from_millis(100),
+            Duration::from_secs(2),
+        )
+    };
+    assert!(idle_elapsed < idle_gate, "100k idle tick took {idle_elapsed:?}");
+    assert!(sparse_elapsed < sparse_gate, "100k sparse tick took {sparse_elapsed:?}");
+    assert!(dense_elapsed < dense_gate, "100k dense tick took {dense_elapsed:?}");
+    eprintln!("100k qualification: idle={idle_elapsed:?} sparse={sparse_elapsed:?} dense={dense_elapsed:?}");
+}
+
+#[test]
 fn canonical_values_cross_once_into_dense_scalar_representation() {
     assert_eq!(
         ScalarValue::try_from(&Value::Integer(7)).unwrap(),

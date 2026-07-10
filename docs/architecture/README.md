@@ -1,21 +1,41 @@
-# Architecture contract
+# Architecture
 
-The canonical target is [Golden Architecture Final Plan](../Golden_Architecture_Final_Plan.md).
-This directory holds the enforceable decisions and evidence used to execute that plan.
+The final architecture has one implementation path per responsibility. The root
+[repository map](../../README.md) is the quickest orientation; the canonical design and
+acceptance criteria remain in [Golden Architecture Final Plan](../Golden_Architecture_Final_Plan.md).
 
-The foundation starts with three Phase 0 artifacts:
+## Dependency direction
 
-- `decisions/`: accepted boundaries that later implementation phases must not weaken;
-- `dependency-rules.v1.json`: machine-readable allowed dependency direction;
-- `functional-parity.v1.json`: the capability inventory and characterization status.
+```text
+apps/chataigne
+  -> host / transport / persistence / IO / script
+  -> runtime / processor / condition / statechart / alchemist
+  -> graph / context / parameters
+  -> values / model
 
-An architecture phase is complete only when its exit criteria, scoped checks, evidence,
-and progress note are committed together in one focused supercommit. A `pending` entry is
-an explicit gap, not implicit coverage.
+packages/golden-* -> generated protocol and transport interfaces
+```
 
-Implemented layer guides:
+The exact allowed Rust dependencies and forbidden UI imports are enforced from
+`dependency-rules.v1.json` by `tools/check_workspace_architecture.py`.
 
-- `alchemist.md`: authored formulas, compilation, and dense formula instances;
-- `statechart-processors.md`: statecharts, conditions, contexts, and processors;
-- `runtime.md`: immutable generations and semantic execution.
-- `protocol-transport-ui.md`: generated protocol, bounded transport, and coherent UI frames.
+## Runtime planes
+
+- Authoring/control owns project mutations and compilation requests.
+- Semantic execution owns immutable runtime generations, direct slots, deterministic
+  scheduling, and ordered effects.
+- IO and transport own parsing, timestamps, recovery, bounded queues, and client isolation.
+- Observation owns keyed, interest-scoped previews; the UI stages them and commits once per
+  animation frame.
+- Persistence serializes immutable snapshots and never hides inside host bootstrap.
+
+## Evidence and decisions
+
+- `functional-parity.v1.json` maps every preserved capability to its final owner and test.
+- `benchmarks/phaseN/` records the qualification evidence delivered by each phase.
+- `decisions/` contains the accepted monorepo, graph, runtime-plane, value, and clean-break
+  decisions.
+- `phase7-product-port.md`, `phase8-persistence-recovery.md`, and
+  `phase9-scale-and-deletion.md` describe the final product-facing phases.
+- `archive.md` records where deleted pre-monorepo implementations remain available in Git
+  history.

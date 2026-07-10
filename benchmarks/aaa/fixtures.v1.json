@@ -1,45 +1,15 @@
 {
   "schema_version": 1,
   "measurement_policy": {
-    "warm_up_seconds": 2,
-    "measurement_seconds": 5,
     "required_statistics": ["wall_time", "p50", "p95", "p99"],
-    "resource_statistics": [
-      "allocations",
-      "peak_resident_memory",
-      "queue_depth",
-      "dropped_events",
-      "coalesced_events",
-      "ui_frame_time"
-    ]
+    "resource_statistics": ["allocations", "peak_resident_memory", "queue_depth", "dropped_events", "coalesced_events", "ui_frame_time"]
   },
   "fixtures": [
-    {
-      "id": "P50-L1",
-      "phase": 0,
-      "project": "test-samples/test_many_actions.noisette",
-      "required_processors": 50,
-      "current_processors": 49,
-      "lanes_per_processor": 1,
-      "shared_inputs": 1,
-      "qualification_status": "fixture_pending"
-    },
-    {
-      "id": "P5-L127",
-      "phase": 0,
-      "project": "test-samples/test_multiplex.noisette",
-      "required_processors": 5,
-      "current_processors": 5,
-      "lanes_per_processor": 127,
-      "shared_inputs": 1,
-      "qualification_status": "topology_only"
-    },
-    { "id": "graph_sparse_change", "stage": 5, "sizes": [1000, 10000, 50000] },
-    { "id": "multiplex_product", "stage": 1, "sizes": [64, 1024, 16384, 65537], "last_case": "over_budget" },
-    { "id": "value_set_pipeline", "stage": 3, "sizes": [1, 10, 100, 1000] },
-    { "id": "event_dispatch", "stage": 4, "events": 100, "listeners": 1000 },
-    { "id": "spatializer_targets", "stage": 6, "sizes": [50, 100, 250, 500, 1000] },
-    { "id": "network_fanout", "stage": 2, "clients": [1, 10, 50], "include_slow_client": true },
-    { "id": "project_save_load", "stage": 8, "sizes": ["largest_supported_project"] }
+    { "id": "P50-L1", "owner": "golden-runtime", "evidence": "crates/golden-runtime/src/tests.rs", "qualification_status": "passing" },
+    { "id": "P5-L127", "owner": "golden-runtime", "evidence": "crates/golden-runtime/src/tests.rs", "qualification_status": "passing" },
+    { "id": "values-100k", "modes": ["dense", "sparse", "idle"], "evidence": "crates/golden-runtime/src/tests.rs", "qualification_status": "passing" },
+    { "id": "graph-editor-100k", "runtime": "Chromium", "evidence": "packages/golden-graph-ui/src/graph-scale.browser.test.ts", "qualification_status": "passing" },
+    { "id": "module-network-client-soak", "clients": 50, "frames": 10000, "evidence": "crates/golden-transport/src/tests.rs", "qualification_status": "passing" },
+    { "id": "project-save-load-recovery", "evidence": "crates/golden-persistence/src/tests.rs", "qualification_status": "passing" }
   ]
 }
