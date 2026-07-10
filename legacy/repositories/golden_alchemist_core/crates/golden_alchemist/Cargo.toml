@@ -1,0 +1,21 @@
+[package]
+name = "golden_alchemist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "dep:serde_json"]
+rhai = []
+debug_trace = []
+golden_core_integration = []
+
+[dependencies]
+indexmap.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+smallvec.workspace = true
+smol_str.workspace = true
+thiserror.workspace = true
+uuid.workspace = true

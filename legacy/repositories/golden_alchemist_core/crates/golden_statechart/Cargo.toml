@@ -1,0 +1,15 @@
+[package]
+name = "golden_statechart"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+
+[dependencies]
+indexmap.workspace = true
+serde = { workspace = true, optional = true }
+thiserror.workspace = true
+uuid.workspace = true
