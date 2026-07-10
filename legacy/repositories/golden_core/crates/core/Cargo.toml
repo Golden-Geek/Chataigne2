@@ -1,0 +1,30 @@
+[package]
+name = "golden_engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+slotmap = "1.1.1"
+serde_json = "1"
+golden_core_macros = { path = "../core_macros" }
+rquickjs = { version = "0.11", features = ["parallel"] }
+ts-rs.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "tick"
+harness = false
+
+[[bench]]
+name = "dispatch"
+harness = false
+
+[target.'cfg(all(target_os = "linux", target_arch = "arm"))'.dependencies]
+rquickjs = { version = "0.11", features = ["parallel", "bindgen"] }
