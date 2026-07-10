@@ -25,6 +25,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install JavaScript workspace
         run: npm ci
+      - name: Install Chromium test browser
+        run: npx playwright install --with-deps chromium
       - name: Validate architecture contract
         run: python tools/check_architecture_contract.py
       - name: Validate workspace dependency direction
@@ -35,10 +37,16 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Rust tests
         run: cargo test --workspace --all-features
+      - name: Runtime release workload gate
+        run: cargo test --release -p golden-runtime canonical_p50_l1_and_p5_l127_value_ticks_pass_debug_and_release_gates
+      - name: Generated protocol freshness
+        run: cargo run --quiet -p golden-codegen --bin generate_protocol -- --check
       - name: JavaScript type check
         run: npm run check
       - name: JavaScript tests
         run: npm test
+      - name: Real browser UI gates
+        run: npm run test:browser
       - name: JavaScript build gate
         run: npm run build
       - name: Production JavaScript dependency audit

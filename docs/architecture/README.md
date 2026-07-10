@@ -18,3 +18,4 @@ Implemented layer guides:
 - `alchemist.md`: authored formulas, compilation, and dense formula instances;
 - `statechart-processors.md`: statecharts, conditions, contexts, and processors;
 - `runtime.md`: immutable generations and semantic execution.
+- `protocol-transport-ui.md`: generated protocol, bounded transport, and coherent UI frames.

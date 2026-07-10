@@ -14,11 +14,14 @@
   ],
   "scripts": {
     "check": "tsc --project tsconfig.json --noEmit && svelte-check --config ./svelte.config.js --tsconfig ./tsconfig.json",
-    "test": "node --import tsx --test packages/golden-graph-ui/src/store.test.ts packages/golden-graph-ui/src/spatial-index.test.ts packages/golden-alchemist-ui/src/formula-store.test.ts packages/golden-statechart-ui/src/statechart-store.test.ts",
+    "test": "node --import tsx --test packages/golden-graph-ui/src/store.test.ts packages/golden-graph-ui/src/spatial-index.test.ts packages/golden-alchemist-ui/src/formula-store.test.ts packages/golden-statechart-ui/src/statechart-store.test.ts packages/golden-runtime-client/src/frame-stager.test.ts",
+    "test:browser": "node --import tsx --test packages/golden-runtime-client/src/frame-stager.browser.test.ts",
     "build": "npm run check"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
+    "esbuild": "0.28.1",
+    "playwright": "1.61.1",
     "svelte": "^5.49.2",
     "svelte-check": "^4.3.6",
     "tsx": "^4.21.0",

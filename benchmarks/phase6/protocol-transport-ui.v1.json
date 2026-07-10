@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "phase": 6,
+  "status": "passed",
+  "protocol": {
+    "source_of_truth": "crates/golden-protocol/src/lib.rs",
+    "generated_typescript": "packages/golden-runtime-client/src/generated/protocol.ts",
+    "freshness_command": "cargo run --quiet -p golden-codegen --bin generate_protocol -- --check",
+    "planes": ["control", "authoring", "observation", "values"],
+    "binary_value_magic": "GVF1",
+    "rust_tests": 3
+  },
+  "transport": {
+    "rust_tests": 6,
+    "slow_clients": 50,
+    "preview_messages_per_client": 1000,
+    "queue_bounded": true,
+    "scoped_resync_markers": true,
+    "intent_requests": 1000,
+    "intent_timeouts": 0,
+    "reliable_control_drops": 0,
+    "latest_wins_binary": true,
+    "engine_handle_transport_mutexes": 0
+  },
+  "browser": {
+    "command": "npm run test:browser",
+    "engine": "Chromium",
+    "preview_changes": 2000,
+    "frame_commits": 1,
+    "maximum_input_to_paint_ms": 100,
+    "latest_key_count": 1
+  },
+  "security": {
+    "non_loopback_tls_required": true,
+    "strong_token_required": true,
+    "explicit_origins_required": true,
+    "payload_limit_enforced": true,
+    "client_limit_enforced": true
+  }
+}

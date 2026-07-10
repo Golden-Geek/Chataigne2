@@ -65,11 +65,15 @@ if (-not $SkipUiInstall) {
     Run-Step "npm ci" { npm ci }
 }
 Run-Step "npm test" { npm test }
+Run-Step "real browser UI gates" { npm run test:browser }
 Run-Step "npm check" { npm run check }
 Run-Step "npm build" { npm run build }
 Run-Step "production npm audit" { npm audit --omit=dev --audit-level=high }
 Run-Step "workspace architecture" { python tools/check_workspace_architecture.py }
 Run-Step "architecture contract" { python tools/check_architecture_contract.py }
+Run-Step "generated protocol freshness" {
+    cargo run --quiet -p golden-codegen --bin generate_protocol -- --check
+}
 
 Assert-NoMatches `
     -Name "no hand-written #[path] imports in app/build source" `

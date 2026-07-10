@@ -1163,6 +1163,8 @@ Exit:
 
 ### Phase 6 — Build protocol, transport, observation, and runtime UI stores
 
+Implementation status (2026-07-11): complete for the clean rewritten workspace on `rewrite/golden-architecture`. Rust DTOs generate the TypeScript multi-plane protocol; high-rate values use bounded binary frames; channel-based engine handles contain no transport locks; observation interests replace per client/view; reliable, preview, and binary traffic use distinct bounded policies; and runtime UI state commits once per animation frame. Fifty-client slow-consumer, zero-intent-timeout, open-network security, generated-drift, and real Chromium input-to-paint evidence is recorded in `benchmarks/phase6/protocol-transport-ui.v1.json`; ownership guidance lives in `docs/architecture/protocol-transport-ui.md`.
+
 Deliver:
 
 - generated multi-plane protocol;
