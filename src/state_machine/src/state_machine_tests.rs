@@ -534,7 +534,8 @@ fn transition_effect_runs_once_after_transition() {
     assert_eq!(output.transition.as_ref().unwrap().transition, transition);
     assert_eq!(guard_count.load(Ordering::SeqCst), 1);
     assert_eq!(effect_count.load(Ordering::SeqCst), 1);
-    assert_eq!(output.transition_outputs[&transition].debug_samples.len(), 1);
+    assert!(output.transition_outputs[&transition].trigger_fired);
+    assert!(output.transition_outputs[&transition].debug_samples.is_empty());
     assert!(output.processor_outputs[&processor_id].debug_samples.is_empty());
     assert_eq!(runtime.execution.active_scopes, machine.chart.active.active_scopes);
 }

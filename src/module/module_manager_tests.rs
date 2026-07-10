@@ -7,7 +7,7 @@ use golden_core::{
 use super::{MODULE_FOLDER_ITEM_KIND, MODULE_FOLDER_NODE_TYPE, ModuleFolder, ModuleManager};
 
 #[test]
-fn module_manager_cannot_be_removed_or_duplicated() {
+fn module_manager_cannot_be_renamed_removed_or_duplicated() {
     let mut manager = ModuleManager::new();
     let mut ctx = ProcessCtx::new(
         ExecutionPhase::EngineTick,
@@ -21,7 +21,7 @@ fn module_manager_cannot_be_removed_or_duplicated() {
     manager.init(&mut ctx);
 
     let permissions = &manager.node_data().meta.user_permissions;
-    assert!(permissions.can_edit_name);
+    assert!(!permissions.can_edit_name);
     assert!(!permissions.can_remove_and_duplicate);
     assert!(permissions.can_edit_constraints);
     assert!(permissions.can_edit_tags);

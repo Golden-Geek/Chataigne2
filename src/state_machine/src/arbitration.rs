@@ -6,6 +6,10 @@ use golden_statechart::TransitionId;
 use crate::ProcessorId;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+// Intent origins are short-lived arbitration records. Boxing ContextKey here would
+// add one allocation per emitted processor intent; benchmark that tradeoff before
+// changing the representation.
+#[allow(clippy::large_enum_variant)]
 pub enum IntentOrigin {
     Processor {
         processor_id: ProcessorId,

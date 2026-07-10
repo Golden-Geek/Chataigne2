@@ -89,7 +89,7 @@
 		font-weight: 650;
 		letter-spacing: 0;
 		line-height: 1;
-		border-radius:1rem;
+		border-radius: 1rem;
 		white-space: nowrap;
 		border-inline-start: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 35%, transparent);
 	}

@@ -24,8 +24,8 @@
 	let conditionManagerValid = $derived(
 		laneValid ??
 			(validNode?.data.kind === 'parameter' && validNode.data.param.value.kind === 'bool'
-			? validNode.data.param.value.value
-			: false)
+				? validNode.data.param.value.value
+				: false)
 	);
 </script>
 

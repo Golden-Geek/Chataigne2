@@ -3,8 +3,10 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"packageManager": "npm@11.16.0",
 	"engines": {
-		"node": "^20.19.0 || >=22.12.0"
+		"node": ">=24.18.0 <27",
+		"npm": ">=11.12.0 <12"
 	},
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0 --port 5173",
@@ -14,7 +16,7 @@
 		"preview": "vite preview",
 		"codegen:golden-ui-protocol": "cargo run --manifest-path ../submodules/golden_core/Cargo.toml -p golden_codegen_support --bin golden_codegen -- ui-protocol src/lib/golden_ui/generated/rust_protocol",
 		"codegen:state-machine-protocol": "cargo run --manifest-path ../Cargo.toml -p chataigne_state_machine --bin generate_state_machine_protocol -- src/lib/state_machine/generated",
-		"prepare": "npm run codegen:golden-ui-protocol && npm run codegen:state-machine-protocol && svelte-kit sync || echo ''",
+		"prepare": "npm run codegen:golden-ui-protocol && npm run codegen:state-machine-protocol && svelte-kit sync",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"smoke:ui": "node ./scripts/ui-browser-tools.mjs smoke",

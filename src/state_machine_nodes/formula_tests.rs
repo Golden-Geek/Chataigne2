@@ -143,10 +143,20 @@ fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
     assert!(!file_parameter.read_only);
     assert!(matches!(file_parameter.value, ParamValue::File(ref path) if path.is_empty()));
 
-    let action_path = std::env::current_dir()
+    let action_fixture = std::env::current_dir()
         .expect("current dir should resolve")
         .join("builtin_formulas")
         .join("Action.json");
+    let action_path = std::env::temp_dir().join(format!(
+        "chataigne2-action-formula-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after UNIX epoch")
+            .as_nanos()
+    ));
+    std::fs::copy(&action_fixture, &action_path)
+        .expect("Action formula fixture should copy to an isolated test file");
     let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
         node: file_param,
         value: ParamValue::File(action_path.to_string_lossy().into_owned()),
@@ -156,6 +166,9 @@ fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
         ack.success,
         "Setting the external formula file should succeed: {ack:?}"
     );
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("External Formula should receive the file change");
     for _ in 0..4 {
         engine
             .apply_edits()
@@ -177,20 +190,16 @@ fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
         Some(ParamValue::Str(value)) => value,
         other => panic!("Managed regions metadata should be a string, got {other:?}"),
     };
-    let regions: Vec<serde_json::Value> =
-        serde_json::from_str(raw_regions).expect("Managed regions should decode");
-    assert_eq!(
-        regions
-            .iter()
-            .map(|region| region["label"].as_str().unwrap_or_default())
-            .collect::<Vec<_>>(),
-        vec!["Conditions", "On True", "On False"]
+    assert!(
+        raw_regions.trim().is_empty(),
+        "graph formulas expose their managers directly and must not synthesize sidecar regions"
     );
     assert_eq!(
         parameter_value(&engine, formula, "is_valid"),
         ParamValue::Bool(true),
         "External formula load should settle validation without a later edit"
     );
+    std::fs::remove_file(action_path).expect("isolated Action formula should be removable");
 }
 
 #[test]

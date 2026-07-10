@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
+$env:GC_SKIP_UI_BUILD = "1"
 
 function Require-Command {
     param([string]$Name)
@@ -51,20 +52,52 @@ Require-Command git
 Require-Command npm
 Require-Command rg
 
-Run-Step "cargo fmt --check" {
-    cargo fmt --check
+Run-Step "root cargo fmt --check" {
+    cargo fmt --all --check
 }
 
-Run-Step "cargo clippy" {
-    cargo clippy --all-targets -- -D warnings
+Run-Step "golden_core cargo fmt --check" {
+    cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
 }
 
-Run-Step "cargo test" {
-    cargo test
+Run-Step "golden_alchemist_core cargo fmt --check" {
+    cargo fmt --manifest-path submodules/golden_alchemist_core/Cargo.toml --all --check
 }
 
-Run-Step "cargo check" {
-    cargo check
+Run-Step "root workspace cargo clippy" {
+    python tools/clippy_gate.py --baseline tools/clippy-baseline-root.json
+}
+
+Run-Step "golden_core workspace cargo clippy" {
+    python tools/clippy_gate.py --manifest-path submodules/golden_core/Cargo.toml --baseline tools/clippy-baseline-golden-core.json
+}
+
+Run-Step "golden_alchemist_core workspace cargo clippy" {
+    python tools/clippy_gate.py --manifest-path submodules/golden_alchemist_core/Cargo.toml --baseline tools/clippy-baseline-golden-alchemist-core.json
+}
+
+Run-Step "root workspace cargo test" {
+    cargo test --workspace -- --test-threads=1
+}
+
+Run-Step "golden_core workspace cargo test" {
+    cargo test --manifest-path submodules/golden_core/Cargo.toml --workspace -- --test-threads=1
+}
+
+Run-Step "golden_alchemist_core workspace cargo test" {
+    cargo test --manifest-path submodules/golden_alchemist_core/Cargo.toml --workspace --all-features
+}
+
+Run-Step "root workspace cargo check" {
+    cargo check --workspace --all-targets --all-features
+}
+
+Run-Step "golden_core workspace cargo check" {
+    cargo check --manifest-path submodules/golden_core/Cargo.toml --workspace --all-targets --all-features
+}
+
+Run-Step "golden_alchemist_core workspace cargo check" {
+    cargo check --manifest-path submodules/golden_alchemist_core/Cargo.toml --workspace --all-targets --all-features
 }
 
 Push-Location src-ui
@@ -73,6 +106,10 @@ try {
         Run-Step "npm ci" {
             npm ci
         }
+    }
+
+    Run-Step "npm run lint" {
+        npm run lint
     }
 
     Run-Step "npm run check" {
@@ -85,6 +122,11 @@ try {
 
     Run-Step "generated protocol freshness" {
         npm run codegen:golden-ui-protocol
+        npm run codegen:state-machine-protocol
+    }
+
+    Run-Step "production npm audit" {
+        npm audit --omit=dev --audit-level=high
     }
 }
 finally {
@@ -92,7 +134,19 @@ finally {
 }
 
 Run-Step "generated protocol diff" {
-    git diff --exit-code -- src-ui/src/lib/golden_ui/generated/rust_protocol
+    git diff --exit-code -- src-ui/src/lib/golden_ui/generated/rust_protocol src-ui/src/lib/state_machine/generated
+}
+
+Run-Step "root cargo audit" {
+    cargo audit
+}
+
+Run-Step "golden_core cargo audit" {
+    cargo audit --file submodules/golden_core/Cargo.lock
+}
+
+Run-Step "golden_alchemist_core cargo audit" {
+    cargo audit --file submodules/golden_alchemist_core/Cargo.lock
 }
 
 Assert-NoMatches `

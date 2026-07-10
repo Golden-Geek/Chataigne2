@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "warnings": {
+    "clippy::collapsible_if|crates/golden_alchemist/src/pipeline.rs": 2,
+    "clippy::collapsible_if|crates/golden_alchemist/src/typing.rs": 4,
+    "clippy::derivable_impls|crates/golden_alchemist/src/runtime.rs": 2,
+    "clippy::manual_is_multiple_of|crates/golden_alchemist/src/library/anodes/smooth_filter.rs": 2,
+    "clippy::obfuscated_if_else|crates/golden_alchemist/src/compile_tests.rs": 2,
+    "clippy::too_many_arguments|crates/golden_alchemist/src/compile.rs": 2
+  }
+}

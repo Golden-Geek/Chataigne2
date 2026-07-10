@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "measurement_policy": {
+    "warm_up_seconds": 2,
+    "measurement_seconds": 5,
+    "required_statistics": ["wall_time", "p50", "p95", "p99"],
+    "resource_statistics": [
+      "allocations",
+      "peak_resident_memory",
+      "queue_depth",
+      "dropped_events",
+      "coalesced_events",
+      "ui_frame_time"
+    ]
+  },
+  "fixtures": [
+    { "id": "graph_sparse_change", "stage": 5, "sizes": [1000, 10000, 50000] },
+    { "id": "multiplex_product", "stage": 1, "sizes": [64, 1024, 16384, 65537], "last_case": "over_budget" },
+    { "id": "value_set_pipeline", "stage": 3, "sizes": [1, 10, 100, 1000] },
+    { "id": "event_dispatch", "stage": 4, "events": 100, "listeners": 1000 },
+    { "id": "spatializer_targets", "stage": 6, "sizes": [50, 100, 250, 500, 1000] },
+    { "id": "network_fanout", "stage": 2, "clients": [1, 10, 50], "include_slow_client": true },
+    { "id": "project_save_load", "stage": 8, "sizes": ["largest_supported_project"] }
+  ]
+}

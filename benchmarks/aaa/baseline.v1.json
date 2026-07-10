@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-10",
+  "source_commit": "0b21ea8c71fec127b08b13865c699f8a119d81d9",
+  "host": {
+    "os": "Microsoft Windows 11",
+    "os_version": "10.0.26200",
+    "cpu": "Intel Core Ultra 9 275HX",
+    "logical_processors": 24,
+    "memory_gib": 31.43
+  },
+  "toolchain": {
+    "rustc": "1.95.0",
+    "cargo": "1.95.0",
+    "rust_host": "x86_64-pc-windows-msvc",
+    "node": "24.18.0",
+    "npm": "11.16.0"
+  },
+  "measurements": {
+    "event_dispatch": {
+      "fixture": "100 custom events x 1000 listeners over a 10000-node graph",
+      "p50_ns": 19355633,
+      "conservative_upper_ns": 19599486,
+      "source": "submodules/golden_core/crates/core/benches/baseline.json"
+    }
+  },
+  "coverage": {
+    "implemented": ["event_dispatch"],
+    "scheduled_by_stage": {
+      "1": ["multiplex_product"],
+      "2": ["network_fanout"],
+      "3": ["value_set_pipeline"],
+      "5": ["graph_sparse_change"],
+      "6": ["spatializer_targets"],
+      "8": ["project_save_load"]
+    }
+  }
+}

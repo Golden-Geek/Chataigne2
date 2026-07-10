@@ -36,7 +36,36 @@ The release is ready to carry an “AAA-grade foundation” claim only when all 
 
 ## Delivery sequence
 
+### Implementation progression
+
+| Stage | Status | Supercommit scope |
+|---|---|---|
+| 0 | Complete (2026-07-10) | Truthful CI, exact toolchains, dependency triage, versioned benchmark manifest/baseline, direct trigger result prerequisite, and persistence-baseline correctness |
+| 1 | In progress | Checked, lazy, budgeted multiplex execution |
+| 2 | Pending | Open-network hardening and observability |
+| 3 | Pending | ValueSet direct output and cache invalidation |
+| 4 | Pending | Incremental, deterministic, bounded events |
+| 5 | Pending | Revision- and visibility-driven graph UI |
+| 6 | Pending | Bounded Spatializer geometry |
+| 7 | Pending | Canonical boundaries and deduplication |
+| 8 | Pending | Persistence migration and crash resilience |
+
+Progress is updated in the same Supercommit that completes each stage. A stage is marked complete only after its scoped tests and the repository formatting gates pass.
+
 ### Stage 0 — Establish truthful gates and performance baselines
+
+**Status: Complete (2026-07-10).**
+
+Evidence:
+
+- `.github/workflows/ci.yml` now has one required quality job covering all Rust workspaces, generated protocol drift, UI lint/check/build, RustSec, and production npm auditing. The benchmark job is deliberately non-blocking and uploads its report.
+- `tools/clippy_gate.py` fails on any warning beyond exact per-file debt baselines; existing debt cannot grow silently and the baseline can shrink without special configuration.
+- `benchmarks/aaa/fixtures.v1.json` versions every required workload, while `benchmarks/aaa/baseline.v1.json` records host/toolchain metadata and the refreshed dispatch result. The stale dispatch median fell from about 200.9 ms to 19.36 ms on the named reference host.
+- Node 24.18.0 and npm 11.16.0 are recorded for CI. Rust 1.95 is the package MSRV and CI toolchain.
+- Production npm audit reports zero vulnerabilities. Three low-severity development-only `cookie` findings remain behind the SvelteKit development toolchain and are assigned to the Stage 5 dependency/bundle upgrade.
+- The current Svelte slot warning, CSS minifier warnings, 1.37 MB editor chunk, and 206.5 KB Manager stylesheet are reproducible production-build findings assigned to Stage 5.
+- Root workspace tests pass (379 app tests and 75 state-machine tests, with two pre-existing explicitly ignored tests), `golden_core` passes its workspace suite, and `golden_alchemist_core` passes 126 tests.
+- Sparse persistence baselines now run app `init` to capture app-owned declared defaults while deferring `on_node_ready` side effects. Transition guards use a direct functional trigger result rather than requiring debug capture.
 
 This stage comes first because later optimization claims are not trustworthy without repeatable measurements and complete CI.
 

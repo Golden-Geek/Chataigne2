@@ -33,9 +33,7 @@
 	// Only a plain, in-project-authored formula makes sense to publish to the
 	// cross-project Shared folder; built-ins/shared/external-file-linked ones
 	// already have a canonical source elsewhere.
-	let canSaveToShared = $derived(
-		sourceKind === 'project' && !external && sharedDir !== null
-	);
+	let canSaveToShared = $derived(sourceKind === 'project' && !external && sharedDir !== null);
 	let canCopyToProject = $derived(sourceKind === 'shared' || sourceKind === 'builtin');
 
 	let saving = $state(false);
@@ -129,15 +127,20 @@
 		saving = true;
 		saveError = null;
 		try {
-			const result = await sendCreateUserItemByTypeIntent(parentId, FORMULA_NODE_TYPE, node.meta.label, {
-				created_node_type: FORMULA_NODE_TYPE,
-				initial_params: [
-					{
-						decl_id: FORMULA_COPY_SOURCE_DECL_ID,
-						value: referenceValue(node)
-					}
-				]
-			});
+			const result = await sendCreateUserItemByTypeIntent(
+				parentId,
+				FORMULA_NODE_TYPE,
+				node.meta.label,
+				{
+					created_node_type: FORMULA_NODE_TYPE,
+					initial_params: [
+						{
+							decl_id: FORMULA_COPY_SOURCE_DECL_ID,
+							value: referenceValue(node)
+						}
+					]
+				}
+			);
 			if (!result.success) {
 				saveError = 'Copy failed - see console for details.';
 				return;
@@ -150,7 +153,6 @@
 			saving = false;
 		}
 	};
-
 </script>
 
 <span class="formula-row-supplement">

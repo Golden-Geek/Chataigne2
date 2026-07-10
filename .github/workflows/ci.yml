@@ -5,6 +5,7 @@ on:
   pull_request:
 
 env:
+  NODE_VERSION: 24.18.0
   LINUX_BUILD_PACKAGES: >-
     libwebkit2gtk-4.1-dev
     libasound2-dev
@@ -21,19 +22,113 @@ env:
     librsvg2-dev
 
 jobs:
-  golden_engine_tests:
-    name: golden_engine tests
+  quality:
+    name: Required quality gates
     runs-on: ubuntu-latest
+    env:
+      GC_SKIP_UI_BUILD: 1
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: clippy,rustfmt
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src-ui/package-lock.json
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            submodules/golden_core -> submodules/golden_core/target
+            submodules/golden_alchemist_core -> submodules/golden_alchemist_core/target
+      - name: Install UI dependencies without lifecycle code generation
+        working-directory: src-ui
+        run: npm ci --ignore-scripts
+      - name: Root formatting
+        run: cargo fmt --all --check
+      - name: golden_core formatting
+        run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
+      - name: golden_alchemist_core formatting
+        run: cargo fmt --manifest-path submodules/golden_alchemist_core/Cargo.toml --all --check
+      - name: Root workspace clippy
+        run: python tools/clippy_gate.py --baseline tools/clippy-baseline-root.json
+      - name: golden_core workspace clippy
+        run: python tools/clippy_gate.py --manifest-path submodules/golden_core/Cargo.toml --baseline tools/clippy-baseline-golden-core.json
+      - name: golden_alchemist_core workspace clippy
+        run: python tools/clippy_gate.py --manifest-path submodules/golden_alchemist_core/Cargo.toml --baseline tools/clippy-baseline-golden-alchemist-core.json
+      - name: Root workspace tests
+        run: cargo test --workspace -- --test-threads=1
+      - name: golden_core workspace tests
+        run: cargo test --manifest-path submodules/golden_core/Cargo.toml --workspace -- --test-threads=1
+      - name: golden_alchemist_core workspace tests
+        run: cargo test --manifest-path submodules/golden_alchemist_core/Cargo.toml --workspace --all-features
+      - name: Root workspace check
+        run: cargo check --workspace --all-targets --all-features
+      - name: golden_core workspace check
+        run: cargo check --manifest-path submodules/golden_core/Cargo.toml --workspace --all-targets --all-features
+      - name: golden_alchemist_core workspace check
+        run: cargo check --manifest-path submodules/golden_alchemist_core/Cargo.toml --workspace --all-targets --all-features
+      - name: Generate Rust-owned TypeScript protocols
+        working-directory: src-ui
+        run: |
+          npm run codegen:golden-ui-protocol
+          npm run codegen:state-machine-protocol
+      - name: Generated protocol drift
+        run: git diff --exit-code -- src-ui/src/lib/golden_ui/generated/rust_protocol src-ui/src/lib/state_machine/generated
+      - name: UI lint
+        working-directory: src-ui
+        run: npm run lint
+      - name: UI type and Svelte check
+        working-directory: src-ui
+        run: npm run check
+      - name: UI production build
+        working-directory: src-ui
+        run: npm run build
+      - name: Install RustSec scanner
+        run: cargo install cargo-audit --locked
+      - name: Root dependency audit
+        run: cargo audit
+      - name: golden_core dependency audit
+        run: cargo audit --file submodules/golden_core/Cargo.lock
+      - name: golden_alchemist_core dependency audit
+        run: cargo audit --file submodules/golden_alchemist_core/Cargo.lock
+      - name: Production UI dependency audit
+        working-directory: src-ui
+        run: npm audit --omit=dev --audit-level=high
+
+  performance:
+    name: Non-blocking performance baselines
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: submodules/golden_core -> submodules/golden_core/target
-      - name: Run tests (single-threaded to avoid flaky logger test)
-        run: cargo test -p golden_engine --manifest-path submodules/golden_core/Cargo.toml -- --test-threads=1
+      - name: Run golden engine benchmark fixtures
+        working-directory: submodules/golden_core
+        run: |
+          cargo bench -p golden_engine --bench tick -- --output-format bencher --warm-up-time 2 --measurement-time 5 2>/dev/null | tee /tmp/tick.txt
+          cargo bench -p golden_engine --bench dispatch -- --output-format bencher --warm-up-time 2 --measurement-time 5 2>/dev/null | tee /tmp/dispatch.txt
+          cat /tmp/tick.txt /tmp/dispatch.txt > /tmp/aaa-benchmarks.txt
+      - name: Compare committed distributions
+        working-directory: submodules/golden_core
+        run: python3 tools/bench_compare.py --results /tmp/aaa-benchmarks.txt --baseline crates/core/benches/baseline.json --output /tmp/aaa-benchmark-summary.md
+      - name: Upload performance report
+        uses: actions/upload-artifact@v7
+        with:
+          name: aaa-performance-${{ github.sha }}
+          path: |
+            /tmp/aaa-benchmarks.txt
+            /tmp/aaa-benchmark-summary.md
+          if-no-files-found: error
 
   buildui:
     name: Build UI
@@ -44,10 +139,10 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: src-ui/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
@@ -58,10 +153,10 @@ jobs:
       - name: Install UI deps
         working-directory: src-ui
         run: npm ci
-      # - name: Root fmt
-      #   run: cargo fmt --all --check
-      # - name: golden_core fmt
-      #   run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
+      - name: Root fmt
+        run: cargo fmt --all --check
+      - name: golden_core fmt
+        run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
       - name: UI lint
         working-directory: src-ui
         run: npm run lint
@@ -71,14 +166,12 @@ jobs:
       - name: UI build
         working-directory: src-ui
         run: npm run build
-      # - name: Root check
-      #   env:
-      #     GC_UI_ASSUME_BUILT: 1
-      #   run: cargo check
-      # - name: golden_core check
-      #   run: cargo check --manifest-path submodules/golden_core/Cargo.toml
-      # - name: golden_core build
-      #   run: cargo build --manifest-path submodules/golden_core/Cargo.toml
+      - name: Root check
+        env:
+          GC_UI_ASSUME_BUILT: 1
+        run: cargo check --workspace
+      - name: golden_core check
+        run: cargo check --manifest-path submodules/golden_core/Cargo.toml --workspace
       - name: Upload UI build
         uses: actions/upload-artifact@v7
         with:

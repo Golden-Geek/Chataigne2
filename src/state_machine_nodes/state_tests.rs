@@ -61,7 +61,7 @@ fn state_canvas_geometry_survives_project_reload() {
             .node_data()
             .meta
             .presentation
-            .color,
+            .default_color,
         Some(Color::new(0.28, 0.56, 0.92, 1.0))
     );
     assert!(

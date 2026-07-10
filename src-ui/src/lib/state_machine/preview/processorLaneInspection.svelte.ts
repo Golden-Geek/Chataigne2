@@ -1,12 +1,6 @@
-import {
-	registerParameterContextPreviewResolver,
-	type UiNodeDto
-} from 'golden_ui';
+import { registerParameterContextPreviewResolver, type UiNodeDto } from 'golden_ui';
 import { appState } from 'golden_ui/store/workbench.svelte';
-import type {
-	ProcessorLaneInspectionDto,
-	StateMachineProtocolBundle
-} from '../generated';
+import type { ProcessorLaneInspectionDto, StateMachineProtocolBundle } from '../generated';
 import { STATE_MACHINE_RUNTIME_PREVIEW_TOPIC } from './formulaOutputPreviewStore.svelte';
 import {
 	contextKeyId,
@@ -33,10 +27,7 @@ const processorAncestor = (node: UiNodeDto): UiNodeDto | null => {
 	if (!graph) return null;
 	let current: UiNodeDto | undefined = graph.nodesById.get(node.node_id) ?? node;
 	while (current) {
-		if (
-			current.node_type === 'state_processor' ||
-			current.user_item_kind === 'state_processor'
-		) {
+		if (current.node_type === 'state_processor' || current.user_item_kind === 'state_processor') {
 			return current;
 		}
 		const parentId = graph.parentById.get(current.node_id);

@@ -414,12 +414,7 @@ fn compile_global_graph_runtime(
 }
 
 fn output_fires(output: &RuntimeOutput) -> bool {
-    output.debug_samples.iter().any(|sample| {
-        matches!(
-            sample.value,
-            golden_alchemist::RuntimeValue::Trigger(trigger) if trigger.fired
-        )
-    })
+    output.trigger_fired
 }
 
 fn merge_processor_lane_outputs(lanes: Vec<ProcessorLaneOutput>) -> RuntimeOutput {
