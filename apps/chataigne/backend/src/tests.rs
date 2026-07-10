@@ -79,3 +79,42 @@ fn desktop_headless_and_open_lan_are_product_level_host_choices() {
     assert_eq!(headless.mode, golden_host::HostMode::Headless);
     assert!(headless.advertise_mdns);
 }
+
+#[test]
+fn phase_eight_project_schema_round_trips_without_compiled_runtime_state() {
+    let project = ChataigneProjectV1::empty();
+    let codec = chataigne_project_codec();
+    let validate = |project: &ChataigneProjectV1| project.validate().map_err(|error| error.to_string());
+    let encoded = codec
+        .encode(
+            &golden_persistence::SaveSnapshot::new(Revision::new(7), project.clone()),
+            &validate,
+        )
+        .unwrap();
+    let decoded = codec.decode(&encoded, &validate).unwrap();
+    assert_eq!(decoded.revision, Revision::new(7));
+    assert_eq!(decoded.document(), &project);
+    let json = String::from_utf8(encoded).unwrap();
+    assert!(!json.contains("compiled_generation"));
+}
+
+#[test]
+fn built_in_formula_policy_is_versioned_and_immutable() {
+    for asset in builtin_formula_manifests() {
+        assert!(asset.immutable);
+        assert_eq!(asset.file_schema_version, golden_alchemist::FORMULA_FILE_VERSION);
+        assert!(!asset.application_version.is_empty());
+    }
+}
+
+#[test]
+fn converted_v1_fixture_loads_saves_and_reloads_identically() {
+    let codec = chataigne_project_codec();
+    let validate = |project: &ChataigneProjectV1| project.validate().map_err(|error| error.to_string());
+    let fixture = include_bytes!("../fixtures/minimal.golden.json");
+    let loaded = codec.decode(fixture, &validate).unwrap();
+    let saved = codec.encode(&loaded, &validate).unwrap();
+    let reloaded = codec.decode(&saved, &validate).unwrap();
+    assert_eq!(loaded.revision, reloaded.revision);
+    assert_eq!(loaded.document(), reloaded.document());
+}

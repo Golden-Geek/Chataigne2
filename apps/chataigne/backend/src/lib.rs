@@ -6,12 +6,17 @@ mod composition;
 mod dashboard;
 mod host;
 mod modules;
+mod project;
 mod spatializer;
 
 pub use composition::{ChataigneControlRuntime, CompositionError, CompositionStep};
 pub use dashboard::{Dashboard, DashboardControl, DashboardRoute};
 pub use host::{ChataigneHostError, chataigne_host};
 pub use modules::{ModuleCatalog, ModuleDescriptor, ModuleFamily, chataigne_module_catalog};
+pub use project::{
+    BuiltinFormulaManifest, ChataigneProjectV1, GraphAssetV1, ModuleConfigV1, ProjectEntityV1, ProjectValidationError,
+    StatechartAssetV1, builtin_formula_manifests, chataigne_project_codec,
+};
 pub use spatializer::{SpatialTarget, Spatializer, SpatializerError, WeightedTarget};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

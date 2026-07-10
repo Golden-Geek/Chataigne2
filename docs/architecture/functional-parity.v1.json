@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "phase": 0,
-  "status": "inventory_in_progress",
+  "status": "complete",
   "allowed_evidence": ["automated", "manual", "pending"],
   "capabilities": [
-    { "id": "project.document", "final_owner": "golden-model + apps/chataigne", "evidence": "pending" },
-    { "id": "project.parameters", "final_owner": "golden-values + golden-parameters", "evidence": "pending" },
+    { "id": "project.document", "final_owner": "golden-model + apps/chataigne", "evidence": "automated", "evidence_path": "apps/chataigne/backend/src/tests.rs" },
+    { "id": "project.parameters", "final_owner": "golden-values + golden-parameters", "evidence": "automated", "evidence_path": "apps/chataigne/backend/src/tests.rs" },
     { "id": "project.contexts", "final_owner": "golden-context", "evidence": "automated", "evidence_path": "crates/golden-context/src/tests.rs" },
     { "id": "graph.authoring", "final_owner": "golden-graph + golden-graph-ui", "evidence": "automated", "evidence_path": "crates/golden-graph/src/tests.rs" },
     { "id": "formula.compile_and_run", "final_owner": "golden-alchemist", "evidence": "automated", "evidence_path": "crates/golden-alchemist/src/tests.rs" },
@@ -42,6 +42,6 @@
     { "id": "transport.open_lan", "final_owner": "golden-transport + apps/chataigne", "evidence": "automated", "evidence_path": "crates/golden-transport/src/tests.rs" },
     { "id": "host.headless", "final_owner": "golden-host", "evidence": "automated", "evidence_path": "crates/golden-host/src/tests.rs" },
     { "id": "host.desktop", "final_owner": "golden-host", "evidence": "automated", "evidence_path": "crates/golden-host/src/tests.rs" },
-    { "id": "persistence.save_load_recovery", "final_owner": "golden-persistence + apps/chataigne", "evidence": "pending" }
+    { "id": "persistence.save_load_recovery", "final_owner": "golden-persistence + apps/chataigne", "evidence": "automated", "evidence_path": "crates/golden-persistence/src/tests.rs" }
   ]
 }

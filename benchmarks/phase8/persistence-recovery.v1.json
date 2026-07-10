@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "phase": 8,
+  "status": "complete",
+  "checks": {
+    "project_schema": 1,
+    "atomic_replace": "atomic-write-file with file and directory synchronization",
+    "rolling_backups": true,
+    "recovery_journal": 1,
+    "immutable_save_snapshot": "Arc-owned document detached from the control plane",
+    "formula_asset_schema": 1,
+    "fixture_round_trip": "identical",
+    "permanent_legacy_loader": false
+  },
+  "evidence": [
+    "crates/golden-persistence/src/tests.rs",
+    "apps/chataigne/backend/src/tests.rs",
+    "apps/chataigne/backend/fixtures/minimal.golden.json"
+  ]
+}
