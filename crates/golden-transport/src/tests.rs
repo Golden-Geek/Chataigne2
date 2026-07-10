@@ -107,12 +107,14 @@ fn control_handles_use_bounded_channels_without_transport_mutexes() {
 }
 
 #[test]
-fn open_network_bindings_require_tls_authentication_and_explicit_origins() {
+fn authenticated_and_open_lan_bindings_enforce_their_explicit_safeguards() {
     let mut policy = NetworkPolicy {
+        access: NetworkAccess::Authenticated,
         bind_address: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
         tls_enabled: false,
         authentication_token: None,
         allowed_origins: BTreeSet::new(),
+        advertised_hosts: BTreeSet::new(),
         maximum_clients: 64,
         maximum_payload_bytes: 1_048_576,
     };
@@ -120,8 +122,15 @@ fn open_network_bindings_require_tls_authentication_and_explicit_origins() {
     policy.tls_enabled = true;
     policy.authentication_token = Some("a-secure-token-with-at-least-32-bytes".into());
     policy.allowed_origins.insert("https://control.example".into());
+    policy.advertised_hosts.insert("control.example".into());
     assert!(policy.validate().is_ok());
     assert!(policy.authorize("https://control.example", Some("a-secure-token-with-at-least-32-bytes")));
+    assert!(policy.validate_host("control.example"));
+    policy.access = NetworkAccess::OpenLan;
+    policy.tls_enabled = false;
+    policy.authentication_token = None;
+    assert!(policy.validate().is_ok());
+    assert!(policy.authorize("https://control.example", None));
     assert_eq!(
         policy.validate_payload(1_048_577).unwrap_err(),
         AdmissionError::PayloadTooLarge {

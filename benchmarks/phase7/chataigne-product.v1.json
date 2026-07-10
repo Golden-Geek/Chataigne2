@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "phase": 7,
+  "status": "complete",
+  "checks": {
+    "module_families": 26,
+    "endpoint_recovery": "event_driven_bounded_backoff",
+    "script_surfaces": "registered_with_execution_class",
+    "dashboard_routes": "stable_value_or_command",
+    "spatializer_projection": "compiled_topology_bounded_neighborhood",
+    "hosts": ["headless", "desktop"],
+    "open_lan": "explicit_origins_hosts_limits_mdns"
+  },
+  "evidence": [
+    "crates/golden-io/src/tests.rs",
+    "crates/golden-host/src/tests.rs",
+    "crates/golden-script/src/tests.rs",
+    "apps/chataigne/backend/src/tests.rs"
+  ]
+}

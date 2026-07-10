@@ -11,10 +11,18 @@ repository.workspace = true
 golden-alchemist.workspace = true
 golden-condition.workspace = true
 golden-context.workspace = true
+golden-host.workspace = true
+golden-io.workspace = true
 golden-model.workspace = true
 golden-parameters.workspace = true
 golden-processor.workspace = true
+golden-script.workspace = true
 golden-statechart.workspace = true
+golden-transport.workspace = true
 golden-values.workspace = true
+serde.workspace = true
 smol_str.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

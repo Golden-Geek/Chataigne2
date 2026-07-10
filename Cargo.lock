@@ -52,11 +52,17 @@ dependencies = [
  "golden-alchemist",
  "golden-condition",
  "golden-context",
+ "golden-host",
+ "golden-io",
  "golden-model",
  "golden-parameters",
  "golden-processor",
+ "golden-script",
  "golden-statechart",
+ "golden-transport",
  "golden-values",
+ "serde",
+ "serde_json",
  "smol_str",
  "thiserror",
 ]
@@ -151,6 +157,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden-host"
+version = "0.1.0"
+dependencies = [
+ "golden-transport",
+ "serde",
+ "smol_str",
+ "thiserror",
+]
+
+[[package]]
+name = "golden-io"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "smol_str",
+ "thiserror",
+]
+
+[[package]]
 name = "golden-model"
 version = "0.1.0"
 dependencies = [
@@ -199,6 +224,15 @@ dependencies = [
  "arc-swap",
  "golden-model",
  "golden-values",
+ "smol_str",
+ "thiserror",
+]
+
+[[package]]
+name = "golden-script"
+version = "0.1.0"
+dependencies = [
+ "serde",
  "smol_str",
  "thiserror",
 ]

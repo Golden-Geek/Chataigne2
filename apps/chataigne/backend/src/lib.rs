@@ -3,8 +3,16 @@
 use golden_model::{EntityId, Revision};
 
 mod composition;
+mod dashboard;
+mod host;
+mod modules;
+mod spatializer;
 
 pub use composition::{ChataigneControlRuntime, CompositionError, CompositionStep};
+pub use dashboard::{Dashboard, DashboardControl, DashboardRoute};
+pub use host::{ChataigneHostError, chataigne_host};
+pub use modules::{ModuleCatalog, ModuleDescriptor, ModuleFamily, chataigne_module_catalog};
+pub use spatializer::{SpatialTarget, Spatializer, SpatializerError, WeightedTarget};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ChataigneProjectIdentity {

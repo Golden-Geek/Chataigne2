@@ -6,11 +6,14 @@ members = [
     "crates/golden-condition",
     "crates/golden-context",
     "crates/golden-graph",
+    "crates/golden-host",
+    "crates/golden-io",
     "crates/golden-model",
     "crates/golden-parameters",
     "crates/golden-processor",
     "crates/golden-protocol",
     "crates/golden-runtime",
+    "crates/golden-script",
     "crates/golden-transport",
     "crates/golden-statechart",
     "crates/golden-values",
@@ -29,6 +32,8 @@ repository = "https://github.com/Golden-Geek/Golden"
 golden-context = { path = "crates/golden-context" }
 golden-codegen = { path = "crates/golden-codegen" }
 golden-graph = { path = "crates/golden-graph" }
+golden-host = { path = "crates/golden-host" }
+golden-io = { path = "crates/golden-io" }
 golden-alchemist = { path = "crates/golden-alchemist" }
 golden-condition = { path = "crates/golden-condition" }
 golden-model = { path = "crates/golden-model" }
@@ -36,6 +41,7 @@ golden-parameters = { path = "crates/golden-parameters" }
 golden-processor = { path = "crates/golden-processor" }
 golden-protocol = { path = "crates/golden-protocol" }
 golden-runtime = { path = "crates/golden-runtime" }
+golden-script = { path = "crates/golden-script" }
 golden-transport = { path = "crates/golden-transport" }
 golden-values = { path = "crates/golden-values" }
 golden-statechart = { path = "crates/golden-statechart" }
