@@ -1,13 +1,14 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use golden_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, CompiledAlchemistGraph, ContextAxisId,
+    ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistMemory, CompileCtx, CompiledAlchemistGraph, ContextAxisId,
     ContextItemId, ContextKey, DebugCaptureMode, DebugCaptureSink, EvaluationCtx, EvaluationFrame, FormulaPropertyDecl,
     FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool, ManagedItemInstance,
     ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedSocketRef,
     OutputSocketRef, ParamUiHints, PipelineLoweringCtx, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
-    RuntimeValue, SocketId, StableRef, SurfaceItemKind, ValueTypeId, compile_graph, evaluate_compiled_graph,
-    evaluate_compiled_graph_stateless, lower_filter_pipeline_region, single_shape,
+    RuntimeValue, SocketId, StableRef, SurfaceItemKind, ValueSlotId, ValueTypeId, compile_graph,
+    evaluate_compiled_graph, lower_filter_pipeline_region, single_shape,
 };
 use indexmap::IndexMap;
 
@@ -19,16 +20,39 @@ const VALUE_LANE_AXIS: &str = "value_set_lane";
 
 pub struct ValueSetPipelineRuntime {
     compiled: Arc<CompiledAlchemistGraph>,
-    output_node: ANodeId,
-    output_socket: SocketId,
+    output_slot: ValueSlotId,
     memory: LaneRuntimePool,
+    stateless_cache: IndexMap<String, CachedLaneOutput>,
+    pending_invalidation: Option<PipelineInvalidationReason>,
+    last_stats: PipelineEvaluationStats,
 }
 
 pub struct ValueSetProjectionRuntime {
     compiled: Arc<CompiledAlchemistGraph>,
-    output_node: ANodeId,
-    output_socket: SocketId,
+    output_slot: ValueSlotId,
     property_ids: Vec<FormulaPropertyId>,
+    memory: AlchemistMemory,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PipelineInvalidationReason {
+    InputChange,
+    GraphChange,
+    TimeDependentTick,
+    ExternalSideEffect,
+    DebugRequest,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PipelineEvaluationStats {
+    pub evaluated_lanes: usize,
+    pub reused_lanes: usize,
+    pub reasons: Vec<PipelineInvalidationReason>,
+}
+
+struct CachedLaneOutput {
+    input: RuntimeValue,
+    output: RuntimeValue,
 }
 
 impl ValueSetPipelineRuntime {
@@ -88,13 +112,19 @@ impl ValueSetPipelineRuntime {
             return Err(ValueSetPipelineError::Compile(compiled.diagnostics));
         }
         let compiled = compiled.compiled.ok_or(ValueSetPipelineError::MissingCompiledGraph)?;
+        let output_socket = SocketId::new("value");
+        let output_slot = compiled
+            .output_slot(output_node, &output_socket)
+            .ok_or_else(|| ValueSetPipelineError::MissingOutput(output_socket.as_str().into()))?;
         let memory = LaneRuntimePool::for_graph(&compiled);
 
         Ok(Self {
             compiled,
-            output_node,
-            output_socket: SocketId::new("value"),
+            output_slot,
             memory,
+            stateless_cache: IndexMap::new(),
+            pending_invalidation: Some(PipelineInvalidationReason::GraphChange),
+            last_stats: PipelineEvaluationStats::default(),
         })
     }
 
@@ -103,47 +133,128 @@ impl ValueSetPipelineRuntime {
         values: &ValueSet,
         ctx: &EvaluationCtx<'_>,
     ) -> Result<(ValueSet, RuntimeOutput), ValueSetPipelineError> {
+        self.evaluate_observed(values, ctx, None)
+    }
+
+    pub fn evaluate_with_debug(
+        &mut self,
+        values: &ValueSet,
+        ctx: &EvaluationCtx<'_>,
+        capture_mode: DebugCaptureMode,
+    ) -> Result<(ValueSet, RuntimeOutput), ValueSetPipelineError> {
+        self.pending_invalidation = Some(PipelineInvalidationReason::DebugRequest);
+        self.evaluate_observed(values, ctx, Some(capture_mode))
+    }
+
+    pub fn invalidate(&mut self, reason: PipelineInvalidationReason) {
+        self.pending_invalidation = Some(reason);
+        if matches!(
+            reason,
+            PipelineInvalidationReason::GraphChange | PipelineInvalidationReason::ExternalSideEffect
+        ) {
+            self.stateless_cache.clear();
+        }
+    }
+
+    #[must_use]
+    pub fn last_evaluation_stats(&self) -> &PipelineEvaluationStats {
+        &self.last_stats
+    }
+
+    fn evaluate_observed(
+        &mut self,
+        values: &ValueSet,
+        ctx: &EvaluationCtx<'_>,
+        capture_mode: Option<DebugCaptureMode>,
+    ) -> Result<(ValueSet, RuntimeOutput), ValueSetPipelineError> {
         let active_keys = values
             .entries
             .iter()
             .map(|entry| lane_context_key(entry.key.as_str()))
             .collect();
         self.memory.retain_keys(&active_keys);
+        let active_lane_keys = values
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_str())
+            .collect::<HashSet<_>>();
+        self.stateless_cache
+            .retain(|key, _| active_lane_keys.contains(key.as_str()));
 
         let mut output = RuntimeOutput::default();
         let mut entries = Vec::with_capacity(values.entries.len());
+        let pending_invalidation = self.pending_invalidation.take();
+        let force_evaluation = pending_invalidation.is_some();
+        self.last_stats = PipelineEvaluationStats::default();
+        if let Some(reason) = pending_invalidation {
+            push_reason(&mut self.last_stats.reasons, reason);
+        }
         for entry in &values.entries {
             let context_key = lane_context_key(entry.key.as_str());
-            let properties = property_frame(&self.compiled, entry.value.clone())?;
-            let context = RuntimeContextFrame::new(context_key.clone());
-            let mut debug = DebugCaptureSink::new(DebugCaptureMode::SelectedNodes {
-                formula_id: None,
-                context_key: Some(context_key.clone()),
-                nodes: [self.output_node].into_iter().collect(),
-                history_len: 1,
-            });
-            let frame = EvaluationFrame {
-                ctx,
-                properties: &properties,
-                context: &context,
-                debug: &mut debug,
-                force_process_unchanged_inputs: true,
-                capture_unchanged_outputs: true,
+            let cached = self.stateless_cache.get(entry.key.as_str());
+            let input_changed = cached.is_none_or(|cached| cached.input != entry.value);
+            let time_dependent = self.compiled.analysis.has_always_process_nodes;
+            let can_reuse_stateless = !force_evaluation && !time_dependent && !input_changed;
+
+            let value = if self.compiled.state_layout.state_slot_count == 0 && can_reuse_stateless {
+                self.last_stats.reused_lanes += 1;
+                cached.expect("cache was checked above").output.clone()
+            } else {
+                if input_changed {
+                    push_reason(&mut self.last_stats.reasons, PipelineInvalidationReason::InputChange);
+                }
+                if time_dependent {
+                    push_reason(
+                        &mut self.last_stats.reasons,
+                        PipelineInvalidationReason::TimeDependentTick,
+                    );
+                }
+
+                let properties = property_frame(&self.compiled, entry.value.clone())?;
+                let context = RuntimeContextFrame::new(context_key.clone());
+                let mut debug = DebugCaptureSink::new(capture_mode.clone().unwrap_or(DebugCaptureMode::Off));
+                let frame = EvaluationFrame {
+                    ctx,
+                    properties: &properties,
+                    context: &context,
+                    debug: &mut debug,
+                    force_process_unchanged_inputs: force_evaluation,
+                    capture_unchanged_outputs: capture_mode.is_some(),
+                };
+
+                let (mut lane_output, value) =
+                    if let Some(memory) = self.memory.memory_for_key(context_key, &self.compiled) {
+                        let lane_output = evaluate_compiled_graph(&self.compiled, memory, frame);
+                        let value = memory
+                            .initialized_value(self.output_slot)
+                            .cloned()
+                            .ok_or_else(|| ValueSetPipelineError::MissingOutput(entry.label.clone()))?;
+                        (lane_output, value)
+                    } else {
+                        let mut memory = AlchemistMemory::for_graph(&self.compiled);
+                        let lane_output = evaluate_compiled_graph(&self.compiled, &mut memory, frame);
+                        let value = memory
+                            .initialized_value(self.output_slot)
+                            .cloned()
+                            .ok_or_else(|| ValueSetPipelineError::MissingOutput(entry.label.clone()))?;
+                        (lane_output, value)
+                    };
+                self.last_stats.evaluated_lanes += 1;
+                output.intents.append(&mut lane_output.intents);
+                output.diagnostics.append(&mut lane_output.diagnostics);
+                output.debug_samples.append(&mut lane_output.debug_samples);
+                output.trigger_fired |= lane_output.trigger_fired;
+                if self.compiled.state_layout.state_slot_count == 0 {
+                    self.stateless_cache.insert(
+                        entry.key.as_str().to_owned(),
+                        CachedLaneOutput {
+                            input: entry.value.clone(),
+                            output: value.clone(),
+                        },
+                    );
+                }
+                value
             };
-            let lane_output = match self.memory.memory_for_key(context_key, &self.compiled) {
-                Some(memory) => evaluate_compiled_graph(&self.compiled, memory, frame),
-                None => evaluate_compiled_graph_stateless(&self.compiled, frame),
-            };
-            output.intents.extend(lane_output.intents);
-            output.diagnostics.extend(lane_output.diagnostics);
-            output.debug_samples.extend(lane_output.debug_samples.clone());
-            let value = lane_output
-                .debug_samples
-                .iter()
-                .rev()
-                .find(|sample| sample.author_node_id == self.output_node && sample.output_socket == self.output_socket)
-                .map(|sample| sample.value.clone())
-                .ok_or_else(|| ValueSetPipelineError::MissingOutput(entry.label.clone()))?;
             entries.push(ValueSetEntry {
                 key: entry.key.clone(),
                 label: entry.label.clone(),
@@ -196,7 +307,7 @@ impl ValueSetProjectionRuntime {
     }
 
     pub fn evaluate(
-        &self,
+        &mut self,
         values: &ValueSet,
         ctx: &EvaluationCtx<'_>,
     ) -> Result<(RuntimeValue, RuntimeOutput), ValueSetPipelineError> {
@@ -209,27 +320,20 @@ impl ValueSetProjectionRuntime {
 
         let properties = property_frame_for_entries(&self.compiled, &self.property_ids, values)?;
         let context = RuntimeContextFrame::default_lane();
-        let mut debug = DebugCaptureSink::new(DebugCaptureMode::SelectedNodes {
-            formula_id: None,
-            context_key: None,
-            nodes: [self.output_node].into_iter().collect(),
-            history_len: 1,
-        });
+        let mut debug = DebugCaptureSink::new(DebugCaptureMode::Off);
         let frame = EvaluationFrame {
             ctx,
             properties: &properties,
             context: &context,
             debug: &mut debug,
-            force_process_unchanged_inputs: true,
-            capture_unchanged_outputs: true,
+            force_process_unchanged_inputs: false,
+            capture_unchanged_outputs: false,
         };
-        let output = evaluate_compiled_graph_stateless(&self.compiled, frame);
-        let value = output
-            .debug_samples
-            .iter()
-            .rev()
-            .find(|sample| sample.author_node_id == self.output_node && sample.output_socket == self.output_socket)
-            .map(|sample| sample.value.clone())
+        let output = evaluate_compiled_graph(&self.compiled, &mut self.memory, frame);
+        let value = self
+            .memory
+            .initialized_value(self.output_slot)
+            .cloned()
             .ok_or_else(|| ValueSetPipelineError::MissingOutput("projection".into()))?;
         Ok((value, output))
     }
@@ -293,13 +397,23 @@ fn compile_projection(
         return Err(ValueSetPipelineError::Compile(compiled.diagnostics));
     }
     let compiled = compiled.compiled.ok_or(ValueSetPipelineError::MissingCompiledGraph)?;
+    let output_slot = compiled
+        .output_slot(output_node, &output_socket)
+        .ok_or_else(|| ValueSetPipelineError::MissingOutput(output_socket.as_str().into()))?;
+    let memory = AlchemistMemory::for_graph(&compiled);
 
     Ok(ValueSetProjectionRuntime {
         compiled,
-        output_node,
-        output_socket,
+        output_slot,
         property_ids,
+        memory,
     })
+}
+
+fn push_reason(reasons: &mut Vec<PipelineInvalidationReason>, reason: PipelineInvalidationReason) {
+    if !reasons.contains(&reason) {
+        reasons.push(reason);
+    }
 }
 
 fn pipeline_property_schema(item_type: ValueTypeId, default_value: RuntimeValue) -> FormulaPropertySchema {

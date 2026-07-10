@@ -1,13 +1,13 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use golden_alchemist::{
-    ANodeDeclaration, ANodeInstance, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
-    PipelineLoweringCtx, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
-    RuntimeValue, SocketId, ValueTypeId,
+    ANodeDeclaration, ANodeInstance, DebugCaptureMode, EvaluationCtx, ManagedItemId, ManagedItemInstance,
+    ManagedItemUiState, PipelineLoweringCtx, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot,
+    RuntimeRegistries, RuntimeValue, SocketId, ValueTypeId,
 };
 
 use crate::alchemist::{node_registry, value_type_registry};
-use crate::value_set_pipeline::{ValueSetPipelineRuntime, ValueSetProjectionRuntime};
+use crate::value_set_pipeline::{PipelineInvalidationReason, ValueSetPipelineRuntime, ValueSetProjectionRuntime};
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry};
 
 #[test]
@@ -45,6 +45,129 @@ fn elementwise_remap_preserves_lanes_and_values() {
     assert_eq!(mapped.entries[0].value, RuntimeValue::Float(0.25));
     assert_eq!(mapped.entries[1].key.as_str(), "b");
     assert_eq!(mapped.entries[1].value, RuntimeValue::Float(0.75));
+    assert!(output.debug_samples.is_empty());
+}
+
+#[test]
+fn unchanged_stateless_lanes_reuse_direct_outputs_without_debug_capture() {
+    let value_types = value_type_registry();
+    let nodes = node_registry();
+    let lowering_ctx = PipelineLoweringCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let mut runtime = ValueSetPipelineRuntime::compile_elementwise(
+        vec![identity_remap_item()],
+        ValueTypeId::new("float"),
+        &lowering_ctx,
+    )
+    .unwrap();
+    let values = float_value_set(1, [("a", "A", 0.25), ("b", "B", 0.75)]);
+
+    let (first, first_output) = runtime.evaluate(&values, &eval_ctx(&value_types, 1)).unwrap();
+    assert_eq!(runtime.last_evaluation_stats().evaluated_lanes, 2);
+    assert!(first_output.debug_samples.is_empty());
+
+    let (second, second_output) = runtime.evaluate(&values, &eval_ctx(&value_types, 2)).unwrap();
+    assert_eq!(second.entries, first.entries);
+    assert_eq!(second.logical_tick, 2);
+    assert_eq!(runtime.last_evaluation_stats().evaluated_lanes, 0);
+    assert_eq!(runtime.last_evaluation_stats().reused_lanes, 2);
+    assert!(second_output.debug_samples.is_empty());
+
+    let changed = float_value_set(3, [("a", "A", 0.5), ("b", "B", 0.75)]);
+    let (third, _) = runtime.evaluate(&changed, &eval_ctx(&value_types, 3)).unwrap();
+    assert_eq!(third.entries[0].value, RuntimeValue::Float(0.5));
+    assert_eq!(runtime.last_evaluation_stats().evaluated_lanes, 1);
+    assert_eq!(runtime.last_evaluation_stats().reused_lanes, 1);
+    assert!(
+        runtime
+            .last_evaluation_stats()
+            .reasons
+            .contains(&PipelineInvalidationReason::InputChange)
+    );
+}
+
+#[test]
+fn debug_capture_observes_but_does_not_own_pipeline_output() {
+    let value_types = value_type_registry();
+    let nodes = node_registry();
+    let lowering_ctx = PipelineLoweringCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let mut runtime = ValueSetPipelineRuntime::compile_elementwise(
+        vec![identity_remap_item()],
+        ValueTypeId::new("float"),
+        &lowering_ctx,
+    )
+    .unwrap();
+    let values = float_value_set(1, [("a", "A", 0.25)]);
+    let (plain, plain_output) = runtime.evaluate(&values, &eval_ctx(&value_types, 1)).unwrap();
+    let (observed, observed_output) = runtime
+        .evaluate_with_debug(
+            &values,
+            &eval_ctx(&value_types, 2),
+            DebugCaptureMode::All { history_len: 1 },
+        )
+        .unwrap();
+
+    assert_eq!(observed.entries, plain.entries);
+    assert_eq!(observed.logical_tick, 2);
+    assert!(plain_output.debug_samples.is_empty());
+    assert!(!observed_output.debug_samples.is_empty());
+    assert!(
+        runtime
+            .last_evaluation_stats()
+            .reasons
+            .contains(&PipelineInvalidationReason::DebugRequest)
+    );
+}
+
+#[test]
+#[ignore = "AAA performance benchmark: run explicitly with --ignored --nocapture"]
+fn benchmark_ten_thousand_unchanged_valueset_lanes() {
+    let value_types = value_type_registry();
+    let nodes = node_registry();
+    let lowering_ctx = PipelineLoweringCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let mut runtime = ValueSetPipelineRuntime::compile_elementwise(
+        vec![identity_remap_item()],
+        ValueTypeId::new("float"),
+        &lowering_ctx,
+    )
+    .unwrap();
+    let entries = (0..10_000)
+        .map(|index| {
+            let key = format!("lane-{index}");
+            ValueSetEntry::new(
+                ValueLaneKey::new(key.as_str()).unwrap(),
+                key,
+                RuntimeValue::Float(index as f64),
+            )
+        })
+        .collect();
+    let values = ValueSet::with_entries(1, entries);
+
+    let first_started = Instant::now();
+    runtime.evaluate(&values, &eval_ctx(&value_types, 1)).unwrap();
+    let first_elapsed = first_started.elapsed();
+    let cached_started = Instant::now();
+    runtime.evaluate(&values, &eval_ctx(&value_types, 2)).unwrap();
+    let cached_elapsed = cached_started.elapsed();
+
+    assert_eq!(runtime.last_evaluation_stats().evaluated_lanes, 0);
+    assert_eq!(runtime.last_evaluation_stats().reused_lanes, 10_000);
+    eprintln!(
+        "valueset_pipeline_10k first_ms={:.3} cached_ms={:.3}",
+        first_elapsed.as_secs_f64() * 1_000.0,
+        cached_elapsed.as_secs_f64() * 1_000.0
+    );
 }
 
 #[test]
@@ -120,7 +243,7 @@ fn aggregate_reduces_multiple_lanes_to_one_value() {
     };
     let mut math = managed_item_for_primitive(PrimitiveNodeKind::Math);
     math.anode.config.set("num_inputs", RuntimeValue::Int(3));
-    let runtime =
+    let mut runtime =
         ValueSetProjectionRuntime::compile_aggregate(math, 3, ValueTypeId::new("float"), &lowering_ctx).unwrap();
     let values = float_value_set(1, [("x", "X", 1.0), ("y", "Y", 2.0), ("z", "Z", 3.0)]);
 
@@ -139,7 +262,7 @@ fn pack_vec3_projects_three_lanes_to_vector() {
         nodes: &nodes,
         properties: None,
     };
-    let runtime = ValueSetProjectionRuntime::compile_pack_vec3(
+    let mut runtime = ValueSetProjectionRuntime::compile_pack_vec3(
         managed_item_for_primitive(PrimitiveNodeKind::PackVec3),
         &lowering_ctx,
     )

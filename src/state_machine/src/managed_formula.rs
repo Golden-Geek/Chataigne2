@@ -622,7 +622,7 @@ impl ManagedFilterPipelineRuntime {
         let Some(projection_index) = projection_index else {
             let runtime =
                 ValueSetPipelineRuntime::compile_elementwise(items.to_vec(), key.item_type.clone(), &lowering_ctx)?;
-            return Ok(ManagedFilterCompiledRuntime::Elementwise(runtime));
+            return Ok(ManagedFilterCompiledRuntime::Elementwise(Box::new(runtime)));
         };
 
         if projection_index + 1 != shape.steps.len() {
@@ -644,11 +644,11 @@ impl ManagedFilterPipelineRuntime {
         let prefix = if projection_index == 0 {
             None
         } else {
-            Some(ValueSetPipelineRuntime::compile_elementwise(
+            Some(Box::new(ValueSetPipelineRuntime::compile_elementwise(
                 items[..projection_index].to_vec(),
                 key.item_type.clone(),
                 &lowering_ctx,
-            )?)
+            )?))
         };
         let projection_item = items[projection_index].clone();
         let projection = match shape.steps[projection_index].cardinality {
@@ -683,7 +683,10 @@ impl ManagedFilterPipelineRuntime {
             }
         };
 
-        Ok(ManagedFilterCompiledRuntime::Projection { prefix, projection })
+        Ok(ManagedFilterCompiledRuntime::Projection {
+            prefix,
+            projection: Box::new(projection),
+        })
     }
 }
 
@@ -695,10 +698,10 @@ struct ManagedFilterCompileKey {
 
 enum ManagedFilterCompiledRuntime {
     PassThrough,
-    Elementwise(ValueSetPipelineRuntime),
+    Elementwise(Box<ValueSetPipelineRuntime>),
     Projection {
-        prefix: Option<ValueSetPipelineRuntime>,
-        projection: ValueSetProjectionRuntime,
+        prefix: Option<Box<ValueSetPipelineRuntime>>,
+        projection: Box<ValueSetProjectionRuntime>,
     },
 }
 

@@ -43,8 +43,8 @@ The release is ready to carry an “AAA-grade foundation” claim only when all 
 | 0 | Complete (2026-07-10) | Truthful CI, exact toolchains, dependency triage, versioned benchmark manifest/baseline, direct trigger result prerequisite, and persistence-baseline correctness |
 | 1 | Complete (2026-07-10) | Checked, lazy, budgeted multiplex execution and incremental canonical reconciliation |
 | 2 | Complete (2026-07-10) | Open-network hardening and observability |
-| 3 | In progress | ValueSet direct output and cache invalidation |
-| 4 | Pending | Incremental, deterministic, bounded events |
+| 3 | Complete (2026-07-10) | ValueSet direct output and cache invalidation |
+| 4 | In progress | Incremental, deterministic, bounded events |
 | 5 | Pending | Revision- and visibility-driven graph UI |
 | 6 | Pending | Bounded Spatializer geometry |
 | 7 | Pending | Canonical boundaries and deduplication |
@@ -231,7 +231,19 @@ These are capacity controls, not access controls. Defaults should be generous an
 
 ### Stage 3 — Remove debug plumbing from ValueSet execution
 
-`ValueSetPipelineRuntime::evaluate` currently enables debug capture to retrieve normal output, forces unchanged inputs through processing, clones samples, and scans captured debug data. This makes the diagnostic path part of the production algorithm.
+**Status: Complete (2026-07-10).**
+
+Evidence:
+
+- Compiled Alchemist graphs now resolve authored output sockets to runtime value slots through a reusable public API, and runtime memory exposes only initialized values for functional reads.
+- ValueSet elementwise and projection pipelines read their typed result directly from runtime memory. Normal evaluation uses debug capture `Off`; it no longer clones or scans debug samples or forces unchanged inputs through the graph.
+- Debug capture is an explicit optional observer. Tests run the same pipeline with capture disabled and enabled, proving identical lane values while only the observed run produces samples.
+- Pure stateless lanes cache their direct result by stable lane key and input value. A sparse input change reevaluates one changed lane and reuses the unchanged lane; stateful lanes continue using independent sparse runtime memory; always-process graphs bypass the pure cache.
+- `PipelineInvalidationReason` makes input, graph, time-dependent tick, external-side-effect, and debug-request invalidation explicit. Per-evaluation statistics expose evaluated and reused lane counts for tests and performance evidence.
+- The ignored reproducible 10,000-lane benchmark reports 94.695 ms for initial evaluation and 20.023 ms for an unchanged cached pass on the Stage 0 reference environment, with zero lanes reevaluated. An initial O(lanes²) stale-cache pass was caught by this benchmark and replaced with O(lanes) hash membership.
+- The state-machine strict scoped clippy gate passes, all 79 active state-machine tests pass (three explicitly ignored, including the benchmark), the root workspace passes, and the `golden_alchemist_core` workspace passes all 126 tests.
+
+Before this stage, `ValueSetPipelineRuntime::evaluate` enabled debug capture to retrieve normal output, forced unchanged inputs through processing, cloned samples, and scanned captured debug data. The implementation below removes that diagnostic dependency from the production algorithm.
 
 #### Work packages
 
