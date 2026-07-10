@@ -2,9 +2,9 @@
   "version": "1.0",
   "ui_state": {
     "dock_layout": {
-      "activeGroup": "2",
+      "activeGroup": "4",
       "grid": {
-        "height": 759.1875,
+        "height": 792.796875,
         "orientation": "HORIZONTAL",
         "root": {
           "data": [
@@ -18,7 +18,7 @@
                       "modules-1"
                     ]
                   },
-                  "size": 378,
+                  "size": 395,
                   "type": "leaf"
                 },
                 {
@@ -29,11 +29,11 @@
                       "outliner"
                     ]
                   },
-                  "size": 375.1875,
+                  "size": 391.796875,
                   "type": "leaf"
                 }
               ],
-              "size": 163,
+              "size": 330,
               "type": "branch"
             },
             {
@@ -48,7 +48,7 @@
                       "warnings"
                     ]
                   },
-                  "size": 398,
+                  "size": 416,
                   "type": "leaf"
                 },
                 {
@@ -61,7 +61,7 @@
                           "formula-library"
                         ]
                       },
-                      "size": 348,
+                      "size": 202,
                       "type": "leaf"
                     },
                     {
@@ -72,15 +72,15 @@
                           "alchemistEditor-1"
                         ]
                       },
-                      "size": 562,
+                      "size": 327,
                       "type": "leaf"
                     }
                   ],
-                  "size": 355.1875,
+                  "size": 370.796875,
                   "type": "branch"
                 }
               ],
-              "size": 916,
+              "size": 535,
               "type": "branch"
             },
             {
@@ -93,7 +93,7 @@
                       "inspector"
                     ]
                   },
-                  "size": 619,
+                  "size": 649,
                   "type": "leaf"
                 },
                 {
@@ -104,18 +104,18 @@
                       "logger"
                     ]
                   },
-                  "size": 134.1875,
+                  "size": 137.796875,
                   "type": "leaf"
                 }
               ],
-              "size": 428.1875,
+              "size": 454.1875,
               "type": "branch"
             }
           ],
-          "size": 759.1875,
+          "size": 792.796875,
           "type": "branch"
         },
-        "width": 1519.1875
+        "width": 1331.1875
       },
       "panels": {
         "alchemistEditor-1": {
@@ -287,7 +287,9 @@
               "opennessByNodeId": {
                 "4294967297": true,
                 "4294967299": true,
-                "4294967383": true,
+                "4294967616": true,
+                "4294967617": true,
+                "4294967621": true,
                 "4294967640": true,
                 "4294967641": true,
                 "4294967645": true,
@@ -319,9 +321,9 @@
           "contentComponent": "warnings",
           "id": "warnings",
           "params": {
-            "sourceNodeId": 4294967911,
-            "targetNodeId": 4294967911,
-            "warningId": "control-diagnostic:context-link:context_multiplex_requires_lane"
+            "sourceNodeId": 4294967709,
+            "targetNodeId": 4294967709,
+            "warningId": "control-diagnostic:template-text:context_symbol_missing"
           },
           "tabComponent": "golden-tab",
           "title": "Warnings"
@@ -329,7 +331,7 @@
       }
     },
     "selected_node_ids": [
-      4294967690
+      4294967666
     ]
   },
   "root": {
@@ -2094,7 +2096,7 @@
             },
             "children": [
               {
-                "uuid": "62d5c640-87c7-4273-b2bd-ad43f36f43b2",
+                "uuid": "3a43851b-89bd-454a-a026-d99ace2b0f66",
                 "type": "file",
                 "meta": {
                   "decl_id": "external_formula_file",
@@ -2111,7 +2113,7 @@
                 }
               },
               {
-                "uuid": "cdaceeff-a2a1-407c-a1e0-5d8433dc87ac",
+                "uuid": "b5d19a27-dda5-44cd-96e6-d1880524ca1b",
                 "type": "reference",
                 "meta": {
                   "decl_id": "external_formula_source",
@@ -2123,7 +2125,7 @@
                 }
               },
               {
-                "uuid": "67462f3e-a3cb-4b69-85c0-7ee2d930b8c2",
+                "uuid": "67bef963-f7b8-4d05-99c8-28f3a36c4e9d",
                 "type": "bool",
                 "meta": {
                   "decl_id": "external_formula_delete_file",
@@ -4447,7 +4449,7 @@
                     },
                     "children": [
                       {
-                        "uuid": "23aba688-1fe7-4a76-84a5-bdf2632a5277",
+                        "uuid": "99607ab2-fa51-4173-91b0-dc0fc830e666",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4464,7 +4466,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "8160aa75-b4ab-49e9-b8ae-5a09e8aa95e7",
+                            "uuid": "107080d8-b09d-475f-9692-49a375bf366d",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4483,7 +4485,7 @@
                             }
                           },
                           {
-                            "uuid": "38d651c1-3b45-4604-8bd6-b305adacbecd",
+                            "uuid": "15e98be7-0337-4d96-8385-469801c05bb2",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4502,7 +4504,7 @@
                             }
                           },
                           {
-                            "uuid": "f8ee63f4-3660-4cf0-8b9a-f74bd27dce07",
+                            "uuid": "7e7627f9-0088-40af-91c2-14c0c2e6f76e",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -4521,7 +4523,7 @@
                         ]
                       },
                       {
-                        "uuid": "fbf8bd01-b3c7-4077-8aa5-fd9730d71633",
+                        "uuid": "91130615-7dba-498d-8fa7-7b649b5f516f",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4538,7 +4540,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "13b283c5-b3f4-43d7-b08c-de25f50fdb96",
+                            "uuid": "b6faba4e-0a59-4787-be58-e37f70b05715",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4557,7 +4559,7 @@
                             }
                           },
                           {
-                            "uuid": "49371668-99f6-4311-ba20-c91dbd966fae",
+                            "uuid": "f360f317-a0ef-4697-b045-935da7528638",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4576,7 +4578,7 @@
                             }
                           },
                           {
-                            "uuid": "2b69f966-7651-41f2-a519-ffd4809c4d8b",
+                            "uuid": "0c42b573-172a-4637-b766-0caacb59464f",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
