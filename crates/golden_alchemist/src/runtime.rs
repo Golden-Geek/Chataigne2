@@ -267,6 +267,11 @@ pub enum DebugCaptureMode {
         context_key: Option<ContextKey>,
         history_len: usize,
     },
+    ProcessorLanes {
+        formula_id: FormulaId,
+        context_keys: IndexSet<Option<ContextKey>>,
+        history_len: usize,
+    },
     SelectedNodes {
         formula_id: Option<FormulaId>,
         context_key: Option<ContextKey>,
@@ -289,6 +294,7 @@ impl DebugCaptureMode {
             Self::All { history_len }
             | Self::FormulaDefaults { history_len, .. }
             | Self::ProcessorLane { history_len, .. }
+            | Self::ProcessorLanes { history_len, .. }
             | Self::SelectedNodes { history_len, .. } => *history_len,
         }
     }
@@ -301,16 +307,19 @@ impl DebugCaptureMode {
     fn sample_status(&self) -> Option<OutputPreviewStatus> {
         match self {
             Self::Off => None,
-            Self::All { .. } | Self::ProcessorLane { .. } | Self::SelectedNodes { .. } => {
-                Some(OutputPreviewStatus::Live)
-            }
+            Self::All { .. }
+            | Self::ProcessorLane { .. }
+            | Self::ProcessorLanes { .. }
+            | Self::SelectedNodes { .. } => Some(OutputPreviewStatus::Live),
             Self::FormulaDefaults { .. } => Some(OutputPreviewStatus::DefaultPreview),
         }
     }
 
     fn formula_id(&self) -> Option<&FormulaId> {
         match self {
-            Self::FormulaDefaults { formula_id, .. } | Self::ProcessorLane { formula_id, .. } => Some(formula_id),
+            Self::FormulaDefaults { formula_id, .. }
+            | Self::ProcessorLane { formula_id, .. }
+            | Self::ProcessorLanes { formula_id, .. } => Some(formula_id),
             Self::SelectedNodes { formula_id, .. } => formula_id.as_ref(),
             Self::Off | Self::All { .. } => None,
         }
@@ -321,6 +330,7 @@ impl DebugCaptureMode {
             Self::Off => false,
             Self::All { .. } | Self::FormulaDefaults { .. } => true,
             Self::ProcessorLane { context_key, .. } => context_key == &sample.context_key,
+            Self::ProcessorLanes { context_keys, .. } => context_keys.contains(&sample.context_key),
             Self::SelectedNodes { context_key, nodes, .. } => {
                 context_key == &sample.context_key && nodes.contains(&sample.author_node_id)
             }
@@ -582,6 +592,18 @@ impl LaneRuntimePool {
         match self {
             Self::Stateless => None,
             Self::Stateful(lanes) => Some(lanes.entry(key).or_insert_with(|| AlchemistMemory::for_graph(compiled))),
+        }
+    }
+
+    /// Returns the independently owned lane memories for parallel lane execution.
+    ///
+    /// Callers must preserve the invariant that a memory is evaluated by at most
+    /// one worker at a time. A processor may only use this path when each
+    /// evaluation context projects to a distinct memory key.
+    pub fn stateful_memories_mut(&mut self) -> Option<&mut IndexMap<ContextKey, AlchemistMemory>> {
+        match self {
+            Self::Stateless => None,
+            Self::Stateful(lanes) => Some(lanes),
         }
     }
 }
