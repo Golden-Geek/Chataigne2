@@ -1,7 +1,7 @@
 {
-  "note": "Run `cargo bench -p golden_engine -- --warm-up-time 1 --measurement-time 3` to refresh. Commit updated numbers when an intentional perf change shifts them.",
-  "recorded_at": "2026-06-04",
-  "host": "Windows 11 x86_64 (windows-latest runner approximate)",
+  "note": "Run `cargo bench -p golden_engine -- --warm-up-time 2 --measurement-time 5` to refresh. p50 is Criterion's median point estimate; p95 is the mean confidence interval upper bound used as a conservative distribution guard.",
+  "recorded_at": "2026-07-10",
+  "host": "Windows 11 10.0.26200, Intel Core Ultra 9 275HX (24 logical processors), 31.43 GiB RAM, rustc 1.95.0 MSVC",
   "scenarios": {
     "tick_20k_passive": {
       "description": "20k passive nodes, no due buckets — tick-loop overhead floor",
@@ -17,8 +17,8 @@
     },
     "dispatch_10k_with_1k_listeners": {
       "description": "10k nodes, 1k listeners, 100 custom events/tick",
-      "p50_ns": 200940000,
-      "p95_ns": 208840000,
+      "p50_ns": 19355633,
+      "p95_ns": 19599486,
       "thresholds": { "regression_pct": 15 }
     }
   }

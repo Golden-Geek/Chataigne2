@@ -113,7 +113,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiProjectLoadProblemDto>(&config, "UiProjectLoadProblemDto");
     export_binding::<UiProjectLoadRecoveryDto>(&config, "UiProjectLoadRecoveryDto");
     export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
-    normalize_generated_typescript_binding(out_dir, "UiCreatableUserItemDto");
+    normalize_generated_typescript_bindings(out_dir);
 }
 
 /// Small command-line wrapper around the codegen helpers.
@@ -153,16 +153,29 @@ fn export_binding<T: TS + 'static>(config: &Config, name: &str) {
     T::export_all(config).unwrap_or_else(|err| panic!("failed to export {name}: {err}"));
 }
 
-fn normalize_generated_typescript_binding(out_dir: &Path, name: &str) {
-    let path = out_dir.join(format!("{name}.ts"));
-    let source = fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
-    let mut normalized = source.lines().map(str::trim_end).collect::<Vec<_>>().join("\n");
-    if source.ends_with('\n') {
-        normalized.push('\n');
-    }
+fn normalize_generated_typescript_bindings(out_dir: &Path) {
+    let mut paths = fs::read_dir(out_dir)
+        .unwrap_or_else(|err| panic!("failed to read {}: {}", out_dir.display(), err))
+        .map(|entry| {
+            entry
+                .expect("generated binding directory entry should be readable")
+                .path()
+        })
+        .filter(|path| path.extension().is_some_and(|extension| extension == "ts"))
+        .collect::<Vec<_>>();
+    paths.sort();
 
-    if normalized != source {
-        fs::write(&path, normalized).unwrap_or_else(|err| panic!("failed to write {}: {}", path.display(), err));
+    for path in paths {
+        let source =
+            fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
+        let mut normalized = source.lines().map(str::trim_end).collect::<Vec<_>>().join("\n");
+        if source.ends_with('\n') {
+            normalized.push('\n');
+        }
+
+        if normalized != source {
+            fs::write(&path, normalized).unwrap_or_else(|err| panic!("failed to write {}: {}", path.display(), err));
+        }
     }
 }
 

@@ -40,9 +40,10 @@ impl<T: Node> Engine<T> {
         self.apply_edits_internal(false, Some(NodeCreationContext::Fresh))
     }
 
-    /// Applies pending edits without running post-create callbacks for newly added nodes.
-    pub(crate) fn apply_edits_without_creation_callbacks(&mut self) -> Result<(), EngineEditError> {
-        self.apply_edits_internal(false, None)
+    /// Materializes declared structure and `init` metadata without running
+    /// `on_node_ready` side effects. Used only by persistence baselines.
+    pub(crate) fn apply_edits_for_persistence_baseline(&mut self) -> Result<(), EngineEditError> {
+        self.apply_edits_internal(false, Some(NodeCreationContext::ProjectLoad))
     }
 
     pub(crate) fn apply_edits_internal(

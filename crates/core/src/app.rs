@@ -1026,7 +1026,7 @@ where
         };
         let parent = decode_sparse_baseline_node::<T>(None, parent_record)?;
         temp.add_node(parent, None);
-        temp.apply_edits_without_creation_callbacks()?;
+        temp.apply_edits_for_persistence_baseline()?;
         let temp_parent = temp
             .nodes
             .get(temp.root)
@@ -1040,7 +1040,7 @@ where
         temp.add_node(recreated, None);
     }
 
-    temp.apply_edits_without_creation_callbacks()?;
+    temp.apply_edits_for_persistence_baseline()?;
 
     let baseline = temp.to_project_file_with(|node| node.project_encode_data())?;
     if attach_under_parent {
@@ -1483,7 +1483,7 @@ where
         let parent_id = parent_id.expect("item roots with attach_under_parent should have a parent");
         let parent = recreate_parent_for_baseline(engine, parent_id)?;
         temp.add_node(parent, None);
-        temp.apply_edits_without_creation_callbacks()?;
+        temp.apply_edits_for_persistence_baseline()?;
         let temp_parent = temp
             .nodes
             .get(temp.root)
@@ -1497,7 +1497,7 @@ where
         temp.add_node(recreated, None);
     }
 
-    temp.apply_edits_without_creation_callbacks()?;
+    temp.apply_edits_for_persistence_baseline()?;
 
     let baseline = temp.to_project_file_with(|node| node.project_encode_data())?;
     if attach_under_parent {
@@ -1672,43 +1672,11 @@ fn project_meta_for_sparse_record(
     meta: &NodeMeta,
     matched_parent_baseline: Option<&ProjectNodeMeta>,
     self_baseline: Option<&ProjectNodeMeta>,
-    use_declared_overlay_delta: bool,
+    _use_declared_overlay_delta: bool,
 ) -> ProjectNodeMeta {
-    if use_declared_overlay_delta {
+    if matched_parent_baseline.is_some() {
         let mut persisted = project_meta_delta_from_runtime(meta, matched_parent_baseline);
         persisted.decl_id = Some(meta.decl_id.clone());
-        return persisted;
-    }
-
-    if matched_parent_baseline.is_some() {
-        let mut persisted = project_meta_from_runtime(meta);
-        persisted.description = None;
-        persisted.declared_description_key = None;
-        persisted.declared_description = None;
-        if persisted.tags.as_ref().is_some_and(Vec::is_empty) {
-            persisted.tags = None;
-        }
-        if persisted
-            .user_permissions
-            .as_ref()
-            .is_some_and(|value| *value == Default::default())
-        {
-            persisted.user_permissions = None;
-        }
-        if persisted
-            .semantics
-            .as_ref()
-            .is_some_and(|value| *value == Default::default())
-        {
-            persisted.semantics = None;
-        }
-        if persisted
-            .presentation
-            .as_ref()
-            .is_some_and(|value| *value == Default::default())
-        {
-            persisted.presentation = None;
-        }
         return persisted;
     }
 
@@ -1730,12 +1698,8 @@ fn project_data_for_sparse_record<T: Node>(
     self_baseline: Option<&ProjectNodeRecord>,
     use_declared_overlay_delta: bool,
 ) -> Result<Option<serde_json::Value>, ProjectPersistenceError> {
-    if use_declared_overlay_delta {
+    if use_declared_overlay_delta || matched_parent_baseline.is_some() {
         return project_persisted_data_from_runtime(node, matched_parent_baseline);
-    }
-
-    if matched_parent_baseline.is_some() {
-        return raw_project_data_from_runtime(node);
     }
 
     project_persisted_data_from_runtime(node, self_baseline)
