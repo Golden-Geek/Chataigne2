@@ -19,6 +19,7 @@
     { "from": "golden-processor", "may_depend_on": ["golden-model", "golden-values", "golden-context", "golden-alchemist", "golden-condition"] },
     { "from": "golden-runtime", "may_depend_on": ["golden-model", "golden-values", "golden-context", "golden-statechart", "golden-processor", "golden-condition"] },
     { "from": "golden-protocol", "may_depend_on": ["golden-model", "golden-values", "golden-graph"] },
+    { "from": "golden-codegen", "may_depend_on": ["golden-model", "golden-protocol"] },
     { "from": "golden-persistence", "may_depend_on": ["golden-model", "golden-values", "golden-graph", "golden-protocol"] },
     { "from": "golden-transport", "may_depend_on": ["golden-model", "golden-protocol"] },
     { "from": "golden-host", "may_depend_on": ["golden-model", "golden-protocol", "golden-transport", "golden-persistence", "golden-runtime"] }

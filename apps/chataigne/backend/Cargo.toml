@@ -1,0 +1,14 @@
+[package]
+name = "chataigne"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+golden-context.workspace = true
+golden-model.workspace = true
+golden-parameters.workspace = true
+golden-values.workspace = true

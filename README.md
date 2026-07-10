@@ -1,80 +1,33 @@
-# Chataigne2
+# Golden
 
-Chataigne2 is the desktop shell and integration layer for the Golden engine and UI stack.
+Golden is the clean-sheet monorepo for reusable authoring, graph, runtime, protocol, host,
+and UI foundations. Chataigne is an application composed from those public boundaries.
 
-This repository is being actively refactored toward a clean long-term architecture:
+The active workspace no longer depends on Git submodules. Pre-rewrite sources and imported
+repository histories are retained under `legacy/repositories` as read-only characterization
+references; new code must not depend on them.
 
-- `Chataigne2` stays a thin application shell.
-- `golden_core` provides explicit engine, protocol, persistence, transport, desktop-host, script, macro, and codegen crates behind a stable facade.
-- `golden_ui` is treated as a reusable UI package boundary rather than app-local source ownership.
-- Apps can override command-line parsing and bootstrap when needed, but they should not have to by default.
-- UI state and transport boundaries are being normalized in `src-ui`.
-- protocol declarations and code generation are moving toward a single source of truth.
-- `cargo run` and the built app now ship the UI bundle and serve it from the built-in Rust host by default, so the desktop app does not depend on a separate Vite process to be usable.
-- `cargo run -- --dev` now launches against the live Svelte/Vite dev server from `src-ui` instead of the bundled frontend, so frontend iteration can use the normal dev pipeline.
-- `--no-frontend` disables bundled UI serving but still launches Tauri against an external frontend you start yourself.
-- On Windows, debug builds keep their console output during `cargo run`, while release-style builds stay window-only unless `--show-output` is passed.
+## Active workspace
 
-## First Clone Run
+- `crates/golden-model`: stable identity, revisions, handles, and change primitives.
+- `crates/golden-values`: the canonical value, conversion, projection, and `ValueSet` model.
+- `crates/golden-parameters`: parameter declarations, constraints, controls, and state.
+- `crates/golden-context`: checked context axes, lane layouts, and migration keys.
+- `packages/`: reusable JavaScript workspace boundaries.
+- `apps/chataigne/backend`: thin Rust product composition.
+- `apps/chataigne/ui`: thin UI product composition.
+- `docs/architecture`: accepted decisions, dependency rules, and parity evidence.
 
-From a fresh clone, use the repo bootstrap command for your platform:
-
-```powershell
-.\tools\dev.ps1
-```
+## Verification
 
 ```sh
-bash ./tools/dev.sh
+cargo test --workspace
+npm ci
+npm run check
+python tools/check_architecture_contract.py
+python tools/check_workspace_architecture.py
 ```
 
-The bootstrap command initializes Git submodules, installs or verifies Rust through `rustup`, installs
-or verifies Node.js/npm for the Svelte frontend, installs supported desktop build prerequisites, runs
-`npm ci` in `src-ui` when needed, then runs `cargo run`.
-
-On Windows it also selects the `stable-msvc` Rust toolchain, which Tauri needs for desktop builds.
-
-After that first setup, `cargo run` is the normal launch command. The Rust build embeds the Svelte UI
-bundle and will refresh `src-ui` dependencies when the package lock changes. For live frontend
-iteration, pass app arguments through the bootstrap command or Cargo:
-
-```sh
-bash ./tools/dev.sh -- --dev
-cargo run -- --dev
-```
-
-Use `.\tools\dev.ps1 -SetupOnly` or `bash ./tools/dev.sh --setup-only` when you only want to prepare
-the machine without launching the app.
-
-## Repository Map
-
-- `src/`: app-shell bootstrap plus the app-owned node tree.
-- `src/module/`: real Chataigne module foundation, including shared module roots/managers plus concrete module families under `src/module/modules/`.
-- `src/state_machine/`: Chataigne-owned state-machine policy, Processor models, Alchemist node registrations, and protocol generation.
-- `src-ui/`: Svelte 5 app UI shell plus app-owned State Machine panel composition.
-- `submodules/golden_core/`: shared engine, macros, and deeper design docs.
-- `submodules/golden_alchemist_core/`: reusable typed graph compiler/runtime and hierarchical statechart crates.
-- `src-ui/src/lib/golden_ui/`: reusable application workbench and dock UI package.
-- `src-ui/src/lib/golden_alchemist_ui/`: reusable infinite node-graph canvas package.
-- `build.rs`: app node registry generation through a public codegen support crate.
-
-## Start Here
-
-- Read [ARCHITECTURE.md](ARCHITECTURE.md) for the top-level layer map.
-- Read [docs/architecture.md](docs/architecture.md) for the contributor-facing boundary summary.
-- Read [docs/STATE_MACHINE_ARCHITECTURE.md](docs/STATE_MACHINE_ARCHITECTURE.md) for Alchemist,
-  statechart, Processor, intent, and UI ownership.
-- Read [docs/contributor-map.md](docs/contributor-map.md) for practical ownership rules, generated
-  files, and the intentional `noisette` project-file naming.
-- Read [CONTRIBUTING.md](CONTRIBUTING.md) for formatting, boundary, and codegen rules.
-- Read [docs/repo-transition-plan.md](docs/repo-transition-plan.md) for current-vs-target repo ownership and migration rules.
-- Read [AGENTS.md](AGENTS.md) for the current repo operating rules and refactor direction.
-
-## Existing Design Docs
-
-The deeper engine design notes currently live under `submodules/golden_core/crates/core/docs/` and include:
-
-- `dashboard_system.md`
-- `node_blueprints.md`
-- `node_contexts.md`
-- `parameters_control_modes.md`
-- `scripting_schema.md`
+Read [the final architecture plan](docs/Golden_Architecture_Final_Plan.md) before making a
+cross-layer change. Each implementation phase ends with its evidence and one focused
+supercommit; legacy paths are deleted after parity is proven.

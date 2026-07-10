@@ -1,295 +1,43 @@
-name: CI
+name: Golden workspace CI
 
 on:
   push:
+    branches: [main, rewrite/golden-architecture]
   pull_request:
 
 env:
+  CARGO_TERM_COLOR: always
   NODE_VERSION: 24.18.0
-  LINUX_BUILD_PACKAGES: >-
-    libwebkit2gtk-4.1-dev
-    libasound2-dev
-    libusb-1.0-0-dev
-    build-essential
-    curl
-    wget
-    file
-    libxdo-dev
-    libssl-dev
-    libudev-dev
-    pkg-config
-    libayatana-appindicator3-dev
-    librsvg2-dev
 
 jobs:
   quality:
-    name: Required quality gates
     runs-on: ubuntu-latest
-    env:
-      GC_SKIP_UI_BUILD: 1
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: recursive
       - uses: dtolnay/rust-toolchain@1.95.0
         with:
-          components: clippy,rustfmt
+          components: clippy, rustfmt
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: src-ui/package-lock.json
+          cache-dependency-path: package-lock.json
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            . -> target
-            submodules/golden_core -> submodules/golden_core/target
-            submodules/golden_alchemist_core -> submodules/golden_alchemist_core/target
-      - name: Install UI dependencies without lifecycle code generation
-        working-directory: src-ui
-        run: npm ci --ignore-scripts
-      - name: Validate architecture contract and parity evidence
-        run: python tools/check_architecture_contract.py
-      - name: Root formatting
-        run: cargo fmt --all --check
-      - name: golden_core formatting
-        run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
-      - name: golden_alchemist_core formatting
-        run: cargo fmt --manifest-path submodules/golden_alchemist_core/Cargo.toml --all --check
-      - name: Root workspace clippy
-        run: python tools/clippy_gate.py --baseline tools/clippy-baseline-root.json
-      - name: golden_core workspace clippy
-        run: python tools/clippy_gate.py --manifest-path submodules/golden_core/Cargo.toml --baseline tools/clippy-baseline-golden-core.json
-      - name: golden_alchemist_core workspace clippy
-        run: python tools/clippy_gate.py --manifest-path submodules/golden_alchemist_core/Cargo.toml --baseline tools/clippy-baseline-golden-alchemist-core.json
-      - name: Root workspace tests
-        run: cargo test --workspace -- --test-threads=1
-      - name: golden_core workspace tests
-        run: cargo test --manifest-path submodules/golden_core/Cargo.toml --workspace -- --test-threads=1
-      - name: golden_alchemist_core workspace tests
-        run: cargo test --manifest-path submodules/golden_alchemist_core/Cargo.toml --workspace --all-features
-      - name: Root workspace check
-        run: cargo check --workspace --all-targets --all-features
-      - name: golden_core workspace check
-        run: cargo check --manifest-path submodules/golden_core/Cargo.toml --workspace --all-targets --all-features
-      - name: golden_alchemist_core workspace check
-        run: cargo check --manifest-path submodules/golden_alchemist_core/Cargo.toml --workspace --all-targets --all-features
-      - name: Generate Rust-owned TypeScript protocols
-        working-directory: src-ui
-        run: |
-          npm run codegen:golden-ui-protocol
-          npm run codegen:state-machine-protocol
-      - name: Generated protocol drift
-        run: git diff --exit-code -- src-ui/src/lib/golden_ui/generated/rust_protocol src-ui/src/lib/state_machine/generated
-      - name: UI lint
-        working-directory: src-ui
-        run: npm run lint
-      - name: UI type and Svelte check
-        working-directory: src-ui
-        run: npm run check
-      - name: UI production build
-        working-directory: src-ui
-        run: npm run build
-      - name: Install RustSec scanner
-        run: cargo install cargo-audit --locked
-      - name: Root dependency audit
-        run: cargo audit
-      - name: golden_core dependency audit
-        run: cargo audit --file submodules/golden_core/Cargo.lock
-      - name: golden_alchemist_core dependency audit
-        run: cargo audit --file submodules/golden_alchemist_core/Cargo.lock
-      - name: Production UI dependency audit
-        working-directory: src-ui
-        run: npm audit --omit=dev --audit-level=high
-
-  performance:
-    name: Non-blocking performance baselines
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-      - uses: dtolnay/rust-toolchain@1.95.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: submodules/golden_core -> submodules/golden_core/target
-      - name: Run golden engine benchmark fixtures
-        working-directory: submodules/golden_core
-        run: |
-          cargo bench -p golden_engine --bench tick -- --output-format bencher --warm-up-time 2 --measurement-time 5 2>/dev/null | tee /tmp/tick.txt
-          cargo bench -p golden_engine --bench dispatch -- --output-format bencher --warm-up-time 2 --measurement-time 5 2>/dev/null | tee /tmp/dispatch.txt
-          cat /tmp/tick.txt /tmp/dispatch.txt > /tmp/aaa-benchmarks.txt
-      - name: Compare committed distributions
-        working-directory: submodules/golden_core
-        run: python3 tools/bench_compare.py --results /tmp/aaa-benchmarks.txt --baseline crates/core/benches/baseline.json --output /tmp/aaa-benchmark-summary.md
-      - name: Upload performance report
-        uses: actions/upload-artifact@v7
-        with:
-          name: aaa-performance-${{ github.sha }}
-          path: |
-            /tmp/aaa-benchmarks.txt
-            /tmp/aaa-benchmark-summary.md
-          if-no-files-found: error
-
-  buildui:
-    name: Build UI
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: src-ui/package-lock.json
-      - uses: dtolnay/rust-toolchain@1.95.0
-        with:
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            . -> target
-            submodules/golden_core -> submodules/golden_core/target
-      - name: Install UI deps
-        working-directory: src-ui
+      - name: Install JavaScript workspace
         run: npm ci
-      - name: Root fmt
+      - name: Validate architecture contract
+        run: python tools/check_architecture_contract.py
+      - name: Validate workspace dependency direction
+        run: python tools/check_workspace_architecture.py
+      - name: Rust formatting
         run: cargo fmt --all --check
-      - name: golden_core fmt
-        run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
-      - name: UI lint
-        working-directory: src-ui
-        run: npm run lint
-      - name: UI check
-        working-directory: src-ui
+      - name: Rust lint
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Rust tests
+        run: cargo test --workspace --all-features
+      - name: JavaScript type check
         run: npm run check
-      - name: UI build
-        working-directory: src-ui
+      - name: JavaScript build gate
         run: npm run build
-      - name: Root check
-        env:
-          GC_UI_ASSUME_BUILT: 1
-        run: cargo check --workspace
-      - name: golden_core check
-        run: cargo check --manifest-path submodules/golden_core/Cargo.toml --workspace
-      - name: Upload UI build
-        uses: actions/upload-artifact@v7
-        with:
-          name: ui-build
-          path: src-ui/build
-          if-no-files-found: error
-
-  build:
-    name: Build (${{ matrix.label }})
-    needs: buildui
-    runs-on: ${{ matrix.runs_on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - id: win-x64
-            label: Win x64
-            runs_on: windows-latest
-            target: x86_64-pc-windows-msvc
-          - id: win-arm64
-            label: Win arm64
-            runs_on: windows-11-arm
-            target: aarch64-pc-windows-msvc
-          - id: macos-arm64
-            label: macOS silicon
-            runs_on: macos-15
-            target: aarch64-apple-darwin
-          - id: macos-x64
-            label: macOS intel
-            runs_on: macos-15-intel
-            target: x86_64-apple-darwin
-          - id: linux-x64
-            label: Linux x64
-            runs_on: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            install_linux_deps: true
-          - id: rpi-armhf
-            label: RPI 32-bit (Linux armhf)
-            runs_on: ubuntu-24.04
-            target: armv7-unknown-linux-gnueabihf
-            emulated_arch: armv7
-            emulated_distro: ubuntu24.04
-          - id: rpi-aarch64
-            label: RPI 64-bit (Linux aarch64)
-            runs_on: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            install_linux_deps: true
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-      - name: Clear UI build directory
-        shell: pwsh
-        run: |
-          if (Test-Path 'src-ui/build') {
-            Remove-Item 'src-ui/build' -Recurse -Force
-          }
-      - name: Download UI build
-        uses: actions/download-artifact@v8
-        with:
-          name: ui-build
-          path: src-ui/build
-      - uses: dtolnay/rust-toolchain@stable
-        if: ${{ matrix.id != 'rpi-armhf' }}
-        with:
-          targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
-        if: ${{ matrix.id != 'rpi-armhf' }}
-        with:
-          key: ${{ matrix.target }}
-          workspaces: |
-            . -> target
-            submodules/golden_core -> submodules/golden_core/target
-      - name: Install Linux desktop deps
-        if: ${{ matrix.install_linux_deps }}
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y $LINUX_BUILD_PACKAGES
-      - name: App build
-        if: ${{ matrix.id != 'rpi-armhf' }}
-        env:
-          GC_UI_ASSUME_BUILT: 1
-        run: cargo build --target ${{ matrix.target }}
-      - name: App build (emulated armhf)
-        if: ${{ matrix.id == 'rpi-armhf' }}
-        uses: uraimo/run-on-arch-action@v3
-        with:
-          arch: ${{ matrix.emulated_arch }}
-          distro: ${{ matrix.emulated_distro }}
-          githubToken: ${{ github.token }}
-          install: |
-            apt-get update -q -y
-            apt-get install -q -y \
-              build-essential \
-              clang \
-              curl \
-              file \
-              git \
-              libasound2-dev \
-              libclang-dev \
-              libusb-1.0-0-dev \
-              libayatana-appindicator3-dev \
-              librsvg2-dev \
-              libssl-dev \
-              libudev-dev \
-              libwebkit2gtk-4.1-dev \
-              libxdo-dev \
-              llvm-dev \
-              pkg-config \
-              wget
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
-          env: |
-            GC_UI_ASSUME_BUILT: 1
-          run: |
-            . "$HOME/.cargo/env"
-            rustup target add ${{ matrix.target }}
-            export LIBCLANG_PATH="$(llvm-config --libdir)"
-            cargo build --target ${{ matrix.target }}
+      - name: Production JavaScript dependency audit
+        run: npm audit --omit=dev --audit-level=high

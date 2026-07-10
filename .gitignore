@@ -24,3 +24,9 @@ target
 # Added by cargo
 
 /target
+
+# JavaScript workspace and legacy frontend build products
+**/node_modules/
+**/.svelte-kit/
+**/build/
+**/artifacts/

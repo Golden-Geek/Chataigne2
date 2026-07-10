@@ -1039,6 +1039,17 @@ Exit:
 
 ### Phase 1 — Create the monorepo and foundational types
 
+> **Implementation status (2026-07-10): complete.** The four former Golden repositories
+> are imported with history under `legacy/repositories`, their gitlinks are removed, and the
+> old Chataigne application is a read-only characterization reference. One root Cargo
+> workspace and one root npm workspace now own pinned toolchains, locks, CI, and deterministic
+> codegen support. The active workspace contains `golden-model`, `golden-values`,
+> `golden-parameters`, `golden-context`, clean UI package boundaries, and thin Chataigne
+> composition packages. CI rejects submodules, legacy workspace members, forbidden internal
+> dependencies, malformed evidence, formatting drift, clippy warnings, test failures, and
+> TypeScript failures. The foundational characterization suite passes without initializing
+> any submodule.
+
 Deliver:
 
 - import repository histories under final paths;

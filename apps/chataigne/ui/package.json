@@ -1,0 +1,13 @@
+{
+  "name": "@golden/chataigne-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@golden/alchemist-ui": "*",
+    "@golden/runtime-client": "*",
+    "@golden/statechart-ui": "*",
+    "@golden/ui": "*"
+  }
+}
