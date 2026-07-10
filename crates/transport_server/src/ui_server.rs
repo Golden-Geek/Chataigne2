@@ -777,13 +777,11 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
                     .name(format!("golden-ui-connection-{connection_id}"))
                     .spawn(move || {
                         let _permit = permit;
-                        eprintln!("[ui-transport] connection opened id={connection_id} remote={remote_addr:?}");
                         if let Err(err) = handle_connection(&mut stream, &state) {
                             eprintln!(
                                 "[ui-transport] request failed id={connection_id} remote={remote_addr:?} error={err}"
                             );
                         }
-                        eprintln!("[ui-transport] connection closed id={connection_id} remote={remote_addr:?}");
                     })?;
             }
             Err(err) => {
@@ -1556,6 +1554,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             write_json(stream, "200 OK", &state.metrics.snapshot())?;
         }
         ("GET", "/api/ui/connection-info") => {
+            let metrics = state.metrics.snapshot();
             write_json(
                 stream,
                 "200 OK",
@@ -1565,6 +1564,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                     "advertisedName": state.transport.advertised_name,
                     "websocketPath": "/api/ui/ws",
                     "allowedOrigins": state.transport.allowed_origins,
+                    "metrics": metrics,
                     "limits": {
                         "maxConnections": state.transport.limits.max_connections,
                         "maxHttpRequestBytes": state.transport.limits.max_http_request_bytes,
