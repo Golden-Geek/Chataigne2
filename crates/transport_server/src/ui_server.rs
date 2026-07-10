@@ -2204,7 +2204,7 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     }
 
     let _ = state.ws_hub.cmd_tx.send(WsHubCommand::UnregisterClient { client_id });
-    let _ = runtime.block_on(timeout(state.transport.limits.write_timeout, websocket.close(None)));
+    let _ = runtime.block_on(async { timeout(state.transport.limits.write_timeout, websocket.close(None)).await });
     state.metrics.websocket_closed();
     eprintln!("[ui-ws] websocket loop ended (client_id={client_id})");
     Ok(())
@@ -2232,7 +2232,7 @@ fn send_ws_outbound(
     };
 
     runtime
-        .block_on(timeout(write_timeout, websocket.send(message)))
+        .block_on(async { timeout(write_timeout, websocket.send(message)).await })
         .map_err(|_| Error::new(ErrorKind::TimedOut, "websocket write timed out"))?
         .map_err(|error| Error::new(ErrorKind::Other, format!("failed to write websocket frame: {error}")))?;
     Ok(close_requested)
