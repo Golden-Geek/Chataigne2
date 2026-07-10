@@ -212,6 +212,7 @@ where
     R: Runtime,
 {
     let mut config = UiServerConfig::default();
+    config.transport.advertised_name = Some(T::project_file_spec().display_name.to_string());
     let app_data_dir = default_app_data_dir::<T>()?;
     config.preferences = Some(UiPreferencesConfig {
         file_path: app_data_dir.join(T::preferences_file_name()),

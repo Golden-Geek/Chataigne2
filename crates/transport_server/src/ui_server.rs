@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -37,9 +37,11 @@ use tokio_tungstenite::{
 };
 
 use crate::project_host;
+use crate::transport_security::{
+    BrowserRequestRejection, TransportMetrics, UiTransportSecurityConfig, validate_browser_request, validate_json_shape,
+};
+use mdns_sd::{ServiceDaemon, ServiceInfo};
 
-const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
-const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 const WS_RETRY_INTERVAL: Duration = Duration::from_millis(16);
 const DEFAULT_WS_VALUE_FLUSH_INTERVAL: Duration = Duration::from_millis(16);
 const WS_IO_POLL_INTERVAL: Duration = Duration::from_millis(5);
@@ -84,6 +86,8 @@ pub struct UiServerConfig {
     pub frontend_assets: &'static [UiAsset],
     /// Optional app-data Preferences persistence.
     pub preferences: Option<UiPreferencesConfig>,
+    /// Browser-origin, host, timeout, and capacity controls for the open transport.
+    pub transport: UiTransportSecurityConfig,
 }
 
 impl Default for UiServerConfig {
@@ -94,6 +98,7 @@ impl Default for UiServerConfig {
             value_flush_interval: DEFAULT_WS_VALUE_FLUSH_INTERVAL,
             frontend_assets: &[],
             preferences: None,
+            transport: UiTransportSecurityConfig::default(),
         }
     }
 }
@@ -155,6 +160,9 @@ struct ServerState<T: ProjectLifecycle> {
     ws_hub: WsHubHandle,
     frontend_assets: &'static [UiAsset],
     preferences: Option<UiPreferencesConfig>,
+    transport: UiTransportSecurityConfig,
+    metrics: Arc<TransportMetrics>,
+    listening_addr: String,
 }
 
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
@@ -166,6 +174,9 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
             ws_hub: self.ws_hub.clone(),
             frontend_assets: self.frontend_assets,
             preferences: self.preferences.clone(),
+            transport: self.transport.clone(),
+            metrics: self.metrics.clone(),
+            listening_addr: self.listening_addr.clone(),
         }
     }
 }
@@ -416,7 +427,7 @@ fn ui_client_instance_id_from_headers(headers: &HashMap<String, String>) -> Opti
 
 #[derive(Clone)]
 struct WsHubHandle {
-    cmd_tx: Sender<WsHubCommand>,
+    cmd_tx: SyncSender<WsHubCommand>,
 }
 
 struct HttpRequest {
@@ -424,10 +435,11 @@ struct HttpRequest {
     path: String,
     headers: HashMap<String, String>,
     body: Vec<u8>,
+    cors_origin: Option<String>,
 }
 
 struct WsClientState {
-    outbound: Sender<WsOutbound>,
+    outbound: WsOutboundQueue,
     subscriptions: HashMap<String, WsSubscriptionState>,
     client_instance_id: Option<String>,
 }
@@ -499,7 +511,7 @@ struct WsEventOrigin {
 enum WsHubCommand {
     RegisterClient {
         client_id: u64,
-        outbound: Sender<WsOutbound>,
+        outbound: WsOutboundQueue,
     },
     BindClientInstance {
         client_id: u64,
@@ -536,6 +548,83 @@ enum WsOutbound {
     Message(WsServerMessage),
     Ping(Vec<u8>),
     Close,
+}
+
+#[derive(Clone)]
+struct WsOutboundQueue {
+    state: Arc<Mutex<VecDeque<WsOutbound>>>,
+    capacity: usize,
+    metrics: Arc<TransportMetrics>,
+}
+
+impl WsOutboundQueue {
+    fn new(capacity: usize, metrics: Arc<TransportMetrics>) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(VecDeque::with_capacity(capacity.max(1)))),
+            capacity: capacity.max(1),
+            metrics,
+        }
+    }
+
+    fn send(&self, outbound: WsOutbound) -> Result<(), ()> {
+        let mut queue = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        if queue.len() < self.capacity {
+            queue.push_back(outbound);
+            return Ok(());
+        }
+
+        let mut resync_subscriptions = Vec::<String>::new();
+        queue.retain(|queued| {
+            if let Some(subscription_id) = outbound_batch_subscription(queued) {
+                resync_subscriptions.push(subscription_id.to_owned());
+                false
+            } else {
+                true
+            }
+        });
+        if let Some(subscription_id) = outbound_batch_subscription(&outbound) {
+            resync_subscriptions.push(subscription_id.to_owned());
+        }
+        resync_subscriptions.sort();
+        resync_subscriptions.dedup();
+        self.metrics.dropped_outbound(resync_subscriptions.len().max(1) as u64);
+
+        if outbound_batch_subscription(&outbound).is_none() {
+            if queue.len() >= self.capacity {
+                queue.pop_front();
+            }
+            queue.push_back(outbound);
+        }
+        for subscription_id in resync_subscriptions {
+            if queue.len() >= self.capacity {
+                break;
+            }
+            self.metrics.resync_requested();
+            queue.push_back(WsOutbound::Message(WsServerMessage::ResyncRequired {
+                subscription_id,
+                reason: "outbound_queue_pressure".to_string(),
+            }));
+        }
+        Ok(())
+    }
+
+    fn try_recv(&self) -> Result<WsOutbound, TryRecvError> {
+        let mut queue = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        queue.pop_front().ok_or(TryRecvError::Empty)
+    }
+}
+
+fn outbound_batch_subscription(outbound: &WsOutbound) -> Option<&str> {
+    match outbound {
+        WsOutbound::Message(WsServerMessage::Batch { subscription_id, .. }) => Some(subscription_id),
+        _ => None,
+    }
 }
 
 #[derive(Serialize)]
@@ -627,6 +716,17 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     engine: Arc<Mutex<Engine<T>>>,
     config: UiServerConfig,
 ) -> std::io::Result<()> {
+    let listener = TcpListener::bind(&config.bind_addr)?;
+    let listening_addr = listener.local_addr()?.to_string();
+    let _mdns = config.transport.advertised_name.as_deref().and_then(|name| {
+        match advertise_ui_service(name, listener.local_addr().ok()?.port()) {
+            Ok(daemon) => Some(daemon),
+            Err(error) => {
+                eprintln!("[ui-transport] mDNS advertisement disabled: {error}");
+                None
+            }
+        }
+    });
     let project_file = ProjectFileSession::new(T::project_file_spec());
     let read_model = {
         let guard = lock_engine(&engine);
@@ -640,15 +740,16 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
         config.value_flush_interval.max(Duration::from_millis(1)),
         config.preferences.clone(),
         make_server_session_id(),
+        config.transport.limits.hub_command_queue_capacity,
     );
 
-    let listener = TcpListener::bind(&config.bind_addr)?;
     println!(
         "UI host listening on http://{} (bundled_frontend={})",
-        config.bind_addr,
+        listening_addr,
         !config.frontend_assets.is_empty()
     );
 
+    let metrics = Arc::new(TransportMetrics::default());
     let state = ServerState {
         engine,
         read_model,
@@ -656,17 +757,34 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
         ws_hub,
         frontend_assets: config.frontend_assets,
         preferences: config.preferences,
+        transport: config.transport,
+        metrics: metrics.clone(),
+        listening_addr,
     };
 
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
+                let Some(permit) = metrics.try_acquire_connection(state.transport.limits.max_connections) else {
+                    let _ = stream.set_write_timeout(Some(state.transport.limits.write_timeout));
+                    let _ = write_json_error(&mut stream, "503 Service Unavailable", "connection limit reached");
+                    continue;
+                };
+                let connection_id = NEXT_WS_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
+                let remote_addr = stream.peer_addr().ok();
                 let state = state.clone();
-                thread::spawn(move || {
-                    if let Err(err) = handle_connection(&mut stream, &state) {
-                        eprintln!("ui server request failed: {err}");
-                    }
-                });
+                thread::Builder::new()
+                    .name(format!("golden-ui-connection-{connection_id}"))
+                    .spawn(move || {
+                        let _permit = permit;
+                        eprintln!("[ui-transport] connection opened id={connection_id} remote={remote_addr:?}");
+                        if let Err(err) = handle_connection(&mut stream, &state) {
+                            eprintln!(
+                                "[ui-transport] request failed id={connection_id} remote={remote_addr:?} error={err}"
+                            );
+                        }
+                        eprintln!("[ui-transport] connection closed id={connection_id} remote={remote_addr:?}");
+                    })?;
             }
             Err(err) => {
                 eprintln!("ui server accept failed: {err}");
@@ -675,6 +793,46 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     }
 
     Ok(())
+}
+
+fn advertise_ui_service(name: &str, port: u16) -> Result<ServiceDaemon, String> {
+    let instance_name = name.trim();
+    if instance_name.is_empty() {
+        return Err("advertised name cannot be empty".to_string());
+    }
+    let hostname_label = instance_name
+        .chars()
+        .map(|value| {
+            if value.is_ascii_alphanumeric() || value == '-' {
+                value.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .chars()
+        .take(63)
+        .collect::<String>();
+    if hostname_label.is_empty() {
+        return Err("advertised name must contain an ASCII letter or number".to_string());
+    }
+    let hostname = format!("{hostname_label}.local.");
+    let addresses: &[std::net::IpAddr] = &[];
+    let service = ServiceInfo::new(
+        "_chataigne._tcp.local.",
+        instance_name,
+        hostname.as_str(),
+        addresses,
+        port,
+        &[("path", "/"), ("websocket", "/api/ui/ws"), ("open_access", "true")][..],
+    )
+    .map_err(|error| error.to_string())?
+    .enable_addr_auto();
+    let daemon = ServiceDaemon::new().map_err(|error| error.to_string())?;
+    daemon.register(service).map_err(|error| error.to_string())?;
+    eprintln!("[ui-transport] advertised '{instance_name}' as _chataigne._tcp.local. on port {port}");
+    Ok(daemon)
 }
 
 fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(engine: Arc<Mutex<Engine<T>>>, read_model: Arc<UiReadModel>) {
@@ -753,8 +911,9 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     value_flush_interval: Duration,
     preferences: Option<UiPreferencesConfig>,
     session_id: String,
+    command_queue_capacity: usize,
 ) -> WsHubHandle {
-    let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
+    let (cmd_tx, cmd_rx) = mpsc::sync_channel::<WsHubCommand>(command_queue_capacity.max(1));
     thread::spawn(move || {
         ws_hub_loop(
             engine,
@@ -1302,12 +1461,17 @@ fn make_server_session_id() -> String {
 }
 
 fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &ServerState<T>) -> std::io::Result<()> {
-    stream.set_read_timeout(Some(Duration::from_secs(3)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(3)))?;
+    stream.set_read_timeout(Some(state.transport.limits.handshake_timeout))?;
+    stream.set_write_timeout(Some(state.transport.limits.write_timeout))?;
 
-    let request = match read_http_request(stream) {
+    let mut request = match read_http_request(stream, state.transport.limits.max_http_request_bytes) {
         Ok(request) => request,
         Err(err) => {
+            if err.to_string().contains("request exceeds") {
+                state.metrics.oversized_request();
+            } else {
+                state.metrics.protocol_error();
+            }
             if is_client_disconnect_error(&err) {
                 return Ok(());
             }
@@ -1321,8 +1485,39 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         }
     };
 
+    request.cors_origin = match validate_browser_request(&request.headers, stream.local_addr()?, &state.transport) {
+        Ok(origin) => origin,
+        Err(BrowserRequestRejection::Host(message)) => {
+            state.metrics.rejected_host();
+            write_json_error(stream, "421 Misdirected Request", message)?;
+            return Ok(());
+        }
+        Err(BrowserRequestRejection::Origin(message)) => {
+            state.metrics.rejected_origin();
+            write_json_error(stream, "403 Forbidden", message)?;
+            return Ok(());
+        }
+    };
+    if !request.body.is_empty()
+        && request
+            .headers
+            .get("content-type")
+            .is_some_and(|value| value.to_ascii_lowercase().contains("json"))
+    {
+        if let Err(message) = validate_json_shape(
+            &request.body,
+            state.transport.limits.max_json_depth,
+            state.transport.limits.max_json_string_bytes,
+        ) {
+            state.metrics.protocol_error();
+            write_json_error(stream, "400 Bad Request", message)?;
+            return Ok(());
+        }
+    }
+
     if request.method.eq_ignore_ascii_case("OPTIONS") {
-        write_response(stream, "204 No Content", "text/plain", &[])?;
+        let mut response = CorsResponseWriter::new(stream, request.cors_origin.as_deref());
+        write_response(&mut response, "204 No Content", "text/plain", &[])?;
         return Ok(());
     }
 
@@ -1334,6 +1529,9 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         return handle_ws_connection(stream, state, &request);
     }
 
+    let mut response = CorsResponseWriter::new(stream, request.cors_origin.as_deref());
+    let stream = &mut response;
+
     if request.method.eq_ignore_ascii_case("GET") {
         if let Some(asset) = resolve_frontend_asset(state.frontend_assets, &request.path) {
             write_response(stream, "200 OK", asset.content_type, asset.bytes)?;
@@ -1344,7 +1542,43 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
     let route = request.path.as_str();
     match (request.method.as_str(), route) {
         ("GET", "/api/ui/health") => {
-            write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+            write_json(
+                stream,
+                "200 OK",
+                &serde_json::json!({
+                    "ok": true,
+                    "openAccess": true,
+                    "activeConnections": state.metrics.snapshot().active_connections,
+                }),
+            )?;
+        }
+        ("GET", "/api/ui/metrics") => {
+            write_json(stream, "200 OK", &state.metrics.snapshot())?;
+        }
+        ("GET", "/api/ui/connection-info") => {
+            write_json(
+                stream,
+                "200 OK",
+                &serde_json::json!({
+                    "openAccess": true,
+                    "listeningAddress": state.listening_addr,
+                    "advertisedName": state.transport.advertised_name,
+                    "websocketPath": "/api/ui/ws",
+                    "allowedOrigins": state.transport.allowed_origins,
+                    "limits": {
+                        "maxConnections": state.transport.limits.max_connections,
+                        "maxHttpRequestBytes": state.transport.limits.max_http_request_bytes,
+                        "maxWebsocketMessageBytes": state.transport.limits.max_websocket_message_bytes,
+                        "maxIntentsPerBatch": state.transport.limits.max_intents_per_batch,
+                        "maxSubscriptionsPerClient": state.transport.limits.max_subscriptions_per_client,
+                    "outboundQueueCapacity": state.transport.limits.outbound_queue_capacity,
+                    "hubCommandQueueCapacity": state.transport.limits.hub_command_queue_capacity,
+                        "maxJsonDepth": state.transport.limits.max_json_depth,
+                        "maxJsonStringBytes": state.transport.limits.max_json_string_bytes,
+                        "maxPathBytes": state.transport.limits.max_path_bytes,
+                    }
+                }),
+            )?;
         }
         ("GET", "/api/ui/user-contexts") => {
             let snapshot = state.read_model.current_snapshot();
@@ -1539,6 +1773,14 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-save") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
+            if payload.path.len() > state.transport.limits.max_path_bytes {
+                write_json_error(
+                    stream,
+                    "400 Bad Request",
+                    "project path exceeds the configured size limit",
+                )?;
+                return Ok(());
+            }
             match project_host::save_project(&state.engine, &payload.path, payload.ui_state) {
                 Ok(path) => {
                     state.project_file.set_current_path(path);
@@ -1553,6 +1795,14 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-load") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
+            if payload.path.len() > state.transport.limits.max_path_bytes {
+                write_json_error(
+                    stream,
+                    "400 Bad Request",
+                    "project path exceeds the configured size limit",
+                )?;
+                return Ok(());
+            }
             let load = if payload.recover {
                 project_host::load_project_recovering(&state.engine, &payload.path, state.preferences.as_ref())
             } else {
@@ -1576,6 +1826,14 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                     format!("invalid project-upload-load payload: {err}"),
                 )
             })?;
+            if payload.file_name.len() > state.transport.limits.max_path_bytes {
+                write_json_error(
+                    stream,
+                    "400 Bad Request",
+                    "upload file name exceeds the configured size limit",
+                )?;
+                return Ok(());
+            }
             let load = if payload.recover {
                 project_host::upload_project_and_load_recovering(
                     &state.engine,
@@ -1778,9 +2036,13 @@ fn handle_ws_connection<T: ProjectLifecycle>(
             ));
         }
     };
-    response
-        .headers_mut()
-        .insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
+    if let Some(origin) = request.cors_origin.as_deref() {
+        response.headers_mut().insert(
+            "Access-Control-Allow-Origin",
+            HeaderValue::from_str(origin)
+                .map_err(|_| Error::new(ErrorKind::InvalidData, "invalid validated Origin header"))?,
+        );
+    }
     write_ws_handshake_response(&mut *stream, &response).map_err(|error| {
         Error::new(
             ErrorKind::Other,
@@ -1805,35 +2067,41 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     let mut websocket = runtime.block_on(WebSocketStream::from_raw_socket(
         tokio_stream,
         Role::Server,
-        Some(ui_websocket_config()),
+        Some(ui_websocket_config(state.transport.limits.max_websocket_message_bytes)),
     ));
 
     let client_id = NEXT_WS_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
     eprintln!("[ui-ws] upgraded connection to websocket (client_id={client_id})");
-    let (outbound_tx, outbound_rx) = mpsc::channel::<WsOutbound>();
+    let outbound = WsOutboundQueue::new(state.transport.limits.outbound_queue_capacity, state.metrics.clone());
     state
         .ws_hub
         .cmd_tx
         .send(WsHubCommand::RegisterClient {
             client_id,
-            outbound: outbound_tx.clone(),
+            outbound: outbound.clone(),
         })
         .map_err(|_| Error::new(ErrorKind::BrokenPipe, "websocket hub unavailable"))?;
+    state.metrics.websocket_opened();
 
     let mut last_ping_at = Instant::now();
     let mut awaiting_pong_since = None::<Instant>;
+    let mut message_window_started = Instant::now();
+    let mut messages_in_window = 0usize;
+    let mut subscriptions = HashSet::<String>::new();
 
     'connection: loop {
         loop {
-            match outbound_rx.try_recv() {
-                Ok(outbound) => match send_ws_outbound(&runtime, &mut websocket, outbound) {
-                    Ok(true) => break 'connection,
-                    Ok(false) => {}
-                    Err(err) => {
-                        eprintln!("websocket write failed for client {client_id}: {err}");
-                        break 'connection;
+            match outbound.try_recv() {
+                Ok(outbound) => {
+                    match send_ws_outbound(&runtime, &mut websocket, outbound, state.transport.limits.write_timeout) {
+                        Ok(true) => break 'connection,
+                        Ok(false) => {}
+                        Err(err) => {
+                            eprintln!("websocket write failed for client {client_id}: {err}");
+                            break 'connection;
+                        }
                     }
-                },
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => break 'connection,
             }
@@ -1845,10 +2113,25 @@ fn handle_ws_connection<T: ProjectLifecycle>(
             Ok(UiWebSocketPoll::Message(message)) => match message {
                 Message::Text(text) => {
                     awaiting_pong_since = None;
+                    let now = Instant::now();
+                    if now.duration_since(message_window_started) >= state.transport.limits.message_rate_interval {
+                        message_window_started = now;
+                        messages_in_window = 0;
+                    }
+                    messages_in_window = messages_in_window.saturating_add(1);
+                    if messages_in_window > state.transport.limits.max_messages_per_interval {
+                        state.metrics.rate_limited();
+                        let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                            message: "websocket message rate limit exceeded".to_string(),
+                            request_id: None,
+                        }));
+                        continue;
+                    }
                     let message: WsClientMessage = match serde_json::from_str(text.as_ref()) {
                         Ok(message) => message,
                         Err(err) => {
-                            let _ = outbound_tx.send(WsOutbound::Message(WsServerMessage::Error {
+                            state.metrics.protocol_error();
+                            let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
                                 message: format!("invalid websocket message: {err}"),
                                 request_id: None,
                             }));
@@ -1856,12 +2139,19 @@ fn handle_ws_connection<T: ProjectLifecycle>(
                         }
                     };
 
-                    if !handle_ws_client_message(message, client_id, &state.ws_hub, &outbound_tx) {
+                    if !handle_ws_client_message(
+                        message,
+                        client_id,
+                        &state.ws_hub,
+                        &outbound,
+                        &state.transport,
+                        &mut subscriptions,
+                    ) {
                         break;
                     }
                 }
                 Message::Binary(_) => {
-                    let _ = outbound_tx.send(WsOutbound::Message(WsServerMessage::Error {
+                    let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
                         message: "binary websocket messages are not supported".to_string(),
                         request_id: None,
                     }));
@@ -1893,7 +2183,12 @@ fn handle_ws_connection<T: ProjectLifecycle>(
             }
         }
         if now.duration_since(last_ping_at) >= WS_PING_INTERVAL {
-            match send_ws_outbound(&runtime, &mut websocket, WsOutbound::Ping(Vec::new())) {
+            match send_ws_outbound(
+                &runtime,
+                &mut websocket,
+                WsOutbound::Ping(Vec::new()),
+                state.transport.limits.write_timeout,
+            ) {
                 Ok(true) => break,
                 Ok(false) => {}
                 Err(err) => {
@@ -1909,7 +2204,8 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     }
 
     let _ = state.ws_hub.cmd_tx.send(WsHubCommand::UnregisterClient { client_id });
-    let _ = runtime.block_on(websocket.close(None));
+    let _ = runtime.block_on(timeout(state.transport.limits.write_timeout, websocket.close(None)));
+    state.metrics.websocket_closed();
     eprintln!("[ui-ws] websocket loop ended (client_id={client_id})");
     Ok(())
 }
@@ -1918,6 +2214,7 @@ fn send_ws_outbound(
     runtime: &Runtime,
     websocket: &mut UiWebSocketStream,
     outbound: WsOutbound,
+    write_timeout: Duration,
 ) -> std::io::Result<bool> {
     let close_requested = matches!(outbound, WsOutbound::Close);
     let message = match outbound {
@@ -1935,7 +2232,8 @@ fn send_ws_outbound(
     };
 
     runtime
-        .block_on(async { websocket.send(message).await })
+        .block_on(timeout(write_timeout, websocket.send(message)))
+        .map_err(|_| Error::new(ErrorKind::TimedOut, "websocket write timed out"))?
         .map_err(|error| Error::new(ErrorKind::Other, format!("failed to write websocket frame: {error}")))?;
     Ok(close_requested)
 }
@@ -1974,17 +2272,19 @@ fn build_websocket_request(request: &HttpRequest) -> std::io::Result<WsRequest> 
         .map_err(|error| Error::new(ErrorKind::InvalidData, format!("invalid websocket request: {error}")))
 }
 
-fn ui_websocket_config() -> WebSocketConfig {
+fn ui_websocket_config(max_payload_bytes: usize) -> WebSocketConfig {
     WebSocketConfig::default()
-        .max_message_size(Some(WS_MAX_PAYLOAD_BYTES))
-        .max_frame_size(Some(WS_MAX_PAYLOAD_BYTES))
+        .max_message_size(Some(max_payload_bytes))
+        .max_frame_size(Some(max_payload_bytes))
 }
 
 fn handle_ws_client_message(
     message: WsClientMessage,
     client_id: u64,
     hub: &WsHubHandle,
-    outbound: &Sender<WsOutbound>,
+    outbound: &WsOutboundQueue,
+    transport: &UiTransportSecurityConfig,
+    subscriptions: &mut HashSet<String>,
 ) -> bool {
     match message {
         WsClientMessage::Hello {
@@ -2025,13 +2325,23 @@ fn handle_ws_client_message(
             scope,
             from,
         } => {
-            if subscription_id.trim().is_empty() {
+            if !identifier_is_valid(&subscription_id, transport.limits.max_identifier_bytes) {
                 let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
-                    message: "subscription_id cannot be empty".to_string(),
+                    message: "subscription_id is empty or too long".to_string(),
                     request_id: None,
                 }));
                 return true;
             }
+            if !subscriptions.contains(&subscription_id)
+                && subscriptions.len() >= transport.limits.max_subscriptions_per_client
+            {
+                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                    message: "subscription limit exceeded".to_string(),
+                    request_id: None,
+                }));
+                return true;
+            }
+            subscriptions.insert(subscription_id.clone());
 
             hub.cmd_tx
                 .send(WsHubCommand::Subscribe {
@@ -2042,19 +2352,21 @@ fn handle_ws_client_message(
                 })
                 .is_ok()
         }
-        WsClientMessage::Unsubscribe { subscription_id } => hub
-            .cmd_tx
-            .send(WsHubCommand::Unsubscribe {
-                client_id,
-                subscription_id,
-            })
-            .is_ok(),
+        WsClientMessage::Unsubscribe { subscription_id } => {
+            subscriptions.remove(&subscription_id);
+            hub.cmd_tx
+                .send(WsHubCommand::Unsubscribe {
+                    client_id,
+                    subscription_id,
+                })
+                .is_ok()
+        }
         WsClientMessage::Intent {
             request_id,
             intent,
             include_self_events,
         } => {
-            if request_id.trim().is_empty() {
+            if !identifier_is_valid(&request_id, transport.limits.max_identifier_bytes) {
                 let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
                     message: "request_id cannot be empty".to_string(),
                     request_id: None,
@@ -2076,7 +2388,7 @@ fn handle_ws_client_message(
             intents,
             include_self_events,
         } => {
-            if request_id.trim().is_empty() {
+            if !identifier_is_valid(&request_id, transport.limits.max_identifier_bytes) {
                 let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
                     message: "request_id cannot be empty".to_string(),
                     request_id: None,
@@ -2086,6 +2398,17 @@ fn handle_ws_client_message(
             if intents.is_empty() {
                 let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
                     message: "intent batch cannot be empty".to_string(),
+                    request_id: Some(request_id),
+                }));
+                return true;
+            }
+            if intents.len() > transport.limits.max_intents_per_batch {
+                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                    message: format!(
+                        "intent batch contains {} intents, exceeding the limit of {}",
+                        intents.len(),
+                        transport.limits.max_intents_per_batch
+                    ),
                     request_id: Some(request_id),
                 }));
                 return true;
@@ -2101,6 +2424,11 @@ fn handle_ws_client_message(
                 .is_ok()
         }
     }
+}
+
+fn identifier_is_valid(value: &str, max_bytes: usize) -> bool {
+    let trimmed = value.trim();
+    !trimmed.is_empty() && trimmed.len() <= max_bytes
 }
 
 fn is_websocket_upgrade_request(request: &HttpRequest) -> bool {
@@ -2128,7 +2456,7 @@ fn lock_engine<T: Node>(engine: &Arc<Mutex<Engine<T>>>) -> std::sync::MutexGuard
     }
 }
 
-fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
+fn read_http_request(stream: &mut TcpStream, max_request_bytes: usize) -> std::io::Result<HttpRequest> {
     let mut buffer = Vec::<u8>::with_capacity(2048);
     let mut temp = [0u8; 1024];
     let mut header_end = None::<usize>;
@@ -2148,10 +2476,10 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
         }
 
         buffer.extend_from_slice(&temp[..read]);
-        if buffer.len() > HTTP_MAX_REQUEST_BYTES {
+        if buffer.len() > max_request_bytes {
             return Err(Error::new(
                 ErrorKind::InvalidData,
-                format!("request exceeds {} bytes", HTTP_MAX_REQUEST_BYTES),
+                format!("request exceeds {max_request_bytes} bytes"),
             ));
         }
 
@@ -2162,6 +2490,12 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
                     .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid header utf-8: {err}")))?;
                 parsed_headers = parse_headers(header_text)?;
                 content_length = parse_content_length(&parsed_headers)?;
+                if content_length > max_request_bytes.saturating_sub(idx + 4) {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        format!("request exceeds {max_request_bytes} bytes"),
+                    ));
+                }
             }
         }
 
@@ -2202,6 +2536,7 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
         path,
         headers: parsed_headers,
         body,
+        cors_origin: None,
     })
 }
 
@@ -2247,13 +2582,48 @@ fn parse_content_length(headers: &HashMap<String, String>) -> std::io::Result<us
         .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid content-length: {err}")))
 }
 
-fn write_json<T: serde::Serialize>(stream: &mut TcpStream, status: &str, payload: &T) -> std::io::Result<()> {
+struct CorsResponseWriter<'a> {
+    stream: &'a mut TcpStream,
+    origin: Option<&'a str>,
+    wrote_headers: bool,
+}
+
+impl<'a> CorsResponseWriter<'a> {
+    fn new(stream: &'a mut TcpStream, origin: Option<&'a str>) -> Self {
+        Self {
+            stream,
+            origin,
+            wrote_headers: false,
+        }
+    }
+}
+
+impl Write for CorsResponseWriter<'_> {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        if !self.wrote_headers {
+            self.wrote_headers = true;
+            if let (Some(origin), Some(header_end)) = (self.origin, find_header_end(buffer)) {
+                self.stream.write_all(&buffer[..header_end])?;
+                write!(self.stream, "\r\nAccess-Control-Allow-Origin: {origin}\r\nVary: Origin")?;
+                self.stream.write_all(&buffer[header_end..])?;
+                return Ok(buffer.len());
+            }
+        }
+        self.stream.write(buffer)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.stream.flush()
+    }
+}
+
+fn write_json<T: serde::Serialize>(stream: &mut impl Write, status: &str, payload: &T) -> std::io::Result<()> {
     let body = serde_json::to_vec(payload)
         .map_err(|err| Error::new(ErrorKind::InvalidData, format!("failed to serialize json: {err}")))?;
     write_response(stream, status, "application/json; charset=utf-8", &body)
 }
 
-fn write_json_error(stream: &mut TcpStream, status: &str, message: &str) -> std::io::Result<()> {
+fn write_json_error(stream: &mut impl Write, status: &str, message: &str) -> std::io::Result<()> {
     write_json(stream, status, &serde_json::json!({ "error": message }))
 }
 
@@ -2277,7 +2647,7 @@ fn project_path_dto(load: project_host::ProjectLoadResult) -> ProjectPathDto {
 }
 
 fn write_project_load_error(
-    stream: &mut TcpStream,
+    stream: &mut impl Write,
     status: &str,
     operation: &str,
     error: &project_host::ProjectLoadError,
@@ -2294,12 +2664,11 @@ fn write_project_load_error(
     )
 }
 
-fn write_response(stream: &mut TcpStream, status: &str, content_type: &str, body: &[u8]) -> std::io::Result<()> {
+fn write_response(stream: &mut impl Write, status: &str, content_type: &str, body: &[u8]) -> std::io::Result<()> {
     let headers = format!(
         "HTTP/1.1 {status}\r\n\
          Content-Type: {content_type}\r\n\
          Content-Length: {}\r\n\
-         Access-Control-Allow-Origin: *\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
          Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance\r\n\
          Connection: close\r\n\r\n",
@@ -2324,3 +2693,7 @@ fn is_client_disconnect_error(err: &Error) -> bool {
             | ErrorKind::NotConnected
     )
 }
+
+#[cfg(test)]
+#[path = "ui_server_tests.rs"]
+mod tests;
