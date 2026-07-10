@@ -40,10 +40,16 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 name = "chataigne"
 version = "0.1.0"
 dependencies = [
+ "golden-alchemist",
+ "golden-condition",
  "golden-context",
  "golden-model",
  "golden-parameters",
+ "golden-processor",
+ "golden-statechart",
  "golden-values",
+ "smol_str",
+ "thiserror",
 ]
 
 [[package]]
@@ -102,6 +108,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden-condition"
+version = "0.1.0"
+dependencies = [
+ "golden-values",
+ "serde",
+ "smol_str",
+ "thiserror",
+]
+
+[[package]]
 name = "golden-context"
 version = "0.1.0"
 dependencies = [
@@ -144,12 +160,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden-processor"
+version = "0.1.0"
+dependencies = [
+ "golden-alchemist",
+ "golden-condition",
+ "golden-context",
+ "golden-model",
+ "golden-values",
+ "smol_str",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "golden-statechart"
 version = "0.1.0"
 dependencies = [
  "golden-graph",
  "golden-model",
+ "serde",
  "smol_str",
+ "thiserror",
 ]
 
 [[package]]

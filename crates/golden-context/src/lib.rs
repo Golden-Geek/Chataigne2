@@ -23,6 +23,44 @@ pub struct ContextAxis {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ContextLayerMode {
+    Replace,
+    Accumulate,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ContextLayer {
+    pub mode: ContextLayerMode,
+    pub axes: Vec<ContextAxis>,
+}
+
+pub fn compose_context_layers(layers: &[ContextLayer]) -> Vec<ContextAxis> {
+    let mut axes = Vec::<ContextAxis>::new();
+    for layer in layers {
+        for incoming in &layer.axes {
+            let Some(index) = axes.iter().position(|axis| axis.id == incoming.id) else {
+                axes.push(incoming.clone());
+                continue;
+            };
+            match layer.mode {
+                ContextLayerMode::Replace => axes[index] = incoming.clone(),
+                ContextLayerMode::Accumulate => {
+                    axes[index].label = incoming.label.clone();
+                    for item in &incoming.items {
+                        if let Some(existing) = axes[index].items.iter_mut().find(|existing| existing.id == item.id) {
+                            *existing = item.clone();
+                        } else {
+                            axes[index].items.push(item.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    axes
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ContextLimits {
     pub maximum_items_per_axis: usize,
     pub maximum_lanes: usize,

@@ -10,6 +10,7 @@ pub enum BuiltinOperation {
     AddFloat,
     MultiplyFloat,
     PassThrough,
+    ConditionGate,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,6 +54,7 @@ impl ANodeRegistry {
             ("add_float", BuiltinOperation::AddFloat),
             ("multiply_float", BuiltinOperation::MultiplyFloat),
             ("pass_through", BuiltinOperation::PassThrough),
+            ("condition_gate", BuiltinOperation::ConditionGate),
         ]
         .into_iter()
         .map(|(name, operation)| {

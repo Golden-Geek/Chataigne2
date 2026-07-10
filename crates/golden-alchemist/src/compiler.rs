@@ -50,6 +50,12 @@ pub enum CompiledOp {
         input: ValueSlot,
         output: ValueSlot,
     },
+    ConditionGate {
+        node: ExecNodeId,
+        condition: ValueSlot,
+        value: ValueSlot,
+        output: ValueSlot,
+    },
 }
 
 impl CompiledOp {
@@ -58,7 +64,8 @@ impl CompiledOp {
             Self::Constant { output, .. }
             | Self::AddFloat { output, .. }
             | Self::MultiplyFloat { output, .. }
-            | Self::PassThrough { output, .. } => *output,
+            | Self::PassThrough { output, .. }
+            | Self::ConditionGate { output, .. } => *output,
         }
     }
 
@@ -67,7 +74,8 @@ impl CompiledOp {
             Self::Constant { node, .. }
             | Self::AddFloat { node, .. }
             | Self::MultiplyFloat { node, .. }
-            | Self::PassThrough { node, .. } => *node,
+            | Self::PassThrough { node, .. }
+            | Self::ConditionGate { node, .. } => *node,
         }
     }
 }
@@ -261,6 +269,12 @@ fn compile_operation(
         BuiltinOperation::PassThrough => Ok(CompiledOp::PassThrough {
             node,
             input: input(0)?,
+            output: output(0)?,
+        }),
+        BuiltinOperation::ConditionGate => Ok(CompiledOp::ConditionGate {
+            node,
+            condition: input(0)?,
+            value: input(1)?,
             output: output(0)?,
         }),
     }

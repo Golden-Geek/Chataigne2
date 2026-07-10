@@ -3,10 +3,12 @@ members = [
     "apps/chataigne/backend",
     "crates/golden-codegen",
     "crates/golden-alchemist",
+    "crates/golden-condition",
     "crates/golden-context",
     "crates/golden-graph",
     "crates/golden-model",
     "crates/golden-parameters",
+    "crates/golden-processor",
     "crates/golden-statechart",
     "crates/golden-values",
 ]
@@ -25,8 +27,10 @@ golden-context = { path = "crates/golden-context" }
 golden-codegen = { path = "crates/golden-codegen" }
 golden-graph = { path = "crates/golden-graph" }
 golden-alchemist = { path = "crates/golden-alchemist" }
+golden-condition = { path = "crates/golden-condition" }
 golden-model = { path = "crates/golden-model" }
 golden-parameters = { path = "crates/golden-parameters" }
+golden-processor = { path = "crates/golden-processor" }
 golden-values = { path = "crates/golden-values" }
 golden-statechart = { path = "crates/golden-statechart" }
 serde = { version = "1", features = ["derive", "rc"] }

@@ -1,5 +1,47 @@
 use super::*;
 
+#[test]
+fn inherited_contexts_can_accumulate_or_replace_axes_explicitly() {
+    let axis_id = EntityId::new();
+    let first = ContextItem {
+        id: EntityId::new(),
+        label: "first".into(),
+        value: Value::Integer(1),
+    };
+    let second = ContextItem {
+        id: EntityId::new(),
+        label: "second".into(),
+        value: Value::Integer(2),
+    };
+    let layers = vec![
+        ContextLayer {
+            mode: ContextLayerMode::Replace,
+            axes: vec![ContextAxis {
+                id: axis_id,
+                label: "base".into(),
+                items: vec![first],
+            }],
+        },
+        ContextLayer {
+            mode: ContextLayerMode::Accumulate,
+            axes: vec![ContextAxis {
+                id: axis_id,
+                label: "inherited".into(),
+                items: vec![second],
+            }],
+        },
+    ];
+    let axes = compose_context_layers(&layers);
+    assert_eq!(axes.len(), 1);
+    assert_eq!(axes[0].items.len(), 2);
+    assert_eq!(
+        LaneLayout::compile(axes, ContextLimits::default())
+            .unwrap()
+            .lane_count(),
+        2
+    );
+}
+
 fn axis(label: &str, count: usize) -> ContextAxis {
     ContextAxis {
         id: EntityId::new(),

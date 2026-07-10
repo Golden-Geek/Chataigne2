@@ -11,3 +11,6 @@ export const statechartGraphUiDomain: GraphUiDomain<StatechartUiNode, "transitio
   nodeKind: (node) => `statechart-${node.kind}`,
   nodePorts: (node) => node.ports,
 };
+
+export * from "./statechart-store";
+export * from "./types";

@@ -1,5 +1,6 @@
 //! Alchemist formula authoring, compilation, catalogs, and dense evaluation.
 
+mod builder;
 mod catalog;
 mod codec;
 mod compiler;
@@ -8,6 +9,7 @@ mod formula;
 mod registry;
 mod runtime;
 
+pub use builder::{SingleNodeFormulaSpec, SingleNodeInputSpec, SingleNodeOutputSpec, build_single_node_formula};
 pub use catalog::{CatalogEntry, FormulaCatalog, FormulaCatalogError};
 pub use codec::{
     FORMULA_FILE_VERSION, FormulaCodecError, FormulaEdgeV1, FormulaFileV1, FormulaNodeV1, decode_formula,

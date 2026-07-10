@@ -1,15 +1,16 @@
 [package]
-name = "golden-statechart"
+name = "golden-processor"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-authors.workspace = true
 license.workspace = true
-repository.workspace = true
 
 [dependencies]
-golden-graph.workspace = true
+golden-alchemist.workspace = true
+golden-condition.workspace = true
+golden-context.workspace = true
 golden-model.workspace = true
-serde.workspace = true
+golden-values.workspace = true
 smol_str.workspace = true
 thiserror.workspace = true
+uuid.workspace = true

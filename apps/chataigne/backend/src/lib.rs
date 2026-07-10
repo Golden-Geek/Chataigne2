@@ -2,6 +2,10 @@
 
 use golden_model::{EntityId, Revision};
 
+mod composition;
+
+pub use composition::{ChataigneControlRuntime, CompositionError, CompositionStep};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ChataigneProjectIdentity {
     pub id: EntityId,

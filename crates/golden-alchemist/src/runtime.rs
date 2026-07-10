@@ -134,6 +134,7 @@ fn operation_is_dirty(operation: &CompiledOp, dirty: &[bool]) -> bool {
             dirty[left.0 as usize] || dirty[right.0 as usize]
         }
         CompiledOp::PassThrough { input, .. } => dirty[input.0 as usize],
+        CompiledOp::ConditionGate { condition, value, .. } => dirty[condition.0 as usize] || dirty[value.0 as usize],
     }
 }
 
@@ -147,6 +148,29 @@ fn evaluate_operation(operation: &CompiledOp, slots: &[Value]) -> Result<Value, 
             float(slots, *left)? * float(slots, *right)?,
         )?)),
         CompiledOp::PassThrough { input, .. } => Ok(slots[input.0 as usize].clone()),
+        CompiledOp::ConditionGate { condition, value, .. } => match slots.get(condition.0 as usize) {
+            Some(Value::Bool(true)) => Ok(slots[value.0 as usize].clone()),
+            Some(Value::Bool(false)) => Ok(default_for(
+                slots
+                    .get(value.0 as usize)
+                    .ok_or(FormulaRuntimeError::MissingSlot(*value))?,
+            )),
+            Some(actual) => Err(FormulaRuntimeError::TypeMismatch {
+                expected: "bool",
+                actual: actual.type_id(),
+            }),
+            None => Err(FormulaRuntimeError::MissingSlot(*condition)),
+        },
+    }
+}
+
+fn default_for(value: &Value) -> Value {
+    match value {
+        Value::Bool(_) => Value::Bool(false),
+        Value::Integer(_) => Value::Integer(0),
+        Value::Float(_) => Value::Float(FiniteF64::new(0.0).expect("zero is finite")),
+        Value::String(_) => Value::String(String::new()),
+        other => other.clone(),
     }
 }
 

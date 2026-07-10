@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "phase": 4,
+  "status": "passed",
+  "rust": {
+    "command": "cargo test --workspace --all-features",
+    "condition_ir_tests": 2,
+    "context_composition_tests": 1,
+    "processor_tests": 3,
+    "statechart_tests": 1,
+    "statechart_truth": "single_non_multiplexed_active_configuration",
+    "condition_execution": "compiled_postfix_program",
+    "processor_kernel_sharing": true,
+    "mapping_creation_paths": 1,
+    "built_in_formula_assets": ["Action", "Mapping"],
+    "condition_gate_anode": true
+  },
+  "ui": {
+    "command": "npm test",
+    "statechart_tests": 1,
+    "stable_active_state_set_identity": true,
+    "svelte_check_errors": 0,
+    "svelte_check_warnings": 0
+  },
+  "quality": {
+    "cargo_clippy_deny_warnings": "passed",
+    "workspace_dependency_check": "passed",
+    "architecture_contract": "passed"
+  }
+}

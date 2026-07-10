@@ -1118,6 +1118,8 @@ Exit:
 
 ### Phase 4 — Rebuild statechart, conditions, contexts, and processors
 
+Implementation status (2026-07-10): complete for the clean rewritten workspace on `rewrite/golden-architecture`. Statecharts and predicates compile to immutable runtime forms; contexts compose before bounded lane compilation; processor lanes share formula kernels; Action, Mapping, and ConditionGate are wired through public boundaries; the app shell composes state transitions with processors; and the Svelte statechart adapter uses keyed runtime deltas. Automated evidence is recorded in `benchmarks/phase4/control-foundation.v1.json`; ownership guidance lives in `docs/architecture/statechart-processors.md`.
+
 Deliver:
 
 - statechart model/runtime/UI on `golden-graph`;
