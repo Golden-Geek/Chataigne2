@@ -42,7 +42,7 @@ The release is ready to carry an “AAA-grade foundation” claim only when all 
 |---|---|---|
 | 0 | Complete (2026-07-10) | Truthful CI, exact toolchains, dependency triage, versioned benchmark manifest/baseline, direct trigger result prerequisite, and persistence-baseline correctness |
 | 1 | Complete (2026-07-10) | Checked, lazy, budgeted multiplex execution and incremental canonical reconciliation |
-| 2 | Complete (2026-07-10) | Open-network hardening and observability |
+| 2 | Complete; live-connectivity correction (2026-07-10) | Open-network hardening, observability, and real runtime connectivity gate |
 | 3 | Complete (2026-07-10) | ValueSet direct output and cache invalidation |
 | 4 | In progress | Incremental, deterministic, bounded events |
 | 5 | Pending | Revision- and visibility-driven graph UI |
@@ -157,8 +157,11 @@ Evidence:
 - Slow-client queues are bounded and degrade superseded event batches to an explicit resync marker. The 50-client soak test drives 1,000 batches per client and verifies every queue remains within capacity while dropped-message and resync metrics advance.
 - Read-only health, metrics, and connection-info endpoints expose the listening address, open-access policy, advertised name, connection counts, drops, resyncs, protocol errors, and effective limits. mDNS advertises the ready server, and structured connection logs include stable connection IDs and remote addresses.
 - The reusable app header displays an unobtrusive open-network indicator for non-loopback binding and offers copyable connection details and live queue/error metrics.
+- Live use after the initial Stage 2 Supercommit exposed a missing host-to-transport configuration edge: the Vite/native frontend origin (`http://127.0.0.1:5173`) was not copied into the runtime allowlist, and the network-status widget queried the frontend origin instead of the configured runtime. The desktop host now derives and allowlists the exact configured frontend origin before server startup; `GC_UI_ALLOWED_ORIGINS` adds explicit expert overrides; and the widget consumes the active workbench session's HTTP base URL.
+- `tools/check-runtime-connectivity.ps1` launches the actual application host on an isolated port and requires browser-style CORS preflight, snapshot, metrics, connection-info, and a WebSocket handshake with the real dev origin to succeed. The corrective run passed `204/200/200/200/Open`.
+- HTTP fallback activation is now edge-triggered across all subscriptions. A failed socket/reconnect episode produces one UI/logger warning instead of continuously appending the same warning and degrading interface responsiveness.
 - Tauri now disables its global API and uses a restrictive application CSP with explicit local HTTP/WebSocket transport endpoints.
-- `golden_core` workspace tests pass, including all 13 transport tests; the root workspace passes 379 app tests and 77 state-machine tests (two explicitly ignored); Svelte check and lint report zero findings; and the production UI build succeeds. The repository-wide strict-clippy debt recorded in Stage 0 remains unchanged and separately gated by its exact baseline.
+- `golden_core` workspace tests pass, including all 14 transport tests and five desktop-host tests; the root workspace passes 379 app tests and 79 active state-machine tests; Svelte check and lint report zero findings; and the production UI build succeeds. The repository-wide strict-clippy debt recorded in Stage 0 remains unchanged and separately gated by its exact baseline.
 
 #### Product policy: Open Studio Network
 
