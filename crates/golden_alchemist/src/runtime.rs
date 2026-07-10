@@ -358,6 +358,8 @@ impl OutputPreviewHistory {
 pub struct RuntimeOutput {
     pub intents: Vec<RuntimeIntent>,
     pub diagnostics: Vec<RuntimeDiagnostic>,
+    /// Functional trigger result, independent from optional debug capture.
+    pub trigger_fired: bool,
     pub debug_samples: Vec<DebugValueSample>,
 }
 
@@ -828,6 +830,9 @@ pub fn evaluate_compiled_graph(
         );
         match result {
             Ok(values) if values.len() == node.outputs.len() => {
+                output.trigger_fired |= values
+                    .iter()
+                    .any(|value| matches!(value, RuntimeValue::Trigger(trigger) if trigger.fired));
                 let output_values = values.clone();
                 for (output_index, (slot, value)) in node.outputs.iter().zip(values).enumerate() {
                     let previous_value = memory.values.get(slot.index());
