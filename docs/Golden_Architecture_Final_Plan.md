@@ -1067,6 +1067,16 @@ Exit:
 
 ### Phase 2 — Build `golden-graph` and `golden-graph-ui`
 
+> **Implementation status (2026-07-10): complete.** `golden-graph` owns typed domain
+> contracts, stable graph identities, indexed topology, rollback-backed atomic transactions,
+> revisions, precise changes, validation, deterministic traversal/SCC utilities, presentation,
+> and a domain-adapted protocol envelope. Alchemist and statechart crates prove two independent
+> real domains on the same foundation. `golden-graph-ui` owns stable revision-partitioned maps,
+> comments/groups, a grid spatial index, visible/hit-test queries, domain adapters, and an
+> accessible Svelte 5 canvas shell. Tests prove zero existing-payload clones for a one-node edit
+> in a 10,000-node graph, stable untouched UI record identity, and viewport work bounded to
+> nearby cells. CI enforces the Rust and JavaScript dependency boundaries.
+
 Deliver:
 
 - typed graph-domain contract;

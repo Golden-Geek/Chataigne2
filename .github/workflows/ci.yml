@@ -37,6 +37,8 @@ jobs:
         run: cargo test --workspace --all-features
       - name: JavaScript type check
         run: npm run check
+      - name: JavaScript tests
+        run: npm test
       - name: JavaScript build gate
         run: npm run build
       - name: Production JavaScript dependency audit

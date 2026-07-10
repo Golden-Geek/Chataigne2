@@ -1,0 +1,13 @@
+[package]
+name = "golden-statechart"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+golden-graph.workspace = true
+golden-model.workspace = true
+smol_str.workspace = true

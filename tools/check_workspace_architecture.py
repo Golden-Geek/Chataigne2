@@ -71,6 +71,35 @@ def verify_javascript_workspace() -> None:
     if missing:
         fail(f"root JavaScript lock is missing workspace packages: {sorted(missing)}")
 
+    manifests = {
+        path: json.loads((ROOT / path / "package.json").read_text(encoding="utf-8"))
+        for path in expected
+    }
+    package_layers = {
+        "@golden/alchemist-ui": "golden-alchemist-ui",
+        "@golden/chataigne-ui": "apps/chataigne",
+        "@golden/graph-ui": "golden-graph-ui",
+        "@golden/runtime-client": "golden-runtime-client",
+        "@golden/statechart-ui": "golden-statechart-ui",
+        "@golden/ui": "golden-ui",
+    }
+    rules = json.loads(
+        (ROOT / "docs" / "architecture" / "dependency-rules.v1.json").read_text(encoding="utf-8")
+    )
+    forbidden = {rule["layer"]: set(rule["imports"]) for rule in rules["forbidden"]}
+    for path, manifest in manifests.items():
+        source = package_layers[manifest["name"]]
+        dependencies = {
+            **manifest.get("dependencies", {}),
+            **manifest.get("peerDependencies", {}),
+        }
+        for name, requirement in dependencies.items():
+            if "legacy" in requirement:
+                fail(f"{source} depends on legacy source through {name}: {requirement}")
+            target = package_layers.get(name)
+            if target in forbidden.get(source, set()):
+                fail(f"{source} has forbidden package dependency {target}")
+
 
 def main() -> None:
     verify_no_submodules()

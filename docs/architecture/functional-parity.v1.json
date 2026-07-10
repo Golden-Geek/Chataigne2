@@ -7,7 +7,7 @@
     { "id": "project.document", "final_owner": "golden-model + apps/chataigne", "evidence": "pending" },
     { "id": "project.parameters", "final_owner": "golden-values + golden-parameters", "evidence": "pending" },
     { "id": "project.contexts", "final_owner": "golden-context", "evidence": "pending" },
-    { "id": "graph.authoring", "final_owner": "golden-graph + golden-graph-ui", "evidence": "pending" },
+    { "id": "graph.authoring", "final_owner": "golden-graph + golden-graph-ui", "evidence": "automated", "evidence_path": "crates/golden-graph/src/tests.rs" },
     { "id": "formula.compile_and_run", "final_owner": "golden-alchemist", "evidence": "pending" },
     { "id": "formula.editor", "final_owner": "golden-alchemist-ui", "evidence": "pending" },
     { "id": "statechart.authoring_and_runtime", "final_owner": "golden-statechart + golden-statechart-ui", "evidence": "pending" },

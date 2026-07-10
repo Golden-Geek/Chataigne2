@@ -7,5 +7,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["apps/**/*.ts", "packages/**/*.ts"]
+  "include": ["apps/**/*.ts", "packages/**/*.ts", "packages/**/*.svelte"]
 }

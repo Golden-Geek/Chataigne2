@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "phase": 2,
+  "status": "passed",
+  "rust": {
+    "command": "cargo test --workspace --all-features",
+    "graph_tests": 8,
+    "characterized_domains": ["test", "alchemist", "statechart"],
+    "large_graph_nodes": 10000,
+    "one_node_replacement_payload_clones": 0,
+    "properties": [
+      "atomic rollback",
+      "precise changes",
+      "topology index consistency",
+      "stable topological order",
+      "strongly connected components",
+      "presentation rollback",
+      "deterministic mutation sequence"
+    ]
+  },
+  "ui": {
+    "command": "npm test",
+    "tests": 4,
+    "spatial_fixture_nodes": 10000,
+    "maximum_visible_results_for_200_by_200_query": 9,
+    "stable_map_identity_on_single_node_change": true,
+    "untouched_record_identity_preserved": true
+  },
+  "quality": {
+    "cargo_clippy_deny_warnings": "passed",
+    "svelte_check_errors": 0,
+    "svelte_check_warnings": 0,
+    "workspace_dependency_check": "passed"
+  }
+}

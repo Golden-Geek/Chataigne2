@@ -82,6 +82,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden-alchemist"
+version = "0.1.0"
+dependencies = [
+ "golden-graph",
+ "golden-model",
+ "golden-values",
+ "smol_str",
+]
+
+[[package]]
 name = "golden-codegen"
 version = "0.1.0"
 dependencies = [
@@ -97,6 +107,18 @@ dependencies = [
  "serde",
  "smol_str",
  "thiserror",
+]
+
+[[package]]
+name = "golden-graph"
+version = "0.1.0"
+dependencies = [
+ "golden-model",
+ "serde",
+ "serde_json",
+ "smol_str",
+ "thiserror",
+ "uuid",
 ]
 
 [[package]]
@@ -116,6 +138,15 @@ dependencies = [
  "serde",
  "smol_str",
  "thiserror",
+]
+
+[[package]]
+name = "golden-statechart"
+version = "0.1.0"
+dependencies = [
+ "golden-graph",
+ "golden-model",
+ "smol_str",
 ]
 
 [[package]]

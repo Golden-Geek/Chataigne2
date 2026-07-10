@@ -1,2 +1,13 @@
-export { GOLDEN_GRAPH_UI_BOUNDARY } from "@golden/graph-ui";
-export const GOLDEN_ALCHEMIST_UI_BOUNDARY = "golden-alchemist-ui" as const;
+import type { GraphPortView, GraphUiDomain } from "@golden/graph-ui";
+
+export interface AlchemistUiNode {
+  operation: string;
+  inputs: readonly GraphPortView<string>[];
+  outputs: readonly GraphPortView<string>[];
+}
+
+export const alchemistGraphUiDomain: GraphUiDomain<AlchemistUiNode, string> = {
+  nodeLabel: (node) => node.operation,
+  nodeKind: () => "alchemist-operation",
+  nodePorts: (node) => [...node.inputs, ...node.outputs],
+};

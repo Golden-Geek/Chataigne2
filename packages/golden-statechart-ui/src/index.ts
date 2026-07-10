@@ -1,2 +1,13 @@
-export { GOLDEN_GRAPH_UI_BOUNDARY } from "@golden/graph-ui";
-export const GOLDEN_STATECHART_UI_BOUNDARY = "golden-statechart-ui" as const;
+import type { GraphPortView, GraphUiDomain } from "@golden/graph-ui";
+
+export interface StatechartUiNode {
+  label: string;
+  kind: "initial" | "atomic" | "compound" | "final";
+  ports: readonly GraphPortView<"transition">[];
+}
+
+export const statechartGraphUiDomain: GraphUiDomain<StatechartUiNode, "transition"> = {
+  nodeLabel: (node) => node.label,
+  nodeKind: (node) => `statechart-${node.kind}`,
+  nodePorts: (node) => node.ports,
+};
