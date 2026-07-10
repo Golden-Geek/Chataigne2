@@ -44,7 +44,7 @@ The release is ready to carry an “AAA-grade foundation” claim only when all 
 | 1 | Complete (2026-07-10) | Checked, lazy, budgeted multiplex execution and incremental canonical reconciliation |
 | 2 | Complete; live-connectivity correction (2026-07-10) | Open-network hardening, observability, and real runtime connectivity gate |
 | 3 | Complete (2026-07-10) | ValueSet direct output and cache invalidation |
-| 4 | In progress | Incremental, deterministic, bounded events |
+| 4 | Pending (next discussion) | Incremental, deterministic, bounded events |
 | 5 | Pending | Revision- and visibility-driven graph UI |
 | 6 | Pending | Bounded Spatializer geometry |
 | 7 | Pending | Canonical boundaries and deduplication |
@@ -160,6 +160,7 @@ Evidence:
 - Live use after the initial Stage 2 Supercommit exposed a missing host-to-transport configuration edge: the Vite/native frontend origin (`http://127.0.0.1:5173`) was not copied into the runtime allowlist, and the network-status widget queried the frontend origin instead of the configured runtime. The desktop host now derives and allowlists the exact configured frontend origin before server startup; `GC_UI_ALLOWED_ORIGINS` adds explicit expert overrides; and the widget consumes the active workbench session's HTTP base URL.
 - `tools/check-runtime-connectivity.ps1` launches the actual application host on an isolated port and requires browser-style CORS preflight, snapshot, metrics, connection-info, and a WebSocket protocol hello exchange with the real dev origin to succeed. An initial Open-only check exposed its own blind spot in live use: the first outbound frame created a Tokio timeout outside the connection runtime and panicked after the HTTP upgrade. Timeout futures are now constructed inside the runtime context, and the strengthened corrective run passes `204/200/200/200/Open+Hello`.
 - HTTP fallback activation is now edge-triggered across all subscriptions. A failed socket/reconnect episode produces one UI/logger warning instead of continuously appending the same warning and degrading interface responsiveness.
+- The header status poll now obtains connection details and transport metrics in one request instead of opening two short HTTP connections every two seconds. Routine successful HTTP connection open/close messages are no longer logged; connection IDs and remote addresses remain on failures and WebSocket lifecycle logs.
 - Tauri now disables its global API and uses a restrictive application CSP with explicit local HTTP/WebSocket transport endpoints.
 - `golden_core` workspace tests pass, including all 14 transport tests and five desktop-host tests; the root workspace passes 379 app tests and 79 active state-machine tests; Svelte check and lint report zero findings; and the production UI build succeeds. The repository-wide strict-clippy debt recorded in Stage 0 remains unchanged and separately gated by its exact baseline.
 
