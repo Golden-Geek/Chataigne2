@@ -88,7 +88,10 @@ dependencies = [
  "golden-graph",
  "golden-model",
  "golden-values",
+ "serde",
+ "serde_json",
  "smol_str",
+ "thiserror",
 ]
 
 [[package]]

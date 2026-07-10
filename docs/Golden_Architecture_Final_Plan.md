@@ -1096,6 +1096,8 @@ Exit:
 
 ### Phase 3 — Rebuild Alchemist on `golden-graph`
 
+Implementation status (2026-07-10): complete on `rewrite/golden-architecture`. Formula authoring, v1 file conversion, compilation, shared immutable kernels, dense dirty-slot evaluation, opt-in observation, batching, catalog protection, and the composed Svelte editor/store are implemented. Automated evidence is recorded in `benchmarks/phase3/alchemist-foundation.v1.json`; ownership guidance lives in `docs/architecture/alchemist.md`.
+
 Deliver:
 
 - `AlchemistGraphDomain`;

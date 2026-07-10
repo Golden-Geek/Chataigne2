@@ -5,7 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./GraphCanvas.svelte": "./src/GraphCanvas.svelte"
+    "./GraphCanvas.svelte": {
+      "types": "./src/GraphCanvas.svelte.d.ts",
+      "svelte": "./src/GraphCanvas.svelte",
+      "default": "./src/GraphCanvas.svelte"
+    }
   },
   "peerDependencies": {
     "svelte": "^5.0.0"

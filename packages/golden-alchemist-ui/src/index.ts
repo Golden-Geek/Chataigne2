@@ -11,3 +11,6 @@ export const alchemistGraphUiDomain: GraphUiDomain<AlchemistUiNode, string> = {
   nodeKind: () => "alchemist-operation",
   nodePorts: (node) => [...node.inputs, ...node.outputs],
 };
+
+export * from "./formula-store";
+export * from "./types";

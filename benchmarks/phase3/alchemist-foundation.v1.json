@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "phase": 3,
+  "status": "passed",
+  "rust": {
+    "command": "cargo test -p golden-alchemist",
+    "tests": 5,
+    "compiled_representation": "dense_value_slots_and_ordered_operations",
+    "kernel_cache_key": ["formula_id", "graph_revision", "registry_revision"],
+    "identical_formula_compilations": 1,
+    "unchanged_pure_evaluation_operations": 0,
+    "observation_default": "disabled",
+    "batch_evaluation": true,
+    "formula_file_version": 1
+  },
+  "ui": {
+    "command": "npm test",
+    "alchemist_tests": 2,
+    "stable_keyed_collection_identity": true,
+    "isolated_catalog_surface_output_revisions": true,
+    "svelte_check_errors": 0,
+    "svelte_check_warnings": 0
+  },
+  "quality": {
+    "cargo_clippy_deny_warnings": "passed",
+    "workspace_dependency_check": "passed"
+  }
+}
