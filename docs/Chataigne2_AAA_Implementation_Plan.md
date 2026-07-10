@@ -42,8 +42,8 @@ The release is ready to carry an “AAA-grade foundation” claim only when all 
 |---|---|---|
 | 0 | Complete (2026-07-10) | Truthful CI, exact toolchains, dependency triage, versioned benchmark manifest/baseline, direct trigger result prerequisite, and persistence-baseline correctness |
 | 1 | Complete (2026-07-10) | Checked, lazy, budgeted multiplex execution and incremental canonical reconciliation |
-| 2 | In progress | Open-network hardening and observability |
-| 3 | Pending | ValueSet direct output and cache invalidation |
+| 2 | Complete (2026-07-10) | Open-network hardening and observability |
+| 3 | In progress | ValueSet direct output and cache invalidation |
 | 4 | Pending | Incremental, deterministic, bounded events |
 | 5 | Pending | Revision- and visibility-driven graph UI |
 | 6 | Pending | Bounded Spatializer geometry |
@@ -146,6 +146,19 @@ This is the highest-priority runtime issue. Current multiplex context generation
 - Duplicate resize algorithms are removed.
 
 ### Stage 2 — Keep open networking, harden it invisibly
+
+**Status: Complete (2026-07-10).**
+
+Evidence:
+
+- Open access remains the product policy. Native and script clients without an `Origin` header are accepted, while browser traffic is restricted to same-origin or explicitly configured origins and wildcard CORS has been removed.
+- Host validation accepts the actual listening address, loopback aliases, configured hostnames, and the advertised mDNS name while rejecting DNS-rebinding hosts. Focused tests cover native, same-origin, allowlisted, foreign-origin, and rebound-host requests.
+- The transport now has configurable limits for concurrent connections, HTTP requests, WebSocket messages, intent batches, subscriptions, message rate, identifiers, JSON depth and strings, paths, per-client outbound queues, and the shared hub-command queue. Handshakes and writes have explicit timeouts.
+- Slow-client queues are bounded and degrade superseded event batches to an explicit resync marker. The 50-client soak test drives 1,000 batches per client and verifies every queue remains within capacity while dropped-message and resync metrics advance.
+- Read-only health, metrics, and connection-info endpoints expose the listening address, open-access policy, advertised name, connection counts, drops, resyncs, protocol errors, and effective limits. mDNS advertises the ready server, and structured connection logs include stable connection IDs and remote addresses.
+- The reusable app header displays an unobtrusive open-network indicator for non-loopback binding and offers copyable connection details and live queue/error metrics.
+- Tauri now disables its global API and uses a restrictive application CSP with explicit local HTTP/WebSocket transport endpoints.
+- `golden_core` workspace tests pass, including all 13 transport tests; the root workspace passes 379 app tests and 77 state-machine tests (two explicitly ignored); Svelte check and lint report zero findings; and the production UI build succeeds. The repository-wide strict-clippy debt recorded in Stage 0 remains unchanged and separately gated by its exact baseline.
 
 #### Product policy: Open Studio Network
 
