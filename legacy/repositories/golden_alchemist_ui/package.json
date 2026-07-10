@@ -1,0 +1,16 @@
+{
+	"name": "golden_alchemist_ui",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"svelte": "./index.ts",
+	"types": "./index.ts",
+	"exports": {
+		".": "./index.ts",
+		"./components/*": "./components/*",
+		"./types": "./types.ts"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	}
+}
