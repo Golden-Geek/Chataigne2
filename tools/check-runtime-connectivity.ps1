@@ -101,9 +101,39 @@ try {
         throw "WebSocket handshake failed: state=$($socket.State)"
     }
 
+    $helloBytes = [System.Text.Encoding]::UTF8.GetBytes(
+        '{"kind":"hello","protocol_version":"0.1.0","client_instance_id":"runtime-connectivity-check"}'
+    )
+    $helloSegment = [System.ArraySegment[byte]]::new($helloBytes)
+    $sendTask = $socket.SendAsync(
+        $helloSegment,
+        [System.Net.WebSockets.WebSocketMessageType]::Text,
+        $true,
+        [Threading.CancellationToken]::None
+    )
+    $null = $sendTask.GetAwaiter().GetResult()
+
+    $receiveBuffer = [byte[]]::new(4096)
+    $receiveSegment = [System.ArraySegment[byte]]::new($receiveBuffer)
+    $receiveTimeout = [Threading.CancellationTokenSource]::new()
+    $receiveTimeout.CancelAfter(5000)
+    $receiveTask = $socket.ReceiveAsync($receiveSegment, $receiveTimeout.Token)
+    $received = $receiveTask.GetAwaiter().GetResult()
+    if ($received.MessageType -ne [System.Net.WebSockets.WebSocketMessageType]::Text) {
+        throw "Expected WebSocket hello text frame, got $($received.MessageType)"
+    }
+    $serverHello = [System.Text.Encoding]::UTF8.GetString(
+        $receiveBuffer,
+        0,
+        $received.Count
+    )
+    if ($serverHello -notmatch '"kind"\s*:\s*"hello"') {
+        throw "Expected server hello frame, got: $serverHello"
+    }
+
     Write-Output (
         "Runtime connectivity passed: preflight=204, snapshot=200, metrics=200, " +
-        "connection-info=200, websocket=Open"
+        "connection-info=200, websocket=Open+Hello"
     )
 
     $socket.Dispose()
