@@ -121,9 +121,9 @@ impl MouseInputRuntime {
     pub(crate) fn create(config: MouseInputConfig) -> Result<Self, String> {
         #[cfg(windows)]
         {
-            return WindowsMouseInputRuntime::create(config).map(|runtime| Self {
+            WindowsMouseInputRuntime::create(config).map(|runtime| Self {
                 inner: MouseInputRuntimeInner::Windows(runtime),
-            });
+            })
         }
 
         #[cfg(not(windows))]

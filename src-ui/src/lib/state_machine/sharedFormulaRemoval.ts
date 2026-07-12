@@ -31,7 +31,10 @@ const collectSharedFormulas = (
 ): void => {
 	if (seen.has(node.node_id)) return;
 	seen.add(node.node_id);
-	if (node.node_type === FORMULA_NODE_TYPE && formulaSourceKind(node, request.graph.nodesById) === 'shared') {
+	if (
+		node.node_type === FORMULA_NODE_TYPE &&
+		formulaSourceKind(node, request.graph.nodesById) === 'shared'
+	) {
 		collected.push(node);
 	}
 	for (const childId of node.children) {
@@ -72,8 +75,7 @@ export const registerSharedFormulaRemovalGuard = (): void => {
 		if (sharedFormulas.length === 0) return true;
 
 		const confirmed = await requestConfirmation({
-			title:
-				sharedFormulas.length === 1 ? 'Remove shared formula?' : 'Remove shared formulas?',
+			title: sharedFormulas.length === 1 ? 'Remove shared formula?' : 'Remove shared formulas?',
 			message:
 				sharedFormulas.length === 1
 					? 'this will remove the shared formula in the explorer'

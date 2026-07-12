@@ -80,9 +80,9 @@ fn module_command_auto_triggered(
     if !node_is_descendant_of(snapshot, changed_param, command_id) {
         return false;
     }
-    if !snapshot
+    if snapshot
         .node(changed_param)
-        .is_some_and(|node| node.param_value.is_some())
+        .is_none_or(|node| node.param_value.is_none())
     {
         return false;
     }
@@ -360,11 +360,11 @@ pub struct ModuleCommandTester {
 
 impl ModuleCommandTester {
     pub fn create(available_command_types: &'static [&'static str]) -> Self {
-        Self::create_with_available_command_types(Some(command_type_names(available_command_types)))
+        Self::create_owned(command_type_names(available_command_types))
     }
 
-    pub fn create_empty() -> Self {
-        Self::create_with_available_command_types(Some(Vec::new()))
+    pub fn create_owned(available_command_types: Vec<String>) -> Self {
+        Self::create_with_available_command_types(Some(available_command_types))
     }
 
     fn create_for_project_decode() -> Self {

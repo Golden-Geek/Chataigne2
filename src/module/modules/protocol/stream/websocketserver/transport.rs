@@ -13,7 +13,7 @@ use tokio::time::timeout;
 use tokio_tungstenite::{
     accept_hdr_async_with_config,
     tungstenite::{
-        handshake::server::{ErrorResponse, Request, Response},
+        handshake::server::{Callback, ErrorResponse, Request, Response},
         http::{Response as HttpResponse, StatusCode},
         protocol::Message,
     },
@@ -27,6 +27,30 @@ const WEBSOCKET_SERVER_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(3);
 const WEBSOCKET_SERVER_POLL_INTERVAL: Duration = Duration::from_millis(5);
 
 type ServerWebSocketStream = WebSocketStream<tokio::net::TcpStream>;
+
+struct PathValidatingCallback<'a> {
+    expected_path: &'a str,
+    request_path: &'a mut Option<String>,
+}
+
+impl Callback for PathValidatingCallback<'_> {
+    fn on_request(
+        self,
+        request: &Request,
+        response: Response,
+    ) -> Result<Response, ErrorResponse> {
+        let path = request.uri().path().to_string();
+        if !self.expected_path.is_empty() && path != self.expected_path {
+            return Err(websocket_rejection_response(
+                StatusCode::NOT_FOUND,
+                "websocket path not found",
+            ));
+        }
+
+        *self.request_path = Some(path);
+        Ok(response)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct WebSocketServerTransportConfig {
@@ -246,17 +270,9 @@ fn accept_new_clients(
                 }
 
                 let mut request_path = None::<String>;
-                let callback = |request: &Request, response: Response| {
-                    let path = request.uri().path().to_string();
-                    if !expected_path.is_empty() && path != expected_path {
-                        return Err(websocket_rejection_response(
-                            StatusCode::NOT_FOUND,
-                            "websocket path not found",
-                        ));
-                    }
-
-                    request_path = Some(path);
-                    Ok(response)
+                let callback = PathValidatingCallback {
+                    expected_path,
+                    request_path: &mut request_path,
                 };
 
                 match runtime.block_on(async {

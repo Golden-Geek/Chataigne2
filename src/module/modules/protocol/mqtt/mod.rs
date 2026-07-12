@@ -482,10 +482,7 @@ impl MqttModule {
         method: &str,
         args: &[ParamValue],
     ) -> Option<Result<(), String>> {
-        let request = match mqtt_publish_request_from_script(method, args) {
-            Some(result) => result,
-            None => return None,
-        };
+        let request = mqtt_publish_request_from_script(method, args)?;
 
         Some(request.and_then(|request| self.queue_publish_request(ctx, request).map(|_| ())))
     }
@@ -981,14 +978,14 @@ fn mqtt_publish_request_from_script(method: &str, args: &[ParamValue]) -> Option
 
 fn script_qos_arg(value: Option<&ParamValue>) -> Result<MqttQos, String> {
     let Some(value) = value else {
-        return Ok(MqttQos::AtMostOnce);
+        return Ok(MqttQos::AtMost);
     };
 
     if let Some(value) = value.as_int() {
         return match value {
-            0 => Ok(MqttQos::AtMostOnce),
-            1 => Ok(MqttQos::AtLeastOnce),
-            2 => Ok(MqttQos::ExactlyOnce),
+            0 => Ok(MqttQos::AtMost),
+            1 => Ok(MqttQos::AtLeast),
+            2 => Ok(MqttQos::Exactly),
             _ => Err(format!("MQTT QoS integer must be 0, 1, or 2, got {value}")),
         };
     }

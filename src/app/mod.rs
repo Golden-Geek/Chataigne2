@@ -23,6 +23,10 @@ const APP_UI_DEV_SERVER: golden_core::app::FrontendDevServerConfig = golden_core
 };
 
 pub fn run() -> std::io::Result<()> {
+    if crate::product_evidence::try_run_from_env()? {
+        return Ok(());
+    }
+
     golden_core::app::run_default_with_ui_assets_and_dev_server::<AppNode, tauri::Wry>(
         tauri::generate_context!(),
         APP_UI_ASSETS,

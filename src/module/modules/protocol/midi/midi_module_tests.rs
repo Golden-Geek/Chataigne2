@@ -359,7 +359,7 @@ fn incoming_system_messages_populate_mtc_and_midi_clock_folders() {
     assert_float_param(
         &engine,
         find_path(&engine, module_id, "values/mtc/time").expect("MTC time should exist"),
-        5025.333_333_333_333,
+        5_025.333_333_333_333,
         1e-6,
     );
     assert_eq!(

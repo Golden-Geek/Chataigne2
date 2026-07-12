@@ -247,7 +247,7 @@ fn existing_command_updates_watched_app_enum_after_inbox_dispatch_without_period
         parent: command_tester_id,
         prev_sibling: None,
         node: crate::app::create_declared_user_item(
-            super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
+            crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
             crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
         )
         .expect("launch command should be creatable as a declared module command"),
@@ -331,7 +331,7 @@ fn command_added_after_watched_app_populates_enum_without_waiting_for_tick() {
         parent: command_tester_id,
         prev_sibling: None,
         node: crate::app::create_declared_user_item(
-            super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
+            crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
             crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
         )
         .expect("launch command should be creatable as a declared module command"),
@@ -364,7 +364,7 @@ fn watched_app_added_after_command_populates_enum_via_ui_edit_flow() {
         find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     let command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: command_tester_id,
-        node_type: super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
+        node_type: crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
         label: None,
         initial_params: Vec::new(),
     });
@@ -445,7 +445,7 @@ fn watched_app_target_change_preserves_missing_command_selection_with_warning() 
         find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     let create_command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: command_tester_id,
-        node_type: super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
+        node_type: crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
         label: None,
         initial_params: Vec::new(),
     });
@@ -475,7 +475,11 @@ fn watched_app_target_change_preserves_missing_command_selection_with_warning() 
     assert_eq!(variants, vec!["Chataigne".to_string(), "SuperApp".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
     assert_eq!(
-        warning_message(&engine, command_id, super::commands::MISSING_WATCHED_APP_WARNING_ID),
+        warning_message(
+            &engine,
+            command_id,
+            crate::app::module::common::app_control::MISSING_WATCHED_APP_WARNING_ID,
+        ),
         Some("Missing app: Chataigne".to_string())
     );
 }
@@ -509,7 +513,7 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
         find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     let create_command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: command_tester_id,
-        node_type: super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
+        node_type: crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
         label: None,
         initial_params: Vec::new(),
     });
@@ -535,7 +539,11 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
     assert_eq!(missing_variants, vec!["Chataigne".to_string()]);
     assert_eq!(missing_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
     assert_eq!(
-        warning_message(&engine, command_id, super::commands::MISSING_WATCHED_APP_WARNING_ID),
+        warning_message(
+            &engine,
+            command_id,
+            crate::app::module::common::app_control::MISSING_WATCHED_APP_WARNING_ID,
+        ),
         Some("Missing app: Chataigne".to_string())
     );
 
@@ -569,7 +577,14 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
         .collect::<Vec<_>>();
     assert_eq!(restored_variants, vec!["Chataigne".to_string()]);
     assert_eq!(restored_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
-    assert_eq!(warning_message(&engine, command_id, super::commands::MISSING_WATCHED_APP_WARNING_ID), None);
+    assert_eq!(
+        warning_message(
+            &engine,
+            command_id,
+            crate::app::module::common::app_control::MISSING_WATCHED_APP_WARNING_ID,
+        ),
+        None
+    );
 }
 
 #[test]
@@ -632,9 +647,18 @@ fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
         param_snapshot(&engine, values_folder_id, "running").map(|snapshot| snapshot.value),
         Some(ParamValue::Bool(false))
     );
+    let running_toggle_errors = golden_core::logger::records()
+        .into_iter()
+        .filter(|record| {
+            record.origin == Some(module_id)
+                && record
+                    .message
+                    .starts_with("Failed to apply App Control running toggle")
+        })
+        .collect::<Vec<_>>();
     assert!(
-        golden_core::logger::records().is_empty(),
-        "periodic running reconciliation should not emit launch/kill errors without a user toggle callback"
+        running_toggle_errors.is_empty(),
+        "periodic running reconciliation should not emit launch/kill errors without a user toggle callback: {running_toggle_errors:?}"
     );
 }
 
@@ -675,7 +699,7 @@ fn launch_command_watched_app_param_tracks_available_watched_apps() {
         parent: command_tester_id,
         prev_sibling: None,
         node: crate::app::create_declared_user_item(
-            super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
+            crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
             crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
         )
         .expect("launch command should be creatable as a declared module command"),
@@ -712,7 +736,7 @@ fn existing_launch_command_updates_watched_app_enum_when_app_is_added() {
         parent: command_tester_id,
         prev_sibling: None,
         node: crate::app::create_declared_user_item(
-            super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
+            crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
             crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
         )
         .expect("launch command should be creatable as a declared module command"),

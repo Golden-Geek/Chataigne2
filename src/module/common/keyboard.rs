@@ -848,6 +848,5 @@ fn normalize_key_identifier(value: &str) -> String {
     value
         .trim()
         .to_ascii_lowercase()
-        .replace(' ', "_")
-        .replace('-', "_")
+        .replace([' ', '-'], "_")
 }

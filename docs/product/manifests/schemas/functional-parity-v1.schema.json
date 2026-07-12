@@ -1,0 +1,295 @@
+{
+  "$id": "functional-parity-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "generated_by": {
+      "type": "object"
+    },
+    "manifest_kind": {
+      "enum": [
+        "functional_parity"
+      ],
+      "type": "string"
+    },
+    "rows": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "approval": {
+            "enum": [
+              "not_requested"
+            ],
+            "type": "string"
+          },
+          "baseline_sources": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "line": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "line"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "capability_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "discovered_facts": {
+            "properties": {
+              "discovery_is_behavioral_proof": {
+                "enum": [
+                  false
+                ],
+                "type": "boolean"
+              },
+              "inventory_kind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "inventory_name": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "inventory_kind",
+              "inventory_name",
+              "discovery_is_behavioral_proof"
+            ],
+            "type": "object"
+          },
+          "evidence": {
+            "additionalProperties": false,
+            "properties": {
+              "artifact_id": {
+                "type": "null"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "unassigned"
+                ],
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "pending"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "status",
+              "kind",
+              "artifact_id"
+            ],
+            "type": "object"
+          },
+          "final_owner": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "null"
+              },
+              "status": {
+                "enum": [
+                  "pending"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "path"
+            ],
+            "type": "object"
+          },
+          "last_passing_result": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "manual_evidence": {
+            "additionalProperties": false,
+            "properties": {
+              "required": {
+                "type": "null"
+              },
+              "status": {
+                "enum": [
+                  "pending"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "required",
+              "status"
+            ],
+            "type": "object"
+          },
+          "migration_state": {
+            "enum": [
+              "baseline"
+            ],
+            "type": "string"
+          },
+          "product_area": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "runtime_semantics": {
+            "additionalProperties": false,
+            "properties": {
+              "errors": {
+                "type": "null"
+              },
+              "inputs": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 0,
+                "type": "array"
+              },
+              "ordering": {
+                "type": "null"
+              },
+              "outputs": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 0,
+                "type": "array"
+              },
+              "placeholder": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "recovery": {
+                "type": "null"
+              },
+              "state": {
+                "type": "null"
+              },
+              "status": {
+                "enum": [
+                  "pending_characterization"
+                ],
+                "type": "string"
+              },
+              "timing": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "status",
+              "inputs",
+              "outputs",
+              "state",
+              "ordering",
+              "timing",
+              "errors",
+              "recovery",
+              "placeholder"
+            ],
+            "type": "object"
+          },
+          "temporary_adapter": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "user_workflow": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_feedback": {
+                "type": "null"
+              },
+              "placeholder": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "pending_characterization"
+                ],
+                "type": "string"
+              },
+              "steps": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 0,
+                "type": "array"
+              }
+            },
+            "required": [
+              "status",
+              "steps",
+              "expected_feedback",
+              "placeholder"
+            ],
+            "type": "object"
+          },
+          "verification_state": {
+            "enum": [
+              "pending"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "capability_id",
+          "product_area",
+          "baseline_sources",
+          "discovered_facts",
+          "user_workflow",
+          "runtime_semantics",
+          "final_owner",
+          "evidence",
+          "last_passing_result",
+          "manual_evidence",
+          "migration_state",
+          "verification_state",
+          "temporary_adapter",
+          "approval"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "enum": [
+        1
+      ],
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "manifest_kind",
+    "generated_by",
+    "rows"
+  ],
+  "type": "object"
+}

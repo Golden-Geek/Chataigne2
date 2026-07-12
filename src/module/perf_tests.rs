@@ -65,9 +65,9 @@ fn elapsed_ms<T>(operation: impl FnOnce() -> T) -> (T, u128) {
 fn best_elapsed_ms<T>(attempts: usize, mut operation: impl FnMut() -> T) -> (T, u128) {
     assert!(attempts > 0);
 
-    let (mut best_result, mut best_ms) = elapsed_ms(|| operation());
+    let (mut best_result, mut best_ms) = elapsed_ms(&mut operation);
     for _ in 1..attempts {
-        let (result, elapsed_ms) = elapsed_ms(|| operation());
+        let (result, elapsed_ms) = elapsed_ms(&mut operation);
         if elapsed_ms < best_ms {
             best_result = result;
             best_ms = elapsed_ms;
@@ -107,7 +107,7 @@ fn duplicate_node(
         Some(source),
         None,
         |node| node.project_encode_data(),
-        |node_type, data, meta| AppNode::project_decode_node(node_type, data, meta),
+        AppNode::project_decode_node,
     )
 }
 

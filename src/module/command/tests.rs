@@ -52,6 +52,38 @@ fn module_command_tester_uses_advertised_command_catalog() {
 }
 
 #[test]
+fn module_command_tester_uses_owned_command_catalog() {
+    let tester = ModuleCommandTester::create_owned(vec![
+        crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE.to_string(),
+    ]);
+
+    let item_types = tester
+        .user_creatable_items()
+        .into_iter()
+        .map(|item| item.node_type)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        item_types,
+        vec![crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE.to_string()]
+    );
+    assert!(!tester.user_container_accepts_item(
+        crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+        MODULE_COMMAND_ITEM_KIND,
+    ));
+}
+
+#[test]
+fn empty_module_command_catalog_remains_empty() {
+    let tester = ModuleCommandTester::create_owned(Vec::new());
+
+    assert!(tester.user_creatable_items().is_empty());
+    assert!(!tester.user_container_accepts_item(
+        crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+        MODULE_COMMAND_ITEM_KIND,
+    ));
+}
+
+#[test]
 fn module_command_tester_decodes_from_project_node_type() {
     let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
         "module_command_tester",

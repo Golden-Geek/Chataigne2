@@ -1,7 +1,6 @@
 use std::{
     collections::HashSet,
     fs,
-    sync::{Mutex, MutexGuard},
     time::SystemTime,
 };
 
@@ -896,65 +895,20 @@ fn catalog_with_shared_and_project_formulas(
 /// what the current machine's real Shared formulas folder contains, and
 /// tests that need to build a path "inside" the shared folder have a known
 /// value to build against. Restores the previous value (if any) when dropped.
-struct SharedFormulaDirTestOverride {
-    previous: Option<std::ffi::OsString>,
-    _lock: MutexGuard<'static, ()>,
+fn shared_formula_dir_test_override() -> crate::test_support::ScopedSharedFormulaDir {
+    crate::test_support::scoped_shared_formula_dir(Some(std::path::Path::new(
+        "chataigne2-tests-nonexistent-shared-formulas-dir",
+    )))
 }
 
-impl Drop for SharedFormulaDirTestOverride {
-    fn drop(&mut self) {
-        match self.previous.take() {
-            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
-            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
-        }
-    }
+fn shared_formula_dir_test_override_to(
+    path: &std::path::Path,
+) -> crate::test_support::ScopedSharedFormulaDir {
+    crate::test_support::scoped_shared_formula_dir(Some(path))
 }
 
-static SHARED_FORMULA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
-
-fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
-    let lock = SHARED_FORMULA_DIR_ENV_LOCK
-        .lock()
-        .expect("shared formula env lock should not be poisoned");
-    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
-    unsafe {
-        std::env::set_var(
-            "CHATAIGNE_SHARED_FORMULAS_DIR",
-            "chataigne2-tests-nonexistent-shared-formulas-dir",
-        );
-    }
-    SharedFormulaDirTestOverride {
-        previous,
-        _lock: lock,
-    }
-}
-
-fn shared_formula_dir_test_override_to(path: &std::path::Path) -> SharedFormulaDirTestOverride {
-    let lock = SHARED_FORMULA_DIR_ENV_LOCK
-        .lock()
-        .expect("shared formula env lock should not be poisoned");
-    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
-    unsafe {
-        std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", path);
-    }
-    SharedFormulaDirTestOverride {
-        previous,
-        _lock: lock,
-    }
-}
-
-fn shared_formula_dir_env_removed() -> SharedFormulaDirTestOverride {
-    let lock = SHARED_FORMULA_DIR_ENV_LOCK
-        .lock()
-        .expect("shared formula env lock should not be poisoned");
-    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
-    unsafe {
-        std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR");
-    }
-    SharedFormulaDirTestOverride {
-        previous,
-        _lock: lock,
-    }
+fn shared_formula_dir_env_removed() -> crate::test_support::ScopedSharedFormulaDir {
+    crate::test_support::scoped_shared_formula_dir(None)
 }
 
 fn engine_with_builtin_formula_library() -> AppEngine {

@@ -12,10 +12,7 @@ fn intent(processor: ProcessorId, priority: i32, value: f64) -> CommandIntent {
 
 fn lane_intent(processor: ProcessorId, context_key: Option<ContextKey>, priority: i32, value: f64) -> CommandIntent {
     CommandIntent {
-        origin: IntentOrigin::Processor {
-            processor_id: processor,
-            context_key,
-        },
+        origin: IntentOrigin::processor(processor, context_key),
         target: StableRef::new(ValueTypeId::new("chataigne.command_target"), "target"),
         payload: RuntimeValue::Float(value),
         priority,

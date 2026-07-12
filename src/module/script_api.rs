@@ -84,7 +84,7 @@ fn module_script_template_candidates<'a>(
 
 fn push_template_candidate<'a>(candidates: &mut Vec<&'a str>, candidate: &'a str) {
     let candidate = candidate.trim();
-    if candidate.is_empty() || candidates.iter().any(|existing| *existing == candidate) {
+    if candidate.is_empty() || candidates.contains(&candidate) {
         return;
     }
     candidates.push(candidate);
@@ -122,21 +122,48 @@ pub(crate) fn emit_script_callback(
     ));
 }
 
+pub(crate) struct ModuleParamCallbackRoots {
+    connection: Option<NodeId>,
+    parameters: Option<NodeId>,
+    values: Option<NodeId>,
+}
+
+impl ModuleParamCallbackRoots {
+    pub(crate) const fn new(
+        connection: Option<NodeId>,
+        parameters: Option<NodeId>,
+        values: Option<NodeId>,
+    ) -> Self {
+        Self {
+            connection,
+            parameters,
+            values,
+        }
+    }
+}
+
 pub(crate) fn emit_standard_module_param_callback(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     module_id: NodeId,
-    connection_id: Option<NodeId>,
-    parameters_id: Option<NodeId>,
-    values_id: Option<NodeId>,
+    roots: ModuleParamCallbackRoots,
     param: NodeId,
     old_value: &ParamValue,
 ) {
-    let callback = if connection_id.is_some_and(|root| is_descendant_or_self(snapshot, param, root)) {
+    let callback = if roots
+        .connection
+        .is_some_and(|root| is_descendant_or_self(snapshot, param, root))
+    {
         MODULE_CONNECTION_CHANGED_CALLBACK
-    } else if parameters_id.is_some_and(|root| is_descendant_or_self(snapshot, param, root)) {
+    } else if roots
+        .parameters
+        .is_some_and(|root| is_descendant_or_self(snapshot, param, root))
+    {
         MODULE_PARAMETER_CHANGED_CALLBACK
-    } else if values_id.is_some_and(|root| is_descendant_or_self(snapshot, param, root)) {
+    } else if roots
+        .values
+        .is_some_and(|root| is_descendant_or_self(snapshot, param, root))
+    {
         MODULE_VALUE_CHANGED_CALLBACK
     } else {
         return;

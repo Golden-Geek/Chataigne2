@@ -572,46 +572,16 @@ impl GamepadModule {
 
     fn set_axis_scalar(&mut self, ctx: &mut ProcessCtx, axis: GamepadAxis, value: f64) {
         match axis {
-            // GamepadAxis::LeftStickX => {
-            //     if self.left_stick_x.is_bound() && float_changed(self.left_stick_x.get(), value) {
-            //         self.left_stick_x.set(ctx, value);
-            //     }
-            // }
-            // GamepadAxis::LeftStickY => {
-            //     if self.left_stick_y.is_bound() && float_changed(self.left_stick_y.get(), value) {
-            //         self.left_stick_y.set(ctx, value);
-            //     }
-            // }
-            GamepadAxis::LeftZ => {
-                if self.left_z.is_bound() && float_changed(self.left_z.get(), value) {
-                    self.left_z.set(ctx, value);
-                }
+            GamepadAxis::LeftZ
+                if self.left_z.is_bound() && float_changed(self.left_z.get(), value) =>
+            {
+                self.left_z.set(ctx, value);
             }
-            // GamepadAxis::RightStickX => {
-            //     if self.right_stick_x.is_bound() && float_changed(self.right_stick_x.get(), value) {
-            //         self.right_stick_x.set(ctx, value);
-            //     }
-            // }
-            // GamepadAxis::RightStickY => {
-            //     if self.right_stick_y.is_bound() && float_changed(self.right_stick_y.get(), value) {
-            //         self.right_stick_y.set(ctx, value);
-            //     }
-            // }
-            GamepadAxis::RightZ => {
-                if self.right_z.is_bound() && float_changed(self.right_z.get(), value) {
-                    self.right_z.set(ctx, value);
-                }
+            GamepadAxis::RightZ
+                if self.right_z.is_bound() && float_changed(self.right_z.get(), value) =>
+            {
+                self.right_z.set(ctx, value);
             }
-            // GamepadAxis::DPadX => {
-            //     if self.dpad_x.is_bound() && float_changed(self.dpad_x.get(), value) {
-            //         self.dpad_x.set(ctx, value);
-            //     }
-            // }
-            // GamepadAxis::DPadY => {
-            //     if self.dpad_y.is_bound() && float_changed(self.dpad_y.get(), value) {
-            //         self.dpad_y.set(ctx, value);
-            //     }
-            // }
             _ => {}
         }
     }

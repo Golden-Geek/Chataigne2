@@ -897,7 +897,7 @@ where
                         let value = node
                             .param_value
                             .clone()
-                            .unwrap_or_else(|| ParamValue::Float(config.range_min));
+                            .unwrap_or(ParamValue::Float(config.range_min));
                         NodeHandle::new(node_id).replace_with(
                             ctx,
                             signal_value_param(config.label.as_str(), config.value_decl_id.as_str(), value, config),

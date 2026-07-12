@@ -144,6 +144,26 @@ struct InputValueConditionSourceSample {
     value: ParamValue,
 }
 
+struct ProcessorRuntimeInputContext<'a> {
+    snapshot: &'a ProcessTreeSnapshot,
+    processor_node: NodeId,
+    processor_id: ProcessorId,
+    logical_tick: u64,
+    dirty_input_source_params: &'a HashSet<NodeUuid>,
+    formula_input_values: &'a HashMap<StableRef, RuntimeValue>,
+    context_provider: &'a SnapshotProcessorContextProvider,
+    force_processor_recompute: bool,
+    input_manager_signal_ticks: &'a mut HashMap<String, u64>,
+    condition_manager_values: &'a mut HashMap<String, RuntimeValue>,
+    condition_manager_valid_states: &'a mut HashMap<String, bool>,
+    input_value_condition_inner_valid_states: &'a mut HashMap<NodeUuid, bool>,
+    input_value_condition_source_samples:
+        &'a mut HashMap<NodeUuid, InputValueConditionSourceSample>,
+    transient_condition_valid_resets: &'a mut HashMap<NodeId, u64>,
+    next_trigger_edge_id: &'a mut u64,
+    ctx: &'a mut ProcessCtx,
+}
+
 #[derive(Clone, Debug, Default)]
 struct SnapshotProcessorContextProvider {
     processors: HashMap<ProcessorId, ProcessorContextRuntime>,
@@ -1015,9 +1035,7 @@ impl Node for StateMachineManager {
         if self.mark_processor_override_dirty(ctx, param) {
             return;
         }
-        if self.mark_formula_input_value_dirty(ctx, param) {
-            return;
-        }
+        self.mark_formula_input_value_dirty(ctx, param);
     }
 
     fn on_param_control_changed(
@@ -1265,24 +1283,35 @@ impl StateMachineManager {
                 if !should_evaluate {
                     continue;
                 }
-                let inputs = processor_runtime_inputs(
+                let mut input_context = ProcessorRuntimeInputContext {
                     snapshot,
                     processor_node,
-                    runtime_processor.processor.id,
-                    ctx.time.tick,
-                    &dirty_input_source_params,
-                    &self.runtime_cache.formula_input_values,
-                    &provider,
-                    cache_rebuilt || overrides_dirty,
-                    &mut self.runtime_cache.input_manager_signal_ticks,
-                    &mut self.runtime_cache.condition_manager_values,
-                    &mut self.runtime_cache.condition_manager_valid_states,
-                    &mut self.runtime_cache.input_value_condition_inner_valid_states,
-                    &mut self.runtime_cache.input_value_condition_source_samples,
-                    &mut self.runtime_cache.transient_condition_valid_resets,
-                    &mut self.runtime_cache.next_trigger_edge_id,
+                    processor_id: runtime_processor.processor.id,
+                    logical_tick: ctx.time.tick,
+                    dirty_input_source_params: &dirty_input_source_params,
+                    formula_input_values: &self.runtime_cache.formula_input_values,
+                    context_provider: &provider,
+                    force_processor_recompute: cache_rebuilt || overrides_dirty,
+                    input_manager_signal_ticks: &mut self
+                        .runtime_cache
+                        .input_manager_signal_ticks,
+                    condition_manager_values: &mut self.runtime_cache.condition_manager_values,
+                    condition_manager_valid_states: &mut self
+                        .runtime_cache
+                        .condition_manager_valid_states,
+                    input_value_condition_inner_valid_states: &mut self
+                        .runtime_cache
+                        .input_value_condition_inner_valid_states,
+                    input_value_condition_source_samples: &mut self
+                        .runtime_cache
+                        .input_value_condition_source_samples,
+                    transient_condition_valid_resets: &mut self
+                        .runtime_cache
+                        .transient_condition_valid_resets,
+                    next_trigger_edge_id: &mut self.runtime_cache.next_trigger_edge_id,
                     ctx,
-                );
+                };
+                let inputs = processor_runtime_inputs(&mut input_context);
                 let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node)
                 else {
                     continue;
@@ -1761,7 +1790,7 @@ fn merge_output_preview_snapshot(
     }
 
     let mut entries = snapshot.iter().collect::<Vec<_>>();
-    entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    entries.sort_by_key(|(left, _)| *left);
     entries
         .into_iter()
         .map(|(_, sample)| sample.clone())
@@ -2118,7 +2147,7 @@ fn processor_ui_dtos(
 ) -> Vec<ProcessorUiDto> {
     let mut dtos: Vec<_> = processors
         .values()
-        .filter_map(|runtime_processor| {
+        .map(|runtime_processor| {
             let mut dto = ProcessorUiDto::from(
                 &runtime_processor.processor.ui_model_with_formula_source(
                     &runtime_processor.formula,
@@ -2136,7 +2165,7 @@ fn processor_ui_dtos(
                         .lane_count_for_axes(runtime_processor.processor.id, &plan.required_eval_axes)
                 })
                 .unwrap_or(0);
-            Some(dto)
+            dto
         })
         .collect();
     dtos.sort_by(|left, right| left.label.cmp(&right.label).then_with(|| left.id.cmp(&right.id)));
@@ -2948,45 +2977,18 @@ fn collect_processor_context_property_bindings(
 }
 
 fn processor_runtime_inputs(
-    snapshot: &ProcessTreeSnapshot,
-    processor_node: NodeId,
-    processor_id: ProcessorId,
-    logical_tick: u64,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-    formula_input_values: &HashMap<StableRef, RuntimeValue>,
-    context_provider: &SnapshotProcessorContextProvider,
-    force_processor_recompute: bool,
-    input_manager_signal_ticks: &mut HashMap<String, u64>,
-    condition_manager_values: &mut HashMap<String, RuntimeValue>,
-    condition_manager_valid_states: &mut HashMap<String, bool>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
-    transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
-    next_trigger_edge_id: &mut u64,
-    ctx: &mut ProcessCtx,
+    context: &mut ProcessorRuntimeInputContext<'_>,
 ) -> RuntimeInputSnapshot {
     let mut inputs = RuntimeInputSnapshot::default();
-    for (reference, value) in formula_input_values {
+    for (reference, value) in context.formula_input_values {
         inputs.insert(reference.clone(), value.clone());
     }
-    if let Some(processor_uuid) = snapshot.node(processor_node).map(|node| node.uuid) {
+    let processor_node = context.processor_node;
+    if let Some(processor_uuid) = context.snapshot.node(processor_node).map(|node| node.uuid) {
         collect_processor_runtime_inputs(
-            snapshot,
+            context,
             processor_uuid,
-            processor_id,
             processor_node,
-            logical_tick,
-            dirty_input_source_params,
-            context_provider,
-            force_processor_recompute,
-            input_manager_signal_ticks,
-            condition_manager_values,
-            condition_manager_valid_states,
-            input_value_condition_inner_valid_states,
-            input_value_condition_source_samples,
-            transient_condition_valid_resets,
-            next_trigger_edge_id,
-            ctx,
             &mut inputs,
         );
     }
@@ -3083,26 +3085,13 @@ fn property_tree_has_dirty_input_source(
 }
 
 fn collect_processor_runtime_inputs(
-    snapshot: &ProcessTreeSnapshot,
+    context: &mut ProcessorRuntimeInputContext<'_>,
     processor_uuid: NodeUuid,
-    processor_id: ProcessorId,
     parent: NodeId,
-    logical_tick: u64,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-    context_provider: &SnapshotProcessorContextProvider,
-    force_processor_recompute: bool,
-    input_manager_signal_ticks: &mut HashMap<String, u64>,
-    condition_manager_values: &mut HashMap<String, RuntimeValue>,
-    condition_manager_valid_states: &mut HashMap<String, bool>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
-    transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
-    next_trigger_edge_id: &mut u64,
-    ctx: &mut ProcessCtx,
     inputs: &mut RuntimeInputSnapshot,
 ) {
-    for child in snapshot.child_ids(parent) {
-        let Some(node) = snapshot.node(child) else {
+    for child in context.snapshot.child_ids(parent) {
+        let Some(node) = context.snapshot.node(child) else {
             continue;
         };
         if !node.enabled {
@@ -3110,54 +3099,26 @@ fn collect_processor_runtime_inputs(
         }
         if node.node_type == PROCESSOR_FOLDER_NODE_TYPE {
             collect_processor_runtime_inputs(
-                snapshot,
+                context,
                 processor_uuid,
-                processor_id,
                 child,
-                logical_tick,
-                dirty_input_source_params,
-                context_provider,
-                force_processor_recompute,
-                input_manager_signal_ticks,
-                condition_manager_values,
-                condition_manager_valid_states,
-                input_value_condition_inner_valid_states,
-                input_value_condition_source_samples,
-                transient_condition_valid_resets,
-                next_trigger_edge_id,
-                ctx,
                 inputs,
             );
             continue;
         }
         match node.node_type.as_str() {
             INPUTS_MANAGER_NODE_TYPE => collect_input_manager_runtime_input(
-                snapshot,
+                context,
                 processor_uuid,
                 child,
                 node.decl_id.as_str(),
-                logical_tick,
-                dirty_input_source_params,
-                input_manager_signal_ticks,
                 inputs,
             ),
             CONDITION_MANAGER_NODE_TYPE => collect_condition_manager_runtime_input(
-                snapshot,
+                context,
                 processor_uuid,
-                processor_id,
                 child,
                 node.decl_id.as_str(),
-                logical_tick,
-                dirty_input_source_params,
-                context_provider,
-                force_processor_recompute,
-                condition_manager_values,
-                condition_manager_valid_states,
-                input_value_condition_inner_valid_states,
-                input_value_condition_source_samples,
-                transient_condition_valid_resets,
-                next_trigger_edge_id,
-                ctx,
                 inputs,
             ),
             _ => {}
@@ -3166,13 +3127,10 @@ fn collect_processor_runtime_inputs(
 }
 
 fn collect_input_manager_runtime_input(
-    snapshot: &ProcessTreeSnapshot,
+    context: &mut ProcessorRuntimeInputContext<'_>,
     processor_uuid: NodeUuid,
     manager: NodeId,
     decl_id: &str,
-    logical_tick: u64,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-    input_manager_signal_ticks: &mut HashMap<String, u64>,
     inputs: &mut RuntimeInputSnapshot,
 ) {
     let Some(manager_uuid) = decl_id
@@ -3182,15 +3140,25 @@ fn collect_input_manager_runtime_input(
         return;
     };
     let signal_key = format!("{}:{manager_uuid}", processor_uuid.0);
-    if input_manager_has_dirty_source(snapshot, manager, dirty_input_source_params) {
-        input_manager_signal_ticks.insert(signal_key.clone(), logical_tick);
+    if input_manager_has_dirty_source(
+        context.snapshot,
+        manager,
+        context.dirty_input_source_params,
+    ) {
+        context
+            .input_manager_signal_ticks
+            .insert(signal_key.clone(), context.logical_tick);
     }
-    let Some(signal_tick) = input_manager_signal_ticks.get(&signal_key).copied() else {
+    let Some(signal_tick) = context
+        .input_manager_signal_ticks
+        .get(&signal_key)
+        .copied()
+    else {
         return;
     };
-    let value_set = processor_input_manager_value_set(snapshot, manager, signal_tick);
+    let value_set = processor_input_manager_value_set(context.snapshot, manager, signal_tick);
     if value_set.entries.is_empty() {
-        input_manager_signal_ticks.remove(&signal_key);
+        context.input_manager_signal_ticks.remove(&signal_key);
         return;
     }
     let Ok(value) = value_set.to_runtime_value() else {
@@ -3203,22 +3171,10 @@ fn collect_input_manager_runtime_input(
 }
 
 fn collect_condition_manager_runtime_input(
-    snapshot: &ProcessTreeSnapshot,
+    context: &mut ProcessorRuntimeInputContext<'_>,
     processor_uuid: NodeUuid,
-    processor_id: ProcessorId,
     manager: NodeId,
     decl_id: &str,
-    logical_tick: u64,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-    context_provider: &SnapshotProcessorContextProvider,
-    force_processor_recompute: bool,
-    condition_manager_values: &mut HashMap<String, RuntimeValue>,
-    condition_manager_valid_states: &mut HashMap<String, bool>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
-    transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
-    next_trigger_edge_id: &mut u64,
-    ctx: &mut ProcessCtx,
     inputs: &mut RuntimeInputSnapshot,
 ) {
     let Some(manager_uuid) = decl_id
@@ -3232,123 +3188,139 @@ fn collect_condition_manager_runtime_input(
         manager_uuid.to_owned(),
     );
     let signal_key = format!("{}:{manager_uuid}", processor_uuid.0);
-    let manager_axes = context_link_axes_in_subtree(snapshot, manager, processor_id, context_provider);
+    let manager_axes = context_link_axes_in_subtree(
+        context.snapshot,
+        manager,
+        context.processor_id,
+        context.context_provider,
+    );
     if !manager_axes.is_empty() {
-        let source_dirty =
-            condition_tree_has_dirty_source(snapshot, manager, dirty_input_source_params);
+        let source_dirty = condition_tree_has_dirty_source(
+            context.snapshot,
+            manager,
+            context.dirty_input_source_params,
+        );
         let mut aggregate_values = Vec::new();
-        for context_key in context_provider.iter_context_keys(processor_id, &manager_axes) {
+        for context_key in context
+            .context_provider
+            .iter_context_keys(context.processor_id, &manager_axes)
+        {
             let lane_key = format!("{}:{}", signal_key, context_key_cache_id(&context_key));
-            let previous = condition_manager_valid_states.get(&lane_key).copied();
+            let previous = context
+                .condition_manager_valid_states
+                .get(&lane_key)
+                .copied();
             let resolver = LaneParamResolver {
-                processor_id,
+                processor_id: context.processor_id,
                 context_key: &context_key,
-                context_provider,
+                context_provider: context.context_provider,
             };
             let validity = condition_group_valid(
-                snapshot,
+                context,
                 manager,
-                ctx,
-                dirty_input_source_params,
-                input_value_condition_inner_valid_states,
-                input_value_condition_source_samples,
-                transient_condition_valid_resets,
                 Some(&resolver),
                 false,
             )
             .unwrap_or_else(|| ConditionValidity::steady(false));
-            condition_manager_valid_states.insert(lane_key.clone(), validity.settled);
+            context
+                .condition_manager_valid_states
+                .insert(lane_key.clone(), validity.settled);
 
             let value_set = if previous != Some(validity.current) {
                 let edge_source_dirty =
-                    source_dirty || (force_processor_recompute && previous.is_some());
+                    source_dirty || (context.force_processor_recompute && previous.is_some());
                 let previous = condition_manager_edge_previous(
                     previous,
                     validity.current,
                     edge_source_dirty,
                 );
                 condition_manager_value_set(
-                    logical_tick,
+                    context.logical_tick,
                     validity.current,
                     previous,
-                    next_trigger_edge_id,
+                    context.next_trigger_edge_id,
                 )
             } else {
                 condition_manager_value_set(
-                    logical_tick,
+                    context.logical_tick,
                     validity.settled,
                     Some(validity.settled),
-                    next_trigger_edge_id,
+                    context.next_trigger_edge_id,
                 )
             };
             let Ok(value) = value_set.to_runtime_value() else {
                 continue;
             };
             inputs.insert(lane_scoped_stable_ref(&input_ref, &context_key), value.clone());
-            condition_manager_values.insert(lane_key, value.clone());
+            context.condition_manager_values.insert(lane_key, value.clone());
             aggregate_values.push(value);
         }
         inputs.insert(input_ref, RuntimeValue::Array(aggregate_values));
         return;
     }
-    let previous = condition_manager_valid_states.get(&signal_key).copied();
+    let previous = context
+        .condition_manager_valid_states
+        .get(&signal_key)
+        .copied();
     let mut current_value = None;
-    let source_dirty =
-        condition_tree_has_dirty_source(snapshot, manager, dirty_input_source_params);
-    if previous.is_none() || source_dirty || force_processor_recompute {
+    let source_dirty = condition_tree_has_dirty_source(
+        context.snapshot,
+        manager,
+        context.dirty_input_source_params,
+    );
+    if previous.is_none() || source_dirty || context.force_processor_recompute {
         let validity = condition_group_valid(
-            snapshot,
+            context,
             manager,
-            ctx,
-            dirty_input_source_params,
-            input_value_condition_inner_valid_states,
-            input_value_condition_source_samples,
-            transient_condition_valid_resets,
             None,
             true,
         )
         .unwrap_or_else(|| ConditionValidity::steady(false));
         set_condition_validity_param(
-            ctx,
-            snapshot,
+            context.ctx,
+            context.snapshot,
             manager,
             validity,
-            transient_condition_valid_resets,
+            context.transient_condition_valid_resets,
         );
-        let previous = condition_manager_valid_states.insert(signal_key.clone(), validity.settled);
+        let previous = context
+            .condition_manager_valid_states
+            .insert(signal_key.clone(), validity.settled);
 
         if let Ok(value) = condition_manager_value_set(
-            logical_tick,
+            context.logical_tick,
             validity.settled,
             Some(validity.settled),
-            next_trigger_edge_id,
+            context.next_trigger_edge_id,
         )
         .to_runtime_value()
         {
-            condition_manager_values.insert(signal_key.clone(), value);
+            context
+                .condition_manager_values
+                .insert(signal_key.clone(), value);
         }
 
         if previous != Some(validity.current) {
             let edge_source_dirty =
-                source_dirty || (force_processor_recompute && previous.is_some());
+                source_dirty || (context.force_processor_recompute && previous.is_some());
             let previous = condition_manager_edge_previous(
                 previous,
                 validity.current,
                 edge_source_dirty,
             );
             let value_set = condition_manager_value_set(
-                logical_tick,
+                context.logical_tick,
                 validity.current,
                 previous,
-                next_trigger_edge_id,
+                context.next_trigger_edge_id,
             );
             if let Ok(value) = value_set.to_runtime_value() {
                 current_value = Some(value);
             }
         }
     }
-    let Some(value) =
-        current_value.or_else(|| condition_manager_values.get(&signal_key).cloned())
+    let Some(value) = current_value
+        .or_else(|| context.condition_manager_values.get(&signal_key).cloned())
     else {
         return;
     };
@@ -3551,44 +3523,29 @@ fn resolve_multiplex_template_value(
 }
 
 fn condition_group_valid(
-    snapshot: &ProcessTreeSnapshot,
+    context: &mut ProcessorRuntimeInputContext<'_>,
     group: NodeId,
-    ctx: &mut ProcessCtx,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
-    transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     lane_resolver: Option<&LaneParamResolver<'_>>,
     write_visible_state: bool,
 ) -> Option<ConditionValidity> {
     let mut current_values = Vec::new();
     let mut settled_values = Vec::new();
-    for child in snapshot.child_ids(group) {
-        let node = snapshot.node(child)?;
+    for child in context.snapshot.child_ids(group) {
+        let node = context.snapshot.node(child)?;
         if node.param_value.is_some() {
             continue;
         }
         let valid = if node.enabled {
             match node.node_type.as_str() {
                 INPUT_VALUE_CONDITION_NODE_TYPE => input_value_condition_valid(
-                    snapshot,
+                    context,
                     child,
-                    ctx,
-                    dirty_input_source_params,
-                    input_value_condition_inner_valid_states,
-                    input_value_condition_source_samples,
-                    transient_condition_valid_resets,
                     lane_resolver,
                     write_visible_state,
                 ),
                 CONDITION_GROUP_NODE_TYPE => condition_group_valid(
-                    snapshot,
+                    context,
                     child,
-                    ctx,
-                    dirty_input_source_params,
-                    input_value_condition_inner_valid_states,
-                    input_value_condition_source_samples,
-                    transient_condition_valid_resets,
                     lane_resolver,
                     write_visible_state,
                 ),
@@ -3603,50 +3560,55 @@ fn condition_group_valid(
         }
     }
     Some(ConditionValidity {
-        current: reduce_condition_values(snapshot, group, &current_values),
-        settled: reduce_condition_values(snapshot, group, &settled_values),
+        current: reduce_condition_values(context.snapshot, group, &current_values),
+        settled: reduce_condition_values(context.snapshot, group, &settled_values),
     })
 }
 
 fn input_value_condition_valid(
-    snapshot: &ProcessTreeSnapshot,
+    context: &mut ProcessorRuntimeInputContext<'_>,
     condition: NodeId,
-    ctx: &mut ProcessCtx,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
-    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
-    transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     lane_resolver: Option<&LaneParamResolver<'_>>,
     write_visible_state: bool,
 ) -> Option<ConditionValidity> {
-    let condition_uuid = snapshot.node(condition)?.uuid;
-    let source_uuid = child_reference_uuid_resolved(snapshot, condition, "source", lane_resolver)?;
-    let source_id = snapshot.node_id_by_uuid(source_uuid)?;
-    let raw_source_value = snapshot.node(source_id)?.param_value.as_ref()?;
-    let source_projection =
-        child_string_resolved(snapshot, condition, "source_projection", lane_resolver)
-            .unwrap_or_default();
+    let condition_uuid = context.snapshot.node(condition)?.uuid;
+    let source_uuid =
+        child_reference_uuid_resolved(context.snapshot, condition, "source", lane_resolver)?;
+    let source_id = context.snapshot.node_id_by_uuid(source_uuid)?;
+    let raw_source_value = context.snapshot.node(source_id)?.param_value.as_ref()?;
+    let source_projection = child_string_resolved(
+        context.snapshot,
+        condition,
+        "source_projection",
+        lane_resolver,
+    )
+    .unwrap_or_default();
     let projected_source_value =
         project_condition_source_value(raw_source_value, source_projection.as_str());
     let source_value = projected_source_value
         .as_ref()
         .unwrap_or(raw_source_value);
-    let comparator = child_string_resolved(snapshot, condition, "comparator", lane_resolver)
-        .unwrap_or_else(|| "equal".to_owned());
+    let comparator = child_string_resolved(
+        context.snapshot,
+        condition,
+        "comparator",
+        lane_resolver,
+    )
+    .unwrap_or_else(|| "equal".to_owned());
     let transient = input_value_condition_is_transient(source_value, comparator.as_str());
-    let source_changed = dirty_input_source_params.contains(&source_uuid);
+    let source_changed = context.dirty_input_source_params.contains(&source_uuid);
     let source_speed = input_value_condition_source_speed(
-        input_value_condition_source_samples,
+        context.input_value_condition_source_samples,
         condition_uuid,
         source_uuid,
         source_value,
-        ctx.delta_time,
+        context.ctx.delta_time,
     );
     let comparator_valid = if transient {
         source_changed
     } else {
         compare_condition_value(
-            snapshot,
+            context.snapshot,
             condition,
             source_value,
             comparator.as_str(),
@@ -3654,14 +3616,20 @@ fn input_value_condition_valid(
             lane_resolver,
         )
     };
-    let previous_inner_valid = input_value_condition_inner_valid_states
+    let previous_inner_valid = context
+        .input_value_condition_inner_valid_states
         .get(&condition_uuid)
         .copied()
         .unwrap_or(false);
-    let toggle_mode = child_bool_resolved(snapshot, condition, "toggle_mode", lane_resolver)
-        .unwrap_or(false);
+    let toggle_mode = child_bool_resolved(
+        context.snapshot,
+        condition,
+        "toggle_mode",
+        lane_resolver,
+    )
+    .unwrap_or(false);
     let current_valid =
-        child_bool_resolved(snapshot, condition, "valid", lane_resolver).unwrap_or(false);
+        child_bool_resolved(context.snapshot, condition, "valid", lane_resolver).unwrap_or(false);
     let validity = next_input_value_condition_validity(
         toggle_mode,
         current_valid,
@@ -3669,17 +3637,17 @@ fn input_value_condition_valid(
         comparator_valid,
         transient,
     );
-    input_value_condition_inner_valid_states.insert(
+    context.input_value_condition_inner_valid_states.insert(
         condition_uuid,
         if transient { false } else { comparator_valid },
     );
     if write_visible_state {
         set_condition_validity_param(
-            ctx,
-            snapshot,
+            context.ctx,
+            context.snapshot,
             condition,
             validity,
-            transient_condition_valid_resets,
+            context.transient_condition_valid_resets,
         );
     }
     Some(validity)
@@ -4087,7 +4055,7 @@ fn condition_projection_component(projection: &str) -> Option<&'static str> {
         return None;
     }
     let component = normalized
-        .rsplit(|ch: char| matches!(ch, '.' | ':' | '/' | '\\' | '[' | ']'))
+        .rsplit(['.', ':', '/', '\\', '[', ']'])
         .find(|part| !part.is_empty())?;
     match component {
         "0" | "x" => Some("x"),
@@ -4151,10 +4119,10 @@ fn processor_input_manager_value_set(
     value_set
 }
 
-fn processor_override_value<'a>(
-    snapshot: &'a ProcessTreeSnapshot,
+fn processor_override_value(
+    snapshot: &ProcessTreeSnapshot,
     property: NodeId,
-) -> Option<&'a ParamValue> {
+) -> Option<&ParamValue> {
     processor_override_param_node(snapshot, property)
         .and_then(|param| snapshot.node(param))
         .and_then(|node| node.param_value.as_ref())

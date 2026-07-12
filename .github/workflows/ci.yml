@@ -28,7 +28,9 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Activate repository-pinned Rust toolchain
+        shell: bash
+        run: sh ./tools/bootstrap/install-rust-toolchain.sh
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: submodules/golden_core -> submodules/golden_core/target
@@ -44,12 +46,9 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: src-ui/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -141,10 +140,18 @@ jobs:
         with:
           name: ui-build
           path: src-ui/build
-      - uses: dtolnay/rust-toolchain@stable
-        if: ${{ matrix.id != 'rpi-armhf' }}
-        with:
-          targets: ${{ matrix.target }}
+      - name: Install target for repository-pinned Rust toolchain (Windows)
+        if: ${{ matrix.id != 'rpi-armhf' && runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          ./tools/bootstrap/install-rust-toolchain.ps1
+          rustup target add ${{ matrix.target }}
+      - name: Install target for repository-pinned Rust toolchain (macOS/Linux)
+        if: ${{ matrix.id != 'rpi-armhf' && runner.os != 'Windows' }}
+        shell: bash
+        run: |
+          sh ./tools/bootstrap/install-rust-toolchain.sh
+          rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         if: ${{ matrix.id != 'rpi-armhf' }}
         with:
@@ -189,12 +196,16 @@ jobs:
               libxdo-dev \
               llvm-dev \
               pkg-config \
+              python3 \
               wget
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain none
           env: |
             GC_UI_ASSUME_BUILT: 1
           run: |
             . "$HOME/.cargo/env"
+            RUST_TOOLCHAIN="$(python3 -c 'import json; m=json.load(open("tools/bootstrap/toolchain.json")); print(m["rust"]["channel"] + "-" + m["rust"]["hosts"]["linux_armv7"])')"
+            rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+            rustup override set "$RUST_TOOLCHAIN"
             rustup target add ${{ matrix.target }}
             export LIBCLANG_PATH="$(llvm-config --libdir)"
             cargo build --target ${{ matrix.target }}

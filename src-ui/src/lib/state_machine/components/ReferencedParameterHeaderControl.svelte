@@ -11,7 +11,9 @@
 	let liveOwner: UiNodeDto = $derived(graphNodesById?.get(owner.node_id) ?? owner);
 	let graphNodesByUuid = $derived.by((): ReadonlyMap<string, NodeId> => {
 		if (!graphNodesById) return new Map();
-		return new Map(Array.from(graphNodesById.values()).map((candidate) => [candidate.uuid, candidate.node_id]));
+		return new Map(
+			Array.from(graphNodesById.values()).map((candidate) => [candidate.uuid, candidate.node_id])
+		);
 	});
 
 	const childByDeclId = (parent: UiNodeDto, declId: string): UiNodeDto | null => {

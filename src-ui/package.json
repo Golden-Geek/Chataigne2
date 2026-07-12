@@ -12,6 +12,7 @@
 		"dev:copilot": "vite dev --host 127.0.0.1 --port 4173 --strictPort",
 		"build": "vite build",
 		"preview": "vite preview",
+		"test": "vitest run",
 		"codegen:golden-ui-protocol": "cargo run --manifest-path ../submodules/golden_core/Cargo.toml -p golden_codegen_support --bin golden_codegen -- ui-protocol src/lib/golden_ui/generated/rust_protocol",
 		"codegen:state-machine-protocol": "cargo run --manifest-path ../Cargo.toml -p chataigne_state_machine --bin generate_state_machine_protocol -- src/lib/state_machine/generated",
 		"prepare": "npm run codegen:golden-ui-protocol && npm run codegen:state-machine-protocol && svelte-kit sync || echo ''",
@@ -33,6 +34,7 @@
 		"svelte-check": "^4.3.6",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1",
+		"vitest": "4.1.10",
 		"vite-plugin-devtools-json": "^1.0.0"
 	},
 	"dependencies": {

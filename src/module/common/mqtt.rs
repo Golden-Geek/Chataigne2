@@ -11,34 +11,37 @@ pub(crate) const MQTT_QOS_EXACTLY_ONCE: &str = "exactly_once";
 #[serde(rename_all = "snake_case")]
 pub(crate) enum MqttQos {
     #[default]
-    AtMostOnce,
-    AtLeastOnce,
-    ExactlyOnce,
+    #[serde(rename = "at_most_once")]
+    AtMost,
+    #[serde(rename = "at_least_once")]
+    AtLeast,
+    #[serde(rename = "exactly_once")]
+    Exactly,
 }
 
 impl MqttQos {
     pub(crate) fn from_variant(variant: &str) -> Option<Self> {
         match variant.trim() {
-            MQTT_QOS_AT_MOST_ONCE | "0" | "qos0" | "qos_0" => Some(Self::AtMostOnce),
-            MQTT_QOS_AT_LEAST_ONCE | "1" | "qos1" | "qos_1" => Some(Self::AtLeastOnce),
-            MQTT_QOS_EXACTLY_ONCE | "2" | "qos2" | "qos_2" => Some(Self::ExactlyOnce),
+            MQTT_QOS_AT_MOST_ONCE | "0" | "qos0" | "qos_0" => Some(Self::AtMost),
+            MQTT_QOS_AT_LEAST_ONCE | "1" | "qos1" | "qos_1" => Some(Self::AtLeast),
+            MQTT_QOS_EXACTLY_ONCE | "2" | "qos2" | "qos_2" => Some(Self::Exactly),
             _ => None,
         }
     }
 
     pub(crate) fn variant(self) -> &'static str {
         match self {
-            Self::AtMostOnce => MQTT_QOS_AT_MOST_ONCE,
-            Self::AtLeastOnce => MQTT_QOS_AT_LEAST_ONCE,
-            Self::ExactlyOnce => MQTT_QOS_EXACTLY_ONCE,
+            Self::AtMost => MQTT_QOS_AT_MOST_ONCE,
+            Self::AtLeast => MQTT_QOS_AT_LEAST_ONCE,
+            Self::Exactly => MQTT_QOS_EXACTLY_ONCE,
         }
     }
 
     pub(crate) fn to_rumqttc(self) -> rumqttc::QoS {
         match self {
-            Self::AtMostOnce => rumqttc::QoS::AtMostOnce,
-            Self::AtLeastOnce => rumqttc::QoS::AtLeastOnce,
-            Self::ExactlyOnce => rumqttc::QoS::ExactlyOnce,
+            Self::AtMost => rumqttc::QoS::AtMostOnce,
+            Self::AtLeast => rumqttc::QoS::AtLeastOnce,
+            Self::Exactly => rumqttc::QoS::ExactlyOnce,
         }
     }
 }

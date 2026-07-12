@@ -515,10 +515,8 @@ impl Node for SerialModule {
     }
 
     fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        if node != self.id() {
-            if patch.enabled.is_some() {
-                self.transport_dirty = true;
-            }
+        if node != self.id() && patch.enabled.is_some() {
+            self.transport_dirty = true;
         }
     }
 

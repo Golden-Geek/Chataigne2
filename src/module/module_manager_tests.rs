@@ -21,7 +21,10 @@ fn module_manager_cannot_be_removed_or_duplicated() {
     manager.init(&mut ctx);
 
     let permissions = &manager.node_data().meta.user_permissions;
-    assert!(permissions.can_edit_name);
+    assert!(
+        !permissions.can_edit_name,
+        "the fixed top-level module manager must keep its declared identity"
+    );
     assert!(!permissions.can_remove_and_duplicate);
     assert!(permissions.can_edit_constraints);
     assert!(permissions.can_edit_tags);

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "baseline": "phase0-product-preserving",
+  "captured_at": "2026-07-11",
+  "rust": {
+    "channel": "1.95.0",
+    "cargo_version": "1.95.0",
+    "profile": "minimal",
+    "components": [
+      "rustfmt",
+      "clippy"
+    ],
+    "hosts": {
+      "windows_x64": "x86_64-pc-windows-msvc",
+      "windows_arm64": "aarch64-pc-windows-msvc",
+      "macos_x64": "x86_64-apple-darwin",
+      "macos_arm64": "aarch64-apple-darwin",
+      "linux_x64": "x86_64-unknown-linux-gnu",
+      "linux_arm64": "aarch64-unknown-linux-gnu",
+      "linux_armv7": "armv7-unknown-linux-gnueabihf"
+    }
+  },
+  "node": {
+    "version": "24.18.0",
+    "npm_version": "11.16.0",
+    "base_url": "https://nodejs.org/dist",
+    "distributions": {
+      "windows_x64": {
+        "file": "node-v24.18.0-win-x64.zip",
+        "sha256": "0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821"
+      },
+      "windows_arm64": {
+        "file": "node-v24.18.0-win-arm64.zip",
+        "sha256": "f274669adb93b1fd0fbf8f21fd078609e9dcc84333d4f2718d2dde3f9a161a01"
+      },
+      "macos_x64": {
+        "file": "node-v24.18.0-darwin-x64.tar.xz",
+        "sha256": "4a3b6bc81542154430825128d9a279e8b364e8d90581544e506ef7579fd1ab6f"
+      },
+      "macos_arm64": {
+        "file": "node-v24.18.0-darwin-arm64.tar.xz",
+        "sha256": "4477b9f78efb77744cf5eb57a0e9594dba66466b38b4e93fa9f35cb907a095a6"
+      },
+      "linux_x64": {
+        "file": "node-v24.18.0-linux-x64.tar.xz",
+        "sha256": "55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742"
+      },
+      "linux_arm64": {
+        "file": "node-v24.18.0-linux-arm64.tar.xz",
+        "sha256": "58c9520501f6ae2b52d5b210444e24b9d0c029a58c5011b797bc1fe7105886f6"
+      }
+    }
+  },
+  "python": {
+    "version": "3.14.4"
+  },
+  "consumers": {
+    "rust_version": "tools/bootstrap/rust-version",
+    "node_version": ".nvmrc"
+  }
+}

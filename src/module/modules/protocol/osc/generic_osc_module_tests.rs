@@ -353,9 +353,35 @@ fn sparse_project_serialization_omits_unchanged_osc_defaults() {
         find_path(&loaded, loaded_module, "connection/connected").is_some(),
         "omitted connection defaults should be restored"
     );
-    assert!(
-        find_path(&loaded, loaded_module, "connection/outputs").is_some(),
-        "omitted output defaults should be restored"
+    let loaded_outputs = find_path(&loaded, loaded_module, "connection/outputs")
+        .expect("omitted output manager default should be restored");
+    let loaded_default_output = loaded
+        .nodes
+        .get(loaded_outputs)
+        .and_then(|outputs| outputs.node_data().first_child)
+        .expect("omitted default OSC output should be restored");
+    assert_eq!(
+        loaded
+            .nodes
+            .get(loaded_default_output)
+            .expect("restored default OSC output should exist")
+            .get_type(),
+        "osc_output"
+    );
+    let loaded_command_tester = find_path(&loaded, loaded_module, "command_tester")
+        .expect("omitted command tester default should be restored");
+    let loaded_command_types = loaded
+        .nodes
+        .get(loaded_command_tester)
+        .expect("restored command tester should exist")
+        .user_creatable_items()
+        .into_iter()
+        .map(|item| item.node_type)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        loaded_command_types,
+        vec![crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE.to_string()],
+        "restored OSC command tester should retain its module-owned command catalog"
     );
     assert!(
         find_path(&loaded, loaded_module, "values").is_some(),

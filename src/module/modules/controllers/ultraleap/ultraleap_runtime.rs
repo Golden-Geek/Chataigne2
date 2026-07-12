@@ -101,7 +101,7 @@ pub struct UltraleapRuntimePoll {
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 #[derive(Clone, Debug, PartialEq)]
 enum UltraleapWorkerEvent {
-    Poll(UltraleapRuntimePoll),
+    Poll(Box<UltraleapRuntimePoll>),
     Error(String),
 }
 
@@ -152,7 +152,7 @@ impl UltraleapRuntime {
                 Ok(UltraleapWorkerEvent::Poll(poll)) => {
                     self.service_connected = poll.service_connected;
                     self.connected_devices = poll.connected_devices;
-                    latest = poll;
+                    latest = *poll;
                     received_poll = true;
                 }
                 Ok(UltraleapWorkerEvent::Error(error)) => return Err(error),
@@ -569,7 +569,10 @@ fn worker_main(
         connected_devices = cycle.connected_devices;
 
         if let Some(poll) = cycle.poll {
-            if event_tx.send(UltraleapWorkerEvent::Poll(poll)).is_err() {
+            if event_tx
+                .send(UltraleapWorkerEvent::Poll(Box::new(poll)))
+                .is_err()
+            {
                 break;
             }
         }

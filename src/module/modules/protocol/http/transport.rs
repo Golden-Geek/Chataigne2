@@ -103,7 +103,7 @@ impl HttpTransportHandle {
 
     pub(crate) fn send(&self, request: HttpQueuedRequest) -> Result<(), String> {
         self.command_tx
-            .send(HttpWorkerCommand::Send(request))
+            .send(HttpWorkerCommand::Send(Box::new(request)))
             .map_err(|_| "HTTP worker is no longer running".to_string())
     }
 
@@ -126,7 +126,7 @@ impl Drop for HttpTransportHandle {
 }
 
 enum HttpWorkerCommand {
-    Send(HttpQueuedRequest),
+    Send(Box<HttpQueuedRequest>),
     Stop,
 }
 
@@ -139,7 +139,7 @@ fn worker_loop(
     while let Ok(command) = command_rx.recv() {
         match command {
             HttpWorkerCommand::Send(request) => {
-                if send_worker_event(&event_tx, execute_with_retries(&client, &config, request)) {
+                if send_worker_event(&event_tx, execute_with_retries(&client, &config, *request)) {
                     continue;
                 }
                 break;

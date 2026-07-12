@@ -56,16 +56,11 @@ pub(crate) struct RenamedSharedFormulaPath {
     pub(crate) label: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub(crate) enum ProcessorFormulaSourceState {
+    #[default]
     Empty,
     Project { uuid: String },
-}
-
-impl Default for ProcessorFormulaSourceState {
-    fn default() -> Self {
-        Self::Empty
-    }
 }
 
 impl ProcessorFormulaSourceState {
@@ -690,7 +685,7 @@ pub(crate) fn shared_formula_dir_from_snapshot(snapshot: &ProcessTreeSnapshot) -
     configured_shared_formula_dir()
         .or_else(|| {
             preferences_data_folder_from_snapshot(snapshot)
-                .map(|data_folder| shared_formula_dir_for_data_folder(data_folder))
+                .map(shared_formula_dir_for_data_folder)
         })
         .or_else(default_shared_formula_dir)
 }

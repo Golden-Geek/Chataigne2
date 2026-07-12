@@ -134,6 +134,32 @@ impl GlobalCompiledGraphRuntime {
         debug_assert!(std::ptr::eq(global.events, ctx.events));
         self.runtime.evaluate(ctx)
     }
+
+    fn evaluate_with_debug_capture(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        global: &GlobalStateMachineContextFrame<'_>,
+    ) -> RuntimeOutput {
+        debug_assert_eq!(global.logical_tick, ctx.logical_tick);
+        debug_assert!(std::ptr::eq(global.inputs, ctx.inputs));
+        debug_assert!(std::ptr::eq(global.events, ctx.events));
+        self.runtime
+            .evaluate_with_capture_mode(ctx, golden_alchemist::DebugCaptureMode::All { history_len: 1 })
+    }
+
+    fn fired_trigger_in_last_evaluation(&self) -> bool {
+        self.runtime.memory.last_executed_nodes().iter().any(|exec_id| {
+            self.runtime.compiled.exec_nodes[exec_id.index()]
+                .outputs
+                .iter()
+                .any(|slot| {
+                    matches!(
+                        self.runtime.memory.value(*slot),
+                        Some(golden_alchemist::RuntimeValue::Trigger(trigger)) if trigger.fired
+                    )
+                })
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -149,9 +175,11 @@ impl StateMachineTransitionRuntime {
     }
 
     fn evaluate_guard(&mut self, ctx: &EvaluationCtx<'_>, global: &GlobalStateMachineContextFrame<'_>) -> bool {
-        self.guard
-            .as_mut()
-            .is_some_and(|guard| output_fires(&guard.evaluate(ctx, global)))
+        let Some(guard) = self.guard.as_mut() else {
+            return false;
+        };
+        guard.evaluate(ctx, global);
+        guard.fired_trigger_in_last_evaluation()
     }
 
     fn evaluate_effect(
@@ -159,7 +187,9 @@ impl StateMachineTransitionRuntime {
         ctx: &EvaluationCtx<'_>,
         global: &GlobalStateMachineContextFrame<'_>,
     ) -> Option<RuntimeOutput> {
-        self.effect.as_mut().map(|effect| effect.evaluate(ctx, global))
+        self.effect
+            .as_mut()
+            .map(|effect| effect.evaluate_with_debug_capture(ctx, global))
     }
 }
 
@@ -344,10 +374,7 @@ impl ChataigneStateMachineRuntime {
                     extend_command_intents(
                         &mut result.command_intents,
                         &lane.output.intents,
-                        IntentOrigin::Processor {
-                            processor_id,
-                            context_key: lane.context_key.clone(),
-                        },
+                        IntentOrigin::processor(processor_id, lane.context_key.clone()),
                         policy.clone(),
                     );
                 }
@@ -411,15 +438,6 @@ fn compile_global_graph_runtime(
         errors.extend(result.diagnostics.into_iter().map(|diagnostic| diagnostic.message));
         None
     }
-}
-
-fn output_fires(output: &RuntimeOutput) -> bool {
-    output.debug_samples.iter().any(|sample| {
-        matches!(
-            sample.value,
-            golden_alchemist::RuntimeValue::Trigger(trigger) if trigger.fired
-        )
-    })
 }
 
 fn merge_processor_lane_outputs(lanes: Vec<ProcessorLaneOutput>) -> RuntimeOutput {

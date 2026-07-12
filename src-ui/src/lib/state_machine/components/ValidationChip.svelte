@@ -52,8 +52,8 @@
 
 	.validation-chip.icon-only.valid {
 		background: color-mix(in srgb, var(--gc-success, #47a66a) 80%, transparent);
-		box-shadow: inset 0 0 .5rem color-mix(in srgb, var(--gc-success, #47a66a) 30%, rgba(100,255,0,.8));
-
+		box-shadow: inset 0 0 0.5rem
+			color-mix(in srgb, var(--gc-success, #47a66a) 30%, rgba(100, 255, 0, 0.8));
 	}
 
 	/* .validation-chip-dot {

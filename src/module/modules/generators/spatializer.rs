@@ -139,6 +139,29 @@ struct SpatializerConfig {
     targets: Vec<SpatializerEndpointConfig>,
 }
 
+struct FloatChildSpec {
+    decl_id: &'static str,
+    default_value: f64,
+    parameter: fn(f64) -> Parameter,
+}
+
+struct SpatializerValueMatrixState<'a> {
+    folders_by_outer: &'a mut HashMap<NodeId, NodeId>,
+    outputs_by_pair: &'a mut HashMap<(NodeId, NodeId), NodeId>,
+    output_nodes: &'a mut HashSet<NodeId>,
+    pending_folders: &'a mut HashSet<NodeId>,
+    pending_pairs: &'a mut HashSet<(NodeId, NodeId)>,
+}
+
+struct SpatializerValuePairState<'a> {
+    values_by_target: &'a HashMap<NodeId, HashMap<NodeId, f64>>,
+    outputs_by_pair: &'a HashMap<(NodeId, NodeId), NodeId>,
+    next_outputs_by_pair: &'a mut HashMap<(NodeId, NodeId), NodeId>,
+    next_output_nodes: &'a mut HashSet<NodeId>,
+    pending_pairs: &'a mut HashSet<(NodeId, NodeId)>,
+    active_pairs: &'a mut HashSet<(NodeId, NodeId)>,
+}
+
 #[node("spatializer_module", label = "Spatializer")]
 #[children(
     folder(connection) {
@@ -225,16 +248,19 @@ impl SpatializerModule {
             return;
         };
 
+        let mut value_state = SpatializerValueMatrixState {
+            folders_by_outer: &mut self.value_folders_by_outer,
+            outputs_by_pair: &mut self.value_outputs_by_pair,
+            output_nodes: &mut self.value_output_nodes,
+            pending_folders: &mut self.pending_value_folders,
+            pending_pairs: &mut self.pending_value_pairs,
+        };
         let waiting_for_values = sync_value_matrix(
             ctx,
             snapshot,
             values_root,
             &config,
-            &mut self.value_folders_by_outer,
-            &mut self.value_outputs_by_pair,
-            &mut self.value_output_nodes,
-            &mut self.pending_value_folders,
-            &mut self.pending_value_pairs,
+            &mut value_state,
         );
         self.synced_value_layout = Some(value_layout);
         self.config_dirty = deduped_parameters || structure_dirty || waiting_for_values;
@@ -968,10 +994,12 @@ fn sync_radius_child(
         ctx,
         snapshot,
         item_id,
-        RADIUS_DECL_ID,
         required,
-        1.0,
-        radius_param,
+        FloatChildSpec {
+            decl_id: RADIUS_DECL_ID,
+            default_value: 1.0,
+            parameter: radius_param,
+        },
         pending_radii,
     )
 }
@@ -987,10 +1015,12 @@ fn sync_freeze_radius_child(
         ctx,
         snapshot,
         item_id,
-        FREEZE_RADIUS_DECL_ID,
         required,
-        0.0,
-        freeze_radius_param,
+        FloatChildSpec {
+            decl_id: FREEZE_RADIUS_DECL_ID,
+            default_value: 0.0,
+            parameter: freeze_radius_param,
+        },
         pending_freeze_radii,
     )
 }
@@ -999,13 +1029,11 @@ fn sync_float_child(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     item_id: NodeId,
-    decl_id: &str,
     required: bool,
-    default_value: f64,
-    param: fn(f64) -> Parameter,
+    spec: FloatChildSpec,
     pending: &mut HashSet<NodeId>,
 ) -> bool {
-    let existing_ids = direct_child_ids_by_decl(snapshot, item_id, decl_id);
+    let existing_ids = direct_child_ids_by_decl(snapshot, item_id, spec.decl_id);
     let existing_id = existing_ids.first().copied();
     let mut changed = false;
 
@@ -1027,7 +1055,7 @@ fn sync_float_child(
         .and_then(|node_id| child_param_value(snapshot, node_id))
         .and_then(|value| value.as_float())
         .filter(|value| value.is_finite())
-        .unwrap_or(default_value)
+        .unwrap_or(spec.default_value)
         .max(0.0);
 
     match existing_id {
@@ -1038,7 +1066,7 @@ fn sync_float_child(
                 .and_then(|node| node.param_value.as_ref())
                 .is_none_or(|value| !matches!(value, ParamValue::Float(_)));
             if needs_replace {
-                NodeHandle::new(node_id).replace_with(ctx, param(radius));
+                NodeHandle::new(node_id).replace_with(ctx, (spec.parameter)(radius));
                 true
             } else {
                 changed
@@ -1046,7 +1074,7 @@ fn sync_float_child(
         }
         None => {
             if pending.insert(item_id) {
-                ctx.add_child_tree(item_id, NodeTree::new(param(radius)), None);
+                ctx.add_child_tree(item_id, NodeTree::new((spec.parameter)(radius)), None);
             }
             true
         }
@@ -1058,34 +1086,14 @@ fn sync_value_matrix(
     snapshot: &ProcessTreeSnapshot,
     root_id: NodeId,
     config: &SpatializerConfig,
-    value_folders_by_outer: &mut HashMap<NodeId, NodeId>,
-    value_outputs_by_pair: &mut HashMap<(NodeId, NodeId), NodeId>,
-    value_output_nodes: &mut HashSet<NodeId>,
-    pending_value_folders: &mut HashSet<NodeId>,
-    pending_value_pairs: &mut HashSet<(NodeId, NodeId)>,
+    state: &mut SpatializerValueMatrixState<'_>,
 ) -> bool {
     match config.value_layout {
         SpatializerValueLayout::SourceCentric => sync_source_centric_value_matrix(
-            ctx,
-            snapshot,
-            root_id,
-            config,
-            value_folders_by_outer,
-            value_outputs_by_pair,
-            value_output_nodes,
-            pending_value_folders,
-            pending_value_pairs,
+            ctx, snapshot, root_id, config, state,
         ),
         SpatializerValueLayout::TargetCentric => sync_target_centric_value_matrix(
-            ctx,
-            snapshot,
-            root_id,
-            config,
-            value_folders_by_outer,
-            value_outputs_by_pair,
-            value_output_nodes,
-            pending_value_folders,
-            pending_value_pairs,
+            ctx, snapshot, root_id, config, state,
         ),
     }
 }
@@ -1095,12 +1103,13 @@ fn sync_target_centric_value_matrix(
     snapshot: &ProcessTreeSnapshot,
     root_id: NodeId,
     config: &SpatializerConfig,
-    value_folders_by_outer: &mut HashMap<NodeId, NodeId>,
-    value_outputs_by_pair: &mut HashMap<(NodeId, NodeId), NodeId>,
-    value_output_nodes: &mut HashSet<NodeId>,
-    pending_value_folders: &mut HashSet<NodeId>,
-    pending_value_pairs: &mut HashSet<(NodeId, NodeId)>,
+    state: &mut SpatializerValueMatrixState<'_>,
 ) -> bool {
+    let value_folders_by_outer = &mut *state.folders_by_outer;
+    let value_outputs_by_pair = &mut *state.outputs_by_pair;
+    let value_output_nodes = &mut *state.output_nodes;
+    let pending_value_folders = &mut *state.pending_folders;
+    let pending_value_pairs = &mut *state.pending_pairs;
     let existing_by_decl = child_ids_by_decl(snapshot, root_id);
     let values_by_target = spatializer_values_by_target(config);
     let mut used_outer_folders = HashSet::new();
@@ -1136,18 +1145,21 @@ fn sync_target_centric_value_matrix(
                         },
                     );
                 }
+                let mut pair_state = SpatializerValuePairState {
+                    values_by_target: &values_by_target,
+                    outputs_by_pair: value_outputs_by_pair,
+                    next_outputs_by_pair: &mut next_value_outputs_by_pair,
+                    next_output_nodes: &mut next_value_output_nodes,
+                    pending_pairs: pending_value_pairs,
+                    active_pairs: &mut active_pairs,
+                };
                 waiting_for_values |= sync_source_values_for_target(
                     ctx,
                     snapshot,
                     folder_id,
                     config,
                     target,
-                    &values_by_target,
-                    value_outputs_by_pair,
-                    &mut next_value_outputs_by_pair,
-                    &mut next_value_output_nodes,
-                    pending_value_pairs,
-                    &mut active_pairs,
+                    &mut pair_state,
                 );
             }
             None => {
@@ -1193,12 +1205,13 @@ fn sync_source_centric_value_matrix(
     snapshot: &ProcessTreeSnapshot,
     root_id: NodeId,
     config: &SpatializerConfig,
-    value_folders_by_outer: &mut HashMap<NodeId, NodeId>,
-    value_outputs_by_pair: &mut HashMap<(NodeId, NodeId), NodeId>,
-    value_output_nodes: &mut HashSet<NodeId>,
-    pending_value_folders: &mut HashSet<NodeId>,
-    pending_value_pairs: &mut HashSet<(NodeId, NodeId)>,
+    state: &mut SpatializerValueMatrixState<'_>,
 ) -> bool {
+    let value_folders_by_outer = &mut *state.folders_by_outer;
+    let value_outputs_by_pair = &mut *state.outputs_by_pair;
+    let value_output_nodes = &mut *state.output_nodes;
+    let pending_value_folders = &mut *state.pending_folders;
+    let pending_value_pairs = &mut *state.pending_pairs;
     let existing_by_decl = child_ids_by_decl(snapshot, root_id);
     let values_by_target = spatializer_values_by_target(config);
     let mut used_outer_folders = HashSet::new();
@@ -1234,18 +1247,21 @@ fn sync_source_centric_value_matrix(
                         },
                     );
                 }
+                let mut pair_state = SpatializerValuePairState {
+                    values_by_target: &values_by_target,
+                    outputs_by_pair: value_outputs_by_pair,
+                    next_outputs_by_pair: &mut next_value_outputs_by_pair,
+                    next_output_nodes: &mut next_value_output_nodes,
+                    pending_pairs: pending_value_pairs,
+                    active_pairs: &mut active_pairs,
+                };
                 waiting_for_values |= sync_target_values_for_source(
                     ctx,
                     snapshot,
                     folder_id,
                     config,
                     source,
-                    &values_by_target,
-                    value_outputs_by_pair,
-                    &mut next_value_outputs_by_pair,
-                    &mut next_value_output_nodes,
-                    pending_value_pairs,
-                    &mut active_pairs,
+                    &mut pair_state,
                 );
             }
             None => {
@@ -1292,12 +1308,7 @@ fn sync_source_values_for_target(
     folder_id: NodeId,
     config: &SpatializerConfig,
     target: &SpatializerEndpointConfig,
-    values_by_target: &HashMap<NodeId, HashMap<NodeId, f64>>,
-    value_outputs_by_pair: &HashMap<(NodeId, NodeId), NodeId>,
-    next_value_outputs_by_pair: &mut HashMap<(NodeId, NodeId), NodeId>,
-    next_value_output_nodes: &mut HashSet<NodeId>,
-    pending_value_pairs: &mut HashSet<(NodeId, NodeId)>,
-    active_pairs: &mut HashSet<(NodeId, NodeId)>,
+    state: &mut SpatializerValuePairState<'_>,
 ) -> bool {
     let existing_by_decl = child_ids_by_decl(snapshot, folder_id);
     let mut used_source_values = HashSet::new();
@@ -1305,9 +1316,10 @@ fn sync_source_values_for_target(
 
     for source in &config.sources {
         let pair = (target.item_id, source.item_id);
-        active_pairs.insert(pair);
-        let value = value_for_pair(values_by_target, target.item_id, source.item_id);
-        let existing_value_id = value_outputs_by_pair
+        state.active_pairs.insert(pair);
+        let value = value_for_pair(state.values_by_target, target.item_id, source.item_id);
+        let existing_value_id = state
+            .outputs_by_pair
             .get(&pair)
             .copied()
             .filter(|node_id| snapshot.node(*node_id).is_some())
@@ -1315,15 +1327,15 @@ fn sync_source_values_for_target(
 
         match existing_value_id {
             Some(value_id) => {
-                pending_value_pairs.remove(&pair);
+                state.pending_pairs.remove(&pair);
                 used_source_values.insert(value_id);
-                next_value_outputs_by_pair.insert(pair, value_id);
-                next_value_output_nodes.insert(value_id);
+                state.next_outputs_by_pair.insert(pair, value_id);
+                state.next_output_nodes.insert(value_id);
                 update_source_value(ctx, snapshot, value_id, target, source, value);
             }
             None => {
                 waiting_for_values = true;
-                if pending_value_pairs.insert(pair) {
+                if state.pending_pairs.insert(pair) {
                     ctx.add_child_tree(folder_id, source_value_tree(target, source, value), None);
                 }
             }
@@ -1351,12 +1363,7 @@ fn sync_target_values_for_source(
     folder_id: NodeId,
     config: &SpatializerConfig,
     source: &SpatializerEndpointConfig,
-    values_by_target: &HashMap<NodeId, HashMap<NodeId, f64>>,
-    value_outputs_by_pair: &HashMap<(NodeId, NodeId), NodeId>,
-    next_value_outputs_by_pair: &mut HashMap<(NodeId, NodeId), NodeId>,
-    next_value_output_nodes: &mut HashSet<NodeId>,
-    pending_value_pairs: &mut HashSet<(NodeId, NodeId)>,
-    active_pairs: &mut HashSet<(NodeId, NodeId)>,
+    state: &mut SpatializerValuePairState<'_>,
 ) -> bool {
     let existing_by_decl = child_ids_by_decl(snapshot, folder_id);
     let mut used_target_values = HashSet::new();
@@ -1364,9 +1371,10 @@ fn sync_target_values_for_source(
 
     for target in &config.targets {
         let pair = (target.item_id, source.item_id);
-        active_pairs.insert(pair);
-        let value = value_for_pair(values_by_target, target.item_id, source.item_id);
-        let existing_value_id = value_outputs_by_pair
+        state.active_pairs.insert(pair);
+        let value = value_for_pair(state.values_by_target, target.item_id, source.item_id);
+        let existing_value_id = state
+            .outputs_by_pair
             .get(&pair)
             .copied()
             .filter(|node_id| snapshot.node(*node_id).is_some())
@@ -1374,15 +1382,15 @@ fn sync_target_values_for_source(
 
         match existing_value_id {
             Some(value_id) => {
-                pending_value_pairs.remove(&pair);
+                state.pending_pairs.remove(&pair);
                 used_target_values.insert(value_id);
-                next_value_outputs_by_pair.insert(pair, value_id);
-                next_value_output_nodes.insert(value_id);
+                state.next_outputs_by_pair.insert(pair, value_id);
+                state.next_output_nodes.insert(value_id);
                 update_target_value(ctx, snapshot, value_id, source, target, value);
             }
             None => {
                 waiting_for_values = true;
-                if pending_value_pairs.insert(pair) {
+                if state.pending_pairs.insert(pair) {
                     ctx.add_child_tree(folder_id, target_value_tree(source, target, value), None);
                 }
             }
@@ -1624,9 +1632,10 @@ fn freeze_radius_param(radius: f64) -> Parameter {
 }
 
 fn unit_value_constraints() -> golden_core::parameter::ParameterConstraints {
-    let mut constraints = golden_core::parameter::ParameterConstraints::default();
-    constraints.range = RangeConstraint::uniform(Some(0.0), Some(1.0));
-    constraints
+    golden_core::parameter::ParameterConstraints {
+        range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]

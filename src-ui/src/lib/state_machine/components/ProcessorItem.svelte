@@ -26,9 +26,11 @@
 	let runtimePreviewBundle = $derived.by((): StateMachineProtocolBundle | null => {
 		runtimePreviewSequence;
 		if (!session) return null;
-		return session.getCustomEventPayload<StateMachineProtocolBundle>(
-			STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
-		) ?? null;
+		return (
+			session.getCustomEventPayload<StateMachineProtocolBundle>(
+				STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
+			) ?? null
+		);
 	});
 	let graph = $derived(session?.graph.state ?? null);
 	let liveNode = $derived(graph?.nodesById.get(node.node_id) ?? node);
@@ -80,16 +82,21 @@
 	let conditionManagers = $derived(isProcessorNode ? processorConditionManagers(liveNode) : []);
 	let multiplexLaneCount = $derived.by((): number => {
 		if (!isProcessorNode || !runtimePreviewBundle) return 0;
-		return runtimePreviewBundle.processors.find((processor) => processor.id === liveNode.uuid)
-			?.multiplex_lane_count ?? 0;
+		return (
+			runtimePreviewBundle.processors.find((processor) => processor.id === liveNode.uuid)
+				?.multiplex_lane_count ?? 0
+		);
 	});
 	let previewLanes = $derived(
 		processorPreviewLaneOptions(
-			runtimePreviewBundle?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ?? []
+			runtimePreviewBundle?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ??
+				[]
 		)
 	);
 	let previewLane = $derived(
-		isProcessorNode ? formulaPreviewSessionStore.processorLane(liveNode.node_id, previewLanes) : null
+		isProcessorNode
+			? formulaPreviewSessionStore.processorLane(liveNode.node_id, previewLanes)
+			: null
 	);
 </script>
 
@@ -100,7 +107,7 @@
 				M : {multiplexLaneCount}
 			</span>
 		{/if}
-			
+
 		{#if multiplexLaneCount > 1 && previewLane}
 			<span class="processor-preview-lane" title={`Preview lane: ${previewLane.label}`}>
 				{previewLane.label}

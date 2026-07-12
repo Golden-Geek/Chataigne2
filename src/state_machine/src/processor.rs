@@ -300,8 +300,9 @@ pub struct ProcessorRuntime {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum ProcessorDebugCapture {
+    #[default]
     Off,
     All {
         history_len: usize,
@@ -315,12 +316,6 @@ pub enum ProcessorDebugCapture {
         nodes: IndexSet<ANodeId>,
         history_len: usize,
     },
-}
-
-impl Default for ProcessorDebugCapture {
-    fn default() -> Self {
-        Self::Off
-    }
 }
 
 impl ProcessorDebugCapture {

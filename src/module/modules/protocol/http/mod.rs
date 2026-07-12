@@ -406,10 +406,7 @@ impl HttpModule {
         method: &str,
         args: &[ParamValue],
     ) -> Option<Result<(), String>> {
-        let request = match http_request_from_script(method, args) {
-            Some(result) => result,
-            None => return None,
-        };
+        let request = http_request_from_script(method, args)?;
 
         Some(request.and_then(|payload| {
             self.queue_request(

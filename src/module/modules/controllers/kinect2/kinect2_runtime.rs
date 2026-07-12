@@ -354,7 +354,7 @@ mod windows_runtime {
                 );
             }
 
-            let proc = unsafe { GetProcAddress(module, b"GetDefaultKinectSensor\0".as_ptr()) };
+            let proc = unsafe { GetProcAddress(module, c"GetDefaultKinectSensor".as_ptr().cast()) };
             let Some(proc) = proc else {
                 return Err("Kinect20.dll does not export GetDefaultKinectSensor.".to_string());
             };

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["src/state_machine"]
+members = ["src/state_machine", "xtask"]
 exclude = ["submodules/golden_alchemist_core", "submodules/golden_core"]
 resolver = "2"
 

@@ -309,8 +309,8 @@ fn emit_status(
 
 fn mqtt_qos_from_rumqttc(qos: rumqttc::QoS) -> MqttQos {
     match qos {
-        rumqttc::QoS::AtMostOnce => MqttQos::AtMostOnce,
-        rumqttc::QoS::AtLeastOnce => MqttQos::AtLeastOnce,
-        rumqttc::QoS::ExactlyOnce => MqttQos::ExactlyOnce,
+        rumqttc::QoS::AtMostOnce => MqttQos::AtMost,
+        rumqttc::QoS::AtLeastOnce => MqttQos::AtLeast,
+        rumqttc::QoS::ExactlyOnce => MqttQos::Exactly,
     }
 }

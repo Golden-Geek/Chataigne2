@@ -431,7 +431,7 @@ impl ButtplugModule {
                 .queue_stop_device(
                     ctx,
                     ButtplugTargetRequest {
-                        target: script_target_arg(args.get(0), BUTTPLUG_TARGET_SELECTED),
+                        target: script_target_arg(args.first(), BUTTPLUG_TARGET_SELECTED),
                         description: "stop device".to_string(),
                     },
                 )

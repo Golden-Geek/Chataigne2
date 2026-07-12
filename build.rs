@@ -175,13 +175,10 @@ fn sidecar_ultraleap_runtime(paths: &BuildPaths, link_dir: &Path) -> std::io::Re
     println!("cargo:rerun-if-changed={}", source.display());
 
     let Some(profile_dir) = paths.cargo_profile_dir() else {
-        return Err(Error::new(
-            ErrorKind::Other,
-            format!(
-                "failed to resolve Cargo profile output directory from OUT_DIR {}",
-                paths.out_dir.display()
-            ),
-        ));
+        return Err(Error::other(format!(
+            "failed to resolve Cargo profile output directory from OUT_DIR {}",
+            paths.out_dir.display()
+        )));
     };
 
     for destination_dir in [profile_dir.to_path_buf(), profile_dir.join("deps")] {
@@ -206,13 +203,10 @@ fn sidecar_kinect_runtime(paths: &BuildPaths) -> std::io::Result<()> {
     println!("cargo:rerun-if-changed={}", source.display());
 
     let Some(profile_dir) = paths.cargo_profile_dir() else {
-        return Err(Error::new(
-            ErrorKind::Other,
-            format!(
-                "failed to resolve Cargo profile output directory from OUT_DIR {}",
-                paths.out_dir.display()
-            ),
-        ));
+        return Err(Error::other(format!(
+            "failed to resolve Cargo profile output directory from OUT_DIR {}",
+            paths.out_dir.display()
+        )));
     };
 
     for destination_dir in [profile_dir.to_path_buf(), profile_dir.join("deps")] {
@@ -445,14 +439,11 @@ fn run_npm_command(ui_root: &Path, args: &[&str], envs: &[(&str, &OsStr)]) -> st
         return Ok(());
     }
 
-    Err(Error::new(
-        ErrorKind::Other,
-        format!(
-            "{npm} {} exited with status {status}\n{}",
-            args.join(" "),
-            frontend_toolchain_help()
-        ),
-    ))
+    Err(Error::other(format!(
+        "{npm} {} exited with status {status}\n{}",
+        args.join(" "),
+        frontend_toolchain_help()
+    )))
 }
 
 fn ensure_frontend_toolchain() -> std::io::Result<()> {
@@ -480,13 +471,10 @@ fn ensure_command_available(command: &str, args: &[&str]) -> std::io::Result<()>
         return Ok(());
     }
 
-    Err(Error::new(
-        ErrorKind::Other,
-        format!(
-            "required frontend command `{command}` exited with status {status}\n{}",
-            frontend_toolchain_help()
-        ),
-    ))
+    Err(Error::other(format!(
+        "required frontend command `{command}` exited with status {status}\n{}",
+        frontend_toolchain_help()
+    )))
 }
 
 fn npm_command() -> &'static str {

@@ -60,7 +60,7 @@ fn isolated_state_can_be_deactivated() {
     let states = [(NodeId(1), false)];
     let transitions: &[(NodeId, NodeId)] = &[];
 
-    let result = reconciled_state_activity(&states, &transitions, None, Some(NodeId(1)));
+    let result = reconciled_state_activity(&states, transitions, None, Some(NodeId(1)));
 
     assert!(!activity(&result, 1));
 }
@@ -72,7 +72,7 @@ fn isolated_inactive_state_is_not_reactivated_by_reconciliation() {
     let states = [(NodeId(1), false)];
     let transitions: &[(NodeId, NodeId)] = &[];
 
-    let result = reconciled_state_activity(&states, &transitions, None, None);
+    let result = reconciled_state_activity(&states, transitions, None, None);
 
     // desired_activity has no entry for isolated inactive states — caller treats missing as "no change"
     assert!(!result.contains_key(&NodeId(1)));

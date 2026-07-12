@@ -271,7 +271,7 @@ impl JoyConModule {
                     self.runtime_contact_elapsed = Duration::ZERO;
                     self.clear_runtime_warning(ctx);
                     force_apply |= connection_state_changed(&self.last_state, &state);
-                    latest_state = Some(state);
+                    latest_state = Some(*state);
                 }
                 Ok(JoyConWorkerEvent::CommandResult(message)) => {
                     self.runtime_contact_elapsed = Duration::ZERO;
@@ -458,13 +458,12 @@ impl JoyConModule {
 
                 self.apply_motion_values(
                     ctx,
-                    JoyConMotionParam::LeftOrientation,
-                    JoyConMotionParam::LeftAccelerometer,
-                    JoyConMotionParam::LeftGyroscope,
-                    state.orientation_pitch,
-                    state.orientation_roll,
-                    state.accelerometer,
-                    state.gyroscope,
+                    JoyConMotionTargets {
+                        orientation: JoyConMotionParam::LeftOrientation,
+                        accelerometer: JoyConMotionParam::LeftAccelerometer,
+                        gyroscope: JoyConMotionParam::LeftGyroscope,
+                    },
+                    JoyConMotionSample::from(&state),
                     motion_mode,
                 );
             }
@@ -492,13 +491,12 @@ impl JoyConModule {
 
                 self.apply_motion_values(
                     ctx,
-                    JoyConMotionParam::RightOrientation,
-                    JoyConMotionParam::RightAccelerometer,
-                    JoyConMotionParam::RightGyroscope,
-                    state.orientation_pitch,
-                    state.orientation_roll,
-                    state.accelerometer,
-                    state.gyroscope,
+                    JoyConMotionTargets {
+                        orientation: JoyConMotionParam::RightOrientation,
+                        accelerometer: JoyConMotionParam::RightAccelerometer,
+                        gyroscope: JoyConMotionParam::RightGyroscope,
+                    },
+                    JoyConMotionSample::from(&state),
                     motion_mode,
                 );
             }
@@ -508,30 +506,37 @@ impl JoyConModule {
     fn apply_motion_values(
         &mut self,
         ctx: &mut ProcessCtx,
-        orientation_param: JoyConMotionParam,
-        accelerometer_param: JoyConMotionParam,
-        gyroscope_param: JoyConMotionParam,
-        pitch: f64,
-        roll: f64,
-        accelerometer: (f64, f64, f64),
-        gyroscope: (f64, f64, f64),
+        targets: JoyConMotionTargets,
+        sample: JoyConMotionSample,
         motion_mode: JoyConMotionDataMode,
     ) {
         match motion_mode {
             JoyConMotionDataMode::None => {
-                self.set_motion_vec2(ctx, orientation_param, 0.0, 0.0);
-                self.set_motion_vec3(ctx, accelerometer_param, 0.0, 0.0, 0.0);
-                self.set_motion_vec3(ctx, gyroscope_param, 0.0, 0.0, 0.0);
+                self.set_motion_vec2(ctx, targets.orientation, 0.0, 0.0);
+                self.set_motion_vec3(ctx, targets.accelerometer, 0.0, 0.0, 0.0);
+                self.set_motion_vec3(ctx, targets.gyroscope, 0.0, 0.0, 0.0);
             }
             JoyConMotionDataMode::Orientation => {
-                self.set_motion_vec2(ctx, orientation_param, pitch, roll);
-                self.set_motion_vec3(ctx, accelerometer_param, 0.0, 0.0, 0.0);
-                self.set_motion_vec3(ctx, gyroscope_param, 0.0, 0.0, 0.0);
+                self.set_motion_vec2(ctx, targets.orientation, sample.pitch, sample.roll);
+                self.set_motion_vec3(ctx, targets.accelerometer, 0.0, 0.0, 0.0);
+                self.set_motion_vec3(ctx, targets.gyroscope, 0.0, 0.0, 0.0);
             }
             JoyConMotionDataMode::All => {
-                self.set_motion_vec2(ctx, orientation_param, pitch, roll);
-                self.set_motion_vec3(ctx, accelerometer_param, accelerometer.0, accelerometer.1, accelerometer.2);
-                self.set_motion_vec3(ctx, gyroscope_param, gyroscope.0, gyroscope.1, gyroscope.2);
+                self.set_motion_vec2(ctx, targets.orientation, sample.pitch, sample.roll);
+                self.set_motion_vec3(
+                    ctx,
+                    targets.accelerometer,
+                    sample.accelerometer.0,
+                    sample.accelerometer.1,
+                    sample.accelerometer.2,
+                );
+                self.set_motion_vec3(
+                    ctx,
+                    targets.gyroscope,
+                    sample.gyroscope.0,
+                    sample.gyroscope.1,
+                    sample.gyroscope.2,
+                );
             }
         }
     }
@@ -1106,6 +1111,32 @@ enum JoyConMotionParam {
     RightOrientation,
     RightAccelerometer,
     RightGyroscope,
+}
+
+#[derive(Clone, Copy)]
+struct JoyConMotionTargets {
+    orientation: JoyConMotionParam,
+    accelerometer: JoyConMotionParam,
+    gyroscope: JoyConMotionParam,
+}
+
+#[derive(Clone, Copy)]
+struct JoyConMotionSample {
+    pitch: f64,
+    roll: f64,
+    accelerometer: (f64, f64, f64),
+    gyroscope: (f64, f64, f64),
+}
+
+impl From<&runtime::JoyConControllerStateSnapshot> for JoyConMotionSample {
+    fn from(state: &runtime::JoyConControllerStateSnapshot) -> Self {
+        Self {
+            pitch: state.orientation_pitch,
+            roll: state.orientation_roll,
+            accelerometer: state.accelerometer,
+            gyroscope: state.gyroscope,
+        }
+    }
 }
 
 const JOYCON_LEFT_BUTTON_PARAMS: &[JoyConButtonParam] = &[

@@ -413,11 +413,11 @@ impl HostCommandCandidate {
 fn control_command_candidates(action: HostControlAction) -> Vec<HostCommandCandidate> {
     #[cfg(windows)]
     {
-        return match action {
+        match action {
             HostControlAction::Shutdown => vec![candidate("shutdown", &["/s", "/t", "0"])],
             HostControlAction::Reboot => vec![candidate("shutdown", &["/r", "/t", "0"])],
             HostControlAction::Logout => vec![candidate("shutdown", &["/l"])],
-        };
+        }
     }
 
     #[cfg(target_os = "macos")]

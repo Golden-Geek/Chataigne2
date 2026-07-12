@@ -146,15 +146,13 @@ fn worker_loop(
 
         for event in events.iter() {
             match event.token() {
-                OSC_WAKE_TOKEN => {
-                    if drain_commands(&command_rx, &event_tx, &socket) {
-                        return;
-                    }
-                }
-                OSC_SOCKET_TOKEN if receive_enabled && event.is_readable() => {
-                    if !drain_socket(&socket, &event_tx, &mut buffer) {
-                        return;
-                    }
+                OSC_WAKE_TOKEN if drain_commands(&command_rx, &event_tx, &socket) => return,
+                OSC_SOCKET_TOKEN
+                    if receive_enabled
+                        && event.is_readable()
+                        && !drain_socket(&socket, &event_tx, &mut buffer) =>
+                {
+                    return;
                 }
                 _ => {}
             }

@@ -1514,28 +1514,10 @@ fn processor_mirrors_formula_icon() {
 /// so `default_shared_formula_trees()` sees zero shared formulas regardless
 /// of what the current machine's real Shared formulas folder contains.
 /// Restores the previous value (if any) when dropped.
-struct SharedFormulaDirTestOverride {
-    previous: Option<std::ffi::OsString>,
-}
-
-impl Drop for SharedFormulaDirTestOverride {
-    fn drop(&mut self) {
-        match self.previous.take() {
-            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
-            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
-        }
-    }
-}
-
-fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
-    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
-    unsafe {
-        std::env::set_var(
-            "CHATAIGNE_SHARED_FORMULAS_DIR",
-            "chataigne2-tests-nonexistent-shared-formulas-dir",
-        );
-    }
-    SharedFormulaDirTestOverride { previous }
+fn shared_formula_dir_test_override() -> crate::test_support::ScopedSharedFormulaDir {
+    crate::test_support::scoped_shared_formula_dir(Some(std::path::Path::new(
+        "chataigne2-tests-nonexistent-shared-formulas-dir",
+    )))
 }
 
 fn project_json_contains_node_type(value: &serde_json::Value, node_type: &str) -> bool {

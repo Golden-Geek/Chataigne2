@@ -1,0 +1,818 @@
+{
+  "category_counts": {
+    "asset": 96,
+    "fixture": 3
+  },
+  "entries": [
+    {
+      "bytes": 149836,
+      "id": "asset/icons/icon.ico",
+      "kind": "asset",
+      "name": "icon.ico",
+      "path": "icons/icon.ico",
+      "sha256": "6851c2a78f682f8f319d584b903bc6367201d52b9f3eb2eba8aade9c26504f0f"
+    },
+    {
+      "bytes": 149814,
+      "id": "asset/icons/icon.png",
+      "kind": "asset",
+      "name": "icon.png",
+      "path": "icons/icon.png",
+      "sha256": "63583425dd1763e23f451856bd1bfc023f4a16af68d762db232bb987643ce9e4"
+    },
+    {
+      "bytes": 61308,
+      "id": "asset/src-ui/build/_app/immutable/assets/3.7koJ-K6Z.css",
+      "kind": "asset",
+      "name": "3.7koJ-K6Z.css",
+      "path": "src-ui/build/_app/immutable/assets/3.7koJ-K6Z.css",
+      "sha256": "7eedcca3ddcfa59f947514e5cf2c350663b1557515e9f16a9a998e20f310e042"
+    },
+    {
+      "bytes": 238984,
+      "id": "asset/src-ui/build/_app/immutable/assets/DMSans-VariableFont_opsz_wght.D_B5dL4R.ttf",
+      "kind": "asset",
+      "name": "DMSans-VariableFont_opsz_wght.D_B5dL4R.ttf",
+      "path": "src-ui/build/_app/immutable/assets/DMSans-VariableFont_opsz_wght.D_B5dL4R.ttf",
+      "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+    },
+    {
+      "bytes": 206370,
+      "id": "asset/src-ui/build/_app/immutable/assets/ManagerListPanel.CHP0tH5W.css",
+      "kind": "asset",
+      "name": "ManagerListPanel.CHP0tH5W.css",
+      "path": "src-ui/build/_app/immutable/assets/ManagerListPanel.CHP0tH5W.css",
+      "sha256": "b40bd32da7e7f644a009bc28a15b4c4d5a5e2de797979ad2865b0c60b3407134"
+    },
+    {
+      "bytes": 14812,
+      "id": "asset/src-ui/build/_app/immutable/assets/buttplug_module.BKgr8H5m.svg",
+      "kind": "asset",
+      "name": "buttplug_module.BKgr8H5m.svg",
+      "path": "src-ui/build/_app/immutable/assets/buttplug_module.BKgr8H5m.svg",
+      "sha256": "9396fd6bc304e0d736083854da4f8ef3388d7c5b8f7f7c09eb2716fb79d5a46d"
+    },
+    {
+      "bytes": 283524,
+      "id": "asset/src-ui/build/_app/immutable/assets/dmsans-italic.CT59GZwy.ttf",
+      "kind": "asset",
+      "name": "dmsans-italic.CT59GZwy.ttf",
+      "path": "src-ui/build/_app/immutable/assets/dmsans-italic.CT59GZwy.ttf",
+      "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+    },
+    {
+      "bytes": 7116,
+      "id": "asset/src-ui/build/_app/immutable/assets/gamepad_module.9Ak2e2yb.svg",
+      "kind": "asset",
+      "name": "gamepad_module.9Ak2e2yb.svg",
+      "path": "src-ui/build/_app/immutable/assets/gamepad_module.9Ak2e2yb.svg",
+      "sha256": "43c58fbc8c843678c6aaab7df7d218fd27ca7b42bcf4645ff52cca623e69f6e2"
+    },
+    {
+      "bytes": 1569,
+      "id": "asset/src-ui/src/lib/assets/favicon.svg",
+      "kind": "asset",
+      "name": "favicon.svg",
+      "path": "src-ui/src/lib/assets/favicon.svg",
+      "sha256": "d7d9227f0fe5bfb4189fb6ba4dd9e2d524f6a1dfd02bd901c65330987675c0b3"
+    },
+    {
+      "bytes": 1822,
+      "id": "asset/src-ui/src/lib/assets/icons/module/audio.svg",
+      "kind": "asset",
+      "name": "audio.svg",
+      "path": "src-ui/src/lib/assets/icons/module/audio.svg",
+      "sha256": "6e337056863081ecfa0d50f72a97f7112d7f63c3250bd4ddd2ed4ca024d538bc"
+    },
+    {
+      "bytes": 973,
+      "id": "asset/src-ui/src/lib/assets/icons/module/connected.svg",
+      "kind": "asset",
+      "name": "connected.svg",
+      "path": "src-ui/src/lib/assets/icons/module/connected.svg",
+      "sha256": "fc5fcfdc1835305431d97f976402c2dfdfd9271cb02a169592c66840e5e91365"
+    },
+    {
+      "bytes": 2405,
+      "id": "asset/src-ui/src/lib/assets/icons/module/controllers.svg",
+      "kind": "asset",
+      "name": "controllers.svg",
+      "path": "src-ui/src/lib/assets/icons/module/controllers.svg",
+      "sha256": "d54dc3ba9862fbc0c207d544f9fafb1a65afc71d4b8bd8e1d975b475b18e6273"
+    },
+    {
+      "bytes": 1554,
+      "id": "asset/src-ui/src/lib/assets/icons/module/disconnected.svg",
+      "kind": "asset",
+      "name": "disconnected.svg",
+      "path": "src-ui/src/lib/assets/icons/module/disconnected.svg",
+      "sha256": "d167204a566c20fcad702a7415f9fc816347109bc931ccbd3f7374c1340c76aa"
+    },
+    {
+      "bytes": 1520,
+      "id": "asset/src-ui/src/lib/assets/icons/module/generators.svg",
+      "kind": "asset",
+      "name": "generators.svg",
+      "path": "src-ui/src/lib/assets/icons/module/generators.svg",
+      "sha256": "ee162c7246c89f4de1965a1b2fd410d5baed297a9a655f6a6d17e7582c7c2df6"
+    },
+    {
+      "bytes": 2361,
+      "id": "asset/src-ui/src/lib/assets/icons/module/hardware.svg",
+      "kind": "asset",
+      "name": "hardware.svg",
+      "path": "src-ui/src/lib/assets/icons/module/hardware.svg",
+      "sha256": "1d754500b4d45d8284ea268f063de76682a6e2fdaa2291ad3378cb181dfa6c5f"
+    },
+    {
+      "bytes": 718,
+      "id": "asset/src-ui/src/lib/assets/icons/module/incoming.svg",
+      "kind": "asset",
+      "name": "incoming.svg",
+      "path": "src-ui/src/lib/assets/icons/module/incoming.svg",
+      "sha256": "96c4882d19aed4ec3a5751ac148bc531e59a55af29c3b63f5f657fb41a5c189f"
+    },
+    {
+      "bytes": 2560,
+      "id": "asset/src-ui/src/lib/assets/icons/module/network.svg",
+      "kind": "asset",
+      "name": "network.svg",
+      "path": "src-ui/src/lib/assets/icons/module/network.svg",
+      "sha256": "6f9436e243d9d2b08be36b6c29ffe6cfb809c7172b2b5cf8dcc8a6fc4129e346"
+    },
+    {
+      "bytes": 719,
+      "id": "asset/src-ui/src/lib/assets/icons/module/outgoing.svg",
+      "kind": "asset",
+      "name": "outgoing.svg",
+      "path": "src-ui/src/lib/assets/icons/module/outgoing.svg",
+      "sha256": "166cb5f9b0af562f4f8da7adad5bc066c0665245d2d7678d68d0969f9e734a53"
+    },
+    {
+      "bytes": 1886,
+      "id": "asset/src-ui/src/lib/assets/icons/module/system.svg",
+      "kind": "asset",
+      "name": "system.svg",
+      "path": "src-ui/src/lib/assets/icons/module/system.svg",
+      "sha256": "7028cd405fa1c5b5c73a82798a4d14fefab75658d565baa46c3424c4d80ec609"
+    },
+    {
+      "bytes": 1440,
+      "id": "asset/src-ui/src/lib/assets/icons/module/video.svg",
+      "kind": "asset",
+      "name": "video.svg",
+      "path": "src-ui/src/lib/assets/icons/module/video.svg",
+      "sha256": "69f9622dbb37bfb6b650facae822dbe64a5932686152b0f60421845a917e9b83"
+    },
+    {
+      "bytes": 1340,
+      "id": "asset/src-ui/src/lib/assets/icons/node-icons.svelte.ts",
+      "kind": "asset",
+      "name": "node-icons.svelte.ts",
+      "path": "src-ui/src/lib/assets/icons/node-icons.svelte.ts",
+      "sha256": "21c9030c957cd9ea3c3ff0b5870c4bd6773266ac793ec3e57f6b1b5b6af375ce"
+    },
+    {
+      "bytes": 914,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/app_control_module.svg",
+      "kind": "asset",
+      "name": "app_control_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/app_control_module.svg",
+      "sha256": "8795b0ada052b5435c222b3f0f90fcdaaf5b6f7822cb0463abd9edb18a450b88"
+    },
+    {
+      "bytes": 14812,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/buttplug_module.svg",
+      "kind": "asset",
+      "name": "buttplug_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/buttplug_module.svg",
+      "sha256": "9396fd6bc304e0d736083854da4f8ef3388d7c5b8f7f7c09eb2716fb79d5a46d"
+    },
+    {
+      "bytes": 1811,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/dmx_module.svg",
+      "kind": "asset",
+      "name": "dmx_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/dmx_module.svg",
+      "sha256": "a9de449f2b882ae1960a0a60863cc4431c4b1f2c55920066cb4eb803c011c35b"
+    },
+    {
+      "bytes": 7116,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/gamepad_module.svg",
+      "kind": "asset",
+      "name": "gamepad_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/gamepad_module.svg",
+      "sha256": "43c58fbc8c843678c6aaab7df7d218fd27ca7b42bcf4645ff52cca623e69f6e2"
+    },
+    {
+      "bytes": 2218,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/http_module.svg",
+      "kind": "asset",
+      "name": "http_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/http_module.svg",
+      "sha256": "8894500225cb0ef2e7f7efbd063e0fe321d35278762c4b5696792c85f81a8002"
+    },
+    {
+      "bytes": 913,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/joycon_module.svg",
+      "kind": "asset",
+      "name": "joycon_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/joycon_module.svg",
+      "sha256": "7d0251d1c6536c3139da126f4c9bc888ca527240638b34046c1262f173b60eb0"
+    },
+    {
+      "bytes": 2370,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/keyboard_module.svg",
+      "kind": "asset",
+      "name": "keyboard_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/keyboard_module.svg",
+      "sha256": "ec910b884e55c12271e4f10e0675d7f84a6180525721ecaf6a8c865ef8694187"
+    },
+    {
+      "bytes": 926,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/kinect2_module.svg",
+      "kind": "asset",
+      "name": "kinect2_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/kinect2_module.svg",
+      "sha256": "2f0ed20aaef99fc929141708000357330d3092763f48f19d0681d2c3ab6cae02"
+    },
+    {
+      "bytes": 1687,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/metronomes_module.svg",
+      "kind": "asset",
+      "name": "metronomes_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/metronomes_module.svg",
+      "sha256": "c2bb6a1be2bfe347afdd6380ed8fbd4f3a37e9ca91f2623ec4b01d8f83a853d4"
+    },
+    {
+      "bytes": 1653,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/midi_module.svg",
+      "kind": "asset",
+      "name": "midi_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/midi_module.svg",
+      "sha256": "ddde3863b74568ac7a630b88952b266846f8efbbc00a91b92784640523b386e7"
+    },
+    {
+      "bytes": 1229,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/module.svg",
+      "kind": "asset",
+      "name": "module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/module.svg",
+      "sha256": "42ad301982f06f5a26e6701242a2a4e6371afc60f6f9fe80814f45ebdd5054da"
+    },
+    {
+      "bytes": 1508,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/module_manager.svg",
+      "kind": "asset",
+      "name": "module_manager.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/module_manager.svg",
+      "sha256": "78d49cde451b4c26492ee883e42bc77d41e328f90d516f32c387745d2fdcd055"
+    },
+    {
+      "bytes": 1205,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/mouse_module.svg",
+      "kind": "asset",
+      "name": "mouse_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/mouse_module.svg",
+      "sha256": "eda360845b0231eb780b580d21cc0da4dc9b20cab630fa3bf44f3d397b3b0152"
+    },
+    {
+      "bytes": 808,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/mqtt_module.svg",
+      "kind": "asset",
+      "name": "mqtt_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/mqtt_module.svg",
+      "sha256": "4823c6087cd722fdb189781cc7ebe3e7e6cff26fc9d0274b13bd91b3e7c08f03"
+    },
+    {
+      "bytes": 1730,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/os_module.svg",
+      "kind": "asset",
+      "name": "os_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/os_module.svg",
+      "sha256": "7eb910e9264294a7e60ac88253b24d460f079cfe1f65aead643601828dc84f6c"
+    },
+    {
+      "bytes": 1399,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/osc_module.svg",
+      "kind": "asset",
+      "name": "osc_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/osc_module.svg",
+      "sha256": "e8f80558ed9eeeb7dcf3aa74a4f457f78dcc09e467a527a484886741f43d5a47"
+    },
+    {
+      "bytes": 3248,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/serial_module.svg",
+      "kind": "asset",
+      "name": "serial_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/serial_module.svg",
+      "sha256": "d91add6b9ee2b17d97421bc1465d385b731bb9774445345b544ef6c9d2188d5a"
+    },
+    {
+      "bytes": 603,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/signals_module.svg",
+      "kind": "asset",
+      "name": "signals_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/signals_module.svg",
+      "sha256": "325aa7999c94aa387017e63fd1fa88487185e69b04623f145d1e8f44c792ee31"
+    },
+    {
+      "bytes": 1631,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/spatializer_module.svg",
+      "kind": "asset",
+      "name": "spatializer_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/spatializer_module.svg",
+      "sha256": "3630418095c6681a011718a9e9874c9ccd8cca2884bd31f759e9282882dd055b"
+    },
+    {
+      "bytes": 1472,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
+      "kind": "asset",
+      "name": "state_machine_manager.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
+      "sha256": "a32d665af75fdec5bd4dce0c9d7ea502c8db99acf53f954c5c530d266123b6e2"
+    },
+    {
+      "bytes": 1122,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/state_processor.svg",
+      "kind": "asset",
+      "name": "state_processor.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/state_processor.svg",
+      "sha256": "f85f675a791342daf02617419fbf16eec14c8979268c7a25b49faaf564f9d5b3"
+    },
+    {
+      "bytes": 835,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
+      "kind": "asset",
+      "name": "streamdeck_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
+      "sha256": "0e8f6e3f12b8494d1e124ab3544a6cdceaa519ae6c0a04878b3e3344a5a3dd8c"
+    },
+    {
+      "bytes": 958,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
+      "kind": "asset",
+      "name": "tcp_client_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
+      "sha256": "97fcdc380b2dcc97442554234b730842d6b5c1c99152f5ccea58fed5b4c31135"
+    },
+    {
+      "bytes": 988,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
+      "kind": "asset",
+      "name": "tcp_server_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
+      "sha256": "ee375cdcc9a6239bf11131ec0982bc2cbd2c98ae81f6630a92885774d032105d"
+    },
+    {
+      "bytes": 949,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/udp_module.svg",
+      "kind": "asset",
+      "name": "udp_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/udp_module.svg",
+      "sha256": "33f8ec53a76816cd4fa5a42a7350e810690c0454a5d1e6acc9cdc7e106d8f8a4"
+    },
+    {
+      "bytes": 1117,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
+      "kind": "asset",
+      "name": "ultraleap_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
+      "sha256": "b8959026943932431a6d042809960087d022584d609699c006110f107ab53cd1"
+    },
+    {
+      "bytes": 1523,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
+      "kind": "asset",
+      "name": "websocket_client_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
+      "sha256": "f6c87a9191b4bbcf89797d0c7e415fe116ef3e6f40de2577341aeb0a97a850d6"
+    },
+    {
+      "bytes": 1523,
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
+      "kind": "asset",
+      "name": "websocket_server_module.svg",
+      "path": "src-ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
+      "sha256": "e33ff26e3fe53ea3869fa1599fd708858bd60c0152aaae4784ebe8455236e836"
+    },
+    {
+      "bytes": 1225,
+      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula.svg",
+      "kind": "asset",
+      "name": "formula.svg",
+      "path": "src-ui/src/lib/golden_alchemist_ui/icons/formula.svg",
+      "sha256": "5ad8f1f6006c2ab80772016028767c7b608caffa7021b25617705c9e38cd26b5"
+    },
+    {
+      "bytes": 2338,
+      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
+      "kind": "asset",
+      "name": "formula_library.svg",
+      "path": "src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
+      "sha256": "32c332853f5c15908038975baeb4f05c6edd36baf8fcaebc638e20fabb9383b6"
+    },
+    {
+      "bytes": 1173,
+      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/lock.svg",
+      "kind": "asset",
+      "name": "lock.svg",
+      "path": "src-ui/src/lib/golden_alchemist_ui/icons/lock.svg",
+      "sha256": "5e9e15819c1229475ac13018151edcc5163ee452f1b6dea9c7d7d6e3d8d195ff"
+    },
+    {
+      "bytes": 978,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/add.svg",
+      "kind": "asset",
+      "name": "add.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/add.svg",
+      "sha256": "4a831d2922ba59b267ce1daa5befa7f26f473c2f10be2b54fed5c5760f21c609"
+    },
+    {
+      "bytes": 851,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/arrow.svg",
+      "kind": "asset",
+      "name": "arrow.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/arrow.svg",
+      "sha256": "b7f9d89cf33edd423482535364b41dfa5167269dc14b42745209641675b89b57"
+    },
+    {
+      "bytes": 874,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/arrow_down.svg",
+      "kind": "asset",
+      "name": "arrow_down.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/arrow_down.svg",
+      "sha256": "8f2600e7cc33ecc2c0277adc39a149549077099d06dd1ecab372783d1dacb13b"
+    },
+    {
+      "bytes": 1280,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/clipboard.svg",
+      "kind": "asset",
+      "name": "clipboard.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/clipboard.svg",
+      "sha256": "6550fa2084cf0818542f694f2d0b18f44aad89c95aa6566ff5b26868363f9c66"
+    },
+    {
+      "bytes": 890,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/copy.svg",
+      "kind": "asset",
+      "name": "copy.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/copy.svg",
+      "sha256": "fb1036ee035c31e113231574b5fda844288455c8c57e54bf1c7d2ac6d5e47175"
+    },
+    {
+      "bytes": 1677,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/delete.svg",
+      "kind": "asset",
+      "name": "delete.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/delete.svg",
+      "sha256": "49ea76947e51528a0fdb3ddde7bd3d4bffb32f3dde9cd30e1c0d3a3e825d7372"
+    },
+    {
+      "bytes": 1080,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/duplicate.svg",
+      "kind": "asset",
+      "name": "duplicate.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/duplicate.svg",
+      "sha256": "e639c6d6250cb6af1dfc5b84d450140746785429541b721d7aa3d7963d1b7bad"
+    },
+    {
+      "bytes": 1203,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/lock.svg",
+      "kind": "asset",
+      "name": "lock.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/lock.svg",
+      "sha256": "403e7093ef38621d2afad41c1ae2d7cb4016c801dc633fe37ede8714be407448"
+    },
+    {
+      "bytes": 1266,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/add.svg",
+      "kind": "asset",
+      "name": "add.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/node/add.svg",
+      "sha256": "92485a19e27dda44ac20c2d43cc3996d1f72c5ca51d3d94b1b41b475b7e589c6"
+    },
+    {
+      "bytes": 1887,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/curve/key.svg",
+      "kind": "asset",
+      "name": "key.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/node/curve/key.svg",
+      "sha256": "336342b9cdbea6eef747f5e064ca18946a53e53713b80969a218fe1b7d7b7126"
+    },
+    {
+      "bytes": 816,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/dashboard.svg",
+      "kind": "asset",
+      "name": "dashboard.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/node/dashboard.svg",
+      "sha256": "0e15f03bc942c2467c2153da02b807b4b9acf4d3edc94d0e5c40332886fbef75"
+    },
+    {
+      "bytes": 744,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/default.svg",
+      "kind": "asset",
+      "name": "default.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/node/default.svg",
+      "sha256": "50973e2d7f0f131ca1ee7f4ae06a59d16645f5e1f333ac696bb8a64deefb0ceb"
+    },
+    {
+      "bytes": 1338,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/folder.svg",
+      "kind": "asset",
+      "name": "folder.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/node/folder.svg",
+      "sha256": "1ea4e4681db7b12a7a9de4916c7c7714f5d3e56be06e87d30d6fc0bedce1895b"
+    },
+    {
+      "bytes": 1443,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/manager.svg",
+      "kind": "asset",
+      "name": "manager.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/node/manager.svg",
+      "sha256": "c8f0a2a4eaee85ee2cb02935cf1fff2612785f2855e37b4b1dee13eee8b34155"
+    },
+    {
+      "bytes": 2084,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/script.svg",
+      "kind": "asset",
+      "name": "script.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/node/script.svg",
+      "sha256": "48ebf8d488d3674b63ee18b72a8d57620dca4234614fd70e9af2ca3bec4c4699"
+    },
+    {
+      "bytes": 1266,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/panels/add_tab.svg",
+      "kind": "asset",
+      "name": "add_tab.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/panels/add_tab.svg",
+      "sha256": "07a2677f41b16e195e87f7123896394c9a1fcfdc10ba9332f594972a11020230"
+    },
+    {
+      "bytes": 1146,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/panels/close.svg",
+      "kind": "asset",
+      "name": "close.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/panels/close.svg",
+      "sha256": "b770bef5e0c38c1c7efd576c6bccb3efef483302a8b333fd8b6e8355db61e2e4"
+    },
+    {
+      "bytes": 686,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/bool.svg",
+      "kind": "asset",
+      "name": "bool.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/bool.svg",
+      "sha256": "87335fcc143e08ea7a228f964f03cad4a3f9d8bdf0f116cdf03f537387ecaccf"
+    },
+    {
+      "bytes": 1981,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/color.svg",
+      "kind": "asset",
+      "name": "color.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/color.svg",
+      "sha256": "a8e4b2c5ec74b802cca7d9dba8e23697c9743078dfe74066bc338d2c1d35647e"
+    },
+    {
+      "bytes": 708,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/animation.svg",
+      "kind": "asset",
+      "name": "animation.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/animation.svg",
+      "sha256": "a86a01be2780c2f95c3146a60096fbb5b379c3548e079e4007929c508ca4464d"
+    },
+    {
+      "bytes": 1393,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/binding.svg",
+      "kind": "asset",
+      "name": "binding.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/binding.svg",
+      "sha256": "8f82ecac4b44ff02af6728c55e18701a6ae4e6b7ec69b0c1af0095a29fae547d"
+    },
+    {
+      "bytes": 2037,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/context.svg",
+      "kind": "asset",
+      "name": "context.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/context.svg",
+      "sha256": "5ab630df7ce6014df57d03c89ac65316082817ee06c35b24715ba5441875a882"
+    },
+    {
+      "bytes": 765,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/expression.svg",
+      "kind": "asset",
+      "name": "expression.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/expression.svg",
+      "sha256": "fbc172a2cbf7b8c0bbd024ea854544986aad91de864f420be0b1a484e7401009"
+    },
+    {
+      "bytes": 1608,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/manual.svg",
+      "kind": "asset",
+      "name": "manual.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/manual.svg",
+      "sha256": "b8dccaa238895a767bd66545ce19531f64c61ab8dc1ad4331a0cbe562f31e079"
+    },
+    {
+      "bytes": 595,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/proxy.svg",
+      "kind": "asset",
+      "name": "proxy.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/proxy.svg",
+      "sha256": "97c06938dc48fc350affdce2ec43667d468d4bdd8387a439ad1527b0b3048653"
+    },
+    {
+      "bytes": 1144,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/enum.svg",
+      "kind": "asset",
+      "name": "enum.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/enum.svg",
+      "sha256": "e15f6aa464da5b17d8988b2bc8bfbad2f012c71f6796961dd32cbfa5a987ee95"
+    },
+    {
+      "bytes": 2160,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/file.svg",
+      "kind": "asset",
+      "name": "file.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/file.svg",
+      "sha256": "78ff312c27a8cf17278627ee2ded461b409f9c3d7ebe7f5812f203f3eba60bcc"
+    },
+    {
+      "bytes": 747,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/float.svg",
+      "kind": "asset",
+      "name": "float.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/float.svg",
+      "sha256": "57ac95ce8c33981dace25fa837aaefa63221b15a88146cf498ed875f2126e68f"
+    },
+    {
+      "bytes": 1011,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/int.svg",
+      "kind": "asset",
+      "name": "int.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/int.svg",
+      "sha256": "35d758338296288d72d4b4f0f64fea08462b1e2db2d7cafe7a39485b88b5e113"
+    },
+    {
+      "bytes": 1859,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/reference.svg",
+      "kind": "asset",
+      "name": "reference.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/reference.svg",
+      "sha256": "c11ada0feee90c38d80db50ab39a524102d682b00c704cec2b5e3b212a51c1ec"
+    },
+    {
+      "bytes": 1194,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/string.svg",
+      "kind": "asset",
+      "name": "string.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/string.svg",
+      "sha256": "e8d38bd2aca9db85d7b7d86c87e7c6778f71599c6a3fe96d9e6cacdb2126c4a2"
+    },
+    {
+      "bytes": 726,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/trigger.svg",
+      "kind": "asset",
+      "name": "trigger.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/trigger.svg",
+      "sha256": "cd664bcb91f832f1886a77c59b136745da1b33c840198a6b23d1f51e9a404a5d"
+    },
+    {
+      "bytes": 585,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/vec2.svg",
+      "kind": "asset",
+      "name": "vec2.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/vec2.svg",
+      "sha256": "fc8e611c58720bb9816385e8b2906bf0f2be6d947bee85dc5c83a191b101daac"
+    },
+    {
+      "bytes": 1507,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/vec3.svg",
+      "kind": "asset",
+      "name": "vec3.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/vec3.svg",
+      "sha256": "2707833620bc94421a76578f4c8c18e9e52c677ffc5bc9d417c5b84ad19fb43f"
+    },
+    {
+      "bytes": 1506,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/redo.svg",
+      "kind": "asset",
+      "name": "redo.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/redo.svg",
+      "sha256": "5d8ddcb9a5225ef4079a81345e57649016666d81ea340dd02b546ce2183cb9e9"
+    },
+    {
+      "bytes": 824,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/reset.svg",
+      "kind": "asset",
+      "name": "reset.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/reset.svg",
+      "sha256": "75445ebd5d48be8a0e75a1f07cde166486a475a958609712a07aef0cbd1bba7d"
+    },
+    {
+      "bytes": 955,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/select-node.svg",
+      "kind": "asset",
+      "name": "select-node.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/select-node.svg",
+      "sha256": "e3e3705215bcfad07ef1a93a64d1972fca380ec83439899248e646433b4831bf"
+    },
+    {
+      "bytes": 1587,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/settings.svg",
+      "kind": "asset",
+      "name": "settings.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/settings.svg",
+      "sha256": "a0b143fdf82e4c37e13788c3bcd17b15152036e3629d523ad2aa248c6b51bb4a"
+    },
+    {
+      "bytes": 1544,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/undo.svg",
+      "kind": "asset",
+      "name": "undo.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/undo.svg",
+      "sha256": "68db7d9c80fa313ca220d73f52273adcab3ef925589e1f5bc453d747cfb1f1a0"
+    },
+    {
+      "bytes": 1245,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/variable.svg",
+      "kind": "asset",
+      "name": "variable.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/variable.svg",
+      "sha256": "9697ddebf2285492de00d6052637a6d6828ffa8eb09575f45579f786d45b0d49"
+    },
+    {
+      "bytes": 810,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/warning.svg",
+      "kind": "asset",
+      "name": "warning.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/warning.svg",
+      "sha256": "a8f22dde25aea6e8b0d2edf4f73a0ba61d628340385245fff2e89cfb9aaaf9bb"
+    },
+    {
+      "bytes": 805,
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/watch.svg",
+      "kind": "asset",
+      "name": "watch.svg",
+      "path": "src-ui/src/lib/golden_ui/style/icons/watch.svg",
+      "sha256": "f4e321ac3c18a37546e3905cd0078dbe4d2b22173456f7db6d61e36083560511"
+    },
+    {
+      "bytes": 0,
+      "id": "asset/src-ui/static/favicon.ico",
+      "kind": "asset",
+      "name": "favicon.ico",
+      "path": "src-ui/static/favicon.ico",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 63,
+      "id": "asset/src-ui/static/robots.txt",
+      "kind": "asset",
+      "name": "robots.txt",
+      "path": "src-ui/static/robots.txt",
+      "sha256": "b033243267bcbdab84cb01e940811d6d77a894d78f0470faaf0eb43f8e4efcc9"
+    },
+    {
+      "bytes": 385867,
+      "id": "fixture/test-samples/test_multiplex.noisette",
+      "kind": "fixture",
+      "name": "test_multiplex.noisette",
+      "path": "test-samples/test_multiplex.noisette",
+      "sha256": "f406f2af4dccb3133fbb62f0fde8a68075100425858dc494a48bf2bfea251cd1"
+    },
+    {
+      "bytes": 157378,
+      "id": "fixture/test-samples/test_perf.noisette",
+      "kind": "fixture",
+      "name": "test_perf.noisette",
+      "path": "test-samples/test_perf.noisette",
+      "sha256": "2d4952dc2f3d2a7d71eb46813c319c82f55dccc2393120e8154f86afe7cb470f"
+    },
+    {
+      "bytes": 256872,
+      "id": "fixture/test-samples/test_simple_load.noisette",
+      "kind": "fixture",
+      "name": "test_simple_load.noisette",
+      "path": "test-samples/test_simple_load.noisette",
+      "sha256": "d17259c53e0b345009f39f2d7b1d95b0d87c8bdcce53f9cba973406c90a46370"
+    }
+  ],
+  "fixture_requirements": [
+    {
+      "id": "P50-L1",
+      "matches": [],
+      "status": "absent"
+    },
+    {
+      "id": "P5-L127",
+      "matches": [],
+      "status": "absent"
+    }
+  ],
+  "generated_by": {
+    "path": "tools/migration/product_manifest.py",
+    "version": "1.0.0"
+  },
+  "manifest_kind": "product_files",
+  "schema_version": 1
+}

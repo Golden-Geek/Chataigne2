@@ -73,12 +73,16 @@ impl ModuleDataCapabilities {
     }
     folder(parameters, label = "Parameters", color = color::Color::new(0.8, 0.5, 0.1, 1.0)) {}
     folder(values, label = "Values", color = color::Color::new(0.1, 0.45, 0.75, 1.0)) {}
-    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create_empty() (
+    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create_owned(
+        self.command_tester_available_types.clone()
+    ) (
         label = "Command Tester",
         description = "Create and trigger ad-hoc commands through this module."
     );
 )]
 pub struct ModuleBase {
+    #[state(default = Vec::<String>::new())]
+    command_tester_available_types: Vec<String>,
     #[potential_node(decl_id = "connection")]
     connection_folder: golden_core::node::PotentialNodeHandle,
     #[potential_node(decl_id = "parameters")]
@@ -88,6 +92,15 @@ pub struct ModuleBase {
 }
 
 impl ModuleBase {
+    pub(crate) fn create_with_command_types(available_command_types: &'static [&'static str]) -> Self {
+        let mut base = Self::new();
+        base.command_tester_available_types = available_command_types
+            .iter()
+            .map(|node_type| (*node_type).to_string())
+            .collect();
+        base
+    }
+
     pub fn connection_id(&self) -> Option<NodeId> {
         self.connection_folder.current_id()
     }
@@ -161,9 +174,11 @@ impl ModuleBase {
             ctx,
             snapshot,
             self.id(),
-            self.connection_id(),
-            self.parameters_id(),
-            self.values_id(),
+            script_api::ModuleParamCallbackRoots::new(
+                self.connection_id(),
+                self.parameters_id(),
+                self.values_id(),
+            ),
             param,
             old_value,
         );

@@ -1,7 +1,20 @@
-use golden_core::{node, node::Node, process_ctx::ProcessCtx};
+use golden_core::{node, node::Node};
 
 #[node("osc_output_manager", label = "Outputs")]
+#[children(
+    node default_output: crate::app::OscOutput = crate::app::OscOutput::create_with_module_authoring() (
+        label = "Output"
+    );
+)]
 pub struct OscOutputManager {}
+
+impl OscOutputManager {
+    pub fn create_with_module_authoring() -> Self {
+        let mut manager = Self::new();
+        crate::app::module::enable_module_authoring(manager.node_data_mut());
+        manager
+    }
+}
 
 #[node("osc_output_manager", from_struct)]
 impl Node for OscOutputManager {
@@ -13,12 +26,12 @@ impl Node for OscOutputManager {
                 item_kind: "osc_output",
                 label: "Output",
                 select_when_created: false,
-                create: |_this: &Self| crate::app::OscOutput::new()
+                create: |_this: &Self| crate::app::OscOutput::create_with_module_authoring()
             }
         ];
     }
 
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        crate::app::module::enable_module_authoring(self.node_data_mut());
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create_with_module_authoring)
     }
 }

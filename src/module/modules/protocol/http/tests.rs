@@ -487,7 +487,7 @@ fn child_key(node_data: &golden_core::node::NodeData) -> String {
         .rsplit('/')
         .next()
         .filter(|segment| !segment.is_empty())
-        .unwrap_or_else(|| {
+        .unwrap_or({
             if !node_data.meta.short_name.is_empty() {
                 node_data.meta.short_name.as_str()
             } else {

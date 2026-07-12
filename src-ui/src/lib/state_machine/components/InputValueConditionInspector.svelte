@@ -400,8 +400,8 @@
 	let conditionValid = $derived(
 		laneValid ??
 			(validNode?.data.kind === 'parameter' && validNode.data.param.value.kind === 'bool'
-			? validNode.data.param.value.value
-			: false)
+				? validNode.data.param.value.value
+				: false)
 	);
 	let sourceReferenceNode = $derived(childByDeclId(liveNode, 'source'));
 	let sourceParameter = $derived.by((): UiNodeDto | null => {

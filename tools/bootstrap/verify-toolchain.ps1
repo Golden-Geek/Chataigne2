@@ -1,0 +1,127 @@
+[CmdletBinding()]
+param(
+    [switch] $CheckInstalled
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
+$manifestPath = Join-Path $PSScriptRoot "toolchain.json"
+$manifest = [System.IO.File]::ReadAllText($manifestPath) | ConvertFrom-Json
+
+if ([int]$manifest.schema_version -ne 1) {
+    throw "Unsupported toolchain manifest schema '$($manifest.schema_version)'."
+}
+
+$requiredValues = @(
+    $manifest.rust.channel,
+    $manifest.rust.cargo_version,
+    $manifest.rust.profile,
+    $manifest.node.version,
+    $manifest.node.npm_version,
+    $manifest.python.version
+)
+if (@($requiredValues | Where-Object { [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0) {
+    throw "tools/bootstrap/toolchain.json contains an empty required version."
+}
+$platformKeys = @("windows_x64", "windows_arm64", "macos_x64", "macos_arm64", "linux_x64", "linux_arm64")
+foreach ($platformKey in $platformKeys) {
+    $hostTriple = [string]$manifest.rust.hosts.$platformKey
+    $distribution = $manifest.node.distributions.$platformKey
+    if ([string]::IsNullOrWhiteSpace($hostTriple)) {
+        throw "Missing Rust host triple '$platformKey'."
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$distribution.file)) {
+        throw "Missing Node distribution filename '$platformKey'."
+    }
+    if ([string]$distribution.sha256 -notmatch '^[0-9a-f]{64}$') {
+        throw "Invalid Node distribution SHA-256 '$platformKey'."
+    }
+}
+if ([string]::IsNullOrWhiteSpace([string]$manifest.rust.hosts.linux_armv7)) {
+    throw "Missing Rust host triple 'linux_armv7'."
+}
+
+$rustVersionPath = Join-Path $repositoryRoot ([string]$manifest.consumers.rust_version)
+$nodeVersionPath = Join-Path $repositoryRoot ([string]$manifest.consumers.node_version)
+if (-not (Test-Path -LiteralPath $rustVersionPath -PathType Leaf)) {
+    throw "Missing generated Rust consumer '$rustVersionPath'."
+}
+if (-not (Test-Path -LiteralPath $nodeVersionPath -PathType Leaf)) {
+    throw "Missing generated Node consumer '$nodeVersionPath'."
+}
+
+$rustVersion = [System.IO.File]::ReadAllText($rustVersionPath).Trim()
+if ($rustVersion -ne [string]$manifest.rust.channel) {
+    throw "tools/bootstrap/rust-version does not match tools/bootstrap/toolchain.json."
+}
+
+$nodeVersion = [System.IO.File]::ReadAllText($nodeVersionPath).Trim()
+if ($nodeVersion -ne [string]$manifest.node.version) {
+    throw ".nvmrc does not match tools/bootstrap/toolchain.json."
+}
+
+function Get-CommandVersion {
+    param(
+        [string] $Executable,
+        [string[]] $Arguments
+    )
+
+    $command = Get-Command $Executable -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $command) {
+        throw "Required tool '$Executable' was not found on PATH."
+    }
+    $output = @(& $command.Source @Arguments 2>&1 | ForEach-Object { [string]$_ }) -join "`n"
+    if ($LASTEXITCODE -ne 0) {
+        throw "'$Executable $($Arguments -join ' ')' exited with code $LASTEXITCODE."
+    }
+    return $output.Trim()
+}
+
+if ($CheckInstalled) {
+    $rustc = Get-CommandVersion -Executable "rustc" -Arguments @("--version")
+    $cargo = Get-CommandVersion -Executable "cargo" -Arguments @("--version")
+    $node = Get-CommandVersion -Executable "node" -Arguments @("--version")
+    $npmExecutable = if (Get-Command "npm.cmd" -ErrorAction SilentlyContinue) { "npm.cmd" } else { "npm" }
+    $npm = Get-CommandVersion -Executable $npmExecutable -Arguments @("--version")
+    $python = Get-CommandVersion -Executable "python" -Arguments @("--version")
+
+    if ($rustc -notmatch ("^rustc {0}(?:\s|$)" -f [regex]::Escape([string]$manifest.rust.channel))) {
+        throw "Installed rustc does not match pinned $($manifest.rust.channel): $rustc"
+    }
+    if ($cargo -notmatch ("^cargo {0}(?:\s|$)" -f [regex]::Escape([string]$manifest.rust.cargo_version))) {
+        throw "Installed Cargo does not match pinned $($manifest.rust.cargo_version): $cargo"
+    }
+    if ($node -ne ("v{0}" -f $manifest.node.version)) {
+        throw "Installed Node does not match pinned $($manifest.node.version): $node"
+    }
+    if ($npm -ne [string]$manifest.node.npm_version) {
+        throw "Installed npm does not match pinned $($manifest.node.npm_version): $npm"
+    }
+    if ($python -notmatch ("^Python {0}(?:\s|$)" -f [regex]::Escape([string]$manifest.python.version))) {
+        throw "Installed Python does not match pinned $($manifest.python.version): $python"
+    }
+    $verboseRustc = Get-CommandVersion -Executable "rustc" -Arguments @("-vV")
+    $hostMatch = [regex]::Match($verboseRustc, '(?m)^host:\s*(\S+)\s*$')
+    if (-not $hostMatch.Success) {
+        throw "rustc -vV did not report a host triple."
+    }
+    $isWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+        [System.Runtime.InteropServices.OSPlatform]::Windows
+    )
+    if ($isWindows -and $hostMatch.Groups[1].Value -notmatch '-pc-windows-msvc$') {
+        throw "Windows Phase 0 evidence requires an MSVC Rust host, got '$($hostMatch.Groups[1].Value)'."
+    }
+}
+
+[pscustomobject]@{
+    schema_version = 1
+    status = "PASS"
+    manifest = $manifestPath
+    installed_versions_checked = [bool]$CheckInstalled
+    rust = [string]$manifest.rust.channel
+    node = [string]$manifest.node.version
+    npm = [string]$manifest.node.npm_version
+    python = [string]$manifest.python.version
+} | ConvertTo-Json -Compress

@@ -36,28 +36,28 @@ fn ultraleap_frame_updates_hand_values_and_distance() {
             connected_devices: 1,
             frame: Some(UltraleapFrameSnapshot {
                 hand_count: 2,
-                left: hand_snapshot(
-                    0.65,
-                    0.85,
-                    0.014,
-                    (true, true, false, false, false),
-                    UltraleapVec3::new(-0.04, 0.12, 0.015),
-                    UltraleapVec3::new(-0.038, 0.118, 0.014),
-                    UltraleapVec3::new(0.12, 0.0, 0.0),
-                    UltraleapVec3::new(0.0, 0.0, -1.0),
-                    UltraleapVec3::new(0.0, 1.0, 0.0),
-                ),
-                right: hand_snapshot(
-                    0.10,
-                    0.20,
-                    0.042,
-                    (true, true, true, true, true),
-                    UltraleapVec3::new(0.06, 0.12, 0.015),
-                    UltraleapVec3::new(0.058, 0.118, 0.014),
-                    UltraleapVec3::new(-0.12, 0.0, 0.0),
-                    UltraleapVec3::new(0.0, 0.0, -1.0),
-                    UltraleapVec3::new(0.0, 1.0, 0.0),
-                ),
+                left: hand_snapshot(TestHandSnapshot {
+                    grab_strength: 0.65,
+                    pinch_strength: 0.85,
+                    pinch_distance: 0.014,
+                    extended: (true, true, false, false, false),
+                    position: UltraleapVec3::new(-0.04, 0.12, 0.015),
+                    stabilized_position: UltraleapVec3::new(-0.038, 0.118, 0.014),
+                    velocity: UltraleapVec3::new(0.12, 0.0, 0.0),
+                    direction: UltraleapVec3::new(0.0, 0.0, -1.0),
+                    normal: UltraleapVec3::new(0.0, 1.0, 0.0),
+                }),
+                right: hand_snapshot(TestHandSnapshot {
+                    grab_strength: 0.10,
+                    pinch_strength: 0.20,
+                    pinch_distance: 0.042,
+                    extended: (true, true, true, true, true),
+                    position: UltraleapVec3::new(0.06, 0.12, 0.015),
+                    stabilized_position: UltraleapVec3::new(0.058, 0.118, 0.014),
+                    velocity: UltraleapVec3::new(-0.12, 0.0, 0.0),
+                    direction: UltraleapVec3::new(0.0, 0.0, -1.0),
+                    normal: UltraleapVec3::new(0.0, 1.0, 0.0),
+                }),
             }),
             last_event: Some("Ultraleap device connected".to_string()),
         },
@@ -142,17 +142,17 @@ fn ultraleap_disconnect_resets_tracking_outputs() {
             connected_devices: 1,
             frame: Some(UltraleapFrameSnapshot {
                 hand_count: 1,
-                left: hand_snapshot(
-                    0.25,
-                    0.5,
-                    0.012,
-                    (true, false, false, false, false),
-                    UltraleapVec3::new(0.001, 0.002, 0.003),
-                    UltraleapVec3::new(0.001, 0.002, 0.003),
-                    UltraleapVec3::ZERO,
-                    UltraleapVec3::new(0.0, 0.0, -1.0),
-                    UltraleapVec3::new(0.0, 1.0, 0.0),
-                ),
+                left: hand_snapshot(TestHandSnapshot {
+                    grab_strength: 0.25,
+                    pinch_strength: 0.5,
+                    pinch_distance: 0.012,
+                    extended: (true, false, false, false, false),
+                    position: UltraleapVec3::new(0.001, 0.002, 0.003),
+                    stabilized_position: UltraleapVec3::new(0.001, 0.002, 0.003),
+                    velocity: UltraleapVec3::ZERO,
+                    direction: UltraleapVec3::new(0.0, 0.0, -1.0),
+                    normal: UltraleapVec3::new(0.0, 1.0, 0.0),
+                }),
                 right: UltraleapHandSnapshot::default(),
             }),
             last_event: None,
@@ -260,7 +260,7 @@ fn run_ultraleap_tick(engine: &mut crate::app::AppEngine) {
     engine.resolve().expect("ultraleap schedule should resolve after tick");
 }
 
-fn hand_snapshot(
+struct TestHandSnapshot {
     grab_strength: f64,
     pinch_strength: f64,
     pinch_distance: f64,
@@ -270,22 +270,24 @@ fn hand_snapshot(
     velocity: UltraleapVec3,
     direction: UltraleapVec3,
     normal: UltraleapVec3,
-) -> UltraleapHandSnapshot {
+}
+
+fn hand_snapshot(input: TestHandSnapshot) -> UltraleapHandSnapshot {
     UltraleapHandSnapshot {
         active: true,
-        grab_strength,
-        pinch_strength,
-        pinch_distance,
-        thumb_extended: extended.0,
-        index_extended: extended.1,
-        middle_extended: extended.2,
-        ring_extended: extended.3,
-        pinky_extended: extended.4,
-        palm_position: position,
-        palm_stabilized_position: stabilized_position,
-        palm_velocity: velocity,
-        palm_direction: direction,
-        palm_normal: normal,
+        grab_strength: input.grab_strength,
+        pinch_strength: input.pinch_strength,
+        pinch_distance: input.pinch_distance,
+        thumb_extended: input.extended.0,
+        index_extended: input.extended.1,
+        middle_extended: input.extended.2,
+        ring_extended: input.extended.3,
+        pinky_extended: input.extended.4,
+        palm_position: input.position,
+        palm_stabilized_position: input.stabilized_position,
+        palm_velocity: input.velocity,
+        palm_direction: input.direction,
+        palm_normal: input.normal,
     }
 }
 

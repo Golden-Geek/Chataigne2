@@ -593,14 +593,14 @@ fn processor_lane_command_intents_include_context_key() {
         .collect::<Vec<_>>();
     assert_eq!(output.intents.len(), 2);
     assert_eq!(origins.len(), 2);
-    assert!(origins.contains(&crate::IntentOrigin::Processor {
+    assert!(origins.contains(&crate::IntentOrigin::processor(
         processor_id,
-        context_key: Some(ContextKey::single("device", "device-0")),
-    }));
-    assert!(origins.contains(&crate::IntentOrigin::Processor {
+        Some(ContextKey::single("device", "device-0")),
+    )));
+    assert!(origins.contains(&crate::IntentOrigin::processor(
         processor_id,
-        context_key: Some(ContextKey::single("device", "device-1")),
-    }));
+        Some(ContextKey::single("device", "device-1")),
+    )));
 }
 
 #[test]

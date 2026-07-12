@@ -63,7 +63,7 @@ fn incoming_text_publish_auto_adds_value_nodes_from_topic() {
     module.enqueue_incoming_message_for_test(MqttReceivedPublish {
         topic: "sensors/temperature".to_string(),
         payload: b"21.5".to_vec(),
-        qos: MqttQos::AtMostOnce,
+        qos: MqttQos::AtMost,
         retain: false,
     });
 
@@ -96,7 +96,7 @@ fn incoming_json_publish_expands_under_topic() {
     module.enqueue_incoming_message_for_test(MqttReceivedPublish {
         topic: "devices/kitchen".to_string(),
         payload: br#"{"temperature":21,"humidity":0.42,"rgb":[1.0,0.5,0.0,1.0]}"#.to_vec(),
-        qos: MqttQos::AtLeastOnce,
+        qos: MqttQos::AtLeast,
         retain: true,
     });
 
@@ -143,7 +143,7 @@ fn script_publish_json_request_encodes_payload_qos_and_retain() {
 
     assert_eq!(request.topic, "app/state");
     assert_eq!(request.payload, b"true");
-    assert_eq!(request.qos, MqttQos::AtLeastOnce);
+    assert_eq!(request.qos, MqttQos::AtLeast);
     assert!(request.retain);
 }
 

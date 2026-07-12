@@ -87,9 +87,9 @@ impl KeyboardInputRuntime {
     pub(crate) fn create() -> Result<Self, String> {
         #[cfg(windows)]
         {
-            return WindowsKeyboardInputRuntime::create().map(|runtime| Self {
+            WindowsKeyboardInputRuntime::create().map(|runtime| Self {
                 inner: KeyboardInputRuntimeInner::Windows(runtime),
-            });
+            })
         }
 
         #[cfg(not(windows))]

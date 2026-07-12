@@ -119,9 +119,10 @@ pub(crate) struct HttpAuthConfig {
     pub header_value: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum HttpRequestBody {
+    #[default]
     Empty,
     Text {
         text: String,
@@ -137,12 +138,6 @@ pub(crate) enum HttpRequestBody {
         fields: Vec<HttpFormField>,
         files: Vec<HttpFilePart>,
     },
-}
-
-impl Default for HttpRequestBody {
-    fn default() -> Self {
-        Self::Empty
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

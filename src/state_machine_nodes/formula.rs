@@ -1916,7 +1916,7 @@ impl AlchemistANode {
         set_tag(&mut meta.tags, ANODE_TYPE_TAG_PREFIX, type_id);
         meta.label = label.to_owned();
         let color = anode_default_color(category, type_id);
-        meta.presentation.default_color = Some(color.clone());
+        meta.presentation.default_color = Some(color);
         meta.presentation.color = Some(color);
         if type_id == chataigne_state_machine::alchemist::ROUTING_TYPE {
             meta.presentation.collapsed = true;
@@ -1961,13 +1961,10 @@ impl AlchemistANode {
         let default_color = anode_default_color(declaration.category(), &type_id);
         let presentation = &mut self.node_data_mut().meta.presentation;
         if presentation.default_color.is_none() {
-            presentation.default_color = Some(default_color.clone());
+            presentation.default_color = Some(default_color);
         }
         if presentation.color.is_none() {
-            presentation.color = presentation
-                .default_color
-                .clone()
-                .or(Some(default_color));
+            presentation.color = presentation.default_color.or(Some(default_color));
         }
         let Some(config_folder) =
             snapshot.find_child_by_decl_id(self.id(), "config")
@@ -3749,11 +3746,8 @@ impl AlchemistFormulaDefinition {
         if next_path == current_path {
             return None;
         }
-        let Some(file_param) =
-            snapshot.find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)
-        else {
-            return None;
-        };
+        let file_param =
+            snapshot.find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)?;
         let current_exists = current_path.exists();
         if current_exists && next_path.exists() && !paths_refer_to_same_file(&current_path, &next_path)
         {
@@ -4224,12 +4218,11 @@ impl AlchemistFormulaDefinition {
                 child_reference_uuid(&snapshot, child, "source_node");
             let target =
                 child_reference_uuid(&snapshot, child, "target_node");
-            if source.is_none_or(|uuid| !anode_uuids.contains(&uuid))
-                || target.is_none_or(|uuid| !anode_uuids.contains(&uuid))
+            if (source.is_none_or(|uuid| !anode_uuids.contains(&uuid))
+                || target.is_none_or(|uuid| !anode_uuids.contains(&uuid)))
+                && !node_removal_pending(ctx, child)
             {
-                if !node_removal_pending(ctx, child) {
-                    ctx.edits.push(Edit::RemoveNode { node: child });
-                }
+                ctx.edits.push(Edit::RemoveNode { node: child });
             }
         }
     }

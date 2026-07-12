@@ -69,7 +69,7 @@ pub(crate) struct OscSendCustomMessageRequest {
                 widget = "text"
             );
         }
-        node outputs: crate::app::OscOutputManager = crate::app::OscOutputManager::new() (
+        node outputs: crate::app::OscOutputManager = crate::app::OscOutputManager::create_with_module_authoring() (
             label = "Outputs",
             description = "OSC destinations used by this module for outgoing traffic.",
             can_be_disabled = true
@@ -103,7 +103,7 @@ pub struct OscModuleBase {
 impl OscModuleBase {
     pub fn create() -> Self {
         Self::new(
-            crate::app::ModuleBase::new(),
+            crate::app::ModuleBase::create_with_command_types(OSC_MODULE_COMMAND_TYPES),
             OSC_INTERFACE_REFRESH_INTERVAL_SECS,
             None,
             None,
@@ -315,20 +315,6 @@ impl OscModuleBase {
         if received_message {
             self.base.emit_incoming_traffic(ctx);
         }
-    }
-
-    fn ensure_default_output(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let Some(outputs_id) = self.outputs.current_id() else {
-            return;
-        };
-
-        let mut output_ids = Vec::new();
-        collect_outputs_recursive(snapshot, outputs_id, &mut output_ids);
-        if !output_ids.is_empty() {
-            return;
-        }
-
-        ctx.add_user_item_boxed(outputs_id, Box::new(crate::app::OscOutput::new()), None);
     }
 
     fn flush_outbound_values(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
@@ -747,7 +733,6 @@ impl Node for OscModuleBase {
         let snapshot = snapshot_arc.as_ref();
 
         self.refresh_data_capabilities(ctx, snapshot);
-        self.ensure_default_output(ctx, snapshot);
     }
 
     fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: NodeCreationContext) {
@@ -874,9 +859,7 @@ fn collect_outputs_recursive(snapshot: &ProcessTreeSnapshot, parent: NodeId, out
 
 fn resolve_outgoing_target(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<NodeId> {
     let node = snapshot.node(node_id)?;
-    if node.param_value.is_none() {
-        return None;
-    }
+    node.param_value.as_ref()?;
 
     let parent_id = node.parent?;
     let parent = snapshot.node(parent_id)?;

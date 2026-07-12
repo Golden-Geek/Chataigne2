@@ -61,8 +61,20 @@ fn state_canvas_geometry_survives_project_reload() {
             .node_data()
             .meta
             .presentation
-            .color,
+            .default_color,
         Some(Color::new(0.28, 0.56, 0.92, 1.0))
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(state_id)
+            .expect("state should exist")
+            .node_data()
+            .meta
+            .presentation
+            .color,
+        None,
+        "the default state color must not be persisted as a user override"
     );
     assert!(
         engine

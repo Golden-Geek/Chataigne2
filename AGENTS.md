@@ -16,6 +16,37 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Keep the app viable for very large graphs and tens of thousands of nodes.
 - Only edit files with the standard file editing tool, not shell-based file mutation.
 
+## Product-Preserving Migration Policy
+
+The active architecture migration is governed by
+[`docs/Golden_Architecture_Final_Plan.md`](docs/Golden_Architecture_Final_Plan.md).
+Until that migration is complete, the following rules take precedence over wording such as
+"thin app shell," "no legacy," or "no compatibility shims":
+
+- The recorded working Chataigne product is the behavioral and experiential oracle. Architectural
+  cleanup is not permission to remove its UI, modules, assets, formulas, scripts, fixtures,
+  hosting modes, or workflows.
+- "Thin app shell" describes final ownership. It does not mean replacing Chataigne with an empty
+  shell, registry-only demo, headless harness, or disconnected frontend during migration.
+- "No legacy" and "no compatibility shims" describe the final production state. Typed temporary
+  adapters, converters, dual reads, and shadow execution are explicitly allowed when they keep the
+  real product runnable and make a cutover safer.
+- Every temporary adapter must be recorded in the parity ledger with an owner, exact scope, expiry
+  phase, deletion criteria, deletion issue, and executable tests. Shadow paths must be incapable of
+  duplicating commands, triggers, effects, or device traffic.
+- Do not delete an old path until its replacement passes the applicable automated and manual parity
+  gates in the real application. Remove the old path in the same or immediately following focused
+  supercommit after that proof.
+- Every supercommit accepted on the canonical migration branch must build and launch the complete
+  applicable Chataigne product. Intentionally non-runnable structural work belongs only on a
+  private/topic branch and must be restored before integration.
+- The failed rewrite is a donor, not a migration base. Import or reimplement donor work one reviewed
+  unit at a time; never merge or cherry-pick the donor branch wholesale.
+
+The recorded refs, evidence state, and phase status live under
+[`docs/product/`](docs/product/README.md). Unknown or unexecuted parity evidence is a blocker, not a
+pass.
+
 ## Target Architecture
 
 ### Chataigne2 App Shell
@@ -144,7 +175,9 @@ When a task spans multiple architectural areas, prefer this order:
 - Treat recurring millisecond-range compute or polling on the main thread as a hard no for node implementations. App Control idle polling already pushed `scheduled_ms` above 15ms, and the OS adds its own recurring ~20ms tick, so node work at that cadence must move to an IO/runtime boundary, a background worker, or a coarser event-driven path.
 - For large or data-driven structure creation, design the edit shape before coding: batch detached subtrees, avoid repeated full-tree snapshot rebuilds, and add timing or tests when the expected graph size can grow significantly.
 - Do not preserve broken boundaries for convenience.
-- Do not introduce compatibility shims unless the task explicitly requires them.
+- Do not introduce permanent compatibility shims. During the active product-preserving migration,
+  use only the governed temporary adapters authorized above and delete them at their recorded exit
+  criteria.
 - Do not duplicate protocol, persistence, or host declarations across languages or layers.
 - When asked to create a new module, treat the module as incomplete unless its command nodes, script-callable functions, script callbacks, and app-owned script template snippets are designed and wired in at the same module boundary.
 - Any implementation involving connection to an endpoint (hardware or software) needs to have an autoreconnect / device recovery strategy

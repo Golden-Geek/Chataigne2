@@ -141,7 +141,7 @@ impl JoyConRuntimeState {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum JoyConWorkerEvent {
     Heartbeat,
-    State(JoyConRuntimeState),
+    State(Box<JoyConRuntimeState>),
     CommandResult(String),
     Error(String),
 }
@@ -267,7 +267,10 @@ fn worker_loop(command_rx: Receiver<JoyConWorkerCommand>, event_tx: Sender<JoyCo
     let mut configured_manager_scan_interval = Duration::ZERO;
     let mut last_heartbeat_at = None;
 
-    if event_tx.send(JoyConWorkerEvent::State(state.clone())).is_err() {
+    if event_tx
+        .send(JoyConWorkerEvent::State(Box::new(state.clone())))
+        .is_err()
+    {
         return;
     }
 
@@ -353,7 +356,11 @@ fn worker_loop(command_rx: Receiver<JoyConWorkerCommand>, event_tx: Sender<JoyCo
             next_attach_at = Instant::now();
         }
 
-        if state_changed && event_tx.send(JoyConWorkerEvent::State(state.clone())).is_err() {
+        if state_changed
+            && event_tx
+                .send(JoyConWorkerEvent::State(Box::new(state.clone())))
+                .is_err()
+        {
             return;
         }
 
@@ -529,7 +536,7 @@ fn try_read_report(mode: &JoyConMode) -> ReadReportResult {
     let mut buf = [0u8; 362];
     let bytes_read = match mode.driver().read_timeout(&mut buf, JOYCON_REPORT_READ_TIMEOUT_MS) {
         Ok(bytes_read) => bytes_read,
-        Err(error) => return classify_read_error(error.into()),
+        Err(error) => return classify_read_error(error),
     };
     if bytes_read == 0 {
         return ReadReportResult::NoData;

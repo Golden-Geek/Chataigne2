@@ -334,7 +334,11 @@
 			? node.data.param.value.value
 			: '';
 
-	const enumToken = (value: string): string => value.trim().toLowerCase().replace(/[\s_-]/g, '');
+	const enumToken = (value: string): string =>
+		value
+			.trim()
+			.toLowerCase()
+			.replace(/[\s_-]/g, '');
 
 	const valueLayoutFromEnum = (value: string): ValueLayout =>
 		enumToken(value) === 'targetcentric'
@@ -463,7 +467,9 @@
 	let targetList = $derived(childByType(parametersFolder, TARGET_LIST_TYPE));
 	let dimensionMode = $derived(enumValue(dimensionsParam) || '2d');
 	let spatializerMode = $derived(enumValue(modeParam) || MODE_VORONOI);
-	let valueLayout = $derived.by((): ValueLayout => valueLayoutFromEnum(enumValue(valueLayoutParam)));
+	let valueLayout = $derived.by(
+		(): ValueLayout => valueLayoutFromEnum(enumValue(valueLayoutParam))
+	);
 	let prefer3d = $derived(dimensionMode === '3d');
 
 	let rawEndpoints = $derived.by((): SpatialEndpoint[] => {
@@ -751,7 +757,9 @@
 		if (!Number.isFinite(frozenDistance)) {
 			return [];
 		}
-		return enabledTargets.filter((target) => distancesTie(endpointDistance(source, target), frozenDistance));
+		return enabledTargets.filter((target) =>
+			distancesTie(endpointDistance(source, target), frozenDistance)
+		);
 	};
 
 	const closestPointOnSegment = (point: Point2, start: Point2, end: Point2): Point2 => {
@@ -774,16 +782,14 @@
 		neighbor: SpatialEndpoint,
 		cell: Point2[]
 	): Omit<DebugVoronoiGuide, 'key' | 'source' | 'current' | 'neighbor' | 'weight'> | null => {
-		let best:
-			| {
-					edgeStart: Point2;
-					edgeEnd: Point2;
-					closestPoint: Point2;
-					neighborMeasurePoint: Point2;
-					edgeDistance: number;
-					neighborDistance: number;
-			  }
-			| null = null;
+		let best: {
+			edgeStart: Point2;
+			edgeEnd: Point2;
+			closestPoint: Point2;
+			neighborMeasurePoint: Point2;
+			edgeDistance: number;
+			neighborDistance: number;
+		} | null = null;
 		for (let edgeIndex = 0; edgeIndex < cell.length; edgeIndex += 1) {
 			const edgeStart = cell[edgeIndex];
 			const edgeEnd = cell[(edgeIndex + 1) % cell.length];
@@ -945,7 +951,10 @@
 			if (!computation) {
 				return [];
 			}
-			if (selectedEndpoint?.kind === 'target' && !computationIncludesTarget(computation, selectedEndpoint)) {
+			if (
+				selectedEndpoint?.kind === 'target' &&
+				!computationIncludesTarget(computation, selectedEndpoint)
+			) {
 				return [];
 			}
 			return [computation];
@@ -963,28 +972,29 @@
 		if (spatializerMode === MODE_VORONOI) {
 			return debugVoronoiComputations.flatMap((computation): DebugConnection[] => {
 				if (computation.frozenTargets.length > 0) {
-					return computation.frozenTargets.map((target): DebugConnection => ({
-						key: `${computation.source.key}:${target.key}:frozen`,
-						source: computation.source,
-						target,
-						weight: targetWeightForSource(target, computation.source),
-						role: 'frozen' as const
-					}));
+					return computation.frozenTargets.map(
+						(target): DebugConnection => ({
+							key: `${computation.source.key}:${target.key}:frozen`,
+							source: computation.source,
+							target,
+							weight: targetWeightForSource(target, computation.source),
+							role: 'frozen' as const
+						})
+					);
 				}
-				const currentConnections: DebugConnection[] =
-					computation.current
-						? [
-								{
-									key: `${computation.source.key}:${computation.current.key}:current`,
-									source: computation.source,
-									target: computation.current,
-									weight: targetWeightForSource(computation.current, computation.source),
-									role: 'current' as const
-								}
-							]
-						: [];
-				const neighborConnections: DebugConnection[] = computation.guides.flatMap((guide): DebugConnection[] =>
-					[
+				const currentConnections: DebugConnection[] = computation.current
+					? [
+							{
+								key: `${computation.source.key}:${computation.current.key}:current`,
+								source: computation.source,
+								target: computation.current,
+								weight: targetWeightForSource(computation.current, computation.source),
+								role: 'current' as const
+							}
+						]
+					: [];
+				const neighborConnections: DebugConnection[] = computation.guides.flatMap(
+					(guide): DebugConnection[] => [
 						{
 							key: `${guide.source.key}:${guide.neighbor.key}:neighbor`,
 							source: guide.source,
@@ -998,23 +1008,21 @@
 			});
 		}
 		if (selectedEndpoint.kind === 'source') {
-			return relatedValues
-				.map((item) => ({
-					key: item.key,
-					source: selectedEndpoint,
-					target: item.endpoint,
-					weight: relatedValueAmount(item.valueParam),
-					role: 'direct' as const
-				}));
-		}
-		return relatedValues
-			.map((item) => ({
+			return relatedValues.map((item) => ({
 				key: item.key,
-				source: item.endpoint,
-				target: selectedEndpoint,
+				source: selectedEndpoint,
+				target: item.endpoint,
 				weight: relatedValueAmount(item.valueParam),
 				role: 'direct' as const
 			}));
+		}
+		return relatedValues.map((item) => ({
+			key: item.key,
+			source: item.endpoint,
+			target: selectedEndpoint,
+			weight: relatedValueAmount(item.valueParam),
+			role: 'direct' as const
+		}));
 	});
 
 	$effect(() => {
@@ -1136,10 +1144,10 @@
 		const startX = event.clientX;
 		const startWidth = inspectorWidth;
 		const handle = event.currentTarget as HTMLElement;
-	handle.setPointerCapture(event.pointerId);
-	handle.onpointermove = (moveEvent) => {
-		inspectorWidth = clampInspectorWidth(startWidth + moveEvent.clientX - startX);
-	};
+		handle.setPointerCapture(event.pointerId);
+		handle.onpointermove = (moveEvent) => {
+			inspectorWidth = clampInspectorWidth(startWidth + moveEvent.clientX - startX);
+		};
 		handle.onpointerup = handle.onpointercancel = (endEvent) => {
 			if (handle.hasPointerCapture(endEvent.pointerId)) {
 				handle.releasePointerCapture(endEvent.pointerId);
@@ -1551,7 +1559,9 @@
 	const debugWeightLabel = (weight: number): string => `${Math.round(clamp01(weight) * 100)}%`;
 
 	const debugDistanceLabel = (distance: number): string =>
-		Number.isFinite(distance) ? `d ${distance < 10 ? distance.toFixed(2) : distance.toFixed(1)}` : '';
+		Number.isFinite(distance)
+			? `d ${distance < 10 ? distance.toFixed(2) : distance.toFixed(1)}`
+			: '';
 
 	const pointPx = (value: number, world: GraphWorldContentContext): number =>
 		value * SPATIALIZER_UNIT_REM * world.remPx;
@@ -1617,12 +1627,14 @@
 					stroke-width={screenPx(0.06, world)}
 					stroke-dasharray={dashArray(world, 0.38, 0.22)}
 					transition:fade={{ duration: HIGHLIGHT_FADE_MS }} />
-				{/each}
+			{/each}
 		{/if}
 
 		{#if selectedVoronoiDeadzoneSource()}
 			{@const voronoiDeadzoneSource = selectedVoronoiDeadzoneSource()}
-			{@const frozenTargets = voronoiDeadzoneSource ? frozenTargetsForSource(voronoiDeadzoneSource) : []}
+			{@const frozenTargets = voronoiDeadzoneSource
+				? frozenTargetsForSource(voronoiDeadzoneSource)
+				: []}
 			{#each frozenTargets as target (target.key)}
 				{#if target.freezeRadius !== null && target.freezeRadius > 0}
 					<circle

@@ -176,6 +176,27 @@ enum MidiApplyResult {
     Ignored,
 }
 
+struct MidiIntValue<'a> {
+    label: &'a str,
+    decl_id: &'a str,
+    value: i32,
+    range: Option<(i32, i32)>,
+}
+
+struct MidiStringValue<'a> {
+    label: &'a str,
+    decl_id: &'a str,
+    value: String,
+    read_only: bool,
+}
+
+struct MidiCcUpdate {
+    channel: u8,
+    controller: u8,
+    existing_id: Option<NodeId>,
+    value: i32,
+}
+
 #[node("midi_module", label = "MIDI")]
 #[children(
     folder(connection) {
@@ -661,28 +682,34 @@ impl MidiModule {
                 ctx,
                 snapshot,
                 *channel,
-                PROGRAM_DECL_ID,
-                "Program",
-                i32::from(*program),
-                Some((0, 127)),
+                MidiIntValue {
+                    label: "Program",
+                    decl_id: PROGRAM_DECL_ID,
+                    value: i32::from(*program),
+                    range: Some((0, 127)),
+                },
             ),
             MidiMessage::ChannelPressure { channel, pressure } => self.apply_channel_parameter(
                 ctx,
                 snapshot,
                 *channel,
-                CHANNEL_PRESSURE_DECL_ID,
-                "Channel Pressure",
-                i32::from(*pressure),
-                Some((0, 127)),
+                MidiIntValue {
+                    label: "Channel Pressure",
+                    decl_id: CHANNEL_PRESSURE_DECL_ID,
+                    value: i32::from(*pressure),
+                    range: Some((0, 127)),
+                },
             ),
             MidiMessage::PitchBend { channel, value } => self.apply_channel_parameter(
                 ctx,
                 snapshot,
                 *channel,
-                PITCH_BEND_DECL_ID,
-                "Pitch Bend",
-                i32::from(*value),
-                Some((0, i32::from(MIDI_U14_MAX))),
+                MidiIntValue {
+                    label: "Pitch Bend",
+                    decl_id: PITCH_BEND_DECL_ID,
+                    value: i32::from(*value),
+                    range: Some((0, i32::from(MIDI_U14_MAX))),
+                },
             ),
             MidiMessage::System(system) => {
                 self.apply_system_message(ctx, snapshot, system, received_at, clock_timing)
@@ -719,13 +746,15 @@ impl MidiModule {
         merge_apply_results(
             note_info_result,
             self.apply_direct_int_parameter(
-            ctx,
-            snapshot,
-            notes_id,
-            note_label(note).as_str(),
-            note_decl_id(note).as_str(),
-            i32::from(velocity),
-            Some(MIDI_7_BIT_VALUE_RANGE),
+                ctx,
+                snapshot,
+                notes_id,
+                MidiIntValue {
+                    label: note_label(note).as_str(),
+                    decl_id: note_decl_id(note).as_str(),
+                    value: i32::from(velocity),
+                    range: Some(MIDI_7_BIT_VALUE_RANGE),
+                },
             ),
         )
     }
@@ -754,13 +783,15 @@ impl MidiModule {
         merge_apply_results(
             note_info_result,
             self.apply_direct_int_parameter(
-            ctx,
-            snapshot,
-            notes_id,
-            note_label(note).as_str(),
-            note_decl_id(note).as_str(),
-            0,
-            Some(MIDI_7_BIT_VALUE_RANGE),
+                ctx,
+                snapshot,
+                notes_id,
+                MidiIntValue {
+                    label: note_label(note).as_str(),
+                    decl_id: note_decl_id(note).as_str(),
+                    value: 0,
+                    range: Some(MIDI_7_BIT_VALUE_RANGE),
+                },
             ),
         )
     }
@@ -907,10 +938,12 @@ impl MidiModule {
             ctx,
             snapshot,
             pressure_folder_id,
-            note_label(note).as_str(),
-            note_decl_id(note).as_str(),
-            i32::from(pressure),
-            Some(MIDI_7_BIT_VALUE_RANGE),
+            MidiIntValue {
+                label: note_label(note).as_str(),
+                decl_id: note_decl_id(note).as_str(),
+                value: i32::from(pressure),
+                range: Some(MIDI_7_BIT_VALUE_RANGE),
+            },
         )
     }
 
@@ -919,16 +952,13 @@ impl MidiModule {
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         channel: u8,
-        decl_id: &str,
-        label: &str,
-        value: i32,
-        range: Option<(i32, i32)>,
+        value: MidiIntValue<'_>,
     ) -> MidiApplyResult {
         let Some(channel_id) = self.ensure_channel_folder(ctx, snapshot, channel) else {
             return MidiApplyResult::Retry;
         };
 
-        self.apply_direct_int_parameter(ctx, snapshot, channel_id, label, decl_id, value, range)
+        self.apply_direct_int_parameter(ctx, snapshot, channel_id, value)
     }
 
     fn apply_system_message(
@@ -946,18 +976,22 @@ impl MidiModule {
             MidiSystemMessage::SongPosition { position } => self.apply_system_int_parameter(
                 ctx,
                 snapshot,
-                "Song Position",
-                SONG_POSITION_DECL_ID,
-                i32::from(*position),
-                Some(MIDI_14_BIT_VALUE_RANGE),
+                MidiIntValue {
+                    label: "Song Position",
+                    decl_id: SONG_POSITION_DECL_ID,
+                    value: i32::from(*position),
+                    range: Some(MIDI_14_BIT_VALUE_RANGE),
+                },
             ),
             MidiSystemMessage::SongSelect { song } => self.apply_system_int_parameter(
                 ctx,
                 snapshot,
-                "Song Select",
-                SONG_SELECT_DECL_ID,
-                i32::from(*song),
-                Some(MIDI_7_BIT_VALUE_RANGE),
+                MidiIntValue {
+                    label: "Song Select",
+                    decl_id: SONG_SELECT_DECL_ID,
+                    value: i32::from(*song),
+                    range: Some(MIDI_7_BIT_VALUE_RANGE),
+                },
             ),
             MidiSystemMessage::TuneRequest => self.apply_system_trigger(ctx, snapshot, "Tune Request", TUNE_REQUEST_DECL_ID),
             MidiSystemMessage::TimingClock => {
@@ -986,16 +1020,13 @@ impl MidiModule {
         &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
-        label: &str,
-        decl_id: &str,
-        value: i32,
-        range: Option<(i32, i32)>,
+        value: MidiIntValue<'_>,
     ) -> MidiApplyResult {
         let Some(system_id) = self.ensure_system_folder(ctx, snapshot) else {
             return MidiApplyResult::Retry;
         };
 
-        self.apply_direct_int_parameter(ctx, snapshot, system_id, label, decl_id, value, range)
+        self.apply_direct_int_parameter(ctx, snapshot, system_id, value)
     }
 
     fn apply_system_trigger(
@@ -1271,10 +1302,12 @@ impl MidiModule {
             ctx,
             snapshot,
             sysex_id,
-            "Bytes",
-            SYSEX_BYTES_DECL_ID,
-            format_midi_bytes(bytes),
-            true,
+            MidiStringValue {
+                label: "Bytes",
+                decl_id: SYSEX_BYTES_DECL_ID,
+                value: format_midi_bytes(bytes),
+                read_only: true,
+            },
         );
         if bytes_result == MidiApplyResult::Retry {
             return bytes_result;
@@ -1284,10 +1317,12 @@ impl MidiModule {
             ctx,
             snapshot,
             sysex_id,
-            "Length",
-            SYSEX_LENGTH_DECL_ID,
-            i32::try_from(bytes.len()).unwrap_or(i32::MAX),
-            Some(MIDI_NONNEGATIVE_INT_RANGE),
+            MidiIntValue {
+                label: "Length",
+                decl_id: SYSEX_LENGTH_DECL_ID,
+                value: i32::try_from(bytes.len()).unwrap_or(i32::MAX),
+                range: Some(MIDI_NONNEGATIVE_INT_RANGE),
+            },
         )
     }
 
@@ -1335,26 +1370,29 @@ impl MidiModule {
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         parent_id: NodeId,
-        label: &str,
-        decl_id: &str,
-        value: i32,
-        range: Option<(i32, i32)>,
+        value: MidiIntValue<'_>,
     ) -> MidiApplyResult {
-        match snapshot.find_child_by_decl_id(parent_id, decl_id) {
+        match snapshot.find_child_by_decl_id(parent_id, value.decl_id) {
             Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "int") => {
-                self.clear_pending_auto_child(parent_id, decl_id);
-                sync_int_parameter_constraints(ctx, snapshot, existing_id, range);
-                self.set_internal_param(ctx, existing_id, ParamValue::Int(value));
+                self.clear_pending_auto_child(parent_id, value.decl_id);
+                sync_int_parameter_constraints(ctx, snapshot, existing_id, value.range);
+                self.set_internal_param(ctx, existing_id, ParamValue::Int(value.value));
                 MidiApplyResult::Applied
             }
             Some(existing_id) => {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                if self.mark_pending_auto_child(parent_id, decl_id) {
+                if self.mark_pending_auto_child(parent_id, value.decl_id) {
                     ctx.replace_node_boxed(
                         existing_id,
-                        Box::new(create_int_parameter(label, decl_id, value, range, false)),
+                        Box::new(create_int_parameter(
+                            value.label,
+                            value.decl_id,
+                            value.value,
+                            value.range,
+                            false,
+                        )),
                     );
                 }
                 MidiApplyResult::Retry
@@ -1363,10 +1401,16 @@ impl MidiModule {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                if self.mark_pending_auto_child(parent_id, decl_id) {
+                if self.mark_pending_auto_child(parent_id, value.decl_id) {
                     ctx.add_child_boxed(
                         parent_id,
-                        Box::new(create_int_parameter(label, decl_id, value, range, false)),
+                        Box::new(create_int_parameter(
+                            value.label,
+                            value.decl_id,
+                            value.value,
+                            value.range,
+                            false,
+                        )),
                         None,
                     );
                     if ordered_midi_value_kind(snapshot, parent_id).is_some() {
@@ -1383,25 +1427,27 @@ impl MidiModule {
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         parent_id: NodeId,
-        label: &str,
-        decl_id: &str,
-        value: String,
-        read_only: bool,
+        value: MidiStringValue<'_>,
     ) -> MidiApplyResult {
-        match snapshot.find_child_by_decl_id(parent_id, decl_id) {
+        match snapshot.find_child_by_decl_id(parent_id, value.decl_id) {
             Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "str") => {
-                self.clear_pending_auto_child(parent_id, decl_id);
-                self.set_internal_param(ctx, existing_id, ParamValue::Str(value));
+                self.clear_pending_auto_child(parent_id, value.decl_id);
+                self.set_internal_param(ctx, existing_id, ParamValue::Str(value.value));
                 MidiApplyResult::Applied
             }
             Some(existing_id) => {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                if self.mark_pending_auto_child(parent_id, decl_id) {
+                if self.mark_pending_auto_child(parent_id, value.decl_id) {
                     ctx.replace_node_boxed(
                         existing_id,
-                        Box::new(create_string_parameter(label, decl_id, value, read_only)),
+                        Box::new(create_string_parameter(
+                            value.label,
+                            value.decl_id,
+                            value.value,
+                            value.read_only,
+                        )),
                     );
                 }
                 MidiApplyResult::Retry
@@ -1410,10 +1456,15 @@ impl MidiModule {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                if self.mark_pending_auto_child(parent_id, decl_id) {
+                if self.mark_pending_auto_child(parent_id, value.decl_id) {
                     ctx.add_child_boxed(
                         parent_id,
-                        Box::new(create_string_parameter(label, decl_id, value, read_only)),
+                        Box::new(create_string_parameter(
+                            value.label,
+                            value.decl_id,
+                            value.value,
+                            value.read_only,
+                        )),
                         None,
                     );
                 }
@@ -1659,20 +1710,17 @@ impl MidiModule {
         &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
-        channel: u8,
         cc_folder_id: NodeId,
-        controller: u8,
-        existing_id: Option<NodeId>,
-        value: i32,
+        update: MidiCcUpdate,
     ) {
-        let decl_id = cc_decl_id(controller);
-        let label = cc_label(controller);
-        let range = self.cc_parameter_range(snapshot, channel, controller);
-        match existing_id {
+        let decl_id = cc_decl_id(update.controller);
+        let label = cc_label(update.controller);
+        let range = self.cc_parameter_range(snapshot, update.channel, update.controller);
+        match update.existing_id {
             Some(node_id) if snapshot.node(node_id).is_some_and(|node| node.node_type == "int") => {
                 sync_int_parameter_constraints(ctx, snapshot, node_id, range);
                 self.ensure_cc_rotary_mode_parameter(ctx, snapshot, node_id);
-                self.set_internal_param(ctx, node_id, ParamValue::Int(value));
+                self.set_internal_param(ctx, node_id, ParamValue::Int(update.value));
             }
             Some(node_id) => {
                 self.clear_pending_auto_child(cc_folder_id, decl_id.as_str());
@@ -1681,7 +1729,7 @@ impl MidiModule {
                     Box::new(create_int_parameter(
                         label.as_str(),
                         decl_id.as_str(),
-                        value,
+                        update.value,
                         range,
                         false,
                     )),
@@ -1694,7 +1742,7 @@ impl MidiModule {
                     Box::new(create_int_parameter(
                         label.as_str(),
                         decl_id.as_str(),
-                        value,
+                        update.value,
                         range,
                         false,
                     )),
@@ -1755,7 +1803,17 @@ impl MidiModule {
                     .unwrap_or(0);
                 let combined = i32::from((u16::from(msb) << 7) | u16::from(lsb));
 
-                self.set_or_create_cc_param(ctx, snapshot, channel, cc_folder_id, base_controller, base_id, combined);
+                self.set_or_create_cc_param(
+                    ctx,
+                    snapshot,
+                    cc_folder_id,
+                    MidiCcUpdate {
+                        channel,
+                        controller: base_controller,
+                        existing_id: base_id,
+                        value: combined,
+                    },
+                );
                 if let Some(node_id) = lsb_id {
                     self.clear_pending_auto_child(cc_folder_id, lsb_decl_id.as_str());
                     ctx.edits.push(Edit::RemoveNode { node: node_id });
@@ -1789,8 +1847,28 @@ impl MidiModule {
             let msb = i32::from((combined >> 7) & 0x7F);
             let lsb = i32::from(combined & 0x7F);
 
-            self.set_or_create_cc_param(ctx, snapshot, channel, cc_folder_id, base_controller, base_id, msb);
-            self.set_or_create_cc_param(ctx, snapshot, channel, cc_folder_id, lsb_controller, lsb_id, lsb);
+            self.set_or_create_cc_param(
+                ctx,
+                snapshot,
+                cc_folder_id,
+                MidiCcUpdate {
+                    channel,
+                    controller: base_controller,
+                    existing_id: base_id,
+                    value: msb,
+                },
+            );
+            self.set_or_create_cc_param(
+                ctx,
+                snapshot,
+                cc_folder_id,
+                MidiCcUpdate {
+                    channel,
+                    controller: lsb_controller,
+                    existing_id: lsb_id,
+                    value: lsb,
+                },
+            );
         }
     }
 

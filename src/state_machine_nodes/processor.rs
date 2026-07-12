@@ -1065,9 +1065,7 @@ impl StateProcessor {
     }
 
     fn formula_node(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let reference = match self.formula_source_ref().ok().flatten()? {
-            FormulaSourceRef::ProjectNode(reference) => reference,
-        };
+        let FormulaSourceRef::ProjectNode(reference) = self.formula_source_ref().ok().flatten()?;
         snapshot.node_id_by_uuid(reference.uuid()).filter(|formula| {
             snapshot
                 .node(*formula)

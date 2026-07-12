@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser, dev } from '$app/environment';
 	import {
 		MainWindow,
 		registerNodeInspector,
@@ -7,6 +8,7 @@
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
+	import { resolveRuntimeEndpoints } from '$lib/runtimeEndpoints';
 	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
 	import ModuleInspectorPanelHeader from '$lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
@@ -148,6 +150,15 @@
 			}
 		}
 	];
+
+	const runtimeEndpoints = browser
+		? resolveRuntimeEndpoints(window.location, { development: dev })
+		: undefined;
 </script>
 
-<MainWindow {userPanels} {initialPanels} nodeIcons={appIcons} />
+<MainWindow
+	{userPanels}
+	{initialPanels}
+	nodeIcons={appIcons}
+	httpBaseUrl={runtimeEndpoints?.httpBaseUrl}
+	wsUrl={runtimeEndpoints?.wsUrl} />

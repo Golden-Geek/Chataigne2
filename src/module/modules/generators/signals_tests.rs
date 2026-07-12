@@ -194,9 +194,10 @@ fn signal_shape_dependencies_materialize_selected_parameters() {
 #[test]
 fn sine_signal_generates_continuous_value_in_range() {
     let config = test_signal_config(super::SignalShape::Sine, -1.0, 1.0);
-    let mut state = super::SignalRuntimeState::default();
-
-    state.elapsed_seconds = 0.25;
+    let mut state = super::SignalRuntimeState {
+        elapsed_seconds: 0.25,
+        ..Default::default()
+    };
     let value = super::sample_signal(&config, &mut state).value;
     assert!(
         (value - 1.0).abs() < 0.000_001,
@@ -214,9 +215,10 @@ fn sine_signal_generates_continuous_value_in_range() {
 #[test]
 fn signal_range_and_reverse_saw_shape_are_applied() {
     let config = test_signal_config(super::SignalShape::ReverseSaw, 10.0, 20.0);
-    let mut state = super::SignalRuntimeState::default();
-
-    state.elapsed_seconds = 0.25;
+    let mut state = super::SignalRuntimeState {
+        elapsed_seconds: 0.25,
+        ..Default::default()
+    };
     let value = super::sample_signal(&config, &mut state).value;
     assert!(
         (value - 17.5).abs() < 0.000_001,

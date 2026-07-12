@@ -9,12 +9,22 @@ use crate::ProcessorId;
 pub enum IntentOrigin {
     Processor {
         processor_id: ProcessorId,
-        context_key: Option<ContextKey>,
+        context_key: Option<Box<ContextKey>>,
     },
     Transition {
         transition_id: TransitionId,
     },
     System,
+}
+
+impl IntentOrigin {
+    #[must_use]
+    pub fn processor(processor_id: ProcessorId, context_key: Option<ContextKey>) -> Self {
+        Self::Processor {
+            processor_id,
+            context_key: context_key.map(Box::new),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

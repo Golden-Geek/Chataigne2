@@ -1077,7 +1077,7 @@ fn parse_midi_byte_token(token: &str) -> Result<u8, String> {
 
 fn looks_like_compact_hex(token: &str) -> bool {
     token.len() > 2
-        && token.len() % 2 == 0
+        && token.len().is_multiple_of(2)
         && token.chars().all(|character| character.is_ascii_hexdigit())
         && token
             .chars()

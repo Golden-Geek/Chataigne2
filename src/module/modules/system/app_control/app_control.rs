@@ -1,5 +1,4 @@
 mod app_control_runtime;
-mod commands;
 #[cfg(test)]
 mod app_control_tests;
 
@@ -30,7 +29,7 @@ use crate::app::module::common::app_control::{
     ProcessMatchMode, WindowAction, WindowControlRequest, APP_CONTROL_MATCH_MODE_EXACT,
 };
 use crate::app::module::common::system_metrics;
-use self::commands::{
+use crate::app::module::common::app_control::{
     sync_command_watched_app_options, APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE,
     APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE, APP_CONTROL_MODULE_COMMAND_TYPES,
     APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE,
