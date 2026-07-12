@@ -55,9 +55,11 @@ The canonical aggregate additionally requires compatibility compilation for Rasp
 Pi-like Linux ARM hard-float (`armv7-unknown-linux-gnueabihf`), Linux AArch64
 (`aarch64-unknown-linux-gnu`), and Windows ARM64 (`aarch64-pc-windows-msvc`). AArch64
 Linux and Windows ARM64 build the complete application. The emulated 32-bit runner checks
-the reusable engine, Alchemist/statechart, and Chataigne state-machine core that form the
-headless Pi boundary. Native launch, interaction, and loopback evidence stays with the
-three executable desktop runners.
+the reusable engine and Alchemist/statechart crates that form the portable headless Pi
+boundary. The app-owned state-machine crate is covered by the native AArch64 application
+build; resolving it through the desktop app workspace would pull unrelated hardware
+dependencies into the ARMHF check. Native launch, interaction, and loopback evidence stays
+with the three executable desktop runners.
 
 Other native platform results remain `BLOCKED` unless reports from those runners are
 supplied:

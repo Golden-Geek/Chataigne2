@@ -104,14 +104,6 @@ def main() -> int:
                 "--target",
                 options.target,
             ],
-            [
-                "cargo",
-                "check",
-                "-p",
-                "chataigne_state_machine",
-                "--target",
-                options.target,
-            ],
         ]
     else:
         commands = [["cargo", "build", "--target", options.target]]
