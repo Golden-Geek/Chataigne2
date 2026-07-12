@@ -101,7 +101,7 @@ try {
 
     $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
     Request-GracefulProductShutdown -RootProcessId $process.Id
-    Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 20
+    Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 90
     Wait-ForPortsReleased -Ports $ports -TimeoutSeconds 10
 
     [pscustomobject]@{
