@@ -1,1 +1,2 @@
 docs/product/manifests/** text eol=lf
+tools/bootstrap/toolchain.json text eol=lf
