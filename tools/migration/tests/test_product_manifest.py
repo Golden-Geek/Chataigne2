@@ -122,6 +122,28 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
                 self.assertEqual(row["user_workflow"]["status"], "pending_characterization")
                 self.assertFalse(row["discovered_facts"]["discovery_is_behavioral_proof"])
 
+    def test_generation_is_independent_of_checkout_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lf_root = root / "lf"
+            crlf_root = root / "crlf"
+            self.fixture_repo(lf_root)
+            self.fixture_repo(crlf_root)
+
+            for checkout, newline in ((lf_root, b"\n"), (crlf_root, b"\r\n")):
+                for path in checkout.rglob("*"):
+                    if not path.is_file():
+                        continue
+                    content = path.read_bytes()
+                    try:
+                        content.decode("utf-8")
+                    except UnicodeDecodeError:
+                        continue
+                    normalized = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+                    path.write_bytes(normalized.replace(b"\n", newline))
+
+            self.assertEqual(generate_documents(lf_root), generate_documents(crlf_root))
+
     def test_drift_check_detects_source_changes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

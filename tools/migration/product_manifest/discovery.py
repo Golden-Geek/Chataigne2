@@ -90,12 +90,17 @@ def _slug(value: str) -> str:
     return slug or "unnamed"
 
 
+def _canonical_bytes(path: Path) -> bytes:
+    content = path.read_bytes()
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        return content
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
 def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return hashlib.sha256(_canonical_bytes(path)).hexdigest()
 
 
 def _read_text(path: Path) -> str:
@@ -763,7 +768,7 @@ def scan_product(root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]
                     "kind": "fixture" if is_fixture else "asset",
                     "name": path.name,
                     "path": relative,
-                    "bytes": path.stat().st_size,
+                    "bytes": len(_canonical_bytes(path)),
                     "sha256": _sha256(path),
                 }
             )

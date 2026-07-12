@@ -39,6 +39,7 @@ impl KinectVec3 {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) enum KinectTrackingState {
     #[default]
     NotTracked,

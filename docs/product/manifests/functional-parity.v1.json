@@ -9766,7 +9766,7 @@
         "file": "builtin_formulas/Mapping.json",
         "inventory_kind": "formula",
         "inventory_name": "Mapping",
-        "sha256": "1170d72d0aa1f655cacda14f2b667817df4fceba975665a2afa0f31730da9bc5"
+        "sha256": "03b6d66207b324209c8d1cdf9f103ae8c73a31c76008e8a3340fff2bfdd1a0d5"
       },
       "evidence": {
         "artifact_id": null,

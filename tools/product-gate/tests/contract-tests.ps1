@@ -12,6 +12,7 @@ $scripts = @(
     "tools/bootstrap/verify-toolchain.ps1",
     "tools/product-gate/aggregate-reports.ps1",
     "tools/product-gate/hooks/module-loopback-smoke.ps1",
+    "tools/product-gate/hooks/smoke-common.ps1",
     "tools/product-gate/product-gate.ps1"
 )
 foreach ($relativePath in $scripts) {
@@ -32,6 +33,11 @@ if ([regex]::Matches($gateSource, '-Id "evidence\.module_loopback"').Count -ne 1
 }
 if ($gateSource -notmatch '-HookFile "module-loopback-smoke\.ps1"') {
     throw "The module-loopback gate item is not wired to its strict hook."
+}
+
+$smokeCommonSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/smoke-common.ps1"))
+if ($smokeCommonSource -notmatch '& /bin/kill -TERM \$processId') {
+    throw "The root smoke workflow must request graceful SIGTERM shutdown on non-Windows hosts."
 }
 
 $testRoot = Join-Path $repositoryRoot "target/product-gate/contract-tests"

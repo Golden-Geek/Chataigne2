@@ -180,7 +180,26 @@ function Request-GracefulProductShutdown {
     param([int]$RootProcessId)
 
     if (-not (Test-IsWindowsPlatform)) {
-        throw "The desktop host exposes no cross-platform external graceful-shutdown command yet; this PowerShell hook currently validates Windows Tauri window shutdown only."
+        $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $RootProcessId)
+        $shutdownOrder = @(
+            $ownedProcessIds | Where-Object { $_ -ne $RootProcessId }
+            $RootProcessId
+        )
+        $requested = $false
+        foreach ($processId in $shutdownOrder) {
+            if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
+                continue
+            }
+            & /bin/kill -TERM $processId
+            if ($LASTEXITCODE -ne 0) {
+                throw "SIGTERM failed for owned process $processId."
+            }
+            $requested = $true
+        }
+        if (-not $requested) {
+            throw "No owned process accepted a graceful SIGTERM shutdown request."
+        }
+        return
     }
 
     $requested = $false

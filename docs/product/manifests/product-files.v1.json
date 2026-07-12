@@ -82,7 +82,7 @@
       "kind": "asset",
       "name": "audio.svg",
       "path": "src-ui/src/lib/assets/icons/module/audio.svg",
-      "sha256": "6e337056863081ecfa0d50f72a97f7112d7f63c3250bd4ddd2ed4ca024d538bc"
+      "sha256": "428dd1f4a27ccc9eb35770ac31dbd36e74b4795b75df20a5ffa96fd0071d97d7"
     },
     {
       "bytes": 973,
@@ -98,7 +98,7 @@
       "kind": "asset",
       "name": "controllers.svg",
       "path": "src-ui/src/lib/assets/icons/module/controllers.svg",
-      "sha256": "d54dc3ba9862fbc0c207d544f9fafb1a65afc71d4b8bd8e1d975b475b18e6273"
+      "sha256": "60ec456a5666c12f59e7142e6f365ed348bb6782d0e7a6325f111f523aa33ed3"
     },
     {
       "bytes": 1554,
@@ -106,7 +106,7 @@
       "kind": "asset",
       "name": "disconnected.svg",
       "path": "src-ui/src/lib/assets/icons/module/disconnected.svg",
-      "sha256": "d167204a566c20fcad702a7415f9fc816347109bc931ccbd3f7374c1340c76aa"
+      "sha256": "2d74ac78e41c7b4319bbf6664bda294a47895c963c50efae46fcd60754781e51"
     },
     {
       "bytes": 1520,
@@ -122,7 +122,7 @@
       "kind": "asset",
       "name": "hardware.svg",
       "path": "src-ui/src/lib/assets/icons/module/hardware.svg",
-      "sha256": "1d754500b4d45d8284ea268f063de76682a6e2fdaa2291ad3378cb181dfa6c5f"
+      "sha256": "5b26b61ceba5b2881acca2b224b7392932e93bb6ed3b0ba83327dfd937f06c76"
     },
     {
       "bytes": 718,
@@ -130,7 +130,7 @@
       "kind": "asset",
       "name": "incoming.svg",
       "path": "src-ui/src/lib/assets/icons/module/incoming.svg",
-      "sha256": "96c4882d19aed4ec3a5751ac148bc531e59a55af29c3b63f5f657fb41a5c189f"
+      "sha256": "44a289f63d468e174fd50bec50a30018130ac7c13df8989d76b5d762dd068f7a"
     },
     {
       "bytes": 2560,
@@ -138,7 +138,7 @@
       "kind": "asset",
       "name": "network.svg",
       "path": "src-ui/src/lib/assets/icons/module/network.svg",
-      "sha256": "6f9436e243d9d2b08be36b6c29ffe6cfb809c7172b2b5cf8dcc8a6fc4129e346"
+      "sha256": "e2343c0eba9bc076dc90f9f4650509740d126100d741f2dda7243a1c9fe97602"
     },
     {
       "bytes": 719,
@@ -146,7 +146,7 @@
       "kind": "asset",
       "name": "outgoing.svg",
       "path": "src-ui/src/lib/assets/icons/module/outgoing.svg",
-      "sha256": "166cb5f9b0af562f4f8da7adad5bc066c0665245d2d7678d68d0969f9e734a53"
+      "sha256": "ad669738f50776d8ad3ff71c8513505aac01402265af37cea5b9d4f7e3a9e502"
     },
     {
       "bytes": 1886,
@@ -154,7 +154,7 @@
       "kind": "asset",
       "name": "system.svg",
       "path": "src-ui/src/lib/assets/icons/module/system.svg",
-      "sha256": "7028cd405fa1c5b5c73a82798a4d14fefab75658d565baa46c3424c4d80ec609"
+      "sha256": "7513997b7d8abe79392a87bd00421d17f5958e106bd57aed21b435528b342ed4"
     },
     {
       "bytes": 1440,
@@ -162,7 +162,7 @@
       "kind": "asset",
       "name": "video.svg",
       "path": "src-ui/src/lib/assets/icons/module/video.svg",
-      "sha256": "69f9622dbb37bfb6b650facae822dbe64a5932686152b0f60421845a917e9b83"
+      "sha256": "2e6377389f6fe5662e40934679ad125d43fb4f7edcbf6d0582017e4b43dbd985"
     },
     {
       "bytes": 1340,
@@ -194,7 +194,7 @@
       "kind": "asset",
       "name": "dmx_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/dmx_module.svg",
-      "sha256": "a9de449f2b882ae1960a0a60863cc4431c4b1f2c55920066cb4eb803c011c35b"
+      "sha256": "e64bada0b6ebc27ddac9b4c45b84e0c3d0c2fbb8ba4c44856476db6a976d67fb"
     },
     {
       "bytes": 7116,
@@ -226,7 +226,7 @@
       "kind": "asset",
       "name": "keyboard_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/keyboard_module.svg",
-      "sha256": "ec910b884e55c12271e4f10e0675d7f84a6180525721ecaf6a8c865ef8694187"
+      "sha256": "4bf6b9b369a8ed9497ecac208641c278f8682e84a560055fc5c7e658996ab7e7"
     },
     {
       "bytes": 926,
@@ -242,7 +242,7 @@
       "kind": "asset",
       "name": "metronomes_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/metronomes_module.svg",
-      "sha256": "c2bb6a1be2bfe347afdd6380ed8fbd4f3a37e9ca91f2623ec4b01d8f83a853d4"
+      "sha256": "d008cd4a39fce84d40c8c539498236c1199c7a66d18f3444b9ef694ea9114b2f"
     },
     {
       "bytes": 1653,
@@ -258,7 +258,7 @@
       "kind": "asset",
       "name": "module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/module.svg",
-      "sha256": "42ad301982f06f5a26e6701242a2a4e6371afc60f6f9fe80814f45ebdd5054da"
+      "sha256": "f8b699f7a6aa2dcc0d2adce90f1af75ff7e0c8362e0d3bb2481f833ac0e7d35d"
     },
     {
       "bytes": 1508,
@@ -266,7 +266,7 @@
       "kind": "asset",
       "name": "module_manager.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/module_manager.svg",
-      "sha256": "78d49cde451b4c26492ee883e42bc77d41e328f90d516f32c387745d2fdcd055"
+      "sha256": "7e452d2c5dff471539e1bf450d739f4a72e06564e1da490e70f13148fd0f2154"
     },
     {
       "bytes": 1205,
@@ -274,7 +274,7 @@
       "kind": "asset",
       "name": "mouse_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/mouse_module.svg",
-      "sha256": "eda360845b0231eb780b580d21cc0da4dc9b20cab630fa3bf44f3d397b3b0152"
+      "sha256": "ada557fa7d77a9fe49944e84ef1d8ab19588c29e157617d426043b8435f5bdb0"
     },
     {
       "bytes": 808,
@@ -290,7 +290,7 @@
       "kind": "asset",
       "name": "os_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/os_module.svg",
-      "sha256": "7eb910e9264294a7e60ac88253b24d460f079cfe1f65aead643601828dc84f6c"
+      "sha256": "18c6e1602f0031e06163de7b4cc4c1d89cf0636348d5fd2a3cafe3f98e053936"
     },
     {
       "bytes": 1399,
@@ -314,7 +314,7 @@
       "kind": "asset",
       "name": "signals_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/signals_module.svg",
-      "sha256": "325aa7999c94aa387017e63fd1fa88487185e69b04623f145d1e8f44c792ee31"
+      "sha256": "7b240135e0a88e4ccdb9244eb51f7993e460f735f2ff74f068a2e6b156561a55"
     },
     {
       "bytes": 1631,
@@ -322,7 +322,7 @@
       "kind": "asset",
       "name": "spatializer_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/spatializer_module.svg",
-      "sha256": "3630418095c6681a011718a9e9874c9ccd8cca2884bd31f759e9282882dd055b"
+      "sha256": "972926dd4f27ec9c8242c6dc855c8e9e3394985d2b4957c035e76d28ef43d471"
     },
     {
       "bytes": 1472,
@@ -386,7 +386,7 @@
       "kind": "asset",
       "name": "websocket_client_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
-      "sha256": "f6c87a9191b4bbcf89797d0c7e415fe116ef3e6f40de2577341aeb0a97a850d6"
+      "sha256": "7325806d4ea05b2843c48bbb8d2adc9125703864edac715560aea224fd4aa543"
     },
     {
       "bytes": 1523,
@@ -394,23 +394,23 @@
       "kind": "asset",
       "name": "websocket_server_module.svg",
       "path": "src-ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
-      "sha256": "e33ff26e3fe53ea3869fa1599fd708858bd60c0152aaae4784ebe8455236e836"
+      "sha256": "623badbb4264988bec81310afd2d86ab0819f223cf664c85ab87cb5decee3477"
     },
     {
-      "bytes": 1225,
+      "bytes": 1212,
       "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula.svg",
       "kind": "asset",
       "name": "formula.svg",
       "path": "src-ui/src/lib/golden_alchemist_ui/icons/formula.svg",
-      "sha256": "5ad8f1f6006c2ab80772016028767c7b608caffa7021b25617705c9e38cd26b5"
+      "sha256": "6d8d78bfa119b765e48587423096fc8aeba58e905d442eb1e9c586aaf6bb84bb"
     },
     {
-      "bytes": 2338,
+      "bytes": 2316,
       "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
       "kind": "asset",
       "name": "formula_library.svg",
       "path": "src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
-      "sha256": "32c332853f5c15908038975baeb4f05c6edd36baf8fcaebc638e20fabb9383b6"
+      "sha256": "877c0bfa8562d9f58b2a336b22fb8b1d9d635a9d0477af7d13dfa6b2f17fceb2"
     },
     {
       "bytes": 1173,
@@ -418,7 +418,7 @@
       "kind": "asset",
       "name": "lock.svg",
       "path": "src-ui/src/lib/golden_alchemist_ui/icons/lock.svg",
-      "sha256": "5e9e15819c1229475ac13018151edcc5163ee452f1b6dea9c7d7d6e3d8d195ff"
+      "sha256": "80d49f767a16f5555c191ec610eda5acc22c37d1384026031feee76b8479409e"
     },
     {
       "bytes": 978,
@@ -426,7 +426,7 @@
       "kind": "asset",
       "name": "add.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/add.svg",
-      "sha256": "4a831d2922ba59b267ce1daa5befa7f26f473c2f10be2b54fed5c5760f21c609"
+      "sha256": "52ad79351ea327530b68dabe577695676322b1356edc4bfec8e975e35e51bf3f"
     },
     {
       "bytes": 851,
@@ -434,7 +434,7 @@
       "kind": "asset",
       "name": "arrow.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/arrow.svg",
-      "sha256": "b7f9d89cf33edd423482535364b41dfa5167269dc14b42745209641675b89b57"
+      "sha256": "f451c13e2282b9c99949f47539cf4d0e7f46f858955b6e5691ba8bc822faa482"
     },
     {
       "bytes": 874,
@@ -442,7 +442,7 @@
       "kind": "asset",
       "name": "arrow_down.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/arrow_down.svg",
-      "sha256": "8f2600e7cc33ecc2c0277adc39a149549077099d06dd1ecab372783d1dacb13b"
+      "sha256": "06eb62e81bc835a1367e3687c4283deb70c800fde3412bb7e41fbf2eebaf541c"
     },
     {
       "bytes": 1280,
@@ -450,7 +450,7 @@
       "kind": "asset",
       "name": "clipboard.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/clipboard.svg",
-      "sha256": "6550fa2084cf0818542f694f2d0b18f44aad89c95aa6566ff5b26868363f9c66"
+      "sha256": "7d41b9c39590b9bfe982d166e39c9bb204e0431dd3a578fab47ab23f2c96a7c8"
     },
     {
       "bytes": 890,
@@ -458,7 +458,7 @@
       "kind": "asset",
       "name": "copy.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/copy.svg",
-      "sha256": "fb1036ee035c31e113231574b5fda844288455c8c57e54bf1c7d2ac6d5e47175"
+      "sha256": "7a54f8f09ddaa10581e998ce1c391951443ddb53965fdb61b96fda25c347566b"
     },
     {
       "bytes": 1677,
@@ -466,7 +466,7 @@
       "kind": "asset",
       "name": "delete.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/delete.svg",
-      "sha256": "49ea76947e51528a0fdb3ddde7bd3d4bffb32f3dde9cd30e1c0d3a3e825d7372"
+      "sha256": "0ca6c5a5ceeb7172976cb2ee7475f1d6242180a03ce67c8fed0f648103087da5"
     },
     {
       "bytes": 1080,
@@ -474,7 +474,7 @@
       "kind": "asset",
       "name": "duplicate.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/duplicate.svg",
-      "sha256": "e639c6d6250cb6af1dfc5b84d450140746785429541b721d7aa3d7963d1b7bad"
+      "sha256": "cf7f3c0e9ee2ad591775803cf4d1090c13dbe46b416acd75732497bf5828f26a"
     },
     {
       "bytes": 1203,
@@ -482,7 +482,7 @@
       "kind": "asset",
       "name": "lock.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/lock.svg",
-      "sha256": "403e7093ef38621d2afad41c1ae2d7cb4016c801dc633fe37ede8714be407448"
+      "sha256": "57b24ddf4b93f908a109f792722a00a5cd93c43100a9629fef2553fdd8d7a8ee"
     },
     {
       "bytes": 1266,
@@ -490,7 +490,7 @@
       "kind": "asset",
       "name": "add.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/node/add.svg",
-      "sha256": "92485a19e27dda44ac20c2d43cc3996d1f72c5ca51d3d94b1b41b475b7e589c6"
+      "sha256": "31be8666725ec33cc13ecc9bec06298db8ef99d8eb10d16b4f6514c648151442"
     },
     {
       "bytes": 1887,
@@ -498,7 +498,7 @@
       "kind": "asset",
       "name": "key.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/node/curve/key.svg",
-      "sha256": "336342b9cdbea6eef747f5e064ca18946a53e53713b80969a218fe1b7d7b7126"
+      "sha256": "1a40f1021e711274158c8215b1b000aa68e2cc90cbead9bd2c5bab2f7f9c765f"
     },
     {
       "bytes": 816,
@@ -514,7 +514,7 @@
       "kind": "asset",
       "name": "default.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/node/default.svg",
-      "sha256": "50973e2d7f0f131ca1ee7f4ae06a59d16645f5e1f333ac696bb8a64deefb0ceb"
+      "sha256": "47f1d2c3c2eb3aa0aa2188da5176219ac6699875d330280f24498f5f1c8a4059"
     },
     {
       "bytes": 1338,
@@ -522,7 +522,7 @@
       "kind": "asset",
       "name": "folder.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/node/folder.svg",
-      "sha256": "1ea4e4681db7b12a7a9de4916c7c7714f5d3e56be06e87d30d6fc0bedce1895b"
+      "sha256": "98ded8d7757c398fe260528d89befc8eea16380d37526e67d3190c05d567ba29"
     },
     {
       "bytes": 1443,
@@ -530,7 +530,7 @@
       "kind": "asset",
       "name": "manager.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/node/manager.svg",
-      "sha256": "c8f0a2a4eaee85ee2cb02935cf1fff2612785f2855e37b4b1dee13eee8b34155"
+      "sha256": "927d3931eb7c30fbd92137e9ccb89ec3eb556526eecbcba136b72e05c1a5be9c"
     },
     {
       "bytes": 2084,
@@ -538,7 +538,7 @@
       "kind": "asset",
       "name": "script.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/node/script.svg",
-      "sha256": "48ebf8d488d3674b63ee18b72a8d57620dca4234614fd70e9af2ca3bec4c4699"
+      "sha256": "774cc687df7ee72b3d961fef85ebd043885e72bb14f739097214e35f341c7989"
     },
     {
       "bytes": 1266,
@@ -546,7 +546,7 @@
       "kind": "asset",
       "name": "add_tab.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/panels/add_tab.svg",
-      "sha256": "07a2677f41b16e195e87f7123896394c9a1fcfdc10ba9332f594972a11020230"
+      "sha256": "02351439ee67c641f8bb8291e0da8b849e07923a0e22f40b5c7685f4e7936580"
     },
     {
       "bytes": 1146,
@@ -554,7 +554,7 @@
       "kind": "asset",
       "name": "close.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/panels/close.svg",
-      "sha256": "b770bef5e0c38c1c7efd576c6bccb3efef483302a8b333fd8b6e8355db61e2e4"
+      "sha256": "377864945aaceefb07c29ac0428ccd096a8832a358f4b496dfdedc3acd43e6ed"
     },
     {
       "bytes": 686,
@@ -562,7 +562,7 @@
       "kind": "asset",
       "name": "bool.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/bool.svg",
-      "sha256": "87335fcc143e08ea7a228f964f03cad4a3f9d8bdf0f116cdf03f537387ecaccf"
+      "sha256": "4a930ef81a84791619c1a3dedc3bf153b5200b9bffb3396f5911c127fc7c2111"
     },
     {
       "bytes": 1981,
@@ -570,7 +570,7 @@
       "kind": "asset",
       "name": "color.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/color.svg",
-      "sha256": "a8e4b2c5ec74b802cca7d9dba8e23697c9743078dfe74066bc338d2c1d35647e"
+      "sha256": "3d66241860fec2bdac318251f1af876f49b2d6a232bdd1e74763f114bf09ea6c"
     },
     {
       "bytes": 708,
@@ -578,7 +578,7 @@
       "kind": "asset",
       "name": "animation.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/animation.svg",
-      "sha256": "a86a01be2780c2f95c3146a60096fbb5b379c3548e079e4007929c508ca4464d"
+      "sha256": "26676a7889e91e06d699e1126e3bab7233ff50136b6e60ed9fd9165e1dabd5e6"
     },
     {
       "bytes": 1393,
@@ -586,7 +586,7 @@
       "kind": "asset",
       "name": "binding.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/binding.svg",
-      "sha256": "8f82ecac4b44ff02af6728c55e18701a6ae4e6b7ec69b0c1af0095a29fae547d"
+      "sha256": "490f4ffaeb10760ba3f7e2c338250b825e5055177a7f4777754594441845ab2c"
     },
     {
       "bytes": 2037,
@@ -594,7 +594,7 @@
       "kind": "asset",
       "name": "context.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/context.svg",
-      "sha256": "5ab630df7ce6014df57d03c89ac65316082817ee06c35b24715ba5441875a882"
+      "sha256": "967702de4cc366d102083133bf1fd01a20faebfab750351dc90a17593b8d601c"
     },
     {
       "bytes": 765,
@@ -602,7 +602,7 @@
       "kind": "asset",
       "name": "expression.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/expression.svg",
-      "sha256": "fbc172a2cbf7b8c0bbd024ea854544986aad91de864f420be0b1a484e7401009"
+      "sha256": "bd285e3e41ca26555bb1e6bda395ebdefd76bac243d26becf8fb22da30b89f5d"
     },
     {
       "bytes": 1608,
@@ -610,7 +610,7 @@
       "kind": "asset",
       "name": "manual.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/manual.svg",
-      "sha256": "b8dccaa238895a767bd66545ce19531f64c61ab8dc1ad4331a0cbe562f31e079"
+      "sha256": "017a0691900e1fa7740a539c23a1eb79a490c80d45586b5c1733dd3a9eb249c9"
     },
     {
       "bytes": 595,
@@ -626,7 +626,7 @@
       "kind": "asset",
       "name": "enum.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/enum.svg",
-      "sha256": "e15f6aa464da5b17d8988b2bc8bfbad2f012c71f6796961dd32cbfa5a987ee95"
+      "sha256": "f61ba5ec3ee7db7de1478dc9e10263bb992c9f7f192b1ad4eb37527cbcdc2acf"
     },
     {
       "bytes": 2160,
@@ -634,7 +634,7 @@
       "kind": "asset",
       "name": "file.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/file.svg",
-      "sha256": "78ff312c27a8cf17278627ee2ded461b409f9c3d7ebe7f5812f203f3eba60bcc"
+      "sha256": "7d322c0c1ff0a222417a1c4acd5651a8d9758bab4f82ed78f4d94fea5839908f"
     },
     {
       "bytes": 747,
@@ -642,7 +642,7 @@
       "kind": "asset",
       "name": "float.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/float.svg",
-      "sha256": "57ac95ce8c33981dace25fa837aaefa63221b15a88146cf498ed875f2126e68f"
+      "sha256": "76ca84b778d4e11d96104514c87e82f280f165d04eb419e50f93a42638f79e01"
     },
     {
       "bytes": 1011,
@@ -650,7 +650,7 @@
       "kind": "asset",
       "name": "int.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/int.svg",
-      "sha256": "35d758338296288d72d4b4f0f64fea08462b1e2db2d7cafe7a39485b88b5e113"
+      "sha256": "25cc3ca45898351685484f87c533700e710a9d7884164bb26fb0f01a90bdf00f"
     },
     {
       "bytes": 1859,
@@ -658,7 +658,7 @@
       "kind": "asset",
       "name": "reference.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/reference.svg",
-      "sha256": "c11ada0feee90c38d80db50ab39a524102d682b00c704cec2b5e3b212a51c1ec"
+      "sha256": "19d5a938c5628df58b0bca45530592a313adc11ec98d780bde4782f81c6254ff"
     },
     {
       "bytes": 1194,
@@ -674,7 +674,7 @@
       "kind": "asset",
       "name": "trigger.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/trigger.svg",
-      "sha256": "cd664bcb91f832f1886a77c59b136745da1b33c840198a6b23d1f51e9a404a5d"
+      "sha256": "519a19d716e75e24057471a1c8857723443f8cc5ccbe279b0c936fc42f7f00f2"
     },
     {
       "bytes": 585,
@@ -682,7 +682,7 @@
       "kind": "asset",
       "name": "vec2.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/vec2.svg",
-      "sha256": "fc8e611c58720bb9816385e8b2906bf0f2be6d947bee85dc5c83a191b101daac"
+      "sha256": "fabd8d13b82a04a708e945b6462beee085951d6f48aa1f110c2bef104b98bdb4"
     },
     {
       "bytes": 1507,
@@ -690,7 +690,7 @@
       "kind": "asset",
       "name": "vec3.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/parameter/vec3.svg",
-      "sha256": "2707833620bc94421a76578f4c8c18e9e52c677ffc5bc9d417c5b84ad19fb43f"
+      "sha256": "806a3d673ce63e1a89e12d0af9c29843112888bf2674591ece89637c5465cc67"
     },
     {
       "bytes": 1506,
@@ -698,7 +698,7 @@
       "kind": "asset",
       "name": "redo.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/redo.svg",
-      "sha256": "5d8ddcb9a5225ef4079a81345e57649016666d81ea340dd02b546ce2183cb9e9"
+      "sha256": "022e02b8ec2769e14df805cbd574b0c1f7ee22240d528d6f28a7bac05cce8177"
     },
     {
       "bytes": 824,
@@ -706,7 +706,7 @@
       "kind": "asset",
       "name": "reset.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/reset.svg",
-      "sha256": "75445ebd5d48be8a0e75a1f07cde166486a475a958609712a07aef0cbd1bba7d"
+      "sha256": "f84691d3df14924452650574372abd7f9da39930be24c3f80ffaf5e4d31acac5"
     },
     {
       "bytes": 955,
@@ -714,7 +714,7 @@
       "kind": "asset",
       "name": "select-node.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/select-node.svg",
-      "sha256": "e3e3705215bcfad07ef1a93a64d1972fca380ec83439899248e646433b4831bf"
+      "sha256": "d5119b7b12bce717b97cf9c82734ba800c2abc358d3c47625e78f9e985f72c00"
     },
     {
       "bytes": 1587,
@@ -722,7 +722,7 @@
       "kind": "asset",
       "name": "settings.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/settings.svg",
-      "sha256": "a0b143fdf82e4c37e13788c3bcd17b15152036e3629d523ad2aa248c6b51bb4a"
+      "sha256": "b08236b7fe30e68d35e11812e18232f32b1507da4b9eb71450805a435c5fb097"
     },
     {
       "bytes": 1544,
@@ -730,7 +730,7 @@
       "kind": "asset",
       "name": "undo.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/undo.svg",
-      "sha256": "68db7d9c80fa313ca220d73f52273adcab3ef925589e1f5bc453d747cfb1f1a0"
+      "sha256": "52f9d4e6c82c3676821db850ffcb8b87f75af14dc55e0c2ed1ca91e81bd2b5c4"
     },
     {
       "bytes": 1245,
@@ -738,7 +738,7 @@
       "kind": "asset",
       "name": "variable.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/variable.svg",
-      "sha256": "9697ddebf2285492de00d6052637a6d6828ffa8eb09575f45579f786d45b0d49"
+      "sha256": "a61c181edbef341234c9123164ea993f99735e064104a51953e2d88954281f0e"
     },
     {
       "bytes": 810,
@@ -746,7 +746,7 @@
       "kind": "asset",
       "name": "warning.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/warning.svg",
-      "sha256": "a8f22dde25aea6e8b0d2edf4f73a0ba61d628340385245fff2e89cfb9aaaf9bb"
+      "sha256": "b8ac48085d8038eb0d9c96edbe6421bf9a63a370c61243d3cbf314477cd97ca3"
     },
     {
       "bytes": 805,
@@ -754,7 +754,7 @@
       "kind": "asset",
       "name": "watch.svg",
       "path": "src-ui/src/lib/golden_ui/style/icons/watch.svg",
-      "sha256": "f4e321ac3c18a37546e3905cd0078dbe4d2b22173456f7db6d61e36083560511"
+      "sha256": "8e7f2dd0ad215a29b5e5b69c09a7048d878d95ce035abb64c5c9efa73a62feda"
     },
     {
       "bytes": 0,
@@ -773,28 +773,28 @@
       "sha256": "b033243267bcbdab84cb01e940811d6d77a894d78f0470faaf0eb43f8e4efcc9"
     },
     {
-      "bytes": 385867,
+      "bytes": 377134,
       "id": "fixture/test-samples/test_multiplex.noisette",
       "kind": "fixture",
       "name": "test_multiplex.noisette",
       "path": "test-samples/test_multiplex.noisette",
-      "sha256": "f406f2af4dccb3133fbb62f0fde8a68075100425858dc494a48bf2bfea251cd1"
+      "sha256": "577ada23ab612db7432dbefc7111ae3bb9e8bc1a761355ac60fc00f9150d4386"
     },
     {
-      "bytes": 157378,
+      "bytes": 153775,
       "id": "fixture/test-samples/test_perf.noisette",
       "kind": "fixture",
       "name": "test_perf.noisette",
       "path": "test-samples/test_perf.noisette",
-      "sha256": "2d4952dc2f3d2a7d71eb46813c319c82f55dccc2393120e8154f86afe7cb470f"
+      "sha256": "1fa0f25f0b886492aaf07798e73939eb07f8d3702c7e14e77878f6cd5f4b7b81"
     },
     {
-      "bytes": 256872,
+      "bytes": 250642,
       "id": "fixture/test-samples/test_simple_load.noisette",
       "kind": "fixture",
       "name": "test_simple_load.noisette",
       "path": "test-samples/test_simple_load.noisette",
-      "sha256": "d17259c53e0b345009f39f2d7b1d95b0d87c8bdcce53f9cba973406c90a46370"
+      "sha256": "cdb4b3344ae12288fa61378f2d120451edf7ec040efafe5a0c1f7236b46c34ae"
     }
   ],
   "fixture_requirements": [

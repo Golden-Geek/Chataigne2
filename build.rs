@@ -16,6 +16,7 @@ const LEAPSDK_LIB_PATH: &str = "LEAPSDK_LIB_PATH";
 const REQUIRED_NODE_RANGE: &str = "Node.js 20.19+ or 22.12+";
 
 struct BuildPaths {
+    #[cfg(windows)]
     out_dir: PathBuf,
     bundled_ui_dir: PathBuf,
     ui_assets_rs: PathBuf,
@@ -34,6 +35,7 @@ impl BuildPaths {
             .join("chataigne2")
             .join("package-lock.hash");
         Self {
+            #[cfg(windows)]
             out_dir: out_dir.clone(),
             bundled_ui_dir: out_dir.join("ui-dist"),
             ui_assets_rs: out_dir.join("ui_assets.rs"),
@@ -43,6 +45,7 @@ impl BuildPaths {
         }
     }
 
+    #[cfg(windows)]
     fn cargo_profile_dir(&self) -> Option<&Path> {
         self.out_dir.ancestors().nth(3)
     }

@@ -3,7 +3,6 @@ use std::{
     fs,
     path::Path,
     process::{Command, Stdio},
-    ptr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard,
@@ -14,6 +13,8 @@ use std::{
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
+#[cfg(windows)]
+use std::ptr;
 
 use sysinfo::{Process, ProcessesToUpdate, System};
 
