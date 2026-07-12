@@ -170,7 +170,7 @@ jobs:
         env:
           GC_UI_ASSUME_BUILT: 1
         run: cargo build --target ${{ matrix.target }}
-      - name: App build (emulated armhf)
+      - name: Portable headless build (emulated armhf)
         if: ${{ matrix.id == 'rpi-armhf' }}
         uses: uraimo/run-on-arch-action@v3
         with:
@@ -199,13 +199,16 @@ jobs:
               python3 \
               wget
             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain none
-          env: |
-            GC_UI_ASSUME_BUILT: 1
           run: |
+            git config --global --add safe.directory "$PWD"
             . "$HOME/.cargo/env"
             RUST_TOOLCHAIN="$(python3 -c 'import json; m=json.load(open("tools/bootstrap/toolchain.json")); print(m["rust"]["channel"] + "-" + m["rust"]["hosts"]["linux_armv7"])')"
             rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
             rustup override set "$RUST_TOOLCHAIN"
             rustup target add ${{ matrix.target }}
             export LIBCLANG_PATH="$(llvm-config --libdir)"
-            cargo build --target ${{ matrix.target }}
+            python3 tools/product-gate/compatibility_gate.py \
+              --platform linux-armhf \
+              --target ${{ matrix.target }} \
+              --scope headless-core \
+              --report target/product-gate-compat/linux-armhf/product-gate-report.json
