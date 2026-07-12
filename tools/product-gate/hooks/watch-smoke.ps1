@@ -91,7 +91,8 @@ try {
         -RepositoryRoot $repositoryRoot `
         -FrontendUri "http://127.0.0.1:5173/" `
         -ScreenshotPath $screenshotPath `
-        -TimeoutSeconds ([Math]::Min($timeoutSeconds, 90))
+        -TimeoutSeconds ([Math]::Min($timeoutSeconds, 90)) `
+        -Attempts 3
 
     $ready = Wait-ForWatchReady `
         -Process $process `

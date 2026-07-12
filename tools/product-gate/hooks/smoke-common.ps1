@@ -295,19 +295,28 @@ function Invoke-StrictUiReadinessProbe {
         [string]$RepositoryRoot,
         [string]$FrontendUri,
         [string]$ScreenshotPath,
-        [int]$TimeoutSeconds
+        [int]$TimeoutSeconds,
+        [int]$Attempts = 1
     )
 
     $node = Get-CommandSource -Name "node"
     $probe = Join-Path $PSScriptRoot "strict-ui-readiness.mjs"
-    & $node $probe `
-        --repository-root $RepositoryRoot `
-        --url $FrontendUri `
-        --screenshot $ScreenshotPath `
-        --timeout-ms ($TimeoutSeconds * 1000)
-    if ($LASTEXITCODE -ne 0) {
-        throw "The strict mounted-UI readiness probe failed with exit code $LASTEXITCODE."
+    $exitCode = 1
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        & $node $probe `
+            --repository-root $RepositoryRoot `
+            --url $FrontendUri `
+            --screenshot $ScreenshotPath `
+            --timeout-ms ($TimeoutSeconds * 1000)
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            return
+        }
+        if ($attempt -lt $Attempts) {
+            Start-Sleep -Seconds 2
+        }
     }
+    throw "The strict mounted-UI readiness probe failed with exit code $exitCode after $Attempts attempt(s)."
 }
 
 function Invoke-RootCommandSmoke {
