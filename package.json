@@ -6,7 +6,11 @@
 	"svelte": "./index.ts",
 	"types": "./index.ts",
 	"exports": {
-		".": "./index.ts",
+		".": {
+			"types": "./index.ts",
+			"svelte": "./index.ts",
+			"default": "./index.ts"
+		},
 		"./components/*": "./components/*",
 		"./types": "./types.ts"
 	},
