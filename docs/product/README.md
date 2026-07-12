@@ -6,7 +6,10 @@ does not turn an unexecuted scenario into evidence.
 
 Start here:
 
-- [Phase 0 baseline](baseline.md) records the immutable repository and submodule revisions.
+- [Phase 0 baseline](baseline.md) records the immutable repository and former gitlink revisions.
+- [`source-imports.v1.json`](source-imports.v1.json) is the machine-readable record of the exact
+  source revisions imported into the Phase 1A monorepo. Its `path` fields are historical Phase 0
+  locations; current ownership is documented in [the repository map](../repo-map.md).
 - [Migration progress](migration-progress.md) records phase state and the exact validation state of
   required commands and environments.
 - [Parity ledger schema](parity-ledger-schema.md) defines the fields and completion rules for every
@@ -18,7 +21,8 @@ Start here:
 
 ## Truth Boundaries
 
-- Repository refs and gitlinks are provenance, not product-parity evidence.
+- Repository refs, former gitlinks, and imported commit ancestry are provenance, not
+  product-parity evidence.
 - A source path, catalog entry, test name, or screenshot by itself is not proof that a workflow
   works.
 - Only an actually executed result may be marked `PASS`.
@@ -30,6 +34,6 @@ Start here:
 
 ## Precedence
 
-Older repository-boundary documents describe the pre-migration submodule architecture. Where they
+Older repository-boundary documents describe the pre-Phase-1A submodule architecture. Where they
 conflict with the final plan or the accepted ADRs, the final plan and accepted ADRs govern the
 migration.

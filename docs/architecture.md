@@ -16,9 +16,9 @@ the contributor-facing companion for day-to-day placement decisions.
   statechart mechanics.
 - `golden_alchemist_ui` owns the reusable infinite node canvas, slots, wires, selection, and
   viewport interaction.
-- `src/state_machine` owns Chataigne value types, Processor behavior, arbitration, protocol DTOs,
+- `apps/chataigne/state_machine` owns Chataigne value types, Processor behavior, arbitration, protocol DTOs,
   and Processor integration.
-- `src-ui/src/lib/state_machine` owns State Machine panel composition and Chataigne DTO adapters.
+- `apps/chataigne/ui/src/lib/state_machine` owns State Machine panel composition and Chataigne DTO adapters.
 
 Alchemist Formula authoring uses the same boundary as every other node tree.
 Formula, ANode, socket, connection, and configuration parameter nodes are
@@ -76,7 +76,7 @@ modules declare their `#[node(...)]` type/label and `#[item("module", ...)]` cat
 the module file; `golden_codegen_support` turns those declarations into the generated app registry
 and module creation catalog.
 
-Module command infrastructure lives in `src/module/command`. The reusable command manager base owns
+Module command infrastructure lives in `apps/chataigne/src/module/command`. The reusable command manager base owns
 common command-container behavior and accepts command items only; module families such as OSC compose
 it to add their concrete command catalog and execution payloads. Command testers start empty, so
 modules do not seed ad-hoc commands unless a user or an explicit project preset adds them. Command
@@ -91,7 +91,7 @@ all command implementations inherit the same trigger and tester-control placemen
 
 Module scripting is split at the app/runtime boundary. `golden_core` owns generic script runtime
 dispatch and node proxy descriptors; Chataigne2 owns module callback names, callback argument
-payloads, JavaScript templates, and module-specific send methods in `src/module/`. Module-specific
+payloads, JavaScript templates, and module-specific send methods in `apps/chataigne/src/module/`. Module-specific
 script API details stay with the owning module family rather than in one global registry. See
 [module-scripting.md](module-scripting.md) for the supported module callback and send-method surface.
 

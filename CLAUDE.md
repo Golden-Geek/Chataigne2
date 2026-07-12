@@ -10,17 +10,20 @@ Always use jCodemunch-MCP tools for code navigation. Never fall back to Read, Gr
 
 **Workspace repo routing:**
 
-This workspace is intentionally indexed as multiple jCodemunch repos. Pick the owning layer before `plan_turn`; do not use the root `Chataigne2` index for `golden_core`, `golden_ui`, or alchemist package work.
+Phase 1A formed one monorepo and one jCodemunch index. Choose the owning source path before
+`plan_turn`, then resolve the repository root once and scope searches to that path.
 
-| Layer | Resolve path |
-| --- | --- |
-| App shell, app-owned modules, app-owned UI, workspace tooling | `.` |
-| `golden_core` | `submodules/golden_core` |
-| `golden_alchemist_core` | `submodules/golden_alchemist_core` |
-| `golden_ui` | `src-ui/src/lib/golden_ui` |
-| `golden_alchemist_ui` | `src-ui/src/lib/golden_alchemist_ui` |
+| Layer | Source path | Resolve path |
+| --- | --- | --- |
+| App shell and app-owned modules | `apps/chataigne` | `.` |
+| Shared Rust crates | `crates/` | `.` |
+| App-owned UI | `apps/chataigne/ui` | `.` |
+| `golden_ui` | `packages/golden-ui` | `.` |
+| `golden_alchemist_ui` | `packages/golden-alchemist-ui` | `.` |
 
-Call `resolve_repo` with the concrete path above and use the returned repo id for `plan_turn`, `search_symbols`, `search_text`, `get_file_outline`, and reads. For cross-layer changes, resolve and plan each layer separately. Run `.\tools\watch-jcodemunch.ps1 --status` when the repo map looks stale, missing, or ambiguous.
+Call `resolve_repo` with `.` and use the returned repo id for planning, search, outlines, and reads.
+For cross-layer changes, scope each query to the owning source path. Run
+`.\tools\watch-jcodemunch.ps1 --status` when the index looks stale, missing, or ambiguous.
 
 **Finding code:**
 - symbol by name → `search_symbols` (add `kind=`, `language=`, `file_pattern=`, `decorator=` to narrow)

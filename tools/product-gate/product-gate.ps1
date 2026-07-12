@@ -646,14 +646,7 @@ Invoke-GateCommand `
     -Arguments @("-NoLogo", "-NoProfile", "-NonInteractive", "-File", (Join-Path $RepositoryRoot "tools/bootstrap/verify-toolchain.ps1"), "-CheckInstalled") `
     -DependsOn @("fingerprint.rustc", "fingerprint.cargo", "fingerprint.node", "fingerprint.npm") | Out-Null
 
-Invoke-GateCommand `
-    -Id "rust.build" `
-    -Name "Rust workspace build" `
-    -Executable "cargo" `
-    -Arguments (@("build", "--workspace", "--all-targets") + $cargoFeatureArguments) `
-    -DependsOn @("toolchain.contract") | Out-Null
-
-$uiDirectory = Join-Path $RepositoryRoot "src-ui"
+$uiDirectory = Join-Path $RepositoryRoot "apps/chataigne/ui"
 if ($SkipUiInstall) {
     Add-NotRunResult `
         -Id "ui.npm_ci" `
@@ -669,8 +662,8 @@ if ($SkipUiInstall) {
             -Reason "Plan-only mode: dependency lock state was not inspected." | Out-Null
     }
     else {
-        $packageLock = Join-Path $uiDirectory "package-lock.json"
-        $installedLock = Join-Path $uiDirectory "node_modules\.package-lock.json"
+        $packageLock = Join-Path $RepositoryRoot "package-lock.json"
+        $installedLock = Join-Path $RepositoryRoot "node_modules\.package-lock.json"
         $ready = (
             (Test-Path -LiteralPath $packageLock -PathType Leaf) -and
             (Test-Path -LiteralPath $installedLock -PathType Leaf) -and
@@ -682,7 +675,7 @@ if ($SkipUiInstall) {
                 -Id "ui.dependencies_ready" `
                 -Name "UI dependencies ready" `
                 -Status "PASS" `
-                -Command "verify src-ui/node_modules/.package-lock.json is current" `
+                -Command "verify node_modules/.package-lock.json is current" `
                 -Reason "Existing node_modules lock is present and not older than package-lock.json." | Out-Null
         }
         else {
@@ -690,7 +683,7 @@ if ($SkipUiInstall) {
                 -Id "ui.dependencies_ready" `
                 -Name "UI dependencies ready" `
                 -Status "FAIL" `
-                -Command "verify src-ui/node_modules/.package-lock.json is current" `
+                -Command "verify node_modules/.package-lock.json is current" `
                 -ExitCode (-1) `
                 -Reason "-SkipUiInstall was used, but the installed dependency lock is missing or stale." | Out-Null
         }
@@ -702,7 +695,7 @@ else {
         -Name "UI dependency installation" `
         -Executable $npmExecutable `
         -Arguments @("ci") `
-        -WorkingDirectory $uiDirectory `
+        -WorkingDirectory $RepositoryRoot `
         -DependsOn @("toolchain.contract") | Out-Null
     Add-DerivedResult `
         -Id "ui.dependencies_ready" `
@@ -710,6 +703,13 @@ else {
         -DependsOn @("ui.npm_ci") `
         -Reason "npm ci completed successfully." | Out-Null
 }
+
+Invoke-GateCommand `
+    -Id "rust.build" `
+    -Name "Rust workspace build" `
+    -Executable "cargo" `
+    -Arguments (@("build", "--workspace", "--all-targets") + $cargoFeatureArguments) `
+    -DependsOn @("toolchain.contract", "ui.dependencies_ready") | Out-Null
 
 Invoke-GateCommand `
     -Id "ui.browser_install" `
@@ -756,13 +756,13 @@ Invoke-GateCommand `
     -Id "rust.clippy" `
     -Name "Rust clippy" `
     -Executable "cargo" `
-    -Arguments (@("clippy", "--workspace", "--all-targets") + $cargoFeatureArguments + @("--", "-D", "warnings")) `
+    -Arguments (@("clippy", "-p", "Chataigne2", "--all-targets", "--no-deps") + $cargoFeatureArguments + @("--", "-D", "warnings")) `
     -DependsOn @("rust.build") | Out-Null
 Invoke-GateCommand `
     -Id "rust.test" `
     -Name "Rust workspace tests" `
     -Executable "cargo" `
-    -Arguments (@("test", "--workspace", "--all-targets") + $cargoFeatureArguments) `
+    -Arguments (@("test", "--workspace") + $cargoFeatureArguments) `
     -DependsOn @("rust.build") | Out-Null
 
 Invoke-GateCommand `

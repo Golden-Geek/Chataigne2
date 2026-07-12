@@ -85,7 +85,7 @@ runners, and publishes a schema-v1 aggregate. A workflow definition is not passi
 evidence: all remote platform results remain `NOT_RUN` until that exact commit is pushed
 and the jobs complete.
 
-Use `-PlanOnly` to validate reporting and dependency propagation without executing
-external commands. It is deliberately non-passing. `-SkipUiInstall` is accepted only
-when `src-ui/node_modules/.package-lock.json` exists and is at least as new as the
-committed package lock; otherwise the dependency prerequisite fails.
+Use `-PlanOnly` to validate reporting and dependency propagation without executing external
+commands. It is deliberately non-passing. `-SkipUiInstall` is accepted only when
+`node_modules/.package-lock.json` exists and is at least as new as the committed root package lock;
+otherwise the dependency prerequisite fails.

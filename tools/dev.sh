@@ -70,17 +70,6 @@ load_cargo_env() {
   fi
 }
 
-ensure_git_submodules() {
-  step "Git submodules"
-
-  if ! command -v git >/dev/null 2>&1; then
-    echo "git was not found on PATH. Install Git, then rerun bash tools/dev.sh." >&2
-    exit 1
-  fi
-
-  git submodule update --init --recursive
-}
-
 ensure_linux_system_deps() {
   step "Linux desktop build dependencies"
 
@@ -353,12 +342,12 @@ ensure_ui_dependencies() {
     return
   fi
 
-  if [[ -f src-ui/node_modules/.package-lock.json && ! src-ui/package-lock.json -nt src-ui/node_modules/.package-lock.json ]]; then
-    echo "src-ui/node_modules is current."
+  if [[ -f node_modules/.package-lock.json && ! package-lock.json -nt node_modules/.package-lock.json ]]; then
+    echo "node_modules is current."
     return
   fi
 
-  (cd src-ui && npm ci)
+  npm ci
 }
 
 run_app() {
@@ -366,7 +355,6 @@ run_app() {
   cargo run "${cargo_args[@]}"
 }
 
-ensure_git_submodules
 ensure_system_deps
 ensure_rust
 ensure_node

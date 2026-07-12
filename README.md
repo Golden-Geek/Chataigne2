@@ -8,10 +8,12 @@ This repository is being actively refactored toward a clean long-term architectu
 - `golden_core` provides explicit engine, protocol, persistence, transport, desktop-host, script, macro, and codegen crates behind a stable facade.
 - `golden_ui` is treated as a reusable UI package boundary rather than app-local source ownership.
 - Apps can override command-line parsing and bootstrap when needed, but they should not have to by default.
-- UI state and transport boundaries are being normalized in `src-ui`.
+- UI state and transport boundaries are being normalized in `apps/chataigne/ui` and the reusable
+  packages under `packages/`.
 - protocol declarations and code generation are moving toward a single source of truth.
 - `cargo run` and the built app now ship the UI bundle and serve it from the built-in Rust host by default, so the desktop app does not depend on a separate Vite process to be usable.
-- `cargo run -- --dev` now launches against the live Svelte/Vite dev server from `src-ui` instead of the bundled frontend, so frontend iteration can use the normal dev pipeline.
+- `cargo run -- --dev` launches against the live Svelte/Vite dev server from
+  `apps/chataigne/ui` instead of the bundled frontend.
 - `--no-frontend` disables bundled UI serving but still launches Tauri against an external frontend you start yourself.
 - On Windows, debug builds keep their console output during `cargo run`, while release-style builds stay window-only unless `--show-output` is passed.
 
@@ -27,14 +29,14 @@ From a fresh clone, use the repo bootstrap command for your platform:
 bash ./tools/dev.sh
 ```
 
-The bootstrap command initializes Git submodules, installs or verifies Rust through `rustup`, installs
-or verifies Node.js/npm for the Svelte frontend, installs supported desktop build prerequisites, runs
-`npm ci` in `src-ui` when needed, then runs `cargo run`.
+The bootstrap command installs or verifies Rust through `rustup`, installs or verifies Node.js/npm
+for the root JavaScript workspace, installs supported desktop build prerequisites, runs root
+`npm ci` when needed, then runs `cargo run`. No submodule initialization is required.
 
 On Windows it also selects the `stable-msvc` Rust toolchain, which Tauri needs for desktop builds.
 
 After that first setup, `cargo run` is the normal launch command. The Rust build embeds the Svelte UI
-bundle and will refresh `src-ui` dependencies when the package lock changes. For live frontend
+bundle and will refresh workspace dependencies when the root package lock changes. For live frontend
 iteration, pass app arguments through the bootstrap command or Cargo:
 
 ```sh
@@ -47,15 +49,13 @@ the machine without launching the app.
 
 ## Repository Map
 
-- `src/`: app-shell bootstrap plus the app-owned node tree.
-- `src/module/`: real Chataigne module foundation, including shared module roots/managers plus concrete module families under `src/module/modules/`.
-- `src/state_machine/`: Chataigne-owned state-machine policy, Processor models, Alchemist node registrations, and protocol generation.
-- `src-ui/`: Svelte 5 app UI shell plus app-owned State Machine panel composition.
-- `submodules/golden_core/`: shared engine, macros, and deeper design docs.
-- `submodules/golden_alchemist_core/`: reusable typed graph compiler/runtime and hierarchical statechart crates.
-- `src-ui/src/lib/golden_ui/`: reusable application workbench and dock UI package.
-- `src-ui/src/lib/golden_alchemist_ui/`: reusable infinite node-graph canvas package.
-- `build.rs`: app node registry generation through a public codegen support crate.
+- `apps/chataigne/`: executable app, app-owned modules, state machine, Tauri resources, formulas,
+  and Svelte 5 UI.
+- `crates/`: shared engine, protocol, persistence, host, transport, scripting, Alchemist, statechart,
+  macros, and codegen crates.
+- `packages/golden-ui/`: reusable application workbench and dock UI package.
+- `packages/golden-alchemist-ui/`: reusable infinite node-graph canvas package.
+- `Cargo.toml` and `package.json`: the single root Rust and JavaScript workspaces.
 
 ## Start Here
 
@@ -71,7 +71,7 @@ the machine without launching the app.
 
 ## Existing Design Docs
 
-The deeper engine design notes currently live under `submodules/golden_core/crates/core/docs/` and include:
+The deeper engine design notes live under `crates/core/docs/` and include:
 
 - `dashboard_system.md`
 - `node_blueprints.md`

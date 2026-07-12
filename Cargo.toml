@@ -1,11 +1,21 @@
-[package]
-name = "Chataigne2"
-version = "0.1.0"
-edition = "2021"
-
 [workspace]
-members = ["src/state_machine", "xtask"]
-exclude = ["submodules/golden_alchemist_core", "submodules/golden_core"]
+members = [
+    "apps/chataigne",
+    "apps/chataigne/state_machine",
+    "crates/codegen_support",
+    "crates/core",
+    "crates/core_facade",
+    "crates/core_macros",
+    "crates/golden_alchemist",
+    "crates/golden_statechart",
+    "crates/host_desktop",
+    "crates/persistence",
+    "crates/protocol",
+    "crates/script",
+    "crates/transport_server",
+    "xtask",
+]
+default-members = ["apps/chataigne"]
 resolver = "2"
 
 [workspace.package]
@@ -16,74 +26,20 @@ license = "MIT"
 repository = "https://github.com/Golden-Geek/Chataigne2"
 
 [workspace.dependencies]
-golden_alchemist = { path = "submodules/golden_alchemist_core/crates/golden_alchemist" }
-golden_statechart = { path = "submodules/golden_alchemist_core/crates/golden_statechart" }
+golden_alchemist = { path = "crates/golden_alchemist" }
+golden_statechart = { path = "crates/golden_statechart" }
 indexmap = { version = "2", features = ["serde"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
+smallvec = { version = "1", features = ["serde"] }
 smol_str = { version = "0.3", features = ["serde"] }
 thiserror = "2"
-ts-rs = "12"
+ts-rs = { version = "12", features = ["serde-json-impl", "uuid-impl"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 
-[features]
-# Real Elgato Stream Deck hardware support (native hidapi 2.x + image).
-# Off by default so engine-only builds/CI stay free of native deps.
-# Requires joycon-rs on hidapi 2.x (see the git pin below) so only one crate
-# links the native `hidapi` library.
-streamdeck-hid = ["dep:elgato-streamdeck", "dep:image"]
+[[workspace.metadata.docs.rs]]
+all-features = true
 
-[dependencies]
-artnet_protocol = "0.4.4"
-base64 = "0.22"
-buttplug = "10.0.2"
-chataigne_state_machine = { path = "src/state_machine" }
-device_query = "4.0.1"
-dirs = "6"
-elgato-streamdeck = { version = "0.13", optional = true }
-futures-util = "0.3"
-golden_core = { path = "submodules/golden_core/crates/core_facade" }
-golden_alchemist.workspace = true
-gilrs = "0.11.1"
-if-addrs = "0.15.0"
-image = { version = "0.25", optional = true }
-# Pinned to the hidapi 2.x branch so the native `hidapi` link is shared with
-# elgato-streamdeck (Cargo allows only one crate to link `hidapi`).
-joycon-rs = { git = "https://github.com/KaiseiYokoyama/joycon-rs", branch = "dependabot/cargo/hidapi-2.2" }
-leap-sys = "0.2.0"
-libloading = "0.8"
-midir = "0.11.0"
-midly = "0.5.3"
-mio = { version = "1.2", features = ["net", "os-poll"] }
-notify = "8.2"
-open_dmx = "1.1.1"
-rand = "0.10.0"
-regex = "1"
-reqwest = { version = "0.13", features = ["blocking", "form", "json", "multipart"] }
-rosc = "0.11.4"
-rumqttc = { version = "0.25.1", default-features = false }
-sacn = "0.11.1"
-serialport = "4"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-smallvec = "1"
-uuid = { version = "1", features = ["serde", "v4", "v5"] }
-sysinfo = "0.39.1"
-tauri = "2"
-tokio = { version = "1", features = ["net", "rt", "time"] }
-tokio-tungstenite = "0.29"
-rust_dmx = "0.7.0"
-rdev = "0.5.3"
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61.2", features = [
-	"Win32_Foundation",
-	"Win32_System_LibraryLoader",
-	"Win32_System_Threading",
-	"Win32_UI_Input_KeyboardAndMouse",
-	"Win32_UI_WindowsAndMessaging",
-] }
-
-[build-dependencies]
-golden_codegen_support = { path = "submodules/golden_core/crates/codegen_support" }
-tauri-build = "2"
+[profile.release]
+opt-level = 3
+lto = true

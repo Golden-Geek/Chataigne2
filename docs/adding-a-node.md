@@ -2,18 +2,21 @@
 
 ## Where To Work
 
-- Add app-owned nodes under `src/` in a cohesive feature subtree such as `src/module/`, and keep concrete module implementations grouped under their family directories like `src/module/modules/protocol/osc/`.
-- Add reusable engine-level nodes only when they truly belong in `submodules/golden_core/crates/core/src/node/`.
+- Add app-owned nodes under `apps/chataigne/src/` in a cohesive feature subtree such as
+  `apps/chataigne/src/module/`, and group concrete modules by family.
+- Add reusable engine-level nodes only when they truly belong in `crates/core/src/node/`.
 - Keep app shell registration minimal; the node registry is generated from supported node declaration macros.
-- Follow the `golden_engine` layout rules in `submodules/golden_core/crates/core/docs/source_layout.md` when adding or moving shared runtime code.
+- Follow the `golden_engine` layout rules in `crates/core/docs/source_layout.md` when adding or moving shared runtime code.
 
 ## Flow
 
 1. Declare the node type with the standard Golden node macros.
 2. Implement the runtime behavior and persisted state on the node itself.
 3. If the node is a user-creatable module, declare `#[item("module", ...)]` next to its `impl Node`.
-4. If the node should appear in new projects, wire that through the app lifecycle in `src/app/bootstrap.rs`.
-5. Rebuild so `build.rs` regenerates the app node enum and declared-item catalog via `golden_codegen_support`.
+4. If the node should appear in new projects, wire that through the app lifecycle in
+   `apps/chataigne/src/app/bootstrap.rs`.
+5. Rebuild so `apps/chataigne/build.rs` regenerates the app node enum and declared-item catalog via
+   `golden_codegen_support`.
 
 ## Module Catalog
 
@@ -38,7 +41,11 @@ Controller surfaces (Stream Deck, MIDI control wings, Loupedeck, …) follow a c
 
 ### Paging
 
-- Mark the control folder pageable so the generic paging runtime (`src/module/common/paging.rs`) manages it. The declared/generated layout (`keys`) is the always-present `default` page; derived pages are structural clones under a `PageHost` container (`pages/`, a **sibling** of `keys`) that exposes a "+ New Page" affordance and standard delete.
+- Mark the control folder pageable so the generic paging runtime
+  (`apps/chataigne/src/module/common/paging.rs`) manages it. The declared/generated layout (`keys`)
+  is the always-present `default` page; derived pages are structural clones under a `PageHost`
+  container (`pages/`, a **sibling** of `keys`) that exposes a "+ New Page" affordance and standard
+  delete.
 - Mirror the pages onto the input side with `paging::mirror_pages`: a page exists under `pages/<id>/` in both `parameters/` (control) and `values/` (inputs), keyed by a stable id. The mirror is created on demand, removed when the last page is deleted, and its folders are **locked** (name/existence sync to the control page; not user-editable).
 - Do not auto-select user-created nodes from the inspector (`UserCreatableItem::with_select_when_created(false)`): keep the inspector on the current node — the new node appears under it anyway.
 - A single `active_page` enum parameter (injected into `parameters/`) selects the active page and is drivable project-wide by the Preset/State system.

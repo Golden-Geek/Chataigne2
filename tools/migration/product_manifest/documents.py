@@ -26,7 +26,7 @@ from .schemas import (
     source_revisions_schema,
     validate_schema,
 )
-from .source_refs import scan_submodule_refs
+from .source_refs import scan_source_revisions
 
 
 PRODUCT_AREAS = {
@@ -172,7 +172,7 @@ def _validate_document_set(
 def generate_documents(root: Path) -> dict[str, Any]:
     root = root.resolve()
     surface_entries, file_entries = scan_product(root)
-    revisions = scan_submodule_refs(root)
+    revisions = scan_source_revisions(root)
     generator = {"path": GENERATOR_PATH, "version": GENERATOR_VERSION}
     surfaces = {
         "schema_version": SCHEMA_VERSION,

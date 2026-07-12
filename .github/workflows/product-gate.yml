@@ -2,8 +2,13 @@ name: Phase 0 Product Gate
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -25,8 +30,6 @@ jobs:
             runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: recursive
 
       - name: Read canonical toolchain manifest
         id: pins
@@ -42,7 +45,7 @@ jobs:
         with:
           node-version: ${{ steps.pins.outputs.node }}
           cache: npm
-          cache-dependency-path: src-ui/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - uses: actions/setup-python@v6
         with:
@@ -62,7 +65,6 @@ jobs:
         with:
           workspaces: |
             . -> target
-            submodules/golden_core -> submodules/golden_core/target
 
       - name: Enable MSVC build environment
         if: runner.os == 'Windows'
@@ -141,7 +143,7 @@ jobs:
           name: phase0-product-gate-${{ matrix.platform }}-${{ github.sha }}
           path: |
             ${{ runner.temp }}/product-gate/${{ matrix.platform }}
-            src-ui/artifacts
+            apps/chataigne/ui/artifacts
           if-no-files-found: warn
 
   compatibility-build:
@@ -155,8 +157,6 @@ jobs:
           - platform: linux-armhf
             runner: ubuntu-24.04
             target: armv7-unknown-linux-gnueabihf
-            emulated_arch: armv7
-            emulated_distro: ubuntu24.04
           - platform: linux-aarch64
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
@@ -166,8 +166,6 @@ jobs:
             target: aarch64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: recursive
 
       - name: Read canonical toolchain manifest
         id: pins
@@ -177,7 +175,6 @@ jobs:
           "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
 
       - uses: actions/setup-python@v6
-        if: matrix.platform != 'linux-armhf'
         with:
           python-version: ${{ steps.pins.outputs.python }}
 
@@ -195,13 +192,26 @@ jobs:
           sh ./tools/bootstrap/install-rust-toolchain.sh
           rustup target add '${{ matrix.target }}'
 
+      - name: Install pinned Rust toolchain and target (Linux ARMHF)
+        if: matrix.platform == 'linux-armhf'
+        shell: bash
+        run: |
+          sh ./tools/bootstrap/install-rust-toolchain.sh
+          rustup target add '${{ matrix.target }}'
+
+      - name: Install Linux ARMHF cross-compile deps
+        if: matrix.platform == 'linux-armhf'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang gcc-arm-linux-gnueabihf libclang-dev llvm-dev
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> "$GITHUB_ENV"
+
       - uses: Swatinem/rust-cache@v2
-        if: matrix.platform != 'linux-armhf'
         with:
           key: compatibility-${{ matrix.target }}
           workspaces: |
             . -> target
-            submodules/golden_core -> submodules/golden_core/target
 
       - name: Enable ARM64 MSVC build environment
         if: runner.os == 'Windows'
@@ -240,48 +250,15 @@ jobs:
             --target '${{ matrix.target }}' `
             --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
 
-      - name: Check emulated Linux ARM hard-float headless core
+      - name: Check Linux ARM hard-float headless core
         if: matrix.platform == 'linux-armhf'
-        uses: uraimo/run-on-arch-action@v3
-        with:
-          arch: ${{ matrix.emulated_arch }}
-          distro: ${{ matrix.emulated_distro }}
-          githubToken: ${{ github.token }}
-          install: |
-            apt-get update -q -y
-            apt-get install -q -y \
-              build-essential \
-              clang \
-              curl \
-              file \
-              git \
-              libasound2-dev \
-              libclang-dev \
-              libusb-1.0-0-dev \
-              libayatana-appindicator3-dev \
-              librsvg2-dev \
-              libssl-dev \
-              libudev-dev \
-              libwebkit2gtk-4.1-dev \
-              libxdo-dev \
-              llvm-dev \
-              pkg-config \
-              python3 \
-              wget
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain none
-          run: |
-            git config --global --add safe.directory "$PWD"
-            . "$HOME/.cargo/env"
-            RUST_TOOLCHAIN="$(python3 -c 'import json; m=json.load(open("tools/bootstrap/toolchain.json")); print(m["rust"]["channel"] + "-" + m["rust"]["hosts"]["linux_armv7"])')"
-            rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
-            rustup override set "$RUST_TOOLCHAIN"
-            rustup target add '${{ matrix.target }}'
-            export LIBCLANG_PATH="$(llvm-config --libdir)"
-            python3 tools/product-gate/compatibility_gate.py \
-              --platform '${{ matrix.platform }}' \
-              --target '${{ matrix.target }}' \
-              --scope headless-core \
-              --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
+        shell: bash
+        run: |
+          python3 tools/product-gate/compatibility_gate.py \
+            --platform '${{ matrix.platform }}' \
+            --target '${{ matrix.target }}' \
+            --scope headless-core \
+            --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
 
       - name: Upload compatibility report and log
         if: always()

@@ -78,7 +78,7 @@
         "dev:copilot"
       ],
       "options": {
-        "cwd": "${workspaceFolder}\\src-ui"
+        "cwd": "${workspaceFolder}\\apps\\chataigne\\ui"
       },
       "isBackground": true,
       "problemMatcher": [],
@@ -117,7 +117,7 @@
         "smoke:ui"
       ],
       "options": {
-        "cwd": "${workspaceFolder}\\src-ui"
+        "cwd": "${workspaceFolder}\\apps\\chataigne\\ui"
       },
       "problemMatcher": [],
       "presentation": {
@@ -138,7 +138,7 @@
         "body"
       ],
       "options": {
-        "cwd": "${workspaceFolder}\\src-ui"
+        "cwd": "${workspaceFolder}\\apps\\chataigne\\ui"
       },
       "problemMatcher": [],
       "presentation": {

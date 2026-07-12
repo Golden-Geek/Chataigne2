@@ -1,6 +1,6 @@
 # Product-Preserving Migration Progress
 
-Updated: 2026-07-11
+Updated: 2026-07-12
 
 The canonical branch is `architecture/aaa-product-rewrite`, started from
 `fb0f3a58f3593df8994bf8bd46f88ddd7612f41d`. All named phases are planned as `RUNNABLE`.
@@ -11,8 +11,8 @@ completed canonical phase.
 
 | Phase | Required validation | Implementation status | Product gate | Dependency or next proof |
 | --- | --- | --- | --- | --- |
-| Phase 0 — Branch from `main`, prove the product, and freeze the contract | `RUNNABLE` | In progress | `NOT_RUN` | Complete manifests, characterization, cross-platform builds, UI evidence, and manual scenarios |
-| Phase 1A — Form the monorepo by importing the complete working product | `RUNNABLE` | Pending | `BLOCKED` | Phase 0 must be green |
+| Phase 0 — Branch from `main`, prove the product, and freeze the contract | `RUNNABLE` | Complete | `PASS` | Exact commit `82a72b3ef517aefe32e4a6907e6cba66aab52022`; [six-platform product gate run 29195670582](https://github.com/Golden-Geek/Chataigne2/actions/runs/29195670582) |
+| Phase 1A — Form the monorepo by importing the complete working product | `RUNNABLE` | Complete | `NOT_RUN` | Exact-commit Windows product gate passes locally; the canonical six-platform matrix runs after the supercommit is pushed |
 | Phase 1B — Modernize and unify the toolchain without changing the product | `RUNNABLE` | Pending | `BLOCKED` | Complete runnable Phase 1A import first |
 | Phase 2 — Establish stable product seams and shadow infrastructure | `RUNNABLE` | Pending | `BLOCKED` | Complete product-gated Phase 1B |
 | Phase 3 — Extract foundations and `golden-graph` through the live product | `RUNNABLE` | Pending | `BLOCKED` | Phase 2 seams and side-effect-safe shadowing must exist |
@@ -31,21 +31,22 @@ completed canonical phase.
 | Migration policy clarification in `AGENTS.md` | Complete | Policy is explicit about product preservation and governed adapters |
 | Required architecture decisions | Complete | [ADR index](../architecture/decisions/README.md) |
 | Parity and temporary-adapter field contract | Complete | [Parity ledger schema](parity-ledger-schema.md) |
-| Generated parity ledger and registries | Pending | Owned by later Phase 0 implementation slices; no generated evidence is fabricated here |
-| Windows MSVC build and product smoke | Pending | `NOT_RUN` |
-| macOS build and product smoke | Pending | `NOT_RUN` |
-| Linux build and product smoke | Pending | `NOT_RUN` |
-| Reference visual/interaction evidence | Pending | `NOT_RUN` |
-| Manual UX/hardware evidence | Pending | `NOT_RUN` |
+| Generated parity ledger and registries | Complete | Versioned schemas and generated manifests under `docs/product/` |
+| Windows MSVC build and product smoke | Complete | Product gate run `29195670582` |
+| macOS build and product smoke | Complete | Product gate run `29195670582` |
+| Linux build and product smoke | Complete | Product gate run `29195670582` |
+| Linux ARMHF, Linux AArch64, and Windows ARM64 compatibility | Complete | Product gate run `29195670582` |
+| Reference visual/interaction evidence | Complete | Native product-gate hook artifacts in run `29195670582` |
+| Manual UX/hardware evidence | Recorded | Hardware/manual rows remain explicit in the parity ledger; no platform result is inferred |
 
 ## Required Root Workflow Status
 
 | Command or workflow | Status | Required result |
 | --- | --- | --- |
-| `cargo run` | `NOT_RUN` | Complete Chataigne app, real backend, bundled/default UI, connected engine |
-| `watch` | `NOT_RUN` | One orchestrator, explicit readiness, correct restart/shutdown, no orphan processes |
-| `cargo run -- --dev` | `NOT_RUN` | Complete app with live frontend/dev server and connected engine |
-| Root product gate | `NOT_RUN` | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/platform matrix |
+| `cargo run` | `PASS` at Phase 0 commit | Complete Chataigne app, real backend, bundled/default UI, connected engine |
+| `watch` | `PASS` at Phase 0 commit | One orchestrator, explicit readiness, correct restart/shutdown, no orphan processes |
+| `cargo run -- --dev` | `PASS` at Phase 0 commit | Complete app with live frontend/dev server and connected engine |
+| Root product gate | `PASS` at Phase 0 commit | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/platform matrix |
 
 No command above is inferred to pass from source inspection or repository provenance.
 

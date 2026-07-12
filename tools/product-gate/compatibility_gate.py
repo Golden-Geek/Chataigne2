@@ -88,25 +88,26 @@ def main() -> int:
             [
                 "cargo",
                 "check",
-                "--manifest-path",
-                "submodules/golden_core/Cargo.toml",
                 "-p",
                 "golden_engine",
+                "--locked",
                 "--target",
                 options.target,
             ],
             [
                 "cargo",
                 "check",
-                "--manifest-path",
-                "submodules/golden_alchemist_core/Cargo.toml",
-                "--workspace",
+                "-p",
+                "golden_alchemist",
+                "-p",
+                "golden_statechart",
+                "--locked",
                 "--target",
                 options.target,
             ],
         ]
     else:
-        commands = [["cargo", "build", "--target", options.target]]
+        commands = [["cargo", "build", "--locked", "--target", options.target]]
     with log_path.open("w", encoding="utf-8", newline="\n") as log:
         exit_code = 0
         for command in commands:

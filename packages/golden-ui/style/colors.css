@@ -1,0 +1,123 @@
+:root,
+.gc-colors-default {
+	/* GENERAL*/
+	--gc-color-background: #151515;
+	--gc-color-border: #57575730;
+	--gc-color-header: #181818;
+	--gc-color-footer: #181818;
+
+	--gc-color-text: #bababa;
+	--gc-color-panel: #1f2021;
+	--gc-color-panel-outline: #7c7c7c4c;
+
+	--gc-color-accent: #d8249f;
+
+	/* SELECTION */
+	--gc-color-selection: #d81dac;
+	--gc-color-focus: #23bbd9;
+
+	/*  OUTLINER */
+	--gc-color-outliner-border: rgba(255, 255, 255, 0.152);
+
+	/* NODES */
+	--gc-color-node-enabled: #54c30f;
+	--gc-color-node-inactive: #e3bc0a;
+
+	/* GRAPH CANVAS */
+	--gc-color-graph-grid-odd: var(--gc-color-background);
+	--gc-color-graph-grid-even: color-mix(
+		in srgb,
+		var(--gc-color-text) 2%,
+		var(--gc-color-background)
+	);
+
+	/* PARAMETERS */
+	--gc-color-readonly: rgb(22, 134, 226);
+
+	--gc-color-trigger: #5a5a5aac;
+	--gc-color-trigger-on: #d81dac;
+	--gc-color-trigger-engine: var(--gc-color-focus);
+
+	--gc-color-checkbox-bg: #151515c6;
+	--gc-color-checkbox-fg: #b527c8;
+	--gc-color-slider-bg: #04040468;
+	--gc-color-slider-fg: #b527c8;
+
+	--gc-color-dropdown-bg: #131313f0;
+
+	--gc-color-proxy: #bcd515;
+	--gc-color-binding: #d58d15;
+	--gc-color-context: #13f0e5;
+	--gc-color-expression: #2be75d;
+	--gc-color-animation: #c72ce6;
+
+	/* META */
+	--gc-color-warning: #e4901c;
+	--gc-color-success: #95e554;
+	--gc-color-error: #bf4d43;
+
+	/* CURVE EDITOR */
+	--gc-color-curve-canvas-bg: rgba(20, 20, 20, 0.5);
+	--gc-color-curve-canvas-wrap-bg: transparent;
+	--gc-color-curve-canvas-wrap-border: transparent;
+	--gc-color-curve-line-idle: #9aa1ac;
+	--gc-color-curve-point-idle: #b1bac9;
+	--gc-color-curve-fill-rgb: 0, 110, 120;
+	--gc-color-curve-grid-line-rgb: 164, 174, 191;
+	--gc-color-curve-grid-label-rgb: 100, 100, 100;
+	--gc-color-curve-border-unbounded: rgba(138, 147, 161, 0.1);
+	--gc-color-curve-border-bounded: rgba(185, 199, 219, 0.1);
+	--gc-color-curve-empty-text: rgba(192, 206, 232, 0.64);
+	--gc-color-curve-plot-fill: rgba(0, 0, 0, 0.2);
+	--gc-color-curve-plot-shadow: rgba(0, 0, 0, 0.5);
+	--gc-color-curve-plot-shadow-fill: #000000;
+	--gc-color-curve-hover-segment-underlay: rgba(92, 186, 255, 0.24);
+	--gc-color-curve-hover-segment: rgba(146, 214, 255, 0.74);
+	--gc-color-curve-selected-segment-underlay: rgba(92, 241, 170, 0.34);
+	--gc-color-curve-selected-segment: rgba(150, 255, 203, 0.96);
+	--gc-color-curve-handle-line: rgba(222, 232, 251, 0.32);
+	--gc-color-curve-handle-line-aligned: rgba(120, 234, 198, 0.46);
+	--gc-color-curve-handle-line-unlocked: rgba(255, 177, 118, 0.42);
+	--gc-color-curve-handle-active: rgba(255, 224, 130, 0.98);
+	--gc-color-curve-handle-hover: rgba(255, 199, 138, 0.95);
+	--gc-color-curve-handle-out: rgba(172, 235, 220, 0.9);
+	--gc-color-curve-handle-in: rgba(164, 205, 245, 0.9);
+	--gc-color-curve-handle-stroke: rgba(10, 16, 24, 0.95);
+	--gc-color-curve-handle-anchor-aligned: rgba(141, 245, 205, 0.94);
+	--gc-color-curve-handle-anchor-unlocked: rgba(255, 183, 125, 0.94);
+	--gc-color-curve-key-selected: rgba(255, 229, 112, 0.98);
+	--gc-color-curve-key-hover: rgba(255, 182, 96, 0.95);
+	--gc-color-curve-key-stroke: rgba(8, 12, 18, 0.9);
+	--gc-color-curve-key-guide: rgba(255, 226, 117, 0.35);
+	--gc-color-curve-crosshair: rgba(217, 231, 255, 0);
+	--gc-color-curve-selection-fill: rgba(114, 210, 255, 0.14);
+	--gc-color-curve-selection-stroke: rgba(158, 228, 255, 0.9);
+	--gc-color-curve-bounds-readout: rgba(198, 208, 224, 0.86);
+	--gc-color-curve-toolbar-button-border: rgba(207, 228, 255, 0.22);
+	--gc-color-curve-toolbar-button-bg: rgba(194, 220, 255, 0.08);
+	--gc-color-curve-toolbar-button-danger-border: rgba(255, 127, 127, 0.35);
+	--gc-color-curve-toolbar-button-danger-bg: rgba(255, 97, 97, 0.12);
+
+	/* DOCKVIEW COLORS */
+	--gc-color-dock-surface: transparent;
+	--gc-color-dock-group-background: transparent;
+	--gc-color-dock-tabbar-background: transparent;
+	--gc-color-dock-tab-active-background: #c31388ac;
+	--gc-color-dock-tab-hidden-background: #4f4f4f;
+	--gc-color-dock-tab-inactive-background: #3a3a3a;
+	--gc-color-dock-tab-inactive-hidden-background: #3a3a3a;
+	--gc-color-dock-tab-active-text: #edf3ff;
+	--gc-color-dock-tab-hidden-text: #bababa;
+	--gc-color-dock-tab-inactive-text: #848484;
+	--gc-color-dock-tab-inactive-hidden-text: #848484;
+	--gc-color-dock-tab-divider: #324768;
+	--gc-color-dock-separator: none;
+
+	--gc-color-dock-sash: rgba(255, 255, 255, 0.008);
+	--gc-color-dock-sash-active: #a21caa;
+	--gc-color-dock-drag-border: #61a4ff;
+	--gc-color-dock-drag-overlay: rgba(97, 164, 255, 0.2);
+	--gc-color-dock-icon-hover: rgba(97, 164, 255, 0.22);
+	--gc-color-dock-scrollbar: #5f77ac;
+	--gc-color-dock-shadow: rgba(5, 10, 19, 0.58);
+}

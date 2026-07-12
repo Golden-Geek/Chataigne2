@@ -202,8 +202,8 @@ function Invoke-BundledBrowserGate {
     $timeoutSeconds = Get-SmokeTimeoutSeconds
     $binary = Get-BundledProductBinary -RepositoryRoot $repositoryRoot
     $node = Get-CommandSource -Name "node"
-    $browserScript = Join-Path $repositoryRoot "src-ui/scripts/ui-browser-tools.mjs"
-    $sourceFixture = Join-Path $repositoryRoot "test-samples/test_simple_load.noisette"
+    $browserScript = Join-Path $repositoryRoot "apps/chataigne/ui/scripts/ui-browser-tools.mjs"
+    $sourceFixture = Join-Path $repositoryRoot "apps/chataigne/test-samples/test_simple_load.noisette"
     if (-not (Test-Path -LiteralPath $sourceFixture -PathType Leaf)) {
         throw "Representative product fixture '$sourceFixture' is missing."
     }

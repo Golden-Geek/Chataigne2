@@ -16,8 +16,26 @@ from tools.migration.product_manifest import (
 
 class ProductManifestTests(unittest.TestCase):
     def fixture_repo(self, root: Path) -> None:
-        (root / "src-ui/src/routes").mkdir(parents=True)
-        (root / "src-ui/src/routes/+page.svelte").write_text(
+        (root / "docs/product").mkdir(parents=True)
+        (root / "docs/product/source-imports.v1.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "entries": [
+                        {
+                            "path": "former/shared-source",
+                            "gitlink": "0" * 40,
+                            "parent": "phase0-baseline",
+                            "url": "https://example.invalid/shared-source.git",
+                            "branch": None,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (root / "apps/chataigne/ui/src/routes").mkdir(parents=True)
+        (root / "apps/chataigne/ui/src/routes/+page.svelte").write_text(
             """
 <script lang="ts">
 const userPanels: UserPanelDefinitionMap = {
@@ -32,8 +50,8 @@ registerNodeInspector('module', { component: ModuleInspector });
 """.strip(),
             encoding="utf-8",
         )
-        (root / "src/module/modules/demo").mkdir(parents=True)
-        (root / "src/module/modules/demo/mod.rs").write_text(
+        (root / "apps/chataigne/src/module/modules/demo").mkdir(parents=True)
+        (root / "apps/chataigne/src/module/modules/demo/mod.rs").write_text(
             """
 pub struct DemoModule;
 impl DemoModule {
@@ -49,16 +67,16 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
 """.strip(),
             encoding="utf-8",
         )
-        (root / "src/module/script_templates").mkdir(parents=True)
-        (root / "src/module/script_templates/demo_module.js").write_text(
+        (root / "apps/chataigne/src/module/script_templates").mkdir(parents=True)
+        (root / "apps/chataigne/src/module/script_templates/demo_module.js").write_text(
             "function send(value) {}\nfunction onMessage(value) {}\n", encoding="utf-8"
         )
-        (root / "src/module/script_snippets").mkdir(parents=True)
-        (root / "src/module/script_snippets/demo.js").write_text(
+        (root / "apps/chataigne/src/module/script_snippets").mkdir(parents=True)
+        (root / "apps/chataigne/src/module/script_snippets/demo.js").write_text(
             "sendDemo(1);\n", encoding="utf-8"
         )
-        (root / "src/formulas").mkdir(parents=True)
-        (root / "src/formulas/Action.json").write_text(
+        (root / "apps/chataigne/builtin_formulas").mkdir(parents=True)
+        (root / "apps/chataigne/builtin_formulas/Action.json").write_text(
             json.dumps({"name": "Action", "nodes": []}), encoding="utf-8"
         )
         (root / "fixtures").mkdir()
@@ -67,10 +85,12 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
         (root / "test-samples/baseline.noisette").write_text(
             "baseline project\n", encoding="utf-8"
         )
-        (root / "src-ui/static/assets").mkdir(parents=True)
-        (root / "src-ui/static/assets/icon.svg").write_text("<svg/>\n", encoding="utf-8")
-        (root / "src-ui/build/_app/immutable/assets").mkdir(parents=True)
-        (root / "src-ui/build/_app/immutable/assets/generated.css").write_text(
+        (root / "apps/chataigne/ui/static/assets").mkdir(parents=True)
+        (root / "apps/chataigne/ui/static/assets/icon.svg").write_text(
+            "<svg/>\n", encoding="utf-8"
+        )
+        (root / "apps/chataigne/ui/build/_app/immutable/assets").mkdir(parents=True)
+        (root / "apps/chataigne/ui/build/_app/immutable/assets/generated.css").write_text(
             "body {}\n", encoding="utf-8"
         )
         (root / ".kilo/worktrees/donor/src-ui/src/routes").mkdir(parents=True)
@@ -107,7 +127,7 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
             files = first["product-files.v1.json"]
             self.assertEqual(files["category_counts"]["fixture"], 2)
             self.assertNotIn(
-                "asset/src-ui/build/_app/immutable/assets/generated.css",
+                "asset/apps/chataigne/ui/build/_app/immutable/assets/generated.css",
                 {entry["id"] for entry in files["entries"]},
             )
             self.assertIn(
@@ -160,7 +180,7 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
             documents = generate_documents(root)
             write_documents(output, documents)
             self.assertEqual(check_documents(output, documents), [])
-            page = root / "src-ui/src/routes/+page.svelte"
+            page = root / "apps/chataigne/ui/src/routes/+page.svelte"
             page.write_text(
                 page.read_text(encoding="utf-8")
                 + "\nregisterCommandHandler('view.home', () => true);\n",

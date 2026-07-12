@@ -1,0 +1,17 @@
+{
+	"name": "golden-workspace",
+	"private": true,
+	"version": "0.0.0",
+	"workspaces": [
+		"apps/chataigne/ui",
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "npm run dev --workspace chataigne-ui",
+		"build": "npm run build --workspace chataigne-ui",
+		"test": "npm run test --workspace chataigne-ui",
+		"check": "npm run check --workspace chataigne-ui",
+		"lint": "npm run lint --workspace chataigne-ui",
+		"format": "npm run format --workspace chataigne-ui"
+	}
+}

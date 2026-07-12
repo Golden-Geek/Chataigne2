@@ -14,10 +14,10 @@ This repository is converging on a layered workspace with a thin shell, shared e
 
 ### Alchemist And Statecharts
 
-`submodules/golden_alchemist_core` owns reusable typed graph compilation/runtime and hierarchical
-statechart mechanics. Chataigne value types, Processor policy, command arbitration, built-in
-Processor models, and protocol DTOs live in the app-owned `src/state_machine` package beside other
-product behavior.
+`crates/golden_alchemist` owns reusable typed graph compilation/runtime and
+`crates/golden_statechart` owns hierarchical statechart mechanics. Chataigne value types, Processor
+policy, command arbitration, built-in Processor models, and protocol DTOs live in the app-owned
+`apps/chataigne/state_machine` crate beside other product behavior.
 
 ### Protocol Boundary
 
@@ -25,8 +25,9 @@ UI request, response, event, snapshot, and version types must have one source of
 
 ### UI Client And Stores
 
-`src-ui` contains the app UI shell and consumes `golden_ui` as the reusable workbench boundary.
-`golden_alchemist_ui` supplies app-agnostic infinite-canvas node rendering and interaction. The
+`apps/chataigne/ui` contains the app UI shell and consumes `packages/golden-ui` as the reusable
+workbench boundary. `packages/golden-alchemist-ui` supplies app-agnostic infinite-canvas node
+rendering and interaction. The
 Chataigne State Machine panel, DTO adapters, and stores remain app-owned. Session state should be
 composed from focused stores behind a thin facade. Transport concerns should sit behind interfaces,
 not leak directly into state orchestration.
@@ -37,7 +38,10 @@ Desktop startup, browser/headless hosting, native dialogs, and transport servers
 
 ## Build And Codegen Boundary
 
-App build scripts must consume public support APIs. They must not path-import private submodule files. The app node registry is generated through `submodules/golden_core/crates/codegen_support/`, which exists specifically to provide a stable build-time boundary. Shared UI protocol bindings are generated from the reusable UI/package workflow rather than the app build script.
+App build scripts must consume public support APIs. They must not path-import private crate files.
+The app node registry is generated through `crates/codegen_support/`, which provides the stable
+build-time boundary. Shared UI protocol bindings are generated from the root workspace into
+`packages/golden-ui/generated/rust_protocol/`.
 
 ## Persistence Direction
 
@@ -45,7 +49,7 @@ Serialization contracts, project schema, codecs, and migrations belong in dedica
 
 ## Deeper Design Docs
 
-Existing design docs live under `submodules/golden_core/crates/core/docs/` and currently include:
+Existing design docs live under `crates/core/docs/` and currently include:
 
 - `dashboard_system.md`
 - `node_blueprints.md`

@@ -12,17 +12,18 @@ Start every code-navigation task with:
 
 Workspace repo routing:
 
-This workspace is indexed as separate jCodeMunch repos for the app shell and reusable packages. Resolve the concrete owning path before searching; do not use the root `Chataigne2` index for `golden_core`, `golden_ui`, or alchemist package work.
+This workspace is one monorepo and one jCodeMunch index. Choose the owning source path before
+searching, resolve the root once, and scope queries to that path.
 
-| Layer | Resolve path |
-| --- | --- |
-| App shell, app-owned modules, app-owned UI, workspace tooling | `.` |
-| `golden_core` | `submodules/golden_core` |
-| `golden_alchemist_core` | `submodules/golden_alchemist_core` |
-| `golden_ui` | `src-ui/src/lib/golden_ui` |
-| `golden_alchemist_ui` | `src-ui/src/lib/golden_alchemist_ui` |
+| Layer | Source path | Resolve path |
+| --- | --- | --- |
+| Chataigne app and UI | `apps/chataigne` | `.` |
+| Shared Rust crates | `crates/` | `.` |
+| `golden_ui` | `packages/golden-ui` | `.` |
+| `golden_alchemist_ui` | `packages/golden-alchemist-ui` | `.` |
 
-Use the returned repo id for planning, search, outlines, and reads. Run `.\tools\watch-jcodemunch.ps1 --status` if the repo map looks stale or ambiguous.
+Use the root repo id for planning, search, outlines, and reads. Run
+`.\tools\watch-jcodemunch.ps1 --status` if the index looks stale or ambiguous.
 
 Use these tools by intent:
 

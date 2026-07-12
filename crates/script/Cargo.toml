@@ -1,0 +1,10 @@
+[package]
+name = "golden_script"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+golden_engine = { path = "../core" }

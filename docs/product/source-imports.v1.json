@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "path": "src-ui/src/lib/golden_alchemist_ui",
+      "gitlink": "d5bf9a16d51fd931c5c4985e77467f887b400c19",
+      "parent": "phase0-baseline",
+      "url": "https://github.com/Golden-Geek/golden_alchemist_ui.git",
+      "branch": null
+    },
+    {
+      "path": "src-ui/src/lib/golden_ui",
+      "gitlink": "a85df86fa64eafda9b5a0074b301d390c2bf4579",
+      "parent": "phase0-baseline",
+      "url": "https://github.com/Golden-Geek/golden_ui",
+      "branch": null
+    },
+    {
+      "path": "submodules/golden_alchemist_core",
+      "gitlink": "1bfe1c5b15d02068695fff5a71073c8b081f72e0",
+      "parent": "phase0-baseline",
+      "url": "https://github.com/Golden-Geek/golden_alchemist_core.git",
+      "branch": null
+    },
+    {
+      "path": "submodules/golden_core",
+      "gitlink": "72de384ca365442773a19563428d1cdb85039509",
+      "parent": "phase0-baseline",
+      "url": "https://github.com/Golden-Geek/golden_core",
+      "branch": null
+    }
+  ]
+}

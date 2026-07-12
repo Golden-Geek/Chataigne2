@@ -2,11 +2,11 @@
 
 ## Current State
 
-- `tauri.conf.json` currently sets `withGlobalTauri` to `true`.
-- `tauri.conf.json` currently sets `security.csp` to `null`.
-- `capabilities/default.json` allows remote development origins on `localhost` and `127.0.0.1`.
+- `apps/chataigne/tauri.conf.json` currently sets `withGlobalTauri` to `true`.
+- `apps/chataigne/tauri.conf.json` currently sets `security.csp` to `null`.
+- `apps/chataigne/capabilities/default.json` allows remote development origins on `localhost` and `127.0.0.1`.
 - Direct Tauri command access in UI code is concentrated in
-  `src-ui/src/lib/golden_ui/host/desktop.ts`, which acts as the current host bridge.
+  `packages/golden-ui/host/desktop.ts`, which acts as the current host bridge.
 
 ## Rules
 

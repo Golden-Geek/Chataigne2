@@ -6,746 +6,746 @@
   "entries": [
     {
       "bytes": 149836,
-      "id": "asset/icons/icon.ico",
+      "id": "asset/apps/chataigne/icons/icon.ico",
       "kind": "asset",
       "name": "icon.ico",
-      "path": "icons/icon.ico",
+      "path": "apps/chataigne/icons/icon.ico",
       "sha256": "6851c2a78f682f8f319d584b903bc6367201d52b9f3eb2eba8aade9c26504f0f"
     },
     {
       "bytes": 149814,
-      "id": "asset/icons/icon.png",
+      "id": "asset/apps/chataigne/icons/icon.png",
       "kind": "asset",
       "name": "icon.png",
-      "path": "icons/icon.png",
+      "path": "apps/chataigne/icons/icon.png",
       "sha256": "63583425dd1763e23f451856bd1bfc023f4a16af68d762db232bb987643ce9e4"
     },
     {
       "bytes": 1569,
-      "id": "asset/src-ui/src/lib/assets/favicon.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/favicon.svg",
       "kind": "asset",
       "name": "favicon.svg",
-      "path": "src-ui/src/lib/assets/favicon.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/favicon.svg",
       "sha256": "d7d9227f0fe5bfb4189fb6ba4dd9e2d524f6a1dfd02bd901c65330987675c0b3"
     },
     {
       "bytes": 1822,
-      "id": "asset/src-ui/src/lib/assets/icons/module/audio.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/audio.svg",
       "kind": "asset",
       "name": "audio.svg",
-      "path": "src-ui/src/lib/assets/icons/module/audio.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/audio.svg",
       "sha256": "428dd1f4a27ccc9eb35770ac31dbd36e74b4795b75df20a5ffa96fd0071d97d7"
     },
     {
       "bytes": 973,
-      "id": "asset/src-ui/src/lib/assets/icons/module/connected.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/connected.svg",
       "kind": "asset",
       "name": "connected.svg",
-      "path": "src-ui/src/lib/assets/icons/module/connected.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/connected.svg",
       "sha256": "fc5fcfdc1835305431d97f976402c2dfdfd9271cb02a169592c66840e5e91365"
     },
     {
       "bytes": 2405,
-      "id": "asset/src-ui/src/lib/assets/icons/module/controllers.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/controllers.svg",
       "kind": "asset",
       "name": "controllers.svg",
-      "path": "src-ui/src/lib/assets/icons/module/controllers.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/controllers.svg",
       "sha256": "60ec456a5666c12f59e7142e6f365ed348bb6782d0e7a6325f111f523aa33ed3"
     },
     {
       "bytes": 1554,
-      "id": "asset/src-ui/src/lib/assets/icons/module/disconnected.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/disconnected.svg",
       "kind": "asset",
       "name": "disconnected.svg",
-      "path": "src-ui/src/lib/assets/icons/module/disconnected.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/disconnected.svg",
       "sha256": "2d74ac78e41c7b4319bbf6664bda294a47895c963c50efae46fcd60754781e51"
     },
     {
       "bytes": 1520,
-      "id": "asset/src-ui/src/lib/assets/icons/module/generators.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/generators.svg",
       "kind": "asset",
       "name": "generators.svg",
-      "path": "src-ui/src/lib/assets/icons/module/generators.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/generators.svg",
       "sha256": "ee162c7246c89f4de1965a1b2fd410d5baed297a9a655f6a6d17e7582c7c2df6"
     },
     {
       "bytes": 2361,
-      "id": "asset/src-ui/src/lib/assets/icons/module/hardware.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/hardware.svg",
       "kind": "asset",
       "name": "hardware.svg",
-      "path": "src-ui/src/lib/assets/icons/module/hardware.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/hardware.svg",
       "sha256": "5b26b61ceba5b2881acca2b224b7392932e93bb6ed3b0ba83327dfd937f06c76"
     },
     {
       "bytes": 718,
-      "id": "asset/src-ui/src/lib/assets/icons/module/incoming.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/incoming.svg",
       "kind": "asset",
       "name": "incoming.svg",
-      "path": "src-ui/src/lib/assets/icons/module/incoming.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/incoming.svg",
       "sha256": "44a289f63d468e174fd50bec50a30018130ac7c13df8989d76b5d762dd068f7a"
     },
     {
       "bytes": 2560,
-      "id": "asset/src-ui/src/lib/assets/icons/module/network.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/network.svg",
       "kind": "asset",
       "name": "network.svg",
-      "path": "src-ui/src/lib/assets/icons/module/network.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/network.svg",
       "sha256": "e2343c0eba9bc076dc90f9f4650509740d126100d741f2dda7243a1c9fe97602"
     },
     {
       "bytes": 719,
-      "id": "asset/src-ui/src/lib/assets/icons/module/outgoing.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/outgoing.svg",
       "kind": "asset",
       "name": "outgoing.svg",
-      "path": "src-ui/src/lib/assets/icons/module/outgoing.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/outgoing.svg",
       "sha256": "ad669738f50776d8ad3ff71c8513505aac01402265af37cea5b9d4f7e3a9e502"
     },
     {
       "bytes": 1886,
-      "id": "asset/src-ui/src/lib/assets/icons/module/system.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/system.svg",
       "kind": "asset",
       "name": "system.svg",
-      "path": "src-ui/src/lib/assets/icons/module/system.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/system.svg",
       "sha256": "7513997b7d8abe79392a87bd00421d17f5958e106bd57aed21b435528b342ed4"
     },
     {
       "bytes": 1440,
-      "id": "asset/src-ui/src/lib/assets/icons/module/video.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/video.svg",
       "kind": "asset",
       "name": "video.svg",
-      "path": "src-ui/src/lib/assets/icons/module/video.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/module/video.svg",
       "sha256": "2e6377389f6fe5662e40934679ad125d43fb4f7edcbf6d0582017e4b43dbd985"
     },
     {
-      "bytes": 1340,
-      "id": "asset/src-ui/src/lib/assets/icons/node-icons.svelte.ts",
+      "bytes": 1328,
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/node-icons.svelte.ts",
       "kind": "asset",
       "name": "node-icons.svelte.ts",
-      "path": "src-ui/src/lib/assets/icons/node-icons.svelte.ts",
-      "sha256": "21c9030c957cd9ea3c3ff0b5870c4bd6773266ac793ec3e57f6b1b5b6af375ce"
+      "path": "apps/chataigne/ui/src/lib/assets/icons/node-icons.svelte.ts",
+      "sha256": "4c38b84925cd2f08590b8901f226288650ec7b0f7e97bffc6c3b4febb590db05"
     },
     {
       "bytes": 914,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/app_control_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/app_control_module.svg",
       "kind": "asset",
       "name": "app_control_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/app_control_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/app_control_module.svg",
       "sha256": "8795b0ada052b5435c222b3f0f90fcdaaf5b6f7822cb0463abd9edb18a450b88"
     },
     {
       "bytes": 14812,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/buttplug_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/buttplug_module.svg",
       "kind": "asset",
       "name": "buttplug_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/buttplug_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/buttplug_module.svg",
       "sha256": "9396fd6bc304e0d736083854da4f8ef3388d7c5b8f7f7c09eb2716fb79d5a46d"
     },
     {
       "bytes": 1811,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/dmx_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/dmx_module.svg",
       "kind": "asset",
       "name": "dmx_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/dmx_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/dmx_module.svg",
       "sha256": "e64bada0b6ebc27ddac9b4c45b84e0c3d0c2fbb8ba4c44856476db6a976d67fb"
     },
     {
       "bytes": 7116,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/gamepad_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/gamepad_module.svg",
       "kind": "asset",
       "name": "gamepad_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/gamepad_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/gamepad_module.svg",
       "sha256": "43c58fbc8c843678c6aaab7df7d218fd27ca7b42bcf4645ff52cca623e69f6e2"
     },
     {
       "bytes": 2218,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/http_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/http_module.svg",
       "kind": "asset",
       "name": "http_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/http_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/http_module.svg",
       "sha256": "8894500225cb0ef2e7f7efbd063e0fe321d35278762c4b5696792c85f81a8002"
     },
     {
       "bytes": 913,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/joycon_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/joycon_module.svg",
       "kind": "asset",
       "name": "joycon_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/joycon_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/joycon_module.svg",
       "sha256": "7d0251d1c6536c3139da126f4c9bc888ca527240638b34046c1262f173b60eb0"
     },
     {
       "bytes": 2370,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/keyboard_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/keyboard_module.svg",
       "kind": "asset",
       "name": "keyboard_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/keyboard_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/keyboard_module.svg",
       "sha256": "4bf6b9b369a8ed9497ecac208641c278f8682e84a560055fc5c7e658996ab7e7"
     },
     {
       "bytes": 926,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/kinect2_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/kinect2_module.svg",
       "kind": "asset",
       "name": "kinect2_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/kinect2_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/kinect2_module.svg",
       "sha256": "2f0ed20aaef99fc929141708000357330d3092763f48f19d0681d2c3ab6cae02"
     },
     {
       "bytes": 1687,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/metronomes_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/metronomes_module.svg",
       "kind": "asset",
       "name": "metronomes_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/metronomes_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/metronomes_module.svg",
       "sha256": "d008cd4a39fce84d40c8c539498236c1199c7a66d18f3444b9ef694ea9114b2f"
     },
     {
       "bytes": 1653,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/midi_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/midi_module.svg",
       "kind": "asset",
       "name": "midi_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/midi_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/midi_module.svg",
       "sha256": "ddde3863b74568ac7a630b88952b266846f8efbbc00a91b92784640523b386e7"
     },
     {
       "bytes": 1229,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/module.svg",
       "kind": "asset",
       "name": "module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/module.svg",
       "sha256": "f8b699f7a6aa2dcc0d2adce90f1af75ff7e0c8362e0d3bb2481f833ac0e7d35d"
     },
     {
       "bytes": 1508,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/module_manager.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/module_manager.svg",
       "kind": "asset",
       "name": "module_manager.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/module_manager.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/module_manager.svg",
       "sha256": "7e452d2c5dff471539e1bf450d739f4a72e06564e1da490e70f13148fd0f2154"
     },
     {
       "bytes": 1205,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/mouse_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/mouse_module.svg",
       "kind": "asset",
       "name": "mouse_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/mouse_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/mouse_module.svg",
       "sha256": "ada557fa7d77a9fe49944e84ef1d8ab19588c29e157617d426043b8435f5bdb0"
     },
     {
       "bytes": 808,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/mqtt_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/mqtt_module.svg",
       "kind": "asset",
       "name": "mqtt_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/mqtt_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/mqtt_module.svg",
       "sha256": "4823c6087cd722fdb189781cc7ebe3e7e6cff26fc9d0274b13bd91b3e7c08f03"
     },
     {
       "bytes": 1730,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/os_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/os_module.svg",
       "kind": "asset",
       "name": "os_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/os_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/os_module.svg",
       "sha256": "18c6e1602f0031e06163de7b4cc4c1d89cf0636348d5fd2a3cafe3f98e053936"
     },
     {
       "bytes": 1399,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/osc_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/osc_module.svg",
       "kind": "asset",
       "name": "osc_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/osc_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/osc_module.svg",
       "sha256": "e8f80558ed9eeeb7dcf3aa74a4f457f78dcc09e467a527a484886741f43d5a47"
     },
     {
       "bytes": 3248,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/serial_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/serial_module.svg",
       "kind": "asset",
       "name": "serial_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/serial_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/serial_module.svg",
       "sha256": "d91add6b9ee2b17d97421bc1465d385b731bb9774445345b544ef6c9d2188d5a"
     },
     {
       "bytes": 603,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/signals_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/signals_module.svg",
       "kind": "asset",
       "name": "signals_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/signals_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/signals_module.svg",
       "sha256": "7b240135e0a88e4ccdb9244eb51f7993e460f735f2ff74f068a2e6b156561a55"
     },
     {
       "bytes": 1631,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/spatializer_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/spatializer_module.svg",
       "kind": "asset",
       "name": "spatializer_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/spatializer_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/spatializer_module.svg",
       "sha256": "972926dd4f27ec9c8242c6dc855c8e9e3394985d2b4957c035e76d28ef43d471"
     },
     {
       "bytes": 1472,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
       "kind": "asset",
       "name": "state_machine_manager.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
       "sha256": "a32d665af75fdec5bd4dce0c9d7ea502c8db99acf53f954c5c530d266123b6e2"
     },
     {
       "bytes": 1122,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/state_processor.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/state_processor.svg",
       "kind": "asset",
       "name": "state_processor.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/state_processor.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/state_processor.svg",
       "sha256": "f85f675a791342daf02617419fbf16eec14c8979268c7a25b49faaf564f9d5b3"
     },
     {
       "bytes": 835,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
       "kind": "asset",
       "name": "streamdeck_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
       "sha256": "0e8f6e3f12b8494d1e124ab3544a6cdceaa519ae6c0a04878b3e3344a5a3dd8c"
     },
     {
       "bytes": 958,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
       "kind": "asset",
       "name": "tcp_client_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
       "sha256": "97fcdc380b2dcc97442554234b730842d6b5c1c99152f5ccea58fed5b4c31135"
     },
     {
       "bytes": 988,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
       "kind": "asset",
       "name": "tcp_server_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
       "sha256": "ee375cdcc9a6239bf11131ec0982bc2cbd2c98ae81f6630a92885774d032105d"
     },
     {
       "bytes": 949,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/udp_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/udp_module.svg",
       "kind": "asset",
       "name": "udp_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/udp_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/udp_module.svg",
       "sha256": "33f8ec53a76816cd4fa5a42a7350e810690c0454a5d1e6acc9cdc7e106d8f8a4"
     },
     {
       "bytes": 1117,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
       "kind": "asset",
       "name": "ultraleap_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
       "sha256": "b8959026943932431a6d042809960087d022584d609699c006110f107ab53cd1"
     },
     {
       "bytes": 1523,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
       "kind": "asset",
       "name": "websocket_client_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
       "sha256": "7325806d4ea05b2843c48bbb8d2adc9125703864edac715560aea224fd4aa543"
     },
     {
       "bytes": 1523,
-      "id": "asset/src-ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
       "kind": "asset",
       "name": "websocket_server_module.svg",
-      "path": "src-ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
       "sha256": "623badbb4264988bec81310afd2d86ab0819f223cf664c85ab87cb5decee3477"
     },
     {
-      "bytes": 1212,
-      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula.svg",
-      "kind": "asset",
-      "name": "formula.svg",
-      "path": "src-ui/src/lib/golden_alchemist_ui/icons/formula.svg",
-      "sha256": "6d8d78bfa119b765e48587423096fc8aeba58e905d442eb1e9c586aaf6bb84bb"
-    },
-    {
-      "bytes": 2316,
-      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
-      "kind": "asset",
-      "name": "formula_library.svg",
-      "path": "src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
-      "sha256": "877c0bfa8562d9f58b2a336b22fb8b1d9d635a9d0477af7d13dfa6b2f17fceb2"
-    },
-    {
-      "bytes": 1173,
-      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/lock.svg",
-      "kind": "asset",
-      "name": "lock.svg",
-      "path": "src-ui/src/lib/golden_alchemist_ui/icons/lock.svg",
-      "sha256": "80d49f767a16f5555c191ec610eda5acc22c37d1384026031feee76b8479409e"
-    },
-    {
-      "bytes": 978,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/add.svg",
-      "kind": "asset",
-      "name": "add.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/add.svg",
-      "sha256": "52ad79351ea327530b68dabe577695676322b1356edc4bfec8e975e35e51bf3f"
-    },
-    {
-      "bytes": 851,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/arrow.svg",
-      "kind": "asset",
-      "name": "arrow.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/arrow.svg",
-      "sha256": "f451c13e2282b9c99949f47539cf4d0e7f46f858955b6e5691ba8bc822faa482"
-    },
-    {
-      "bytes": 874,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/arrow_down.svg",
-      "kind": "asset",
-      "name": "arrow_down.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/arrow_down.svg",
-      "sha256": "06eb62e81bc835a1367e3687c4283deb70c800fde3412bb7e41fbf2eebaf541c"
-    },
-    {
-      "bytes": 1280,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/clipboard.svg",
-      "kind": "asset",
-      "name": "clipboard.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/clipboard.svg",
-      "sha256": "7d41b9c39590b9bfe982d166e39c9bb204e0431dd3a578fab47ab23f2c96a7c8"
-    },
-    {
-      "bytes": 890,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/copy.svg",
-      "kind": "asset",
-      "name": "copy.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/copy.svg",
-      "sha256": "7a54f8f09ddaa10581e998ce1c391951443ddb53965fdb61b96fda25c347566b"
-    },
-    {
-      "bytes": 1677,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/delete.svg",
-      "kind": "asset",
-      "name": "delete.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/delete.svg",
-      "sha256": "0ca6c5a5ceeb7172976cb2ee7475f1d6242180a03ce67c8fed0f648103087da5"
-    },
-    {
-      "bytes": 1080,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/duplicate.svg",
-      "kind": "asset",
-      "name": "duplicate.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/duplicate.svg",
-      "sha256": "cf7f3c0e9ee2ad591775803cf4d1090c13dbe46b416acd75732497bf5828f26a"
-    },
-    {
-      "bytes": 1203,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/lock.svg",
-      "kind": "asset",
-      "name": "lock.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/lock.svg",
-      "sha256": "57b24ddf4b93f908a109f792722a00a5cd93c43100a9629fef2553fdd8d7a8ee"
-    },
-    {
-      "bytes": 1266,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/add.svg",
-      "kind": "asset",
-      "name": "add.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/node/add.svg",
-      "sha256": "31be8666725ec33cc13ecc9bec06298db8ef99d8eb10d16b4f6514c648151442"
-    },
-    {
-      "bytes": 1887,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/curve/key.svg",
-      "kind": "asset",
-      "name": "key.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/node/curve/key.svg",
-      "sha256": "1a40f1021e711274158c8215b1b000aa68e2cc90cbead9bd2c5bab2f7f9c765f"
-    },
-    {
-      "bytes": 816,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/dashboard.svg",
-      "kind": "asset",
-      "name": "dashboard.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/node/dashboard.svg",
-      "sha256": "0e15f03bc942c2467c2153da02b807b4b9acf4d3edc94d0e5c40332886fbef75"
-    },
-    {
-      "bytes": 744,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/default.svg",
-      "kind": "asset",
-      "name": "default.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/node/default.svg",
-      "sha256": "47f1d2c3c2eb3aa0aa2188da5176219ac6699875d330280f24498f5f1c8a4059"
-    },
-    {
-      "bytes": 1338,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/folder.svg",
-      "kind": "asset",
-      "name": "folder.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/node/folder.svg",
-      "sha256": "98ded8d7757c398fe260528d89befc8eea16380d37526e67d3190c05d567ba29"
-    },
-    {
-      "bytes": 1443,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/manager.svg",
-      "kind": "asset",
-      "name": "manager.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/node/manager.svg",
-      "sha256": "927d3931eb7c30fbd92137e9ccb89ec3eb556526eecbcba136b72e05c1a5be9c"
-    },
-    {
-      "bytes": 2084,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/script.svg",
-      "kind": "asset",
-      "name": "script.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/node/script.svg",
-      "sha256": "774cc687df7ee72b3d961fef85ebd043885e72bb14f739097214e35f341c7989"
-    },
-    {
-      "bytes": 1266,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/panels/add_tab.svg",
-      "kind": "asset",
-      "name": "add_tab.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/panels/add_tab.svg",
-      "sha256": "02351439ee67c641f8bb8291e0da8b849e07923a0e22f40b5c7685f4e7936580"
-    },
-    {
-      "bytes": 1146,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/panels/close.svg",
-      "kind": "asset",
-      "name": "close.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/panels/close.svg",
-      "sha256": "377864945aaceefb07c29ac0428ccd096a8832a358f4b496dfdedc3acd43e6ed"
-    },
-    {
-      "bytes": 686,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/bool.svg",
-      "kind": "asset",
-      "name": "bool.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/bool.svg",
-      "sha256": "4a930ef81a84791619c1a3dedc3bf153b5200b9bffb3396f5911c127fc7c2111"
-    },
-    {
-      "bytes": 1981,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/color.svg",
-      "kind": "asset",
-      "name": "color.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/color.svg",
-      "sha256": "3d66241860fec2bdac318251f1af876f49b2d6a232bdd1e74763f114bf09ea6c"
-    },
-    {
-      "bytes": 708,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/animation.svg",
-      "kind": "asset",
-      "name": "animation.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/animation.svg",
-      "sha256": "26676a7889e91e06d699e1126e3bab7233ff50136b6e60ed9fd9165e1dabd5e6"
-    },
-    {
-      "bytes": 1393,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/binding.svg",
-      "kind": "asset",
-      "name": "binding.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/binding.svg",
-      "sha256": "490f4ffaeb10760ba3f7e2c338250b825e5055177a7f4777754594441845ab2c"
-    },
-    {
-      "bytes": 2037,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/context.svg",
-      "kind": "asset",
-      "name": "context.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/context.svg",
-      "sha256": "967702de4cc366d102083133bf1fd01a20faebfab750351dc90a17593b8d601c"
-    },
-    {
-      "bytes": 765,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/expression.svg",
-      "kind": "asset",
-      "name": "expression.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/expression.svg",
-      "sha256": "bd285e3e41ca26555bb1e6bda395ebdefd76bac243d26becf8fb22da30b89f5d"
-    },
-    {
-      "bytes": 1608,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/manual.svg",
-      "kind": "asset",
-      "name": "manual.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/manual.svg",
-      "sha256": "017a0691900e1fa7740a539c23a1eb79a490c80d45586b5c1733dd3a9eb249c9"
-    },
-    {
-      "bytes": 595,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/proxy.svg",
-      "kind": "asset",
-      "name": "proxy.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/control/proxy.svg",
-      "sha256": "97c06938dc48fc350affdce2ec43667d468d4bdd8387a439ad1527b0b3048653"
-    },
-    {
-      "bytes": 1144,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/enum.svg",
-      "kind": "asset",
-      "name": "enum.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/enum.svg",
-      "sha256": "f61ba5ec3ee7db7de1478dc9e10263bb992c9f7f192b1ad4eb37527cbcdc2acf"
-    },
-    {
-      "bytes": 2160,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/file.svg",
-      "kind": "asset",
-      "name": "file.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/file.svg",
-      "sha256": "7d322c0c1ff0a222417a1c4acd5651a8d9758bab4f82ed78f4d94fea5839908f"
-    },
-    {
-      "bytes": 747,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/float.svg",
-      "kind": "asset",
-      "name": "float.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/float.svg",
-      "sha256": "76ca84b778d4e11d96104514c87e82f280f165d04eb419e50f93a42638f79e01"
-    },
-    {
-      "bytes": 1011,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/int.svg",
-      "kind": "asset",
-      "name": "int.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/int.svg",
-      "sha256": "25cc3ca45898351685484f87c533700e710a9d7884164bb26fb0f01a90bdf00f"
-    },
-    {
-      "bytes": 1859,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/reference.svg",
-      "kind": "asset",
-      "name": "reference.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/reference.svg",
-      "sha256": "19d5a938c5628df58b0bca45530592a313adc11ec98d780bde4782f81c6254ff"
-    },
-    {
-      "bytes": 1194,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/string.svg",
-      "kind": "asset",
-      "name": "string.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/string.svg",
-      "sha256": "e8d38bd2aca9db85d7b7d86c87e7c6778f71599c6a3fe96d9e6cacdb2126c4a2"
-    },
-    {
-      "bytes": 726,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/trigger.svg",
-      "kind": "asset",
-      "name": "trigger.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/trigger.svg",
-      "sha256": "519a19d716e75e24057471a1c8857723443f8cc5ccbe279b0c936fc42f7f00f2"
-    },
-    {
-      "bytes": 585,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/vec2.svg",
-      "kind": "asset",
-      "name": "vec2.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/vec2.svg",
-      "sha256": "fabd8d13b82a04a708e945b6462beee085951d6f48aa1f110c2bef104b98bdb4"
-    },
-    {
-      "bytes": 1507,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/vec3.svg",
-      "kind": "asset",
-      "name": "vec3.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/parameter/vec3.svg",
-      "sha256": "806a3d673ce63e1a89e12d0af9c29843112888bf2674591ece89637c5465cc67"
-    },
-    {
-      "bytes": 1506,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/redo.svg",
-      "kind": "asset",
-      "name": "redo.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/redo.svg",
-      "sha256": "022e02b8ec2769e14df805cbd574b0c1f7ee22240d528d6f28a7bac05cce8177"
-    },
-    {
-      "bytes": 824,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/reset.svg",
-      "kind": "asset",
-      "name": "reset.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/reset.svg",
-      "sha256": "f84691d3df14924452650574372abd7f9da39930be24c3f80ffaf5e4d31acac5"
-    },
-    {
-      "bytes": 955,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/select-node.svg",
-      "kind": "asset",
-      "name": "select-node.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/select-node.svg",
-      "sha256": "d5119b7b12bce717b97cf9c82734ba800c2abc358d3c47625e78f9e985f72c00"
-    },
-    {
-      "bytes": 1587,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/settings.svg",
-      "kind": "asset",
-      "name": "settings.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/settings.svg",
-      "sha256": "b08236b7fe30e68d35e11812e18232f32b1507da4b9eb71450805a435c5fb097"
-    },
-    {
-      "bytes": 1544,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/undo.svg",
-      "kind": "asset",
-      "name": "undo.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/undo.svg",
-      "sha256": "52f9d4e6c82c3676821db850ffcb8b87f75af14dc55e0c2ed1ca91e81bd2b5c4"
-    },
-    {
-      "bytes": 1245,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/variable.svg",
-      "kind": "asset",
-      "name": "variable.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/variable.svg",
-      "sha256": "a61c181edbef341234c9123164ea993f99735e064104a51953e2d88954281f0e"
-    },
-    {
-      "bytes": 810,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/warning.svg",
-      "kind": "asset",
-      "name": "warning.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/warning.svg",
-      "sha256": "b8ac48085d8038eb0d9c96edbe6421bf9a63a370c61243d3cbf314477cd97ca3"
-    },
-    {
-      "bytes": 805,
-      "id": "asset/src-ui/src/lib/golden_ui/style/icons/watch.svg",
-      "kind": "asset",
-      "name": "watch.svg",
-      "path": "src-ui/src/lib/golden_ui/style/icons/watch.svg",
-      "sha256": "8e7f2dd0ad215a29b5e5b69c09a7048d878d95ce035abb64c5c9efa73a62feda"
-    },
-    {
       "bytes": 0,
-      "id": "asset/src-ui/static/favicon.ico",
+      "id": "asset/apps/chataigne/ui/static/favicon.ico",
       "kind": "asset",
       "name": "favicon.ico",
-      "path": "src-ui/static/favicon.ico",
+      "path": "apps/chataigne/ui/static/favicon.ico",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "bytes": 63,
-      "id": "asset/src-ui/static/robots.txt",
+      "id": "asset/apps/chataigne/ui/static/robots.txt",
       "kind": "asset",
       "name": "robots.txt",
-      "path": "src-ui/static/robots.txt",
+      "path": "apps/chataigne/ui/static/robots.txt",
       "sha256": "b033243267bcbdab84cb01e940811d6d77a894d78f0470faaf0eb43f8e4efcc9"
     },
     {
+      "bytes": 1212,
+      "id": "asset/packages/golden-alchemist-ui/icons/formula.svg",
+      "kind": "asset",
+      "name": "formula.svg",
+      "path": "packages/golden-alchemist-ui/icons/formula.svg",
+      "sha256": "6d8d78bfa119b765e48587423096fc8aeba58e905d442eb1e9c586aaf6bb84bb"
+    },
+    {
+      "bytes": 2316,
+      "id": "asset/packages/golden-alchemist-ui/icons/formula_library.svg",
+      "kind": "asset",
+      "name": "formula_library.svg",
+      "path": "packages/golden-alchemist-ui/icons/formula_library.svg",
+      "sha256": "877c0bfa8562d9f58b2a336b22fb8b1d9d635a9d0477af7d13dfa6b2f17fceb2"
+    },
+    {
+      "bytes": 1173,
+      "id": "asset/packages/golden-alchemist-ui/icons/lock.svg",
+      "kind": "asset",
+      "name": "lock.svg",
+      "path": "packages/golden-alchemist-ui/icons/lock.svg",
+      "sha256": "80d49f767a16f5555c191ec610eda5acc22c37d1384026031feee76b8479409e"
+    },
+    {
+      "bytes": 978,
+      "id": "asset/packages/golden-ui/style/icons/add.svg",
+      "kind": "asset",
+      "name": "add.svg",
+      "path": "packages/golden-ui/style/icons/add.svg",
+      "sha256": "52ad79351ea327530b68dabe577695676322b1356edc4bfec8e975e35e51bf3f"
+    },
+    {
+      "bytes": 851,
+      "id": "asset/packages/golden-ui/style/icons/arrow.svg",
+      "kind": "asset",
+      "name": "arrow.svg",
+      "path": "packages/golden-ui/style/icons/arrow.svg",
+      "sha256": "f451c13e2282b9c99949f47539cf4d0e7f46f858955b6e5691ba8bc822faa482"
+    },
+    {
+      "bytes": 874,
+      "id": "asset/packages/golden-ui/style/icons/arrow_down.svg",
+      "kind": "asset",
+      "name": "arrow_down.svg",
+      "path": "packages/golden-ui/style/icons/arrow_down.svg",
+      "sha256": "06eb62e81bc835a1367e3687c4283deb70c800fde3412bb7e41fbf2eebaf541c"
+    },
+    {
+      "bytes": 1280,
+      "id": "asset/packages/golden-ui/style/icons/clipboard.svg",
+      "kind": "asset",
+      "name": "clipboard.svg",
+      "path": "packages/golden-ui/style/icons/clipboard.svg",
+      "sha256": "7d41b9c39590b9bfe982d166e39c9bb204e0431dd3a578fab47ab23f2c96a7c8"
+    },
+    {
+      "bytes": 890,
+      "id": "asset/packages/golden-ui/style/icons/copy.svg",
+      "kind": "asset",
+      "name": "copy.svg",
+      "path": "packages/golden-ui/style/icons/copy.svg",
+      "sha256": "7a54f8f09ddaa10581e998ce1c391951443ddb53965fdb61b96fda25c347566b"
+    },
+    {
+      "bytes": 1677,
+      "id": "asset/packages/golden-ui/style/icons/delete.svg",
+      "kind": "asset",
+      "name": "delete.svg",
+      "path": "packages/golden-ui/style/icons/delete.svg",
+      "sha256": "0ca6c5a5ceeb7172976cb2ee7475f1d6242180a03ce67c8fed0f648103087da5"
+    },
+    {
+      "bytes": 1080,
+      "id": "asset/packages/golden-ui/style/icons/duplicate.svg",
+      "kind": "asset",
+      "name": "duplicate.svg",
+      "path": "packages/golden-ui/style/icons/duplicate.svg",
+      "sha256": "cf7f3c0e9ee2ad591775803cf4d1090c13dbe46b416acd75732497bf5828f26a"
+    },
+    {
+      "bytes": 1203,
+      "id": "asset/packages/golden-ui/style/icons/lock.svg",
+      "kind": "asset",
+      "name": "lock.svg",
+      "path": "packages/golden-ui/style/icons/lock.svg",
+      "sha256": "57b24ddf4b93f908a109f792722a00a5cd93c43100a9629fef2553fdd8d7a8ee"
+    },
+    {
+      "bytes": 1266,
+      "id": "asset/packages/golden-ui/style/icons/node/add.svg",
+      "kind": "asset",
+      "name": "add.svg",
+      "path": "packages/golden-ui/style/icons/node/add.svg",
+      "sha256": "31be8666725ec33cc13ecc9bec06298db8ef99d8eb10d16b4f6514c648151442"
+    },
+    {
+      "bytes": 1887,
+      "id": "asset/packages/golden-ui/style/icons/node/curve/key.svg",
+      "kind": "asset",
+      "name": "key.svg",
+      "path": "packages/golden-ui/style/icons/node/curve/key.svg",
+      "sha256": "1a40f1021e711274158c8215b1b000aa68e2cc90cbead9bd2c5bab2f7f9c765f"
+    },
+    {
+      "bytes": 816,
+      "id": "asset/packages/golden-ui/style/icons/node/dashboard.svg",
+      "kind": "asset",
+      "name": "dashboard.svg",
+      "path": "packages/golden-ui/style/icons/node/dashboard.svg",
+      "sha256": "0e15f03bc942c2467c2153da02b807b4b9acf4d3edc94d0e5c40332886fbef75"
+    },
+    {
+      "bytes": 744,
+      "id": "asset/packages/golden-ui/style/icons/node/default.svg",
+      "kind": "asset",
+      "name": "default.svg",
+      "path": "packages/golden-ui/style/icons/node/default.svg",
+      "sha256": "47f1d2c3c2eb3aa0aa2188da5176219ac6699875d330280f24498f5f1c8a4059"
+    },
+    {
+      "bytes": 1338,
+      "id": "asset/packages/golden-ui/style/icons/node/folder.svg",
+      "kind": "asset",
+      "name": "folder.svg",
+      "path": "packages/golden-ui/style/icons/node/folder.svg",
+      "sha256": "98ded8d7757c398fe260528d89befc8eea16380d37526e67d3190c05d567ba29"
+    },
+    {
+      "bytes": 1443,
+      "id": "asset/packages/golden-ui/style/icons/node/manager.svg",
+      "kind": "asset",
+      "name": "manager.svg",
+      "path": "packages/golden-ui/style/icons/node/manager.svg",
+      "sha256": "927d3931eb7c30fbd92137e9ccb89ec3eb556526eecbcba136b72e05c1a5be9c"
+    },
+    {
+      "bytes": 2084,
+      "id": "asset/packages/golden-ui/style/icons/node/script.svg",
+      "kind": "asset",
+      "name": "script.svg",
+      "path": "packages/golden-ui/style/icons/node/script.svg",
+      "sha256": "774cc687df7ee72b3d961fef85ebd043885e72bb14f739097214e35f341c7989"
+    },
+    {
+      "bytes": 1266,
+      "id": "asset/packages/golden-ui/style/icons/panels/add_tab.svg",
+      "kind": "asset",
+      "name": "add_tab.svg",
+      "path": "packages/golden-ui/style/icons/panels/add_tab.svg",
+      "sha256": "02351439ee67c641f8bb8291e0da8b849e07923a0e22f40b5c7685f4e7936580"
+    },
+    {
+      "bytes": 1146,
+      "id": "asset/packages/golden-ui/style/icons/panels/close.svg",
+      "kind": "asset",
+      "name": "close.svg",
+      "path": "packages/golden-ui/style/icons/panels/close.svg",
+      "sha256": "377864945aaceefb07c29ac0428ccd096a8832a358f4b496dfdedc3acd43e6ed"
+    },
+    {
+      "bytes": 686,
+      "id": "asset/packages/golden-ui/style/icons/parameter/bool.svg",
+      "kind": "asset",
+      "name": "bool.svg",
+      "path": "packages/golden-ui/style/icons/parameter/bool.svg",
+      "sha256": "4a930ef81a84791619c1a3dedc3bf153b5200b9bffb3396f5911c127fc7c2111"
+    },
+    {
+      "bytes": 1981,
+      "id": "asset/packages/golden-ui/style/icons/parameter/color.svg",
+      "kind": "asset",
+      "name": "color.svg",
+      "path": "packages/golden-ui/style/icons/parameter/color.svg",
+      "sha256": "3d66241860fec2bdac318251f1af876f49b2d6a232bdd1e74763f114bf09ea6c"
+    },
+    {
+      "bytes": 708,
+      "id": "asset/packages/golden-ui/style/icons/parameter/control/animation.svg",
+      "kind": "asset",
+      "name": "animation.svg",
+      "path": "packages/golden-ui/style/icons/parameter/control/animation.svg",
+      "sha256": "26676a7889e91e06d699e1126e3bab7233ff50136b6e60ed9fd9165e1dabd5e6"
+    },
+    {
+      "bytes": 1393,
+      "id": "asset/packages/golden-ui/style/icons/parameter/control/binding.svg",
+      "kind": "asset",
+      "name": "binding.svg",
+      "path": "packages/golden-ui/style/icons/parameter/control/binding.svg",
+      "sha256": "490f4ffaeb10760ba3f7e2c338250b825e5055177a7f4777754594441845ab2c"
+    },
+    {
+      "bytes": 2037,
+      "id": "asset/packages/golden-ui/style/icons/parameter/control/context.svg",
+      "kind": "asset",
+      "name": "context.svg",
+      "path": "packages/golden-ui/style/icons/parameter/control/context.svg",
+      "sha256": "967702de4cc366d102083133bf1fd01a20faebfab750351dc90a17593b8d601c"
+    },
+    {
+      "bytes": 765,
+      "id": "asset/packages/golden-ui/style/icons/parameter/control/expression.svg",
+      "kind": "asset",
+      "name": "expression.svg",
+      "path": "packages/golden-ui/style/icons/parameter/control/expression.svg",
+      "sha256": "bd285e3e41ca26555bb1e6bda395ebdefd76bac243d26becf8fb22da30b89f5d"
+    },
+    {
+      "bytes": 1608,
+      "id": "asset/packages/golden-ui/style/icons/parameter/control/manual.svg",
+      "kind": "asset",
+      "name": "manual.svg",
+      "path": "packages/golden-ui/style/icons/parameter/control/manual.svg",
+      "sha256": "017a0691900e1fa7740a539c23a1eb79a490c80d45586b5c1733dd3a9eb249c9"
+    },
+    {
+      "bytes": 595,
+      "id": "asset/packages/golden-ui/style/icons/parameter/control/proxy.svg",
+      "kind": "asset",
+      "name": "proxy.svg",
+      "path": "packages/golden-ui/style/icons/parameter/control/proxy.svg",
+      "sha256": "97c06938dc48fc350affdce2ec43667d468d4bdd8387a439ad1527b0b3048653"
+    },
+    {
+      "bytes": 1144,
+      "id": "asset/packages/golden-ui/style/icons/parameter/enum.svg",
+      "kind": "asset",
+      "name": "enum.svg",
+      "path": "packages/golden-ui/style/icons/parameter/enum.svg",
+      "sha256": "f61ba5ec3ee7db7de1478dc9e10263bb992c9f7f192b1ad4eb37527cbcdc2acf"
+    },
+    {
+      "bytes": 2160,
+      "id": "asset/packages/golden-ui/style/icons/parameter/file.svg",
+      "kind": "asset",
+      "name": "file.svg",
+      "path": "packages/golden-ui/style/icons/parameter/file.svg",
+      "sha256": "7d322c0c1ff0a222417a1c4acd5651a8d9758bab4f82ed78f4d94fea5839908f"
+    },
+    {
+      "bytes": 747,
+      "id": "asset/packages/golden-ui/style/icons/parameter/float.svg",
+      "kind": "asset",
+      "name": "float.svg",
+      "path": "packages/golden-ui/style/icons/parameter/float.svg",
+      "sha256": "76ca84b778d4e11d96104514c87e82f280f165d04eb419e50f93a42638f79e01"
+    },
+    {
+      "bytes": 1011,
+      "id": "asset/packages/golden-ui/style/icons/parameter/int.svg",
+      "kind": "asset",
+      "name": "int.svg",
+      "path": "packages/golden-ui/style/icons/parameter/int.svg",
+      "sha256": "25cc3ca45898351685484f87c533700e710a9d7884164bb26fb0f01a90bdf00f"
+    },
+    {
+      "bytes": 1859,
+      "id": "asset/packages/golden-ui/style/icons/parameter/reference.svg",
+      "kind": "asset",
+      "name": "reference.svg",
+      "path": "packages/golden-ui/style/icons/parameter/reference.svg",
+      "sha256": "19d5a938c5628df58b0bca45530592a313adc11ec98d780bde4782f81c6254ff"
+    },
+    {
+      "bytes": 1194,
+      "id": "asset/packages/golden-ui/style/icons/parameter/string.svg",
+      "kind": "asset",
+      "name": "string.svg",
+      "path": "packages/golden-ui/style/icons/parameter/string.svg",
+      "sha256": "e8d38bd2aca9db85d7b7d86c87e7c6778f71599c6a3fe96d9e6cacdb2126c4a2"
+    },
+    {
+      "bytes": 726,
+      "id": "asset/packages/golden-ui/style/icons/parameter/trigger.svg",
+      "kind": "asset",
+      "name": "trigger.svg",
+      "path": "packages/golden-ui/style/icons/parameter/trigger.svg",
+      "sha256": "519a19d716e75e24057471a1c8857723443f8cc5ccbe279b0c936fc42f7f00f2"
+    },
+    {
+      "bytes": 585,
+      "id": "asset/packages/golden-ui/style/icons/parameter/vec2.svg",
+      "kind": "asset",
+      "name": "vec2.svg",
+      "path": "packages/golden-ui/style/icons/parameter/vec2.svg",
+      "sha256": "fabd8d13b82a04a708e945b6462beee085951d6f48aa1f110c2bef104b98bdb4"
+    },
+    {
+      "bytes": 1507,
+      "id": "asset/packages/golden-ui/style/icons/parameter/vec3.svg",
+      "kind": "asset",
+      "name": "vec3.svg",
+      "path": "packages/golden-ui/style/icons/parameter/vec3.svg",
+      "sha256": "806a3d673ce63e1a89e12d0af9c29843112888bf2674591ece89637c5465cc67"
+    },
+    {
+      "bytes": 1506,
+      "id": "asset/packages/golden-ui/style/icons/redo.svg",
+      "kind": "asset",
+      "name": "redo.svg",
+      "path": "packages/golden-ui/style/icons/redo.svg",
+      "sha256": "022e02b8ec2769e14df805cbd574b0c1f7ee22240d528d6f28a7bac05cce8177"
+    },
+    {
+      "bytes": 824,
+      "id": "asset/packages/golden-ui/style/icons/reset.svg",
+      "kind": "asset",
+      "name": "reset.svg",
+      "path": "packages/golden-ui/style/icons/reset.svg",
+      "sha256": "f84691d3df14924452650574372abd7f9da39930be24c3f80ffaf5e4d31acac5"
+    },
+    {
+      "bytes": 955,
+      "id": "asset/packages/golden-ui/style/icons/select-node.svg",
+      "kind": "asset",
+      "name": "select-node.svg",
+      "path": "packages/golden-ui/style/icons/select-node.svg",
+      "sha256": "d5119b7b12bce717b97cf9c82734ba800c2abc358d3c47625e78f9e985f72c00"
+    },
+    {
+      "bytes": 1587,
+      "id": "asset/packages/golden-ui/style/icons/settings.svg",
+      "kind": "asset",
+      "name": "settings.svg",
+      "path": "packages/golden-ui/style/icons/settings.svg",
+      "sha256": "b08236b7fe30e68d35e11812e18232f32b1507da4b9eb71450805a435c5fb097"
+    },
+    {
+      "bytes": 1544,
+      "id": "asset/packages/golden-ui/style/icons/undo.svg",
+      "kind": "asset",
+      "name": "undo.svg",
+      "path": "packages/golden-ui/style/icons/undo.svg",
+      "sha256": "52f9d4e6c82c3676821db850ffcb8b87f75af14dc55e0c2ed1ca91e81bd2b5c4"
+    },
+    {
+      "bytes": 1245,
+      "id": "asset/packages/golden-ui/style/icons/variable.svg",
+      "kind": "asset",
+      "name": "variable.svg",
+      "path": "packages/golden-ui/style/icons/variable.svg",
+      "sha256": "a61c181edbef341234c9123164ea993f99735e064104a51953e2d88954281f0e"
+    },
+    {
+      "bytes": 810,
+      "id": "asset/packages/golden-ui/style/icons/warning.svg",
+      "kind": "asset",
+      "name": "warning.svg",
+      "path": "packages/golden-ui/style/icons/warning.svg",
+      "sha256": "b8ac48085d8038eb0d9c96edbe6421bf9a63a370c61243d3cbf314477cd97ca3"
+    },
+    {
+      "bytes": 805,
+      "id": "asset/packages/golden-ui/style/icons/watch.svg",
+      "kind": "asset",
+      "name": "watch.svg",
+      "path": "packages/golden-ui/style/icons/watch.svg",
+      "sha256": "8e7f2dd0ad215a29b5e5b69c09a7048d878d95ce035abb64c5c9efa73a62feda"
+    },
+    {
       "bytes": 377134,
-      "id": "fixture/test-samples/test_multiplex.noisette",
+      "id": "fixture/apps/chataigne/test-samples/test_multiplex.noisette",
       "kind": "fixture",
       "name": "test_multiplex.noisette",
-      "path": "test-samples/test_multiplex.noisette",
+      "path": "apps/chataigne/test-samples/test_multiplex.noisette",
       "sha256": "577ada23ab612db7432dbefc7111ae3bb9e8bc1a761355ac60fc00f9150d4386"
     },
     {
       "bytes": 153775,
-      "id": "fixture/test-samples/test_perf.noisette",
+      "id": "fixture/apps/chataigne/test-samples/test_perf.noisette",
       "kind": "fixture",
       "name": "test_perf.noisette",
-      "path": "test-samples/test_perf.noisette",
+      "path": "apps/chataigne/test-samples/test_perf.noisette",
       "sha256": "1fa0f25f0b886492aaf07798e73939eb07f8d3702c7e14e77878f6cd5f4b7b81"
     },
     {
       "bytes": 250642,
-      "id": "fixture/test-samples/test_simple_load.noisette",
+      "id": "fixture/apps/chataigne/test-samples/test_simple_load.noisette",
       "kind": "fixture",
       "name": "test_simple_load.noisette",
-      "path": "test-samples/test_simple_load.noisette",
+      "path": "apps/chataigne/test-samples/test_simple_load.noisette",
       "sha256": "cdb4b3344ae12288fa61378f2d120451edf7ec040efafe5a0c1f7236b46c34ae"
     }
   ],

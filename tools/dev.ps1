@@ -86,16 +86,6 @@ function Install-WingetPackage {
     Refresh-Path
 }
 
-function Ensure-GitSubmodules {
-    Write-Step "Git submodules"
-
-    if (-not (Command-Exists git)) {
-        throw "git was not found on PATH. Install Git, then rerun tools/dev.ps1."
-    }
-
-    Invoke-External "git" @("submodule", "update", "--init", "--recursive")
-}
-
 function Ensure-Rust {
     Write-Step "Rust toolchain"
     Refresh-Path
@@ -216,8 +206,8 @@ function Ensure-Node {
 }
 
 function Test-UiInstallNeeded {
-    $packageLock = Join-Path $Root "src-ui\package-lock.json"
-    $nodeModulesLock = Join-Path $Root "src-ui\node_modules\.package-lock.json"
+    $packageLock = Join-Path $Root "package-lock.json"
+    $nodeModulesLock = Join-Path $Root "node_modules\.package-lock.json"
 
     if (-not (Test-Path $nodeModulesLock)) {
         return $true
@@ -236,12 +226,12 @@ function Ensure-UiDependencies {
 
     Write-Step "Svelte dependencies"
     if (-not (Test-UiInstallNeeded)) {
-        Write-Host "src-ui/node_modules is current."
+        Write-Host "node_modules is current."
         return
     }
 
     $npm = Get-NpmCommand
-    Push-Location "src-ui"
+    Push-Location $Root
     try {
         Invoke-External $npm @("ci")
     }
@@ -255,7 +245,6 @@ function Run-App {
     Invoke-External "cargo" (@("run") + $CargoArgs)
 }
 
-Ensure-GitSubmodules
 Ensure-Rust
 Ensure-WindowsBuildTools
 Ensure-Node
