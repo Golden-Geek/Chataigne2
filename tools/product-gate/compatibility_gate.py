@@ -80,6 +80,7 @@ def main() -> int:
     toolchain_hash = hashlib.sha256(toolchain_path.read_bytes()).hexdigest()
 
     environment = os.environ.copy()
+    environment["CARGO_NET_GIT_FETCH_WITH_CLI"] = "true"
     environment["GC_SKIP_UI_BUILD"] = "1"
     command = ["cargo", "build", "--target", options.target]
     with log_path.open("w", encoding="utf-8", newline="\n") as log:
