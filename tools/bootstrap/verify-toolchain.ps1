@@ -107,10 +107,10 @@ if ($CheckInstalled) {
     if (-not $hostMatch.Success) {
         throw "rustc -vV did not report a host triple."
     }
-    $isWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    $runningOnWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
         [System.Runtime.InteropServices.OSPlatform]::Windows
     )
-    if ($isWindows -and $hostMatch.Groups[1].Value -notmatch '-pc-windows-msvc$') {
+    if ($runningOnWindows -and $hostMatch.Groups[1].Value -notmatch '-pc-windows-msvc$') {
         throw "Windows Phase 0 evidence requires an MSVC Rust host, got '$($hostMatch.Groups[1].Value)'."
     }
 }

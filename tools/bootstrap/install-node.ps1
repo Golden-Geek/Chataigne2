@@ -6,10 +6,10 @@ $ErrorActionPreference = "Stop"
 
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $manifest = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "toolchain.json")) | ConvertFrom-Json
-$isWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+$runningOnWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [System.Runtime.InteropServices.OSPlatform]::Windows
 )
-if (-not $isWindows) {
+if (-not $runningOnWindows) {
     throw "install-node.ps1 is the Windows entry point; use install-node.sh on macOS/Linux."
 }
 $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
