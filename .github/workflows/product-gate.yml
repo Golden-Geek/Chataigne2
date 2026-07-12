@@ -240,7 +240,7 @@ jobs:
             --target '${{ matrix.target }}' `
             --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
 
-      - name: Build emulated Linux ARM hard-float compatibility target
+      - name: Check emulated Linux ARM hard-float headless core
         if: matrix.platform == 'linux-armhf'
         uses: uraimo/run-on-arch-action@v3
         with:
@@ -277,12 +277,10 @@ jobs:
             rustup override set "$RUST_TOOLCHAIN"
             rustup target add '${{ matrix.target }}'
             export LIBCLANG_PATH="$(llvm-config --libdir)"
-            git clone https://github.com/KaiseiYokoyama/joycon-rs /tmp/joycon-rs
-            git -C /tmp/joycon-rs checkout --detach e07b5f3e03594662969ba18fcc4b7d9eed1c2101
-            export CHATAIGNE_JOYCON_PATCH=/tmp/joycon-rs
             python3 tools/product-gate/compatibility_gate.py \
               --platform '${{ matrix.platform }}' \
               --target '${{ matrix.target }}' \
+              --scope headless-core \
               --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
 
       - name: Upload compatibility report and log

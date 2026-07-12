@@ -51,15 +51,13 @@ package; browser evidence never relies on a runner's pre-populated cache.
 
 The native product matrix is Windows, macOS, and Linux. Each native result is derived
 from the real Rust/UI build, launch workflows, browser evidence, and module loopback.
-The canonical aggregate additionally requires full-app compatibility builds for
-Raspberry Pi-like Linux ARM hard-float (`armv7-unknown-linux-gnueabihf`), Linux AArch64
-(`aarch64-unknown-linux-gnu`), and Windows ARM64 (`aarch64-pc-windows-msvc`). The ARM
-jobs prove build compatibility; native launch, interaction, and loopback evidence stays
-with the three executable desktop runners.
-
-The emulated 32-bit runner checks out the lockfile's exact Joy-Con revision with Git and
-applies it as an ephemeral Cargo path patch. This avoids Cargo/libgit2's 32-bit repository
-database overflow without changing dependency code or resolution.
+The canonical aggregate additionally requires compatibility compilation for Raspberry
+Pi-like Linux ARM hard-float (`armv7-unknown-linux-gnueabihf`), Linux AArch64
+(`aarch64-unknown-linux-gnu`), and Windows ARM64 (`aarch64-pc-windows-msvc`). AArch64
+Linux and Windows ARM64 build the complete application. The emulated 32-bit runner checks
+the reusable engine, Alchemist/statechart, and Chataigne state-machine core that form the
+headless Pi boundary. Native launch, interaction, and loopback evidence stays with the
+three executable desktop runners.
 
 Other native platform results remain `BLOCKED` unless reports from those runners are
 supplied:
@@ -80,7 +78,7 @@ macOS, and Linux and the compatibility build on the three ARM targets with the e
 canonical toolchain. Every runner uploads its schema-v1 report and logs; native runners
 also upload hook artifacts and screenshots. The aggregate accepts exactly one clean
 report per platform, requires the exact workflow commit, requires module-loopback
-evidence from native runners and a successful `compatibility.build` result from ARM
+evidence from native runners and a successful `compatibility.compile` result from ARM
 runners, and publishes a schema-v1 aggregate. A workflow definition is not passing
 evidence: all remote platform results remain `NOT_RUN` until that exact commit is pushed
 and the jobs complete.

@@ -1,4 +1,4 @@
-"""Build one non-native compatibility target and emit a product-gate report."""
+"""Compile one non-native compatibility target and emit a product-gate report."""
 
 from __future__ import annotations
 
@@ -57,6 +57,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
     parser.add_argument("--target", required=True)
+    parser.add_argument("--scope", choices=("app", "headless-core"), default="app")
     parser.add_argument("--report", type=Path, required=True)
     options = parser.parse_args()
 
@@ -82,22 +83,44 @@ def main() -> int:
     environment = os.environ.copy()
     environment["CARGO_NET_GIT_FETCH_WITH_CLI"] = "true"
     environment["GC_SKIP_UI_BUILD"] = "1"
-    command = ["cargo"]
-    joycon_patch = environment.get("CHATAIGNE_JOYCON_PATCH")
-    if joycon_patch:
-        patch_path = Path(joycon_patch).resolve()
-        if not (patch_path / "Cargo.toml").is_file():
-            raise SystemExit(f"Joy-Con patch checkout is invalid: {patch_path}")
-        patch_value = json.dumps(str(patch_path))
-        command.extend(
+    if options.scope == "headless-core":
+        commands = [
             [
-                "--config",
-                f'patch."https://github.com/KaiseiYokoyama/joycon-rs".joycon-rs.path={patch_value}',
-            ]
-        )
-    command.extend(["build", "--target", options.target])
+                "cargo",
+                "check",
+                "--manifest-path",
+                "submodules/golden_core/Cargo.toml",
+                "-p",
+                "golden_engine",
+                "--target",
+                options.target,
+            ],
+            [
+                "cargo",
+                "check",
+                "--manifest-path",
+                "submodules/golden_alchemist_core/Cargo.toml",
+                "--workspace",
+                "--target",
+                options.target,
+            ],
+            [
+                "cargo",
+                "check",
+                "-p",
+                "chataigne_state_machine",
+                "--target",
+                options.target,
+            ],
+        ]
+    else:
+        commands = [["cargo", "build", "--target", options.target]]
     with log_path.open("w", encoding="utf-8", newline="\n") as log:
-        exit_code = stream_command(root, log, command, environment)
+        exit_code = 0
+        for command in commands:
+            exit_code = stream_command(root, log, command, environment)
+            if exit_code != 0:
+                break
 
     passed = exit_code == 0 and not dirty
     status = "PASS" if passed else "FAIL"
@@ -105,10 +128,10 @@ def main() -> int:
     if dirty:
         reasons.append("working tree was dirty before the compatibility build")
     if exit_code != 0:
-        reasons.append(f"cargo build exited with {exit_code}")
+        reasons.append(f"compatibility compilation exited with {exit_code}")
     reason = "; ".join(reasons)
     results = [
-        result("compatibility.build", status, exit_code, reason, relative_log_path),
+        result("compatibility.compile", status, exit_code, reason, relative_log_path),
         result(f"platform.{options.platform}", status, exit_code, reason, relative_log_path),
     ]
     report = {
@@ -123,10 +146,11 @@ def main() -> int:
         },
         "required_platforms": [options.platform],
         "compatibility_target": options.target,
+        "compatibility_scope": options.scope,
         "results": results,
     }
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")
-    print(f"{status} {options.platform} compatibility build ({options.target})")
+    print(f"{status} {options.platform} compatibility compilation ({options.target})")
     return 0 if passed else 1
 
 

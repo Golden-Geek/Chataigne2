@@ -69,9 +69,9 @@ foreach ($platform in $platforms) {
         }
     }
     else {
-        $compatibility = @($report.results | Where-Object { $_.id -eq "compatibility.build" })
+        $compatibility = @($report.results | Where-Object { $_.id -eq "compatibility.compile" })
         if ($compatibility.Count -ne 1 -or $compatibility[0].status -ne "PASS" -or [int]$compatibility[0].exit_code -ne 0) {
-            $failures += "$platform report does not contain one passing compatibility.build result."
+            $failures += "$platform report does not contain one passing compatibility.compile result."
         }
     }
 

@@ -80,7 +80,7 @@ foreach ($platform in $platforms) {
                 [ordered]@{ id = "evidence.module_loopback"; status = "PASS"; exit_code = 0 }
             }
             else {
-                [ordered]@{ id = "compatibility.build"; status = "PASS"; exit_code = 0 }
+                [ordered]@{ id = "compatibility.compile"; status = "PASS"; exit_code = 0 }
             }
             [ordered]@{ id = "platform.$platform"; status = "PASS"; exit_code = 0 }
         )
