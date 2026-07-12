@@ -82,7 +82,20 @@ def main() -> int:
     environment = os.environ.copy()
     environment["CARGO_NET_GIT_FETCH_WITH_CLI"] = "true"
     environment["GC_SKIP_UI_BUILD"] = "1"
-    command = ["cargo", "build", "--target", options.target]
+    command = ["cargo"]
+    joycon_patch = environment.get("CHATAIGNE_JOYCON_PATCH")
+    if joycon_patch:
+        patch_path = Path(joycon_patch).resolve()
+        if not (patch_path / "Cargo.toml").is_file():
+            raise SystemExit(f"Joy-Con patch checkout is invalid: {patch_path}")
+        patch_value = json.dumps(str(patch_path))
+        command.extend(
+            [
+                "--config",
+                f'patch."https://github.com/KaiseiYokoyama/joycon-rs".joycon-rs.path={patch_value}',
+            ]
+        )
+    command.extend(["build", "--target", options.target])
     with log_path.open("w", encoding="utf-8", newline="\n") as log:
         exit_code = stream_command(root, log, command, environment)
 

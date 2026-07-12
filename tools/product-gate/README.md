@@ -55,6 +55,10 @@ Raspberry Pi-like Linux ARM hard-float (`armv7-unknown-linux-gnueabihf`), Linux 
 jobs prove build compatibility; native launch, interaction, and loopback evidence stays
 with the three executable desktop runners.
 
+The emulated 32-bit runner checks out the lockfile's exact Joy-Con revision with Git and
+applies it as an ephemeral Cargo path patch. This avoids Cargo/libgit2's 32-bit repository
+database overflow without changing dependency code or resolution.
+
 Other native platform results remain `BLOCKED` unless reports from those runners are
 supplied:
 
