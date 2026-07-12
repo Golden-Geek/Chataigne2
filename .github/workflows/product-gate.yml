@@ -233,11 +233,11 @@ jobs:
 
       - name: Build native ARM64 compatibility target
         if: matrix.platform != 'linux-armhf'
-        shell: bash
+        shell: pwsh
         run: |
-          python tools/product-gate/compatibility_gate.py \
-            --platform '${{ matrix.platform }}' \
-            --target '${{ matrix.target }}' \
+          python tools/product-gate/compatibility_gate.py `
+            --platform '${{ matrix.platform }}' `
+            --target '${{ matrix.target }}' `
             --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
 
       - name: Build emulated Linux ARM hard-float compatibility target
