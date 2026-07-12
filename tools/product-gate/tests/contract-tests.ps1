@@ -13,6 +13,7 @@ $scripts = @(
     "tools/product-gate/aggregate-reports.ps1",
     "tools/product-gate/hooks/module-loopback-smoke.ps1",
     "tools/product-gate/hooks/smoke-common.ps1",
+    "tools/product-gate/hooks/watch-smoke.ps1",
     "tools/product-gate/product-gate.ps1"
 )
 foreach ($relativePath in $scripts) {
@@ -34,10 +35,21 @@ if ([regex]::Matches($gateSource, '-Id "evidence\.module_loopback"').Count -ne 1
 if ($gateSource -notmatch '-HookFile "module-loopback-smoke\.ps1"') {
     throw "The module-loopback gate item is not wired to its strict hook."
 }
+if ($gateSource -notmatch '-Id "ui\.browser_install"' -or
+    $gateSource -notmatch '@\("exec", "--", "playwright-core", "install", "chromium"\)') {
+    throw "The product gate must install the lockfile-pinned Playwright Chromium browser."
+}
 
 $smokeCommonSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/smoke-common.ps1"))
 if ($smokeCommonSource -notmatch '& /bin/kill -TERM \$processId') {
     throw "The root smoke workflow must request graceful SIGTERM shutdown on non-Windows hosts."
+}
+
+$watchSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/watch-smoke.ps1"))
+$probeIndex = $watchSmokeSource.IndexOf("Invoke-StrictUiReadinessProbe")
+$readyIndex = $watchSmokeSource.IndexOf("`$ready = Wait-ForWatchReady")
+if ($probeIndex -lt 0 -or $readyIndex -lt 0 -or $probeIndex -gt $readyIndex) {
+    throw "The watch smoke must establish a subscribed browser session before awaiting watch.ready."
 }
 
 $testRoot = Join-Path $repositoryRoot "target/product-gate/contract-tests"

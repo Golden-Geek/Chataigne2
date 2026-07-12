@@ -78,16 +78,25 @@ $ownedProcessIds = @()
 $passed = $false
 try {
     $process = Start-Process @startParameters
-    $ready = Wait-ForWatchReady `
+    $readinessDeadline = (Get-Date).AddSeconds($timeoutSeconds)
+    Wait-ForFrontendDocument `
+        -Uri "http://127.0.0.1:5173/" `
         -Process $process `
-        -StandardOutputPath $standardOutputPath `
-        -Deadline ((Get-Date).AddSeconds($timeoutSeconds))
-
+        -Deadline $readinessDeadline
+    Wait-ForFrontendDocument `
+        -Uri "http://127.0.0.1:7010/api/ui/health" `
+        -Process $process `
+        -Deadline $readinessDeadline
     Invoke-StrictUiReadinessProbe `
         -RepositoryRoot $repositoryRoot `
         -FrontendUri "http://127.0.0.1:5173/" `
         -ScreenshotPath $screenshotPath `
         -TimeoutSeconds ([Math]::Min($timeoutSeconds, 90))
+
+    $ready = Wait-ForWatchReady `
+        -Process $process `
+        -StandardOutputPath $standardOutputPath `
+        -Deadline $readinessDeadline
 
     $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
     Request-GracefulProductShutdown -RootProcessId $process.Id
@@ -121,13 +130,13 @@ finally {
             Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 5
         }
         catch {
-            $cleanupIds = @($ownedProcessIds)
-            [array]::Reverse($cleanupIds)
-            foreach ($processId in $cleanupIds) {
-                Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-            }
-            Stop-OwnedProcessTree -RootProcessId $process.Id
         }
+        $cleanupIds = @($ownedProcessIds)
+        [array]::Reverse($cleanupIds)
+        foreach ($processId in $cleanupIds) {
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+        }
+        Stop-OwnedProcessTree -RootProcessId $process.Id
         try {
             Wait-ForPortsReleased -Ports $ports -TimeoutSeconds 10
         }

@@ -43,7 +43,9 @@ a passing readiness check.
 
 The canonical Phase 0 Rust, Cargo, Node, npm, and Python versions live in
 `tools/bootstrap/toolchain.json`. `tools/bootstrap/rust-version` and `.nvmrc` are verified
-consumers. The gate rejects a different installed toolchain before builds run.
+consumers. The gate rejects a different installed toolchain before builds run. After `npm ci`,
+the gate explicitly installs the Chromium revision selected by the locked `playwright-core`
+package; browser evidence never relies on a runner's pre-populated cache.
 
 ## Cross-platform evidence
 

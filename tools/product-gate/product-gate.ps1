@@ -712,6 +712,14 @@ else {
 }
 
 Invoke-GateCommand `
+    -Id "ui.browser_install" `
+    -Name "Pinned Playwright Chromium installation" `
+    -Executable $npmExecutable `
+    -Arguments @("exec", "--", "playwright-core", "install", "chromium") `
+    -WorkingDirectory $uiDirectory `
+    -DependsOn @("ui.dependencies_ready") | Out-Null
+
+Invoke-GateCommand `
     -Id "product_manifest.drift" `
     -Name "Product manifest drift" `
     -Executable "python" `
@@ -783,7 +791,7 @@ Invoke-HookResult `
     -Id "smoke.cargo_run" `
     -Name "Root cargo run readiness smoke" `
     -HookFile "cargo-run-smoke.ps1" `
-    -DependsOn @("rust.build", "ui.build") | Out-Null
+    -DependsOn @("rust.build", "ui.build", "ui.browser_install") | Out-Null
 Invoke-HookResult `
     -Id "evidence.module_loopback" `
     -Name "Production OSC module loopback evidence" `
@@ -793,22 +801,22 @@ Invoke-HookResult `
     -Id "smoke.watch" `
     -Name "Root watch readiness smoke" `
     -HookFile "watch-smoke.ps1" `
-    -DependsOn @("rust.build", "ui.build") | Out-Null
+    -DependsOn @("rust.build", "ui.build", "ui.browser_install") | Out-Null
 Invoke-HookResult `
     -Id "smoke.cargo_run_dev" `
     -Name "Root cargo run -- --dev readiness smoke" `
     -HookFile "cargo-run-dev-smoke.ps1" `
-    -DependsOn @("rust.build", "ui.build") | Out-Null
+    -DependsOn @("rust.build", "ui.build", "ui.browser_install") | Out-Null
 Invoke-HookResult `
     -Id "e2e.ui_workflow" `
     -Name "Mounted real-app UI workflow" `
     -HookFile "ui-workflow.ps1" `
-    -DependsOn @("smoke.cargo_run_dev") | Out-Null
+    -DependsOn @("smoke.cargo_run_dev", "ui.browser_install") | Out-Null
 Invoke-HookResult `
     -Id "e2e.lan_non_loopback" `
     -Name "Non-loopback LAN browser workflow" `
     -HookFile "lan-browser.ps1" `
-    -DependsOn @("smoke.cargo_run_dev") | Out-Null
+    -DependsOn @("smoke.cargo_run_dev", "ui.browser_install") | Out-Null
 
 Import-ExternalReports
 $currentPlatform = Get-CurrentPlatform
