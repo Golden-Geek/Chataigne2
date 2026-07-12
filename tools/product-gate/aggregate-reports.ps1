@@ -11,7 +11,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$platforms = @("windows", "macos", "linux")
+$nativePlatforms = @("windows", "macos", "linux")
+$compatibilityPlatforms = @("linux-armhf", "linux-aarch64", "windows-arm64")
+$platforms = @($nativePlatforms + $compatibilityPlatforms)
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $toolchainManifestPath = Join-Path $repositoryRoot "tools/bootstrap/toolchain.json"
 $expectedToolchainHash = (Get-FileHash -LiteralPath $toolchainManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -60,9 +62,17 @@ foreach ($platform in $platforms) {
     if ($platformResult.Count -ne 1 -or $platformResult[0].status -ne "PASS") {
         $failures += "$platform report does not contain one passing platform.$platform result."
     }
-    $loopback = @($report.results | Where-Object { $_.id -eq "evidence.module_loopback" })
-    if ($loopback.Count -ne 1 -or $loopback[0].status -ne "PASS" -or [int]$loopback[0].exit_code -ne 0) {
-        $failures += "$platform report does not contain passing module-loopback evidence."
+    if ($nativePlatforms -contains $platform) {
+        $loopback = @($report.results | Where-Object { $_.id -eq "evidence.module_loopback" })
+        if ($loopback.Count -ne 1 -or $loopback[0].status -ne "PASS" -or [int]$loopback[0].exit_code -ne 0) {
+            $failures += "$platform report does not contain passing module-loopback evidence."
+        }
+    }
+    else {
+        $compatibility = @($report.results | Where-Object { $_.id -eq "compatibility.build" })
+        if ($compatibility.Count -ne 1 -or $compatibility[0].status -ne "PASS" -or [int]$compatibility[0].exit_code -ne 0) {
+            $failures += "$platform report does not contain one passing compatibility.build result."
+        }
     }
 
     $summaries[$platform] = [ordered]@{
@@ -95,4 +105,4 @@ New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 if ($failures.Count -gt 0) {
     throw ($failures -join " ")
 }
-Write-Host "Aggregated exact-commit Windows, macOS, and Linux schema-v1 product-gate reports."
+Write-Host "Aggregated exact-commit native and ARM compatibility schema-v1 product-gate reports."

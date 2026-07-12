@@ -422,7 +422,7 @@ fn control_command_candidates(action: HostControlAction) -> Vec<HostCommandCandi
 
     #[cfg(target_os = "macos")]
     {
-        return match action {
+        match action {
             HostControlAction::Shutdown => {
                 vec![candidate("osascript", &["-e", "tell application \"System Events\" to shut down"])]
             }
@@ -432,12 +432,12 @@ fn control_command_candidates(action: HostControlAction) -> Vec<HostCommandCandi
             HostControlAction::Logout => {
                 vec![candidate("osascript", &["-e", "tell application \"System Events\" to log out"])]
             }
-        };
+        }
     }
 
     #[cfg(target_os = "linux")]
     {
-        return match action {
+        match action {
             HostControlAction::Shutdown => vec![
                 candidate("systemctl", &["poweroff"]),
                 candidate("shutdown", &["-h", "now"]),
@@ -447,7 +447,7 @@ fn control_command_candidates(action: HostControlAction) -> Vec<HostCommandCandi
                 candidate("shutdown", &["-r", "now"]),
             ],
             HostControlAction::Logout => linux_logout_candidates(),
-        };
+        }
     }
 
     #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]

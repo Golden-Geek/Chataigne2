@@ -47,7 +47,9 @@ if (Test-Path -LiteralPath $testRoot) {
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
 $expectedCommit = "0123456789abcdef0123456789abcdef01234567"
 $toolchainHash = (Get-FileHash -LiteralPath (Join-Path $repositoryRoot "tools/bootstrap/toolchain.json") -Algorithm SHA256).Hash.ToLowerInvariant()
-foreach ($platform in @("windows", "macos", "linux")) {
+$nativePlatforms = @("windows", "macos", "linux")
+$platforms = @($nativePlatforms + @("linux-armhf", "linux-aarch64", "windows-arm64"))
+foreach ($platform in $platforms) {
     $directory = Join-Path $testRoot $platform
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
     $report = [ordered]@{
@@ -62,7 +64,12 @@ foreach ($platform in @("windows", "macos", "linux")) {
         }
         required_platforms = @($platform)
         results = @(
-            [ordered]@{ id = "evidence.module_loopback"; status = "PASS"; exit_code = 0 },
+            if ($nativePlatforms -contains $platform) {
+                [ordered]@{ id = "evidence.module_loopback"; status = "PASS"; exit_code = 0 }
+            }
+            else {
+                [ordered]@{ id = "compatibility.build"; status = "PASS"; exit_code = 0 }
+            }
             [ordered]@{ id = "platform.$platform"; status = "PASS"; exit_code = 0 }
         )
     }
@@ -82,8 +89,8 @@ $aggregate = [System.IO.File]::ReadAllText($aggregatePath) | ConvertFrom-Json
 if ($aggregate.schema_version -ne 1 -or $aggregate.overall_status -ne "PASS") {
     throw "Exact-commit aggregate contract did not pass."
 }
-if (@($aggregate.reports.psobject.Properties).Count -ne 3) {
-    throw "Exact-commit aggregate did not contain all three platform reports."
+if (@($aggregate.reports.psobject.Properties).Count -ne 6) {
+    throw "Exact-commit aggregate did not contain all native and ARM compatibility reports."
 }
 
 $mismatchPath = Join-Path $testRoot "product-gate-aggregate-mismatch.json"
@@ -109,7 +116,7 @@ if ($mismatchExitCode -eq 0) {
     throw "Aggregate contract accepted reports from a different commit."
 }
 $mismatch = [System.IO.File]::ReadAllText($mismatchPath) | ConvertFrom-Json
-if ($mismatch.overall_status -ne "FAIL" -or @($mismatch.failures).Count -lt 3) {
+if ($mismatch.overall_status -ne "FAIL" -or @($mismatch.failures).Count -lt 6) {
     throw "Commit-mismatch aggregate did not preserve explicit failure evidence."
 }
 

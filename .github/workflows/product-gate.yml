@@ -144,10 +144,156 @@ jobs:
             src-ui/artifacts
           if-no-files-found: warn
 
+  compatibility-build:
+    name: Compatibility build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-armhf
+            runner: ubuntu-24.04
+            target: armv7-unknown-linux-gnueabihf
+            emulated_arch: armv7
+            emulated_distro: ubuntu24.04
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            install_linux_deps: true
+          - platform: windows-arm64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Read canonical toolchain manifest
+        id: pins
+        shell: pwsh
+        run: |
+          $pins = Get-Content tools/bootstrap/toolchain.json -Raw | ConvertFrom-Json
+          "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-python@v6
+        if: matrix.platform != 'linux-armhf'
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
+
+      - name: Install pinned Rust toolchain and target (Windows ARM64)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./tools/bootstrap/install-rust-toolchain.ps1
+          rustup target add '${{ matrix.target }}'
+
+      - name: Install pinned Rust toolchain and target (Linux AArch64)
+        if: matrix.platform == 'linux-aarch64'
+        shell: bash
+        run: |
+          sh ./tools/bootstrap/install-rust-toolchain.sh
+          rustup target add '${{ matrix.target }}'
+
+      - uses: Swatinem/rust-cache@v2
+        if: matrix.platform != 'linux-armhf'
+        with:
+          key: compatibility-${{ matrix.target }}
+          workspaces: |
+            . -> target
+            submodules/golden_core -> submodules/golden_core/target
+
+      - name: Enable ARM64 MSVC build environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - name: Install Linux ARM64 desktop prerequisites
+        if: matrix.install_linux_deps
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libasound2-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libudev-dev \
+            libusb-1.0-0-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            pkg-config \
+            wget
+
+      - name: Build native ARM64 compatibility target
+        if: matrix.platform != 'linux-armhf'
+        shell: bash
+        run: |
+          python tools/product-gate/compatibility_gate.py \
+            --platform '${{ matrix.platform }}' \
+            --target '${{ matrix.target }}' \
+            --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
+
+      - name: Build emulated Linux ARM hard-float compatibility target
+        if: matrix.platform == 'linux-armhf'
+        uses: uraimo/run-on-arch-action@v3
+        with:
+          arch: ${{ matrix.emulated_arch }}
+          distro: ${{ matrix.emulated_distro }}
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y \
+              build-essential \
+              clang \
+              curl \
+              file \
+              git \
+              libasound2-dev \
+              libclang-dev \
+              libusb-1.0-0-dev \
+              libayatana-appindicator3-dev \
+              librsvg2-dev \
+              libssl-dev \
+              libudev-dev \
+              libwebkit2gtk-4.1-dev \
+              libxdo-dev \
+              llvm-dev \
+              pkg-config \
+              python3 \
+              wget
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain none
+          run: |
+            git config --global --add safe.directory "$PWD"
+            . "$HOME/.cargo/env"
+            RUST_TOOLCHAIN="$(python3 -c 'import json; m=json.load(open("tools/bootstrap/toolchain.json")); print(m["rust"]["channel"] + "-" + m["rust"]["hosts"]["linux_armv7"])')"
+            rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+            rustup override set "$RUST_TOOLCHAIN"
+            rustup target add '${{ matrix.target }}'
+            export LIBCLANG_PATH="$(llvm-config --libdir)"
+            python3 tools/product-gate/compatibility_gate.py \
+              --platform '${{ matrix.platform }}' \
+              --target '${{ matrix.target }}' \
+              --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
+
+      - name: Upload compatibility report and log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: phase0-product-gate-${{ matrix.platform }}-${{ github.sha }}
+          path: target/product-gate-compat/${{ matrix.platform }}
+          if-no-files-found: error
+
   aggregate:
     name: Aggregate exact-commit reports
     if: always()
-    needs: product-gate
+    needs: [product-gate, compatibility-build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

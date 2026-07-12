@@ -47,9 +47,16 @@ consumers. The gate rejects a different installed toolchain before builds run.
 
 ## Cross-platform evidence
 
-The default required matrix is Windows, macOS, and Linux. The local platform result
-is derived from the real Rust and UI builds. Other platform results remain `BLOCKED`
-unless reports from those runners are supplied:
+The native product matrix is Windows, macOS, and Linux. Each native result is derived
+from the real Rust/UI build, launch workflows, browser evidence, and module loopback.
+The canonical aggregate additionally requires full-app compatibility builds for
+Raspberry Pi-like Linux ARM hard-float (`armv7-unknown-linux-gnueabihf`), Linux AArch64
+(`aarch64-unknown-linux-gnu`), and Windows ARM64 (`aarch64-pc-windows-msvc`). The ARM
+jobs prove build compatibility; native launch, interaction, and loopback evidence stays
+with the three executable desktop runners.
+
+Other native platform results remain `BLOCKED` unless reports from those runners are
+supplied:
 
 ```powershell
 pwsh -NoProfile -File .\tools\product-gate\product-gate.ps1 `
@@ -60,15 +67,17 @@ Imported evidence must use schema version 1, match the exact commit, and contain
 `PASS` result with exit code `0` and the exact command for `platform.windows`,
 `platform.macos`, or `platform.linux`. External evidence is rejected for a dirty
 working tree. CI may restrict one runner invocation with `-RequiredPlatforms`, but a
-release/canonical aggregate must require all three platforms.
+release/canonical aggregate must require all six native and compatibility platforms.
 
 `.github/workflows/product-gate.yml` runs the complete gate on Windows MSVC,
-macOS, and Linux with the exact canonical toolchain. Every runner uploads its
-schema-v1 report, command logs, hook artifacts, and screenshots. The aggregate job
-accepts exactly one clean report per platform, requires the exact workflow commit
-and passing module-loopback evidence, and publishes a schema-v1 aggregate. A
-workflow definition is not passing evidence: all remote platform results remain
-`NOT_RUN` until that exact commit is pushed and the jobs complete.
+macOS, and Linux and the compatibility build on the three ARM targets with the exact
+canonical toolchain. Every runner uploads its schema-v1 report and logs; native runners
+also upload hook artifacts and screenshots. The aggregate accepts exactly one clean
+report per platform, requires the exact workflow commit, requires module-loopback
+evidence from native runners and a successful `compatibility.build` result from ARM
+runners, and publishes a schema-v1 aggregate. A workflow definition is not passing
+evidence: all remote platform results remain `NOT_RUN` until that exact commit is pushed
+and the jobs complete.
 
 Use `-PlanOnly` to validate reporting and dependency propagation without executing
 external commands. It is deliberately non-passing. `-SkipUiInstall` is accepted only

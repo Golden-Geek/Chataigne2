@@ -2,14 +2,14 @@
   "entries": [
     {
       "branch": null,
-      "gitlink": "9fa87ebb34ccf0cf6549e41af4c4afcfcff43bd9",
+      "gitlink": "d5bf9a16d51fd931c5c4985e77467f887b400c19",
       "parent": ".",
       "path": "src-ui/src/lib/golden_alchemist_ui",
       "url": "https://github.com/Golden-Geek/golden_alchemist_ui.git"
     },
     {
       "branch": null,
-      "gitlink": "644c965d13471afa1b1fd2c3185351d42c26c61d",
+      "gitlink": "a85df86fa64eafda9b5a0074b301d390c2bf4579",
       "parent": ".",
       "path": "src-ui/src/lib/golden_ui",
       "url": "https://github.com/Golden-Geek/golden_ui"

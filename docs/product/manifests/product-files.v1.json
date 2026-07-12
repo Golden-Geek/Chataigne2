@@ -1,6 +1,6 @@
 {
   "category_counts": {
-    "asset": 96,
+    "asset": 90,
     "fixture": 3
   },
   "entries": [
@@ -19,54 +19,6 @@
       "name": "icon.png",
       "path": "icons/icon.png",
       "sha256": "63583425dd1763e23f451856bd1bfc023f4a16af68d762db232bb987643ce9e4"
-    },
-    {
-      "bytes": 61308,
-      "id": "asset/src-ui/build/_app/immutable/assets/3.7koJ-K6Z.css",
-      "kind": "asset",
-      "name": "3.7koJ-K6Z.css",
-      "path": "src-ui/build/_app/immutable/assets/3.7koJ-K6Z.css",
-      "sha256": "7eedcca3ddcfa59f947514e5cf2c350663b1557515e9f16a9a998e20f310e042"
-    },
-    {
-      "bytes": 238984,
-      "id": "asset/src-ui/build/_app/immutable/assets/DMSans-VariableFont_opsz_wght.D_B5dL4R.ttf",
-      "kind": "asset",
-      "name": "DMSans-VariableFont_opsz_wght.D_B5dL4R.ttf",
-      "path": "src-ui/build/_app/immutable/assets/DMSans-VariableFont_opsz_wght.D_B5dL4R.ttf",
-      "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
-    },
-    {
-      "bytes": 206370,
-      "id": "asset/src-ui/build/_app/immutable/assets/ManagerListPanel.CHP0tH5W.css",
-      "kind": "asset",
-      "name": "ManagerListPanel.CHP0tH5W.css",
-      "path": "src-ui/build/_app/immutable/assets/ManagerListPanel.CHP0tH5W.css",
-      "sha256": "b40bd32da7e7f644a009bc28a15b4c4d5a5e2de797979ad2865b0c60b3407134"
-    },
-    {
-      "bytes": 14812,
-      "id": "asset/src-ui/build/_app/immutable/assets/buttplug_module.BKgr8H5m.svg",
-      "kind": "asset",
-      "name": "buttplug_module.BKgr8H5m.svg",
-      "path": "src-ui/build/_app/immutable/assets/buttplug_module.BKgr8H5m.svg",
-      "sha256": "9396fd6bc304e0d736083854da4f8ef3388d7c5b8f7f7c09eb2716fb79d5a46d"
-    },
-    {
-      "bytes": 283524,
-      "id": "asset/src-ui/build/_app/immutable/assets/dmsans-italic.CT59GZwy.ttf",
-      "kind": "asset",
-      "name": "dmsans-italic.CT59GZwy.ttf",
-      "path": "src-ui/build/_app/immutable/assets/dmsans-italic.CT59GZwy.ttf",
-      "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
-    },
-    {
-      "bytes": 7116,
-      "id": "asset/src-ui/build/_app/immutable/assets/gamepad_module.9Ak2e2yb.svg",
-      "kind": "asset",
-      "name": "gamepad_module.9Ak2e2yb.svg",
-      "path": "src-ui/build/_app/immutable/assets/gamepad_module.9Ak2e2yb.svg",
-      "sha256": "43c58fbc8c843678c6aaab7df7d218fd27ca7b42bcf4645ff52cca623e69f6e2"
     },
     {
       "bytes": 1569,

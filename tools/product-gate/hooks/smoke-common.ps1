@@ -190,8 +190,9 @@ function Request-GracefulProductShutdown {
             if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
                 continue
             }
-            & /bin/kill -TERM $processId
-            if ($LASTEXITCODE -ne 0) {
+            & /bin/kill -TERM $processId 2>$null
+            if ($LASTEXITCODE -ne 0 -and
+                $null -ne (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
                 throw "SIGTERM failed for owned process $processId."
             }
             $requested = $true

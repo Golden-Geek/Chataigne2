@@ -69,6 +69,10 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
         )
         (root / "src-ui/static/assets").mkdir(parents=True)
         (root / "src-ui/static/assets/icon.svg").write_text("<svg/>\n", encoding="utf-8")
+        (root / "src-ui/build/_app/immutable/assets").mkdir(parents=True)
+        (root / "src-ui/build/_app/immutable/assets/generated.css").write_text(
+            "body {}\n", encoding="utf-8"
+        )
         (root / ".kilo/worktrees/donor/src-ui/src/routes").mkdir(parents=True)
         (root / ".kilo/worktrees/donor/src-ui/src/routes/+page.svelte").write_text(
             "registerCommandHandler('donor.only', () => true);\n",
@@ -102,6 +106,10 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
             self.assertGreater(first["product-surfaces.v1.json"]["category_counts"]["anode"], 0)
             files = first["product-files.v1.json"]
             self.assertEqual(files["category_counts"]["fixture"], 2)
+            self.assertNotIn(
+                "asset/src-ui/build/_app/immutable/assets/generated.css",
+                {entry["id"] for entry in files["entries"]},
+            )
             self.assertIn(
                 "fixture/test-samples/baseline.noisette",
                 {entry["id"] for entry in files["entries"]},

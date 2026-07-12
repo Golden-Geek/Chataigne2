@@ -17,6 +17,7 @@ IGNORED_DIRS = {
     ".idea",
     ".svelte-kit",
     ".vscode",
+    "build",
     "coverage",
     "dist",
     "gen",
