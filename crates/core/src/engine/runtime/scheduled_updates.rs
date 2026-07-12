@@ -84,14 +84,13 @@ impl<T: Node> Engine<T> {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.delta_time = delta_time;
             ctx.runtime_elapsed = self.runtime_elapsed;
-            if let Some(tree_snapshot) = &tree_snapshot {
-                if self
+            if let Some(tree_snapshot) = &tree_snapshot
+                && self
                     .nodes
                     .get(node_id)
                     .is_some_and(|node| node.update_requires_tree_snapshot())
-                {
-                    ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
-                }
+            {
+                ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
             }
             let mut did_update = false;
             let events_before_update = self.inbox.events.len();
@@ -119,10 +118,10 @@ impl<T: Node> Engine<T> {
                         parameter_values.insert(*param, new_value.clone());
                     }
                     EventKind::NodeCreated { node } => {
-                        if let Some(n) = self.nodes.get(*node) {
-                            if let Some(snapshot) = n.engine_param_snapshot() {
-                                parameter_values.insert(*node, snapshot.value);
-                            }
+                        if let Some(n) = self.nodes.get(*node)
+                            && let Some(snapshot) = n.engine_param_snapshot()
+                        {
+                            parameter_values.insert(*node, snapshot.value);
                         }
                     }
                     EventKind::NodeDeleted { node } => {

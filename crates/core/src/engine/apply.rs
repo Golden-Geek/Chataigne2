@@ -40,7 +40,10 @@ impl<T: Node> Engine<T> {
         self.apply_edits_internal(false, Some(NodeCreationContext::Fresh))
     }
 
-    /// Applies pending edits without running post-create callbacks for newly added nodes.
+    /// Applies pending edits without runtime creation callbacks for newly added nodes.
+    ///
+    /// Macro-generated declared-child structure is still materialized recursively so
+    /// persistence baselines observe the same declaration defaults as the live tree.
     pub(crate) fn apply_edits_without_creation_callbacks(&mut self) -> Result<(), EngineEditError> {
         self.apply_edits_internal(false, None)
     }
@@ -312,13 +315,11 @@ impl<T: Node> Engine<T> {
                         redo_cleared = true;
                     }
 
-                    if capture_history {
-                        if let Some(step) = step {
-                            if self.active_edit_session.is_some() {
-                                self.push_step_into_active_history_transaction(step);
-                            } else {
-                                transaction.push(step);
-                            }
+                    if capture_history && let Some(step) = step {
+                        if self.active_edit_session.is_some() {
+                            self.push_step_into_active_history_transaction(step);
+                        } else {
+                            transaction.push(step);
                         }
                     }
                 }

@@ -282,7 +282,7 @@ impl<T: Node> Engine<T> {
             .iter()
             .filter_map(|(node_id, &deg)| (deg == 0).then_some(*node_id))
             .collect();
-        ready.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+        ready.sort_unstable_by_key(|node| std::cmp::Reverse(node.0));
 
         let mut sorted = Vec::with_capacity(indegree.len());
 

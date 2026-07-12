@@ -110,7 +110,7 @@ impl<T: Node> Engine<T> {
             self.last_synced_logger_repeat_count,
         );
         for record in &records {
-            if let Ok(payload) = serde_json::to_value(&record) {
+            if let Ok(payload) = serde_json::to_value(record) {
                 self.push_ui_custom_event(crate::logger::UI_LOG_RECORD_TOPIC, record.origin, payload);
             }
         }

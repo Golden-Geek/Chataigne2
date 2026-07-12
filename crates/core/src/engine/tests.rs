@@ -757,6 +757,33 @@ struct SparseDeclaredFolderNode {}
 #[crate::node("sparse_declared_folder_node", from_struct)]
 impl Node for SparseDeclaredFolderNode {}
 
+#[crate::node("declaration_only_materialization_node")]
+#[children(
+    folder(connection, label = "Connection") {
+        input: String = "127.0.0.1".to_string() (label = "Input");
+    }
+)]
+struct DeclarationOnlyMaterializationNode {
+    init_calls: usize,
+    ready_calls: usize,
+    inbox_calls: usize,
+}
+
+#[crate::node("declaration_only_materialization_node", from_struct)]
+impl Node for DeclarationOnlyMaterializationNode {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.init_calls += 1;
+    }
+
+    fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: crate::node::NodeCreationContext) {
+        self.ready_calls += 1;
+    }
+
+    fn on_inbox(&mut self, _ctx: &mut ProcessCtx) {
+        self.inbox_calls += 1;
+    }
+}
+
 #[crate::node("base_children_layout_base_node")]
 #[children(
     folder(connection, label = "Connection") {
@@ -1275,6 +1302,7 @@ crate::define_node_enum!(
         ReuseFolderBaseNode,
         ReuseFolderViaNode,
         SparseDeclaredFolderNode,
+        DeclarationOnlyMaterializationNode,
         BaseChildrenLayoutBaseNode,
         BaseChildrenLayoutViaNode,
         DslParamsNode,
@@ -2789,6 +2817,103 @@ fn sparse_project_load_drops_duplicate_declared_child_overlays() {
         "duplicate declared overlays should not create repeated parameters: {advanced_child_details:?}"
     );
     assert_eq!(advanced_decl_ids, expected_decl_ids);
+}
+
+#[test]
+fn declaration_only_apply_materializes_nested_defaults_without_runtime_callbacks() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DeclarationOnlyMaterializationNode::new(0, 0, 0).into(), None);
+
+    engine
+        .apply_edits_without_creation_callbacks()
+        .expect("declaration-only apply should succeed");
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("declaration owner should exist");
+    let connection = find_child_by_decl(&engine, owner, "connection").expect("connection folder should materialize");
+    let input =
+        find_child_by_decl(&engine, connection, "connection/input").expect("nested input default should materialize");
+
+    let MacroTestNode::Parameter(input) = engine.nodes.get(input).expect("input parameter should exist") else {
+        panic!("expected nested input parameter");
+    };
+    assert_eq!(input.value, ParamValue::from("127.0.0.1".to_string()));
+
+    let MacroTestNode::DeclarationOnlyMaterializationNode(owner_node) =
+        engine.nodes.get(owner).expect("declaration owner should exist")
+    else {
+        panic!("expected declaration-only sentinel node");
+    };
+    assert_eq!(owner_node.init_calls, 0, "declaration baselines must not run init");
+    assert_eq!(
+        owner_node.ready_calls, 0,
+        "declaration baselines must not run on_node_ready"
+    );
+    assert_eq!(
+        owner_node.inbox_calls, 0,
+        "declaration baselines must not run app on_inbox"
+    );
+
+    engine
+        .apply_edits_without_creation_callbacks()
+        .expect("second declaration-only apply should be idempotent");
+    assert_eq!(child_decl_ids(&engine, owner), vec!["connection".to_string()]);
+    assert_eq!(
+        child_decl_ids(&engine, connection),
+        vec!["connection/input".to_string()],
+        "fixed-point materialization must not duplicate nested declarations",
+    );
+}
+
+#[test]
+fn declaration_only_apply_forwards_composed_via_declarations() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        ViaComposedRootNode::new(ViaComposedMidNode::new(ViaComposedLeafNode::new())).into(),
+        None,
+    );
+
+    engine
+        .apply_edits_without_creation_callbacks()
+        .expect("declaration-only via apply should succeed");
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("composed declaration owner should exist");
+    assert_eq!(
+        child_decl_ids(&engine, owner),
+        vec![
+            "leaf_value".to_string(),
+            "mid_value".to_string(),
+            "root_value".to_string(),
+        ],
+        "declaration-only materialization must recurse through every via layer",
+    );
+}
+
+#[test]
+fn sparse_project_omits_unchanged_nested_declared_defaults() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(SparseDeclaredFolderNode::new().into(), None);
+    engine.apply_edits().expect("declared children should materialize");
+
+    let sparse_json = crate::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let sparse_project: ProjectFile = serde_json::from_str(&sparse_json).expect("sparse project should be JSON");
+    let owner_record = sparse_project.root.children.first().expect("owner record should exist");
+
+    assert!(
+        owner_record.children.is_empty(),
+        "unchanged nested declaration defaults must be supplied by the structural baseline: {:?}",
+        owner_record.children,
+    );
 }
 
 #[test]

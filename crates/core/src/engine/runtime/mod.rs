@@ -55,11 +55,11 @@ impl<T: Node> Engine<T> {
     /// Inserts or refreshes the param cache entry for `node_id`.
     /// Cheap no-op when the node has no parameter snapshot.
     pub(crate) fn populate_param_cache_entry(&mut self, node_id: NodeId) {
-        if let Some(node) = self.nodes.get(node_id) {
-            if let Some(snapshot) = node.engine_param_snapshot() {
-                self.parameter_values_cache.insert(node_id, snapshot.value);
-                self.mark_param_control_index_dirty();
-            }
+        if let Some(node) = self.nodes.get(node_id)
+            && let Some(snapshot) = node.engine_param_snapshot()
+        {
+            self.parameter_values_cache.insert(node_id, snapshot.value);
+            self.mark_param_control_index_dirty();
         }
     }
 

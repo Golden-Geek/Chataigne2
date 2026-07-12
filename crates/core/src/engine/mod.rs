@@ -414,10 +414,9 @@ impl<T: Node> Engine<T> {
             .nodes
             .get(node)
             .and_then(|entry| entry.node_data().meta.presentation.warning(Some(warning.id.as_str())))
+            && existing_warning == &warning
         {
-            if existing_warning == &warning {
-                return;
-            }
+            return;
         }
 
         self.edits.push(Edit::SetNodeWarning { node, warning });
@@ -451,10 +450,10 @@ impl<T: Node> Engine<T> {
 
     /// Sets child warning surfacing depth for `node`.
     pub fn set_node_child_warning_depth(&mut self, node: NodeId, max_depth: u32) {
-        if let Some(entry) = self.nodes.get(node) {
-            if entry.node_data().meta.presentation.show_child_warnings_max_depth == max_depth {
-                return;
-            }
+        if let Some(entry) = self.nodes.get(node)
+            && entry.node_data().meta.presentation.show_child_warnings_max_depth == max_depth
+        {
+            return;
         }
 
         self.edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });

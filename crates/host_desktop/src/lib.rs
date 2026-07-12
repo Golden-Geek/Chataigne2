@@ -4,9 +4,13 @@
 
 mod desktop;
 mod desktop_commands;
+#[cfg(test)]
+mod desktop_tests;
 mod window_state;
 #[cfg(test)]
 mod window_state_tests;
+#[cfg(target_os = "windows")]
+mod windows_process_job;
 
 pub use desktop::{
     FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,

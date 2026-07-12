@@ -221,10 +221,10 @@ impl<T: Node> Engine<T> {
         let Some(multiplex_node) = count_node.node_data().parent else {
             return false;
         };
-        if !self
+        if self
             .nodes
             .get(multiplex_node)
-            .is_some_and(|node| node.get_type() == USER_CONTEXT_MULTIPLEX_NODE_TYPE)
+            .is_none_or(|node| node.get_type() != USER_CONTEXT_MULTIPLEX_NODE_TYPE)
         {
             return false;
         }
@@ -263,10 +263,10 @@ impl<T: Node> Engine<T> {
         let Some(multiplex_node) = list_node.node_data().parent else {
             return false;
         };
-        if !self
+        if self
             .nodes
             .get(multiplex_node)
-            .is_some_and(|node| node.get_type() == USER_CONTEXT_MULTIPLEX_NODE_TYPE)
+            .is_none_or(|node| node.get_type() != USER_CONTEXT_MULTIPLEX_NODE_TYPE)
         {
             return false;
         }

@@ -786,10 +786,10 @@ impl<T: Node> Engine<T> {
                 },
             };
 
-            if let Some(value) = maybe_value {
-                if snapshot.value != value {
-                    queued_writes.push((*param, value));
-                }
+            if let Some(value) = maybe_value
+                && snapshot.value != value
+            {
+                queued_writes.push((*param, value));
             }
 
             diagnostics_by_param.insert(*param, diagnostics);

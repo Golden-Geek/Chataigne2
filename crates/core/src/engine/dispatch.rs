@@ -116,6 +116,42 @@ impl<T: Node> Engine<T> {
         self.dispatch_precomputed_inbox_internal(phase, per_node_events, false)
     }
 
+    /// Expands only macro-generated declared-child structure for a precomputed batch.
+    ///
+    /// Unlike regular internal preprocessing, this path does not synchronize runtime
+    /// parameter state and cannot invoke application inbox callbacks. It is used by
+    /// declaration-only persistence baselines where runtime lifecycle and IO must stay dormant.
+    pub(crate) fn materialize_declared_precomputed_inbox(
+        &mut self,
+        phase: ExecutionPhase,
+        per_node_events: Vec<(NodeId, EventFrame)>,
+    ) -> Result<(), EngineEditError> {
+        if per_node_events.is_empty() {
+            return Ok(());
+        }
+
+        let tree_snapshot = self.build_process_tree_snapshot();
+        for (node_id, events) in per_node_events {
+            if events.is_empty() {
+                continue;
+            }
+
+            let mut ctx = ProcessCtx::new(phase, self.time);
+            ctx.events = events;
+            ctx.runtime_elapsed = self.runtime_elapsed;
+            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+
+            if let Some(node) = self.nodes.get_mut(node_id) {
+                crate::logger::with_node_origin(node_id, || {
+                    node.engine_materialize_declared_inbox(&mut ctx);
+                });
+                self.absorb_edits(&mut ctx)?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Dispatches a precomputed per-node inbox batch.
     ///
     /// Edits requested by node callbacks are absorbed into the engine queue.

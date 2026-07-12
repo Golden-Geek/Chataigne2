@@ -70,6 +70,11 @@ impl<T: Node> NodeStore<T> {
         self.inner.len()
     }
 
+    /// Returns `true` when the store contains no nodes.
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
     /// Iterates over node values.
     pub fn values(&self) -> impl Iterator<Item = &T> {
         self.inner.values()

@@ -86,6 +86,23 @@ pub struct UiServerConfig {
     pub preferences: Option<UiPreferencesConfig>,
 }
 
+/// Versioned readiness snapshot for the built-in UI host and its active UI sessions.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiReadinessDto {
+    /// Schema version for this HTTP response.
+    pub version: u16,
+    /// Whether the HTTP backend has completed listener startup.
+    pub backend_ready: bool,
+    /// Whether the immutable engine/UI read model is available.
+    pub engine_read_model_ready: bool,
+    /// Number of currently connected UI WebSocket clients.
+    pub active_websocket_clients: u64,
+    /// Number of connected UI clients with at least one active subscription.
+    pub active_subscribed_websocket_clients: u64,
+    /// Revision currently published by the immutable UI read model.
+    pub read_model_revision: EngineTime,
+}
+
 impl Default for UiServerConfig {
     fn default() -> Self {
         Self {
@@ -417,6 +434,38 @@ fn ui_client_instance_id_from_headers(headers: &HashMap<String, String>) -> Opti
 #[derive(Clone)]
 struct WsHubHandle {
     cmd_tx: Sender<WsHubCommand>,
+    readiness: Arc<UiSessionReadiness>,
+}
+
+#[derive(Default)]
+struct UiSessionReadiness {
+    active_websocket_clients: AtomicU64,
+    active_subscribed_websocket_clients: AtomicU64,
+}
+
+impl UiSessionReadiness {
+    fn update(&self, clients: &HashMap<u64, WsClientState>) {
+        self.active_websocket_clients
+            .store(clients.len() as u64, Ordering::Release);
+        self.active_subscribed_websocket_clients.store(
+            clients
+                .values()
+                .filter(|client| !client.subscriptions.is_empty())
+                .count() as u64,
+            Ordering::Release,
+        );
+    }
+
+    fn snapshot(&self, read_model: &UiReadModel) -> UiReadinessDto {
+        UiReadinessDto {
+            version: 1,
+            backend_ready: true,
+            engine_read_model_ready: true,
+            active_websocket_clients: self.active_websocket_clients.load(Ordering::Acquire),
+            active_subscribed_websocket_clients: self.active_subscribed_websocket_clients.load(Ordering::Acquire),
+            read_model_revision: read_model.current_snapshot().at,
+        }
+    }
 }
 
 struct HttpRequest {
@@ -755,6 +804,8 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     session_id: String,
 ) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
+    let readiness = Arc::new(UiSessionReadiness::default());
+    let readiness_for_hub = readiness.clone();
     thread::spawn(move || {
         ws_hub_loop(
             engine,
@@ -764,9 +815,10 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
             value_flush_interval,
             preferences,
             session_id,
+            readiness_for_hub,
         )
     });
-    WsHubHandle { cmd_tx }
+    WsHubHandle { cmd_tx, readiness }
 }
 
 fn ws_hub_loop<T: ProjectLifecycle>(
@@ -777,6 +829,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
     value_flush_interval: Duration,
     preferences: Option<UiPreferencesConfig>,
     session_id: String,
+    readiness: Arc<UiSessionReadiness>,
 ) {
     let mut clients = HashMap::<u64, WsClientState>::new();
     let mut client_instances = HashMap::<String, u64>::new();
@@ -795,6 +848,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
                     command,
                     preferences.as_ref(),
                     &session_id,
+                    &readiness,
                 );
                 while let Ok(next) = cmd_rx.try_recv() {
                     handle_ws_hub_command(
@@ -806,6 +860,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
                         next,
                         preferences.as_ref(),
                         &session_id,
+                        &readiness,
                     );
                 }
             }
@@ -829,6 +884,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
     command: WsHubCommand,
     preferences: Option<&UiPreferencesConfig>,
     session_id: &str,
+    readiness: &UiSessionReadiness,
 ) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
@@ -1086,6 +1142,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             send_to_client(clients, client_id, WsServerMessage::IntentBatchAck { request_id, acks });
         }
     }
+    readiness.update(clients);
 }
 
 fn value_plane_param(event: &UiEventDto) -> Option<NodeId> {
@@ -1344,7 +1401,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
     let route = request.path.as_str();
     match (request.method.as_str(), route) {
         ("GET", "/api/ui/health") => {
-            write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+            write_json(stream, "200 OK", &state.ws_hub.readiness.snapshot(&state.read_model))?;
         }
         ("GET", "/api/ui/user-contexts") => {
             let snapshot = state.read_model.current_snapshot();
@@ -2324,3 +2381,6 @@ fn is_client_disconnect_error(err: &Error) -> bool {
             | ErrorKind::NotConnected
     )
 }
+
+#[cfg(test)]
+mod tests;

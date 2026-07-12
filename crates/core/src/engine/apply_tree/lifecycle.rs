@@ -110,10 +110,6 @@ impl<T: Node> Engine<T> {
                     self.apply_edits_internal(false, creation_context)?;
                 }
 
-                if creation_context.is_none() {
-                    break;
-                }
-
                 let precomputed = self.precompute_inbox_dispatch_since(event_cursor);
                 event_cursor = self.inbox.events.len();
 
@@ -124,7 +120,11 @@ impl<T: Node> Engine<T> {
                     continue;
                 }
 
-                self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
+                if creation_context.is_some() {
+                    self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
+                } else {
+                    self.materialize_declared_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
+                }
             }
 
             Ok(())

@@ -671,6 +671,14 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_sync_bound_param_handles(&mut self, _resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {}
 
+    /// Materializes only generated declared-child structure from structural inbox events.
+    ///
+    /// This engine hook is intentionally separate from [`Self::engine_preprocess_inbox`]
+    /// so persistence baselines can expand nested declarations without invoking parameter
+    /// callbacks, application inbox handlers, or runtime lifecycle hooks.
+    #[doc(hidden)]
+    fn engine_materialize_declared_inbox(&mut self, _ctx: &mut ProcessCtx) {}
+
     #[doc(hidden)]
     fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
         for event in &ctx.events {
@@ -1090,6 +1098,8 @@ pub trait ViaTarget {
 
     fn via_engine_sync_bound_param_handles(&mut self, _resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {}
 
+    fn via_engine_materialize_declared_inbox(&mut self, _ctx: &mut ProcessCtx) {}
+
     fn via_engine_preprocess_inbox(&mut self, _ctx: &mut ProcessCtx) {}
 
     fn via_script_host_policy(&self) -> Option<ScriptHostPolicy> {
@@ -1167,6 +1177,10 @@ impl<T: Node + ?Sized> ViaTarget for T {
 
     fn via_engine_sync_bound_param_handles(&mut self, resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {
         self.engine_sync_bound_param_handles(resolve);
+    }
+
+    fn via_engine_materialize_declared_inbox(&mut self, ctx: &mut ProcessCtx) {
+        self.engine_materialize_declared_inbox(ctx);
     }
 
     fn via_engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {

@@ -44,15 +44,15 @@ impl<T: Node> Engine<T> {
             });
         }
 
-        if let Some(sibling) = new_prev_sibling {
-            if sibling == node {
-                return Err(EngineEditError::InvalidSiblingReference {
-                    edit_index,
-                    operation: OP,
-                    node,
-                    sibling,
-                });
-            }
+        if let Some(sibling) = new_prev_sibling
+            && sibling == node
+        {
+            return Err(EngineEditError::InvalidSiblingReference {
+                edit_index,
+                operation: OP,
+                node,
+                sibling,
+            });
         }
 
         self.validate_item_roots_for_move(edit_index, OP, node, new_parent)?;

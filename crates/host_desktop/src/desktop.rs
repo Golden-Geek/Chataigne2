@@ -10,6 +10,8 @@ use tauri::window::Color;
 use tauri::{Manager, Runtime, Url, WebviewUrl};
 
 use crate::window_state::{WindowStatePersistence, restore_window_state, save_window_state};
+#[cfg(target_os = "windows")]
+use crate::windows_process_job::WindowsProcessJob;
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
 use golden_engine::engine::Engine;
 use golden_transport_server::{UiAsset, UiPreferencesConfig, UiServerConfig, run_with_ui_server_config};
@@ -51,8 +53,41 @@ pub struct FrontendDevServerConfig {
     pub url: &'static str,
 }
 
-struct DevFrontendProcess {
+pub(super) struct DevFrontendProcess {
     child: Child,
+    #[cfg(target_os = "windows")]
+    job: Option<WindowsProcessJob>,
+}
+
+impl DevFrontendProcess {
+    pub(super) fn spawn(command: &mut Command) -> std::io::Result<Self> {
+        #[cfg(target_os = "windows")]
+        {
+            let (child, job) = WindowsProcessJob::spawn(command)?;
+            Ok(Self { child, job: Some(job) })
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            command.spawn().map(|child| Self { child })
+        }
+    }
+
+    fn terminate(&mut self) {
+        #[cfg(target_os = "windows")]
+        {
+            // Closing a kill-on-close job terminates every descendant even when npm or a shell has
+            // reparented it. Waiting afterwards reaps the direct child handle.
+            drop(self.job.take());
+            let _ = self.child.wait();
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
 }
 
 /// Parses the current process arguments and launches the app through the default host runtime.
@@ -500,7 +535,7 @@ fn spawn_frontend_dev_server(
         command.stderr(Stdio::null());
     }
 
-    let mut child = command.spawn().map_err(|err| {
+    let process = DevFrontendProcess::spawn(&mut command).map_err(|err| {
         Error::new(
             err.kind(),
             format!(
@@ -513,9 +548,9 @@ fn spawn_frontend_dev_server(
     })?;
 
     match wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT) {
-        Ok(()) => Ok(Some(DevFrontendProcess { child })),
+        Ok(()) => Ok(Some(process)),
         Err(err) => {
-            terminate_child_process_tree(&mut child);
+            drop(process);
             Err(Error::new(
                 err.kind(),
                 format!("frontend dev server at {frontend_url} did not become ready: {err}"),
@@ -528,28 +563,9 @@ fn npm_command_name() -> &'static str {
     if cfg!(windows) { "npm.cmd" } else { "npm" }
 }
 
-fn terminate_child_process_tree(child: &mut Child) {
-    #[cfg(target_os = "windows")]
-    {
-        let _status = Command::new("taskkill")
-            .args(["/PID", &child.id().to_string(), "/T", "/F"])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-        let _ = child.wait();
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = child.kill();
-        let _ = child.wait();
-    }
-}
-
 impl Drop for DevFrontendProcess {
     fn drop(&mut self) {
-        terminate_child_process_tree(&mut self.child);
+        self.terminate();
     }
 }
 

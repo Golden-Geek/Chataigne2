@@ -100,12 +100,12 @@ struct NodeAttr {
 
 enum ScriptableAttr {
     Default,
-    Expr(Expr),
+    Expr(Box<Expr>),
 }
 
 enum ContextualizableAttr {
     Default,
-    Expr(Expr),
+    Expr(Box<Expr>),
 }
 
 impl Parse for NodeAttr {
@@ -150,7 +150,7 @@ impl Parse for NodeAttr {
                     }
                     if input.peek(Token![=]) {
                         input.parse::<Token![=]>()?;
-                        scriptable = Some(ScriptableAttr::Expr(input.parse::<Expr>()?));
+                        scriptable = Some(ScriptableAttr::Expr(Box::new(input.parse::<Expr>()?)));
                     } else {
                         scriptable = Some(ScriptableAttr::Default);
                     }
@@ -160,7 +160,7 @@ impl Parse for NodeAttr {
                     }
                     if input.peek(Token![=]) {
                         input.parse::<Token![=]>()?;
-                        contextualizable = Some(ContextualizableAttr::Expr(input.parse::<Expr>()?));
+                        contextualizable = Some(ContextualizableAttr::Expr(Box::new(input.parse::<Expr>()?)));
                     } else {
                         contextualizable = Some(ContextualizableAttr::Default);
                     }
@@ -207,6 +207,12 @@ struct ItemAttr {
     item_kind: Option<LitStr>,
     menu_path: Vec<LitStr>,
     node: NodeAttr,
+}
+
+struct NodeExpansion {
+    node: NodeAttr,
+    item_kind: Option<LitStr>,
+    item_menu_path: Vec<LitStr>,
 }
 
 impl Parse for ItemAttr {
@@ -278,7 +284,7 @@ impl Parse for ItemAttr {
                     }
                     if input.peek(Token![=]) {
                         input.parse::<Token![=]>()?;
-                        scriptable = Some(ScriptableAttr::Expr(input.parse::<Expr>()?));
+                        scriptable = Some(ScriptableAttr::Expr(Box::new(input.parse::<Expr>()?)));
                     } else {
                         scriptable = Some(ScriptableAttr::Default);
                     }
@@ -288,7 +294,7 @@ impl Parse for ItemAttr {
                     }
                     if input.peek(Token![=]) {
                         input.parse::<Token![=]>()?;
-                        contextualizable = Some(ContextualizableAttr::Expr(input.parse::<Expr>()?));
+                        contextualizable = Some(ContextualizableAttr::Expr(Box::new(input.parse::<Expr>()?)));
                     } else {
                         contextualizable = Some(ContextualizableAttr::Default);
                     }
@@ -657,9 +663,9 @@ struct ParamsDsl {
 }
 
 enum ParamsDslItem {
-    Folder(ParamsDslFolder),
-    Param(ParamsDslParam),
-    Node(ParamsDslNode),
+    Folder(Box<ParamsDslFolder>),
+    Param(Box<ParamsDslParam>),
+    Node(Box<ParamsDslNode>),
     BaseChildren,
 }
 
@@ -884,14 +890,14 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                 input.parse::<Token![;]>()?;
             }
 
-            items.push(ParamsDslItem::Folder(ParamsDslFolder {
+            items.push(ParamsDslItem::Folder(Box::new(ParamsDslFolder {
                 name: folder_name,
                 label: folder_label,
                 description: folder_description,
                 reuse: folder_reuse.unwrap_or(true),
                 meta: folder_meta,
                 items: nested,
-            }));
+            })));
             continue;
         }
 
@@ -908,12 +914,12 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
             let (default, options) = parse_node_tail(tail)?;
 
-            items.push(ParamsDslItem::Node(ParamsDslNode {
+            items.push(ParamsDslItem::Node(Box::new(ParamsDslNode {
                 field,
                 ty,
                 default,
                 options,
-            }));
+            })));
             continue;
         }
 
@@ -928,12 +934,12 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
         let (default, options) = parse_param_tail(tail)?;
 
-        items.push(ParamsDslItem::Param(ParamsDslParam {
+        items.push(ParamsDslItem::Param(Box::new(ParamsDslParam {
             field: ident,
             ty,
             default,
             options,
-        }));
+        })));
     }
 
     Ok(items)
@@ -1232,35 +1238,33 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
 fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDslParamOptions)> {
     let mut options = ParamsDslParamOptions::default();
 
-    if let Some(TokenTree::Group(group)) = tail.last() {
-        if group.delimiter() == Delimiter::Parenthesis {
-            if let Ok(parsed_options) = syn::parse2::<ParamsDslOptionsOnly>(group.stream()) {
-                options = parsed_options.0;
-                tail.pop();
-            }
-        }
+    if let Some(TokenTree::Group(group)) = tail.last()
+        && group.delimiter() == Delimiter::Parenthesis
+        && let Ok(parsed_options) = syn::parse2::<ParamsDslOptionsOnly>(group.stream())
+    {
+        options = parsed_options.0;
+        tail.pop();
     }
 
-    if let Some(TokenTree::Group(group)) = tail.last() {
-        if group.delimiter() == Delimiter::Bracket {
-            if let Some(range) = parse_param_range_group(group)? {
-                if range.min.is_some() && options.min.is_some() {
-                    return Err(Error::new(
-                        group.span(),
-                        "duplicate `min`; provided by both `[...]` and options",
-                    ));
-                }
-                if range.max.is_some() && options.max.is_some() {
-                    return Err(Error::new(
-                        group.span(),
-                        "duplicate `max`; provided by both `[...]` and options",
-                    ));
-                }
-                options.min = options.min.or(range.min);
-                options.max = options.max.or(range.max);
-                tail.pop();
-            }
+    if let Some(TokenTree::Group(group)) = tail.last()
+        && group.delimiter() == Delimiter::Bracket
+        && let Some(range) = parse_param_range_group(group)?
+    {
+        if range.min.is_some() && options.min.is_some() {
+            return Err(Error::new(
+                group.span(),
+                "duplicate `min`; provided by both `[...]` and options",
+            ));
         }
+        if range.max.is_some() && options.max.is_some() {
+            return Err(Error::new(
+                group.span(),
+                "duplicate `max`; provided by both `[...]` and options",
+            ));
+        }
+        options.min = options.min.or(range.min);
+        options.max = options.max.or(range.max);
+        tail.pop();
     }
 
     if tail.is_empty() {
@@ -1296,13 +1300,12 @@ fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDsl
 fn parse_node_tail(mut tail: Vec<TokenTree>) -> Result<(Expr, ParamsDslNodeOptions)> {
     let mut options = ParamsDslNodeOptions::default();
 
-    if let Some(TokenTree::Group(group)) = tail.last() {
-        if group.delimiter() == Delimiter::Parenthesis {
-            if let Ok(parsed_options) = syn::parse2::<ParamsDslNodeOptionsOnly>(group.stream()) {
-                options = parsed_options.0;
-                tail.pop();
-            }
-        }
+    if let Some(TokenTree::Group(group)) = tail.last()
+        && group.delimiter() == Delimiter::Parenthesis
+        && let Ok(parsed_options) = syn::parse2::<ParamsDslNodeOptionsOnly>(group.stream())
+    {
+        options = parsed_options.0;
+        tail.pop();
     }
 
     if tail.is_empty() {
@@ -1433,7 +1436,7 @@ fn parse_simple_enum_options_expr(expr: &Expr) -> Result<Option<SimpleEnumOption
             return Ok(None);
         };
 
-        let (variant_id, is_default) = parse_simple_enum_literal(&raw_lit)?;
+        let (variant_id, is_default) = parse_simple_enum_literal(raw_lit)?;
         let label = enum_label_from_variant_id(&variant_id);
         options.push(SimpleEnumOptionSpec {
             variant_id: LitStr::new(&variant_id, raw_lit.span()),
@@ -1477,7 +1480,7 @@ fn parse_simple_enum_literal(raw_lit: &LitStr) -> Result<(String, bool)> {
 
 fn enum_label_from_variant_id(variant_id: &str) -> String {
     let mut words = Vec::<String>::new();
-    for chunk in variant_id.split(|c| c == '_' || c == '-' || c == ' ') {
+    for chunk in variant_id.split(['_', '-', ' ']) {
         let chunk = chunk.trim();
         if chunk.is_empty() {
             continue;
@@ -1590,10 +1593,10 @@ fn infer_enum_default_variant_from_expr(expr: &Expr) -> Option<String> {
     match expr {
         Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) => Some(lit.value()),
         Expr::MethodCall(ExprMethodCall { receiver, method, .. }) => {
-            if method == "to_string" {
-                if let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = &**receiver {
-                    return Some(lit.value());
-                }
+            if method == "to_string"
+                && let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = &**receiver
+            {
+                return Some(lit.value());
             }
             None
         }
@@ -1653,7 +1656,7 @@ enum ParamConstraintPolicySpec {
 #[derive(Clone)]
 enum ParamCallbackSpec {
     Default,
-    Custom(Expr),
+    Custom(Box<Expr>),
 }
 
 struct ParamsParamSpec {
@@ -1796,7 +1799,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                         ));
                     }
                     (true, None) => Some(ParamCallbackSpec::Default),
-                    (false, Some(expr)) => Some(ParamCallbackSpec::Custom(expr)),
+                    (false, Some(expr)) => Some(ParamCallbackSpec::Custom(Box::new(expr))),
                     (false, None) => None,
                 };
 
@@ -1831,31 +1834,28 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                             }
                         }
 
-                        if let Some(override_variant) = &enum_default_override {
-                            if !seen_variants.contains(override_variant) {
-                                return Err(Error::new(
-                                    param
-                                        .options
-                                        .enum_default
-                                        .as_ref()
-                                        .expect("enum_default present")
-                                        .span(),
-                                    format!("`enum_default = \"{override_variant}\"` is not present in enum_options"),
-                                ));
-                            }
+                        if let Some(override_variant) = &enum_default_override
+                            && !seen_variants.contains(override_variant)
+                        {
+                            return Err(Error::new(
+                                param
+                                    .options
+                                    .enum_default
+                                    .as_ref()
+                                    .expect("enum_default present")
+                                    .span(),
+                                format!("`enum_default = \"{override_variant}\"` is not present in enum_options"),
+                            ));
                         }
 
-                        if let Some(default_expr) = param.default.as_ref() {
-                            if let Some(default_variant) = infer_enum_default_variant_from_expr(default_expr) {
-                                if !seen_variants.contains(&default_variant) {
-                                    return Err(Error::new(
-                                        default_expr.span(),
-                                        format!(
-                                            "default enum value `{default_variant}` is not present in enum_options"
-                                        ),
-                                    ));
-                                }
-                            }
+                        if let Some(default_expr) = param.default.as_ref()
+                            && let Some(default_variant) = infer_enum_default_variant_from_expr(default_expr)
+                            && !seen_variants.contains(&default_variant)
+                        {
+                            return Err(Error::new(
+                                default_expr.span(),
+                                format!("default enum value `{default_variant}` is not present in enum_options"),
+                            ));
                         }
 
                         if param.default.is_some() && enum_default_override.is_some() {
@@ -2062,47 +2062,17 @@ fn build_presentation_assignment_tokens(
 
 #[proc_macro_attribute]
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let NodeAttr {
-        type_name,
-        ctor_meta_fields,
-        presentation_fields,
-        via,
-        impl_node,
-        from_struct,
-        scriptable,
-        contextualizable,
-    } = parse_macro_input!(attr as NodeAttr);
+    let node = parse_macro_input!(attr as NodeAttr);
     let input = parse_macro_input!(item as Item);
+    let expansion = NodeExpansion {
+        node,
+        item_kind: None,
+        item_menu_path: Vec::new(),
+    };
 
     match input {
-        Item::Struct(input) => expand_struct(
-            type_name,
-            ctor_meta_fields,
-            presentation_fields,
-            via,
-            impl_node,
-            from_struct,
-            scriptable,
-            contextualizable,
-            None,
-            Vec::new(),
-            input,
-        )
-        .into(),
-        Item::Impl(input) => expand_impl(
-            type_name,
-            ctor_meta_fields,
-            presentation_fields,
-            via,
-            impl_node,
-            from_struct,
-            scriptable,
-            contextualizable,
-            None,
-            Vec::new(),
-            input,
-        )
-        .into(),
+        Item::Struct(input) => expand_struct(expansion, input).into(),
+        Item::Impl(input) => expand_impl(expansion, input).into(),
         other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks")
             .to_compile_error()
             .into(),
@@ -2114,17 +2084,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ItemAttr {
         item_kind,
         menu_path,
-        node:
-            NodeAttr {
-                type_name,
-                ctor_meta_fields,
-                presentation_fields,
-                via,
-                impl_node,
-                from_struct,
-                scriptable,
-                contextualizable,
-            },
+        node,
     } = parse_macro_input!(attr as ItemAttr);
     let input = parse_macro_input!(item as Item);
 
@@ -2138,35 +2098,15 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
         _ => unreachable!(),
     };
 
+    let expansion = NodeExpansion {
+        node,
+        item_kind: Some(resolved_item_kind),
+        item_menu_path: menu_path,
+    };
+
     match input {
-        Item::Struct(input) => expand_struct(
-            type_name,
-            ctor_meta_fields,
-            presentation_fields,
-            via,
-            impl_node,
-            from_struct,
-            scriptable,
-            contextualizable,
-            Some(resolved_item_kind),
-            menu_path.clone(),
-            input,
-        )
-        .into(),
-        Item::Impl(input) => expand_impl(
-            type_name,
-            ctor_meta_fields,
-            presentation_fields,
-            via,
-            impl_node,
-            from_struct,
-            scriptable,
-            contextualizable,
-            Some(resolved_item_kind),
-            menu_path,
-            input,
-        )
-        .into(),
+        Item::Struct(input) => expand_struct(expansion, input).into(),
+        Item::Impl(input) => expand_impl(expansion, input).into(),
         other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks")
             .to_compile_error()
             .into(),
@@ -2231,19 +2171,22 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn expand_struct(
-    type_name: Option<LitStr>,
-    ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
-    ctor_presentation_fields: PresentationMetaFields,
-    via: Option<DelegatePath>,
-    impl_node: bool,
-    from_struct: bool,
-    scriptable: Option<ScriptableAttr>,
-    contextualizable: Option<ContextualizableAttr>,
-    item_kind: Option<LitStr>,
-    item_menu_path: Vec<LitStr>,
-    mut input: ItemStruct,
-) -> proc_macro2::TokenStream {
+fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2::TokenStream {
+    let NodeExpansion {
+        node:
+            NodeAttr {
+                type_name,
+                ctor_meta_fields,
+                presentation_fields: ctor_presentation_fields,
+                via,
+                impl_node,
+                from_struct,
+                scriptable,
+                contextualizable,
+            },
+        item_kind,
+        item_menu_path,
+    } = expansion;
     if via.is_some() {
         return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks")
             .to_compile_error();
@@ -2339,8 +2282,7 @@ fn expand_struct(
         Fields::Named(named) => &mut named.named,
         _ => {
             return Error::new_spanned(input, "#[node(\"...\")] supports only structs with named fields")
-                .to_compile_error()
-                .into();
+                .to_compile_error();
         }
     };
 
@@ -2532,7 +2474,8 @@ fn expand_struct(
             let callback = if args.default_callback {
                 Some(ParamCallbackSpec::Default)
             } else {
-                args.callback.map(ParamCallbackSpec::Custom)
+                args.callback
+                    .map(|callback| ParamCallbackSpec::Custom(Box::new(callback)))
             };
             let create_param_node = quote! {
                 {
@@ -3039,6 +2982,17 @@ fn expand_struct(
         .iter()
         .map(|(ident, ty)| quote!(#ident: #ty))
         .collect::<Vec<_>>();
+    // Plain node fields define the public constructor contract. Replacing a high-arity `new`
+    // with a generated config type would break that contract while adding a public type solely
+    // to satisfy a style lint, so exempt only constructors whose generated arity exceeds it.
+    let generated_constructor_arity_exemption = (ctor_fields.len() > 7).then(|| {
+        quote! {
+            #[allow(
+                clippy::too_many_arguments,
+                reason = "the node constructor mirrors its macro-declared fields and is generated code"
+            )]
+        }
+    });
     let generated_default_label = match ctor_meta_fields.get("label") {
         Some((_, expr)) => quote! { (#expr).into() },
         None => quote! { ::std::string::String::from(Self::DEFAULT_LABEL) },
@@ -3256,6 +3210,13 @@ fn expand_struct(
                     self.__golden_node_engine_sync_bound_param_handles(resolve);
                 }
 
+                fn engine_materialize_declared_inbox(
+                    &mut self,
+                    ctx: &mut golden_core::process_ctx::ProcessCtx,
+                ) {
+                    self.__golden_node_engine_materialize_declared_inbox(ctx, self.node_data.id);
+                }
+
                 fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
                     self.__golden_node_engine_preprocess_inbox(ctx, self.node_data.id);
                 }
@@ -3289,6 +3250,7 @@ fn expand_struct(
             }
 
             /// Creates a new node instance with its declared default label, handles, and state.
+            #generated_constructor_arity_exemption
             pub fn new(#(#ctor_args),*) -> Self {
                 let mut node_data = golden_core::node::NodeData::new(Self::default_label());
                 #(#ctor_meta_inits)*
@@ -3370,6 +3332,57 @@ fn expand_struct(
             }
 
             #[doc(hidden)]
+            pub fn __golden_node_engine_materialize_declared_inbox(
+                &mut self,
+                ctx: &mut golden_core::process_ctx::ProcessCtx,
+                owner_id: golden_core::node::NodeId,
+            ) {
+                self.__golden_node_engine_materialize_declared_inbox_with_base_children(
+                    ctx,
+                    owner_id,
+                    |_, _| {},
+                );
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_engine_materialize_declared_inbox_with_base_children<F>(
+                &mut self,
+                ctx: &mut golden_core::process_ctx::ProcessCtx,
+                owner_id: golden_core::node::NodeId,
+                mut __golden_base_children: F,
+            )
+            where
+                F: FnMut(&mut Self, &mut golden_core::process_ctx::ProcessCtx),
+            {
+                let __golden_node_owner_id = owner_id;
+                let mut __golden_base_children_inserted = false;
+                let __golden_events = ctx.events.clone();
+                for event in &__golden_events {
+                    match &event.kind {
+                        golden_core::events::EventKind::ChildAdded { parent, child, decl_id } => {
+                            let parent = *parent;
+                            let child = *child;
+                            let decl_id = decl_id.clone();
+                            #(#child_added_decl_statements)*
+                        }
+                        golden_core::events::EventKind::ChildReplaced { parent, old, new, decl_id } => {
+                            let parent = *parent;
+                            let old = *old;
+                            let new = *new;
+                            let decl_id = decl_id.clone();
+                            #(#child_replaced_decl_statements)*
+                        }
+                        _ => {}
+                    }
+                }
+                if !__golden_base_children_inserted {
+                    __golden_base_children(self, ctx);
+                }
+                #(#param_dependency_reconcile_statements)*
+                #(#param_order_reconcile_statements)*
+            }
+
+            #[doc(hidden)]
             pub fn __golden_node_engine_preprocess_inbox(
                 &mut self,
                 ctx: &mut golden_core::process_ctx::ProcessCtx,
@@ -3435,19 +3448,22 @@ fn expand_struct(
     }
 }
 
-fn expand_impl(
-    type_name: Option<LitStr>,
-    ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
-    _presentation_fields: PresentationMetaFields,
-    via: Option<DelegatePath>,
-    impl_node: bool,
-    from_struct: bool,
-    scriptable: Option<ScriptableAttr>,
-    contextualizable: Option<ContextualizableAttr>,
-    item_kind: Option<LitStr>,
-    item_menu_path: Vec<LitStr>,
-    mut input: ItemImpl,
-) -> proc_macro2::TokenStream {
+fn expand_impl(expansion: NodeExpansion, mut input: ItemImpl) -> proc_macro2::TokenStream {
+    let NodeExpansion {
+        node:
+            NodeAttr {
+                type_name,
+                ctor_meta_fields,
+                presentation_fields: _,
+                via,
+                impl_node,
+                from_struct,
+                scriptable,
+                contextualizable,
+            },
+        item_kind,
+        item_menu_path,
+    } = expansion;
     if impl_node {
         return Error::new_spanned(input, "`impl_node` is only supported on struct declarations").to_compile_error();
     }
@@ -3659,62 +3675,64 @@ fn expand_impl(
 
     let has_user_item_factory_macro = has_define_user_item_factory_methods_macro(&input);
 
-    if !has_user_item_factory_macro && !has_method(&input, "user_container_rules") {
-        if let Some(path) = via.as_ref() {
-            let segments = &path.segments;
-            input.items.push(parse_quote! {
-                fn user_container_rules(&self) -> Option<golden_core::node::UserContainerRules> {
-                    golden_core::node::ViaTarget::via_user_container_rules(&self.#(#segments).*)
-                }
-            });
-        }
+    if !has_user_item_factory_macro
+        && !has_method(&input, "user_container_rules")
+        && let Some(path) = via.as_ref()
+    {
+        let segments = &path.segments;
+        input.items.push(parse_quote! {
+            fn user_container_rules(&self) -> Option<golden_core::node::UserContainerRules> {
+                golden_core::node::ViaTarget::via_user_container_rules(&self.#(#segments).*)
+            }
+        });
     }
 
-    if !has_user_item_factory_macro && !has_method(&input, "user_container_accepts_item") {
-        if let Some(path) = via.as_ref() {
-            let segments = &path.segments;
-            input.items.push(parse_quote! {
-                fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-                    golden_core::node::ViaTarget::via_user_container_accepts_item(
-                        &self.#(#segments).*,
-                        item_type,
-                        item_kind,
-                    )
-                }
-            });
-        }
+    if !has_user_item_factory_macro
+        && !has_method(&input, "user_container_accepts_item")
+        && let Some(path) = via.as_ref()
+    {
+        let segments = &path.segments;
+        input.items.push(parse_quote! {
+            fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+                golden_core::node::ViaTarget::via_user_container_accepts_item(
+                    &self.#(#segments).*,
+                    item_type,
+                    item_kind,
+                )
+            }
+        });
     }
 
-    if !has_user_item_factory_macro && !has_method(&input, "user_creatable_items") {
-        if let Some(path) = via.as_ref() {
-            let segments = &path.segments;
-            input.items.push(parse_quote! {
-                fn user_creatable_items(&self) -> Vec<golden_core::node::UserCreatableItem> {
-                    golden_core::node::ViaTarget::via_user_creatable_items(&self.#(#segments).*)
-                }
-            });
-        }
+    if !has_user_item_factory_macro
+        && !has_method(&input, "user_creatable_items")
+        && let Some(path) = via.as_ref()
+    {
+        let segments = &path.segments;
+        input.items.push(parse_quote! {
+            fn user_creatable_items(&self) -> Vec<golden_core::node::UserCreatableItem> {
+                golden_core::node::ViaTarget::via_user_creatable_items(&self.#(#segments).*)
+            }
+        });
     }
 
-    if !has_user_item_factory_macro && !has_method(&input, "create_user_item") {
-        if let Some(path) = via.as_ref() {
-            let segments = &path.segments;
-            input.items.push(parse_quote! {
-                fn create_user_item(&self, node_type: &str) -> Option<Box<dyn golden_core::node::Node>> {
-                    golden_core::node::ViaTarget::via_create_user_item_for_host(
-                        &self.#(#segments).*,
-                        #resolved_type_name,
-                        node_type,
-                    )
-                }
-            });
-        }
+    if !has_user_item_factory_macro
+        && !has_method(&input, "create_user_item")
+        && let Some(path) = via.as_ref()
+    {
+        let segments = &path.segments;
+        input.items.push(parse_quote! {
+            fn create_user_item(&self, node_type: &str) -> Option<Box<dyn golden_core::node::Node>> {
+                golden_core::node::ViaTarget::via_create_user_item_for_host(
+                    &self.#(#segments).*,
+                    #resolved_type_name,
+                    node_type,
+                )
+            }
+        });
     }
 
-    if from_struct {
-        if let Err(err) = append_struct_methods_from_helpers(&mut input, via.as_ref()) {
-            return err.to_compile_error();
-        }
+    if from_struct && let Err(err) = append_struct_methods_from_helpers(&mut input, via.as_ref()) {
+        return err.to_compile_error();
     }
 
     let generated_item_menu_path = build_item_menu_path_tokens(&item_menu_path);
@@ -3754,6 +3772,7 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
         "engine_sync_param_handle_cache",
         "engine_on_attached",
         "engine_sync_bound_param_handles",
+        "engine_materialize_declared_inbox",
         "engine_preprocess_inbox",
     ] {
         if has_method(input, method_name) {
@@ -3844,6 +3863,34 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
         }
     };
 
+    let engine_materialize_declared_inbox_body = if let Some(path) = via {
+        let segments = &path.segments;
+        quote! {
+            if Self::__GOLDEN_NODE_HAS_NESTED_BASE_CHILDREN_PLACEHOLDER {
+                self.__golden_node_engine_materialize_declared_inbox_with_base_children(
+                    ctx,
+                    owner_id,
+                    |__golden_this, __golden_ctx| {
+                        golden_core::node::ViaTarget::via_engine_materialize_declared_inbox(
+                            &mut __golden_this.#(#segments).*,
+                            __golden_ctx,
+                        );
+                    },
+                );
+            } else {
+                golden_core::node::ViaTarget::via_engine_materialize_declared_inbox(
+                    &mut self.#(#segments).*,
+                    ctx,
+                );
+                self.__golden_node_engine_materialize_declared_inbox(ctx, owner_id);
+            }
+        }
+    } else {
+        quote! {
+            self.__golden_node_engine_materialize_declared_inbox(ctx, owner_id);
+        }
+    };
+
     input.items.push(parse_quote! {
         fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
             let mut __golden_depth = self.__golden_node_engine_child_event_interest_depth(event);
@@ -3877,6 +3924,16 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
         ) {
             self.__golden_node_engine_sync_bound_param_handles(resolve);
             #via_sync_bound_param_handles
+        }
+    });
+
+    input.items.push(parse_quote! {
+        fn engine_materialize_declared_inbox(
+            &mut self,
+            ctx: &mut golden_core::process_ctx::ProcessCtx,
+        ) {
+            let owner_id = golden_core::node::Node::id(self);
+            #engine_materialize_declared_inbox_body
         }
     });
 
@@ -4704,69 +4761,63 @@ fn build_range_constraint_assignment(
         );
     }
 
-    if let Some(arity) = vector_arity {
-        if has_component_shape {
-            if min_expr.is_some() && min_components.is_none() {
-                return Some(
-                    Error::new_spanned(
-                        min_expr.expect("min expression should exist"),
-                        format!("mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"),
-                    )
-                    .to_compile_error(),
-                );
-            }
-
-            if max_expr.is_some() && max_components.is_none() {
-                return Some(
-                    Error::new_spanned(
-                        max_expr.expect("max expression should exist"),
-                        format!("mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"),
-                    )
-                    .to_compile_error(),
-                );
-            }
-
-            if let Some(values) = min_components.as_ref() {
-                if values.len() != arity {
-                    return Some(
-                        Error::new_spanned(
-                            min_expr.expect("min expression should exist"),
-                            format!("expected {arity} values for Vec{arity} min bound"),
-                        )
-                        .to_compile_error(),
-                    );
-                }
-            }
-
-            if let Some(values) = &max_components {
-                if values.len() != arity {
-                    return Some(
-                        Error::new_spanned(
-                            max_expr.expect("max expression should exist"),
-                            format!("expected {arity} values for Vec{arity} max bound"),
-                        )
-                        .to_compile_error(),
-                    );
-                }
-            }
-
-            let min_tokens = if let Some(values) = min_components {
-                quote! { Some(vec![#((#values) as f64),*]) }
-            } else {
-                quote! { None }
-            };
-
-            let max_tokens = if let Some(values) = max_components {
-                quote! { Some(vec![#((#values) as f64),*]) }
-            } else {
-                quote! { None }
-            };
-
-            return Some(quote! {
-                __param_node.constraints.range =
-                    golden_core::parameter::RangeConstraint::components(#min_tokens, #max_tokens);
-            });
+    if let Some(arity) = vector_arity
+        && has_component_shape
+    {
+        if let Some(source_expr) = min_expr.filter(|_| min_components.is_none()) {
+            return Some(
+                Error::new_spanned(
+                    source_expr,
+                    format!("mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"),
+                )
+                .to_compile_error(),
+            );
         }
+
+        if let Some(source_expr) = max_expr.filter(|_| max_components.is_none()) {
+            return Some(
+                Error::new_spanned(
+                    source_expr,
+                    format!("mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"),
+                )
+                .to_compile_error(),
+            );
+        }
+
+        if let (Some(values), Some(source_expr)) = (min_components.as_ref(), min_expr)
+            && values.len() != arity
+        {
+            return Some(
+                Error::new_spanned(source_expr, format!("expected {arity} values for Vec{arity} min bound"))
+                    .to_compile_error(),
+            );
+        }
+
+        if let (Some(values), Some(source_expr)) = (max_components.as_ref(), max_expr)
+            && values.len() != arity
+        {
+            return Some(
+                Error::new_spanned(source_expr, format!("expected {arity} values for Vec{arity} max bound"))
+                    .to_compile_error(),
+            );
+        }
+
+        let min_tokens = if let Some(values) = min_components {
+            quote! { Some(vec![#((#values) as f64),*]) }
+        } else {
+            quote! { None }
+        };
+
+        let max_tokens = if let Some(values) = max_components {
+            quote! { Some(vec![#((#values) as f64),*]) }
+        } else {
+            quote! { None }
+        };
+
+        return Some(quote! {
+            __param_node.constraints.range =
+                golden_core::parameter::RangeConstraint::components(#min_tokens, #max_tokens);
+        });
     }
 
     let min_tokens = if let Some(expr) = min_expr {
