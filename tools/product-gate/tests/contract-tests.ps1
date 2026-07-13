@@ -47,6 +47,10 @@ if ($uiBuildIndex -lt 0 -or $rustBuildIndex -lt 0 -or $uiBuildIndex -gt $rustBui
 if ($gateSource -notmatch '-Id "rust\.build"(?s:.*?)-DependsOn @\("toolchain\.contract", "ui\.build"\)') {
     throw "The Rust workspace build must depend on the final UI bundle."
 }
+$assumeBuiltIndex = $gateSource.IndexOf('$env:GC_UI_ASSUME_BUILT = "1"')
+if ($assumeBuiltIndex -lt $uiBuildIndex -or $assumeBuiltIndex -gt $rustBuildIndex) {
+    throw "Cargo checks must consume the validated UI bundle without rebuilding it."
+}
 $clippyIndex = $gateSource.IndexOf('-Id "rust.clippy"')
 $testIndex = $gateSource.IndexOf('-Id "rust.test"')
 $runtimeBuildIndex = $gateSource.IndexOf('-Id "rust.runtime_build"')
@@ -61,9 +65,27 @@ if ($gateSource -notmatch '-Id "smoke\.cargo_run"(?s:.*?)-DependsOn @\("rust\.ru
     throw "The root cargo-run smoke must consume the final runtime build."
 }
 
+$appBuildSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "apps/chataigne/build.rs"))
+if ($appBuildSource -notmatch 'if env_flag\(GC_UI_ASSUME_BUILT\)(?s:.*?)emit_rerun_if_changed_for_dir\(&paths\.ui_root\.join\("build"\)\)') {
+    throw "Assume-built Cargo runs must watch the validated UI artifact instead of live source caches."
+}
+
 $smokeCommonSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/smoke-common.ps1"))
 if ($smokeCommonSource -notmatch '& /bin/kill -TERM \$processId') {
     throw "The root smoke workflow must request graceful SIGTERM shutdown on non-Windows hosts."
+}
+
+$cargoRunSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/cargo-run-smoke.ps1"))
+if ($cargoRunSmokeSource -notmatch '"--automation-shutdown-file"' -or
+    $cargoRunSmokeSource -notmatch '-ShutdownFile \$shutdownPath' -or
+    $smokeCommonSource -notmatch '\[System\.IO\.File\]::WriteAllText\(\$ShutdownFile, "stop"\)') {
+    throw "The cargo-run smoke must stop the desktop runtime through its deterministic shutdown contract."
+}
+
+$desktopHostSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "crates/host_desktop/src/desktop.rs"))
+if ($desktopHostSource -notmatch '"--automation-shutdown-file"' -or
+    $desktopHostSource -notmatch 'app_handle\.exit\(0\)') {
+    throw "The reusable desktop runtime must expose the automation shutdown contract."
 }
 
 $watchSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/watch-smoke.ps1"))
@@ -71,6 +93,10 @@ $probeIndex = $watchSmokeSource.IndexOf("Invoke-StrictUiReadinessProbe")
 $readyIndex = $watchSmokeSource.IndexOf("`$ready = Wait-ForWatchReady")
 if ($probeIndex -lt 0 -or $readyIndex -lt 0 -or $probeIndex -gt $readyIndex) {
     throw "The watch smoke must establish a subscribed browser session before awaiting watch.ready."
+}
+if ($watchSmokeSource -notmatch '"--shutdown-file"' -or
+    $watchSmokeSource -notmatch '\[System\.IO\.File\]::WriteAllText\(\$shutdownPath, "stop"\)') {
+    throw "The watch smoke must stop the supervisor through its deterministic shutdown contract."
 }
 
 $testRoot = Join-Path $repositoryRoot "target/product-gate/contract-tests"

@@ -56,14 +56,18 @@ $timeoutSeconds = Get-SmokeTimeoutSeconds
 $standardOutputPath = Join-Path $runDirectory "watch-smoke.stdout.log"
 $standardErrorPath = Join-Path $runDirectory "watch-smoke.stderr.log"
 $screenshotPath = Join-Path $runDirectory "watch-smoke.ready.png"
+$shutdownPath = Join-Path $runDirectory "watch-smoke.shutdown"
 $cargo = Get-CommandSource -Name "cargo"
 $ports = @(5173, 7010)
 
 Assert-LoopbackPortsAvailable -Ports $ports
+if (Test-Path -LiteralPath $shutdownPath) {
+    Remove-Item -LiteralPath $shutdownPath -Force
+}
 
 $startParameters = @{
     FilePath               = $cargo
-    ArgumentList           = @("xtask", "watch")
+    ArgumentList           = @("xtask", "watch", "--shutdown-file", $shutdownPath)
     WorkingDirectory       = $repositoryRoot
     RedirectStandardOutput = $standardOutputPath
     RedirectStandardError  = $standardErrorPath
@@ -100,7 +104,7 @@ try {
         -Deadline $readinessDeadline
 
     $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
-    Request-GracefulProductShutdown -RootProcessId $process.Id
+    [System.IO.File]::WriteAllText($shutdownPath, "stop")
     Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 90
     Wait-ForPortsReleased -Ports $ports -TimeoutSeconds 10
 
@@ -127,7 +131,7 @@ finally {
                 @(Get-OwnedProcessIds -RootProcessId $process.Id) |
                     Sort-Object -Unique
             )
-            Request-GracefulProductShutdown -RootProcessId $process.Id
+            [System.IO.File]::WriteAllText($shutdownPath, "stop")
             Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 5
         }
         catch {

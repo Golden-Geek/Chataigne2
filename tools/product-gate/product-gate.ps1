@@ -758,6 +758,10 @@ Invoke-GateCommand `
     -WorkingDirectory $uiDirectory `
     -DependsOn @("ui.dependencies_ready") | Out-Null
 
+# Every Cargo invocation below consumes the same validated bundle. Keeping this
+# environment stable also prevents dev-server cache writes from invalidating Rust artifacts.
+$env:GC_UI_ASSUME_BUILT = "1"
+
 Invoke-GateCommand `
     -Id "rust.build" `
     -Name "Rust workspace build" `

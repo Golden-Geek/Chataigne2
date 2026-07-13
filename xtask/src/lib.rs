@@ -4,6 +4,9 @@ mod process;
 pub mod readiness;
 mod watch;
 
+#[cfg(test)]
+mod watch_tests;
+
 pub use cli::{ParseOutcome, WatchConfig, usage};
 
 pub fn run<I, S>(args: I) -> Result<u8, String>

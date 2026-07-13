@@ -20,7 +20,7 @@ const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
 const WINDOW_CLOSE_REQUESTED_SCRIPT: &str = "window.dispatchEvent(new CustomEvent('gc-window-close-requested'));";
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 /// Launch flags understood by the default desktop and headless runtime.
 pub struct LaunchArgs {
     /// Runs the built-in UI server without launching the Tauri window.
@@ -33,6 +33,8 @@ pub struct LaunchArgs {
     pub show_output: bool,
     /// Forces the built-in UI server to bind to loopback only.
     pub no_remote: bool,
+    /// Stops the desktop runtime cleanly when this automation sentinel appears.
+    pub automation_shutdown_file: Option<PathBuf>,
     /// Prints default launch usage instead of starting the app.
     pub show_help: bool,
 }
@@ -146,19 +148,26 @@ where
 {
     let mut parsed = LaunchArgs::default();
 
-    for arg in args {
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
         match arg.as_ref() {
             "--headless" => parsed.headless = true,
             "--dev" => parsed.dev = true,
             "--no-frontend" => parsed.no_frontend = true,
             "--show-output" => parsed.show_output = true,
             "--no-remote" => parsed.no_remote = true,
+            "--automation-shutdown-file" => {
+                let path = args
+                    .next()
+                    .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "--automation-shutdown-file requires a path"))?;
+                parsed.automation_shutdown_file = Some(PathBuf::from(path.as_ref()));
+            }
             "--help" | "-h" => parsed.show_help = true,
             other => {
                 return Err(Error::new(
                     ErrorKind::InvalidInput,
                     format!(
-                        "unknown argument '{other}'. supported flags: --headless, --dev, --no-frontend, --show-output, --no-remote, --help"
+                        "unknown argument '{other}'. supported flags: --headless, --dev, --no-frontend, --show-output, --no-remote, --automation-shutdown-file PATH, --help"
                     ),
                 ));
             }
@@ -246,6 +255,21 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    if let Some(path) = args.automation_shutdown_file.as_ref()
+        && path.exists()
+    {
+        return Err(Error::new(
+            ErrorKind::AlreadyExists,
+            format!("automation shutdown file already exists: {}", path.display()),
+        ));
+    }
+    if args.headless && args.automation_shutdown_file.is_some() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "--automation-shutdown-file is supported only by the desktop runtime",
+        ));
+    }
+
     let mut config = UiServerConfig::default();
     let app_data_dir = default_app_data_dir::<T>()?;
     config.preferences = Some(UiPreferencesConfig {
@@ -323,7 +347,12 @@ where
         }
     }
 
-    let run_result = run_tauri(&frontend_url, tauri_context, app_data_dir.join("window-state.json"));
+    let run_result = run_tauri(
+        &frontend_url,
+        tauri_context,
+        app_data_dir.join("window-state.json"),
+        args.automation_shutdown_file,
+    );
     drop(dev_server_process);
     run_result
 }
@@ -347,12 +376,15 @@ fn print_usage() {
         .and_then(|name| name.to_str())
         .unwrap_or("app");
 
-    println!("Usage: {program_name} [--headless] [--dev] [--no-frontend] [--show-output] [--no-remote]");
+    println!(
+        "Usage: {program_name} [--headless] [--dev] [--no-frontend] [--show-output] [--no-remote] [--automation-shutdown-file PATH]"
+    );
     println!("  --headless   Run without launching the Tauri desktop window.");
     println!("  --dev   Launch against the frontend dev server instead of bundled UI assets.");
     println!("  --no-frontend  Launch Tauri against an external frontend instead of the bundled UI.");
     println!("  --show-output  Attach or create a console window for stdout/stderr logs.");
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
+    println!("  --automation-shutdown-file PATH  Stop cleanly when PATH appears (automation).");
 }
 
 #[cfg(target_os = "windows")]
@@ -585,6 +617,7 @@ fn run_tauri<R: Runtime>(
     ui_base_url: &str,
     tauri_context: tauri::Context<R>,
     window_state_path: PathBuf,
+    automation_shutdown_file: Option<PathBuf>,
 ) -> std::io::Result<()> {
     let external_url: Url = ui_base_url.parse().map_err(|err| {
         Error::new(
@@ -673,6 +706,31 @@ fn run_tauri<R: Runtime>(
                 .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
 
             restore_window_state(&window, &window_state);
+
+            if let Some(path) = automation_shutdown_file {
+                let app_handle = app.handle().clone();
+                thread::spawn(move || {
+                    loop {
+                        match std::fs::metadata(&path) {
+                            Ok(_) => {
+                                eprintln!("automation shutdown requested by sentinel {}", path.display());
+                                app_handle.exit(0);
+                                break;
+                            }
+                            Err(err) if err.kind() == ErrorKind::NotFound => {
+                                thread::sleep(Duration::from_millis(100));
+                            }
+                            Err(err) => {
+                                eprintln!(
+                                    "warning: automation shutdown sentinel {} cannot be observed: {err}",
+                                    path.display()
+                                );
+                                break;
+                            }
+                        }
+                    }
+                });
+            }
 
             Ok(())
         })

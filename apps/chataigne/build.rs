@@ -75,7 +75,11 @@ fn emit_rerun_tracking(paths: &BuildPaths) -> std::io::Result<()> {
     println!("cargo:rerun-if-env-changed={GC_UI_ASSUME_BUILT}");
     println!("cargo:rerun-if-env-changed={LEAPSDK_LIB_PATH}");
 
-    track_ui_inputs(&paths.ui_root, &paths.package_lock)?;
+    if env_flag(GC_UI_ASSUME_BUILT) {
+        emit_rerun_if_changed_for_dir(&paths.ui_root.join("build"))?;
+    } else if !env_flag(GC_SKIP_UI_BUILD) {
+        track_ui_inputs(&paths.ui_root, &paths.package_lock)?;
+    }
     Ok(())
 }
 

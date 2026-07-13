@@ -324,7 +324,8 @@ function Invoke-RootCommandSmoke {
         [string]$Id,
         [string[]]$CargoArguments,
         [string]$FrontendUri,
-        [int[]]$Ports
+        [int[]]$Ports,
+        [string]$ShutdownFile = ""
     )
 
     $repositoryRoot = Get-ProductGateRepositoryRoot
@@ -337,6 +338,9 @@ function Invoke-RootCommandSmoke {
     Get-CommandSource -Name "node" | Out-Null
 
     Assert-LoopbackPortsAvailable -Ports $Ports
+    if (-not [string]::IsNullOrWhiteSpace($ShutdownFile) -and (Test-Path -LiteralPath $ShutdownFile)) {
+        Remove-Item -LiteralPath $ShutdownFile -Force
+    }
 
     $previousBind = $env:GC_UI_BIND
     $env:GC_UI_BIND = "127.0.0.1:7010"
@@ -367,7 +371,12 @@ function Invoke-RootCommandSmoke {
             -TimeoutSeconds ([Math]::Min($timeoutSeconds, 90))
 
         $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
-        Request-GracefulProductShutdown -RootProcessId $process.Id
+        if ([string]::IsNullOrWhiteSpace($ShutdownFile)) {
+            Request-GracefulProductShutdown -RootProcessId $process.Id
+        }
+        else {
+            [System.IO.File]::WriteAllText($ShutdownFile, "stop")
+        }
         Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 20
         Wait-ForPortsReleased -Ports $Ports -TimeoutSeconds 10
 
@@ -396,7 +405,12 @@ function Invoke-RootCommandSmoke {
                     @(Get-OwnedProcessIds -RootProcessId $process.Id) |
                         Sort-Object -Unique
                 )
-                Request-GracefulProductShutdown -RootProcessId $process.Id
+                if ([string]::IsNullOrWhiteSpace($ShutdownFile)) {
+                    Request-GracefulProductShutdown -RootProcessId $process.Id
+                }
+                else {
+                    [System.IO.File]::WriteAllText($ShutdownFile, "stop")
+                }
                 Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 5
             }
             catch {

@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener};
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 use xtask::readiness;
@@ -18,6 +19,7 @@ fn watch_defaults_match_the_checked_in_development_contract() {
     assert_eq!(config.engine_timeout, Duration::from_secs(30));
     assert_eq!(config.poll_interval, Duration::from_millis(200));
     assert!(!config.headless);
+    assert_eq!(config.shutdown_file, None);
     assert!(config.app_args.is_empty());
 }
 
@@ -37,6 +39,8 @@ fn watch_parses_overrides_and_forwards_explicit_app_arguments() {
         "7",
         "--poll-ms",
         "25",
+        "--shutdown-file",
+        "target/watch.stop",
         "--headless",
         "--",
         "--no-remote",
@@ -52,6 +56,7 @@ fn watch_parses_overrides_and_forwards_explicit_app_arguments() {
     assert_eq!(config.engine_timeout, Duration::from_secs(7));
     assert_eq!(config.poll_interval, Duration::from_millis(25));
     assert!(config.headless);
+    assert_eq!(config.shutdown_file, Some(PathBuf::from("target/watch.stop")));
     assert_eq!(config.app_args, ["--no-remote"]);
 }
 

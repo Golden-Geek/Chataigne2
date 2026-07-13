@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 const DEFAULT_FRONTEND_PORT: u16 = 5173;
@@ -16,6 +17,7 @@ pub struct WatchConfig {
     pub engine_timeout: Duration,
     pub poll_interval: Duration,
     pub headless: bool,
+    pub shutdown_file: Option<PathBuf>,
     pub app_args: Vec<String>,
 }
 
@@ -35,6 +37,7 @@ impl Default for WatchConfig {
             engine_timeout: Duration::from_secs(DEFAULT_ENGINE_TIMEOUT_SECS),
             poll_interval: Duration::from_millis(DEFAULT_POLL_MILLIS),
             headless: false,
+            shutdown_file: None,
             app_args: Vec::new(),
         }
     }
@@ -83,6 +86,9 @@ impl WatchConfig {
                 "--poll-ms" => {
                     config.poll_interval =
                         Duration::from_millis(parse_positive(&argument, take_value(&mut args, &argument)?)?);
+                }
+                "--shutdown-file" => {
+                    config.shutdown_file = Some(PathBuf::from(take_value(&mut args, &argument)?));
                 }
                 "--headless" => config.headless = true,
                 "--" => {
@@ -143,6 +149,7 @@ Watch options:\n\
   --backend-timeout-secs SECS    Backend startup deadline, including compilation (default: 300)\n\
   --engine-timeout-secs SECS     Engine snapshot deadline (default: 30)\n\
   --poll-ms MILLIS               Readiness polling interval (default: 200)\n\
+  --shutdown-file PATH           Stop cleanly when PATH appears (automation)\n\
   --headless                     Pass --headless to the application\n\
   -h, --help                     Print this help\n\n\
 The supervisor binds both services to 127.0.0.1, emits JSON events on stdout,\n\

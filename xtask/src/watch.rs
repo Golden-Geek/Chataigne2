@@ -2,7 +2,7 @@ use crate::WatchConfig;
 use crate::output;
 use crate::process::{OwnedChild, command_display};
 use crate::readiness;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -18,6 +18,18 @@ pub fn run(config: WatchConfig) -> Result<u8, String> {
     let frontend_url = format!("http://127.0.0.1:{}", config.frontend_port);
     let backend_url = format!("http://127.0.0.1:{}", config.backend_port);
     let shutdown = install_shutdown_handler()?;
+    let shutdown_file = config.shutdown_file.as_ref().map(|path| {
+        if path.is_absolute() {
+            path.clone()
+        } else {
+            workspace_root.join(path)
+        }
+    });
+    if let Some(path) = &shutdown_file
+        && path.exists()
+    {
+        return Err(format!("watch shutdown file already exists: {}", path.display()));
+    }
 
     output::status("frontend", "starting", &frontend_url);
     let mut frontend_command = frontend_command(&workspace_root, &config);
@@ -98,7 +110,7 @@ pub fn run(config: WatchConfig) -> Result<u8, String> {
     );
     eprintln!("[watch] ready; press Ctrl+C or close the application to stop");
 
-    supervise(&shutdown, &mut frontend, &mut backend)
+    supervise(&shutdown, shutdown_file.as_deref(), &mut frontend, &mut backend)
 }
 
 fn wait_for<F>(
@@ -143,12 +155,25 @@ fn ensure_running(frontend: &mut OwnedChild, backend: &mut OwnedChild) -> Result
     Ok(())
 }
 
-fn supervise(shutdown: &AtomicBool, frontend: &mut OwnedChild, backend: &mut OwnedChild) -> Result<u8, String> {
+fn supervise(
+    shutdown: &AtomicBool,
+    shutdown_file: Option<&Path>,
+    frontend: &mut OwnedChild,
+    backend: &mut OwnedChild,
+) -> Result<u8, String> {
     loop {
-        if shutdown.load(Ordering::SeqCst) {
-            output::status("watch", "stopping", "interrupt received");
+        let shutdown_detail = if shutdown.load(Ordering::SeqCst) {
+            Some("interrupt received")
+        } else if shutdown_file.is_some_and(Path::exists) {
+            Some("shutdown file observed")
+        } else {
+            None
+        };
+        if let Some(detail) = shutdown_detail {
+            output::status("watch", "stopping", detail);
             backend.terminate();
             frontend.terminate();
+            output::status("watch", "stopped", detail);
             return Ok(0);
         }
         if let Some(status) = backend.try_wait()? {
@@ -190,6 +215,7 @@ fn backend_command(workspace_root: &Path, config: &WatchConfig, frontend_url: &s
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo"));
     let backend_bind = format!("127.0.0.1:{}", config.backend_port);
     let mut command = Command::new(&cargo);
+    clear_parent_cargo_package_environment(&mut command);
     command
         .args(["run", "--package", "Chataigne2", "--", "--dev"])
         .current_dir(workspace_root)
@@ -209,6 +235,31 @@ fn backend_command(workspace_root: &Path, config: &WatchConfig, frontend_url: &s
         }
     );
     command
+}
+
+fn clear_parent_cargo_package_environment(command: &mut Command) {
+    for (name, _) in std::env::vars_os() {
+        if is_parent_cargo_package_variable(&name) {
+            command.env_remove(name);
+        }
+    }
+}
+
+pub(crate) fn is_parent_cargo_package_variable(name: &OsStr) -> bool {
+    let Some(name) = name.to_str() else {
+        return false;
+    };
+
+    matches!(
+        name,
+        "CARGO_BIN_NAME"
+            | "CARGO_CRATE_NAME"
+            | "CARGO_MANIFEST_DIR"
+            | "CARGO_MANIFEST_PATH"
+            | "CARGO_PRIMARY_PACKAGE"
+            | "CARGO_TARGET_TMPDIR"
+    ) || name.starts_with("CARGO_BIN_EXE_")
+        || name.starts_with("CARGO_PKG_")
 }
 
 fn workspace_root() -> Result<PathBuf, String> {

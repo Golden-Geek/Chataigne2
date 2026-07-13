@@ -6,6 +6,8 @@ mod desktop;
 mod desktop_commands;
 #[cfg(test)]
 mod desktop_tests;
+#[cfg(test)]
+mod launch_args_tests;
 mod window_state;
 #[cfg(test)]
 mod window_state_tests;
