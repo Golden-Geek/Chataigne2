@@ -59,7 +59,7 @@ $screenshotPath = Join-Path $runDirectory "watch-smoke.ready.png"
 $shutdownPath = Join-Path $runDirectory "watch-smoke.shutdown"
 $cargo = Get-CommandSource -Name "cargo"
 $ports = @(5173, 7010)
-$isWindows = Test-IsWindowsPlatform
+$runningOnWindows = Test-IsWindowsPlatform
 
 Assert-LoopbackPortsAvailable -Ports $ports
 if (Test-Path -LiteralPath $shutdownPath) {
@@ -67,7 +67,7 @@ if (Test-Path -LiteralPath $shutdownPath) {
 }
 
 $watchArguments = @("xtask", "watch")
-if ($isWindows) {
+if ($runningOnWindows) {
     $watchArguments += @("--shutdown-file", $shutdownPath)
 }
 $startParameters = @{
@@ -78,7 +78,7 @@ $startParameters = @{
     RedirectStandardError  = $standardErrorPath
     PassThru               = $true
 }
-if ($isWindows) {
+if ($runningOnWindows) {
     $startParameters.WindowStyle = "Hidden"
 }
 
@@ -109,7 +109,7 @@ try {
         -Deadline $readinessDeadline
 
     $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
-    if ($isWindows) {
+    if ($runningOnWindows) {
         [System.IO.File]::WriteAllText($shutdownPath, "stop")
     }
     else {
@@ -141,7 +141,7 @@ finally {
                 @(Get-OwnedProcessIds -RootProcessId $process.Id) |
                     Sort-Object -Unique
             )
-            if ($isWindows) {
+            if ($runningOnWindows) {
                 [System.IO.File]::WriteAllText($shutdownPath, "stop")
             }
             else {
