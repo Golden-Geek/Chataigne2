@@ -84,8 +84,7 @@ fn tcp_server_module_tracks_live_clients_in_runtime_folder() {
     settle_transport_state(&mut engine);
 
     let client = TcpStream::connect(("127.0.0.1", port)).expect("TCP client should connect to test server");
-    wait_for_transport_io();
-    settle_transport_state(&mut engine);
+    wait_for_connected_clients(&mut engine, module_id, 1);
 
     assert_eq!(connected_clients_value(&engine, module_id), Some(1));
 
@@ -111,8 +110,7 @@ fn tcp_server_module_tracks_live_clients_in_runtime_folder() {
     assert!(client_param.read_only, "TCP server client info parameter should be read-only");
 
     drop(client);
-    wait_for_transport_io();
-    settle_transport_state(&mut engine);
+    wait_for_connected_clients(&mut engine, module_id, 0);
 
     assert_eq!(connected_clients_value(&engine, module_id), Some(0));
     let clients_id = clients_folder_id(&engine, module_id).expect("TCP server clients folder should still exist");
@@ -220,6 +218,22 @@ fn settle_transport_state(engine: &mut crate::app::AppEngine) {
 
 fn wait_for_transport_io() {
     thread::sleep(Duration::from_millis(25));
+}
+
+fn wait_for_connected_clients(
+    engine: &mut crate::app::AppEngine,
+    module_id: NodeId,
+    expected: i32,
+) {
+    for _ in 0..40 {
+        settle_transport_state(engine);
+        if connected_clients_value(engine, module_id) == Some(expected) {
+            return;
+        }
+        wait_for_transport_io();
+    }
+
+    panic!("TCP server did not report {expected} connected clients before the test timeout");
 }
 
 fn wait_for_client_connected(transport: &TcpServerTransportHandle) {
