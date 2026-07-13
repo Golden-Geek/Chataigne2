@@ -82,7 +82,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: product-gate-${{ matrix.platform }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
+          key: product-gate-${{ matrix.platform }}
           cache-on-failure: true
           workspaces: |
             . -> target
@@ -237,7 +237,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: compatibility-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
+          key: compatibility-${{ matrix.target }}
+          cache-on-failure: true
           workspaces: |
             . -> target
 

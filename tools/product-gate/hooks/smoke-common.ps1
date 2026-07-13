@@ -166,11 +166,15 @@ function Get-OwnedProcessIds {
 }
 
 function Test-AnyProcessAlive {
-    param([int[]]$ProcessIds)
+    param([System.Diagnostics.Process[]]$Processes)
 
-    foreach ($processId in $ProcessIds) {
-        if ($null -ne (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
-            return $true
+    foreach ($process in $Processes) {
+        try {
+            if (-not $process.HasExited) {
+                return $true
+            }
+        }
+        catch {
         }
     }
     return $false
@@ -231,14 +235,31 @@ function Wait-ForOwnedProcessesToExit {
         [int]$TimeoutSeconds
     )
 
+    # Keep handles to the exact processes that were owned at shutdown time. Looking
+    # them up by PID on every poll can mistake a later process that reused the PID
+    # for an orphan from the product tree.
+    $trackedProcesses = @(
+        $ProcessIds | ForEach-Object {
+            Get-Process -Id $_ -ErrorAction SilentlyContinue
+        }
+    )
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        if (-not (Test-AnyProcessAlive -ProcessIds $ProcessIds)) {
+        if (-not (Test-AnyProcessAlive -Processes $trackedProcesses)) {
             return
         }
         Start-Sleep -Milliseconds 250
     }
-    $remaining = @($ProcessIds | Where-Object { $null -ne (Get-Process -Id $_ -ErrorAction SilentlyContinue) })
+    $remaining = @(
+        $trackedProcesses | Where-Object {
+            try {
+                -not $_.HasExited
+            }
+            catch {
+                $false
+            }
+        } | ForEach-Object { "$($_.ProcessName) ($($_.Id))" }
+    )
     throw "Owned processes did not exit after graceful shutdown: $($remaining -join ', ')."
 }
 

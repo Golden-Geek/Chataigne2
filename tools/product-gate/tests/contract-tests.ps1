@@ -39,6 +39,9 @@ if ($workflowSource -notmatch 'native_platform:' -or
 if ($workflowSource -notmatch 'cache-on-failure: true') {
     throw "Product-gate dependency caches must survive a late smoke failure."
 }
+if ($workflowSource -match 'key: (?:product-gate|compatibility)-[^\r\n]*hashFiles') {
+    throw "rust-cache custom keys must not defer file hashing to the post-job phase."
+}
 if ($workflowSource -notmatch "inputs\.native_platform == 'all'.*inputs\.run_compatibility == true") {
     throw "Exact-commit aggregation must run only for the complete requested matrix."
 }
@@ -88,6 +91,10 @@ if ($appBuildSource -notmatch 'if env_flag\(GC_UI_ASSUME_BUILT\)(?s:.*?)emit_rer
 $smokeCommonSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/smoke-common.ps1"))
 if ($smokeCommonSource -notmatch '& /bin/kill -TERM \$processId') {
     throw "The root smoke workflow must request graceful SIGTERM shutdown on non-Windows hosts."
+}
+if ($smokeCommonSource -notmatch '\[System\.Diagnostics\.Process\[\]\]\$Processes' -or
+    $smokeCommonSource -notmatch '\$process\.HasExited') {
+    throw "Process shutdown verification must track process instances instead of reusable numeric PIDs."
 }
 
 $cargoRunSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/cargo-run-smoke.ps1"))
