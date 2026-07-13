@@ -810,6 +810,12 @@ Invoke-GateCommand `
     -Executable "cargo" `
     -Arguments (@("test", "--workspace") + $cargoFeatureArguments) `
     -DependsOn @("rust.build") | Out-Null
+Invoke-GateCommand `
+    -Id "rust.runtime_build" `
+    -Name "Final Chataigne runtime build" `
+    -Executable "cargo" `
+    -Arguments @("build", "-p", "Chataigne2", "--bin", "Chataigne2") `
+    -DependsOn @("rust.format", "rust.clippy", "rust.test") | Out-Null
 
 Invoke-GateCommand `
     -Id "ui.check" `
@@ -837,22 +843,22 @@ Invoke-HookResult `
     -Id "smoke.cargo_run" `
     -Name "Root cargo run readiness smoke" `
     -HookFile "cargo-run-smoke.ps1" `
-    -DependsOn @("rust.build", "ui.build", "ui.browser_install") | Out-Null
+    -DependsOn @("rust.runtime_build", "ui.browser_install") | Out-Null
 Invoke-HookResult `
     -Id "evidence.module_loopback" `
     -Name "Production OSC module loopback evidence" `
     -HookFile "module-loopback-smoke.ps1" `
-    -DependsOn @("rust.build") | Out-Null
+    -DependsOn @("rust.runtime_build") | Out-Null
 Invoke-HookResult `
     -Id "smoke.watch" `
     -Name "Root watch readiness smoke" `
     -HookFile "watch-smoke.ps1" `
-    -DependsOn @("rust.build", "ui.build", "ui.browser_install") | Out-Null
+    -DependsOn @("rust.runtime_build", "ui.browser_install") | Out-Null
 Invoke-HookResult `
     -Id "smoke.cargo_run_dev" `
     -Name "Root cargo run -- --dev readiness smoke" `
     -HookFile "cargo-run-dev-smoke.ps1" `
-    -DependsOn @("rust.build", "ui.build", "ui.browser_install") | Out-Null
+    -DependsOn @("rust.runtime_build", "ui.browser_install") | Out-Null
 Invoke-HookResult `
     -Id "e2e.ui_workflow" `
     -Name "Mounted real-app UI workflow" `
@@ -884,7 +890,7 @@ foreach ($platform in @("windows", "macos", "linux")) {
         Add-DerivedResult `
             -Id $id `
             -Name $name `
-            -DependsOn @("rust.build", "ui.build") `
+            -DependsOn @("rust.runtime_build", "ui.build") `
             -Reason "The real Rust targets and production UI built on this platform." | Out-Null
     }
     else {

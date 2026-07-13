@@ -47,6 +47,19 @@ if ($uiBuildIndex -lt 0 -or $rustBuildIndex -lt 0 -or $uiBuildIndex -gt $rustBui
 if ($gateSource -notmatch '-Id "rust\.build"(?s:.*?)-DependsOn @\("toolchain\.contract", "ui\.build"\)') {
     throw "The Rust workspace build must depend on the final UI bundle."
 }
+$clippyIndex = $gateSource.IndexOf('-Id "rust.clippy"')
+$testIndex = $gateSource.IndexOf('-Id "rust.test"')
+$runtimeBuildIndex = $gateSource.IndexOf('-Id "rust.runtime_build"')
+if ($clippyIndex -lt 0 -or $testIndex -lt 0 -or $runtimeBuildIndex -lt 0 -or
+    $runtimeBuildIndex -lt $clippyIndex -or $runtimeBuildIndex -lt $testIndex) {
+    throw "The final runtime build must restore normal Cargo artifacts after clippy and tests."
+}
+if ($gateSource -notmatch '-Id "rust\.runtime_build"(?s:.*?)-Arguments @\("build", "-p", "Chataigne2", "--bin", "Chataigne2"\)(?s:.*?)-DependsOn @\("rust\.format", "rust\.clippy", "rust\.test"\)') {
+    throw "The final runtime build must compile the exact Chataigne binary after Rust checks."
+}
+if ($gateSource -notmatch '-Id "smoke\.cargo_run"(?s:.*?)-DependsOn @\("rust\.runtime_build", "ui\.browser_install"\)') {
+    throw "The root cargo-run smoke must consume the final runtime build."
+}
 
 $smokeCommonSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/smoke-common.ps1"))
 if ($smokeCommonSource -notmatch '& /bin/kill -TERM \$processId') {
