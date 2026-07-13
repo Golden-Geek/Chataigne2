@@ -1,3 +1,5 @@
+import { invoke, isTauri } from '@tauri-apps/api/core';
+
 export interface DesktopCommandArgs {
 	[key: string]: unknown;
 }
@@ -22,7 +24,7 @@ const normalizeDialogPath = (value: unknown): string | null => {
 };
 
 export const hasDesktopHost = (): boolean =>
-	typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__?.invoke);
+	typeof window !== 'undefined' && isTauri();
 
 export const subscribeDesktopWindowCloseRequested = (handler: () => void): (() => void) => {
 	if (typeof window === 'undefined' || !hasDesktopHost()) {
@@ -43,13 +45,12 @@ export const invokeDesktopCommand = async <T = unknown>(
 	args?: DesktopCommandArgs,
 	logTag = 'desktop-host'
 ): Promise<T | undefined> => {
-	const invoke = window.__TAURI_INTERNALS__?.invoke;
-	if (!invoke) {
+	if (!hasDesktopHost()) {
 		return undefined;
 	}
 
 	try {
-		return (await invoke(command, args)) as T;
+		return await invoke<T>(command, args);
 	} catch (error) {
 		console.error(`[${logTag}] ${command} failed.`, error);
 		return undefined;
@@ -75,8 +76,7 @@ export const openDesktopFileDialog = async (
 export const saveDesktopFileDialog = async (
 	options: DesktopFileDialogOptions = {}
 ): Promise<string | null> => {
-	const invoke = window.__TAURI_INTERNALS__?.invoke;
-	if (!invoke) {
+	if (!hasDesktopHost()) {
 		return null;
 	}
 

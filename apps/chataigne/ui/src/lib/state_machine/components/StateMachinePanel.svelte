@@ -416,13 +416,11 @@
 			? 'Create a State from the + menu on the State Machine manager.'
 			: 'The State Machine manager is not available in this project.'
 	);
-	let contextMenuAnchor = $derived.by(
-		(): ContextMenuAnchor => ({
-			kind: 'point',
-			x: contextMenuX,
-			y: contextMenuY
-		})
-	);
+	let contextMenuAnchor = $derived.by((): ContextMenuAnchor => ({
+		kind: 'point',
+		x: contextMenuX,
+		y: contextMenuY
+	}));
 
 	const panelOwnsFocus = (): boolean =>
 		panelRoot !== null &&

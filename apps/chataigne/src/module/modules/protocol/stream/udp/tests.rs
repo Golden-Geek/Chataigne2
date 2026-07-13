@@ -3,6 +3,7 @@ use std::time::Duration;
 use golden_core::{
     edit::Edit,
     node::{Folder, Node, NodeId, NodeMetaPatch},
+    parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
 };
 
@@ -52,18 +53,27 @@ fn udp_module_root_enable_toggle_stops_and_restarts_transport() {
 fn create_udp_module() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(UdpModule::create().into(), None);
+    let mut module = UdpModule::create();
+    module.node_data_mut().meta.enabled = false;
+    engine.add_node(module.into(), None);
     engine.apply_edits().expect("UDP module should attach");
     for _ in 0..4 {
         engine.apply_edits().expect("UDP defaults should materialize");
     }
-    engine.resolve().expect("UDP runtime schedule should resolve");
 
     let module_id = engine
         .nodes
         .get(engine.root)
         .and_then(|root| root.node_data().first_child)
         .expect("UDP module should be attached under root");
+
+    let connection_id = child_by_decl(&engine, module_id, "connection");
+    let input_id = child_by_decl(&engine, connection_id, "input");
+    let port_id = child_by_decl(&engine, input_id, "port");
+    set_param(&mut engine, port_id, ParamValue::Int(0));
+    set_node_enabled(&mut engine, module_id, true);
+    engine.resolve().expect("UDP runtime schedule should resolve");
+    settle_transport_state(&mut engine);
 
     (engine, module_id)
 }
@@ -84,6 +94,30 @@ fn set_node_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: b
             ..Default::default()
         },
     });
+}
+
+fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
+    engine.edits.push(Edit::SetParam {
+        node,
+        value,
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+}
+
+fn child_by_decl(engine: &crate::app::AppEngine, parent: NodeId, decl_id: &str) -> NodeId {
+    let mut current = engine
+        .nodes
+        .get(parent)
+        .and_then(|node| node.node_data().first_child);
+    while let Some(child_id) = current {
+        let child = engine.nodes.get(child_id).expect("UDP child should exist");
+        let child_decl_id = child.node_data().meta.decl_id.0.as_str();
+        if child_decl_id == decl_id || child_decl_id.rsplit('/').next() == Some(decl_id) {
+            return child_id;
+        }
+        current = child.node_data().next_sibling;
+    }
+    panic!("UDP child '{decl_id}' should exist");
 }
 
 fn settle_transport_state(engine: &mut crate::app::AppEngine) {

@@ -8,7 +8,7 @@
     "frontendDist": "."
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [],
     "security": {
       "csp": null

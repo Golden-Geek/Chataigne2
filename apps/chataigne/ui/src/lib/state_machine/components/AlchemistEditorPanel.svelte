@@ -713,13 +713,11 @@
 	let selectedEdgeIds = $derived(
 		(session?.selectedNodesIds ?? []).filter((nodeId) => connectionNodeIds.has(nodeId)).map(String)
 	);
-	let contextMenuAnchor = $derived.by(
-		(): ContextMenuAnchor => ({
-			kind: 'point',
-			x: contextMenuX,
-			y: contextMenuY
-		})
-	);
+	let contextMenuAnchor = $derived.by((): ContextMenuAnchor => ({
+		kind: 'point',
+		x: contextMenuX,
+		y: contextMenuY
+	}));
 
 	$effect(() => {
 		props.panelApi.setTitle(

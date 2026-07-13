@@ -29,11 +29,13 @@ From a fresh clone, use the repo bootstrap command for your platform:
 bash ./tools/dev.sh
 ```
 
-The bootstrap command installs or verifies Rust through `rustup`, installs or verifies Node.js/npm
-for the root JavaScript workspace, installs supported desktop build prerequisites, runs root
-`npm ci` when needed, then runs `cargo run`. No submodule initialization is required.
+The bootstrap command installs the exact Rust host and checksum-verified portable Node.js/npm
+distribution from `tools/bootstrap/toolchain.json`, verifies the supported Python version, installs
+desktop build prerequisites, runs root `npm ci` when needed, then runs `cargo run`. No submodule
+initialization is required. Install Git and the manifest's Python version first; the detailed host
+prerequisites and cache behavior are in [docs/development.md](docs/development.md).
 
-On Windows it also selects the `stable-msvc` Rust toolchain, which Tauri needs for desktop builds.
+On Windows it selects the manifest's versioned MSVC host rather than floating `stable-msvc`.
 
 After that first setup, `cargo run` is the normal launch command. The Rust build embeds the Svelte UI
 bundle and will refresh workspace dependencies when the root package lock changes. For live frontend
@@ -65,6 +67,8 @@ the machine without launching the app.
   statechart, Processor, intent, and UI ownership.
 - Read [docs/contributor-map.md](docs/contributor-map.md) for practical ownership rules, generated
   files, and the intentional `noisette` project-file naming.
+- Read [docs/development.md](docs/development.md) for supported setup, root commands, diagnostics,
+  dependency qualification, and cache policy.
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) for formatting, boundary, and codegen rules.
 - Read [docs/repo-transition-plan.md](docs/repo-transition-plan.md) for current-vs-target repo ownership and migration rules.
 - Read [AGENTS.md](AGENTS.md) for the current repo operating rules and refactor direction.

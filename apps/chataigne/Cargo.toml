@@ -2,7 +2,11 @@
 name = "Chataigne2"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 default-run = "Chataigne2"
+
+[package.metadata.cargo-machete]
+ignored = ["golden_codegen_support", "tauri-build"]
 
 [features]
 # Real Elgato Stream Deck hardware support (native hidapi 2.x + image).
@@ -12,9 +16,9 @@ default-run = "Chataigne2"
 streamdeck-hid = ["dep:elgato-streamdeck", "dep:image"]
 
 [dependencies]
-artnet_protocol = "0.4.4"
 base64 = "0.22"
-buttplug = "10.0.2"
+buttplug = "10.0.3"
+buttplug_core = "10.0.3"
 chataigne_state_machine = { path = "state_machine" }
 device_query = "4.0.1"
 dirs = "6"
@@ -34,13 +38,10 @@ midir = "0.11.0"
 midly = "0.5.3"
 mio = { version = "1.2", features = ["net", "os-poll"] }
 notify = "8.2"
-open_dmx = "1.1.1"
-rand = "0.10.0"
 regex = "1"
 reqwest = { version = "0.13", features = ["blocking", "form", "json", "multipart"] }
 rosc = "0.11.4"
 rumqttc = { version = "0.25.1", default-features = false }
-sacn = "0.11.1"
 serialport = "4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -50,7 +51,6 @@ sysinfo = "0.39.1"
 tauri = "2"
 tokio = { version = "1", features = ["net", "rt", "time"] }
 tokio-tungstenite = "0.29"
-rust_dmx = "0.7.0"
 rdev = "0.5.3"
 
 [target.'cfg(windows)'.dependencies]

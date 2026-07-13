@@ -228,110 +228,31 @@ ensure_system_deps() {
   esac
 }
 
-ensure_rust() {
-  step "Rust toolchain"
+ensure_rustup() {
   load_cargo_env
-
   if ! command -v rustup >/dev/null 2>&1; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
     load_cargo_env
   fi
-
   if ! command -v rustup >/dev/null 2>&1; then
     echo "rustup was installed but is still not on PATH. Restart the shell, then rerun bash tools/dev.sh." >&2
     exit 1
   fi
-
-  rustup toolchain install stable
-  rustup default stable
-  load_cargo_env
-
-  if ! command -v cargo >/dev/null 2>&1; then
-    echo "cargo was not found after installing rustup. Restart the shell, then rerun bash tools/dev.sh." >&2
-    exit 1
-  fi
-
-  cargo --version
 }
 
-node_supported() {
-  if ! command -v node >/dev/null 2>&1; then
-    return 1
-  fi
-
-  local version major minor patch
-  version="$(node -p 'process.versions.node' 2>/dev/null || true)"
-  IFS=. read -r major minor patch <<< "${version}"
-
-  if [[ ! "${major}" =~ ^[0-9]+$ || ! "${minor}" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
-
-  if (( major == 20 && minor >= 19 )); then
-    return 0
-  fi
-
-  if (( major == 22 && minor >= 12 )); then
-    return 0
-  fi
-
-  if (( major >= 23 )); then
-    return 0
-  fi
-
-  return 1
-}
-
-load_nvm() {
-  export NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
-  if [[ -s "${NVM_DIR}/nvm.sh" ]]; then
-    # shellcheck disable=SC1091
-    . "${NVM_DIR}/nvm.sh"
-  fi
-}
-
-ensure_nvm() {
-  load_nvm
-
-  if command -v nvm >/dev/null 2>&1; then
-    return
-  fi
-
-  local nvm_version
-  nvm_version="${NVM_INSTALL_VERSION:-v0.40.4}"
-  curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" | bash
-  load_nvm
-
-  if ! command -v nvm >/dev/null 2>&1; then
-    echo "nvm was installed but could not be loaded. Restart the shell, then rerun bash tools/dev.sh." >&2
+activate_canonical_toolchain() {
+  step "Canonical Rust, Node, npm, and Python contract"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "Python 3 is required before bootstrap; install the version recorded in tools/bootstrap/toolchain.json." >&2
     exit 1
   fi
-}
-
-ensure_node() {
-  step "Node.js and npm"
-  load_nvm
-
-  if ! node_supported || ! command -v npm >/dev/null 2>&1; then
-    ensure_nvm
-    nvm install --lts
-    nvm use --lts
-  fi
-
-  if ! node_supported; then
-    local found
-    found="$(command -v node >/dev/null 2>&1 && node --version || echo "not found")"
-    echo "Node.js 20.19+ or 22.12+ is required by the Svelte/Vite frontend. Found: ${found}." >&2
-    exit 1
-  fi
-
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "npm was not found after installing Node.js. Restart the shell, then rerun bash tools/dev.sh." >&2
-    exit 1
-  fi
-
-  node --version
-  npm --version
+  ensure_rustup
+  sh "$repo_root/tools/bootstrap/install-rust-toolchain.sh"
+  local node_bin
+  node_bin="$(sh "$repo_root/tools/bootstrap/install-node.sh")"
+  PATH="$node_bin:$PATH"
+  export PATH
+  sh "$repo_root/tools/bootstrap/verify-toolchain.sh" --check-installed
 }
 
 ensure_ui_dependencies() {
@@ -356,8 +277,7 @@ run_app() {
 }
 
 ensure_system_deps
-ensure_rust
-ensure_node
+activate_canonical_toolchain
 ensure_ui_dependencies
 
 if [[ "${setup_only}" -eq 0 ]]; then

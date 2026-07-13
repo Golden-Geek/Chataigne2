@@ -12,6 +12,8 @@ Start here:
   locations; current ownership is documented in [the repository map](../repo-map.md).
 - [Migration progress](migration-progress.md) records phase state and the exact validation state of
   required commands and environments.
+- [Toolchain policy](toolchain-policy.md) records supported version selections, update boundaries,
+  and local versus cross-platform qualification requirements.
 - [Parity ledger schema](parity-ledger-schema.md) defines the fields and completion rules for every
   independently observable capability and temporary adapter.
 - [Architecture decisions](../architecture/decisions/README.md) record the Phase 0 decisions that

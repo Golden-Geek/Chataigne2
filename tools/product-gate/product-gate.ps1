@@ -4,12 +4,13 @@ param(
     [string]$HookDirectory,
     [string[]]$EvidenceReportPath = @(),
     [switch]$SkipUiInstall,
+    [switch]$DependencyAudit,
     [switch]$PlanOnly,
     [ValidateSet("normal-developer-product-core", "feature-complete-platform")]
     [string]$FeatureMatrix = "normal-developer-product-core",
     [string[]]$CargoFeatures = @(),
     [ValidateSet("windows", "macos", "linux")]
-    [string[]]$RequiredPlatforms = @("windows", "macos", "linux")
+    [string[]]$RequiredPlatforms = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -596,6 +597,10 @@ function Write-GateReport {
 
 Set-Location $RepositoryRoot
 
+if ($RequiredPlatforms.Count -eq 0) {
+    $RequiredPlatforms = @(Get-CurrentPlatform)
+}
+
 $npmExecutable = if (Get-Command "npm.cmd" -ErrorAction SilentlyContinue) {
     "npm.cmd"
 }
@@ -641,7 +646,7 @@ Invoke-GateCommand `
     -Arguments @("--version") | Out-Null
 Invoke-GateCommand `
     -Id "toolchain.contract" `
-    -Name "Canonical Phase 0 toolchain contract" `
+    -Name "Canonical supported toolchain contract" `
     -Executable $gatePowerShellExecutable `
     -Arguments @("-NoLogo", "-NoProfile", "-NonInteractive", "-File", (Join-Path $RepositoryRoot "tools/bootstrap/verify-toolchain.ps1"), "-CheckInstalled") `
     -DependsOn @("fingerprint.rustc", "fingerprint.cargo", "fingerprint.node", "fingerprint.npm") | Out-Null
@@ -702,6 +707,47 @@ else {
         -Name "UI dependencies ready" `
         -DependsOn @("ui.npm_ci") `
         -Reason "npm ci completed successfully." | Out-Null
+}
+
+if ($DependencyAudit) {
+    Invoke-GateCommand `
+        -Id "dependency.qualification_tools" `
+        -Name "Pinned dependency qualification tools" `
+        -Executable $gatePowerShellExecutable `
+        -Arguments @("-NoLogo", "-NoProfile", "-NonInteractive", "-File", (Join-Path $RepositoryRoot "tools/bootstrap/verify-toolchain.ps1"), "-CheckInstalled", "-CheckQualificationTools") `
+        -DependsOn @("toolchain.contract") | Out-Null
+    Invoke-GateCommand `
+        -Id "dependency.cargo_deny" `
+        -Name "Cargo advisories, licenses, sources, and bans" `
+        -Executable "cargo" `
+        -Arguments @("deny", "check") `
+        -DependsOn @("dependency.qualification_tools") | Out-Null
+    Invoke-GateCommand `
+        -Id "dependency.cargo_machete" `
+        -Name "Cargo unused dependency check" `
+        -Executable "cargo" `
+        -Arguments @("machete") `
+        -DependsOn @("dependency.qualification_tools") | Out-Null
+    Invoke-GateCommand `
+        -Id "dependency.duplicate_versions" `
+        -Name "Cargo reviewed duplicate-version baseline" `
+        -Executable "python" `
+        -Arguments @("tools/dependency-gate/check_duplicate_versions.py") `
+        -DependsOn @("toolchain.contract") | Out-Null
+    Invoke-GateCommand `
+        -Id "dependency.npm_audit" `
+        -Name "npm production dependency audit" `
+        -Executable $npmExecutable `
+        -Arguments @("audit", "--omit=dev", "--audit-level=moderate") `
+        -WorkingDirectory $RepositoryRoot `
+        -DependsOn @("ui.dependencies_ready") | Out-Null
+}
+else {
+    Add-NotRunResult -Id "dependency.qualification_tools" -Name "Pinned dependency qualification tools" -Reason "Dependency audit profile was not requested." -Required $false | Out-Null
+    Add-NotRunResult -Id "dependency.cargo_deny" -Name "Cargo advisories, licenses, sources, and bans" -Reason "Dependency audit profile was not requested." -Required $false | Out-Null
+    Add-NotRunResult -Id "dependency.cargo_machete" -Name "Cargo unused dependency check" -Reason "Dependency audit profile was not requested." -Required $false | Out-Null
+    Add-NotRunResult -Id "dependency.duplicate_versions" -Name "Cargo reviewed duplicate-version baseline" -Reason "Dependency audit profile was not requested." -Required $false | Out-Null
+    Add-NotRunResult -Id "dependency.npm_audit" -Name "npm production dependency audit" -Reason "Dependency audit profile was not requested." -Required $false | Out-Null
 }
 
 Invoke-GateCommand `

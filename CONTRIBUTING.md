@@ -26,10 +26,11 @@ For a fresh machine, start from the repository root with the platform bootstrap 
 bash ./tools/dev.sh
 ```
 
-These commands install or verify Rust, Node.js/npm, platform desktop build dependencies, root
-workspace dependencies, and then run the app. On Windows, the bootstrap selects
-`stable-msvc` because the desktop host requires the MSVC Rust toolchain. Once the machine is prepared,
-`cargo run` is expected to build the bundled Svelte UI automatically.
+These commands install the exact Rust host and checksum-verified portable Node.js/npm distribution
+from the canonical manifest, verify Python, install platform desktop dependencies and root workspace
+dependencies, and then run the app. On Windows, the bootstrap selects the manifest's versioned MSVC
+host. See [docs/development.md](docs/development.md) for prerequisites, diagnostics, root workflows,
+qualification commands, and cache policy.
 
 ## Formatting
 

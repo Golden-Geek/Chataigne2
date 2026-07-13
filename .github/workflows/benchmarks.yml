@@ -3,10 +3,10 @@ name: Benchmarks
 on:
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -21,6 +21,8 @@ jobs:
       - name: Activate repository-pinned Rust toolchain
         run: sh ./tools/bootstrap/install-rust-toolchain.sh
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: benchmark-tests-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
       - name: R1 — no full-graph iteration in tick-path files
         run: bash tools/core/check_tick_path.sh
       - name: Run tests (single-threaded to avoid flaky logger test)
@@ -38,6 +40,8 @@ jobs:
       - name: Activate repository-pinned Rust toolchain
         run: sh ./tools/bootstrap/install-rust-toolchain.sh
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: benchmarks-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
 
       # Run benchmarks and capture output in bencher format.
       # Short measurement time keeps CI fast; numbers are still regression-detectable.
@@ -66,18 +70,12 @@ jobs:
             --baseline crates/core/benches/baseline.json \
             --output /tmp/bench_summary.md
 
-      # Post the summary as a PR comment (on PRs only).
-      - name: Post benchmark summary
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: bench-results
-          path: /tmp/bench_summary.md
+      - name: Publish benchmark summary
+        run: cat /tmp/bench_summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      # On main, store fresh results as an artifact for manual baseline update.
-      - name: Upload benchmark results (main only)
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+      # Store fresh results as an artifact for a reviewed baseline update.
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7
         with:
           name: bench-results-${{ github.sha }}
           path: /tmp/bench_results.txt

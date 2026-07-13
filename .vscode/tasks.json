@@ -1,12 +1,5 @@
 {
   "version": "2.0.0",
-  "inputs": [
-    {
-      "id": "supercommitMessage",
-      "type": "promptString",
-      "description": "Commit message for submodules and main repo"
-    }
-  ],
   "tasks": [
     {
       "label": "jCodeMunch: watch workspace",
@@ -19,31 +12,22 @@
         "-File",
         "${workspaceFolder}\\tools\\watch-jcodemunch.ps1"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": {
         "owner": "jcodemunch",
-        "pattern": {
-          "regexp": "^(.*)$",
-          "message": 1
-        },
+        "pattern": { "regexp": "^(.*)$", "message": 1 },
         "background": {
           "activeOnStart": true,
           "beginsPattern": "^jCodeMunch watcher starting$",
           "endsPattern": "^jCodeMunch watcher ready$"
         }
       },
-      "runOptions": {
-        "runOn": "folderOpen",
-        "instanceLimit": 1
-      },
+      "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 },
       "presentation": {
         "reveal": "never",
         "panel": "dedicated",
-        "showReuseMessage": false,
-        "clear": false
+        "showReuseMessage": false
       }
     },
     {
@@ -58,28 +42,176 @@
         "${workspaceFolder}\\tools\\watch-jcodemunch.ps1",
         "--status"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}"
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Workspace: bootstrap and diagnose",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/tools/dev.sh", "--setup-only"],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\dev.ps1",
+          "-SetupOnly"
+        ]
       },
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
-        "showReuseMessage": false,
         "clear": true
       }
     },
     {
-      "label": "UI: Copilot dev server (4173)",
+      "label": "UI: build",
       "type": "process",
-      "command": "npm",
+      "command": "bash",
       "args": [
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "npm",
         "run",
-        "dev:copilot"
+        "build"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}\\apps\\chataigne\\ui"
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "npm.cmd",
+          "run",
+          "build"
+        ]
       },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "UI: dev server",
+      "type": "process",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "npm",
+        "run",
+        "dev"
+      ],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "npm.cmd",
+          "run",
+          "dev"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^(.*)$", "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*VITE.*ready.*",
+          "endsPattern": ".*Local:.*http://.*"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Chataigne: run bundled",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/tools/dev.sh"],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\dev.ps1"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Chataigne: run headless",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/tools/dev.sh", "--", "--headless"],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\dev.ps1",
+          "--",
+          "--headless"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Chataigne: watch frontend and backend",
+      "type": "process",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "cargo",
+        "xtask",
+        "watch"
+      ],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "cargo",
+          "xtask",
+          "watch"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
@@ -89,89 +221,179 @@
       }
     },
     {
-      "label": "Backend: headless UI server",
-      "type": "process",
-      "command": "cargo",
-      "args": [
-        "run",
-        "--",
-        "--headless"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "isBackground": true, 
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
+      "label": "Workspace: Rust and UI checks",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Workspace: Rust tests", "UI: check"],
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
     },
     {
-      "label": "UI: smoke test",
+      "label": "Workspace: Rust tests",
       "type": "process",
-      "command": "npm",
+      "command": "bash",
       "args": [
-        "run",
-        "smoke:ui"
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "cargo",
+        "test",
+        "--workspace"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}\\apps\\chataigne\\ui"
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "cargo",
+          "test",
+          "--workspace"
+        ]
       },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$rustc"]
     },
     {
-      "label": "UI: inspect root DOM",
+      "label": "UI: check",
       "type": "process",
-      "command": "npm",
+      "command": "bash",
       "args": [
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "npm",
         "run",
-        "inspect:ui",
-        "--",
-        "--selector",
-        "body"
+        "check"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}\\apps\\chataigne\\ui"
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "npm.cmd",
+          "run",
+          "check"
+        ]
       },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
     },
     {
-      "label": "Supercommit: full commit (submodules + main)",
+      "label": "Workspace: local product gate",
       "type": "process",
-      "command": "powershell",
+      "command": "bash",
       "args": [
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "pwsh",
         "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
         "-File",
-        "${workspaceFolder}\\tools\\supercommit.ps1",
-        "${input:supercommitMessage}"
+        "${workspaceFolder}/tools/product-gate/product-gate.ps1"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}"
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "powershell.exe",
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\product-gate\\product-gate.ps1"
+        ]
       },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "build", "isDefault": true },
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "Workspace: phase qualification",
+      "type": "process",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "'${workspaceFolder}/tools/bootstrap/install-qualification-tools.sh' && '${workspaceFolder}/tools/bootstrap/bootstrap.sh' pwsh -NoProfile -File '${workspaceFolder}/tools/product-gate/product-gate.ps1' -DependencyAudit"
+      ],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "& '${workspaceFolder}\\tools\\bootstrap\\install-qualification-tools.ps1'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1' powershell.exe -NoProfile -ExecutionPolicy Bypass -File '${workspaceFolder}\\tools\\product-gate\\product-gate.ps1' -DependencyAudit"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Workspace: benchmark",
+      "type": "process",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "cargo",
+        "bench",
+        "-p",
+        "golden_engine"
+      ],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "cargo",
+          "bench",
+          "-p",
+          "golden_engine"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Workspace: release build",
+      "type": "process",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/tools/bootstrap/bootstrap.sh",
+        "cargo",
+        "build",
+        "--release"
+      ],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1",
+          "cargo",
+          "build",
+          "--release"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$rustc"]
     }
   ]
 }

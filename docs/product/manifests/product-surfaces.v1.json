@@ -881,7 +881,7 @@
       "name": "edit.copy",
       "sources": [
         {
-          "line": 1869,
+          "line": 1867,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
@@ -901,7 +901,7 @@
       "name": "edit.cut",
       "sources": [
         {
-          "line": 1874,
+          "line": 1872,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
@@ -921,7 +921,7 @@
       "name": "edit.deleteSelection",
       "sources": [
         {
-          "line": 1864,
+          "line": 1862,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
@@ -945,7 +945,7 @@
       "name": "edit.duplicate",
       "sources": [
         {
-          "line": 1879,
+          "line": 1877,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
@@ -965,7 +965,7 @@
       "name": "edit.paste",
       "sources": [
         {
-          "line": 1884,
+          "line": 1882,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
@@ -1517,7 +1517,7 @@
       "name": "select.all",
       "sources": [
         {
-          "line": 1853,
+          "line": 1851,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
@@ -1632,15 +1632,15 @@
       "name": "view.frame",
       "sources": [
         {
-          "line": 1573,
+          "line": 1571,
           "path": "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte"
         },
         {
-          "line": 1843,
+          "line": 1841,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
-          "line": 899,
+          "line": 897,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/StateMachinePanel.svelte"
         },
         {
@@ -1668,15 +1668,15 @@
       "name": "view.home",
       "sources": [
         {
-          "line": 1578,
+          "line": 1576,
           "path": "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte"
         },
         {
-          "line": 1848,
+          "line": 1846,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
-          "line": 904,
+          "line": 902,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/StateMachinePanel.svelte"
         },
         {

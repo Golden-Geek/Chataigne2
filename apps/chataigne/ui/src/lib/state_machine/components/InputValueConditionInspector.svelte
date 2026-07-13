@@ -21,14 +21,7 @@
 	}: NodeInspectorComponentProps = $props();
 
 	type SourceGroup =
-		| 'number'
-		| 'string'
-		| 'bool'
-		| 'trigger'
-		| 'vec2'
-		| 'vec3'
-		| 'color'
-		| 'unknown';
+		'number' | 'string' | 'bool' | 'trigger' | 'vec2' | 'vec3' | 'color' | 'unknown';
 	type ReferenceMode = 'none' | 'number' | 'range' | 'bool' | 'string' | 'vec2' | 'vec3' | 'color';
 	type ComparatorOption = {
 		id: string;

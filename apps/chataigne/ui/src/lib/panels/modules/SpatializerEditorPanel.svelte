@@ -467,8 +467,8 @@
 	let targetList = $derived(childByType(parametersFolder, TARGET_LIST_TYPE));
 	let dimensionMode = $derived(enumValue(dimensionsParam) || '2d');
 	let spatializerMode = $derived(enumValue(modeParam) || MODE_VORONOI);
-	let valueLayout = $derived.by(
-		(): ValueLayout => valueLayoutFromEnum(enumValue(valueLayoutParam))
+	let valueLayout = $derived.by((): ValueLayout =>
+		valueLayoutFromEnum(enumValue(valueLayoutParam))
 	);
 	let prefer3d = $derived(dimensionMode === '3d');
 
@@ -972,15 +972,13 @@
 		if (spatializerMode === MODE_VORONOI) {
 			return debugVoronoiComputations.flatMap((computation): DebugConnection[] => {
 				if (computation.frozenTargets.length > 0) {
-					return computation.frozenTargets.map(
-						(target): DebugConnection => ({
-							key: `${computation.source.key}:${target.key}:frozen`,
-							source: computation.source,
-							target,
-							weight: targetWeightForSource(target, computation.source),
-							role: 'frozen' as const
-						})
-					);
+					return computation.frozenTargets.map((target): DebugConnection => ({
+						key: `${computation.source.key}:${target.key}:frozen`,
+						source: computation.source,
+						target,
+						weight: targetWeightForSource(target, computation.source),
+						role: 'frozen' as const
+					}));
 				}
 				const currentConnections: DebugConnection[] = computation.current
 					? [

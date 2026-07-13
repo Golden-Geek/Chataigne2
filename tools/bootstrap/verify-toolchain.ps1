@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch] $CheckInstalled
+    [switch] $CheckInstalled,
+    [switch] $CheckQualificationTools
 )
 
 Set-StrictMode -Version Latest
@@ -20,7 +21,9 @@ $requiredValues = @(
     $manifest.rust.profile,
     $manifest.node.version,
     $manifest.node.npm_version,
-    $manifest.python.version
+    $manifest.python.version,
+    $manifest.qualification_tools.cargo_deny,
+    $manifest.qualification_tools.cargo_machete
 )
 if (@($requiredValues | Where-Object { [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0) {
     throw "tools/bootstrap/toolchain.json contains an empty required version."
@@ -111,7 +114,19 @@ if ($CheckInstalled) {
         [System.Runtime.InteropServices.OSPlatform]::Windows
     )
     if ($runningOnWindows -and $hostMatch.Groups[1].Value -notmatch '-pc-windows-msvc$') {
-        throw "Windows Phase 0 evidence requires an MSVC Rust host, got '$($hostMatch.Groups[1].Value)'."
+        throw "Windows qualification requires an MSVC Rust host, got '$($hostMatch.Groups[1].Value)'."
+    }
+
+}
+
+if ($CheckQualificationTools) {
+    $cargoDeny = Get-CommandVersion -Executable "cargo-deny" -Arguments @("--version")
+    $cargoMachete = Get-CommandVersion -Executable "cargo-machete" -Arguments @("--version")
+    if ($cargoDeny -notmatch ("^cargo-deny {0}(?:\s|$)" -f [regex]::Escape([string]$manifest.qualification_tools.cargo_deny))) {
+        throw "Installed cargo-deny does not match pinned $($manifest.qualification_tools.cargo_deny): $cargoDeny"
+    }
+    if ($cargoMachete -ne [string]$manifest.qualification_tools.cargo_machete) {
+        throw "Installed cargo-machete does not match pinned $($manifest.qualification_tools.cargo_machete): $cargoMachete"
     }
 }
 
@@ -120,6 +135,7 @@ if ($CheckInstalled) {
     status = "PASS"
     manifest = $manifestPath
     installed_versions_checked = [bool]$CheckInstalled
+    qualification_tools_checked = [bool]$CheckQualificationTools
     rust = [string]$manifest.rust.channel
     node = [string]$manifest.node.version
     npm = [string]$manifest.node.npm_version

@@ -1,19 +1,31 @@
 # Product-Preserving Migration Progress
 
-Updated: 2026-07-12
+Updated: 2026-07-13
 
 The canonical branch is `architecture/aaa-product-rewrite`, started from
 `fb0f3a58f3593df8994bf8bd46f88ddd7612f41d`. All named phases are planned as `RUNNABLE`.
 An intentionally non-runnable interval may exist only on a private/topic branch and is never a
 completed canonical phase.
 
+## Validation Cadence
+
+Ordinary migration work uses the complete applicable local product gate on
+`x86_64-pc-windows-msvc`. Cross-platform CI is a qualification gate at the end of Phases 1B, 3, 6,
+8, and 9, and is also required for changes that alter platform hosts, native dependencies, target
+selection, or packaging. Deferred platform rows remain `NOT_RUN`; a Windows pass is never recorded
+as evidence for another platform.
+
+The long-lived migration branch does not require a permanently open pull request. Focused PRs are
+opened when a review, named qualification, or merge point is ready. This keeps routine pushes local
+while preserving full cross-platform closure before affected cutovers and final integration.
+
 ## Phase Status
 
 | Phase | Required validation | Implementation status | Product gate | Dependency or next proof |
 | --- | --- | --- | --- | --- |
 | Phase 0 — Branch from `main`, prove the product, and freeze the contract | `RUNNABLE` | Complete | `PASS` | Exact commit `82a72b3ef517aefe32e4a6907e6cba66aab52022`; [six-platform product gate run 29195670582](https://github.com/Golden-Geek/Chataigne2/actions/runs/29195670582) |
-| Phase 1A — Form the monorepo by importing the complete working product | `RUNNABLE` | Complete | `NOT_RUN` | Exact-commit Windows product gate passes locally; the canonical six-platform matrix runs after the supercommit is pushed |
-| Phase 1B — Modernize and unify the toolchain without changing the product | `RUNNABLE` | Pending | `BLOCKED` | Complete runnable Phase 1A import first |
+| Phase 1A — Form the monorepo by importing the complete working product | `RUNNABLE` | Complete | `PASS` (Win-x64 local) | Cross-platform import qualification is deliberately combined with the Phase 1B toolchain qualification instead of validating a toolchain that Phase 1B immediately replaces |
+| Phase 1B — Modernize and unify the toolchain without changing the product | `RUNNABLE` | In progress | `PASS` (Win-x64 local) | Run the named exact-commit cross-platform qualification before closing Phase 1B |
 | Phase 2 — Establish stable product seams and shadow infrastructure | `RUNNABLE` | Pending | `BLOCKED` | Complete product-gated Phase 1B |
 | Phase 3 — Extract foundations and `golden-graph` through the live product | `RUNNABLE` | Pending | `BLOCKED` | Phase 2 seams and side-effect-safe shadowing must exist |
 | Phase 4 — Migrate Alchemist as a complete authoring-to-runtime slice | `RUNNABLE` | Pending | `BLOCKED` | Complete the common graph cutovers |
@@ -39,6 +51,19 @@ completed canonical phase.
 | Reference visual/interaction evidence | Complete | Native product-gate hook artifacts in run `29195670582` |
 | Manual UX/hardware evidence | Recorded | Hardware/manual rows remain explicit in the parity ledger; no platform result is inferred |
 
+## Phase 1B Toolchain Modernization
+
+| Slice | Status | Evidence or next proof |
+| --- | --- | --- |
+| Validation cadence | Complete | The product gate defaults to the current platform; CI, benchmark, and cross-platform product workflows run on `main` or explicit dispatch instead of every PR push |
+| Persistent migration PR | Removed | Stale draft PR `#1` closed; the migration branch and commits remain intact |
+| Rust/native toolchain | Complete | Rust/Cargo 1.97.0, current compatible Cargo dependencies, Tauri 2.11.5, and Buttplug 10.0.3 pass the Win-x64 gate |
+| JavaScript/UI toolchain | Complete | Node 26.5.0/npm 11.17.0 and the standard official Svelte CLI stack pass check, lint, unit, production-build, and real-app browser gates |
+| Win-x64 product qualification | `PASS` | Local report `target/product-gate/20260713T170046Z/product-gate-report.json`; all 32 required Windows and dependency-profile results passed and macOS/Linux were non-required `NOT_RUN` |
+| Developer orchestration | Complete | Canonical first-clone scripts, root/editor/debug commands, Python diagnostics, dependency qualification, release/benchmark tasks, cache policy, and onboarding are product-gated |
+| Dependency governance | Complete | Pinned cargo-deny/cargo-machete, RustSec/license/source/bans policy, unused dependency cleanup, reviewed duplicate baseline, and npm production audit pass |
+| Cross-platform Phase 1B qualification | `NOT_RUN` | Required after the coherent Phase 1B slices, before the phase closes |
+
 ## Required Root Workflow Status
 
 | Command or workflow | Status | Required result |
@@ -60,9 +85,15 @@ Every phase-closing supercommit must:
 3. commit only evidence that was genuinely executed;
 4. record exact command, commit or tested-tree identity, toolchain, target/features, exit code,
    ignored tests, artifacts, and manual checks;
-5. pass the continuous product gate and the three stable root workflow contracts;
+5. pass the applicable local Win-x64 product gate and the three stable root workflow contracts;
 6. leave intentionally broken structural work off the canonical branch;
 7. avoid deletion until the corresponding parity rows prove the replacement.
+
+Phases 1B, 3, 6, 8, and 9 additionally require the cross-platform qualification profile. Changes
+to host startup, native dependencies, target selection, packaging, or platform-specific code also
+require that profile before the affected cutover is accepted. Deferred cross-platform evidence is
+recorded as `NOT_RUN` and blocks the applicable qualification point, not unrelated intermediate
+migration slices.
 
 Phase 1B and Phase 3 intentionally require multiple focused, runnable supercommits rather than one
 opaque phase-sized change.

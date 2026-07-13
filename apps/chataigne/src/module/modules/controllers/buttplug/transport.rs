@@ -14,6 +14,7 @@ use buttplug::{
     device::{ButtplugClientDevice, ClientDeviceCommandValue, ClientDeviceOutputCommand},
     ButtplugClient, ButtplugClientEvent, ButtplugWebsocketClientTransport,
 };
+use buttplug_core::message::OutputType;
 use futures_util::{Stream, StreamExt};
 use tokio::{runtime::Builder, time::timeout};
 
@@ -588,39 +589,51 @@ fn device_info(device: &ButtplugClientDevice) -> ButtplugDeviceInfo {
 
 fn device_outputs(device: &ButtplugClientDevice) -> Vec<String> {
     let mut outputs = Vec::new();
-    for feature in device.device_features().values() {
-        let Some(output) = feature.feature().output() else {
-            continue;
-        };
-        push_output(&mut outputs, output.vibrate().is_some(), BUTTPLUG_OUTPUT_VIBRATE);
-        push_output(&mut outputs, output.rotate().is_some(), BUTTPLUG_OUTPUT_ROTATE);
-        push_output(
-            &mut outputs,
-            output.oscillate().is_some(),
-            BUTTPLUG_OUTPUT_OSCILLATE,
-        );
-        push_output(
-            &mut outputs,
-            output.constrict().is_some(),
-            BUTTPLUG_OUTPUT_CONSTRICT,
-        );
-        push_output(&mut outputs, output.position().is_some(), BUTTPLUG_OUTPUT_POSITION);
-        push_output(
-            &mut outputs,
-            output.hw_position_with_duration().is_some(),
-            BUTTPLUG_OUTPUT_HW_POSITION_WITH_DURATION,
-        );
-        push_output(&mut outputs, output.spray().is_some(), BUTTPLUG_OUTPUT_SPRAY);
-        push_output(&mut outputs, output.led().is_some(), BUTTPLUG_OUTPUT_LED);
-        push_output(
-            &mut outputs,
-            output.temperature().is_some(),
-            BUTTPLUG_OUTPUT_TEMPERATURE,
-        );
-    }
-
-    outputs.sort();
-    outputs.dedup();
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Vibrate),
+        BUTTPLUG_OUTPUT_VIBRATE,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Rotate),
+        BUTTPLUG_OUTPUT_ROTATE,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Oscillate),
+        BUTTPLUG_OUTPUT_OSCILLATE,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Constrict),
+        BUTTPLUG_OUTPUT_CONSTRICT,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Position),
+        BUTTPLUG_OUTPUT_POSITION,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::HwPositionWithDuration),
+        BUTTPLUG_OUTPUT_HW_POSITION_WITH_DURATION,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Spray),
+        BUTTPLUG_OUTPUT_SPRAY,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Led),
+        BUTTPLUG_OUTPUT_LED,
+    );
+    push_output(
+        &mut outputs,
+        device.output_available(OutputType::Temperature),
+        BUTTPLUG_OUTPUT_TEMPERATURE,
+    );
     outputs
 }
 

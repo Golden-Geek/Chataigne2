@@ -1057,9 +1057,23 @@ The same anti-placeholder standard applies to the creative runtime:
 
 The Phase 0 ledger distinguishes three states: operational baseline behavior to preserve, baseline UI/persistence scaffolding whose intended behavior still needs implementation, and newly planned functionality. Only the first category can be called “restored”; all three remain explicit final-product work.
 
-### 15.4 Continuous product gate
+### 15.4 Local iteration and cross-platform qualification gates
 
-Every supercommit must pass one root `product-gate` workflow that, at minimum:
+Migration validation uses two profiles so the normal edit loop stays fast without weakening the
+portable product contract:
+
+- **Win-x64 iteration profile.** Every focused `RUNNABLE` migration supercommit must pass the
+  applicable checks locally on `x86_64-pc-windows-msvc`, the active development platform. Narrow
+  checks may be used while editing, but the complete local product gate runs before the
+  supercommit is handed off or used as the base for another architectural slice.
+- **Cross-platform qualification profile.** The same gate expands to Windows MSVC, macOS, Linux,
+  and the supported compatibility targets at the end of Phases 1B, 3, 6, 8, and 9; before a merge
+  to `main`, release, packaging cutover, or old-path deletion that depends on platform behavior;
+  and whenever a slice changes host startup, native dependencies, target selection, packaging, or
+  platform-specific code. A qualification may be run earlier when useful, but routine pushes to a
+  long-lived migration branch do not require online CI.
+
+The local and qualification profiles share one product-gate contract. The applicable profile must:
 
 1. builds and tests the complete Rust workspace;
 2. checks, tests, and production-builds the complete Svelte workspace;
@@ -1071,9 +1085,16 @@ Every supercommit must pass one root `product-gate` workflow that, at minimum:
 8. runs a representative loopback module input/output test through the real engine;
 9. captures screenshots and browser console/network failures;
 10. connects a browser through a real non-loopback LAN address to prove the client does not hardcode `localhost` and the advertised/open-network workflow works;
-11. builds on Windows MSVC, macOS, and Linux with platform-appropriate optional integrations.
+11. build the selected validation matrix with platform-appropriate optional integrations.
 
 The gate fails on a blank UI, disconnected UI, placeholder-only catalog, missing panel registration, console exception, intent timeout, unusable fixture, or omitted default application binary. A green library test suite cannot override a red product gate.
+
+Deferred cross-platform evidence is recorded as `NOT_RUN`, never inferred from the Windows result.
+It does not block intermediate work on the canonical migration branch, but it blocks the named
+qualification point and any final merge, release, or deletion that requires it. Portability remains
+an implementation constraint between qualifications: prefer cross-platform libraries and explicit
+target boundaries, and do not knowingly accumulate a platform-specific design that merely happens
+to pass on Windows.
 
 ### 15.5 Toolchain and native dependency gate
 
@@ -1146,7 +1167,7 @@ Every phase declares one state before implementation:
 
 | State | Rules |
 |---|---|
-| `RUNNABLE` | The complete applicable build, test, product, UI-engine, fixture, and root-command matrix must run and pass before the phase is complete |
+| `RUNNABLE` | The complete applicable build, test, product, UI-engine, fixture, and root-command matrix for the required validation profile must run and pass before the phase is complete |
 | `INTENTIONALLY_NON_RUNNABLE` | Permitted only as a private/topic WIP interval for a narrowly scoped structural transition; exact expected breakages, unaffected checks, restoration phase, and rollback point are documented before work |
 
 For a `RUNNABLE` phase:
@@ -1157,6 +1178,10 @@ For a `RUNNABLE` phase:
 - run the real UI against the real backend when the phase affects either side;
 - report skipped/ignored/platform-gated tests separately with reasons;
 - a failed prerequisite is a failed phase, not evidence that downstream checks “would pass.”
+
+Unless Section 15.4 requires a cross-platform qualification for that phase or change, the required
+profile is the Win-x64 iteration profile. A phase that is a named qualification point is incomplete
+until the full declared platform matrix passes.
 
 For an `INTENTIONALLY_NON_RUNNABLE` phase:
 
@@ -1225,7 +1250,7 @@ Complex formulas, scripts, IO, and specialized algorithms receive operation-spec
 
 ## 17. Testing and quality system
 
-### Every pull request
+### Every focused migration supercommit
 
 - validation-state declaration and exact executed-command report;
 - formatting, clippy with no new debt, workspace tests;
@@ -1243,6 +1268,12 @@ Complex formulas, scripts, IO, and specialized algorithms receive operation-spec
 - Playwright interaction through the mounted Chataigne app rather than synthetic `page.setContent` component/data-structure tests;
 - absolute canonical performance gates on dedicated runners where stable;
 - failure on meaningful regression above 5% outside noise.
+
+Run this list locally on Win-x64 during ordinary migration work. A pull request is a review and
+qualification vehicle, not a prerequisite for keeping a long-lived migration branch runnable:
+open a focused PR when a named cross-platform qualification or merge point is ready. The
+cross-platform profile adds the platform matrix and platform-appropriate integrations required by
+Section 15.4.
 
 ### Nightly
 
@@ -1296,7 +1327,7 @@ Each phase ends with:
 2. the progress and parity ledgers updated with exact completed, shadowing, cut-over, and remaining work;
 3. only genuinely executed characterization, visual, connectivity, and performance evidence committed in machine-readable form;
 4. every applicable compile/build command executed first and recorded; any failure marked `FAIL`, with dependent tests explicitly `BLOCKED`, otherwise all applicable checks executed;
-5. for every `RUNNABLE` phase, the continuous product gate and `cargo run`, `watch`, and `cargo run -- --dev` contracts passing against the real backend and real Svelte/Tauri application;
+5. for every `RUNNABLE` phase, the required Section 15.4 product-gate profile and `cargo run`, `watch`, and `cargo run -- --dev` contracts passing against the real backend and real Svelte/Tauri application; the Win-x64 profile is sufficient between named qualification points;
 6. one focused, independently buildable/launchable monorepo supercommit for the canonical migration branch; any `INTENTIONALLY_NON_RUNNABLE` work remains on a private/topic branch until restored;
 7. no phase marked complete without its honest exit criteria;
 8. a return to `RUNNABLE` immediately after any intentionally broken structural interval, before unrelated work continues.

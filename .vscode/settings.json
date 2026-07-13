@@ -1,4 +1,13 @@
 {
-    "editor.wordWrapColumn": 150,
-    "task.allowAutomaticTasks": "on"
+  "editor.wordWrapColumn": 100,
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/target/**": true,
+    "**/apps/chataigne/ui/build/**": true,
+    "**/.svelte-kit/**": true
+  },
+  "rust-analyzer.cargo.allTargets": true,
+  "rust-analyzer.check.allTargets": true,
+  "rust-analyzer.check.command": "clippy",
+  "task.allowAutomaticTasks": "on"
 }

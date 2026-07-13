@@ -1,0 +1,15 @@
+[[permission]]
+identifier = "desktop-host"
+description = "Allows the main Chataigne desktop window to use the host commands exposed by golden_host_desktop."
+commands.allow = [
+  "window_minimize",
+  "window_toggle_maximize",
+  "window_close",
+  "window_destroy",
+  "window_is_maximized",
+  "start_drag",
+  "open_file_dialog",
+  "save_file_dialog",
+  "write_app_data_file",
+  "write_file_in_directory",
+]

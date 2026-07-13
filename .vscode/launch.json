@@ -10,78 +10,84 @@
   ],
   "configurations": [
     {
+      "name": "Debug Chataigne2 (bundled UI)",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["build", "--bin", "Chataigne2"],
+        "filter": { "name": "Chataigne2", "kind": "bin" }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "GC_UI_ASSUME_BUILT": "1",
+        "RUST_BACKTRACE": "full",
+        "RUST_MIN_STACK": "33554432"
+      },
+      "preLaunchTask": "UI: build",
+      "terminal": "integrated",
+      "sourceLanguages": ["rust"],
+      "showDisassembly": "never"
+    },
+    {
       "name": "Debug Chataigne2 (--dev)",
       "type": "lldb",
       "request": "launch",
       "cargo": {
-        "args": [
-          "build",
-          "--bin",
-          "Chataigne2"
-        ],
-        "filter": {
-          "name": "Chataigne2",
-          "kind": "bin"
-        }
+        "args": ["build", "--bin", "Chataigne2"],
+        "filter": { "name": "Chataigne2", "kind": "bin" }
       },
-      "args": [
-        "--dev"
-      ],
+      "args": ["--dev"],
       "cwd": "${workspaceFolder}",
       "env": {
+        "GC_UI_ASSUME_BUILT": "1",
         "RUST_BACKTRACE": "full",
         "RUST_MIN_STACK": "33554432"
       },
+      "preLaunchTask": "UI: dev server",
       "terminal": "integrated",
-      "sourceLanguages": [
-        "rust"
-      ],
-      "showDisassembly": "never",
-      "initCommands": [
-        "command alias btall thread backtrace all",
-        "settings set target.process.thread.step-avoid-regexp '^(std|core|alloc)::'"
-      ],
-      "preRunCommands": [
-        "target stop-hook add -o 'thread backtrace all'"
-      ]
+      "sourceLanguages": ["rust"],
+      "showDisassembly": "never"
     },
     {
-      "name": "Debug Chataigne2 Unit Test",
+      "name": "Debug Chataigne2 (--headless)",
       "type": "lldb",
       "request": "launch",
       "cargo": {
-        "args": [
-          "test",
-          "--no-run",
-          "--bin",
-          "Chataigne2"
-        ],
-        "filter": {
-          "name": "Chataigne2",
-          "kind": "bin"
-        }
+        "args": ["build", "--bin", "Chataigne2"],
+        "filter": { "name": "Chataigne2", "kind": "bin" }
       },
-      "args": [
-        "${input:chataigneTestFilter}",
-        "--nocapture"
-      ],
+      "args": ["--headless"],
       "cwd": "${workspaceFolder}",
       "env": {
+        "GC_UI_ASSUME_BUILT": "1",
         "RUST_BACKTRACE": "full",
         "RUST_MIN_STACK": "33554432"
       },
+      "preLaunchTask": "UI: build",
       "terminal": "integrated",
-      "sourceLanguages": [
-        "rust"
-      ],
-      "showDisassembly": "never",
-      "initCommands": [
-        "command alias btall thread backtrace all",
-        "settings set target.process.thread.step-avoid-regexp '^(std|core|alloc)::'"
-      ],
-      "preRunCommands": [
-        "target stop-hook add -o 'thread backtrace all'"
-      ]
+      "sourceLanguages": ["rust"],
+      "showDisassembly": "never"
+    },
+    {
+      "name": "Debug Chataigne2 unit test",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin", "Chataigne2"],
+        "filter": { "name": "Chataigne2", "kind": "bin" }
+      },
+      "args": ["${input:chataigneTestFilter}", "--nocapture"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "GC_UI_ASSUME_BUILT": "1",
+        "RUST_BACKTRACE": "full",
+        "RUST_MIN_STACK": "33554432"
+      },
+      "preLaunchTask": "UI: build",
+      "terminal": "integrated",
+      "sourceLanguages": ["rust"],
+      "showDisassembly": "never"
     }
   ]
 }

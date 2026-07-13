@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Default permissions for the main desktop window, including custom titlebar dragging.",
+  "description": "Permissions for the main desktop window and its explicit golden_host_desktop command surface.",
   "windows": ["main"],
   "remote": {
     "urls": [
@@ -10,6 +10,7 @@
     ]
   },
   "permissions": [
+    "desktop-host",
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-minimize",

@@ -3,10 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -35,6 +35,8 @@ jobs:
         shell: bash
         run: sh ./tools/bootstrap/install-rust-toolchain.sh
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: engine-tests-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
       - name: Run tests (single-threaded to avoid flaky logger test)
         run: cargo test -p golden_engine -- --test-threads=1
 
@@ -48,14 +50,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            . -> target
       - name: Install UI deps
         run: npm ci
-      # - name: Root fmt
-      #   run: cargo fmt --all --check
       - name: UI lint
         working-directory: apps/chataigne/ui
         run: npm run lint
@@ -65,10 +61,6 @@ jobs:
       - name: UI build
         working-directory: apps/chataigne/ui
         run: npm run build
-      # - name: Root check
-      #   env:
-      #     GC_UI_ASSUME_BUILT: 1
-      #   run: cargo check
       - name: Upload UI build
         uses: actions/upload-artifact@v7
         with:
@@ -141,7 +133,7 @@ jobs:
           rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}
+          key: build-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
           workspaces: |
             . -> target
       - name: Install Linux desktop deps
