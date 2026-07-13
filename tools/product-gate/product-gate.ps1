@@ -751,11 +751,19 @@ else {
 }
 
 Invoke-GateCommand `
+    -Id "ui.build" `
+    -Name "Svelte production build" `
+    -Executable $npmExecutable `
+    -Arguments @("run", "build") `
+    -WorkingDirectory $uiDirectory `
+    -DependsOn @("ui.dependencies_ready") | Out-Null
+
+Invoke-GateCommand `
     -Id "rust.build" `
     -Name "Rust workspace build" `
     -Executable "cargo" `
     -Arguments (@("build", "--workspace", "--all-targets") + $cargoFeatureArguments) `
-    -DependsOn @("toolchain.contract", "ui.dependencies_ready") | Out-Null
+    -DependsOn @("toolchain.contract", "ui.build") | Out-Null
 
 Invoke-GateCommand `
     -Id "ui.browser_install" `
@@ -783,14 +791,6 @@ Invoke-GateCommand `
     -Executable "python" `
     -Arguments @("-m", "unittest", "discover", "-s", "tools/migration/tests", "-v") `
     -DependsOn @("product_manifest.schema") | Out-Null
-
-Invoke-GateCommand `
-    -Id "ui.build" `
-    -Name "Svelte production build" `
-    -Executable $npmExecutable `
-    -Arguments @("run", "build") `
-    -WorkingDirectory $uiDirectory `
-    -DependsOn @("ui.dependencies_ready", "rust.build") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `

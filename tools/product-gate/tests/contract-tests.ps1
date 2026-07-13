@@ -39,6 +39,14 @@ if ($gateSource -notmatch '-Id "ui\.browser_install"' -or
     $gateSource -notmatch '@\("exec", "--", "playwright-core", "install", "chromium"\)') {
     throw "The product gate must install the lockfile-pinned Playwright Chromium browser."
 }
+$uiBuildIndex = $gateSource.IndexOf('-Id "ui.build"')
+$rustBuildIndex = $gateSource.IndexOf('-Id "rust.build"')
+if ($uiBuildIndex -lt 0 -or $rustBuildIndex -lt 0 -or $uiBuildIndex -gt $rustBuildIndex) {
+    throw "The product gate must produce the final UI bundle before compiling the Rust app."
+}
+if ($gateSource -notmatch '-Id "rust\.build"(?s:.*?)-DependsOn @\("toolchain\.contract", "ui\.build"\)') {
+    throw "The Rust workspace build must depend on the final UI bundle."
+}
 
 $smokeCommonSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/smoke-common.ps1"))
 if ($smokeCommonSource -notmatch '& /bin/kill -TERM \$processId') {
