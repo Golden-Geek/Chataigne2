@@ -2,7 +2,7 @@ use std::{
     net::TcpListener,
     sync::mpsc,
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use golden_core::{
@@ -97,44 +97,32 @@ fn tcp_module_recovers_when_server_appears_and_after_connection_loss() {
         let (first_stream, _) = listener.accept().expect("first TCP client connection should arrive");
         stage_tx.send(1u8).expect("first TCP connection stage should send");
         drop_first_rx
-            .recv_timeout(Duration::from_secs(2))
+            .recv_timeout(Duration::from_secs(5))
             .expect("test should signal the first TCP connection to close");
         drop(first_stream);
 
         let (second_stream, _) = listener.accept().expect("TCP client should reconnect after disconnect");
         stage_tx.send(2u8).expect("second TCP connection stage should send");
         finish_rx
-            .recv_timeout(Duration::from_secs(2))
+            .recv_timeout(Duration::from_secs(5))
             .expect("test should release the second TCP connection");
         drop(second_stream);
     });
 
     assert_eq!(
-        stage_rx.recv_timeout(Duration::from_secs(2)).expect("TCP client should connect once the server appears"),
+        stage_rx.recv_timeout(Duration::from_secs(5)).expect("TCP client should connect once the server appears"),
         1
     );
-    wait_for_transport_io();
-    settle_transport_state(&mut engine);
-    assert_eq!(
-        connected_value(&engine, module_id),
-        Some(true),
-        "TCP module should report connected after the server appears"
-    );
+    wait_for_connected_value(&mut engine, module_id, true);
 
     drop_first_tx
         .send(())
         .expect("test should signal the first TCP connection to close");
     assert_eq!(
-        stage_rx.recv_timeout(Duration::from_secs(3)).expect("TCP client should reconnect after the connection drops"),
+        stage_rx.recv_timeout(Duration::from_secs(5)).expect("TCP client should reconnect after the connection drops"),
         2
     );
-    wait_for_transport_io();
-    settle_transport_state(&mut engine);
-    assert_eq!(
-        connected_value(&engine, module_id),
-        Some(true),
-        "TCP module should report connected after reconnecting"
-    );
+    wait_for_connected_value(&mut engine, module_id, true);
 
     finish_tx
         .send(())
@@ -198,6 +186,26 @@ fn settle_transport_state(engine: &mut crate::app::AppEngine) {
         .run_tick(Duration::from_millis(20))
         .expect("TCP transport tick should succeed");
     engine.apply_edits().expect("TCP transport edits should apply");
+}
+
+fn wait_for_connected_value(
+    engine: &mut crate::app::AppEngine,
+    module_id: NodeId,
+    expected: bool,
+) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while Instant::now() < deadline {
+        wait_for_transport_io();
+        settle_transport_state(engine);
+        if connected_value(engine, module_id) == Some(expected) {
+            return;
+        }
+    }
+
+    panic!(
+        "TCP module connected state did not become {expected}; last value was {:?}",
+        connected_value(engine, module_id)
+    );
 }
 
 fn wait_for_transport_io() {

@@ -4,6 +4,23 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      native_platform:
+        description: Native product gate to run
+        required: true
+        default: windows
+        type: choice
+        options:
+          - windows
+          - linux
+          - macos
+          - all
+          - none
+      run_compatibility:
+        description: Run all ARM compatibility builds
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,18 +32,21 @@ permissions:
 jobs:
   product-gate:
     name: Product gate (${{ matrix.platform }})
+    if: github.event_name == 'push' || inputs.native_platform != 'none'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: windows
-            runner: windows-latest
-          - platform: macos
-            runner: macos-15
-          - platform: linux
-            runner: ubuntu-24.04
+        include: ${{ fromJSON(
+          (github.event_name == 'push' || inputs.native_platform == 'all') &&
+          '[{"platform":"windows","runner":"windows-latest"},{"platform":"macos","runner":"macos-15"},{"platform":"linux","runner":"ubuntu-24.04"}]' ||
+          inputs.native_platform == 'linux' &&
+          '[{"platform":"linux","runner":"ubuntu-24.04"}]' ||
+          inputs.native_platform == 'macos' &&
+          '[{"platform":"macos","runner":"macos-15"}]' ||
+          '[{"platform":"windows","runner":"windows-latest"}]'
+          ) }}
     steps:
       - uses: actions/checkout@v6
 
@@ -63,6 +83,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: product-gate-${{ matrix.platform }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
+          cache-on-failure: true
           workspaces: |
             . -> target
 
@@ -154,6 +175,7 @@ jobs:
 
   compatibility-build:
     name: Compatibility build (${{ matrix.platform }})
+    if: github.event_name == 'push' || inputs.run_compatibility == true
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
@@ -276,7 +298,7 @@ jobs:
 
   aggregate:
     name: Aggregate exact-commit reports
-    if: always()
+    if: ${{ always() && (github.event_name == 'push' || (inputs.native_platform == 'all' && inputs.run_compatibility == true)) }}
     needs: [product-gate, compatibility-build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10

@@ -28,6 +28,21 @@ foreach ($relativePath in $scripts) {
 
 & (Join-Path $repositoryRoot "tools/bootstrap/verify-toolchain.ps1") | Out-Null
 
+$workflowSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot ".github/workflows/product-gate.yml"))
+if ($workflowSource -notmatch 'native_platform:' -or
+    $workflowSource -notmatch 'default: windows' -or
+    $workflowSource -notmatch 'run_compatibility:' -or
+    $workflowSource -notmatch "inputs\.native_platform != 'none'" -or
+    $workflowSource -notmatch "inputs\.run_compatibility == true") {
+    throw "Manual product qualification must default to a targeted Windows-only dispatch."
+}
+if ($workflowSource -notmatch 'cache-on-failure: true') {
+    throw "Product-gate dependency caches must survive a late smoke failure."
+}
+if ($workflowSource -notmatch "inputs\.native_platform == 'all'.*inputs\.run_compatibility == true") {
+    throw "Exact-commit aggregation must run only for the complete requested matrix."
+}
+
 $gateSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/product-gate.ps1"))
 if ([regex]::Matches($gateSource, '-Id "evidence\.module_loopback"').Count -ne 1) {
     throw "The product gate must contain exactly one evidence.module_loopback item."
