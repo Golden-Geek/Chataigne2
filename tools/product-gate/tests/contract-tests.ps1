@@ -83,6 +83,14 @@ if ($cargoRunSmokeSource -notmatch '"--automation-shutdown-file"' -or
     throw "The cargo-run smoke must stop the desktop runtime through its deterministic shutdown contract."
 }
 
+$cargoRunDevSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/cargo-run-dev-smoke.ps1"))
+if ($cargoRunDevSmokeSource -notmatch '"--dev"' -or
+    $cargoRunDevSmokeSource -notmatch '"--automation-shutdown-file"' -or
+    $cargoRunDevSmokeSource -notmatch 'Test-IsWindowsPlatform' -or
+    $cargoRunDevSmokeSource -notmatch '-ShutdownFile \$shutdownFile') {
+    throw "The cargo-run dev smoke must use the deterministic Windows shutdown contract."
+}
+
 $desktopHostSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "crates/host_desktop/src/desktop.rs"))
 if ($desktopHostSource -notmatch '"--automation-shutdown-file"' -or
     $desktopHostSource -notmatch 'app_handle\.exit\(0\)') {
