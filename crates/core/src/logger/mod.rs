@@ -99,6 +99,51 @@ impl LoggerState {
             }
         }
     }
+
+    fn push_message(
+        &mut self,
+        timestamp_ms: u64,
+        level: LogLevel,
+        tag: String,
+        origin: Option<NodeId>,
+        message: String,
+    ) -> LogRecord {
+        if let Some(last) = self.retained.back_mut() {
+            if last.level == level && last.tag == tag && last.message == message && last.origin == origin {
+                last.timestamp_ms = timestamp_ms;
+                last.repeat_count = last.repeat_count.saturating_add(1);
+                let updated = last.clone();
+
+                if let Some(pending_tail) = self.pending.back_mut() {
+                    if pending_tail.id == updated.id {
+                        *pending_tail = updated.clone();
+                    } else {
+                        self.pending.push_back(updated.clone());
+                    }
+                } else {
+                    self.pending.push_back(updated.clone());
+                }
+
+                return updated;
+            }
+        }
+
+        let record = LogRecord {
+            id: self.next_id,
+            timestamp_ms,
+            level,
+            tag,
+            message,
+            repeat_count: 1,
+            origin,
+        };
+        self.next_id = self.next_id.saturating_add(1);
+        self.retained.push_back(record.clone());
+        self.pending.push_back(record.clone());
+        self.trim_to_capacity();
+
+        record
+    }
 }
 
 static LOGGER_STATE: LazyLock<Mutex<LoggerState>> = LazyLock::new(|| Mutex::new(LoggerState::with_defaults()));
@@ -205,42 +250,7 @@ pub fn log_message(level: LogLevel, tag: String, origin: Option<NodeId>, message
         .map(|duration| duration.as_millis() as u64)
         .unwrap_or(0);
 
-    let mut state = lock_logger_state();
-    if let Some(last) = state.retained.back_mut() {
-        if last.level == level && last.tag == tag && last.message == message && last.origin == resolved_origin {
-            last.timestamp_ms = timestamp_ms;
-            last.repeat_count = last.repeat_count.saturating_add(1);
-            let updated = last.clone();
-
-            if let Some(pending_tail) = state.pending.back_mut() {
-                if pending_tail.id == updated.id {
-                    *pending_tail = updated.clone();
-                } else {
-                    state.pending.push_back(updated.clone());
-                }
-            } else {
-                state.pending.push_back(updated.clone());
-            }
-
-            return updated;
-        }
-    }
-
-    let record = LogRecord {
-        id: state.next_id,
-        timestamp_ms,
-        level,
-        tag,
-        message,
-        repeat_count: 1,
-        origin: resolved_origin,
-    };
-    state.next_id = state.next_id.saturating_add(1);
-    state.retained.push_back(record.clone());
-    state.pending.push_back(record.clone());
-    state.trim_to_capacity();
-
-    record
+    lock_logger_state().push_message(timestamp_ms, level, tag, resolved_origin, message)
 }
 
 fn process_output_prefix(level: LogLevel, tag: &str, origin: Option<NodeId>) -> String {

@@ -69,44 +69,41 @@ fn logger_uses_thread_local_origin_when_not_explicit() {
 
 #[test]
 fn logger_collapses_consecutive_duplicates_into_one_record() {
-    let _guard = test_lock();
-    clear();
-    set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
+    let mut state = LoggerState::with_defaults();
 
-    let first = crate::log!(tag = "perf", level = info; "duplicate");
-    let second = crate::log!(tag = "perf", level = info; "duplicate");
+    let first = state.push_message(1, LogLevel::Info, "perf".to_string(), None, "duplicate".to_string());
+    let second = state.push_message(2, LogLevel::Info, "perf".to_string(), None, "duplicate".to_string());
 
     assert_eq!(first.id, second.id);
     assert_eq!(second.repeat_count, 2);
-    assert_eq!(records().len(), 1);
+    assert_eq!(state.retained.len(), 1);
 
-    let pending = drain_pending();
+    let pending = state.pending.drain(..).collect::<Vec<_>>();
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].repeat_count, 2);
-
-    clear();
-    set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
 }
 
 #[test]
 fn logger_max_entries_counts_collapsed_runs() {
-    let _guard = test_lock();
-    clear();
-    set_max_entries(2);
+    let mut state = LoggerState::with_defaults();
+    state.max_entries = 2;
 
-    for _ in 0..64 {
-        crate::log!(tag = "same", level = warning; "same");
+    for timestamp_ms in 0..64 {
+        state.push_message(
+            timestamp_ms,
+            LogLevel::Warning,
+            "same".to_string(),
+            None,
+            "same".to_string(),
+        );
     }
-    crate::log!(tag = "next", level = warning; "next");
-    crate::log!(tag = "last", level = warning; "last");
+    state.push_message(64, LogLevel::Warning, "next".to_string(), None, "next".to_string());
+    state.push_message(65, LogLevel::Warning, "last".to_string(), None, "last".to_string());
 
-    let retained = records();
+    let retained = state.retained.into_iter().collect::<Vec<_>>();
     assert_eq!(retained.len(), 2);
     assert_eq!(retained[0].tag, "next");
     assert_eq!(retained[1].tag, "last");
-
-    clear();
-    set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
 }
 
 #[test]
