@@ -59,21 +59,26 @@ $screenshotPath = Join-Path $runDirectory "watch-smoke.ready.png"
 $shutdownPath = Join-Path $runDirectory "watch-smoke.shutdown"
 $cargo = Get-CommandSource -Name "cargo"
 $ports = @(5173, 7010)
+$isWindows = Test-IsWindowsPlatform
 
 Assert-LoopbackPortsAvailable -Ports $ports
 if (Test-Path -LiteralPath $shutdownPath) {
     Remove-Item -LiteralPath $shutdownPath -Force
 }
 
+$watchArguments = @("xtask", "watch")
+if ($isWindows) {
+    $watchArguments += @("--shutdown-file", $shutdownPath)
+}
 $startParameters = @{
     FilePath               = $cargo
-    ArgumentList           = @("xtask", "watch", "--shutdown-file", $shutdownPath)
+    ArgumentList           = $watchArguments
     WorkingDirectory       = $repositoryRoot
     RedirectStandardOutput = $standardOutputPath
     RedirectStandardError  = $standardErrorPath
     PassThru               = $true
 }
-if (Test-IsWindowsPlatform) {
+if ($isWindows) {
     $startParameters.WindowStyle = "Hidden"
 }
 
@@ -104,7 +109,12 @@ try {
         -Deadline $readinessDeadline
 
     $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
-    [System.IO.File]::WriteAllText($shutdownPath, "stop")
+    if ($isWindows) {
+        [System.IO.File]::WriteAllText($shutdownPath, "stop")
+    }
+    else {
+        Request-GracefulProductShutdown -RootProcessId $process.Id
+    }
     Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 90
     Wait-ForPortsReleased -Ports $ports -TimeoutSeconds 10
 
@@ -131,7 +141,12 @@ finally {
                 @(Get-OwnedProcessIds -RootProcessId $process.Id) |
                     Sort-Object -Unique
             )
-            [System.IO.File]::WriteAllText($shutdownPath, "stop")
+            if ($isWindows) {
+                [System.IO.File]::WriteAllText($shutdownPath, "stop")
+            }
+            else {
+                Request-GracefulProductShutdown -RootProcessId $process.Id
+            }
             Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 5
         }
         catch {

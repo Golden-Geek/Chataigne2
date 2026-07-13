@@ -11,6 +11,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 pub fn run(config: WatchConfig) -> Result<u8, String> {
+    if !cfg!(target_os = "windows") && config.shutdown_file.is_some() {
+        return Err("--shutdown-file is supported only on Windows".to_string());
+    }
+
     readiness::ensure_port_available("frontend", config.frontend_port)?;
     readiness::ensure_port_available("backend", config.backend_port)?;
 

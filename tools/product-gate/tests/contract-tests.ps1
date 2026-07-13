@@ -77,7 +77,8 @@ if ($smokeCommonSource -notmatch '& /bin/kill -TERM \$processId') {
 
 $cargoRunSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/cargo-run-smoke.ps1"))
 if ($cargoRunSmokeSource -notmatch '"--automation-shutdown-file"' -or
-    $cargoRunSmokeSource -notmatch '-ShutdownFile \$shutdownPath' -or
+    $cargoRunSmokeSource -notmatch 'Test-IsWindowsPlatform' -or
+    $cargoRunSmokeSource -notmatch '-ShutdownFile \$shutdownFile' -or
     $smokeCommonSource -notmatch '\[System\.IO\.File\]::WriteAllText\(\$ShutdownFile, "stop"\)') {
     throw "The cargo-run smoke must stop the desktop runtime through its deterministic shutdown contract."
 }
@@ -94,9 +95,11 @@ $readyIndex = $watchSmokeSource.IndexOf("`$ready = Wait-ForWatchReady")
 if ($probeIndex -lt 0 -or $readyIndex -lt 0 -or $probeIndex -gt $readyIndex) {
     throw "The watch smoke must establish a subscribed browser session before awaiting watch.ready."
 }
-if ($watchSmokeSource -notmatch '"--shutdown-file"' -or
-    $watchSmokeSource -notmatch '\[System\.IO\.File\]::WriteAllText\(\$shutdownPath, "stop"\)') {
-    throw "The watch smoke must stop the supervisor through its deterministic shutdown contract."
+if ($watchSmokeSource -notmatch 'Test-IsWindowsPlatform' -or
+    $watchSmokeSource -notmatch '"--shutdown-file"' -or
+    $watchSmokeSource -notmatch '\[System\.IO\.File\]::WriteAllText\(\$shutdownPath, "stop"\)' -or
+    $watchSmokeSource -notmatch 'Request-GracefulProductShutdown -RootProcessId \$process\.Id') {
+    throw "The watch smoke must use deterministic Windows shutdown and signal-based Unix shutdown."
 }
 
 $testRoot = Join-Path $repositoryRoot "target/product-gate/contract-tests"

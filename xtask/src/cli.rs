@@ -149,7 +149,7 @@ Watch options:\n\
   --backend-timeout-secs SECS    Backend startup deadline, including compilation (default: 300)\n\
   --engine-timeout-secs SECS     Engine snapshot deadline (default: 30)\n\
   --poll-ms MILLIS               Readiness polling interval (default: 200)\n\
-  --shutdown-file PATH           Stop cleanly when PATH appears (automation)\n\
+  --shutdown-file PATH           Stop cleanly when PATH appears (Windows automation)\n\
   --headless                     Pass --headless to the application\n\
   -h, --help                     Print this help\n\n\
 The supervisor binds both services to 127.0.0.1, emits JSON events on stdout,\n\

@@ -33,7 +33,7 @@ pub struct LaunchArgs {
     pub show_output: bool,
     /// Forces the built-in UI server to bind to loopback only.
     pub no_remote: bool,
-    /// Stops the desktop runtime cleanly when this automation sentinel appears.
+    /// Stops the Windows desktop runtime cleanly when this automation sentinel appears.
     pub automation_shutdown_file: Option<PathBuf>,
     /// Prints default launch usage instead of starting the app.
     pub show_help: bool,
@@ -255,6 +255,12 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    if !cfg!(target_os = "windows") && args.automation_shutdown_file.is_some() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "--automation-shutdown-file is supported only on Windows",
+        ));
+    }
     if let Some(path) = args.automation_shutdown_file.as_ref()
         && path.exists()
     {
@@ -384,7 +390,7 @@ fn print_usage() {
     println!("  --no-frontend  Launch Tauri against an external frontend instead of the bundled UI.");
     println!("  --show-output  Attach or create a console window for stdout/stderr logs.");
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
-    println!("  --automation-shutdown-file PATH  Stop cleanly when PATH appears (automation).");
+    println!("  --automation-shutdown-file PATH  Stop cleanly when PATH appears (Windows automation).");
 }
 
 #[cfg(target_os = "windows")]
