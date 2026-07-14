@@ -834,7 +834,7 @@ enum RuntimeValueSignature {
     String(Arc<str>),
     Vec2([u64; 2]),
     Vec3([u64; 3]),
-    Color([u32; 4]),
+    Color([u64; 4]),
     Duration(std::time::Duration),
     Array(Vec<RuntimeValueSignature>),
     Ref {
@@ -4234,10 +4234,10 @@ fn param_to_runtime_value(value: &ParamValue) -> Option<RuntimeValue> {
         ParamValue::Vec2(x, y) => Some(RuntimeValue::Vec2([*x, *y])),
         ParamValue::Vec3(x, y, z) => Some(RuntimeValue::Vec3([*x, *y, *z])),
         ParamValue::Color(r, g, b, a) => Some(RuntimeValue::Color(golden_alchemist::ColorValue {
-            red: *r as f32,
-            green: *g as f32,
-            blue: *b as f32,
-            alpha: *a as f32,
+            red: *r,
+            green: *g,
+            blue: *b,
+            alpha: *a,
         })),
         ParamValue::Reference(reference) => Some(RuntimeValue::String(reference.uuid().0.to_string().into())),
         ParamValue::Trigger() => Some(RuntimeValue::Trigger(TriggerValue::default())),

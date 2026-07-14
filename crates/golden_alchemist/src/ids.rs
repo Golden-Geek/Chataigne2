@@ -3,6 +3,8 @@ use std::fmt;
 use smol_str::SmolStr;
 use uuid::Uuid;
 
+pub use golden_values::ValueTypeId;
+
 macro_rules! uuid_id {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -93,7 +95,6 @@ string_id!(SurfaceContributionId);
 string_id!(SurfaceItemId);
 string_id!(SurfaceSectionId);
 string_id!(SocketId);
-string_id!(ValueTypeId);
 string_id!(FacetId);
 string_id!(ExposedDeclId);
 

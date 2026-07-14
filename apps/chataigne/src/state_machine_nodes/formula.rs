@@ -726,10 +726,10 @@ pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue,
             ParamValue::Vec3(value[0], value[1], value[2])
         }
         RuntimeValue::Color(value) => ParamValue::Color(
-            f64::from(value.red),
-            f64::from(value.green),
-            f64::from(value.blue),
-            f64::from(value.alpha),
+            value.red,
+            value.green,
+            value.blue,
+            value.alpha,
         ),
         RuntimeValue::Duration(value) => ParamValue::Float(value.as_secs_f64()),
         RuntimeValue::Array(values) => ParamValue::Str(
@@ -828,10 +828,10 @@ fn param_to_untyped_runtime_value(value: &ParamValue) -> Result<RuntimeValue, St
         ParamValue::Vec2(x, y) => RuntimeValue::Vec2([*x, *y]),
         ParamValue::Vec3(x, y, z) => RuntimeValue::Vec3([*x, *y, *z]),
         ParamValue::Color(r, g, b, a) => RuntimeValue::Color(ColorValue {
-            red: *r as f32,
-            green: *g as f32,
-            blue: *b as f32,
-            alpha: *a as f32,
+            red: *r,
+            green: *g,
+            blue: *b,
+            alpha: *a,
         }),
         ParamValue::Reference(reference) => {
             let stable_id = if reference.is_empty() {
@@ -1262,10 +1262,10 @@ fn gradient_stop_to_runtime_value(stop: &GradientStop) -> RuntimeValue {
     RuntimeValue::Array(vec![
         RuntimeValue::Float(stop.position),
         RuntimeValue::Color(ColorValue {
-            red: stop.color.r() as f32,
-            green: stop.color.g() as f32,
-            blue: stop.color.b() as f32,
-            alpha: stop.color.a() as f32,
+            red: stop.color.r(),
+            green: stop.color.g(),
+            blue: stop.color.b(),
+            alpha: stop.color.a(),
         }),
         RuntimeValue::String(Arc::from(stop.interpolation.variant_id())),
     ])

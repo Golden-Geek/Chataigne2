@@ -12,6 +12,7 @@ debug_trace = []
 golden_core_integration = []
 
 [dependencies]
+golden_values.workspace = true
 indexmap.workspace = true
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }

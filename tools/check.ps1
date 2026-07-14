@@ -74,6 +74,10 @@ Run-Step "Phase 2 architecture contracts" {
     python tools/migration/check_phase2_contracts.py
 }
 
+Run-Step "Phase 3 foundation contracts" {
+    python tools/migration/check_phase3_contracts.py
+}
+
 if (-not $SkipUiInstall) {
     Run-Step "npm ci" {
         npm ci

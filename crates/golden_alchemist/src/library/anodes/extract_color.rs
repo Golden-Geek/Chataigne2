@@ -13,12 +13,7 @@ impl CompiledNodeEvaluator for ExtractColorEval {
             return Err("Extract Color expects a color input".into());
         };
         let channels = match self.mode {
-            super::color_mode::ColorMode::Rgba => [
-                f64::from(color.red),
-                f64::from(color.green),
-                f64::from(color.blue),
-                f64::from(color.alpha),
-            ],
+            super::color_mode::ColorMode::Rgba => [color.red, color.green, color.blue, color.alpha],
             super::color_mode::ColorMode::Hsva => rgba_to_hsva(*color),
             super::color_mode::ColorMode::Hsla => rgba_to_hsla(*color),
             super::color_mode::ColorMode::Cmyk => rgba_to_cmyk(*color),

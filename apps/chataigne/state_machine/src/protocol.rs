@@ -458,10 +458,10 @@ pub enum RuntimeValueDto {
         value: [f64; 3],
     },
     Color {
-        red: f32,
-        green: f32,
-        blue: f32,
-        alpha: f32,
+        red: f64,
+        green: f64,
+        blue: f64,
+        alpha: f64,
     },
     Duration {
         seconds: f64,

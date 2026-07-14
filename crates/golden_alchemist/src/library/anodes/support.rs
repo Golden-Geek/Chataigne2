@@ -546,10 +546,10 @@ pub(super) fn hsva_to_rgba(hue: f64, saturation: f64, value: f64, alpha: f64) ->
     let (red, green, blue) = hue_sector(hue, chroma);
     let m = value - chroma;
     ColorValue {
-        red: (red + m) as f32,
-        green: (green + m) as f32,
-        blue: (blue + m) as f32,
-        alpha: clamp01(alpha) as f32,
+        red: red + m,
+        green: green + m,
+        blue: blue + m,
+        alpha: clamp01(alpha),
     }
 }
 
@@ -560,10 +560,10 @@ pub(super) fn hsla_to_rgba(hue: f64, saturation: f64, lightness: f64, alpha: f64
     let (red, green, blue) = hue_sector(hue, chroma);
     let m = lightness - chroma * 0.5;
     ColorValue {
-        red: (red + m) as f32,
-        green: (green + m) as f32,
-        blue: (blue + m) as f32,
-        alpha: clamp01(alpha) as f32,
+        red: red + m,
+        green: green + m,
+        blue: blue + m,
+        alpha: clamp01(alpha),
     }
 }
 
@@ -573,9 +573,9 @@ pub(super) fn cmyk_to_rgba(cyan: f64, magenta: f64, yellow: f64, key: f64) -> Co
     let yellow = clamp01(yellow);
     let key = clamp01(key);
     ColorValue {
-        red: ((1.0 - cyan) * (1.0 - key)) as f32,
-        green: ((1.0 - magenta) * (1.0 - key)) as f32,
-        blue: ((1.0 - yellow) * (1.0 - key)) as f32,
+        red: (1.0 - cyan) * (1.0 - key),
+        green: (1.0 - magenta) * (1.0 - key),
+        blue: (1.0 - yellow) * (1.0 - key),
         alpha: 1.0,
     }
 }
@@ -593,25 +593,20 @@ pub(super) fn color_hue(red: f64, green: f64, blue: f64, max: f64, delta: f64) -
 }
 
 pub(super) fn rgba_to_hsva(color: ColorValue) -> [f64; 4] {
-    let red = f64::from(color.red);
-    let green = f64::from(color.green);
-    let blue = f64::from(color.blue);
+    let red = color.red;
+    let green = color.green;
+    let blue = color.blue;
     let max = red.max(green).max(blue);
     let min = red.min(green).min(blue);
     let delta = max - min;
     let saturation = if max <= f64::EPSILON { 0.0 } else { delta / max };
-    [
-        color_hue(red, green, blue, max, delta),
-        saturation,
-        max,
-        f64::from(color.alpha),
-    ]
+    [color_hue(red, green, blue, max, delta), saturation, max, color.alpha]
 }
 
 pub(super) fn rgba_to_hsla(color: ColorValue) -> [f64; 4] {
-    let red = f64::from(color.red);
-    let green = f64::from(color.green);
-    let blue = f64::from(color.blue);
+    let red = color.red;
+    let green = color.green;
+    let blue = color.blue;
     let max = red.max(green).max(blue);
     let min = red.min(green).min(blue);
     let delta = max - min;
@@ -625,14 +620,14 @@ pub(super) fn rgba_to_hsla(color: ColorValue) -> [f64; 4] {
         color_hue(red, green, blue, max, delta),
         saturation,
         lightness,
-        f64::from(color.alpha),
+        color.alpha,
     ]
 }
 
 pub(super) fn rgba_to_cmyk(color: ColorValue) -> [f64; 4] {
-    let red = f64::from(color.red);
-    let green = f64::from(color.green);
-    let blue = f64::from(color.blue);
+    let red = color.red;
+    let green = color.green;
+    let blue = color.blue;
     let key = 1.0 - red.max(green).max(blue);
     if key >= 1.0 - f64::EPSILON {
         return [0.0, 0.0, 0.0, 1.0];
@@ -660,10 +655,10 @@ pub(super) fn numeric_map_checked(
         RuntimeValue::Vec2(value) => RuntimeValue::Vec2([mapper(value[0])?, mapper(value[1])?]),
         RuntimeValue::Vec3(value) => RuntimeValue::Vec3([mapper(value[0])?, mapper(value[1])?, mapper(value[2])?]),
         RuntimeValue::Color(value) => RuntimeValue::Color(ColorValue {
-            red: mapper(f64::from(value.red))? as f32,
-            green: mapper(f64::from(value.green))? as f32,
-            blue: mapper(f64::from(value.blue))? as f32,
-            alpha: mapper(f64::from(value.alpha))? as f32,
+            red: mapper(value.red)?,
+            green: mapper(value.green)?,
+            blue: mapper(value.blue)?,
+            alpha: mapper(value.alpha)?,
         }),
         _ => RuntimeValue::Float(mapper(value_to_f64(value))?),
     })
@@ -679,7 +674,7 @@ pub(super) fn value_to_f64(value: &RuntimeValue) -> f64 {
         RuntimeValue::String(value) => value.trim().parse::<f64>().unwrap_or(0.0),
         RuntimeValue::Vec2(value) => value[0],
         RuntimeValue::Vec3(value) => value[0],
-        RuntimeValue::Color(value) => f64::from(value.red),
+        RuntimeValue::Color(value) => value.red,
         RuntimeValue::Duration(value) => value.as_secs_f64(),
         RuntimeValue::Array(value) => value.first().map_or(0.0, value_to_f64),
         RuntimeValue::Ref(_) | RuntimeValue::Extension(_) => 0.0,
@@ -720,10 +715,10 @@ pub(super) fn format_runtime_value(value: &RuntimeValue, decimals: usize) -> Str
         ),
         RuntimeValue::Color(value) => format!(
             "[{},{},{},{}]",
-            format_float(f64::from(value.red), decimals),
-            format_float(f64::from(value.green), decimals),
-            format_float(f64::from(value.blue), decimals),
-            format_float(f64::from(value.alpha), decimals)
+            format_float(value.red, decimals),
+            format_float(value.green, decimals),
+            format_float(value.blue, decimals),
+            format_float(value.alpha, decimals)
         ),
         RuntimeValue::Duration(value) => time_string(value.as_secs_f64(), decimals),
         RuntimeValue::Array(values) => values
@@ -755,9 +750,7 @@ pub(super) fn time_string(seconds: f64, decimals: usize) -> String {
 
 pub(super) fn brightness(value: &RuntimeValue) -> f64 {
     match value {
-        RuntimeValue::Color(value) => {
-            0.2126 * f64::from(value.red) + 0.7152 * f64::from(value.green) + 0.0722 * f64::from(value.blue)
-        }
+        RuntimeValue::Color(value) => 0.2126 * value.red + 0.7152 * value.green + 0.0722 * value.blue,
         _ => value_to_f64(value).abs(),
     }
 }

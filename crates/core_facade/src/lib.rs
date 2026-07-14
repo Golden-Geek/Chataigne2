@@ -14,6 +14,16 @@ pub mod application {
     pub use golden_engine::application::*;
 }
 
+/// Stable app-agnostic model identities.
+pub mod model {
+    pub use golden_model::*;
+}
+
+/// Canonical app-agnostic runtime values.
+pub mod values {
+    pub use golden_values::*;
+}
+
 /// Basic color schema types.
 pub mod color {
     pub use golden_engine::color::*;

@@ -157,10 +157,10 @@ fn sample_gradient(stops: &[GradientStop], position: f64) -> ColorValue {
         let raw = ((position - left.position) / width).clamp(0.0, 1.0);
         let amount = left.interpolation.apply(raw);
         return ColorValue {
-            red: lerp(f64::from(left.color.red), f64::from(right.color.red), amount) as f32,
-            green: lerp(f64::from(left.color.green), f64::from(right.color.green), amount) as f32,
-            blue: lerp(f64::from(left.color.blue), f64::from(right.color.blue), amount) as f32,
-            alpha: lerp(f64::from(left.color.alpha), f64::from(right.color.alpha), amount) as f32,
+            red: lerp(left.color.red, right.color.red, amount),
+            green: lerp(left.color.green, right.color.green, amount),
+            blue: lerp(left.color.blue, right.color.blue, amount),
+            alpha: lerp(left.color.alpha, right.color.alpha, amount),
         };
     }
     stops.last().map_or(ColorValue::BLACK, |stop| stop.color)

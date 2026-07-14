@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "phase": 3,
+  "revision": 1,
+  "tested_tree_base": "3d3b30dd10d8a4d45327f32dc8ff786764a51282",
+  "product_gate": "PASS: target/product-gate/20260714T140050Z/product-gate-report.json",
+  "cutovers": [
+    {
+      "cutover_id": "identifiers",
+      "state": "cut_over",
+      "owner": "golden_model",
+      "evidence": [
+        "golden_model::tests::identities_keep_their_wire_shapes",
+        "tools/migration/check_phase3_contracts.py"
+      ]
+    },
+    {
+      "cutover_id": "canonical_values",
+      "state": "cut_over",
+      "owner": "golden_values",
+      "evidence": [
+        "golden_values unit tests",
+        "golden_engine::parameter::canonical_tests",
+        "golden_alchemist tests",
+        "chataigne_state_machine tests"
+      ]
+    },
+    {
+      "cutover_id": "parameters",
+      "state": "pending",
+      "owner": "golden_parameters",
+      "evidence": ["scheduled after the canonical value cutover"]
+    },
+    {
+      "cutover_id": "context",
+      "state": "pending",
+      "owner": "golden_context",
+      "evidence": ["scheduled after the parameter cutover"]
+    },
+    {
+      "cutover_id": "graph_contract",
+      "state": "pending",
+      "owner": "golden_graph",
+      "evidence": ["identifier and value foundations are prerequisites"]
+    },
+    {
+      "cutover_id": "graph_ui",
+      "state": "pending",
+      "owner": "golden_graph_ui",
+      "evidence": ["scheduled after graph presentation and revision contracts"]
+    },
+    {
+      "cutover_id": "test_domain",
+      "state": "pending",
+      "owner": "golden_graph",
+      "evidence": ["scheduled before real-domain adapters"]
+    },
+    {
+      "cutover_id": "alchemist_domain",
+      "state": "pending",
+      "owner": "golden_alchemist",
+      "evidence": ["canonical values are cut over; graph-domain adaptation remains"]
+    },
+    {
+      "cutover_id": "statechart_domain",
+      "state": "pending",
+      "owner": "golden_statechart",
+      "evidence": ["canonical values are cut over; graph-domain adaptation remains"]
+    }
+  ],
+  "temporary_adapters": [
+    {
+      "adapter_id": "phase3.engine-identity-reexport",
+      "owner": "golden_engine",
+      "scope": "golden_engine::node keeps existing source paths while identities move to golden_model",
+      "expiry_phase": 6,
+      "deletion_criteria": "all reusable consumers import identities from golden_model and the public compatibility path has no callers",
+      "deletion_issue": "phase6-delete-engine-identity-reexport",
+      "tests": ["golden_model wire-shape tests", "Rust workspace tests"],
+      "current_state": "adapted"
+    },
+    {
+      "adapter_id": "phase3.alchemist-runtime-value-reexport",
+      "owner": "golden_alchemist",
+      "scope": "RuntimeValue remains a source-compatible public name for golden_values::Value",
+      "expiry_phase": 4,
+      "deletion_criteria": "Alchemist and app consumers import golden_values::Value directly",
+      "deletion_issue": "phase4-delete-alchemist-runtime-value-reexport",
+      "tests": ["golden_alchemist tests", "chataigne_state_machine tests"],
+      "current_state": "adapted"
+    }
+  ]
+}

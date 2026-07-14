@@ -8,7 +8,9 @@ members = [
     "crates/core_facade",
     "crates/core_macros",
     "crates/golden_alchemist",
+    "crates/model",
     "crates/golden_statechart",
+    "crates/values",
     "crates/host_desktop",
     "crates/persistence",
     "crates/protocol",
@@ -29,7 +31,9 @@ repository = "https://github.com/Golden-Geek/Chataigne2"
 [workspace.dependencies]
 golden_alchemist = { path = "crates/golden_alchemist" }
 golden_application = { path = "crates/application" }
+golden_model = { path = "crates/model" }
 golden_statechart = { path = "crates/golden_statechart" }
+golden_values = { path = "crates/values" }
 indexmap = { version = "2", features = ["serde"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"

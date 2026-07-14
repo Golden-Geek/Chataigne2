@@ -1237,10 +1237,10 @@ fn numeric_from_components(shape: NumericShape, components: &[f64]) -> RuntimeVa
         NumericShape::Vec2 => RuntimeValue::Vec2([components[0], components[1]]),
         NumericShape::Vec3 => RuntimeValue::Vec3([components[0], components[1], components[2]]),
         NumericShape::Color => RuntimeValue::Color(ColorValue {
-            red: components[0] as f32,
-            green: components[1] as f32,
-            blue: components[2] as f32,
-            alpha: components[3] as f32,
+            red: components[0],
+            green: components[1],
+            blue: components[2],
+            alpha: components[3],
         }),
     }
 }

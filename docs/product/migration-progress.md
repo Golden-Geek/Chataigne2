@@ -27,7 +27,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 1A — Form the monorepo by importing the complete working product         | `RUNNABLE`          | Complete              | `PASS` (Win-x64 local)   | Cross-platform import qualification is deliberately combined with the Phase 1B toolchain qualification instead of validating a toolchain that Phase 1B immediately replaces |
 | Phase 1B — Modernize and unify the toolchain without changing the product      | `RUNNABLE`          | Complete              | `PASS`                   | Exact commit `0e780f9025be2b86eed3f5474ed257e0da898e2a`; [six-platform product gate run 29323403758](https://github.com/Golden-Geek/Chataigne2/actions/runs/29323403758)    |
 | Phase 2 — Establish stable product seams and shadow infrastructure             | `RUNNABLE`          | Complete              | `PASS` (Win-x64 local)   | Tested tree based on `2ce92015c60a9958402c0517417c5e8988b358a4`; local report `target/product-gate/20260714T115625Z/product-gate-report.json`                                  |
-| Phase 3 — Extract foundations and `golden-graph` through the live product      | `RUNNABLE`          | Pending               | `BLOCKED`                | Begin focused foundation and common-graph cutovers through the Phase 2 seams                                                                                               |
+| Phase 3 — Extract foundations and `golden-graph` through the live product      | `RUNNABLE`          | In progress           | Slice 1 `PASS` (Win-x64) | Identifiers and canonical values are cut over and product-gated; extract parameters and context next                                                                         |
 | Phase 4 — Migrate Alchemist as a complete authoring-to-runtime slice           | `RUNNABLE`          | Pending               | `BLOCKED`                | Complete the common graph cutovers                                                                                                                                          |
 | Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `RUNNABLE`          | Pending               | `BLOCKED`                | Complete relevant graph and Alchemist boundaries                                                                                                                            |
 | Phase 6 — Replace the runtime center behind the continuously working app       | `RUNNABLE`          | Pending               | `BLOCKED`                | Compiled domains and product composition must be proven                                                                                                                     |
@@ -75,14 +75,24 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Package and host boundary contracts    | Complete | `tools/migration/check_phase2_contracts.py` rejects app-policy imports and raw shared engine ownership in transport/host code                          |
 | Win-x64 product qualification          | `PASS`   | Local report `target/product-gate/20260714T115625Z/product-gate-report.json`; all required results passed and macOS/Linux were non-required `NOT_RUN`   |
 
+## Phase 3 Foundation Cutovers
+
+| Slice                       | Status      | Evidence or next proof                                                                                   |
+| --------------------------- | ----------- | -------------------------------------------------------------------------------------------------------- |
+| Stable model identities     | Cut over    | `golden_model` owns wire-compatible `NodeId`, `NodeUuid`, and `DeclId`; engine ownership is contract-tested |
+| Canonical runtime values    | Cut over    | `golden_values::Value` is used by Alchemist; f64 colors and parameter extension round trips are tested   |
+| Parameters and context      | Pending     | Extract behind current production APIs in the next independently runnable supercommit                    |
+| Common graph and graph UI   | Pending     | Begin only after parameter and context ownership is stable                                               |
+| Revisioned cutover evidence | `PASS`      | [`manifests/phase3-cutovers.v1.json`](manifests/phase3-cutovers.v1.json); local report `target/product-gate/20260714T140050Z/product-gate-report.json` |
+
 ## Required Root Workflow Status
 
 | Command or workflow  | Status                              | Required result                                                                            |
 | -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| `cargo run`          | `PASS` on Phase 2 tested tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
-| `watch`              | `PASS` on Phase 2 tested tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
-| `cargo run -- --dev` | `PASS` on Phase 2 tested tree | Complete app with live frontend/dev server and connected engine                            |
-| Root product gate    | `PASS` on Phase 2 tested tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
+| `cargo run`          | `PASS` on Phase 3 slice 1 tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
+| `watch`              | `PASS` on Phase 3 slice 1 tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
+| `cargo run -- --dev` | `PASS` on Phase 3 slice 1 tree | Complete app with live frontend/dev server and connected engine                            |
+| Root product gate    | `PASS` on Phase 3 slice 1 tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
 
 No command above is inferred to pass from source inspection or repository provenance.
 

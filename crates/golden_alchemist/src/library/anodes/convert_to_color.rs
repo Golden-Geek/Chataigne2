@@ -12,10 +12,10 @@ impl CompiledNodeEvaluator for ConvertToColorEval {
         let [first, second, third, fourth] = float_inputs::<4>(evaluation.inputs)?;
         let color = match self.mode {
             super::color_mode::ColorMode::Rgba => ColorValue {
-                red: first as f32,
-                green: second as f32,
-                blue: third as f32,
-                alpha: fourth as f32,
+                red: first,
+                green: second,
+                blue: third,
+                alpha: fourth,
             },
             super::color_mode::ColorMode::Hsva => hsva_to_rgba(first, second, third, fourth),
             super::color_mode::ColorMode::Hsla => hsla_to_rgba(first, second, third, fourth),

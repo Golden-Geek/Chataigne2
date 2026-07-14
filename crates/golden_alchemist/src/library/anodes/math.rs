@@ -79,10 +79,10 @@ fn numeric_binary(left: &RuntimeValue, right: &RuntimeValue, operator: MathOpera
         }
         (RuntimeValue::Color(left), RuntimeValue::Color(right)) => {
             return Ok(RuntimeValue::Color(ColorValue {
-                red: numeric_scalar(f64::from(left.red), f64::from(right.red), operator)? as f32,
-                green: numeric_scalar(f64::from(left.green), f64::from(right.green), operator)? as f32,
-                blue: numeric_scalar(f64::from(left.blue), f64::from(right.blue), operator)? as f32,
-                alpha: numeric_scalar(f64::from(left.alpha), f64::from(right.alpha), operator)? as f32,
+                red: numeric_scalar(left.red, right.red, operator)?,
+                green: numeric_scalar(left.green, right.green, operator)?,
+                blue: numeric_scalar(left.blue, right.blue, operator)?,
+                alpha: numeric_scalar(left.alpha, right.alpha, operator)?,
             }));
         }
         _ => {}

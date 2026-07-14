@@ -8,6 +8,8 @@ repository.workspace = true
 
 [dependencies]
 golden_application.workspace = true
+golden_model.workspace = true
+golden_values.workspace = true
 golden_engine = { path = "../core" }
 golden_core_macros = { path = "../core_macros" }
 golden_host_desktop = { path = "../host_desktop" }

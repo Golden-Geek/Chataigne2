@@ -1,34 +1,8 @@
+use crate::parameter::ParamValueProjection;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-use uuid::Uuid;
 
-use crate::parameter::ParamValueProjection;
-
-/// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-pub struct NodeId(pub u64);
-
-/// Persistent UUID assigned to node metadata.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-pub struct NodeUuid(pub Uuid);
-
-impl NodeUuid {
-    /// Returns the nil UUID value.
-    pub fn nil() -> Self {
-        Self(Uuid::nil())
-    }
-
-    /// Returns `true` when this UUID is nil.
-    pub fn is_nil(&self) -> bool {
-        self.0.is_nil()
-    }
-}
-
-impl Default for NodeUuid {
-    fn default() -> Self {
-        Self::nil()
-    }
-}
+pub use golden_model::{DeclId, NodeId, NodeUuid};
 
 /// Persistent reference to another node.
 ///
@@ -178,7 +152,3 @@ impl PartialEq for NodeReference {
 }
 
 impl Eq for NodeReference {}
-
-/// Declaration identifier used to refer to node definitions.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-pub struct DeclId(pub String);
