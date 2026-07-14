@@ -11,6 +11,7 @@ $scripts = @(
     "tools/bootstrap/install-rust-toolchain.ps1",
     "tools/bootstrap/verify-toolchain.ps1",
     "tools/product-gate/aggregate-reports.ps1",
+    "tools/product-gate/hooks/browser-gate-common.ps1",
     "tools/product-gate/hooks/module-loopback-smoke.ps1",
     "tools/product-gate/hooks/smoke-common.ps1",
     "tools/product-gate/hooks/watch-smoke.ps1",
@@ -109,6 +110,11 @@ if ($smokeCommonSource -notmatch '\[System\.Diagnostics\.Process\[\]\]\$Processe
     $smokeCommonSource -notmatch '\$process\.HasExited') {
     throw "Process shutdown verification must track process instances instead of reusable numeric PIDs."
 }
+if ($smokeCommonSource -notmatch '\[datetime\]\$RootStartTimeUtc' -or
+    $smokeCommonSource -notmatch '\$_\.CreationDate' -or
+    $smokeCommonSource -notmatch 'CreationDate\)\.ToUniversalTime\(\) -ge \$RootStartTimeUtc') {
+    throw "Windows process-tree ownership must reject stale parent PIDs from processes older than the root instance."
+}
 
 $cargoRunSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/cargo-run-smoke.ps1"))
 if ($cargoRunSmokeSource -notmatch '"--automation-shutdown-file"' -or
@@ -141,7 +147,7 @@ if ($probeIndex -lt 0 -or $readyIndex -lt 0 -or $probeIndex -gt $readyIndex) {
 if ($watchSmokeSource -notmatch 'Test-IsWindowsPlatform' -or
     $watchSmokeSource -notmatch '"--shutdown-file"' -or
     $watchSmokeSource -notmatch '\[System\.IO\.File\]::WriteAllText\(\$shutdownPath, "stop"\)' -or
-    $watchSmokeSource -notmatch 'Request-GracefulProductShutdown -RootProcessId \$process\.Id') {
+    $watchSmokeSource -notmatch 'Request-GracefulProductShutdown(?s:.*?)-RootProcessId \$process\.Id(?s:.*?)-RootStartTimeUtc \$rootStartTimeUtc') {
     throw "The watch smoke must use deterministic Windows shutdown and signal-based Unix shutdown."
 }
 

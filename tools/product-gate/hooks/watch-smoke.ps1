@@ -87,6 +87,7 @@ $ownedProcessIds = @()
 $passed = $false
 try {
     $process = Start-Process @startParameters
+    $rootStartTimeUtc = $process.StartTime.ToUniversalTime()
     $readinessDeadline = (Get-Date).AddSeconds($timeoutSeconds)
     Wait-ForFrontendDocument `
         -Uri "http://127.0.0.1:5173/" `
@@ -108,12 +109,16 @@ try {
         -StandardOutputPath $standardOutputPath `
         -Deadline $readinessDeadline
 
-    $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
+    $ownedProcessIds = @(Get-OwnedProcessIds `
+            -RootProcessId $process.Id `
+            -RootStartTimeUtc $rootStartTimeUtc)
     if ($runningOnWindows) {
         [System.IO.File]::WriteAllText($shutdownPath, "stop")
     }
     else {
-        Request-GracefulProductShutdown -RootProcessId $process.Id
+        Request-GracefulProductShutdown `
+            -RootProcessId $process.Id `
+            -RootStartTimeUtc $rootStartTimeUtc
     }
     Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 90
     Wait-ForPortsReleased -Ports $ports -TimeoutSeconds 10
@@ -138,14 +143,18 @@ finally {
         try {
             $ownedProcessIds = @(
                 $ownedProcessIds +
-                @(Get-OwnedProcessIds -RootProcessId $process.Id) |
+                @(Get-OwnedProcessIds `
+                        -RootProcessId $process.Id `
+                        -RootStartTimeUtc $rootStartTimeUtc) |
                     Sort-Object -Unique
             )
             if ($runningOnWindows) {
                 [System.IO.File]::WriteAllText($shutdownPath, "stop")
             }
             else {
-                Request-GracefulProductShutdown -RootProcessId $process.Id
+                Request-GracefulProductShutdown `
+                    -RootProcessId $process.Id `
+                    -RootStartTimeUtc $rootStartTimeUtc
             }
             Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 5
         }

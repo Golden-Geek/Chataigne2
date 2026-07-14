@@ -230,6 +230,7 @@ function Invoke-BundledBrowserGate {
 
     $frontendUri = "http://${BrowserHost}:$Port/"
     $process = $null
+    $rootStartTimeUtc = [datetime]::MinValue
     $ownedProcessIds = @()
     $reportedProjectPath = ""
     $uploadedProjectCleanup = "not_attempted"
@@ -242,6 +243,7 @@ function Invoke-BundledBrowserGate {
             -SandboxDirectory $sandboxDirectory `
             -StandardOutputPath $standardOutputPath `
             -StandardErrorPath $standardErrorPath
+        $rootStartTimeUtc = $process.StartTime.ToUniversalTime()
 
         $deadline = (Get-Date).AddSeconds($timeoutSeconds)
         Wait-ForTcpListener -Address $BrowserHost -Port $Port -Process $process -Deadline $deadline
@@ -273,8 +275,12 @@ function Invoke-BundledBrowserGate {
         }
         $reportedProjectPath = [string]$browserReport.loadedProjectPath
 
-        $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
-        Stop-OwnedProcessTree -RootProcessId $process.Id
+        $ownedProcessIds = @(Get-OwnedProcessIds `
+                -RootProcessId $process.Id `
+                -RootStartTimeUtc $rootStartTimeUtc)
+        Stop-OwnedProcessTree `
+            -RootProcessId $process.Id `
+            -RootStartTimeUtc $rootStartTimeUtc
         Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 20
         Wait-ForPortsReleased -Ports @($Port) -TimeoutSeconds 10
         $uploadedProjectCleanup = Remove-ReportedUploadedProject `
@@ -306,10 +312,14 @@ function Invoke-BundledBrowserGate {
             try {
                 $ownedProcessIds = @(
                     $ownedProcessIds +
-                    @(Get-OwnedProcessIds -RootProcessId $process.Id) |
+                    @(Get-OwnedProcessIds `
+                            -RootProcessId $process.Id `
+                            -RootStartTimeUtc $rootStartTimeUtc) |
                         Sort-Object -Unique
                 )
-                Stop-OwnedProcessTree -RootProcessId $process.Id
+                Stop-OwnedProcessTree `
+                    -RootProcessId $process.Id `
+                    -RootStartTimeUtc $rootStartTimeUtc
                 Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 10
             }
             catch {

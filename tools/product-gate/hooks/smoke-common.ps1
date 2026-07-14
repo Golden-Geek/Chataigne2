@@ -136,7 +136,10 @@ function Wait-ForFrontendDocument {
 }
 
 function Get-OwnedProcessIds {
-    param([int]$RootProcessId)
+    param(
+        [int]$RootProcessId,
+        [datetime]$RootStartTimeUtc = [datetime]::MinValue
+    )
 
     if (-not (Test-IsWindowsPlatform)) {
         $rows = @(& ps -A -o pid= -o ppid= 2>$null)
@@ -147,7 +150,22 @@ function Get-OwnedProcessIds {
         }
     }
     else {
-        $processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId)
+        if ($RootStartTimeUtc -eq [datetime]::MinValue) {
+            $rootProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $RootProcessId"
+            if ($null -eq $rootProcess) {
+                return @($RootProcessId)
+            }
+            $RootStartTimeUtc = ([datetime]$rootProcess.CreationDate).ToUniversalTime()
+        }
+        $processes = @(
+            Get-CimInstance Win32_Process |
+                Where-Object {
+                    $_.ProcessId -eq $RootProcessId -or
+                    ($null -ne $_.CreationDate -and
+                        ([datetime]$_.CreationDate).ToUniversalTime() -ge $RootStartTimeUtc)
+                } |
+                Select-Object ProcessId, ParentProcessId
+        )
     }
 
     $owned = [System.Collections.Generic.HashSet[int]]::new()
@@ -181,7 +199,10 @@ function Test-AnyProcessAlive {
 }
 
 function Request-GracefulProductShutdown {
-    param([int]$RootProcessId)
+    param(
+        [int]$RootProcessId,
+        [datetime]$RootStartTimeUtc = [datetime]::MinValue
+    )
 
     if (-not (Test-IsWindowsPlatform)) {
         $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $RootProcessId)
@@ -208,7 +229,9 @@ function Request-GracefulProductShutdown {
     }
 
     $requested = $false
-    foreach ($processId in (Get-OwnedProcessIds -RootProcessId $RootProcessId)) {
+    foreach ($processId in (Get-OwnedProcessIds `
+            -RootProcessId $RootProcessId `
+            -RootStartTimeUtc $RootStartTimeUtc)) {
         if ($processId -eq $RootProcessId) {
             continue
         }
@@ -282,9 +305,14 @@ function Wait-ForPortsReleased {
 }
 
 function Stop-OwnedProcessTree {
-    param([int]$RootProcessId)
+    param(
+        [int]$RootProcessId,
+        [datetime]$RootStartTimeUtc = [datetime]::MinValue
+    )
 
-    $owned = @(Get-OwnedProcessIds -RootProcessId $RootProcessId)
+    $owned = @(Get-OwnedProcessIds `
+            -RootProcessId $RootProcessId `
+            -RootStartTimeUtc $RootStartTimeUtc)
     [array]::Reverse($owned)
     foreach ($processId in $owned) {
         Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
@@ -378,10 +406,12 @@ function Invoke-RootCommandSmoke {
     }
 
     $process = $null
+    $rootStartTimeUtc = [datetime]::MinValue
     $ownedProcessIds = @()
     $passed = $false
     try {
         $process = Start-Process @startParameters
+        $rootStartTimeUtc = $process.StartTime.ToUniversalTime()
         $deadline = (Get-Date).AddSeconds($timeoutSeconds)
         Wait-ForTcpListener -Address "127.0.0.1" -Port 7010 -Process $process -Deadline $deadline
         Wait-ForFrontendDocument -Uri $FrontendUri -Process $process -Deadline $deadline
@@ -391,9 +421,13 @@ function Invoke-RootCommandSmoke {
             -ScreenshotPath $screenshotPath `
             -TimeoutSeconds ([Math]::Min($timeoutSeconds, 90))
 
-        $ownedProcessIds = @(Get-OwnedProcessIds -RootProcessId $process.Id)
+        $ownedProcessIds = @(Get-OwnedProcessIds `
+                -RootProcessId $process.Id `
+                -RootStartTimeUtc $rootStartTimeUtc)
         if ([string]::IsNullOrWhiteSpace($ShutdownFile)) {
-            Request-GracefulProductShutdown -RootProcessId $process.Id
+            Request-GracefulProductShutdown `
+                -RootProcessId $process.Id `
+                -RootStartTimeUtc $rootStartTimeUtc
         }
         else {
             [System.IO.File]::WriteAllText($ShutdownFile, "stop")
@@ -423,11 +457,15 @@ function Invoke-RootCommandSmoke {
             try {
                 $ownedProcessIds = @(
                     $ownedProcessIds +
-                    @(Get-OwnedProcessIds -RootProcessId $process.Id) |
+                    @(Get-OwnedProcessIds `
+                            -RootProcessId $process.Id `
+                            -RootStartTimeUtc $rootStartTimeUtc) |
                         Sort-Object -Unique
                 )
                 if ([string]::IsNullOrWhiteSpace($ShutdownFile)) {
-                    Request-GracefulProductShutdown -RootProcessId $process.Id
+                    Request-GracefulProductShutdown `
+                        -RootProcessId $process.Id `
+                        -RootStartTimeUtc $rootStartTimeUtc
                 }
                 else {
                     [System.IO.File]::WriteAllText($ShutdownFile, "stop")
@@ -440,7 +478,9 @@ function Invoke-RootCommandSmoke {
                 foreach ($processId in $cleanupIds) {
                     Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
                 }
-                Stop-OwnedProcessTree -RootProcessId $process.Id
+                Stop-OwnedProcessTree `
+                    -RootProcessId $process.Id `
+                    -RootStartTimeUtc $rootStartTimeUtc
             }
             try {
                 Wait-ForPortsReleased -Ports $Ports -TimeoutSeconds 10
