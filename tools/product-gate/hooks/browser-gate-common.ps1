@@ -281,7 +281,7 @@ function Invoke-BundledBrowserGate {
         Stop-OwnedProcessTree `
             -RootProcessId $process.Id `
             -RootStartTimeUtc $rootStartTimeUtc
-        Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 20
+        Wait-ForRootProcessToExit -Process $process -TimeoutSeconds 20
         Wait-ForPortsReleased -Ports @($Port) -TimeoutSeconds 10
         $uploadedProjectCleanup = Remove-ReportedUploadedProject `
             -ReportedPath $reportedProjectPath `

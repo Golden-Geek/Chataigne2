@@ -198,6 +198,17 @@ function Test-AnyProcessAlive {
     return $false
 }
 
+function Wait-ForRootProcessToExit {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [int]$TimeoutSeconds
+    )
+
+    if (-not $Process.WaitForExit($TimeoutSeconds * 1000)) {
+        throw "Root process $($Process.Id) did not exit after the supported shutdown request."
+    }
+}
+
 function Request-GracefulProductShutdown {
     param(
         [int]$RootProcessId,
@@ -432,7 +443,7 @@ function Invoke-RootCommandSmoke {
         else {
             [System.IO.File]::WriteAllText($ShutdownFile, "stop")
         }
-        Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 20
+        Wait-ForRootProcessToExit -Process $process -TimeoutSeconds 20
         Wait-ForPortsReleased -Ports $Ports -TimeoutSeconds 10
 
         [pscustomobject]@{

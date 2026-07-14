@@ -120,7 +120,7 @@ try {
             -RootProcessId $process.Id `
             -RootStartTimeUtc $rootStartTimeUtc
     }
-    Wait-ForOwnedProcessesToExit -ProcessIds $ownedProcessIds -TimeoutSeconds 90
+    Wait-ForRootProcessToExit -Process $process -TimeoutSeconds 90
     Wait-ForPortsReleased -Ports $ports -TimeoutSeconds 10
 
     [pscustomobject]@{

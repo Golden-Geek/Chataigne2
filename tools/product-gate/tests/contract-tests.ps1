@@ -110,6 +110,11 @@ if ($smokeCommonSource -notmatch '\[System\.Diagnostics\.Process\[\]\]\$Processe
     $smokeCommonSource -notmatch '\$process\.HasExited') {
     throw "Process shutdown verification must track process instances instead of reusable numeric PIDs."
 }
+if ($smokeCommonSource -notmatch 'function Wait-ForRootProcessToExit' -or
+    $smokeCommonSource -notmatch '\$Process\.WaitForExit\(\$TimeoutSeconds \* 1000\)' -or
+    $smokeCommonSource -notmatch 'Wait-ForRootProcessToExit -Process \$process -TimeoutSeconds 20') {
+    throw "Product qualification must require only the root command exit and released product ports."
+}
 if ($smokeCommonSource -notmatch '\[datetime\]\$RootStartTimeUtc' -or
     $smokeCommonSource -notmatch '\$_\.CreationDate' -or
     $smokeCommonSource -notmatch 'CreationDate\)\.ToUniversalTime\(\) -ge \$RootStartTimeUtc') {
@@ -149,6 +154,9 @@ if ($watchSmokeSource -notmatch 'Test-IsWindowsPlatform' -or
     $watchSmokeSource -notmatch '\[System\.IO\.File\]::WriteAllText\(\$shutdownPath, "stop"\)' -or
     $watchSmokeSource -notmatch 'Request-GracefulProductShutdown(?s:.*?)-RootProcessId \$process\.Id(?s:.*?)-RootStartTimeUtc \$rootStartTimeUtc') {
     throw "The watch smoke must use deterministic Windows shutdown and signal-based Unix shutdown."
+}
+if ($watchSmokeSource -notmatch 'Wait-ForRootProcessToExit -Process \$process -TimeoutSeconds 90') {
+    throw "The watch smoke must qualify root-command exit without treating unrelated descendants as product failures."
 }
 
 $testRoot = Join-Path $repositoryRoot "target/product-gate/contract-tests"
