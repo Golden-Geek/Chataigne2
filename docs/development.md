@@ -24,16 +24,16 @@ runs root `npm ci` when the lock changed. It never selects floating Rust `stable
 
 ## Root Commands
 
-| Intent | Command |
-| --- | --- |
-| Bundled desktop application | `cargo run` |
-| Live frontend and supervised backend | `cargo xtask watch` |
-| Application connected to an existing Vite server | `cargo run -- --dev` |
-| Headless host | `cargo run -- --headless` |
-| Rust workspace tests | `cargo test --workspace` |
-| UI check, lint, tests, or build | `npm run check`, `npm run lint`, `npm test`, `npm run build` |
-| Engine benchmarks | `cargo bench -p golden_engine` |
-| Release binary | `cargo build --release` |
+| Intent                                           | Command                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| Bundled desktop application                      | `cargo run`                                                  |
+| Live frontend and supervised backend             | `cargo xtask watch`                                          |
+| Application connected to an existing Vite server | `cargo run -- --dev`                                         |
+| Headless host                                    | `cargo run -- --headless`                                    |
+| Rust workspace tests                             | `cargo test --workspace`                                     |
+| UI check, lint, tests, or build                  | `npm run check`, `npm run lint`, `npm test`, `npm run build` |
+| Engine benchmarks                                | `cargo bench -p golden_engine`                               |
+| Release binary                                   | `cargo build --release`                                      |
 
 Run commands through `tools/bootstrap/bootstrap.ps1` or `tools/bootstrap/bootstrap.sh` when the
 pinned Node directory is not already on the current shell's `PATH`. The editor tasks do this
@@ -61,12 +61,27 @@ The dependency profile runs RustSec advisory, license, source, and bans policy; 
 duplicate-version baseline; unused-dependency analysis; and the npm production audit. Update the
 duplicate baseline only after reviewing why every added or removed version is necessary.
 
+### Live Windows CI diagnosis
+
+Manually dispatch **Cross-platform Product Qualification** on the branch to test, select the
+Windows native gate, and enable `windows_debug_session`. The job opens a detached tmate SSH/web
+shell before the product gate starts, so the exact hosted runner can be inspected while the real
+gate executes. Access is restricted to public SSH keys registered by the GitHub actor who started
+the workflow. The session connection details are printed in the job log; terminate the session
+when diagnosis is complete so the runner can finish promptly.
+
+Keep this option disabled for normal qualification. The debug path is manual-only, receives no
+repository secrets, has read-only repository permissions, and must never be enabled on automatic
+pull-request or push events.
+
 ## Cache Policy
 
 - `target/toolchains/` caches checksum-verified portable Node archives and installations.
 - `target/` holds Rust outputs and local product-gate evidence.
 - `node_modules/` is reused only while its internal lock is at least as new as `package-lock.json`.
-- CI cache identity includes the canonical toolchain manifest, target, and applicable lockfile.
+- CI uses the setup-node npm cache, a stable Cargo registry cache, and sccache's content-addressed
+  compiler cache. Cache identity includes the canonical toolchain manifest, target, compiler, and
+  applicable lockfile; changing application source should not force every dependency to rebuild.
 - Generated UI builds, toolchains, dependency installs, reports, and screenshots are never source
   inputs and remain untracked.
 

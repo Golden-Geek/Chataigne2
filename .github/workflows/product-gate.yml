@@ -21,6 +21,11 @@ on:
         required: true
         default: false
         type: boolean
+      windows_debug_session:
+        description: Open an actor-restricted live shell on the Windows runner
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,6 +40,9 @@ jobs:
     if: github.event_name == 'push' || inputs.native_platform != 'none'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
     strategy:
       fail-fast: false
       matrix:
@@ -80,10 +88,14 @@ jobs:
         shell: bash
         run: sh ./tools/bootstrap/install-rust-toolchain.sh
 
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+
       - uses: Swatinem/rust-cache@v2
         with:
-          key: product-gate-${{ matrix.platform }}
+          shared-key: product-gate-${{ matrix.platform }}
           cache-on-failure: true
+          cache-targets: false
           workspaces: |
             . -> target
 
@@ -146,6 +158,14 @@ jobs:
         shell: bash
         run: sh ./tools/bootstrap/verify-toolchain.sh --check-installed
 
+      - name: Open actor-restricted Windows debug session
+        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch' && inputs.windows_debug_session == true
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
+        timeout-minutes: 45
+        with:
+          detached: true
+          limit-access-to-actor: true
+
       - name: Run product gate
         if: runner.os != 'Linux'
         shell: pwsh
@@ -178,6 +198,9 @@ jobs:
     if: github.event_name == 'push' || inputs.run_compatibility == true
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
     strategy:
       fail-fast: false
       matrix:
@@ -235,10 +258,14 @@ jobs:
           sudo apt-get install -y clang gcc-arm-linux-gnueabihf libclang-dev llvm-dev
           echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> "$GITHUB_ENV"
 
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+
       - uses: Swatinem/rust-cache@v2
         with:
-          key: compatibility-${{ matrix.target }}
+          shared-key: compatibility-${{ matrix.target }}
           cache-on-failure: true
+          cache-targets: false
           workspaces: |
             . -> target
 

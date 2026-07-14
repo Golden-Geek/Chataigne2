@@ -42,6 +42,19 @@ if ($workflowSource -notmatch 'cache-on-failure: true') {
 if ($workflowSource -match 'key: (?:product-gate|compatibility)-[^\r\n]*hashFiles') {
     throw "rust-cache custom keys must not defer file hashing to the post-job phase."
 }
+if ($workflowSource -notmatch 'mozilla-actions/sccache-action@[0-9a-f]{40}' -or
+    $workflowSource -notmatch 'SCCACHE_GHA_ENABLED: "true"' -or
+    $workflowSource -notmatch 'RUSTC_WRAPPER: sccache' -or
+    $workflowSource -notmatch 'cache-targets: false') {
+    throw "Product qualification must use content-addressed compiler caching without duplicating target caches."
+}
+if ($workflowSource -notmatch 'windows_debug_session:' -or
+    $workflowSource -notmatch "github.event_name == 'workflow_dispatch'.*inputs.windows_debug_session == true" -or
+    $workflowSource -notmatch 'mxschmitt/action-tmate@[0-9a-f]{40}' -or
+    $workflowSource -notmatch 'detached: true' -or
+    $workflowSource -notmatch 'limit-access-to-actor: true') {
+    throw "The live Windows debug session must be manual-only, pinned, detached, and actor-restricted."
+}
 if ($workflowSource -notmatch "inputs\.native_platform == 'all'.*inputs\.run_compatibility == true") {
     throw "Exact-commit aggregation must run only for the complete requested matrix."
 }
