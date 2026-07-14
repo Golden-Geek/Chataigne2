@@ -26,7 +26,7 @@ pub mod values {
 
 /// Basic color schema types.
 pub mod color {
-    pub use golden_engine::color::*;
+    pub use golden_values::ColorValue as Color;
 }
 
 /// Engine data model and edit-application entry points.
@@ -44,7 +44,8 @@ pub use golden_engine::node_macros;
 
 /// Parameter node implementations and value conversions.
 pub mod parameter {
-    pub use golden_engine::parameter::*;
+    pub use golden_engine::parameter::{Parameter, ParameterAnimationControlNode};
+    pub use golden_parameters::*;
 }
 
 /// Event models and event inbox utilities.
@@ -69,7 +70,7 @@ pub mod blueprints {
 
 /// UserContext and DynamicContext APIs.
 pub mod contexts {
-    pub use golden_engine::contexts::*;
+    pub use golden_context::*;
 }
 
 /// Curve model and samplers.

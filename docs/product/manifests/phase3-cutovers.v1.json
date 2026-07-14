@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "phase": 3,
-  "revision": 1,
-  "tested_tree_base": "3d3b30dd10d8a4d45327f32dc8ff786764a51282",
-  "product_gate": "PASS: target/product-gate/20260714T140050Z/product-gate-report.json",
+  "revision": 2,
+  "tested_tree_base": "bfc088998af89385348c0bf93149123b99d36cc9",
+  "product_gate": "PASS: target/product-gate/20260714T143331Z/product-gate-report.json",
   "cutovers": [
     {
       "cutover_id": "identifiers",
@@ -27,15 +27,23 @@
     },
     {
       "cutover_id": "parameters",
-      "state": "pending",
+      "state": "cut_over",
       "owner": "golden_parameters",
-      "evidence": ["scheduled after the canonical value cutover"]
+      "evidence": [
+        "golden_parameters unit tests",
+        "golden_engine parameter tests",
+        "tools/migration/check_phase3_contracts.py"
+      ]
     },
     {
       "cutover_id": "context",
-      "state": "pending",
+      "state": "cut_over",
       "owner": "golden_context",
-      "evidence": ["scheduled after the parameter cutover"]
+      "evidence": [
+        "golden_context context registry tests",
+        "golden_engine workspace integration tests",
+        "tools/migration/check_phase3_contracts.py"
+      ]
     },
     {
       "cutover_id": "graph_contract",
@@ -87,6 +95,26 @@
       "deletion_criteria": "Alchemist and app consumers import golden_values::Value directly",
       "deletion_issue": "phase4-delete-alchemist-runtime-value-reexport",
       "tests": ["golden_alchemist tests", "chataigne_state_machine tests"],
+      "current_state": "adapted"
+    },
+    {
+      "adapter_id": "phase3.engine-parameter-reexport",
+      "owner": "golden_engine",
+      "scope": "golden_engine::parameter keeps existing production paths while parameter contracts move to golden_parameters",
+      "expiry_phase": 6,
+      "deletion_criteria": "all reusable and app consumers import parameter contracts from golden_parameters and only the engine-owned Parameter node remains on the engine path",
+      "deletion_issue": "phase6-delete-engine-parameter-reexport",
+      "tests": ["golden_parameters tests", "golden_engine parameter tests", "Rust workspace tests"],
+      "current_state": "adapted"
+    },
+    {
+      "adapter_id": "phase3.engine-context-reexport",
+      "owner": "golden_engine",
+      "scope": "golden_engine::contexts keeps existing production paths while context contracts move to golden_context",
+      "expiry_phase": 5,
+      "deletion_criteria": "statechart and app consumers import context contracts from golden_context and no production caller relies on the engine compatibility path",
+      "deletion_issue": "phase5-delete-engine-context-reexport",
+      "tests": ["golden_context tests", "Rust workspace tests"],
       "current_state": "adapted"
     }
   ]

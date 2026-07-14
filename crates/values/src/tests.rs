@@ -3,6 +3,25 @@ use std::{sync::Arc, time::Duration};
 use super::{ColorValue, TriggerValue, Value, ValueComponent, ValueTypeId};
 
 #[test]
+fn canonical_color_preserves_the_product_wire_shape_and_accepts_long_names() {
+    let color = ColorValue::new(0.1, 0.2, 0.3, 0.4);
+    assert_eq!(
+        serde_json::to_value(color).unwrap(),
+        serde_json::json!({ "r": 0.1, "g": 0.2, "b": 0.3, "a": 0.4 })
+    );
+    assert_eq!(
+        serde_json::from_value::<ColorValue>(serde_json::json!({
+            "red": 0.1,
+            "green": 0.2,
+            "blue": 0.3,
+            "alpha": 0.4
+        }))
+        .unwrap(),
+        color
+    );
+}
+
+#[test]
 fn canonical_conversions_cover_current_scalar_and_vector_behavior() {
     assert_eq!(
         Value::Int(7).convert_to(&ValueTypeId::new("float")).unwrap(),

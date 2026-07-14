@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
-use crate::color::Color;
-use crate::node::{NodeReference, NodeUuid};
+use golden_model::NodeUuid;
 
-use super::{CssUnit, CssValue, Enum, File, ParamValue, Vec2, Vec3};
+use super::{Color, CssUnit, CssValue, Enum, File, NodeReference, ParamValue, Vec2, Vec3};
 
 /// Typed conversion contract between Rust values and [`ParamValue`].
 pub trait ParameterValueType: Clone {

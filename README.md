@@ -8,8 +8,10 @@ This repository is being actively refactored toward a clean long-term architectu
 - `golden_application` defines the replaceable project, graph, value, observation, module-I/O,
   persistence, and host-lifecycle seams; `golden_core` connects the current production runtime to
   them while providing protocol, transport, desktop-host, script, macro, and codegen crates.
-- `golden_model` owns stable cross-layer identities, and `golden_values` owns the canonical runtime
-  value model and conversions used by parameters, Alchemist, statecharts, persistence, and UI DTOs.
+- `golden_model` owns stable cross-layer identities, `golden_values` owns the canonical runtime
+  value model, `golden_parameters` owns parameter contracts and projections, and `golden_context`
+  owns app-agnostic context declarations and state. The engine consumes these foundations rather
+  than redeclaring them.
 - `golden_ui` is treated as a reusable UI package boundary rather than app-local source ownership.
 - Apps can override command-line parsing and bootstrap when needed, but they should not have to by default.
 - UI state and transport boundaries are being normalized in `apps/chataigne/ui` and the reusable
@@ -17,8 +19,8 @@ This repository is being actively refactored toward a clean long-term architectu
 
 Start with [Application Seams and Phase 2 Shadowing](docs/architecture/application-seams.md) for
 the migration boundary and its side-effect-safety rules.
-[Foundation Ownership](docs/architecture/foundations.md) describes the Phase 3 identity and value
-cutovers that graph packages build upon.
+[Foundation Ownership](docs/architecture/foundations.md) describes the Phase 3 identity, value,
+parameter, and context cutovers that graph packages build upon.
 - protocol declarations and code generation are moving toward a single source of truth.
 - `cargo run` and the built app now ship the UI bundle and serve it from the built-in Rust host by default, so the desktop app does not depend on a separate Vite process to be usable.
 - `cargo run -- --dev` launches against the live Svelte/Vite dev server from

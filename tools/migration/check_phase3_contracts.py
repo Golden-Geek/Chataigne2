@@ -12,7 +12,9 @@ from pathlib import Path
 
 FOUNDATION_CRATES = {
     "model": {"serde", "ts-rs", "uuid"},
-    "values": {"serde", "smol_str"},
+    "values": {"serde", "smol_str", "ts-rs"},
+    "parameters": {"golden_model", "golden_values", "serde", "serde_json", "thiserror", "ts-rs"},
+    "context": {"golden_model", "golden_parameters", "serde", "ts-rs"},
 }
 REQUIRED_CUTOVERS = {
     "identifiers",
@@ -66,6 +68,34 @@ def foundation_violations(root: Path) -> list[Violation]:
         violations.append(Violation(identity, "engine identity API does not re-export golden_model identities"))
     if re.search(r"pub struct (?:NodeId|NodeUuid|DeclId)\b", identity_source):
         violations.append(Violation(identity, "engine still owns a foundation identity definition"))
+    if "pub use golden_parameters::NodeReference;" not in identity_source:
+        violations.append(Violation(identity, "engine identity API does not re-export golden_parameters NodeReference"))
+    if re.search(r"pub struct NodeReference\b", identity_source):
+        violations.append(Violation(identity, "engine still owns the parameter reference definition"))
+
+    parameter = root / "crates/core/src/parameter/mod.rs"
+    parameter_source = parameter.read_text(encoding="utf-8")
+    if "pub use golden_parameters::*;" not in parameter_source:
+        violations.append(Violation(parameter, "engine parameter API does not consume golden_parameters"))
+    moved_parameter_modules = re.compile(
+        r"\bmod\s+(?:canonical|constraints|control|projection|types|value|value_type)\s*;"
+    )
+    if moved_parameter_modules.search(parameter_source):
+        violations.append(Violation(parameter, "engine still declares a moved parameter foundation module"))
+
+    contexts = root / "crates/core/src/contexts.rs"
+    contexts_source = contexts.read_text(encoding="utf-8")
+    if "pub use golden_context::*;" not in contexts_source:
+        violations.append(Violation(contexts, "engine context API does not consume golden_context"))
+    if re.search(r"pub struct (?:ContextRegistry|ContextSnapshot)\b", contexts_source):
+        violations.append(Violation(contexts, "engine still owns a context foundation definition"))
+
+    color = root / "crates/core/src/color.rs"
+    color_source = color.read_text(encoding="utf-8")
+    if "pub use golden_parameters::Color;" not in color_source:
+        violations.append(Violation(color, "engine color API does not consume the canonical parameter color"))
+    if re.search(r"pub struct Color\b", color_source):
+        violations.append(Violation(color, "engine still owns a duplicate color definition"))
 
     alchemist_value = root / "crates/golden_alchemist/src/value.rs"
     alchemist_source = alchemist_value.read_text(encoding="utf-8")

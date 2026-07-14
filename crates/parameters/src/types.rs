@@ -1,3 +1,5 @@
+//! Strongly typed parameter value wrappers.
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::{Path, PathBuf};

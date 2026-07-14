@@ -18,7 +18,7 @@ class Phase3ContractTests(unittest.TestCase):
     def test_foundation_dependency_on_engine_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for crate in ("model", "values"):
+            for crate in ("model", "values", "parameters", "context"):
                 source = root / "crates" / crate / "src"
                 source.mkdir(parents=True)
                 (source / "lib.rs").write_text("pub struct Foundation;\n", encoding="utf-8")
@@ -26,10 +26,21 @@ class Phase3ContractTests(unittest.TestCase):
                 "[dependencies]\ngolden_engine = { path = '../core' }\n", encoding="utf-8"
             )
             (root / "crates/values/Cargo.toml").write_text("[dependencies]\n", encoding="utf-8")
+            (root / "crates/parameters/Cargo.toml").write_text("[dependencies]\n", encoding="utf-8")
+            (root / "crates/context/Cargo.toml").write_text("[dependencies]\n", encoding="utf-8")
             identity = root / "crates/core/src/node/core"
             identity.mkdir(parents=True)
             (identity / "identity.rs").write_text(
-                "pub use golden_model::{DeclId, NodeId, NodeUuid};\n", encoding="utf-8"
+                "pub use golden_model::{DeclId, NodeId, NodeUuid};\n"
+                "pub use golden_parameters::NodeReference;\n",
+                encoding="utf-8",
+            )
+            parameter = root / "crates/core/src/parameter"
+            parameter.mkdir(parents=True)
+            (parameter / "mod.rs").write_text("pub use golden_parameters::*;\n", encoding="utf-8")
+            (root / "crates/core/src/contexts.rs").write_text("pub use golden_context::*;\n", encoding="utf-8")
+            (root / "crates/core/src/color.rs").write_text(
+                "pub use golden_parameters::Color;\n", encoding="utf-8"
             )
             alchemist = root / "crates/golden_alchemist/src"
             alchemist.mkdir(parents=True)

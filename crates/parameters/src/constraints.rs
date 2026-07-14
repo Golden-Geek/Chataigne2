@@ -3,10 +3,12 @@ use std::fmt;
 use std::path::Path;
 use ts_rs::TS;
 
-use crate::node::NodeUuid;
+use golden_model::NodeUuid;
 
 use super::control::{is_default_parameter_control_state, is_true};
 use super::{CssValue, ParamValue, ParameterChangeCheck, ParameterControlState, ParameterEventBehaviour};
+
+type NumericBounds = (Option<f64>, Option<f64>);
 
 /// Data-level enum option descriptor used by validation and UI rendering.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -23,6 +25,11 @@ pub struct ParameterEnumOption {
     /// Optional explicit ordering key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ordering: Option<i32>,
+}
+
+/// Returns the default availability state for non-manual parameter control modes.
+pub fn default_control_modes_enabled() -> bool {
+    true
 }
 
 /// Policy used when incoming values do not match constraints.
@@ -385,10 +392,10 @@ impl ParameterConstraints {
                 return Err(format!("value is not in enum options: allowed variants {:?}", allowed));
             }
 
-            if let ParamValue::Str(variant_id) = &normalized {
-                if self.enum_options.iter().any(|option| option.variant_id == *variant_id) {
-                    normalized = ParamValue::Enum(variant_id.clone());
-                }
+            if let ParamValue::Str(variant_id) = &normalized
+                && self.enum_options.iter().any(|option| option.variant_id == *variant_id)
+            {
+                normalized = ParamValue::Enum(variant_id.clone());
             }
         }
 
@@ -455,10 +462,10 @@ impl ParameterConstraints {
         match &self.range {
             None => Ok((None, None)),
             Some(RangeConstraint::Uniform { min, max }) => {
-                if let (Some(min), Some(max)) = (*min, *max) {
-                    if min > max {
-                        return Err(format!("invalid range: min {min} is greater than max {max}"));
-                    }
+                if let (Some(min), Some(max)) = (*min, *max)
+                    && min > max
+                {
+                    return Err(format!("invalid range: min {min} is greater than max {max}"));
                 }
                 Ok((*min, *max))
             }
@@ -468,54 +475,50 @@ impl ParameterConstraints {
         }
     }
 
-    fn vector_component_bounds(
-        &self,
-        dimensions: usize,
-        value_kind: &str,
-    ) -> Result<Vec<(Option<f64>, Option<f64>)>, String> {
+    fn vector_component_bounds(&self, dimensions: usize, value_kind: &str) -> Result<Vec<NumericBounds>, String> {
         match &self.range {
             None => Ok(vec![(None, None); dimensions]),
             Some(RangeConstraint::Uniform { min, max }) => {
-                if let (Some(min), Some(max)) = (*min, *max) {
-                    if min > max {
-                        return Err(format!("invalid range: min {min} is greater than max {max}"));
-                    }
+                if let (Some(min), Some(max)) = (*min, *max)
+                    && min > max
+                {
+                    return Err(format!("invalid range: min {min} is greater than max {max}"));
                 }
                 Ok(vec![(*min, *max); dimensions])
             }
             Some(RangeConstraint::Components { min, max }) => {
-                if let Some(min_values) = min {
-                    if min_values.len() != dimensions {
-                        return Err(format!(
-                            "invalid range: min has {} components but {} expects {}",
-                            min_values.len(),
-                            value_kind,
-                            dimensions
-                        ));
-                    }
+                if let Some(min_values) = min
+                    && min_values.len() != dimensions
+                {
+                    return Err(format!(
+                        "invalid range: min has {} components but {} expects {}",
+                        min_values.len(),
+                        value_kind,
+                        dimensions
+                    ));
                 }
 
-                if let Some(max_values) = max {
-                    if max_values.len() != dimensions {
-                        return Err(format!(
-                            "invalid range: max has {} components but {} expects {}",
-                            max_values.len(),
-                            value_kind,
-                            dimensions
-                        ));
-                    }
+                if let Some(max_values) = max
+                    && max_values.len() != dimensions
+                {
+                    return Err(format!(
+                        "invalid range: max has {} components but {} expects {}",
+                        max_values.len(),
+                        value_kind,
+                        dimensions
+                    ));
                 }
 
                 let mut out = Vec::with_capacity(dimensions);
                 for index in 0..dimensions {
                     let min_value = min.as_ref().and_then(|values| values.get(index)).copied();
                     let max_value = max.as_ref().and_then(|values| values.get(index)).copied();
-                    if let (Some(min_value), Some(max_value)) = (min_value, max_value) {
-                        if min_value > max_value {
-                            return Err(format!(
-                                "invalid range: {value_kind}[{index}] min {min_value} is greater than max {max_value}"
-                            ));
-                        }
+                    if let (Some(min_value), Some(max_value)) = (min_value, max_value)
+                        && min_value > max_value
+                    {
+                        return Err(format!(
+                            "invalid range: {value_kind}[{index}] min {min_value} is greater than max {max_value}"
+                        ));
                     }
                     out.push((min_value, max_value));
                 }
@@ -525,27 +528,27 @@ impl ParameterConstraints {
     }
 
     fn normalize_numeric_with_bounds(&self, mut value: f64, min: Option<f64>, max: Option<f64>) -> Result<f64, String> {
-        if let (Some(min), Some(max)) = (min, max) {
-            if min > max {
-                return Err(format!("invalid constraints: min {min} is greater than max {max}"));
+        if let (Some(min), Some(max)) = (min, max)
+            && min > max
+        {
+            return Err(format!("invalid constraints: min {min} is greater than max {max}"));
+        }
+
+        if let Some(min) = min
+            && value < min
+        {
+            match self.policy {
+                ParameterConstraintPolicy::ClampAdapt => value = min,
+                ParameterConstraintPolicy::Reject => return Err(format!("value {value} is lower than min {min}")),
             }
         }
 
-        if let Some(min) = min {
-            if value < min {
-                match self.policy {
-                    ParameterConstraintPolicy::ClampAdapt => value = min,
-                    ParameterConstraintPolicy::Reject => return Err(format!("value {value} is lower than min {min}")),
-                }
-            }
-        }
-
-        if let Some(max) = max {
-            if value > max {
-                match self.policy {
-                    ParameterConstraintPolicy::ClampAdapt => value = max,
-                    ParameterConstraintPolicy::Reject => return Err(format!("value {value} is higher than max {max}")),
-                }
+        if let Some(max) = max
+            && value > max
+        {
+            match self.policy {
+                ParameterConstraintPolicy::ClampAdapt => value = max,
+                ParameterConstraintPolicy::Reject => return Err(format!("value {value} is higher than max {max}")),
             }
         }
 
@@ -650,8 +653,4 @@ pub struct ParameterSnapshot {
     /// Whether control modes other than `manual` are available for this parameter.
     #[serde(default = "default_control_modes_enabled", skip_serializing_if = "is_true")]
     pub control_modes_enabled: bool,
-}
-
-pub(crate) fn default_control_modes_enabled() -> bool {
-    true
 }

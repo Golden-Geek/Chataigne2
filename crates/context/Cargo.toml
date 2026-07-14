@@ -1,0 +1,13 @@
+[package]
+name = "golden_context"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+golden_model.workspace = true
+golden_parameters.workspace = true
+serde.workspace = true
+ts-rs.workspace = true

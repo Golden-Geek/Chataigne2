@@ -1,7 +1,7 @@
 # Foundation Ownership
 
-Phase 3 extracts shared identities and values before graph transactions or UI state depend on them.
-The live product consumes these types; the new crates are not parallel models.
+Phase 3 extracts shared identities, values, parameters, and contexts before graph transactions or UI
+state depend on them. The live product consumes these types; the new crates are not parallel models.
 
 ## `golden_model`
 
@@ -22,12 +22,33 @@ not a second declaration. Parameter-specific concepts such as files, enum select
 and node-reference hints cross the canonical boundary as typed extensions and round-trip through
 executable tests.
 
+## `golden_parameters`
+
+`golden_parameters` owns parameter values, value types, constraints, control state, projections,
+snapshots, UI hints, canonical-value conversion, and `NodeReference`. It depends only on
+`golden_model`, `golden_values`, and serialization primitives. The engine continues to own the
+stateful `Parameter` node and animation-control node; its parameter module temporarily re-exports
+the extracted contracts so the production cutover remains source-compatible and independently
+reviewable.
+
+The former engine `Color` is now an alias of the canonical `golden_values::ColorValue`, exposed
+through `golden_parameters` for parameter-facing callers. There is no second color declaration.
+
+## `golden_context`
+
+`golden_context` owns the app-agnostic context registry, snapshots, declarations, updates, and
+dynamic context contracts. It depends on stable model identities and parameter values/projections,
+not on the engine loop, host runtime, statechart policy, or Chataigne modules. The engine context
+path is a governed temporary re-export while those consumers migrate vertically.
+
 ## Dependency Direction
 
-Foundation crates may depend only on serialization and compact storage primitives. They cannot
-depend on the engine, Alchemist, statecharts, Chataigne, host code, or UI policy. The executable
-contract in `tools/migration/check_phase3_contracts.py` enforces this direction and verifies that the
-old owners no longer declare the moved types.
+Foundation crates form a downward-only dependency chain: model and values are lowest; parameters
+may consume them; context may consume model and parameters. They otherwise depend only on
+serialization and compact storage primitives. They cannot depend on the engine, Alchemist,
+statecharts, Chataigne, host code, or UI policy. The executable contract in
+`tools/migration/check_phase3_contracts.py` enforces this direction and verifies that the old owners
+no longer declare the moved types.
 
 Cutover state and compatibility-export deletion criteria are recorded in
 [`phase3-cutovers.v1.json`](../product/manifests/phase3-cutovers.v1.json).

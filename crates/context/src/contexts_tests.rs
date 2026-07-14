@@ -3,7 +3,7 @@ use super::{
     UserContextRegistry, UserContextValueType, multiplex_index_context_link_symbol, multiplex_list_context_link_symbol,
     parse_multiplex_context_link_symbol, parse_multiplex_template_token,
 };
-use crate::node::NodeId;
+use golden_model::NodeId;
 
 #[test]
 fn multiplex_context_link_symbols_round_trip() {

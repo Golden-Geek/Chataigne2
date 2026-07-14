@@ -1,3 +1,5 @@
+//! Parameter edit, event, and control-mode contracts.
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -138,10 +140,11 @@ impl Default for AnimationControlSpec {
 }
 
 /// Persisted authoring intent for one parameter control mode.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "mode", rename_all = "camelCase")]
 pub enum ParameterControlSpec {
     /// Manual value editing with no external source.
+    #[default]
     Manual,
     /// One lexical context symbol lookup.
     ContextLink {
@@ -164,12 +167,6 @@ pub enum ParameterControlSpec {
     Binding,
     /// Local animation mode driven by an internal control node.
     Animation,
-}
-
-impl Default for ParameterControlSpec {
-    fn default() -> Self {
-        Self::Manual
-    }
 }
 
 /// One parameter-control diagnostic message.

@@ -1,3 +1,5 @@
+//! Exact adapters between parameter values and canonical runtime values.
+
 use std::sync::Arc;
 
 use golden_values::{ColorValue, ExtensionValue, TriggerValue, Value, ValueTypeId};
@@ -81,12 +83,7 @@ impl TryFrom<&Value> for ParamValue {
             Value::String(value) => Ok(ParamValue::Str(value.to_string())),
             Value::Vec2(value) => Ok(ParamValue::Vec2(value[0], value[1])),
             Value::Vec3(value) => Ok(ParamValue::Vec3(value[0], value[1], value[2])),
-            Value::Color(value) => Ok(ParamValue::Color(
-                f64::from(value.red),
-                f64::from(value.green),
-                f64::from(value.blue),
-                f64::from(value.alpha),
-            )),
+            Value::Color(value) => Ok(ParamValue::Color(value.red, value.green, value.blue, value.alpha)),
             Value::Extension(value) => parameter_from_extension(value),
             unsupported => Err(CanonicalValueError::UnsupportedValueType(unsupported.value_type())),
         }

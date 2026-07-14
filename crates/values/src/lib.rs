@@ -42,13 +42,68 @@ impl From<String> for ValueTypeId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Copy, Debug, Default, PartialEq, ts_rs::TS)]
 pub struct ColorValue {
+    #[ts(rename = "r")]
     pub red: f64,
+    #[ts(rename = "g")]
     pub green: f64,
+    #[ts(rename = "b")]
     pub blue: f64,
+    #[ts(rename = "a")]
     pub alpha: f64,
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for ColorValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut color = serializer.serialize_struct("ColorValue", 4)?;
+        color.serialize_field("r", &self.red)?;
+        color.serialize_field("g", &self.green)?;
+        color.serialize_field("b", &self.blue)?;
+        color.serialize_field("a", &self.alpha)?;
+        color.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for ColorValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        #[serde(untagged)]
+        enum ColorValueWire {
+            Product {
+                r: f64,
+                g: f64,
+                b: f64,
+                a: f64,
+            },
+            Descriptive {
+                red: f64,
+                green: f64,
+                blue: f64,
+                alpha: f64,
+            },
+        }
+
+        match ColorValueWire::deserialize(deserializer)? {
+            ColorValueWire::Product { r, g, b, a } => Ok(Self::new(r, g, b, a)),
+            ColorValueWire::Descriptive {
+                red,
+                green,
+                blue,
+                alpha,
+            } => Ok(Self::new(red, green, blue, alpha)),
+        }
+    }
 }
 
 impl ColorValue {
@@ -58,6 +113,53 @@ impl ColorValue {
         blue: 0.0,
         alpha: 1.0,
     };
+
+    /// Creates a color from RGBA components.
+    #[must_use]
+    pub const fn new(red: f64, green: f64, blue: f64, alpha: f64) -> Self {
+        Self {
+            red,
+            green,
+            blue,
+            alpha,
+        }
+    }
+
+    /// Returns the red channel.
+    #[must_use]
+    pub const fn r(self) -> f64 {
+        self.red
+    }
+
+    /// Returns the green channel.
+    #[must_use]
+    pub const fn g(self) -> f64 {
+        self.green
+    }
+
+    /// Returns the blue channel.
+    #[must_use]
+    pub const fn b(self) -> f64 {
+        self.blue
+    }
+
+    /// Returns the alpha channel.
+    #[must_use]
+    pub const fn a(self) -> f64 {
+        self.alpha
+    }
+}
+
+impl From<(f64, f64, f64, f64)> for ColorValue {
+    fn from(value: (f64, f64, f64, f64)) -> Self {
+        Self::new(value.0, value.1, value.2, value.3)
+    }
+}
+
+impl From<ColorValue> for (f64, f64, f64, f64) {
+    fn from(value: ColorValue) -> Self {
+        (value.red, value.green, value.blue, value.alpha)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

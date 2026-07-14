@@ -1,8 +1,8 @@
 use golden_values::{TriggerValue, Value, ValueTypeId};
 
-use crate::node::{NodeReference, NodeUuid};
+use golden_model::NodeUuid;
 
-use super::{CanonicalValueError, CssUnit, CssValue, ParamValue};
+use super::{CanonicalValueError, CssUnit, CssValue, NodeReference, ParamValue};
 
 #[test]
 fn every_parameter_variant_round_trips_through_the_canonical_value() {

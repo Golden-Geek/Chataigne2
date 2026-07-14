@@ -3,9 +3,9 @@ use serde_json::Value as JsonValue;
 use std::fmt;
 use ts_rs::TS;
 
-use crate::node::{NodeReference, NodeUuid};
+use golden_model::NodeUuid;
 
-use super::{Color, CssUnit, CssValue, Enum, File, Vec2, Vec3};
+use super::{Color, CssUnit, CssValue, Enum, File, NodeReference, Vec2, Vec3};
 
 /// Runtime value variants used by parameter nodes.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -97,35 +97,32 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
         if matches!(
             operator,
             ParameterDependencyOperator::Eq | ParameterDependencyOperator::Ne
-        ) {
-            if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
-                return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
-            }
+        ) && let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str())
+        {
+            return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
         }
 
         return false;
     }
 
-    if matches!(lhs, ParamValue::Int(_) | ParamValue::Float(_))
-        || matches!(rhs, ParamValue::Int(_) | ParamValue::Float(_))
+    if (matches!(lhs, ParamValue::Int(_) | ParamValue::Float(_))
+        || matches!(rhs, ParamValue::Int(_) | ParamValue::Float(_)))
+        && let (Some(lhs), Some(rhs)) = (lhs.as_float(), rhs.as_float())
     {
-        if let (Some(lhs), Some(rhs)) = (lhs.as_float(), rhs.as_float()) {
-            return compare_partial_ord(lhs, rhs, operator);
-        }
+        return compare_partial_ord(lhs, rhs, operator);
     }
 
-    if matches!(lhs, ParamValue::Bool(_)) || matches!(rhs, ParamValue::Bool(_)) {
-        if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
-            return compare_partial_ord(lhs, rhs, operator);
-        }
+    if (matches!(lhs, ParamValue::Bool(_)) || matches!(rhs, ParamValue::Bool(_)))
+        && let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool())
+    {
+        return compare_partial_ord(lhs, rhs, operator);
     }
 
-    if matches!(lhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
-        || matches!(rhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
+    if (matches!(lhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
+        || matches!(rhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_)))
+        && let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str())
     {
-        if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
-            return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
-        }
+        return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
     }
 
     match operator {
@@ -378,10 +375,10 @@ impl ParamValue {
             ParamValue::Float(f) => Some((*f, *f)),
             ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
-                if parts.len() == 2 {
-                    if let (Ok(x), Ok(y)) = (parts[0].trim().parse(), parts[1].trim().parse()) {
-                        return Some((x, y));
-                    }
+                if parts.len() == 2
+                    && let (Ok(x), Ok(y)) = (parts[0].trim().parse(), parts[1].trim().parse())
+                {
+                    return Some((x, y));
                 }
                 None
             }
@@ -397,14 +394,14 @@ impl ParamValue {
             ParamValue::Float(f) => Some((*f, *f, *f)),
             ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
-                if parts.len() == 3 {
-                    if let (Ok(x), Ok(y), Ok(z)) = (
+                if parts.len() == 3
+                    && let (Ok(x), Ok(y), Ok(z)) = (
                         parts[0].trim().parse(),
                         parts[1].trim().parse(),
                         parts[2].trim().parse(),
-                    ) {
-                        return Some((x, y, z));
-                    }
+                    )
+                {
+                    return Some((x, y, z));
                 }
                 None
             }
@@ -421,15 +418,15 @@ impl ParamValue {
             ParamValue::Float(f) => Some((*f, *f, *f, 1.0)),
             ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
-                if parts.len() == 4 {
-                    if let (Ok(r), Ok(g), Ok(b), Ok(a)) = (
+                if parts.len() == 4
+                    && let (Ok(r), Ok(g), Ok(b), Ok(a)) = (
                         parts[0].trim().parse(),
                         parts[1].trim().parse(),
                         parts[2].trim().parse(),
                         parts[3].trim().parse(),
-                    ) {
-                        return Some((r, g, b, a));
-                    }
+                    )
+                {
+                    return Some((r, g, b, a));
                 }
                 None
             }
@@ -448,10 +445,10 @@ impl ParamValue {
             JsonValue::Null => Ok(ParamValue::Trigger()),
             JsonValue::Bool(value) => Ok(ParamValue::Bool(*value)),
             JsonValue::Number(number) => {
-                if let Some(value) = number.as_i64() {
-                    if let Ok(value) = i32::try_from(value) {
-                        return Ok(ParamValue::Int(value));
-                    }
+                if let Some(value) = number.as_i64()
+                    && let Ok(value) = i32::try_from(value)
+                {
+                    return Ok(ParamValue::Int(value));
                 }
                 if let Some(value) = number.as_f64() {
                     return Ok(ParamValue::Float(value));

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::node::NodeReference;
+use crate::NodeReference;
 
 use super::{CssValue, ParamValue};
 

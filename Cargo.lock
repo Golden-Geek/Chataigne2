@@ -2487,14 +2487,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden_context"
+version = "0.1.0"
+dependencies = [
+ "golden_model",
+ "golden_parameters",
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
 name = "golden_core"
 version = "0.1.0"
 dependencies = [
  "golden_application",
+ "golden_context",
  "golden_core_macros",
  "golden_engine",
  "golden_host_desktop",
  "golden_model",
+ "golden_parameters",
  "golden_persistence",
  "golden_protocol",
  "golden_script",
@@ -2517,14 +2529,14 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "golden_application",
+ "golden_context",
  "golden_core_macros",
  "golden_model",
- "golden_values",
+ "golden_parameters",
  "rquickjs",
  "serde",
  "serde_json",
  "slotmap",
- "thiserror 2.0.18",
  "ts-rs",
  "uuid",
 ]
@@ -2550,6 +2562,18 @@ dependencies = [
  "serde_json",
  "ts-rs",
  "uuid",
+]
+
+[[package]]
+name = "golden_parameters"
+version = "0.1.0"
+dependencies = [
+ "golden_model",
+ "golden_values",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "ts-rs",
 ]
 
 [[package]]
@@ -2601,7 +2625,9 @@ name = "golden_values"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "smol_str",
+ "ts-rs",
 ]
 
 [[package]]
