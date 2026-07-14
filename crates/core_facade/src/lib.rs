@@ -8,6 +8,12 @@ pub use golden_core_macros::{item, node, update};
 pub use golden_engine::{define_node_enum, define_user_item_factory_methods};
 pub use golden_engine::{log, logerror, logsuccess, logwarning};
 
+/// Stable application-facing seams, shadow execution, and deterministic I/O recordings.
+pub mod application {
+    pub use golden_application::*;
+    pub use golden_engine::application::*;
+}
+
 /// Basic color schema types.
 pub mod color {
     pub use golden_engine::color::*;

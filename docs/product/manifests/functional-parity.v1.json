@@ -12054,11 +12054,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 52,
+          "line": 53,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         }
       ],
@@ -13607,11 +13607,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 31,
+          "line": 32,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         }
       ],
@@ -13662,11 +13662,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 19,
+          "line": 20,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         },
         {
-          "line": 28,
+          "line": 29,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         }
       ],
@@ -17759,11 +17759,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 41,
+          "line": 42,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
         }
       ],

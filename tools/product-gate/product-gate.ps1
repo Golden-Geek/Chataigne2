@@ -795,6 +795,12 @@ Invoke-GateCommand `
     -Executable "python" `
     -Arguments @("-m", "unittest", "discover", "-s", "tools/migration/tests", "-v") `
     -DependsOn @("product_manifest.schema") | Out-Null
+Invoke-GateCommand `
+    -Id "architecture.phase2_contracts" `
+    -Name "Phase 2 application seam contracts" `
+    -Executable "python" `
+    -Arguments @("tools/migration/check_phase2_contracts.py") `
+    -DependsOn @("product_manifest.tests") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `

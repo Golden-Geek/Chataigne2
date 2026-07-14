@@ -16,7 +16,7 @@ fn custom_event_payload_can_target_named_script_callback() {
         old_value: None,
         payload: json!({
             "Custom": {
-                "topic": "chataigne.module.script.callback",
+                "topic": "test.module.script.callback",
                 "payload": {
                     "callback": "messageReceived",
                     "args": ["/address", [1, 2, 3]]

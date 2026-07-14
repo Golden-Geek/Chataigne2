@@ -97,6 +97,11 @@ pub trait ProjectNode: Node {
 
 /// App-controlled lifecycle hooks for engine recreation and new-project setup.
 pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
+    /// Human-readable application name used by generic desktop hosts.
+    fn application_display_name() -> &'static str {
+        Self::project_file_spec().display_name
+    }
+
     /// Creates the root node used for fresh engine instances.
     fn create_project_root() -> Self {
         Folder::new("Root").into()

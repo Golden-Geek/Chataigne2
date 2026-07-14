@@ -1,6 +1,10 @@
 use super::{AppEngine, AppNode};
 
 impl golden_core::app::ProjectLifecycle for AppNode {
+    fn application_display_name() -> &'static str {
+        "Chataigne 2"
+    }
+
     fn project_file_spec() -> golden_core::app::ProjectFileSpec {
         golden_core::app::ProjectFileSpec::new("Noisette", "noisette")
     }

@@ -9,7 +9,7 @@ use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use super::{Engine, EngineEditError};
 
 static DISPATCH_PERF_TRACE_ENABLED: LazyLock<bool> = LazyLock::new(|| {
-    std::env::var_os("CHATAIGNE_PERF_TRACE").is_some_and(|value| {
+    std::env::var_os("GOLDEN_PERF_TRACE").is_some_and(|value| {
         let value = value.to_string_lossy();
         !matches!(value.trim().to_ascii_lowercase().as_str(), "" | "0" | "false" | "off")
     })

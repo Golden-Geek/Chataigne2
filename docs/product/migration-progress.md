@@ -26,8 +26,8 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 0 — Branch from `main`, prove the product, and freeze the contract       | `RUNNABLE`          | Complete              | `PASS`                   | Exact commit `82a72b3ef517aefe32e4a6907e6cba66aab52022`; [six-platform product gate run 29195670582](https://github.com/Golden-Geek/Chataigne2/actions/runs/29195670582)    |
 | Phase 1A — Form the monorepo by importing the complete working product         | `RUNNABLE`          | Complete              | `PASS` (Win-x64 local)   | Cross-platform import qualification is deliberately combined with the Phase 1B toolchain qualification instead of validating a toolchain that Phase 1B immediately replaces |
 | Phase 1B — Modernize and unify the toolchain without changing the product      | `RUNNABLE`          | Complete              | `PASS`                   | Exact commit `0e780f9025be2b86eed3f5474ed257e0da898e2a`; [six-platform product gate run 29323403758](https://github.com/Golden-Geek/Chataigne2/actions/runs/29323403758)    |
-| Phase 2 — Establish stable product seams and shadow infrastructure             | `RUNNABLE`          | Ready                 | Phase 1B baseline `PASS` | Begin explicit application-facing facades and side-effect-safe shadow infrastructure                                                                                        |
-| Phase 3 — Extract foundations and `golden-graph` through the live product      | `RUNNABLE`          | Pending               | `BLOCKED`                | Phase 2 seams and side-effect-safe shadowing must exist                                                                                                                     |
+| Phase 2 — Establish stable product seams and shadow infrastructure             | `RUNNABLE`          | Complete              | `PASS` (Win-x64 local)   | Tested tree based on `2ce92015c60a9958402c0517417c5e8988b358a4`; local report `target/product-gate/20260714T115625Z/product-gate-report.json`                                  |
+| Phase 3 — Extract foundations and `golden-graph` through the live product      | `RUNNABLE`          | Pending               | `BLOCKED`                | Begin focused foundation and common-graph cutovers through the Phase 2 seams                                                                                               |
 | Phase 4 — Migrate Alchemist as a complete authoring-to-runtime slice           | `RUNNABLE`          | Pending               | `BLOCKED`                | Complete the common graph cutovers                                                                                                                                          |
 | Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `RUNNABLE`          | Pending               | `BLOCKED`                | Complete relevant graph and Alchemist boundaries                                                                                                                            |
 | Phase 6 — Replace the runtime center behind the continuously working app       | `RUNNABLE`          | Pending               | `BLOCKED`                | Compiled domains and product composition must be proven                                                                                                                     |
@@ -64,14 +64,25 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Dependency governance                 | Complete | Pinned cargo-deny/cargo-machete, RustSec/license/source/bans policy, unused dependency cleanup, reviewed duplicate baseline, and npm production audit pass                                                                                                                                        |
 | Cross-platform Phase 1B qualification | `PASS`   | Exact commit `0e780f9025be2b86eed3f5474ed257e0da898e2a`; native Windows, macOS, and Linux product gates plus Linux ARMHF, Linux AArch64, Windows ARM64 compatibility and exact-commit aggregation passed in [run 29323403758](https://github.com/Golden-Geek/Chataigne2/actions/runs/29323403758) |
 
+## Phase 2 Stable Product Seams
+
+| Slice                                  | Status   | Evidence or remaining governed migration work                                                                                                      |
+| -------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production application facade         | Complete | Project transactions, graph edits, runtime values, observation, persistence, and host lifecycle route through `golden_application`/`ProductionRuntime` |
+| Side-effect-safe shadow infrastructure | Complete | Semantic-digest shadow execution is pure and cannot acquire effect authority; matching, mismatch, and failure behavior have executable Rust tests     |
+| Deterministic module I/O boundary      | Complete | Injectable clock, input/output recordings, and effect-authority-gated output dispatch are tested; embedded module I/O remains a governed Phase 8 adapter |
+| Adapter and seam dashboard             | Complete | Revision 1 is recorded in [`manifests/phase2-seams.v1.json`](manifests/phase2-seams.v1.json) with owners, expiry phases, deletion criteria, and tests   |
+| Package and host boundary contracts    | Complete | `tools/migration/check_phase2_contracts.py` rejects app-policy imports and raw shared engine ownership in transport/host code                          |
+| Win-x64 product qualification          | `PASS`   | Local report `target/product-gate/20260714T115625Z/product-gate-report.json`; all required results passed and macOS/Linux were non-required `NOT_RUN`   |
+
 ## Required Root Workflow Status
 
 | Command or workflow  | Status                              | Required result                                                                            |
 | -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| `cargo run`          | `PASS` at Phase 1B commit `0e780f9` | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
-| `watch`              | `PASS` at Phase 1B commit `0e780f9` | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
-| `cargo run -- --dev` | `PASS` at Phase 1B commit `0e780f9` | Complete app with live frontend/dev server and connected engine                            |
-| Root product gate    | `PASS` at Phase 1B commit `0e780f9` | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/platform matrix              |
+| `cargo run`          | `PASS` on Phase 2 tested tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
+| `watch`              | `PASS` on Phase 2 tested tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
+| `cargo run -- --dev` | `PASS` on Phase 2 tested tree | Complete app with live frontend/dev server and connected engine                            |
+| Root product gate    | `PASS` on Phase 2 tested tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
 
 No command above is inferred to pass from source inspection or repository provenance.
 

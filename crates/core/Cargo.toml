@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+golden_application.workspace = true
 serde = { version = "1", features = ["derive"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 slotmap = "1.1.1"

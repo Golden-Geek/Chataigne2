@@ -2468,6 +2468,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden_application"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "golden_codegen_support"
 version = "0.1.0"
 dependencies = [
@@ -2480,6 +2489,7 @@ dependencies = [
 name = "golden_core"
 version = "0.1.0"
 dependencies = [
+ "golden_application",
  "golden_core_macros",
  "golden_engine",
  "golden_host_desktop",
@@ -2503,6 +2513,7 @@ name = "golden_engine"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "golden_application",
  "golden_core_macros",
  "rquickjs",
  "serde",

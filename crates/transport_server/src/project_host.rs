@@ -1,16 +1,14 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use golden_engine::app::{
     ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, ensure_preferences_tree,
     insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
-    load_sparse_project_file_with_ui_state_recovering, prepare_engine_for_runtime,
-    prepare_engine_for_runtime_recovering, shutdown_engine_for_runtime, to_sparse_preferences_json_pretty,
-    to_sparse_project_json_pretty_with_ui_state,
+    load_sparse_project_file_with_ui_state_recovering,
 };
+use golden_engine::application::{ProductionRuntime, ProjectReplacement, ProjectSaveRequest};
 use golden_engine::engine::{Engine, ProjectLoadRecoveryReport, ProjectPersistenceError};
 use golden_engine::logger::{self, LogLevel};
 
@@ -49,8 +47,6 @@ impl std::fmt::Display for ProjectLoadError {
     }
 }
 
-const BROWSER_PROJECT_DIRECTORY_SEGMENTS: &[&str] = &["Documents", "Chataigne"];
-
 fn normalize_project_path(raw_path: &str) -> Option<String> {
     let path = raw_path.trim();
     if path.is_empty() {
@@ -76,7 +72,7 @@ fn normalize_project_save_path(raw_path: &str, file_spec: &ProjectFileSpec) -> O
     Some(path.to_string_lossy().to_string())
 }
 
-fn browser_project_directory() -> Result<PathBuf, String> {
+fn browser_project_directory<T: ProjectLifecycle>() -> Result<PathBuf, String> {
     let home_dir = env::var_os("HOME")
         .or_else(|| env::var_os("USERPROFILE"))
         .map(PathBuf::from)
@@ -90,9 +86,8 @@ fn browser_project_directory() -> Result<PathBuf, String> {
         .ok_or_else(|| "unable to resolve a home directory for browser project uploads".to_string())?;
 
     let mut directory = home_dir;
-    for segment in BROWSER_PROJECT_DIRECTORY_SEGMENTS {
-        directory.push(segment);
-    }
+    directory.push("Documents");
+    directory.push(T::app_data_directory_name());
     Ok(directory)
 }
 
@@ -122,51 +117,27 @@ fn sanitize_browser_upload_file_name(raw_file_name: &str, file_spec: &ProjectFil
 }
 
 fn replace_live_engine<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     next_engine: Engine<T>,
     reason: &str,
     recover: bool,
 ) -> Result<ProjectLoadRecoveryReport, String> {
-    let started = Instant::now();
-    let next_node_count = next_engine.nodes.iter().count();
-    let mut guard = match engine.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-    let shutdown_started = Instant::now();
-    shutdown_engine_for_runtime(&mut *guard);
-    let shutdown_elapsed = shutdown_started.elapsed();
-
-    let drop_started = Instant::now();
-    let previous_engine = std::mem::replace(&mut *guard, next_engine);
-    drop(previous_engine);
-    let drop_elapsed = drop_started.elapsed();
-
-    // apply_edits runs node-ready callbacks, which can bind transports.
-    // Fully unload and drop the previous engine before the replacement starts runtime work.
-    let prepare_started = Instant::now();
-    let recovery = if recover {
-        prepare_engine_for_runtime_recovering(&mut *guard)
-    } else {
-        prepare_engine_for_runtime(&mut *guard).map_err(|err| err.to_string())?;
-        ProjectLoadRecoveryReport::default()
-    };
-    let prepare_elapsed = prepare_started.elapsed();
-    guard.clear_ui_event_log();
-    guard.push_ui_custom_event(
-        "__transport.resync_required",
-        None,
-        serde_json::json!({ "reason": reason }),
-    );
+    let project_file = runtime.read_model().current_snapshot().project_file.clone();
+    let result = runtime.replace_project(ProjectReplacement {
+        engine: next_engine,
+        project_file,
+        reason: reason.to_string(),
+        recover,
+    })?;
     eprintln!(
         "[project-host] replace_engine reason={reason} nodes={} shutdown_ms={} drop_ms={} prepare_ms={} total_ms={}",
-        next_node_count,
-        shutdown_elapsed.as_millis(),
-        drop_elapsed.as_millis(),
-        prepare_elapsed.as_millis(),
-        started.elapsed().as_millis()
+        result.node_count,
+        result.shutdown.as_millis(),
+        result.drop_previous.as_millis(),
+        result.prepare.as_millis(),
+        result.total.as_millis()
     );
-    Ok(recovery)
+    Ok(result.recovery)
 }
 
 pub(crate) fn load_preferences_into_engine<T: ProjectLifecycle>(
@@ -198,10 +169,10 @@ pub(crate) fn load_preferences_into_engine<T: ProjectLifecycle>(
 }
 
 pub(crate) fn save_preferences<T: ProjectLifecycle>(
-    engine: &Engine<T>,
+    runtime: &ProductionRuntime<T>,
     preferences: &UiPreferencesConfig,
 ) -> Result<(), String> {
-    let Some(json) = to_sparse_preferences_json_pretty(engine).map_err(|err| err.to_string())? else {
+    let Some(json) = runtime.encode_preferences()? else {
         return Ok(());
     };
 
@@ -218,17 +189,17 @@ pub(crate) fn save_preferences<T: ProjectLifecycle>(
 }
 
 pub(crate) fn create_new_project<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     preferences: Option<&UiPreferencesConfig>,
 ) -> Result<(), String> {
     let mut next_engine = create_new_project_engine::<T>()?;
     load_preferences_into_engine(&mut next_engine, preferences)?;
     T::project_opened(&mut next_engine)?;
-    replace_live_engine(engine, next_engine, "project_new", false).map(|_| ())
+    replace_live_engine(runtime, next_engine, "project_new", false).map(|_| ())
 }
 
 pub(crate) fn save_project<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     raw_path: &str,
     ui_state: Option<serde_json::Value>,
 ) -> Result<String, String> {
@@ -238,32 +209,20 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
 
     let started = Instant::now();
 
-    let lock_started = Instant::now();
-    let guard = match engine.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-    let lock_wait_elapsed = lock_started.elapsed();
-    let node_count = guard.nodes.iter().count();
-
+    let encoded = runtime.encode_project(ProjectSaveRequest { ui_state })?;
     let clone_or_snapshot_ms = 0;
 
-    let serialize_started = Instant::now();
-    let json = to_sparse_project_json_pretty_with_ui_state(&guard, ui_state).map_err(|err| err.to_string())?;
-    let serialize_elapsed = serialize_started.elapsed();
-    drop(guard);
-
     let write_started = Instant::now();
-    fs::write(path.as_str(), json.as_bytes()).map_err(|err| err.to_string())?;
+    fs::write(path.as_str(), encoded.json.as_bytes()).map_err(|err| err.to_string())?;
     let write_elapsed = write_started.elapsed();
     eprintln!(
         "[project-host] save_project path='{}' nodes={} bytes={} lock_wait_ms={} clone_or_snapshot_ms={} serialize_ms={} write_ms={} total_ms={}",
         path,
-        node_count,
-        json.len(),
-        lock_wait_elapsed.as_millis(),
+        encoded.node_count,
+        encoded.json.len(),
+        encoded.lock_wait.as_millis(),
         clone_or_snapshot_ms,
-        serialize_elapsed.as_millis(),
+        encoded.serialize.as_millis(),
         write_elapsed.as_millis(),
         started.elapsed().as_millis()
     );
@@ -272,10 +231,11 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
         "project".to_string(),
         None,
         format!(
-            "Saved project: {path} (nodes={node_count} bytes={} lock_wait_ms={} serialize_ms={} write_ms={} total_ms={})",
-            json.len(),
-            lock_wait_elapsed.as_millis(),
-            serialize_elapsed.as_millis(),
+            "Saved project: {path} (nodes={} bytes={} lock_wait_ms={} serialize_ms={} write_ms={} total_ms={})",
+            encoded.node_count,
+            encoded.json.len(),
+            encoded.lock_wait.as_millis(),
+            encoded.serialize.as_millis(),
             write_elapsed.as_millis(),
             started.elapsed().as_millis()
         ),
@@ -284,23 +244,23 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
 }
 
 pub(crate) fn load_project<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     raw_path: &str,
     preferences: Option<&UiPreferencesConfig>,
 ) -> Result<ProjectLoadResult, ProjectLoadError> {
-    load_project_with_options(engine, raw_path, preferences, false)
+    load_project_with_options(runtime, raw_path, preferences, false)
 }
 
 pub(crate) fn load_project_recovering<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     raw_path: &str,
     preferences: Option<&UiPreferencesConfig>,
 ) -> Result<ProjectLoadResult, ProjectLoadError> {
-    load_project_with_options(engine, raw_path, preferences, true)
+    load_project_with_options(runtime, raw_path, preferences, true)
 }
 
 fn load_project_with_options<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     raw_path: &str,
     preferences: Option<&UiPreferencesConfig>,
     recover: bool,
@@ -335,7 +295,7 @@ fn load_project_with_options<T: ProjectLifecycle>(
     let configure_elapsed = configure_started.elapsed();
 
     let replace_started = Instant::now();
-    let runtime_recovery = replace_live_engine(engine, next_engine, "project_loaded", recover).map_err(|message| {
+    let runtime_recovery = replace_live_engine(runtime, next_engine, "project_loaded", recover).map_err(|message| {
         let recovery = recover.then(|| ProjectLoadRecoveryReport::from_runtime_startup_error(message.clone()));
         ProjectLoadError { message, recovery }
     })?;
@@ -393,25 +353,25 @@ fn load_project_with_options<T: ProjectLifecycle>(
 }
 
 pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     raw_file_name: &str,
     contents: &str,
     preferences: Option<&UiPreferencesConfig>,
 ) -> Result<ProjectLoadResult, ProjectLoadError> {
-    upload_project_and_load_with_options(engine, raw_file_name, contents, preferences, false)
+    upload_project_and_load_with_options(runtime, raw_file_name, contents, preferences, false)
 }
 
 pub(crate) fn upload_project_and_load_recovering<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     raw_file_name: &str,
     contents: &str,
     preferences: Option<&UiPreferencesConfig>,
 ) -> Result<ProjectLoadResult, ProjectLoadError> {
-    upload_project_and_load_with_options(engine, raw_file_name, contents, preferences, true)
+    upload_project_and_load_with_options(runtime, raw_file_name, contents, preferences, true)
 }
 
 fn upload_project_and_load_with_options<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
+    runtime: &ProductionRuntime<T>,
     raw_file_name: &str,
     contents: &str,
     preferences: Option<&UiPreferencesConfig>,
@@ -424,7 +384,7 @@ fn upload_project_and_load_with_options<T: ProjectLifecycle>(
         });
     }
 
-    let directory = browser_project_directory().map_err(|message| ProjectLoadError {
+    let directory = browser_project_directory::<T>().map_err(|message| ProjectLoadError {
         message,
         recovery: None,
     })?;
@@ -445,7 +405,7 @@ fn upload_project_and_load_with_options<T: ProjectLifecycle>(
     })?;
 
     let normalized_path = path.to_string_lossy().to_string();
-    load_project_with_options(engine, &normalized_path, preferences, recover)
+    load_project_with_options(runtime, &normalized_path, preferences, recover)
 }
 
 #[cfg(test)]

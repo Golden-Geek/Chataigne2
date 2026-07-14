@@ -355,6 +355,7 @@ where
 
     let run_result = run_tauri(
         &frontend_url,
+        T::application_display_name().to_string(),
         tauri_context,
         app_data_dir.join("window-state.json"),
         args.automation_shutdown_file,
@@ -621,6 +622,7 @@ fn detect_or_default_frontend_url() -> String {
 
 fn run_tauri<R: Runtime>(
     ui_base_url: &str,
+    application_display_name: String,
     tauri_context: tauri::Context<R>,
     window_state_path: PathBuf,
     automation_shutdown_file: Option<PathBuf>,
@@ -693,7 +695,7 @@ fn run_tauri<R: Runtime>(
         .setup(move |app| {
             let mut window_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external_url.clone()))
-                    .title("Chataigne 2")
+                    .title(application_display_name)
                     .decorations(false)
                     .shadow(true)
                     .accept_first_mouse(true)

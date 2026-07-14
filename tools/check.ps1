@@ -70,6 +70,10 @@ Run-Step "cargo check" {
     cargo check --workspace
 }
 
+Run-Step "Phase 2 architecture contracts" {
+    python tools/migration/check_phase2_contracts.py
+}
+
 if (-not $SkipUiInstall) {
     Run-Step "npm ci" {
         npm ci

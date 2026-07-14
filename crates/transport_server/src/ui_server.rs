@@ -12,12 +12,13 @@ use futures_util::{SinkExt, StreamExt};
 use golden_engine::app::{
     ProjectFileSpec, ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime,
 };
+use golden_engine::application::{AppliedUiTransaction, ProductionRuntime};
 use golden_engine::engine::{Engine, EngineTime};
-use golden_engine::node::{Node, NodeId};
-use golden_engine::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelReplaceReason};
+use golden_engine::node::NodeId;
+use golden_engine::ui_read_model::UiReadModel;
 use golden_protocol::{
-    UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
-    UiEventBatch, UiEventDto, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
+    UI_PROTOCOL_VERSION, UiAck, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent, UiEventBatch,
+    UiEventDto, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
     UiProjectLoadRecoveryDto as ProjectLoadRecoveryDto, UiProjectPathDto as ProjectPathDto,
     UiProjectPathRequest as ProjectPathRequest, UiProjectUploadRequest as ProjectUploadRequest,
     UiReferenceTargetsRequest as ReferenceTargetsRequest, UiReplayRequest as ReplayRequest, UiRuntimeStatsDto,
@@ -166,7 +167,7 @@ impl ProjectFileSession {
 }
 
 struct ServerState<T: ProjectLifecycle> {
-    engine: Arc<Mutex<Engine<T>>>,
+    runtime: ProductionRuntime<T>,
     read_model: Arc<UiReadModel>,
     project_file: ProjectFileSession,
     ws_hub: WsHubHandle,
@@ -177,7 +178,7 @@ struct ServerState<T: ProjectLifecycle> {
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
     fn clone(&self) -> Self {
         Self {
-            engine: self.engine.clone(),
+            runtime: self.runtime.clone(),
             read_model: self.read_model.clone(),
             project_file: self.project_file.clone(),
             ws_hub: self.ws_hub.clone(),
@@ -185,102 +186,6 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
             preferences: self.preferences.clone(),
         }
     }
-}
-
-fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
-    engine: &mut Engine<T>,
-    intent: UiEditIntent,
-    ui_client_instance_id: Option<&str>,
-) -> UiAck {
-    let before_event_time = engine.ui_event_log().last().map(|event| event.time);
-
-    match intent {
-        UiEditIntent::DuplicateNode {
-            source,
-            new_parent,
-            new_prev_sibling,
-            initial_params,
-        } => match engine.duplicate_subtree_with(
-            source,
-            new_parent,
-            new_prev_sibling,
-            None,
-            |node| node.project_encode_data(),
-            |node_type, data, meta| T::project_decode_node(node_type, data, meta),
-        ) {
-            Ok(duplicated_root) => {
-                match engine.ui_apply_initial_params_to_node(duplicated_root, initial_params, "DuplicateNode") {
-                    Ok(()) => UiAck {
-                        success: true,
-                        status: UiAckStatus::Applied,
-                        error_code: None,
-                        error_message: None,
-                        earliest_event_time: earliest_ui_event_time_since(engine, before_event_time),
-                        history: engine.ui_history_state(),
-                    },
-                    Err(err) => UiAck {
-                        success: false,
-                        status: UiAckStatus::Rejected,
-                        error_code: Some("duplicate_node_failed".to_string()),
-                        error_message: Some(err.to_string()),
-                        earliest_event_time: None,
-                        history: engine.ui_history_state(),
-                    },
-                }
-            }
-            Err(err) => UiAck {
-                success: false,
-                status: UiAckStatus::Rejected,
-                error_code: Some("duplicate_node_failed".to_string()),
-                error_message: Some(err.to_string()),
-                earliest_event_time: None,
-                history: engine.ui_history_state(),
-            },
-        },
-        UiEditIntent::DuplicateNodes {
-            nodes,
-            created_items,
-            dependent_items,
-        } => match engine.ui_apply_duplicate_nodes_with_dependent_user_items(
-            nodes,
-            created_items,
-            dependent_items,
-            |node| node.project_encode_data(),
-            |node_type, data, meta| T::project_decode_node(node_type, data, meta),
-        ) {
-            Ok(_) => UiAck {
-                success: true,
-                status: UiAckStatus::Applied,
-                error_code: None,
-                error_message: None,
-                earliest_event_time: earliest_ui_event_time_since(engine, before_event_time),
-                history: engine.ui_history_state(),
-            },
-            Err(err) => UiAck {
-                success: false,
-                status: UiAckStatus::Rejected,
-                error_code: Some("duplicate_nodes_failed".to_string()),
-                error_message: Some(err.to_string()),
-                earliest_event_time: None,
-                history: engine.ui_history_state(),
-            },
-        },
-        other => engine.apply_ui_intent_from_client(other, ui_client_instance_id),
-    }
-}
-
-fn earliest_ui_event_time_since<T: Node>(
-    engine: &Engine<T>,
-    previous_event_time: Option<EngineTime>,
-) -> Option<EngineTime> {
-    engine
-        .ui_event_log()
-        .iter()
-        .find(|event| match previous_event_time {
-            Some(previous) => event.time > previous,
-            None => true,
-        })
-        .map(|event| event.time)
 }
 
 fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
@@ -327,40 +232,18 @@ struct UiIntentTiming {
     total_ms: u128,
 }
 
-fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
-    read_model: &UiReadModel,
-    engine: &mut Engine<T>,
-    intent: UiEditIntent,
-    ui_client_instance_id: Option<&str>,
-    lock_wait_ms: u128,
-    intent_started: Instant,
-) -> (UiAck, UiEventCapture, UiIntentTiming) {
-    let kind = ui_intent_kind(&intent);
-    let before_event_time = engine.ui_event_log().last().map(|event| event.time);
-
-    let apply_started = Instant::now();
-    let ack = apply_ui_intent_with_transport(engine, intent, ui_client_instance_id);
-    let apply_ms = apply_started.elapsed().as_millis();
-
-    // Collect cheaply while the engine lock is still held; O(N) apply happens outside the lock.
-    let event_collect_started = Instant::now();
-    let capture = read_model.collect_event_batch(engine, before_event_time);
-    let requires_resync = capture.batch().events.iter().any(
-        |event| matches!(&event.kind, UiEventKind::Custom { topic, .. } if topic == "__transport.resync_required"),
-    );
-    let event_collect_ms = event_collect_started.elapsed().as_millis();
-
-    let timing = UiIntentTiming {
+fn ui_intent_timing_from_application(kind: &'static str, result: &AppliedUiTransaction) -> UiIntentTiming {
+    UiIntentTiming {
         kind,
-        lock_wait_ms,
-        apply_ms,
-        event_collect_ms,
-        events: capture.batch().events.len(),
-        requires_resync,
-        total_ms: intent_started.elapsed().as_millis(),
-    };
-
-    (ack, capture, timing)
+        lock_wait_ms: result.timing.lock_wait.as_millis(),
+        apply_ms: result.timing.apply.as_millis(),
+        event_collect_ms: result.timing.event_collect.as_millis(),
+        events: result.events.events.len(),
+        requires_resync: result.events.events.iter().any(
+            |event| matches!(&event.kind, UiEventKind::Custom { topic, .. } if topic == "__transport.resync_required"),
+        ),
+        total_ms: result.timing.total.as_millis(),
+    }
 }
 
 fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
@@ -377,7 +260,7 @@ fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
 }
 
 fn save_preferences_after_success<T: ProjectLifecycle>(
-    engine: &Engine<T>,
+    runtime: &ProductionRuntime<T>,
     preferences: Option<&UiPreferencesConfig>,
     success: bool,
 ) {
@@ -387,34 +270,16 @@ fn save_preferences_after_success<T: ProjectLifecycle>(
     let Some(preferences) = preferences else {
         return;
     };
-    if let Err(err) = project_host::save_preferences(engine, preferences) {
+    if let Err(err) = project_host::save_preferences(runtime, preferences) {
         eprintln!("[preferences] failed to save after edit: {err}");
     }
 }
 
-fn skipped_after_failed_batch_ack<T: ProjectLifecycle>(engine: &Engine<T>) -> UiAck {
-    UiAck {
-        success: false,
-        status: UiAckStatus::Rejected,
-        error_code: Some("intent_batch_cancelled".to_string()),
-        error_message: Some("intent batch stopped after a previous failure".to_string()),
-        earliest_event_time: None,
-        history: engine.ui_history_state(),
-    }
-}
-
 fn refresh_read_model_after_project_replace<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
-    read_model: &Arc<UiReadModel>,
+    runtime: &ProductionRuntime<T>,
     project_file: &ProjectFileSession,
 ) {
-    let guard = lock_engine(engine);
-    read_model.replace_from_engine(
-        &*guard,
-        project_file.snapshot(),
-        UiReadModelReplaceReason::ProjectReplaced,
-    );
-    read_model.publish_engine_events_since(&*guard, None);
+    runtime.set_project_file(project_file.snapshot());
 }
 
 fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
@@ -664,26 +529,20 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
     T::project_opened(&mut engine).map_err(Error::other)?;
     prepare_engine_for_runtime(&mut engine)?;
     apply_preferences_runtime_limits(&mut engine);
-    if let Some(preferences) = config.preferences.as_ref() {
-        project_host::save_preferences(&engine, preferences).map_err(Error::other)?;
-    }
-    let shared_engine = Arc::new(Mutex::new(engine));
-    run_ui_server(shared_engine, config)
+    run_ui_server(engine, config)
 }
 
-/// Runs the built-in HTTP and WebSocket host around a shared engine instance.
-pub fn run_ui_server<T: ProjectLifecycle + 'static>(
-    engine: Arc<Mutex<Engine<T>>>,
-    config: UiServerConfig,
-) -> std::io::Result<()> {
+/// Runs the built-in HTTP and WebSocket host through the production application facade.
+pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
     let project_file = ProjectFileSession::new(T::project_file_spec());
-    let read_model = {
-        let guard = lock_engine(&engine);
-        Arc::new(UiReadModel::from_engine(&*guard, project_file.snapshot()))
-    };
-    spawn_runtime_loop(engine.clone(), read_model.clone());
+    let runtime = ProductionRuntime::new(engine, project_file.snapshot());
+    if let Some(preferences) = config.preferences.as_ref() {
+        project_host::save_preferences(&runtime, preferences).map_err(Error::other)?;
+    }
+    let read_model = runtime.read_model();
+    spawn_runtime_loop(runtime.clone(), read_model.clone());
     let ws_hub = spawn_ws_hub(
-        engine.clone(),
+        runtime.clone(),
         read_model.clone(),
         config.tick_interval.max(WS_RETRY_INTERVAL),
         config.value_flush_interval.max(Duration::from_millis(1)),
@@ -699,7 +558,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     );
 
     let state = ServerState {
-        engine,
+        runtime,
         read_model,
         project_file,
         ws_hub,
@@ -726,7 +585,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     Ok(())
 }
 
-fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(engine: Arc<Mutex<Engine<T>>>, read_model: Arc<UiReadModel>) {
+fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<T>, read_model: Arc<UiReadModel>) {
     thread::spawn(move || {
         let mut last_tick_start = Instant::now();
         let mut stats_window_start = last_tick_start;
@@ -737,29 +596,13 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(engine: Arc<Mutex<Engine<T>
             let elapsed = tick_start.saturating_duration_since(last_tick_start);
             last_tick_start = tick_start;
 
-            // Apply events inside the engine lock so tick events are never appended to the
-            // ring buffer concurrently with intent events from the WS hub or HTTP threads.
-            // Out-of-order ring entries would cause the frontend to receive paramChanged for
-            // newly-created nodes before the graphTransaction that creates them.
-            let (capture, tick_interval) = {
-                let mut guard = match engine.lock() {
-                    Ok(guard) => guard,
-                    Err(poisoned) => poisoned.into_inner(),
-                };
-                let before_event_time = guard.ui_event_log().last().map(|event| event.time);
-                let capture = if let Err(err) = guard.run_tick(elapsed) {
+            let tick_interval = match runtime.run_tick(elapsed) {
+                Ok(result) => result.next_interval,
+                Err(err) => {
                     report_runtime_tick_failure(&err);
-                    None
-                } else {
-                    Some(read_model.collect_event_batch(&*guard, before_event_time))
-                };
-                apply_preferences_runtime_limits(&mut *guard);
-                let tick_interval = guard.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));
-                (capture, tick_interval)
+                    Duration::from_millis(1)
+                }
             };
-            if let Some(capture) = capture {
-                read_model.apply_event_capture(capture);
-            }
 
             stats_window_ticks = stats_window_ticks.saturating_add(1);
             let stats_elapsed = stats_window_start.elapsed();
@@ -796,7 +639,7 @@ fn report_runtime_tick_failure(err: &impl std::fmt::Display) {
 }
 
 fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
-    engine: Arc<Mutex<Engine<T>>>,
+    runtime: ProductionRuntime<T>,
     read_model: Arc<UiReadModel>,
     dispatch_interval: Duration,
     value_flush_interval: Duration,
@@ -808,7 +651,7 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     let readiness_for_hub = readiness.clone();
     thread::spawn(move || {
         ws_hub_loop(
-            engine,
+            runtime,
             read_model,
             cmd_rx,
             dispatch_interval,
@@ -822,7 +665,7 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
 }
 
 fn ws_hub_loop<T: ProjectLifecycle>(
-    engine: Arc<Mutex<Engine<T>>>,
+    runtime: ProductionRuntime<T>,
     read_model: Arc<UiReadModel>,
     cmd_rx: Receiver<WsHubCommand>,
     dispatch_interval: Duration,
@@ -840,8 +683,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
         match cmd_rx.recv_timeout(dispatch_interval) {
             Ok(command) => {
                 handle_ws_hub_command(
-                    &engine,
-                    &read_model,
+                    &runtime,
                     &mut clients,
                     &mut client_instances,
                     &mut origins,
@@ -852,8 +694,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
                 );
                 while let Ok(next) = cmd_rx.try_recv() {
                     handle_ws_hub_command(
-                        &engine,
-                        &read_model,
+                        &runtime,
                         &mut clients,
                         &mut client_instances,
                         &mut origins,
@@ -876,8 +717,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
 }
 
 fn handle_ws_hub_command<T: ProjectLifecycle>(
-    engine: &Arc<Mutex<Engine<T>>>,
-    read_model: &Arc<UiReadModel>,
+    runtime: &ProductionRuntime<T>,
     clients: &mut HashMap<u64, WsClientState>,
     client_instances: &mut HashMap<String, u64>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
@@ -937,13 +777,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                         let _ = previous_client.outbound.send(WsOutbound::Close);
                     }
 
-                    let capture = {
-                        let mut guard = lock_engine(engine);
-                        let before_event_time = guard.ui_event_log().last().map(|event| event.time);
-                        let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
-                        read_model.collect_event_batch(&*guard, before_event_time)
-                    };
-                    read_model.apply_event_capture(capture);
+                    runtime.cancel_ui_edit_session(&client_instance_id);
                 }
             }
         }
@@ -958,13 +792,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     client_instances.remove(client_instance_id);
                 }
 
-                let capture = {
-                    let mut guard = lock_engine(engine);
-                    let before_event_time = guard.ui_event_log().last().map(|event| event.time);
-                    let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
-                    read_model.collect_event_batch(&*guard, before_event_time)
-                };
-                read_model.apply_event_capture(capture);
+                runtime.cancel_ui_edit_session(client_instance_id);
             }
             eprintln!(
                 "[ui-ws] client {client_id} unregistered (removed_subscriptions={subscription_count}, connected_clients={})",
@@ -1010,29 +838,16 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             intent,
             include_self_events,
         } => {
-            let total_started = Instant::now();
-            let lock_started = Instant::now();
-            let (ack, capture, timing) = {
-                let mut guard = lock_engine(engine);
-                let lock_wait_ms = lock_started.elapsed().as_millis();
-                let client_instance_id = clients
-                    .get(&client_id)
-                    .and_then(|client| client.client_instance_id.as_deref());
-                let result = apply_ui_intent_with_timing(
-                    read_model,
-                    &mut guard,
-                    intent,
-                    client_instance_id,
-                    lock_wait_ms,
-                    total_started,
-                );
-                save_preferences_after_success(&*guard, preferences, result.0.success);
-                result
-            }; // engine lock dropped here
-            let batch = read_model.apply_event_capture(capture);
+            let kind = ui_intent_kind(&intent);
+            let client_instance_id = clients
+                .get(&client_id)
+                .and_then(|client| client.client_instance_id.as_deref());
+            let result = runtime.apply_ui_transaction(intent, client_instance_id);
+            save_preferences_after_success(runtime, preferences, result.acknowledgement.success);
+            let timing = ui_intent_timing_from_application(kind, &result);
             log_ui_intent_timing("ui-ws", &timing);
 
-            for time in batch.events.iter().map(|e| e.time) {
+            for time in result.events.events.iter().map(|event| event.time) {
                 origins.insert(
                     time,
                     WsEventOrigin {
@@ -1042,7 +857,14 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 );
             }
 
-            send_to_client(clients, client_id, WsServerMessage::IntentAck { request_id, ack });
+            send_to_client(
+                clients,
+                client_id,
+                WsServerMessage::IntentAck {
+                    request_id,
+                    ack: result.acknowledgement,
+                },
+            );
         }
         WsHubCommand::IntentBatch {
             client_id,
@@ -1051,70 +873,19 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             include_self_events,
         } => {
             let total_started = Instant::now();
-            let lock_started = Instant::now();
-            let (acks, captures, timing_rows) = {
-                let mut guard = lock_engine(engine);
-                let first_lock_wait_ms = lock_started.elapsed().as_millis();
-                let mut acks = Vec::<UiAck>::with_capacity(intents.len());
-                let mut captures = Vec::<UiEventCapture>::with_capacity(intents.len());
-                let mut timing_rows = Vec::<UiIntentTiming>::new();
-                let client_instance_id = clients
-                    .get(&client_id)
-                    .and_then(|client| client.client_instance_id.as_deref());
-
-                let mut opened_edit_session: Option<String> = None;
-                let mut stop_after_failure = false;
-                for (index, intent) in intents.into_iter().enumerate() {
-                    let is_matching_end_edit = opened_edit_session.as_ref().is_some_and(|active_id| {
-                        matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id)
-                    });
-                    if stop_after_failure && !is_matching_end_edit {
-                        acks.push(skipped_after_failed_batch_ack(&guard));
-                        continue;
-                    }
-                    let begin_edit_id = match &intent {
-                        UiEditIntent::BeginEdit { client_edit_id, .. } => Some(client_edit_id.clone()),
-                        _ => None,
-                    };
-                    let end_edit_id = match &intent {
-                        UiEditIntent::EndEdit { client_edit_id } => Some(client_edit_id.clone()),
-                        _ => None,
-                    };
-                    let intent_started = if index == 0 { total_started } else { Instant::now() };
-                    let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
-                    let (ack, capture, timing) = apply_ui_intent_with_timing(
-                        read_model,
-                        &mut guard,
-                        intent,
-                        client_instance_id,
-                        lock_wait_ms,
-                        intent_started,
-                    );
-                    let should_stop = !ack.success;
-                    if ack.success {
-                        if let Some(client_edit_id) = begin_edit_id {
-                            opened_edit_session = Some(client_edit_id);
-                        }
-                        if end_edit_id.as_ref() == opened_edit_session.as_ref() {
-                            opened_edit_session = None;
-                        }
-                    }
-                    acks.push(ack);
-                    captures.push(capture);
-                    timing_rows.push(timing);
-                    if should_stop {
-                        stop_after_failure = true;
-                    }
-                }
-                let any_success = acks.iter().any(|ack| ack.success);
-                save_preferences_after_success(&*guard, preferences, any_success);
-
-                (acks, captures, timing_rows)
-            }; // engine lock dropped here
+            let client_instance_id = clients
+                .get(&client_id)
+                .and_then(|client| client.client_instance_id.as_deref());
+            let batch = runtime.apply_ui_transaction_batch(intents, client_instance_id, true);
+            let any_success = batch.transactions.iter().any(|result| result.acknowledgement.success);
+            save_preferences_after_success(runtime, preferences, any_success);
             let mut produced_times = Vec::<EngineTime>::new();
-            for capture in captures {
-                let batch = read_model.apply_event_capture(capture);
-                produced_times.extend(batch.events.iter().map(|e| e.time));
+            let mut acks = Vec::<UiAck>::with_capacity(batch.transactions.len());
+            let mut timing_rows = Vec::<UiIntentTiming>::with_capacity(batch.transactions.len());
+            for result in batch.transactions {
+                produced_times.extend(result.events.events.iter().map(|event| event.time));
+                timing_rows.push(ui_intent_timing_from_application("batch", &result));
+                acks.push(result.acknowledgement);
             }
             let batch_total_ms = total_started.elapsed().as_millis();
             for timing in &timing_rows {
@@ -1426,14 +1197,10 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let cancel_edit_started = Instant::now();
             let lock_wait_elapsed = if payload.cancel_active_edit_session {
                 let lock_started = Instant::now();
-                let mut guard = lock_engine(&state.engine);
-                let lock_wait_elapsed = lock_started.elapsed();
                 if let Some(client_instance_id) = client_instance_id.as_deref() {
-                    let before_event_time = guard.ui_event_log().last().map(|event| event.time);
-                    let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
-                    state.read_model.publish_engine_events_since(&*guard, before_event_time);
+                    state.runtime.cancel_ui_edit_session(client_instance_id);
                 }
-                lock_wait_elapsed
+                lock_started.elapsed()
             } else {
                 Duration::ZERO
             };
@@ -1485,9 +1252,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 )
             })?;
 
-            let guard = lock_engine(&state.engine);
-            let targets = guard.ui_reference_targets_for_param(payload.param);
-            drop(guard);
+            let targets = state.runtime.reference_targets(payload.param);
 
             write_json(stream, "200 OK", &targets)?;
         }
@@ -1499,9 +1264,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 )
             })?;
 
-            let guard = lock_engine(&state.engine);
-            let candidates = guard.ui_context_candidates_for_param(payload.param);
-            drop(guard);
+            let candidates = state.runtime.context_candidates(payload.param);
 
             write_json(stream, "200 OK", &candidates)?;
         }
@@ -1513,9 +1276,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 )
             })?;
 
-            let guard = lock_engine(&state.engine);
-            let info_result = guard.ui_param_control_info(payload.param);
-            drop(guard);
+            let info_result = state.runtime.param_control_info(payload.param);
 
             match info_result {
                 Ok(info) => {
@@ -1530,9 +1291,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ScriptStateRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-state payload: {err}")))?;
 
-            let guard = lock_engine(&state.engine);
-            let state_result = guard.ui_script_state(payload.node);
-            drop(guard);
+            let state_result = state.runtime.script_state(payload.node);
 
             match state_result {
                 Ok(script_state) => {
@@ -1547,11 +1306,10 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ScriptConfigRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-config payload: {err}")))?;
 
-            let mut guard = lock_engine(&state.engine);
-            let before_event_time = guard.ui_event_log().last().map(|event| event.time);
-            let update_result = guard.ui_set_script_config(payload.node, payload.config, payload.force_reload);
-            state.read_model.publish_engine_events_since(&*guard, before_event_time);
-            drop(guard);
+            let (update_result, _) =
+                state
+                    .runtime
+                    .set_script_config(payload.node, payload.config, payload.force_reload);
 
             match update_result {
                 Ok(()) => {
@@ -1566,11 +1324,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ScriptReloadRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-reload payload: {err}")))?;
 
-            let mut guard = lock_engine(&state.engine);
-            let before_event_time = guard.ui_event_log().last().map(|event| event.time);
-            let reload_result = guard.ui_reload_script(payload.node);
-            state.read_model.publish_engine_events_since(&*guard, before_event_time);
-            drop(guard);
+            let (reload_result, _) = state.runtime.reload_script(payload.node);
 
             match reload_result {
                 Ok(()) => {
@@ -1582,10 +1336,10 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             }
         }
         ("POST", "/api/ui/project-new") => {
-            match project_host::create_new_project(&state.engine, state.preferences.as_ref()) {
+            match project_host::create_new_project(&state.runtime, state.preferences.as_ref()) {
                 Ok(()) => {
                     state.project_file.clear_current_path();
-                    refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
+                    refresh_read_model_after_project_replace(&state.runtime, &state.project_file);
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
@@ -1596,7 +1350,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-save") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
-            match project_host::save_project(&state.engine, &payload.path, payload.ui_state) {
+            match project_host::save_project(&state.runtime, &payload.path, payload.ui_state) {
                 Ok(path) => {
                     state.project_file.set_current_path(path);
                     state.read_model.set_project_file(state.project_file.snapshot());
@@ -1611,14 +1365,14 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
             let load = if payload.recover {
-                project_host::load_project_recovering(&state.engine, &payload.path, state.preferences.as_ref())
+                project_host::load_project_recovering(&state.runtime, &payload.path, state.preferences.as_ref())
             } else {
-                project_host::load_project(&state.engine, &payload.path, state.preferences.as_ref())
+                project_host::load_project(&state.runtime, &payload.path, state.preferences.as_ref())
             };
             match load {
                 Ok(load) => {
                     state.project_file.set_current_path(load.path.clone());
-                    refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
+                    refresh_read_model_after_project_replace(&state.runtime, &state.project_file);
                     write_json(stream, "200 OK", &project_path_dto(load))?;
                 }
                 Err(err) => {
@@ -1635,14 +1389,14 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             })?;
             let load = if payload.recover {
                 project_host::upload_project_and_load_recovering(
-                    &state.engine,
+                    &state.runtime,
                     &payload.file_name,
                     &payload.contents,
                     state.preferences.as_ref(),
                 )
             } else {
                 project_host::upload_project_and_load(
-                    &state.engine,
+                    &state.runtime,
                     &payload.file_name,
                     &payload.contents,
                     state.preferences.as_ref(),
@@ -1651,7 +1405,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             match load {
                 Ok(load) => {
                     state.project_file.set_current_path(load.path.clone());
-                    refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
+                    refresh_read_model_after_project_replace(&state.runtime, &state.project_file);
                     write_json(stream, "200 OK", &project_path_dto(load))?;
                 }
                 Err(err) => {
@@ -1664,26 +1418,19 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
-            let total_started = Instant::now();
-            let lock_started = Instant::now();
-            let (ack, capture, timing) = {
-                let mut guard = lock_engine(&state.engine);
-                let lock_wait_ms = lock_started.elapsed().as_millis();
-                let result = apply_ui_intent_with_timing(
-                    &state.read_model,
-                    &mut guard,
-                    intent,
-                    client_instance_id.as_deref(),
-                    lock_wait_ms,
-                    total_started,
-                );
-                save_preferences_after_success(&*guard, state.preferences.as_ref(), result.0.success);
-                result
-            }; // engine lock dropped here
-            state.read_model.apply_event_capture(capture);
+            let kind = ui_intent_kind(&intent);
+            let result = state
+                .runtime
+                .apply_ui_transaction(intent, client_instance_id.as_deref());
+            save_preferences_after_success(
+                &state.runtime,
+                state.preferences.as_ref(),
+                result.acknowledgement.success,
+            );
+            let timing = ui_intent_timing_from_application(kind, &result);
             log_ui_intent_timing("ui-http", &timing);
 
-            write_json(stream, "200 OK", &ack)?;
+            write_json(stream, "200 OK", &result.acknowledgement)?;
         }
         ("POST", "/api/ui/intent/batch") => {
             let intents: Vec<UiEditIntent> = serde_json::from_slice(&request.body)
@@ -1691,65 +1438,18 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
             let total_started = Instant::now();
-            let lock_started = Instant::now();
-            let (acks, captures, timing_rows) = {
-                let mut guard = lock_engine(&state.engine);
-                let first_lock_wait_ms = lock_started.elapsed().as_millis();
-                let mut acks = Vec::<UiAck>::with_capacity(intents.len());
-                let mut captures = Vec::<UiEventCapture>::with_capacity(intents.len());
-                let mut timing_rows = Vec::<UiIntentTiming>::new();
-                let mut opened_edit_session: Option<String> = None;
-                let mut stop_after_failure = false;
-                for (index, intent) in intents.into_iter().enumerate() {
-                    let is_matching_end_edit = opened_edit_session.as_ref().is_some_and(|active_id| {
-                        matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id)
-                    });
-                    if stop_after_failure && !is_matching_end_edit {
-                        acks.push(skipped_after_failed_batch_ack(&guard));
-                        continue;
-                    }
-                    let begin_edit_id = match &intent {
-                        UiEditIntent::BeginEdit { client_edit_id, .. } => Some(client_edit_id.clone()),
-                        _ => None,
-                    };
-                    let end_edit_id = match &intent {
-                        UiEditIntent::EndEdit { client_edit_id } => Some(client_edit_id.clone()),
-                        _ => None,
-                    };
-                    let intent_started = if index == 0 { total_started } else { Instant::now() };
-                    let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
-                    let (ack, capture, timing) = apply_ui_intent_with_timing(
-                        &state.read_model,
-                        &mut guard,
-                        intent,
-                        client_instance_id.as_deref(),
-                        lock_wait_ms,
-                        intent_started,
-                    );
-                    let should_stop = !ack.success;
-                    if ack.success {
-                        if let Some(client_edit_id) = begin_edit_id {
-                            opened_edit_session = Some(client_edit_id);
-                        }
-                        if end_edit_id.as_ref() == opened_edit_session.as_ref() {
-                            opened_edit_session = None;
-                        }
-                    }
-                    acks.push(ack);
-                    captures.push(capture);
-                    timing_rows.push(timing);
-                    if should_stop {
-                        stop_after_failure = true;
-                    }
-                }
-                let any_success = acks.iter().any(|ack| ack.success);
-                save_preferences_after_success(&*guard, state.preferences.as_ref(), any_success);
-                (acks, captures, timing_rows)
-            }; // engine lock dropped here
+            let batch = state
+                .runtime
+                .apply_ui_transaction_batch(intents, client_instance_id.as_deref(), true);
+            let any_success = batch.transactions.iter().any(|result| result.acknowledgement.success);
+            save_preferences_after_success(&state.runtime, state.preferences.as_ref(), any_success);
             let mut total_events = 0usize;
-            for capture in captures {
-                let batch = state.read_model.apply_event_capture(capture);
-                total_events += batch.events.len();
+            let mut acks = Vec::<UiAck>::with_capacity(batch.transactions.len());
+            let mut timing_rows = Vec::<UiIntentTiming>::with_capacity(batch.transactions.len());
+            for result in batch.transactions {
+                total_events += result.events.events.len();
+                timing_rows.push(ui_intent_timing_from_application("batch", &result));
+                acks.push(result.acknowledgement);
             }
             let batch_total_ms = total_started.elapsed().as_millis();
             for timing in &timing_rows {
@@ -2176,13 +1876,6 @@ fn header_contains_token(request: &HttpRequest, header_name: &str, expected_toke
             .split(',')
             .any(|part| part.trim().eq_ignore_ascii_case(expected_token))
     })
-}
-
-fn lock_engine<T: Node>(engine: &Arc<Mutex<Engine<T>>>) -> std::sync::MutexGuard<'_, Engine<T>> {
-    match engine.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    }
 }
 
 fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {

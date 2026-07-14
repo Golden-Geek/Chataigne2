@@ -44,6 +44,12 @@ pub mod logger;
 /// App lifecycle hooks and host-independent runtime preparation.
 pub mod app;
 
+/// Stable application-facing facade contracts and the production engine adapter.
+pub mod application;
+
+#[cfg(test)]
+mod application_tests;
+
 /// UI sync DTOs and transport-agnostic protocol helpers.
 pub mod ui_sync;
 

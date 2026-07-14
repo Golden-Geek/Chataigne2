@@ -1,15 +1,16 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
 
 use super::{normalize_project_save_path, replace_live_engine, sanitize_browser_upload_file_name};
 use golden_engine as golden_core;
 use golden_engine::app::{ProjectFileSpec, ProjectLifecycle, prepare_engine_for_runtime};
+use golden_engine::application::ProductionRuntime;
 use golden_engine::define_node_enum;
 use golden_engine::edit::Edit;
 use golden_engine::engine::Engine;
 use golden_engine::node::{Folder, Node, NodeCreationContext, NodeId};
 use golden_engine::parameter::{ParamValue, ParameterEventBehaviour};
 use golden_engine::process_ctx::ProcessCtx;
+use golden_protocol::UiProjectFileSpec;
 
 static PREVIOUS_ENGINE_DROPPED: AtomicBool = AtomicBool::new(false);
 static PREVIOUS_ENGINE_DESTROYED: AtomicBool = AtomicBool::new(false);
@@ -74,6 +75,13 @@ define_node_enum!(
 
 impl ProjectLifecycle for ReplaceOrderTestNode {}
 
+fn production_runtime(engine: Engine<ReplaceOrderTestNode>) -> ProductionRuntime<ReplaceOrderTestNode> {
+    ProductionRuntime::new(
+        engine,
+        UiProjectFileSpec::from_project_file_spec(ReplaceOrderTestNode::project_file_spec(), None),
+    )
+}
+
 #[test]
 fn normalize_project_save_path_replaces_non_matching_extension() {
     let spec = ProjectFileSpec::new("Noisette files", "noisette");
@@ -113,13 +121,13 @@ fn replace_live_engine_drops_previous_engine_before_node_ready_callbacks() {
     live_engine.add_node(DropProbeNode::new().into(), None);
     prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
 
-    let shared_engine = Arc::new(Mutex::new(live_engine));
+    let runtime = production_runtime(live_engine);
 
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut next_engine = Engine::new(root);
     next_engine.add_node(ReadyProbeNode::new().into(), None);
 
-    replace_live_engine(&shared_engine, next_engine, "test_replace", false).expect("engine replacement should succeed");
+    replace_live_engine(&runtime, next_engine, "test_replace", false).expect("engine replacement should succeed");
 
     assert!(
         PREVIOUS_ENGINE_DROPPED.load(Ordering::SeqCst),
@@ -143,13 +151,13 @@ fn replace_live_engine_runs_destroy_callbacks_before_node_ready_callbacks() {
     live_engine.add_node(DestroyProbeNode::new().into(), None);
     prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
 
-    let shared_engine = Arc::new(Mutex::new(live_engine));
+    let runtime = production_runtime(live_engine);
 
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut next_engine = Engine::new(root);
     next_engine.add_node(ReadyProbeNode::new().into(), None);
 
-    replace_live_engine(&shared_engine, next_engine, "test_replace", false).expect("engine replacement should succeed");
+    replace_live_engine(&runtime, next_engine, "test_replace", false).expect("engine replacement should succeed");
 
     assert!(
         PREVIOUS_ENGINE_DESTROYED.load(Ordering::SeqCst),
@@ -167,13 +175,13 @@ fn replace_live_engine_recovery_reports_runtime_startup_errors() {
     let mut live_engine = Engine::new(root);
     prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
 
-    let shared_engine = Arc::new(Mutex::new(live_engine));
+    let runtime = production_runtime(live_engine);
 
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut next_engine = Engine::new(root);
     next_engine.add_node(BadReadyNode::new().into(), None);
 
-    let recovery = replace_live_engine(&shared_engine, next_engine, "test_replace", true)
+    let recovery = replace_live_engine(&runtime, next_engine, "test_replace", true)
         .expect("recovery replacement should keep the usable graph");
 
     assert_eq!(recovery.problems.len(), 1);
