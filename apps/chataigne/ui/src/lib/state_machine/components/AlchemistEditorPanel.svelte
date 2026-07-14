@@ -7,7 +7,7 @@
 		GraphNodeMove,
 		GraphNodePosition,
 		GraphNodeResize
-	} from 'golden_alchemist_ui';
+	} from 'golden_graph_ui';
 	import type {
 		ContextMenuAnchor,
 		ContextMenuItem,

@@ -252,8 +252,9 @@ pub enum OutputPreviewStatus {
     Unavailable,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum DebugCaptureMode {
+    #[default]
     Off,
     All {
         history_len: usize,
@@ -273,12 +274,6 @@ pub enum DebugCaptureMode {
         nodes: IndexSet<ANodeId>,
         history_len: usize,
     },
-}
-
-impl Default for DebugCaptureMode {
-    fn default() -> Self {
-        Self::Off
-    }
 }
 
 impl DebugCaptureMode {
@@ -1219,12 +1214,7 @@ fn numeric_components(value: &RuntimeValue) -> Result<(NumericShape, Vec<f64>), 
         RuntimeValue::Vec3(value) => Ok((NumericShape::Vec3, value.to_vec())),
         RuntimeValue::Color(value) => Ok((
             NumericShape::Color,
-            vec![
-                f64::from(value.red),
-                f64::from(value.green),
-                f64::from(value.blue),
-                f64::from(value.alpha),
-            ],
+            vec![value.red, value.green, value.blue, value.alpha],
         )),
         _ => Err("node expects numeric inputs".into()),
     }

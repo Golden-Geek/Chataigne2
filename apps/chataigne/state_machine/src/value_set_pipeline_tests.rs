@@ -3,8 +3,9 @@ use std::time::Duration;
 use golden_alchemist::{
     ANodeDeclaration, ANodeInstance, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     PipelineLoweringCtx, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
-    RuntimeValue, SocketId, ValueTypeId,
+    SocketId, ValueTypeId,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::alchemist::{node_registry, value_type_registry};
 use crate::value_set_pipeline::{ValueSetPipelineRuntime, ValueSetProjectionRuntime};

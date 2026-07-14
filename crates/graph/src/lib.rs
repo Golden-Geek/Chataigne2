@@ -15,7 +15,10 @@ mod transaction;
 mod traversal;
 
 pub use document::{GraphDocument, GraphEdge, GraphNode, PortRef};
-pub use domain::{DiagnosticSeverity, GraphDiagnostic, GraphDomain, PortDefinition, PortDirection, PortSchema};
+pub use domain::{
+    ConnectionPolicy, DiagnosticSeverity, GraphDiagnostic, GraphDomain, IncomingConnectionPolicy, PortDefinition,
+    PortDirection, PortSchema,
+};
 pub use error::{GraphEditError, GraphPersistenceError, GraphTransactionError};
 pub use ids::{GraphCommentId, GraphEdgeId, GraphGroupId, GraphId, GraphNodeId, GraphPortId, ViewportBookmarkId};
 pub use persistence::{GraphDocumentData, GraphEnvelope};

@@ -5,10 +5,10 @@ use golden_alchemist::{
     ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId,
     FormulaPropertySchema, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     ManagedRegionDefinition, ManagedRegionId, ManagedRegionKind, OutputPreviewStatus, OutputSocketRef,
-    RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue, StableRef, SurfaceItem, SurfaceItemId,
-    SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry,
-    primitive_node_registry,
+    RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
+    SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::{
     DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorContextProvider,

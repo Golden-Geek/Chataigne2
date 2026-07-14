@@ -4,7 +4,7 @@ import type {
 	GraphNode,
 	GraphNodeBypassConnection,
 	GraphSocket
-} from 'golden_alchemist_ui';
+} from 'golden_graph_ui';
 import type { NodeId, ParamValue, UiColorDto, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 
 export const FORMULA_NODE_TYPE = 'alchemist_formula';

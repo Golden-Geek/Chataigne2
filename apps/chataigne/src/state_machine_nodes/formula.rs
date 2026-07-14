@@ -13,13 +13,14 @@ use golden_alchemist::{
     AlchemistGraph, ColorValue, CompileCtx, DiagnosticOrigin,
     DiagnosticSeverity, FormulaContextContract, FormulaId, FormulaPropertyDecl,
     FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef,
-    ManagedRegionDefinition, OutputSocketRef, ParamUiHints, RuntimeValue,
+    ManagedRegionDefinition, OutputSocketRef, ParamUiHints,
     SignatureCtx, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
     SurfaceSection, SurfaceSectionId, SurfaceSource, TriggerValue,
     TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx,
     ValueTypeId, ValueTypeSpec, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
     SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, compile_graph, solve_types,
 };
+use golden_values::Value as RuntimeValue;
 use golden_core::{
     color::Color,
     edit::{Edit, NodeTree},

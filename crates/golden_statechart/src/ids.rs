@@ -14,6 +14,16 @@ macro_rules! id {
             pub fn new() -> Self {
                 Self(Uuid::new_v4())
             }
+
+            #[must_use]
+            pub const fn from_uuid(value: Uuid) -> Self {
+                Self(value)
+            }
+
+            #[must_use]
+            pub const fn as_uuid(self) -> Uuid {
+                self.0
+            }
         }
 
         impl Default for $name {

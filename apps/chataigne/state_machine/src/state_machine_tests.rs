@@ -11,10 +11,11 @@ use golden_alchemist::{
     CompileCtx, CompiledNodeEvaluator, CompiledNodeOperation, ContextAxisId, ContextKey, ContextValuePath,
     EvaluationCtx, ExecutionKind, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface,
     InputSocketRef, LaneRuntimePool, NodeEvaluation, OutputSocketDecl, OutputSocketRef, ResolvedANodeSignature,
-    RuntimeInputSnapshot, RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, StableRef, TriggerValue,
-    TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+    RuntimeInputSnapshot, RuntimeIntent, RuntimeRegistries, SignatureCtx, StableRef, TriggerValue, TypeBindings,
+    TypeConstraint, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
+use golden_values::Value as RuntimeValue;
 
 use crate::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, Processor, ProcessorContextProvider, ProcessorId,

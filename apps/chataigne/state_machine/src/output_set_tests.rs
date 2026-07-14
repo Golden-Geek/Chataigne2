@@ -3,8 +3,9 @@ use std::time::Duration;
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, RuntimeInputSnapshot,
-    RuntimeRegistries, RuntimeValue, StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry,
+    RuntimeRegistries, StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::{
     COMMAND_INTENT_KIND, OUTPUT_TARGET_FIELD, OutputSetItem, OutputSetRuntime, ValueLaneKey, ValueSet, ValueSetEntry,

@@ -3,9 +3,10 @@ use golden_alchemist::{
     EvaluationCtx, ExecNodeId, FormulaMaterializationError, ManagedItemInstance, ManagedRegionDefinition,
     ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedRegionValidationError, PipelineCardinality,
     PipelineLoweringCtx, PipelineShape, PipelineShapeCheckItem, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput,
-    RuntimeValue, SignatureCtx, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
-    check_filter_pipeline_shapes, value_set_shape,
+    SignatureCtx, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry, check_filter_pipeline_shapes,
+    value_set_shape,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::{
     COMMAND_INTENT_KIND, INPUT_SOURCE_FIELD, InputSetError, InputSetRuntime, OUTPUT_TARGET_FIELD, OutputSetError,

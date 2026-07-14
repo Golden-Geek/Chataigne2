@@ -5,10 +5,11 @@ use golden_alchemist::{
     AlchemistRuntime, CompileCtx, DebugCaptureMode, EvaluationCtx, FormulaContextContract, FormulaId,
     FormulaPropertySchema, FormulaRef, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance,
     ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind,
-    OutputSocketRef, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
-    RuntimeValue, SocketId, StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry, compile_graph,
+    OutputSocketRef, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries, SocketId,
+    StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry, compile_graph,
 };
 use golden_statechart::StateId;
+use golden_values::Value as RuntimeValue;
 
 use crate::alchemist::node_registry;
 use crate::{

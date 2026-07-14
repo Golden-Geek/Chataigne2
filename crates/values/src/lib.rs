@@ -581,8 +581,5 @@ pub enum ValueStorageKind {
     Extension,
 }
 
-/// Temporary source-compatible name for domains migrating to [`Value`].
-pub type RuntimeValue = Value;
-
 #[cfg(test)]
 mod tests;

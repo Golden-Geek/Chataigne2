@@ -155,7 +155,7 @@ impl GlobalCompiledGraphRuntime {
                 .any(|slot| {
                     matches!(
                         self.runtime.memory.value(*slot),
-                        Some(golden_alchemist::RuntimeValue::Trigger(trigger)) if trigger.fired
+                        Some(golden_values::Value::Trigger(trigger)) if trigger.fired
                     )
                 })
         })

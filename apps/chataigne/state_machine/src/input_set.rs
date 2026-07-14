@@ -1,7 +1,8 @@
 use golden_alchemist::{
     Diagnostic, DiagnosticOrigin, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionKind, RuntimeValue, StableRef, SurfaceItemKind,
+    ManagedRegionKind, StableRef, SurfaceItemKind,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError};
 

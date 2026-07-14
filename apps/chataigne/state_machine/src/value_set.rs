@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use golden_alchemist::{ContextKey, ExtensionValue, RuntimeValue, StableRef, ValueTypeId};
+use golden_alchemist::{ContextKey, ExtensionValue, StableRef, ValueTypeId};
+use golden_values::Value as RuntimeValue;
 
 pub const VALUE_SET_TYPE: &str = "chataigne.value_set";
 

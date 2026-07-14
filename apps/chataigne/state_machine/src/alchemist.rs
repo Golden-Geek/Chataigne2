@@ -6,9 +6,10 @@ use golden_alchemist::{
     ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature, ANodeTypeId,
     CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, EvaluationCtx, ExecutionKind, ExtensionValue, FacetId,
     InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent,
-    RuntimeValue, SignatureCtx, StableRef, TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar,
-    ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
+    SignatureCtx, StableRef, TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
+    ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
 };
+use golden_values::Value as RuntimeValue;
 
 pub use golden_alchemist as alchemist;
 

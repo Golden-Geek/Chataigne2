@@ -22,10 +22,22 @@ The first Phase 3 graph slice establishes:
 - a typed test domain used by executable contract, rollback, persistence, traversal, and large-graph
   tests.
 
-This slice does not claim that Alchemist or statecharts have been cut over. Those domains keep their
-working production paths until their focused adapters pass the real application parity gate. The
-same applies to `golden-graph-ui`. The ready-to-run `golden_core` facade exposes `golden_graph`, so
-the contract is part of the reusable product stack rather than an app-local or disconnected crate.
+Alchemist and statecharts now have typed domain adapters while their working production paths remain
+in place for the vertical Phase 4 and Phase 5 cutovers. The ready-to-run `golden_core` facade exposes
+`golden_graph`, so the contract is part of the reusable product stack rather than an app-local or
+disconnected crate.
+
+## Graph UI Boundary
+
+`golden_graph_ui` owns the domain-neutral Svelte canvas, graph presentation document, viewport
+mechanics, spatial visible-node queries, and incident-edge indexes. Its `GraphRevision` TypeScript
+type is generated from the Rust contract by `golden_codegen_support`; it is not hand-maintained.
+`golden_alchemist_ui` retains only Alchemist-specific assets and domain presentation adapters.
+
+The working product transport does not yet publish partitioned graph revisions. A pure app-owned
+`LegacyGraphDocumentAdapter` therefore advances every revision plane conservatively. It has no
+effect authority and is recorded for deletion when Phase 7 graph protocol DTOs carry the canonical
+revision directly.
 
 ## Mutation Cost
 

@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use crate::document::{RemovedEdge, RemovedNode};
 use crate::{
     DiagnosticSeverity, GraphChangeSet, GraphDelta, GraphDiagnostic, GraphDocument, GraphDomain, GraphEdge,
-    GraphEdgeId, GraphEditError, GraphNode, GraphNodeId, GraphRevision, GraphTransactionError, NodePresentation,
-    PortDirection,
+    GraphEdgeId, GraphEditError, GraphNode, GraphNodeId, GraphRevision, GraphTransactionError,
+    IncomingConnectionPolicy, NodePresentation, PortDirection,
 };
 
 /// One mutation in an atomic graph transaction.
@@ -268,10 +268,12 @@ where
     D: GraphDomain<GraphData = G, NodeData = N, EdgeData = E>,
 {
     validate_edge_ports(document, domain, edge)?;
-    if document.incoming_edge(edge.to).is_some() {
+    let policy = domain.connection_policy(document, edge.from, edge.to);
+    if policy.incoming == IncomingConnectionPolicy::Single && document.incoming_edges_for_port(edge.to).next().is_some()
+    {
         return Err(GraphEditError::InputAlreadyConnected(edge.to));
     }
-    if document.has_connection(edge.from, edge.to) {
+    if !policy.allow_parallel && document.has_connection(edge.from, edge.to) {
         return Err(GraphEditError::DuplicateConnection {
             from: edge.from,
             to: edge.to,

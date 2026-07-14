@@ -20,9 +20,10 @@ use golden_alchemist::{
     ContextKey, ContextKeyPart, ContextValuePath, EvaluationCtx, DebugValueSample, FormulaCompileKey, FormulaRef,
     ManagedItemId, ManagedItemInstance,
     ManagedItemUiState, ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
-    RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, SocketId, StableRef,
+    RuntimeIntent, RuntimeRegistries, SignatureCtx, SocketId, StableRef,
     SurfaceItemId, TriggerValue, ValueTypeId, compile_graph, formula_input_value_ref,
 };
+use golden_values::Value as RuntimeValue;
 use golden_core::{
     contexts::{
         MultiplexContextLinkTarget, MultiplexTemplateToken, MultiplexTokenSelector,

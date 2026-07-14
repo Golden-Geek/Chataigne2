@@ -14,9 +14,9 @@ use golden_core::{
     },
 };
 use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, RuntimeValue, StableRef, TriggerValue,
-    ValueTypeId, compile_graph,
+    ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, StableRef, TriggerValue, ValueTypeId, compile_graph,
 };
+use golden_values::Value as RuntimeValue;
 
 use super::{
     ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX,
@@ -708,7 +708,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         .expect("Property getter should materialize");
     assert_eq!(
         getter.config.get("value"),
-        Some(&golden_alchemist::RuntimeValue::Float(3.5))
+        Some(&golden_values::Value::Float(3.5))
     );
 }
 
@@ -879,7 +879,7 @@ fn formula_property_getter_keeps_property_id_after_project_reload() {
     assert!(
         matches!(
             getter.config.get("property_id"),
-            Some(golden_alchemist::RuntimeValue::Ref(value))
+            Some(golden_values::Value::Ref(value))
                 if value.stable_id.as_ref() == property_uuid
         ),
         "Reloaded property getter should keep its stable property_id"

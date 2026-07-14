@@ -2,10 +2,11 @@ use std::time::Duration;
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistRuntime, CompileCtx, DebugCaptureMode, EvaluationCtx,
-    InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, SignatureCtx, SocketId,
-    StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId, ValueTypeRegistry,
-    compile_graph, primitive_node_registry,
+    InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, SignatureCtx, SocketId, StableRef,
+    TriggerValue, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId, ValueTypeRegistry, compile_graph,
+    primitive_node_registry,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::alchemist::{
     CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, MANAGER_PROPERTY_FIELD, MODULE_ENDPOINT_TYPE, MODULE_TYPE,

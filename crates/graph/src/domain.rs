@@ -78,6 +78,30 @@ impl<P> PortSchema<P> {
     }
 }
 
+/// Domain policy for connections targeting one declared port.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ConnectionPolicy {
+    pub incoming: IncomingConnectionPolicy,
+    pub allow_parallel: bool,
+}
+
+impl Default for ConnectionPolicy {
+    fn default() -> Self {
+        Self {
+            incoming: IncomingConnectionPolicy::Single,
+            allow_parallel: false,
+        }
+    }
+}
+
+/// Whether a target port accepts one edge or an arbitrary number of edges.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum IncomingConnectionPolicy {
+    #[default]
+    Single,
+    Multiple,
+}
+
 /// Typed semantic adapter for a generic graph document.
 pub trait GraphDomain: Send + Sync + 'static {
     type GraphData: Clone + std::fmt::Debug + PartialEq + Send + Sync + 'static;
@@ -94,6 +118,15 @@ pub trait GraphDomain: Send + Sync + 'static {
         node: &Self::NodeData,
         graph: &GraphDocument<Self::GraphData, Self::NodeData, Self::EdgeData>,
     ) -> PortSchema<Self::PortData>;
+
+    fn connection_policy(
+        &self,
+        _graph: &GraphDocument<Self::GraphData, Self::NodeData, Self::EdgeData>,
+        _from: PortRef,
+        _to: PortRef,
+    ) -> ConnectionPolicy {
+        ConnectionPolicy::default()
+    }
 
     fn validate_connection(
         &self,

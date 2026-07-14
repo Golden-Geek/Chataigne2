@@ -11,6 +11,7 @@ serde = []
 [dependencies]
 golden_alchemist.workspace = true
 golden_statechart.workspace = true
+golden_values.workspace = true
 indexmap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -10,7 +10,8 @@
 		type GraphNodePosition,
 		type GraphNodeResize,
 		type GraphNodeSize
-	} from 'golden_alchemist_ui';
+	} from 'golden_graph_ui';
+	import { LegacyGraphDocumentAdapter } from '../../graph/legacyGraphDocumentAdapter';
 	import {
 		ContextMenu,
 		buildCreatableItemMenu,
@@ -393,6 +394,8 @@
 			});
 		});
 	});
+	const graphDocumentAdapter = new LegacyGraphDocumentAdapter();
+	let graphDocument = $derived(graphDocumentAdapter.update(graphNodes, graphEdges));
 	let transitionNodeIds = $derived(
 		new Set(
 			graphEdges.flatMap((edge) => {
@@ -936,8 +939,7 @@
 	onpointerdown={() => graphCanvas?.focus()}>
 	<GraphCanvas
 		bind:this={graphCanvas}
-		nodes={graphNodes}
-		edges={graphEdges}
+		{graphDocument}
 		{selectedNodeIds}
 		{selectedEdgeIds}
 		onGraphSelectionChange={selectGraphItems}

@@ -248,13 +248,13 @@ pub fn lower_filter_pipeline_region(
             previous_output = OutputSocketRef::new(node_id, output.clone());
         }
 
-        if edit_diagnostics.is_empty() {
-            if let Err(error) = draft.connect(
+        if edit_diagnostics.is_empty()
+            && let Err(error) = draft.connect(
                 previous_output,
                 InputSocketRef::new(output_socket.node, output_socket.socket.clone()),
-            ) {
-                edit_diagnostics.push(graph_edit_diagnostic(None, None, error));
-            }
+            )
+        {
+            edit_diagnostics.push(graph_edit_diagnostic(None, None, error));
         }
     }
 

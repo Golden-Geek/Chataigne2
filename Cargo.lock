@@ -18,6 +18,7 @@ dependencies = [
  "golden_alchemist",
  "golden_codegen_support",
  "golden_core",
+ "golden_values",
  "if-addrs",
  "image",
  "joycon-rs",
@@ -941,6 +942,7 @@ version = "0.1.0"
 dependencies = [
  "golden_alchemist",
  "golden_statechart",
+ "golden_values",
  "indexmap 2.14.0",
  "serde",
  "serde_json",
@@ -2458,6 +2460,7 @@ dependencies = [
 name = "golden_alchemist"
 version = "0.1.0"
 dependencies = [
+ "golden_graph",
  "golden_values",
  "indexmap 2.14.0",
  "serde",
@@ -2481,6 +2484,7 @@ dependencies = [
 name = "golden_codegen_support"
 version = "0.1.0"
 dependencies = [
+ "golden_graph",
  "golden_protocol",
  "golden_script",
  "ts-rs",
@@ -2614,8 +2618,10 @@ dependencies = [
 name = "golden_statechart"
 version = "0.1.0"
 dependencies = [
+ "golden_graph",
  "indexmap 2.14.0",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "uuid",
 ]

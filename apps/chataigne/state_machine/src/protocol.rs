@@ -5,8 +5,9 @@ use ts_rs::{Config, TS};
 
 use golden_alchemist::{
     ContextKey, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionInstance,
-    ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, RuntimeValue, SurfaceItemKind, ValueTypeSpec,
+    ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, SurfaceItemKind, ValueTypeSpec,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::{ANodeOutputPreviewSample, ProcessorFormulaSourceKind, ProcessorUiModel};
 

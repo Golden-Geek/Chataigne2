@@ -12,6 +12,7 @@ debug_trace = []
 golden_core_integration = []
 
 [dependencies]
+golden_graph.workspace = true
 golden_values.workspace = true
 indexmap.workspace = true
 serde = { workspace = true, optional = true }
@@ -19,4 +20,4 @@ serde_json = { workspace = true, optional = true }
 smallvec.workspace = true
 smol_str.workspace = true
 thiserror.workspace = true
-uuid.workspace = true
+uuid = { workspace = true, features = ["v5"] }

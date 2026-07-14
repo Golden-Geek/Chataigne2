@@ -58,8 +58,10 @@ fn transaction_updates_indexes_and_partitioned_revisions_once() {
     assert_eq!(committed.delta.to.payload, 1);
     assert_eq!(committed.delta.to.presentation, 1);
     assert_eq!(
-        graph.incoming_edge(PortRef::new(sink.id, TestDomain::input_port())),
-        Some(edge_id)
+        graph
+            .incoming_edges_for_port(PortRef::new(sink.id, TestDomain::input_port()))
+            .collect::<Vec<_>>(),
+        vec![edge_id]
     );
     assert_eq!(graph.outgoing_edges(source.id).collect::<Vec<_>>(), vec![edge_id]);
 }

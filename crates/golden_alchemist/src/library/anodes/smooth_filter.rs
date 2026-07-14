@@ -105,7 +105,7 @@ impl CompiledNodeEvaluator for SmoothFilterEval {
                 let mut sorted = history.clone();
                 sorted.sort_by(|left, right| left.partial_cmp(right).unwrap_or(Ordering::Equal));
                 let midpoint = sorted.len() / 2;
-                let output = if sorted.len() % 2 == 0 {
+                let output = if sorted.len().is_multiple_of(2) {
                     (sorted[midpoint - 1] + sorted[midpoint]) * 0.5
                 } else {
                     sorted[midpoint]

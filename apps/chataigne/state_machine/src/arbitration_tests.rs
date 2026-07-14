@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use golden_alchemist::{RuntimeValue, StableRef, ValueTypeId};
+use golden_alchemist::{StableRef, ValueTypeId};
+use golden_values::Value as RuntimeValue;
 
 use golden_alchemist::ContextKey;
 

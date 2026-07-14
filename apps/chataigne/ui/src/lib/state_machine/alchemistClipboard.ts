@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, GraphNodePosition } from 'golden_alchemist_ui';
+import type { GraphEdge, GraphNode, GraphNodePosition } from 'golden_graph_ui';
 import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 import {
 	ANODE_CREATE_PREFIX,

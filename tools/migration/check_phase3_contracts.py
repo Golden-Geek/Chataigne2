@@ -104,6 +104,7 @@ def foundation_violations(root: Path) -> list[Violation]:
         "GraphDomain",
         "GraphDocument",
         "GraphTransaction",
+        "ConnectionPolicy",
         "GraphRevision",
         "GraphChangeSet",
         "GraphPresentation",
@@ -124,10 +125,122 @@ def foundation_violations(root: Path) -> list[Violation]:
     if re.search(r"pub enum RuntimeValue\b|pub struct ColorValue\b", alchemist_source):
         violations.append(Violation(alchemist_value, "Alchemist still owns canonical value definitions"))
 
+    alchemist_manifest = root / "crates/golden_alchemist/Cargo.toml"
+    alchemist_dependencies = tomllib.loads(alchemist_manifest.read_text(encoding="utf-8")).get(
+        "dependencies", {}
+    )
+    if not isinstance(alchemist_dependencies, dict) or "golden_graph" not in alchemist_dependencies:
+        violations.append(Violation(alchemist_manifest, "Alchemist does not consume golden_graph"))
+    alchemist_domain = root / "crates/golden_alchemist/src/domain.rs"
+    alchemist_domain_source = alchemist_domain.read_text(encoding="utf-8")
+    for contract in ("AlchemistGraphDomain", "AlchemistGraphDocument", "AlchemistGraphAdapter"):
+        if contract not in alchemist_domain_source:
+            violations.append(Violation(alchemist_domain, f"Alchemist graph adaptation lacks {contract}"))
+    alchemist_lib = root / "crates/golden_alchemist/src/lib.rs"
+    alchemist_lib_source = alchemist_lib.read_text(encoding="utf-8")
+    if "pub mod domain;" not in alchemist_lib_source or "AlchemistGraphDomain" not in alchemist_lib_source:
+        violations.append(Violation(alchemist_lib, "Alchemist graph domain is not part of the public package API"))
+
+    statechart_manifest = root / "crates/golden_statechart/Cargo.toml"
+    statechart_dependencies = tomllib.loads(statechart_manifest.read_text(encoding="utf-8")).get(
+        "dependencies", {}
+    )
+    if not isinstance(statechart_dependencies, dict) or "golden_graph" not in statechart_dependencies:
+        violations.append(Violation(statechart_manifest, "statecharts do not consume golden_graph"))
+    statechart_domain = root / "crates/golden_statechart/src/domain.rs"
+    statechart_domain_source = statechart_domain.read_text(encoding="utf-8")
+    for contract in ("StatechartGraphDomain", "StatechartGraphDocument", "StatechartGraphAdapter"):
+        if contract not in statechart_domain_source:
+            violations.append(Violation(statechart_domain, f"statechart graph adaptation lacks {contract}"))
+    statechart_lib = root / "crates/golden_statechart/src/lib.rs"
+    statechart_lib_source = statechart_lib.read_text(encoding="utf-8")
+    if "mod domain;" not in statechart_lib_source or "StatechartGraphDomain" not in statechart_lib_source:
+        violations.append(Violation(statechart_lib, "statechart graph domain is not part of the public package API"))
+
     values = root / "crates/values/src/lib.rs"
     values_source = values.read_text(encoding="utf-8")
     if not re.search(r"pub struct ColorValue\s*\{[^}]*red:\s*f64", values_source, re.DOTALL):
         violations.append(Violation(values, "canonical color channels are not f64"))
+    return violations
+
+
+def runtime_value_boundary_violations(root: Path) -> list[Violation]:
+    violations: list[Violation] = []
+    values = root / "crates/values/src/lib.rs"
+    values_source = values.read_text(encoding="utf-8")
+    if re.search(r"pub\s+type\s+RuntimeValue\b", values_source):
+        violations.append(Violation(values, "golden_values still exposes the retired RuntimeValue alias"))
+
+    alchemist_lib = root / "crates/golden_alchemist/src/lib.rs"
+    alchemist_source = alchemist_lib.read_text(encoding="utf-8")
+    public_value_exports = re.search(r"pub\s+use\s+value::\{(?P<body>.*?)\};", alchemist_source, re.DOTALL)
+    if public_value_exports and re.search(r"\bRuntimeValue\b", public_value_exports.group("body")):
+        violations.append(Violation(alchemist_lib, "golden_alchemist still publicly re-exports RuntimeValue"))
+
+    public_import = re.compile(
+        r"golden_alchemist::RuntimeValue|use\s+golden_alchemist::\{[^;]*\bRuntimeValue\b[^;]*\};"
+    )
+    for source_root in (root / "crates", root / "apps"):
+        if not source_root.is_dir():
+            continue
+        for source in source_root.rglob("*.rs"):
+            if source.is_relative_to(root / "crates/golden_alchemist"):
+                continue
+            if public_import.search(source.read_text(encoding="utf-8")):
+                violations.append(Violation(source, "consumer imports the retired golden_alchemist RuntimeValue API"))
+
+    for manifest in (root / "apps/chataigne/Cargo.toml", root / "apps/chataigne/state_machine/Cargo.toml"):
+        dependencies = tomllib.loads(manifest.read_text(encoding="utf-8")).get("dependencies", {})
+        if not isinstance(dependencies, dict) or "golden_values" not in dependencies:
+            violations.append(Violation(manifest, "Alchemist product consumer lacks a direct golden_values dependency"))
+    return violations
+
+
+def graph_ui_violations(root: Path) -> list[Violation]:
+    violations: list[Violation] = []
+    package = root / "packages/golden-graph-ui"
+    manifest = package / "package.json"
+    document = json.loads(manifest.read_text(encoding="utf-8"))
+    if document.get("name") != "golden_graph_ui":
+        violations.append(Violation(manifest, "generic graph UI package has the wrong public name"))
+
+    canvas = package / "components/GraphCanvas.svelte"
+    canvas_source = canvas.read_text(encoding="utf-8")
+    for contract in ("GraphPresentationDocument", "SpatialIndex", "topologyRevision", "presentationRevision"):
+        if contract not in canvas_source:
+            violations.append(Violation(canvas, f"generic graph canvas lacks {contract}"))
+    forbidden_import = re.compile(r"from\s+['\"](?:golden_alchemist_ui|.*chataigne.*)['\"]", re.IGNORECASE)
+    for source in [*package.rglob("*.ts"), *package.rglob("*.svelte")]:
+        if forbidden_import.search(source.read_text(encoding="utf-8")):
+            violations.append(Violation(source, "generic graph UI imports domain or product policy"))
+
+    old_canvas = root / "packages/golden-alchemist-ui/components/GraphCanvas.svelte"
+    if old_canvas.exists():
+        violations.append(Violation(old_canvas, "Alchemist package still owns the generic graph canvas"))
+    alchemist_index = root / "packages/golden-alchemist-ui/index.ts"
+    if "GraphCanvas" in alchemist_index.read_text(encoding="utf-8"):
+        violations.append(Violation(alchemist_index, "Alchemist package still exports the generic graph canvas"))
+
+    generated_revision = package / "generated/GraphRevision.ts"
+    if "export type GraphRevision" not in generated_revision.read_text(encoding="utf-8"):
+        violations.append(Violation(generated_revision, "Rust-owned GraphRevision binding is missing"))
+    graph_types = package / "types.ts"
+    if "./generated/GraphRevision" not in graph_types.read_text(encoding="utf-8"):
+        violations.append(Violation(graph_types, "graph presentation document duplicates GraphRevision"))
+
+    app_manifest = root / "apps/chataigne/ui/package.json"
+    app_dependencies = json.loads(app_manifest.read_text(encoding="utf-8")).get("dependencies", {})
+    if not isinstance(app_dependencies, dict) or "golden_graph_ui" not in app_dependencies:
+        violations.append(Violation(app_manifest, "Chataigne UI does not consume golden_graph_ui"))
+    adapter = root / "apps/chataigne/ui/src/lib/graph/legacyGraphDocumentAdapter.ts"
+    adapter_source = adapter.read_text(encoding="utf-8")
+    adapter_contract = adapter_source.lower()
+    if (
+        "LegacyGraphDocumentAdapter" not in adapter_source
+        or "pure" not in adapter_contract
+        or "authority" not in adapter_contract
+    ):
+        violations.append(Violation(adapter, "legacy graph UI adapter is not explicitly bounded and pure"))
     return violations
 
 
@@ -160,11 +273,27 @@ def dashboard_violations(root: Path) -> list[Violation]:
             violations.append(Violation(path, f"adapter {adapter.get('adapter_id')!r} lacks {sorted(missing)}"))
         if not adapter.get("tests"):
             violations.append(Violation(path, f"adapter {adapter.get('adapter_id')!r} has no executable tests"))
+    for adapter in document.get("retired_adapters", []):
+        if not isinstance(adapter, dict):
+            violations.append(Violation(path, "retired adapter rows must be objects"))
+            continue
+        missing = REQUIRED_ADAPTER_FIELDS - adapter.keys()
+        if missing:
+            violations.append(Violation(path, f"retired adapter {adapter.get('adapter_id')!r} lacks {sorted(missing)}"))
+        if adapter.get("current_state") != "old_path_removed":
+            violations.append(Violation(path, f"retired adapter {adapter.get('adapter_id')!r} is not removed"))
+        if not adapter.get("deletion_evidence"):
+            violations.append(Violation(path, f"retired adapter {adapter.get('adapter_id')!r} lacks deletion evidence"))
     return violations
 
 
 def check(root: Path) -> list[Violation]:
-    return foundation_violations(root) + dashboard_violations(root)
+    return (
+        foundation_violations(root)
+        + runtime_value_boundary_violations(root)
+        + graph_ui_violations(root)
+        + dashboard_violations(root)
+    )
 
 
 def main() -> int:

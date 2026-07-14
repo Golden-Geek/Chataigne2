@@ -65,8 +65,8 @@ impl<E> GraphEdge<E> {
 struct TopologyIndex {
     incoming_by_node: HashMap<GraphNodeId, BTreeSet<GraphEdgeId>>,
     outgoing_by_node: HashMap<GraphNodeId, BTreeSet<GraphEdgeId>>,
-    incoming_by_port: HashMap<PortRef, GraphEdgeId>,
-    connections: HashMap<(PortRef, PortRef), GraphEdgeId>,
+    incoming_by_port: HashMap<PortRef, BTreeSet<GraphEdgeId>>,
+    connections: HashMap<(PortRef, PortRef), BTreeSet<GraphEdgeId>>,
 }
 
 impl TopologyIndex {
@@ -83,8 +83,11 @@ impl TopologyIndex {
     fn add_edge(&mut self, edge: &GraphEdge<impl Sized>) {
         self.outgoing_by_node.entry(edge.from.node).or_default().insert(edge.id);
         self.incoming_by_node.entry(edge.to.node).or_default().insert(edge.id);
-        self.incoming_by_port.insert(edge.to, edge.id);
-        self.connections.insert((edge.from, edge.to), edge.id);
+        self.incoming_by_port.entry(edge.to).or_default().insert(edge.id);
+        self.connections
+            .entry((edge.from, edge.to))
+            .or_default()
+            .insert(edge.id);
     }
 
     fn remove_edge(&mut self, edge: &GraphEdge<impl Sized>) {
@@ -94,8 +97,8 @@ impl TopologyIndex {
         if let Some(edges) = self.incoming_by_node.get_mut(&edge.to.node) {
             edges.remove(&edge.id);
         }
-        self.incoming_by_port.remove(&edge.to);
-        self.connections.remove(&(edge.from, edge.to));
+        remove_indexed_edge(&mut self.incoming_by_port, edge.to, edge.id);
+        remove_indexed_edge(&mut self.connections, (edge.from, edge.to), edge.id);
     }
 
     fn incident_edges(&self, node: GraphNodeId) -> BTreeSet<GraphEdgeId> {
@@ -106,6 +109,19 @@ impl TopologyIndex {
             .flatten()
             .copied()
             .collect()
+    }
+}
+
+fn remove_indexed_edge<K>(index: &mut HashMap<K, BTreeSet<GraphEdgeId>>, key: K, edge: GraphEdgeId)
+where
+    K: Eq + std::hash::Hash,
+{
+    let remove_entry = index.get_mut(&key).is_some_and(|edges| {
+        edges.remove(&edge);
+        edges.is_empty()
+    });
+    if remove_entry {
+        index.remove(&key);
     }
 }
 
@@ -223,9 +239,8 @@ impl<G, N, E> GraphDocument<G, N, E> {
         &self.presentation
     }
 
-    #[must_use]
-    pub fn incoming_edge(&self, port: PortRef) -> Option<GraphEdgeId> {
-        self.topology.incoming_by_port.get(&port).copied()
+    pub fn incoming_edges_for_port(&self, port: PortRef) -> impl Iterator<Item = GraphEdgeId> + '_ {
+        self.topology.incoming_by_port.get(&port).into_iter().flatten().copied()
     }
 
     pub fn incoming_edges(&self, node: GraphNodeId) -> impl Iterator<Item = GraphEdgeId> + '_ {
@@ -259,15 +274,6 @@ impl<G, N, E> GraphDocument<G, N, E> {
         }
         self.require_node(edge.from.node)?;
         self.require_node(edge.to.node)?;
-        if self.incoming_edge(edge.to).is_some() {
-            return Err(GraphEditError::InputAlreadyConnected(edge.to));
-        }
-        if self.has_connection(edge.from, edge.to) {
-            return Err(GraphEditError::DuplicateConnection {
-                from: edge.from,
-                to: edge.to,
-            });
-        }
         self.topology.add_edge(&edge);
         if let Some(index) = index {
             self.edges.shift_insert(index.min(self.edges.len()), edge.id, edge);

@@ -6,9 +6,10 @@ use golden_alchemist::{
     FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool, ManagedItemInstance,
     ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedSocketRef,
     OutputSocketRef, ParamUiHints, PipelineLoweringCtx, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
-    RuntimeValue, SocketId, StableRef, SurfaceItemKind, ValueTypeId, compile_graph, evaluate_compiled_graph,
+    SocketId, StableRef, SurfaceItemKind, ValueTypeId, compile_graph, evaluate_compiled_graph,
     evaluate_compiled_graph_stateless, lower_filter_pipeline_region, single_shape,
 };
+use golden_values::Value as RuntimeValue;
 use indexmap::IndexMap;
 
 use crate::{ValueSet, ValueSetEntry};

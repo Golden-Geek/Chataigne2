@@ -325,6 +325,12 @@ pub fn compile_graph(graph: &AlchemistGraph, ctx: &CompileCtx<'_>) -> CompileRes
     let mut ranges = vec![0..0; graph.nodes.len()];
     let mut exec_nodes = (0..graph.nodes.len()).map(|_| None).collect::<Vec<_>>();
     let mut direct_context_axes = vec![AxisSet::new(); graph.nodes.len()];
+    let input_source_ctx = InputSourceContext {
+        graph,
+        solved: &solved.graph,
+        value_slots: &value_slots,
+        compile: ctx,
+    };
     for (node_id, instance) in &graph.nodes {
         let exec_id = authored_to_exec[node_id];
         let resolved = &solved.graph.nodes[node_id];
@@ -350,14 +356,11 @@ pub fn compile_graph(graph: &AlchemistGraph, ctx: &CompileCtx<'_>) -> CompileRes
             .iter()
             .map(|(socket, resolved_socket)| {
                 input_source(
-                    graph,
-                    &solved.graph,
-                    &value_slots,
+                    &input_source_ctx,
                     instance,
                     *node_id,
                     socket,
                     resolved_socket.value_type.as_ref(),
-                    ctx,
                 )
             })
             .collect();
@@ -692,21 +695,26 @@ fn disabled_bypass_input(signature: &ResolvedANodeSignature) -> Option<usize> {
     (input_type == output_type).then_some(0)
 }
 
+struct InputSourceContext<'a, 'ctx> {
+    graph: &'a AlchemistGraph,
+    solved: &'a crate::ResolvedGraph,
+    value_slots: &'a IndexMap<(ANodeId, SocketId), ValueSlotId>,
+    compile: &'a CompileCtx<'ctx>,
+}
+
 fn input_source(
-    graph: &AlchemistGraph,
-    solved: &crate::ResolvedGraph,
-    value_slots: &IndexMap<(ANodeId, SocketId), ValueSlotId>,
+    context: &InputSourceContext<'_, '_>,
     instance: &crate::ANodeInstance,
     node_id: ANodeId,
     socket: &SocketId,
     target_type: Option<&ValueTypeId>,
-    ctx: &CompileCtx<'_>,
 ) -> InputValueSource {
-    let base_edge = graph
+    let base_edge = context
+        .graph
         .edges
         .iter()
         .find(|edge| edge.to.node == node_id && edge.to.socket == *socket);
-    let component_edges = graph.edges.iter().filter_map(|edge| {
+    let component_edges = context.graph.edges.iter().filter_map(|edge| {
         if edge.to.node != node_id {
             return None;
         }
@@ -717,20 +725,22 @@ fn input_source(
     });
 
     let base = base_edge
-        .and_then(|edge| edge_input_source(edge, target_type, solved, value_slots))
+        .and_then(|edge| edge_input_source(edge, target_type, context.solved, context.value_slots))
         .or_else(|| {
-            let fallback = input_default(instance, socket, ctx)
+            let fallback = input_default(instance, socket, context.compile)
                 .map(InputValueSource::Constant)
                 .or_else(|| {
                     target_type.and_then(|value_type| {
-                        ctx.value_types
+                        context
+                            .compile
+                            .value_types
                             .default_value(value_type)
                             .map(InputValueSource::Constant)
                     })
                 })
                 .unwrap_or(InputValueSource::Unset);
             Some(InputValueSource::RuntimeInput {
-                reference: formula_input_value_ref(graph.id, node_id, socket),
+                reference: formula_input_value_ref(context.graph.id, node_id, socket),
                 fallback: Box::new(fallback),
             })
         });
@@ -738,7 +748,8 @@ fn input_source(
     let components = component_edges
         .filter_map(|(component, edge)| {
             let component_type = target_type.and_then(|target| component_value_type(target, component))?;
-            edge_input_source(edge, Some(&component_type), solved, value_slots).map(|source| (component, source))
+            edge_input_source(edge, Some(&component_type), context.solved, context.value_slots)
+                .map(|source| (component, source))
         })
         .collect::<Vec<_>>();
 
@@ -751,7 +762,9 @@ fn input_source(
     };
     let base = base
         .or_else(|| {
-            ctx.value_types
+            context
+                .compile
+                .value_types
                 .default_value(target_type)
                 .map(InputValueSource::Constant)
         })

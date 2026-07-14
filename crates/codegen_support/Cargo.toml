@@ -10,6 +10,7 @@ repository.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
+golden_graph = { path = "../graph" }
 golden_protocol = { path = "../protocol" }
 golden_script = { path = "../script" }
 ts-rs.workspace = true

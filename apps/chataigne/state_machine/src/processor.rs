@@ -7,11 +7,11 @@ use golden_alchemist::{
     ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin,
     EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
     FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame,
-    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription,
-    RuntimeValue, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
-    evaluate_compiled_graph_stateless,
+    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription, SocketId,
+    SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
+use golden_values::Value as RuntimeValue;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::ManagedFormulaRuntime;

@@ -11,10 +11,11 @@
 		type GraphNodeResize,
 		type GraphSocket,
 		type GraphViewportInset
-	} from 'golden_alchemist_ui';
+	} from 'golden_graph_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
 	import lockIcon from 'golden_alchemist_ui/icons/lock.svg';
+	import { LegacyGraphDocumentAdapter } from '../../graph/legacyGraphDocumentAdapter';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
@@ -83,6 +84,8 @@
 		)
 	);
 	let edges = $derived(toGraphEdges(formula, nodesById, activeSocketRefs));
+	const graphDocumentAdapter = new LegacyGraphDocumentAdapter();
+	let graphDocument = $derived(graphDocumentAdapter.update(nodes, edges));
 	let graphCanvas: {
 		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
 		frameSelection: () => boolean;
@@ -169,8 +172,7 @@
 	style:--read-only-lock-image={`url("${lockIcon}")`}>
 	<GraphCanvas
 		bind:this={graphCanvas}
-		{nodes}
-		{edges}
+		{graphDocument}
 		{selectedNodeIds}
 		{selectedEdgeIds}
 		{onGraphSelectionChange}

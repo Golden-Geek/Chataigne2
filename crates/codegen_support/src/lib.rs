@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use golden_graph::GraphRevision;
 use golden_protocol::{
     UiAck, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest,
     UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest,
@@ -114,6 +115,18 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiProjectLoadRecoveryDto>(&config, "UiProjectLoadRecoveryDto");
     export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
     normalize_generated_typescript_binding(out_dir, "UiCreatableUserItemDto");
+    normalize_generated_typescript_binding(out_dir, "PresentationHint");
+}
+
+/// Exports Rust-owned generic graph bindings into the graph UI package.
+pub fn generate_graph_ui_bindings(out_dir: &Path) {
+    if out_dir.exists() {
+        fs::remove_dir_all(out_dir).unwrap_or_else(|err| panic!("failed to clear {}: {}", out_dir.display(), err));
+    }
+    fs::create_dir_all(out_dir).unwrap_or_else(|err| panic!("failed to create {}: {}", out_dir.display(), err));
+
+    let config = Config::new().with_out_dir(out_dir).with_large_int("number");
+    export_binding::<GraphRevision>(&config, "GraphRevision");
 }
 
 /// Small command-line wrapper around the codegen helpers.
@@ -121,7 +134,7 @@ pub fn run_cli() -> Result<(), String> {
     let mut args = env::args().skip(1);
     let Some(command) = args.next() else {
         return Err(
-            "missing command: expected `app-nodes <src-root> <out-file>` or `ui-protocol <out-dir>`".to_string(),
+            "missing command: expected `app-nodes <src-root> <out-file>`, `ui-protocol <out-dir>`, or `graph-ui <out-dir>`".to_string(),
         );
     };
 
@@ -143,8 +156,15 @@ pub fn run_cli() -> Result<(), String> {
             generate_ui_protocol_bindings(Path::new(&out_dir));
             Ok(())
         }
+        "graph-ui" => {
+            let Some(out_dir) = args.next() else {
+                return Err("missing <out-dir> for `graph-ui`".to_string());
+            };
+            generate_graph_ui_bindings(Path::new(&out_dir));
+            Ok(())
+        }
         other => Err(format!(
-            "unknown command `{other}`: expected `app-nodes` or `ui-protocol`"
+            "unknown command `{other}`: expected `app-nodes`, `ui-protocol`, or `graph-ui`"
         )),
     }
 }
@@ -236,10 +256,10 @@ fn extract_declared_user_item_types(source: &str) -> HashSet<String> {
         };
 
         let attr = &source[attr_content_start..attr_end];
-        if attr_is_item(attr) {
-            if let Some(type_name) = extract_item_target_type(&source[attr_end + 1..]) {
-                out.insert(type_name);
-            }
+        if attr_is_item(attr)
+            && let Some(type_name) = extract_item_target_type(&source[attr_end + 1..])
+        {
+            out.insert(type_name);
         }
 
         offset = attr_end + 1;
@@ -343,7 +363,7 @@ fn module_name_from_relative(src_root: &Path, file: &Path) -> String {
             continue;
         }
 
-        let stem = if s.ends_with(".rs") { &s[..s.len() - 3] } else { &s };
+        let stem = s.strip_suffix(".rs").unwrap_or(&s);
 
         if module.is_empty() {
             module.push_str(&sanitize_ident_part(stem));

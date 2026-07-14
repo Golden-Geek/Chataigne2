@@ -1,4 +1,5 @@
-use golden_alchemist::{RuntimeValue, StableRef, ValueTypeId};
+use golden_alchemist::{StableRef, ValueTypeId};
+use golden_values::Value as RuntimeValue;
 
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry, value_set::VALUE_SET_TYPE};
 

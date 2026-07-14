@@ -348,18 +348,16 @@ fn infer_edge(
 
     if let (Some(value_type), TypeConstraint::Generic(variable)) = (&source_type, &input_constraint)
         && let Some(node) = working.get_mut(&edge.to.node)
+        && generic_binding_accepts(node, variable, value_type, registry)
     {
-        if generic_binding_accepts(node, variable, value_type, registry) {
-            let priority = input_priority(node, &edge.to.socket);
-            changed |= bind_inferred_connection_type(node, variable, value_type.clone(), priority);
-        }
+        let priority = input_priority(node, &edge.to.socket);
+        changed |= bind_inferred_connection_type(node, variable, value_type.clone(), priority);
     }
     if let (Some(value_type), TypeConstraint::Generic(variable)) = (&target_type, &output_constraint)
         && let Some(node) = working.get_mut(&edge.from.node)
+        && generic_binding_accepts(node, variable, value_type, registry)
     {
-        if generic_binding_accepts(node, variable, value_type, registry) {
-            changed |= bind_inferred_connection_type(node, variable, value_type.clone(), usize::MAX);
-        }
+        changed |= bind_inferred_connection_type(node, variable, value_type.clone(), usize::MAX);
     }
     if let Some(value_type) = source_type.as_ref()
         && target_type.is_none()

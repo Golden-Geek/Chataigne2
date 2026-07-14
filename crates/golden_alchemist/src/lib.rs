@@ -2,6 +2,7 @@
 
 pub mod compile;
 pub mod diagnostics;
+pub mod domain;
 pub mod expose;
 pub mod formula;
 pub mod graph;
@@ -17,6 +18,10 @@ pub mod typing;
 pub mod value;
 
 pub use diagnostics::{Diagnostic, DiagnosticOrigin, DiagnosticSeverity};
+pub use domain::{
+    AlchemistEdgeData, AlchemistGraphAdapter, AlchemistGraphAdapterError, AlchemistGraphData, AlchemistGraphDocument,
+    AlchemistGraphDomain, AlchemistGraphEnvelope, AlchemistNodeData, AlchemistPortData,
+};
 pub use expose::{
     ANodeFieldPath, ExposedAction, ExposedInput, ExposedOutput, ExposedParam, ExposedSurface, ParamUiHints,
     ValueTypeSpec,
@@ -64,15 +69,18 @@ pub use typing::{
     TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx, TypeSolveResult, TypeVar, solve_types,
 };
 pub use value::{
-    ColorValue, ExtensionValue, RuntimeValue, StableRef, TriggerValue, ValueComponent, ValueStorageKind,
-    component_value_type,
+    ColorValue, ExtensionValue, StableRef, TriggerValue, ValueComponent, ValueStorageKind, component_value_type,
 };
+
+pub(crate) use golden_values::Value as RuntimeValue;
 
 /// Current authored graph schema version.
 pub const ALCHEMIST_SCHEMA_VERSION: u32 = 1;
 
 #[cfg(test)]
 mod compile_tests;
+#[cfg(test)]
+mod domain_tests;
 #[cfg(test)]
 mod formula_tests;
 #[cfg(test)]

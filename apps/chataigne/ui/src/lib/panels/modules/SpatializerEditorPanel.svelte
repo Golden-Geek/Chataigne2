@@ -8,7 +8,8 @@
 		type GraphNodePosition,
 		type GraphWorldBounds,
 		type GraphWorldContentContext
-	} from 'golden_alchemist_ui';
+	} from 'golden_graph_ui';
+	import { LegacyGraphDocumentAdapter } from '../../graph/legacyGraphDocumentAdapter';
 	import type {
 		NodeId,
 		PanelProps,
@@ -219,6 +220,7 @@
 		home: () => boolean;
 		focus: () => void;
 	} | null = $state(null);
+	const graphDocument = new LegacyGraphDocumentAdapter().update([], []);
 
 	let activeDrag = $state<DragGesture | null>(null);
 	let positionPreviews = $state<Record<string, Point2>>({});
@@ -1894,8 +1896,7 @@
 			<div class="canvas-region">
 				<GraphCanvas
 					bind:this={graphCanvas}
-					nodes={[]}
-					edges={[]}
+					{graphDocument}
 					worldContent={spatializerWorld}
 					worldBounds={graphWorldBounds}
 					{initialCamera}

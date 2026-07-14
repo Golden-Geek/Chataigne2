@@ -111,7 +111,7 @@ pub struct TransitionOutcome {
     pub lifecycle: Vec<LifecycleEvent>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Statechart {
     pub schema_version: u32,
@@ -121,7 +121,7 @@ pub struct Statechart {
     pub states: IndexMap<StateId, StateNode>,
     pub transitions: Vec<Transition>,
     pub active: ActiveConfiguration,
-    next_transition_order: u64,
+    pub(crate) next_transition_order: u64,
 }
 
 impl Default for Statechart {

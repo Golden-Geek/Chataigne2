@@ -1,0 +1,21 @@
+{
+  "name": "golden_graph_ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "svelte": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "svelte": "./index.ts",
+      "default": "./index.ts"
+    },
+    "./components/*": "./components/*",
+    "./spatial-index": "./spatial-index.ts",
+    "./types": "./types.ts"
+  },
+  "peerDependencies": {
+    "svelte": "^5.0.0"
+  }
+}

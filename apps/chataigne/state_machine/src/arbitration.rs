@@ -1,7 +1,8 @@
 use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
-use golden_alchemist::{ContextKey, RuntimeIntent, RuntimeValue, StableRef};
+use golden_alchemist::{ContextKey, RuntimeIntent, StableRef};
 use golden_statechart::TransitionId;
+use golden_values::Value as RuntimeValue;
 
 use crate::ProcessorId;
 

@@ -167,20 +167,20 @@ impl ANodeDeclaration for ContextAnalysisNodeDeclaration {
     ) -> ANodeSignature {
         let bool_type = ValueTypeId::new("bool");
         ANodeSignature {
-            inputs: self
-                .has_input
-                .then(|| {
-                    vec![InputSocketDecl::new(
-                        "in",
-                        "In",
-                        TypeConstraint::Exact(bool_type.clone()),
-                    )]
-                })
-                .unwrap_or_default(),
-            outputs: self
-                .has_output
-                .then(|| vec![OutputSocketDecl::new("out", "Out", TypeConstraint::Exact(bool_type))])
-                .unwrap_or_default(),
+            inputs: if self.has_input {
+                vec![InputSocketDecl::new(
+                    "in",
+                    "In",
+                    TypeConstraint::Exact(bool_type.clone()),
+                )]
+            } else {
+                Vec::new()
+            },
+            outputs: if self.has_output {
+                vec![OutputSocketDecl::new("out", "Out", TypeConstraint::Exact(bool_type))]
+            } else {
+                Vec::new()
+            },
             ..ANodeSignature::default()
         }
     }

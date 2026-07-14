@@ -9,9 +9,10 @@ use golden_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx,
     ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract,
     FormulaId, FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus,
-    OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue,
-    SocketId, TriggerValue, ValueTypeRegistry, primitive_node_registry,
+    OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, SocketId, TriggerValue,
+    ValueTypeRegistry, primitive_node_registry,
 };
+use golden_values::Value as RuntimeValue;
 use golden_core::{
     app::ProjectNode,
     engine::EngineTime,

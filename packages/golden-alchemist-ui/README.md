@@ -1,5 +1,7 @@
 # golden_alchemist_ui
 
-Reusable Svelte 5 node-graph UI for Golden Alchemist.
+Alchemist-specific Svelte 5 UI assets and domain adapters.
 
-The package owns canvas mechanics and visuals: infinite pan/zoom, animated framing, node dragging, selection, slots, connection previews, and wires. Product DTO adaptation, command registration, persistence, and panel composition stay in the consuming application.
+Generic graph editing belongs to `golden_graph_ui`. This package owns only Alchemist-specific
+rendering, assets, socket styles, inspectors, and authoring adapters. Chataigne product composition
+and product DTO adaptation remain in the app workspace.

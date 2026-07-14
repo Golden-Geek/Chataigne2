@@ -5,7 +5,7 @@ import type { NodeWarning } from "./NodeWarning";
 /**
  * Node-level presentation hints persisted in metadata.
  */
-export type PresentationHint = { 
+export type PresentationHint = {
 /**
  * User-selected UI color override.
  */
@@ -17,26 +17,26 @@ default_color?: ColorValue | null,
 /**
  * Preferred UI icon, as a data URI (e.g. `data:image/svg+xml;base64,...`).
  */
-icon?: string | null, 
+icon?: string | null,
 /**
  * Whether UI tree/inspector containers should start collapsed until a user chooses otherwise.
  */
-collapsed?: boolean, 
+collapsed?: boolean,
 /**
  * Warnings attached to this node, keyed by warning id.
  */
-warnings?: Array<NodeWarning>, 
+warnings?: Array<NodeWarning>,
 /**
  * If greater than zero, this node surfaces descendant warnings up to this depth.
  */
-show_child_warnings_max_depth?: number, 
+show_child_warnings_max_depth?: number,
 /**
  * Whether this node stays visible when rendered as a nested inspector child.
  *
  * Nodes default to visible at any nested inspector level. Set this to `false`
  * only for item roots that should stay hidden unless selected directly.
  */
-show_in_nested_inspector?: boolean, 
+show_in_nested_inspector?: boolean,
 /**
  * Whether this node is rendered in its parent's inspector content area.
  *

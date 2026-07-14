@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
+	import { SpatialIndex } from '../spatial-index';
 	import type {
 		GraphCamera,
 		GraphConnectionRequest,
@@ -9,6 +10,7 @@
 		GraphNodeCreationRequest,
 		GraphNodeMove,
 		GraphNodePosition,
+		GraphPresentationDocument,
 		GraphNodeResize,
 		GraphNodeSize,
 		GraphSocket,
@@ -82,8 +84,7 @@
 	const DEFAULT_MAX_ZOOM = 2.5;
 
 	let {
-		nodes,
-		edges,
+		graphDocument,
 		selectedNodeIds = [],
 		selectedEdgeIds = [],
 		onGraphSelectionChange,
@@ -116,8 +117,7 @@
 		autoHomeOnMount = true,
 		emptyLabel = 'No nodes in this graph.'
 	}: {
-		nodes: GraphNode[];
-		edges: GraphEdge[];
+		graphDocument: GraphPresentationDocument;
 		selectedNodeIds?: string[];
 		selectedEdgeIds?: string[];
 		onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
@@ -150,6 +150,10 @@
 		autoHomeOnMount?: boolean;
 		emptyLabel?: string;
 	} = $props();
+	let nodes = $derived(graphDocument.nodes);
+	let edges = $derived(graphDocument.edges);
+	let topologyRevision = $derived(graphDocument.revision.topology);
+	let presentationRevision = $derived(graphDocument.revision.presentation);
 
 	const CHECKER_CELL_REM = 2;
 	const DEFAULT_NODE_WIDTH_REM = 13;
@@ -643,26 +647,59 @@
 		routedPathCache.clear();
 	});
 
+	let nodeSpatialIndex = $derived.by(() => {
+		presentationRevision;
+		const index = new SpatialIndex<GraphNode>(32);
+		for (const node of effectiveNodes) {
+			index.insert(
+				node.id,
+				{
+					left: node.position.x,
+					top: node.position.y,
+					right: node.position.x + nodeWidth(node),
+					bottom: node.position.y + nodeHeight(node)
+				},
+				node
+			);
+		}
+		return index;
+	});
 	let visibleNodes = $derived.by(() => {
 		const margin = 8;
 		const left = -camera.x / camera.zoom / remPx - margin;
 		const top = -camera.y / camera.zoom / remPx - margin;
 		const right = (viewportWidth - camera.x) / camera.zoom / remPx + margin;
 		const bottom = (viewportHeight - camera.y) / camera.zoom / remPx + margin;
-		return effectiveNodes.filter(
-			(node) =>
-				node.position.x + nodeWidth(node) >= left &&
-				node.position.x <= right &&
-				node.position.y + nodeHeight(node) >= top &&
-				node.position.y <= bottom
-		);
+		return nodeSpatialIndex.query({ left, top, right, bottom });
 	});
 	let visibleNodeIds = $derived(new Set(visibleNodes.map((node) => node.id)));
-	let visibleEdges = $derived(
-		edges.filter(
-			(edge) => visibleNodeIds.has(edge.from.nodeId) || visibleNodeIds.has(edge.to.nodeId)
-		)
-	);
+	let edgeIndexesByNodeId = $derived.by(() => {
+		topologyRevision;
+		const indexes = new Map<string, number[]>();
+		for (let index = 0; index < edges.length; index += 1) {
+			const edge = edges[index];
+			for (const nodeId of new Set([edge.from.nodeId, edge.to.nodeId])) {
+				const nodeIndexes = indexes.get(nodeId);
+				if (nodeIndexes) {
+					nodeIndexes.push(index);
+				} else {
+					indexes.set(nodeId, [index]);
+				}
+			}
+		}
+		return indexes;
+	});
+	let visibleEdges = $derived.by(() => {
+		const indexes = new Set<number>();
+		for (const nodeId of visibleNodeIds) {
+			for (const index of edgeIndexesByNodeId.get(nodeId) ?? []) {
+				indexes.add(index);
+			}
+		}
+		return [...indexes]
+			.sort((left, right) => left - right)
+			.map((index) => edges[index]);
+	});
 	let connectedSockets = $derived(
 		new Set(
 			edges.flatMap((edge) => [

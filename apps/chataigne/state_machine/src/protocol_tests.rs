@@ -1,9 +1,10 @@
 use golden_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, ContextKey, ExecNodeId, FormulaId, FormulaSurface, ManagedItemId,
     ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, RuntimeValue, SocketId,
-    SurfaceItemKind, ValueTypeId,
+    ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, SocketId, SurfaceItemKind,
+    ValueTypeId,
 };
+use golden_values::Value as RuntimeValue;
 
 use crate::{
     ANodeOutputPreviewSample, ProcessorFormulaUiState, ProcessorId, ProcessorUiModel,
