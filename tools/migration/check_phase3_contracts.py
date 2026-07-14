@@ -251,6 +251,18 @@ def dashboard_violations(root: Path) -> list[Violation]:
     if document.get("schema_version") != 1 or document.get("phase") != 3:
         violations.append(Violation(path, "dashboard must identify Phase 3 schema version 1"))
 
+    qualification = document.get("cross_platform_product_gate")
+    expected_platforms = {"windows": "PASS", "macos": "PASS", "linux": "PASS"}
+    if not isinstance(qualification, dict) or qualification.get("status") != "PASS":
+        violations.append(Violation(path, "Phase 3 lacks passing cross-platform qualification"))
+    else:
+        if qualification.get("tested_commit") != document.get("tested_tree_base"):
+            violations.append(Violation(path, "cross-platform qualification does not match the tested tree"))
+        if qualification.get("platforms") != expected_platforms:
+            violations.append(Violation(path, "cross-platform qualification must pass Windows, macOS, and Linux"))
+        if not qualification.get("run_url") or not qualification.get("completed_at"):
+            violations.append(Violation(path, "cross-platform qualification lacks run provenance"))
+
     cutovers = document.get("cutovers", [])
     ids = {cutover.get("cutover_id") for cutover in cutovers if isinstance(cutover, dict)}
     if ids != REQUIRED_CUTOVERS:

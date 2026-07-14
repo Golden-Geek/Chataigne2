@@ -111,6 +111,14 @@ class Phase3ContractTests(unittest.TestCase):
                     {
                         "schema_version": 1,
                         "phase": 3,
+                        "tested_tree_base": "qualified-commit",
+                        "cross_platform_product_gate": {
+                            "status": "PASS",
+                            "run_url": "https://example.test/actions/runs/1",
+                            "tested_commit": "qualified-commit",
+                            "completed_at": "2026-07-14T21:03:25Z",
+                            "platforms": {"windows": "PASS", "macos": "PASS", "linux": "PASS"},
+                        },
                         "cutovers": [
                             {"cutover_id": value, "state": "pending", "owner": "architecture", "evidence": ["test"]}
                             for value in sorted(cutover_ids)

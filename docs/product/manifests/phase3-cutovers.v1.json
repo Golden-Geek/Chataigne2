@@ -1,9 +1,20 @@
 {
   "schema_version": 1,
   "phase": 3,
-  "revision": 7,
-  "tested_tree_base": "e876f9ad45738691bbb86efbcabe7a7147b270db",
+  "revision": 8,
+  "tested_tree_base": "1f23dbef04e544f215611771b5003489f67752f3",
   "product_gate": "PASS: target/product-gate/20260714T181319Z/product-gate-report.json",
+  "cross_platform_product_gate": {
+    "status": "PASS",
+    "run_url": "https://github.com/Golden-Geek/Chataigne2/actions/runs/29366201894",
+    "tested_commit": "1f23dbef04e544f215611771b5003489f67752f3",
+    "completed_at": "2026-07-14T21:03:25Z",
+    "platforms": {
+      "windows": "PASS",
+      "macos": "PASS",
+      "linux": "PASS"
+    }
+  },
   "cutovers": [
     {
       "cutover_id": "identifiers",
