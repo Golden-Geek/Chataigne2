@@ -1,0 +1,22 @@
+[package]
+name = "golden_graph"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "indexmap/serde", "uuid/serde"]
+testkit = []
+
+[dependencies]
+indexmap.workspace = true
+serde = { workspace = true, optional = true }
+thiserror.workspace = true
+ts-rs.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

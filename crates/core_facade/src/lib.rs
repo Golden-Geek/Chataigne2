@@ -19,6 +19,11 @@ pub mod model {
     pub use golden_model::*;
 }
 
+/// Typed, app-agnostic authored graph contracts.
+pub mod graph {
+    pub use golden_graph::*;
+}
+
 /// Canonical app-agnostic runtime values.
 pub mod values {
     pub use golden_values::*;

@@ -15,6 +15,7 @@ FOUNDATION_CRATES = {
     "values": {"serde", "smol_str", "ts-rs"},
     "parameters": {"golden_model", "golden_values", "serde", "serde_json", "thiserror", "ts-rs"},
     "context": {"golden_model", "golden_parameters", "serde", "ts-rs"},
+    "graph": {"indexmap", "serde", "thiserror", "ts-rs", "uuid"},
 }
 REQUIRED_CUTOVERS = {
     "identifiers",
@@ -96,6 +97,25 @@ def foundation_violations(root: Path) -> list[Violation]:
         violations.append(Violation(color, "engine color API does not consume the canonical parameter color"))
     if re.search(r"pub struct Color\b", color_source):
         violations.append(Violation(color, "engine still owns a duplicate color definition"))
+
+    graph = root / "crates/graph/src/lib.rs"
+    graph_source = graph.read_text(encoding="utf-8")
+    required_graph_contract = {
+        "GraphDomain",
+        "GraphDocument",
+        "GraphTransaction",
+        "GraphRevision",
+        "GraphChangeSet",
+        "GraphPresentation",
+        "GraphEnvelope",
+        "stable_topological_order",
+    }
+    for contract in sorted(required_graph_contract):
+        if contract not in graph_source:
+            violations.append(Violation(graph, f"golden_graph public contract lacks {contract}"))
+    facade = root / "crates/core_facade/src/lib.rs"
+    if not facade.is_file() or "pub use golden_graph::*;" not in facade.read_text(encoding="utf-8"):
+        violations.append(Violation(facade, "golden_core facade does not expose the live golden_graph contract"))
 
     alchemist_value = root / "crates/golden_alchemist/src/value.rs"
     alchemist_source = alchemist_value.read_text(encoding="utf-8")

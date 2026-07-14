@@ -21,6 +21,8 @@ Start with [Application Seams and Phase 2 Shadowing](docs/architecture/applicati
 the migration boundary and its side-effect-safety rules.
 [Foundation Ownership](docs/architecture/foundations.md) describes the Phase 3 identity, value,
 parameter, and context cutovers that graph packages build upon.
+[Graph Foundation](docs/architecture/graph-foundation.md) describes the typed graph-domain,
+transaction, revision, topology, presentation, traversal, and persistence contract.
 - protocol declarations and code generation are moving toward a single source of truth.
 - `cargo run` and the built app now ship the UI bundle and serve it from the built-in Rust host by default, so the desktop app does not depend on a separate Vite process to be usable.
 - `cargo run -- --dev` launches against the live Svelte/Vite dev server from

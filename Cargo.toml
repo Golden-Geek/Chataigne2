@@ -9,6 +9,7 @@ members = [
     "crates/core_macros",
     "crates/golden_alchemist",
     "crates/context",
+    "crates/graph",
     "crates/model",
     "crates/parameters",
     "crates/golden_statechart",
@@ -34,6 +35,7 @@ repository = "https://github.com/Golden-Geek/Chataigne2"
 golden_alchemist = { path = "crates/golden_alchemist" }
 golden_application = { path = "crates/application" }
 golden_context = { path = "crates/context" }
+golden_graph = { path = "crates/graph" }
 golden_model = { path = "crates/model" }
 golden_parameters = { path = "crates/parameters" }
 golden_statechart = { path = "crates/golden_statechart" }

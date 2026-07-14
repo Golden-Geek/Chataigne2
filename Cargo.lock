@@ -2504,6 +2504,7 @@ dependencies = [
  "golden_context",
  "golden_core_macros",
  "golden_engine",
+ "golden_graph",
  "golden_host_desktop",
  "golden_model",
  "golden_parameters",
@@ -2537,6 +2538,18 @@ dependencies = [
  "serde",
  "serde_json",
  "slotmap",
+ "ts-rs",
+ "uuid",
+]
+
+[[package]]
+name = "golden_graph"
+version = "0.1.0"
+dependencies = [
+ "indexmap 2.14.0",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
  "ts-rs",
  "uuid",
 ]

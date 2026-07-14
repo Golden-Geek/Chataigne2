@@ -18,7 +18,7 @@ class Phase3ContractTests(unittest.TestCase):
     def test_foundation_dependency_on_engine_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for crate in ("model", "values", "parameters", "context"):
+            for crate in ("model", "values", "parameters", "context", "graph"):
                 source = root / "crates" / crate / "src"
                 source.mkdir(parents=True)
                 (source / "lib.rs").write_text("pub struct Foundation;\n", encoding="utf-8")
@@ -28,6 +28,7 @@ class Phase3ContractTests(unittest.TestCase):
             (root / "crates/values/Cargo.toml").write_text("[dependencies]\n", encoding="utf-8")
             (root / "crates/parameters/Cargo.toml").write_text("[dependencies]\n", encoding="utf-8")
             (root / "crates/context/Cargo.toml").write_text("[dependencies]\n", encoding="utf-8")
+            (root / "crates/graph/Cargo.toml").write_text("[dependencies]\n", encoding="utf-8")
             identity = root / "crates/core/src/node/core"
             identity.mkdir(parents=True)
             (identity / "identity.rs").write_text(

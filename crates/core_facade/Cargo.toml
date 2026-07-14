@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 golden_application.workspace = true
 golden_context.workspace = true
+golden_graph.workspace = true
 golden_model.workspace = true
 golden_parameters.workspace = true
 golden_values.workspace = true

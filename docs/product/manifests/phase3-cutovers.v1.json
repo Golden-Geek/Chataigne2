@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "phase": 3,
-  "revision": 2,
-  "tested_tree_base": "bfc088998af89385348c0bf93149123b99d36cc9",
-  "product_gate": "PASS: target/product-gate/20260714T143331Z/product-gate-report.json",
+  "revision": 3,
+  "tested_tree_base": "b596b83a813bf26b1773478884c5a30ecfad0f5b",
+  "product_gate": "PASS: target/product-gate/20260714T150450Z/product-gate-report.json",
   "cutovers": [
     {
       "cutover_id": "identifiers",
@@ -47,9 +47,13 @@
     },
     {
       "cutover_id": "graph_contract",
-      "state": "pending",
+      "state": "adapted",
       "owner": "golden_graph",
-      "evidence": ["identifier and value foundations are prerequisites"]
+      "evidence": [
+        "golden_graph transaction, topology, traversal, persistence, and revision tests",
+        "golden_graph strict clippy",
+        "tools/migration/check_phase3_contracts.py"
+      ]
     },
     {
       "cutover_id": "graph_ui",
@@ -59,9 +63,13 @@
     },
     {
       "cutover_id": "test_domain",
-      "state": "pending",
+      "state": "cut_over",
       "owner": "golden_graph",
-      "evidence": ["scheduled before real-domain adapters"]
+      "evidence": [
+        "golden_graph::testkit::TestDomain",
+        "10,000-node indexed mutation test",
+        "atomic rollback and persistence index-rebuild tests"
+      ]
     },
     {
       "cutover_id": "alchemist_domain",
