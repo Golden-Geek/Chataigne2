@@ -358,8 +358,8 @@ impl ProcessorContextProvider for TestContextProvider {
 #[test]
 fn two_processors_share_same_compiled_formula_arc() {
     let mut chart = Statechart::new();
-    let state = chart.add_leaf(chart.root_region, "Only").unwrap();
-    chart.set_initial(chart.root_region, state).unwrap();
+    let state = chart.add_leaf(chart.root_region(), "Only").unwrap();
+    chart.set_initial(chart.root_region(), state).unwrap();
     let mut machine = ChataigneStateMachine::new(chart);
     let formula = stateful_formula();
     let first_processor = Processor::from_formula("First Processor", &formula);
@@ -401,9 +401,9 @@ fn two_processors_share_same_compiled_formula_arc() {
 #[test]
 fn guard_evaluates_once_even_when_active_processors_have_30_lanes() {
     let mut chart = Statechart::new();
-    let first = chart.add_leaf(chart.root_region, "First").unwrap();
-    let second = chart.add_leaf(chart.root_region, "Second").unwrap();
-    chart.set_initial(chart.root_region, first).unwrap();
+    let first = chart.add_leaf(chart.root_region(), "First").unwrap();
+    let second = chart.add_leaf(chart.root_region(), "Second").unwrap();
+    chart.set_initial(chart.root_region(), first).unwrap();
     let transition = chart.add_transition(first, second, 0).unwrap();
     let mut machine = ChataigneStateMachine::new(chart);
     let formula = context_formula();
@@ -463,16 +463,16 @@ fn guard_evaluates_once_even_when_active_processors_have_30_lanes() {
 
     assert!(output.transition.is_none());
     assert_eq!(guard_count.load(Ordering::SeqCst), 1);
-    assert_eq!(runtime.execution.active_scopes, machine.chart.active.active_scopes);
+    assert_eq!(runtime.execution.active_scopes, machine.chart.active().active_scopes);
     assert!(output.processor_outputs[&processor_id].debug_samples.is_empty());
 }
 
 #[test]
 fn transition_effect_runs_once_after_transition() {
     let mut chart = Statechart::new();
-    let first = chart.add_leaf(chart.root_region, "First").unwrap();
-    let second = chart.add_leaf(chart.root_region, "Second").unwrap();
-    chart.set_initial(chart.root_region, first).unwrap();
+    let first = chart.add_leaf(chart.root_region(), "First").unwrap();
+    let second = chart.add_leaf(chart.root_region(), "Second").unwrap();
+    chart.set_initial(chart.root_region(), first).unwrap();
     let transition = chart.add_transition(first, second, 0).unwrap();
     let mut machine = ChataigneStateMachine::new(chart);
     let formula = context_formula();
@@ -543,14 +543,14 @@ fn transition_effect_runs_once_after_transition() {
     assert_eq!(effect_count.load(Ordering::SeqCst), 1);
     assert_eq!(output.transition_outputs[&transition].debug_samples.len(), 1);
     assert!(output.processor_outputs[&processor_id].debug_samples.is_empty());
-    assert_eq!(runtime.execution.active_scopes, machine.chart.active.active_scopes);
+    assert_eq!(runtime.execution.active_scopes, machine.chart.active().active_scopes);
 }
 
 #[test]
 fn processor_lane_command_intents_include_context_key() {
     let mut chart = Statechart::new();
-    let state = chart.add_leaf(chart.root_region, "Only").unwrap();
-    chart.set_initial(chart.root_region, state).unwrap();
+    let state = chart.add_leaf(chart.root_region(), "Only").unwrap();
+    chart.set_initial(chart.root_region(), state).unwrap();
     let mut machine = ChataigneStateMachine::new(chart);
     let formula = command_formula();
     let processor = Processor::from_formula("Command Processor", &formula);
@@ -613,9 +613,9 @@ fn processor_lane_command_intents_include_context_key() {
 #[test]
 fn state_transition_updates_active_processor_matrix() {
     let mut chart = Statechart::new();
-    let first = chart.add_leaf(chart.root_region, "First").unwrap();
-    let second = chart.add_leaf(chart.root_region, "Second").unwrap();
-    chart.set_initial(chart.root_region, first).unwrap();
+    let first = chart.add_leaf(chart.root_region(), "First").unwrap();
+    let second = chart.add_leaf(chart.root_region(), "Second").unwrap();
+    chart.set_initial(chart.root_region(), first).unwrap();
     let transition = chart.add_transition(first, second, 0).unwrap();
     let mut machine = ChataigneStateMachine::new(chart);
     let formula = constant_formula();

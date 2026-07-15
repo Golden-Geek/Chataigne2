@@ -18,17 +18,17 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 ## Current Checkpoint
 
-- State: `CHECKPOINT_RUNNABLE`; the Phase 4 construction interval is closed.
-- Completed vertical: Chataigne-owned Alchemist authoring, compiler, runtime, persistence, and UI
-  consume the app-agnostic Golden graph contracts without the former graph model, serializer, or
-  adapter.
-- Qualified layers: complete Chataigne application, Alchemist UI/runtime/persistence, product
-  fixtures, root workflows, OSC loopback, save/reload, and local/LAN browser workflows.
+- State: `CHECKPOINT_RUNNABLE`; the Phase 5 construction interval is closed.
+- Completed vertical: canonical graph-backed statecharts, compiled condition IR, Chataigne-owned
+  Processor/context/lane runtime, and the statechart UI projection now run through one production
+  path without the former statechart adapter or editable-tree condition evaluator.
+- Qualified layers: complete Chataigne application, statechart and Alchemist UI/runtime/persistence,
+  condition and Processor semantics, P50-L1/P5-L127 backend and UI fixtures, product fixtures, root
+  workflows, OSC loopback, save/reload, and local/LAN browser workflows.
 - Runnable checkpoint: Win-x64 report
-  `target/product-gate/20260715T130619Z/product-gate-report.json` (32/32 required checks passed; 7
+  `target/product-gate/20260715T163517Z/product-gate-report.json` (33/33 required checks passed; 7
   non-required platform/manual checks `NOT_RUN`).
-- Next construction interval: Phase 5 statechart, condition, context, and processor migration; it
-  has not been opened yet.
+- Next construction interval: Phase 6 runtime-center replacement; it has not been opened yet.
 
 The long-lived migration branch does not require a permanently open pull request. Focused PRs are
 opened when a review, named qualification, or merge point is ready. This keeps routine pushes local
@@ -44,7 +44,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 2 — Establish stable product seams and shadow infrastructure             | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `2ce92015c60a9958402c0517417c5e8988b358a4`; local report `target/product-gate/20260714T115625Z/product-gate-report.json`                                   |
 | Phase 3 — Extract foundations and `golden-graph` through the live product      | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `1f23dbef04e544f215611771b5003489f67752f3`; [Windows/macOS/Linux product gate run 29366201894](https://github.com/Golden-Geek/Chataigne2/actions/runs/29366201894) |
 | Phase 4 — Migrate Alchemist as a complete authoring-to-runtime slice           | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T130619Z/product-gate-report.json`; all 32 required checks passed                                                                       |
-| Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Open a declared Phase 5 construction interval from the completed Alchemist boundary                                                                                              |
+| Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                       |
 | Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Compiled domains and product composition must be proven                                                                                                                         |
 | Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Runtime planes and generation semantics must be stable                                                                                                                          |
 | Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | New runtime/protocol/UI foundations must be runnable                                                                                                                            |
@@ -122,14 +122,30 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Revisioned cutover evidence        | Complete    | [`manifests/phase4-cutovers.v1.json`](manifests/phase4-cutovers.v1.json) revision 7 and `tools/migration/check_phase4_contracts.py` |
 | Win-x64 product qualification      | `PASS`      | Local report `target/product-gate/20260715T130619Z/product-gate-report.json`; all 32 required checks passed and 7 non-required checks were `NOT_RUN` |
 
+## Phase 5 Statechart, Condition, Context, And Processor Vertical
+
+| Slice                                    | Status   | Evidence or next proof                                                                                         |
+| ---------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| Canonical statechart graph document      | Cut over | `Statechart` owns `StatechartGraphDocument`; mutations use graph transactions and the former adapter is gone  |
+| Statechart UI document                   | Cut over | `StateMachinePanel` uses `golden_statechart_ui::StatechartDocumentView` with the existing Golden graph canvas |
+| Compiled condition IR                    | Cut over | Input Value, Input Node, Group, and Script compile to flat instructions, bindings, observations, and dense state |
+| Steady-state condition execution         | Cut over | Runtime and inspector paths consume compiled programs/observations without walking authored condition nodes   |
+| Processor ownership                      | Relocated | Processor, context/lane, `ValueSet`, and managed pipelines live in `apps/chataigne/processor`                |
+| Context lane compilation and migration   | Verified | Stable lane keys preserve retained state; P50-L1 and P5-L127 backend fixtures pass                           |
+| Live lane UI                             | Verified | UI projection fixtures cover P50-L1 and P5-L127, and the mounted real-app workflow passes                    |
+| Action and Mapping composition           | Cut over | The two shipped formulas use the single Processor, condition, `ValueSet`, and output-intent path              |
+| Pure semantic shadow comparison          | Verified | Compiled comparator results match reference outcomes without any effect host                                 |
+| Revisioned cutover evidence              | Complete | [`manifests/phase5-cutovers.v1.json`](manifests/phase5-cutovers.v1.json) and `tools/migration/check_phase5_contracts.py` |
+| Win-x64 product qualification            | `PASS`   | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed and 7 non-required checks were `NOT_RUN` |
+
 ## Required Root Workflow Status
 
 | Command or workflow  | Status                         | Required result                                                                            |
 | -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `cargo run`          | `PASS` on Phase 4 typed-authoring tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
-| `watch`              | `PASS` on Phase 4 typed-authoring tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
-| `cargo run -- --dev` | `PASS` on Phase 4 typed-authoring tree | Complete app with live frontend/dev server and connected engine                            |
-| Root product gate    | `PASS` on Phase 4 typed-authoring tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
+| `cargo run`          | `PASS` on Phase 5 compiled-domain tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
+| `watch`              | `PASS` on Phase 5 compiled-domain tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
+| `cargo run -- --dev` | `PASS` on Phase 5 compiled-domain tree | Complete app with live frontend/dev server and connected engine                            |
+| Root product gate    | `PASS` on Phase 5 compiled-domain tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
 
 No command above is inferred to pass from source inspection or repository provenance.
 

@@ -7,14 +7,19 @@ use chataigne_alchemist::{
     ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin,
     EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
     FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame,
-    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription, SocketId,
-    SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
+    RuntimeDiagnostic, RuntimeInputSnapshot, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError,
+    RuntimeSubscription, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
+    evaluate_compiled_graph_stateless,
+};
+use golden_condition::{
+    CompiledConditionProgram, ConditionDefinition, ConditionEvaluationFrame, ConditionInputProvider, ConditionRuntime,
+    compile_condition,
 };
 use golden_statechart::StateId;
-use golden_values::Value as RuntimeValue;
+use golden_values::{StableRef, Value as RuntimeValue};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::ManagedFormulaRuntime;
+use crate::{ManagedFormulaRuntime, lane_scoped_stable_ref};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -101,6 +106,44 @@ pub trait ProcessorContextProvider {
         axis: &ContextAxisId,
         path: &ContextValuePath,
     ) -> Option<RuntimeValue>;
+
+    fn resolve_condition_node_value(
+        &self,
+        _provider: &str,
+        _node: &StableRef,
+        _key: &ContextKey,
+    ) -> Option<RuntimeValue> {
+        None
+    }
+
+    fn evaluate_script_condition(&self, _script: &str, _key: &ContextKey) -> Result<bool, String> {
+        Err("script condition provider is unavailable".to_owned())
+    }
+}
+
+struct LaneConditionInputs<'a> {
+    snapshot: &'a RuntimeInputSnapshot,
+    context_provider: &'a dyn ProcessorContextProvider,
+    context_key: &'a ContextKey,
+}
+
+impl ConditionInputProvider for LaneConditionInputs<'_> {
+    fn input_value(&self, input: &StableRef) -> Option<RuntimeValue> {
+        self.snapshot
+            .get(&lane_scoped_stable_ref(input, self.context_key))
+            .or_else(|| self.snapshot.get(input))
+            .cloned()
+    }
+
+    fn input_node_value(&self, provider: &str, node: &StableRef) -> Option<RuntimeValue> {
+        self.context_provider
+            .resolve_condition_node_value(provider, node, self.context_key)
+    }
+
+    fn script_condition(&self, script: &str) -> Result<bool, String> {
+        self.context_provider
+            .evaluate_script_condition(script, self.context_key)
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -213,6 +256,7 @@ pub struct Processor {
     pub label: String,
     pub formula_instance: AlchemistFormulaInstance,
     pub context_property_bindings: IndexMap<SurfaceItemId, ProcessorContextPropertyBinding>,
+    pub condition: Option<ConditionDefinition>,
     pub enabled: bool,
     pub lifecycle: ProcessorLifecyclePolicy,
     pub memory_policy: ProcessorMemoryPolicy,
@@ -234,6 +278,7 @@ impl Processor {
             label: label.into(),
             formula_instance,
             context_property_bindings: IndexMap::new(),
+            condition: None,
             enabled: true,
             lifecycle: ProcessorLifecyclePolicy::default(),
             memory_policy: ProcessorMemoryPolicy::default(),
@@ -293,6 +338,8 @@ pub struct ProcessorRuntime {
     pub compiled: Option<Arc<CompiledAlchemistFormula>>,
     pub managed_formula: Option<ManagedFormulaRuntime>,
     pub plan: Option<ProcessorExecutionPlan>,
+    pub compiled_condition: Option<Arc<CompiledConditionProgram>>,
+    pub condition_runtimes: IndexMap<ContextKey, ConditionRuntime>,
     pub lanes: LaneRuntimePool,
     pub active: bool,
     pub dirty: ProcessorDirtyFlags,
@@ -355,6 +402,8 @@ impl ProcessorRuntime {
             compiled: None,
             managed_formula: None,
             plan: None,
+            compiled_condition: None,
+            condition_runtimes: IndexMap::new(),
             lanes: LaneRuntimePool::default(),
             active: false,
             dirty: ProcessorDirtyFlags {
@@ -502,6 +551,9 @@ impl ProcessorRuntime {
             )];
             return false;
         }
+        if !self.compile_condition(processor, preserve_compatible_lanes) {
+            return false;
+        }
         self.subscriptions = compiled.graph.subscriptions.clone();
         if !(preserve_compatible_lanes && self.lanes.is_compatible_with_graph(&compiled.graph)) {
             self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
@@ -523,8 +575,40 @@ impl ProcessorRuntime {
         self.compiled = None;
         self.managed_formula = None;
         self.plan = None;
+        self.compiled_condition = None;
+        self.condition_runtimes.clear();
         self.lanes = LaneRuntimePool::default();
         self.subscriptions.clear();
+    }
+
+    fn compile_condition(&mut self, processor: &Processor, preserve_compatible_state: bool) -> bool {
+        let Some(definition) = &processor.condition else {
+            self.compiled_condition = None;
+            self.condition_runtimes.clear();
+            return true;
+        };
+        let program = match compile_condition(definition) {
+            Ok(program) => Arc::new(program),
+            Err(diagnostics) => {
+                self.clear_runtime();
+                self.diagnostics = diagnostics
+                    .into_iter()
+                    .map(|diagnostic| {
+                        Diagnostic::error("condition_compile", diagnostic.message, DiagnosticOrigin::Graph)
+                    })
+                    .collect();
+                return false;
+            }
+        };
+        if preserve_compatible_state {
+            for runtime in self.condition_runtimes.values_mut() {
+                *runtime = runtime.migrate(&program);
+            }
+        } else {
+            self.condition_runtimes.clear();
+        }
+        self.compiled_condition = Some(program);
+        true
     }
 
     pub fn rebuild_execution_plan(
@@ -652,7 +736,15 @@ impl ProcessorRuntime {
         if !self.active {
             return Vec::new();
         }
-        if let Some(managed_formula) = self.managed_formula.as_mut() {
+        if self.managed_formula.is_some() {
+            let context_key = ContextKey::default_lane();
+            if !self.condition_passes(ctx, context_provider, &context_key) {
+                return Vec::new();
+            }
+            let managed_formula = self
+                .managed_formula
+                .as_mut()
+                .expect("managed formula presence was checked before condition evaluation");
             let mut output = managed_formula.evaluate(ctx);
             let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
                 return vec![ProcessorLaneOutput {
@@ -724,6 +816,14 @@ impl ProcessorRuntime {
             .collect::<IndexSet<_>>();
         self.lanes.retain_keys(&memory_keys);
 
+        let context_keys = context_keys
+            .into_iter()
+            .filter(|context_key| self.condition_passes(ctx, context_provider, context_key))
+            .collect::<Vec<_>>();
+        let active_condition_keys = context_keys.iter().cloned().collect::<IndexSet<_>>();
+        self.condition_runtimes
+            .retain(|context_key, _| active_condition_keys.contains(context_key));
+
         context_keys
             .into_iter()
             .map(|context_key| {
@@ -771,6 +871,47 @@ impl ProcessorRuntime {
                 }
             })
             .collect()
+    }
+
+    fn condition_passes(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+        context_key: &ContextKey,
+    ) -> bool {
+        let Some(program) = self.compiled_condition.as_ref().map(Arc::clone) else {
+            return true;
+        };
+        let inputs = LaneConditionInputs {
+            snapshot: ctx.inputs,
+            context_provider,
+            context_key,
+        };
+        let runtime = self
+            .condition_runtimes
+            .entry(context_key.clone())
+            .or_insert_with(|| ConditionRuntime::new(&program));
+        match runtime.evaluate(
+            &program,
+            &ConditionEvaluationFrame {
+                logical_tick: ctx.logical_tick,
+                delta_time: ctx.delta_time,
+                inputs: &inputs,
+            },
+        ) {
+            Ok(result) => result.value,
+            Err(error) => {
+                let message = error.to_string();
+                if !self.diagnostics.iter().any(|diagnostic| diagnostic.message == message) {
+                    self.diagnostics.push(Diagnostic::error(
+                        "condition_evaluation",
+                        message,
+                        DiagnosticOrigin::Runtime,
+                    ));
+                }
+                false
+            }
+        }
     }
 
     fn resolve_property_frame(

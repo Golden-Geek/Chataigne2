@@ -15,18 +15,23 @@ the contributor-facing companion for day-to-day placement decisions.
 - `golden_graph` owns app-agnostic typed graph documents, transactions, validation contracts, and
   traversal; `golden_graph_ui` owns the reusable canvas, slots, wires, selection, and viewport
   interaction.
+- `golden_statechart` owns the canonical graph-backed statechart document and runtime;
+  `golden_statechart_ui` owns its app-agnostic canvas projection.
+- `golden_condition` owns condition authoring contracts, compilation, dense runtime state,
+  migration, and the input/script host interfaces.
 - `apps/chataigne/alchemist` owns Chataigne Formula typing, compilation, runtime, built-in ANodes,
-  serialization, and domain adapters over `golden_graph`.
-- `apps/chataigne/state_machine` owns Chataigne value types, Processor behavior, arbitration, protocol DTOs,
-  and Processor integration.
+  serialization, and its domain over `golden_graph`.
+- `apps/chataigne/processor` owns Chataigne Processor instances, formula selection, property
+  overrides, context/multiplex lanes, lifecycle, `ValueSet`, and managed pipeline behavior.
+- `apps/chataigne/state_machine` composes statecharts and processors and owns arbitration and
+  protocol DTOs; it re-exports the processor package instead of implementing Processor behavior.
 - `apps/chataigne/ui/src/lib/state_machine` owns State Machine panel composition and Chataigne DTO adapters.
 
-Alchemist Formula authoring uses the same boundary as every other node tree.
-Formula, ANode, socket, connection, and configuration parameter nodes are
-canonical Golden Core hierarchy objects. The graph editor only projects those
-nodes and sends standard edit intents. `chataigne_alchemist` receives a
-transient graph for typing, compilation, and execution; it does not define a
-parallel Formula persistence document.
+Alchemist Formula authoring is a typed `golden_graph` document. The app's
+Formula, ANode, socket, connection, and configuration nodes materialize that
+document through one revisioned transaction, while the graph editor only
+projects the document and sends standard edit intents. Formula persistence uses
+the versioned Alchemist graph envelope.
 
 Reusable Formula assets use Golden Core sparse subtree persistence. A
 `.formula` file is a rooted Formula node hierarchy, not an app-specific graph
@@ -55,12 +60,17 @@ Filters, and Commands. Managed regions are real backend-owned child folders on
 the processor node; the UI projects those folders and sends normal node edit
 intents instead of owning a parallel frontend graph model.
 
-Managed surfaces share the same filter-capable ANode pipeline. Conditions are
-ordinary filters through the reusable `ConditionGate` ANode, not a separate
-condition subsystem. `ValueSet` is the Chataigne collection boundary for
-multi-lane values. Elementwise filters run per stable lane, aggregate and
-projection filters are explicit, and runtime outputs become `chataigne.command`
-intents at the managed command/output boundary.
+Managed surfaces share the same filter-capable ANode pipeline. Authored
+condition managers compile once into `golden_condition` instructions and
+compile-time parameter bindings; each Processor lane owns only dense migrated
+condition state. Runtime evaluation does not traverse authored condition
+nodes. `ValueSet` is the Chataigne collection boundary for multi-lane values.
+Elementwise filters run per stable lane, aggregate and projection filters are
+explicit, and runtime outputs become `chataigne.command` intents at the managed
+command/output boundary.
+
+See [statecharts-conditions-processors.md](architecture/statecharts-conditions-processors.md) for
+the Phase 5 ownership, execution, and scaling boundaries.
 
 See [ALCHEMIST_FORMULA_RUNTIME.md](ALCHEMIST_FORMULA_RUNTIME.md) for the
 runtime contract, diagnostics, lane-memory strategy, and final managed

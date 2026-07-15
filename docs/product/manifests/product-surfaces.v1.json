@@ -63,7 +63,7 @@
       "sources": [
         {
           "line": 134,
-          "path": "apps/chataigne/state_machine/src/alchemist.rs"
+          "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
     },
@@ -82,7 +82,7 @@
       "sources": [
         {
           "line": 135,
-          "path": "apps/chataigne/state_machine/src/alchemist.rs"
+          "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
     },
@@ -101,7 +101,7 @@
       "sources": [
         {
           "line": 136,
-          "path": "apps/chataigne/state_machine/src/alchemist.rs"
+          "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
     },
@@ -120,7 +120,7 @@
       "sources": [
         {
           "line": 137,
-          "path": "apps/chataigne/state_machine/src/alchemist.rs"
+          "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
     },
@@ -139,7 +139,7 @@
       "sources": [
         {
           "line": 138,
-          "path": "apps/chataigne/state_machine/src/alchemist.rs"
+          "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
     },
@@ -216,7 +216,7 @@
         },
         {
           "line": 369,
-          "path": "apps/chataigne/state_machine/src/value_set_pipeline.rs"
+          "path": "apps/chataigne/processor/src/value_set_pipeline.rs"
         }
       ]
     },
@@ -347,7 +347,7 @@
         },
         {
           "line": 57,
-          "path": "apps/chataigne/state_machine/src/value_set_pipeline.rs"
+          "path": "apps/chataigne/processor/src/value_set_pipeline.rs"
         }
       ]
     },
@@ -604,11 +604,11 @@
         },
         {
           "line": 50,
-          "path": "apps/chataigne/state_machine/src/value_set_pipeline.rs"
+          "path": "apps/chataigne/processor/src/value_set_pipeline.rs"
         },
         {
           "line": 287,
-          "path": "apps/chataigne/state_machine/src/value_set_pipeline.rs"
+          "path": "apps/chataigne/processor/src/value_set_pipeline.rs"
         }
       ]
     },
@@ -1640,7 +1640,7 @@
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
-          "line": 900,
+          "line": 906,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/StateMachinePanel.svelte"
         },
         {
@@ -1676,7 +1676,7 @@
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
         {
-          "line": 905,
+          "line": 911,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/StateMachinePanel.svelte"
         },
         {
@@ -5254,7 +5254,7 @@
       "name": "sm_condition_group",
       "sources": [
         {
-          "line": 226,
+          "line": 241,
           "path": "apps/chataigne/src/state_machine_nodes/conditions.rs"
         }
       ]
@@ -5335,7 +5335,7 @@
       "name": "sm_input_node_condition",
       "sources": [
         {
-          "line": 137,
+          "line": 129,
           "path": "apps/chataigne/src/state_machine_nodes/conditions.rs"
         }
       ]
@@ -5373,7 +5373,7 @@
       "name": "sm_input_value_condition",
       "sources": [
         {
-          "line": 33,
+          "line": 29,
           "path": "apps/chataigne/src/state_machine_nodes/conditions.rs"
         },
         {
@@ -5507,7 +5507,7 @@
       "name": "sm_script_condition",
       "sources": [
         {
-          "line": 197,
+          "line": 215,
           "path": "apps/chataigne/src/state_machine_nodes/conditions.rs"
         }
       ]
@@ -5719,11 +5719,11 @@
       "name": "state_machine_manager",
       "sources": [
         {
-          "line": 931,
+          "line": 938,
           "path": "apps/chataigne/src/state_machine_nodes/manager.rs"
         },
         {
-          "line": 937,
+          "line": 944,
           "path": "apps/chataigne/src/state_machine_nodes/manager.rs"
         }
       ]

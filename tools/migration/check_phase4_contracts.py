@@ -108,7 +108,7 @@ def authoring_model_violations(root: Path) -> list[Violation]:
     if "AlchemistGraphAdapter" in pipeline_source:
         violations.append(Violation(pipeline, "managed filter lowering still uses the legacy graph adapter"))
 
-    value_set_pipeline = root / "apps/chataigne/state_machine/src/value_set_pipeline.rs"
+    value_set_pipeline = root / "apps/chataigne/processor/src/value_set_pipeline.rs"
     value_set_source = value_set_pipeline.read_text(encoding="utf-8")
     if "AlchemistGraphTransaction::for_document" not in value_set_source:
         violations.append(Violation(value_set_pipeline, "ValueSet pipeline builders bypass typed transactions"))

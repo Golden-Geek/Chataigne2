@@ -20,6 +20,8 @@ Start here:
   the governed production adapters that remain authoritative during later cutovers.
 - [Phase 4 cutover dashboard](manifests/phase4-cutovers.v1.json) records the Chataigne Alchemist
   ownership and package relocation.
+- [Phase 5 cutover dashboard](manifests/phase5-cutovers.v1.json) records the statechart, compiled
+  condition, context/lane, Processor ownership, and product-composition cutovers.
 - [Architecture decisions](../architecture/decisions/README.md) record the Phase 0 decisions that
   constrain implementation.
 - [Final architecture and migration plan](../Golden_Architecture_Final_Plan.md) remains the complete

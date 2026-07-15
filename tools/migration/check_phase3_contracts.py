@@ -155,7 +155,7 @@ def foundation_violations(root: Path) -> list[Violation]:
         violations.append(Violation(statechart_manifest, "statecharts do not consume golden_graph"))
     statechart_domain = root / "crates/golden_statechart/src/domain.rs"
     statechart_domain_source = statechart_domain.read_text(encoding="utf-8")
-    for contract in ("StatechartGraphDomain", "StatechartGraphDocument", "StatechartGraphAdapter"):
+    for contract in ("StatechartGraphDomain", "StatechartGraphDocument"):
         if contract not in statechart_domain_source:
             violations.append(Violation(statechart_domain, f"statechart graph adaptation lacks {contract}"))
     statechart_lib = root / "crates/golden_statechart/src/lib.rs"

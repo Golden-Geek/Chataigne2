@@ -11,7 +11,7 @@ use golden_graph::{
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum TestGraphError {
+pub enum TestGraphError {
     #[error("node {0} is duplicated")]
     DuplicateNode(ANodeId),
     #[error("node {0} is missing")]
@@ -21,14 +21,14 @@ pub(crate) enum TestGraphError {
 }
 
 /// Test-only semantic fixture. Runtime code consumes typed documents exclusively.
-pub(crate) struct TestGraph {
+pub struct TestGraph {
     id: AlchemistGraphId,
     nodes: IndexMap<ANodeId, ANodeInstance>,
     edges: Vec<AEdge>,
 }
 
 impl TestGraph {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             id: AlchemistGraphId::new(),
             nodes: IndexMap::new(),
@@ -36,7 +36,7 @@ impl TestGraph {
         }
     }
 
-    pub(crate) fn add_node(&mut self, node: ANodeInstance) -> Result<ANodeId, TestGraphError> {
+    pub fn add_node(&mut self, node: ANodeInstance) -> Result<ANodeId, TestGraphError> {
         if self.nodes.contains_key(&node.id) {
             return Err(TestGraphError::DuplicateNode(node.id));
         }
@@ -45,7 +45,7 @@ impl TestGraph {
         Ok(id)
     }
 
-    pub(crate) fn connect(&mut self, from: OutputSocketRef, to: InputSocketRef) -> Result<(), TestGraphError> {
+    pub fn connect(&mut self, from: OutputSocketRef, to: InputSocketRef) -> Result<(), TestGraphError> {
         if !self.nodes.contains_key(&from.node) {
             return Err(TestGraphError::MissingNode(from.node));
         }
@@ -59,7 +59,7 @@ impl TestGraph {
         Ok(())
     }
 
-    pub(crate) fn to_document(&self) -> Result<AlchemistGraphDocument, golden_graph::GraphPersistenceError> {
+    pub fn to_document(&self) -> Result<AlchemistGraphDocument, golden_graph::GraphPersistenceError> {
         let graph_id = GraphId::from_uuid(self.id.as_uuid());
         let mut nodes = IndexMap::with_capacity(self.nodes.len());
         let mut presentation = GraphPresentation::default();

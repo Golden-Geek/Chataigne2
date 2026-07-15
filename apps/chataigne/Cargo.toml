@@ -26,6 +26,7 @@ elgato-streamdeck = { version = "0.13", optional = true }
 futures-util = "0.3"
 golden_core = { path = "../../crates/core_facade" }
 chataigne_alchemist.workspace = true
+golden_condition.workspace = true
 golden_values.workspace = true
 gilrs = "0.11.1"
 if-addrs = "0.15.0"

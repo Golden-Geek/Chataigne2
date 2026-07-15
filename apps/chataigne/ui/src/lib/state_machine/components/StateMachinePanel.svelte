@@ -11,7 +11,11 @@
 		type GraphNodeResize,
 		type GraphNodeSize
 	} from 'golden_graph_ui';
-	import { LegacyGraphDocumentAdapter } from '../../graph/legacyGraphDocumentAdapter';
+	import {
+		STATECHART_INCOMING_PORT_ID,
+		STATECHART_OUTGOING_PORT_ID,
+		StatechartDocumentView
+	} from 'golden_statechart_ui';
 	import {
 		ContextMenu,
 		buildCreatableItemMenu,
@@ -49,8 +53,8 @@
 	const TRANSITIONS_DECL_ID = 'transitions';
 	const TRANSITION_TARGET_DECL_ID = 'target';
 	const TRANSITION_NODE_TYPE = 'state_transition';
-	const TRANSITION_INPUT_SOCKET_ID = 'transition-input';
-	const TRANSITION_OUTPUT_SOCKET_ID = 'transition-output';
+	const TRANSITION_INPUT_SOCKET_ID = STATECHART_INCOMING_PORT_ID;
+	const TRANSITION_OUTPUT_SOCKET_ID = STATECHART_OUTGOING_PORT_ID;
 	const PROCESSOR_ITEM_KIND = 'state_processor';
 	const PROCESSOR_FOLDER_NODE_TYPE = 'state_processor_folder';
 	const DEFAULT_STATE_WIDTH_REM = 13;
@@ -394,8 +398,10 @@
 			});
 		});
 	});
-	const graphDocumentAdapter = new LegacyGraphDocumentAdapter();
-	let graphDocument = $derived(graphDocumentAdapter.update(graphNodes, graphEdges));
+	const statechartDocumentView = new StatechartDocumentView();
+	let graphDocument = $derived(
+		statechartDocumentView.update({ states: graphNodes, transitions: graphEdges })
+	);
 	let transitionNodeIds = $derived(
 		new Set(
 			graphEdges.flatMap((edge) => {

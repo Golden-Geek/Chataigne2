@@ -1538,6 +1538,14 @@ Exit:
 - `P50-L1` and `P5-L127` can be created, run, observed, and manipulated from the actual UI;
 - no module, dashboard, script, or persistence regression is present.
 
+Implementation record (2026-07-15): complete. Statecharts own the canonical Golden graph document;
+conditions compile to flat instructions, direct input bindings, observations, and dense per-lane
+state; Processor/context/ValueSet ownership lives in `chataigne_processor`; Action and Mapping use
+that single composition path; and the former statechart adapter and editable-tree condition runtime
+are removed. P50-L1 and P5-L127 are covered in both Processor runtime and UI projection fixtures.
+The Win-x64 product checkpoint, including the mounted real-app state-machine workflow, OSC
+loopback, save/reload, and local/LAN browser workflows, is recorded in the Phase 5 cutover manifest.
+
 **Supercommits:** statechart authoring/UI, conditions, contexts/processors, product composition, then cutover/removal.
 
 ### Phase 6 — Replace the runtime center behind the continuously working app

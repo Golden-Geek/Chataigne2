@@ -1,0 +1,27 @@
+{
+  "name": "golden_statechart_ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "svelte": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "svelte": "./index.ts",
+      "default": "./index.ts"
+    }
+  },
+  "dependencies": {
+    "golden_graph_ui": "*"
+  },
+  "peerDependencies": {
+    "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "vitest": "4.1.10"
+  }
+}

@@ -813,6 +813,12 @@ Invoke-GateCommand `
     -Executable "python" `
     -Arguments @("tools/migration/check_phase4_contracts.py") `
     -DependsOn @("architecture.phase3_contracts") | Out-Null
+Invoke-GateCommand `
+    -Id "architecture.phase5_contracts" `
+    -Name "Phase 5 statechart, condition, context, and processor contracts" `
+    -Executable "python" `
+    -Arguments @("tools/migration/check_phase5_contracts.py") `
+    -DependsOn @("architecture.phase4_contracts") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `
@@ -858,7 +864,7 @@ Invoke-GateCommand `
     -Name "Svelte unit tests" `
     -Executable $npmExecutable `
     -Arguments @("run", "test") `
-    -WorkingDirectory $uiDirectory `
+    -WorkingDirectory $RepositoryRoot `
     -DependsOn @("ui.build") | Out-Null
 
 Invoke-HookResult `

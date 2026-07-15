@@ -5,8 +5,8 @@ mod ids;
 mod model;
 
 pub use domain::{
-    StatechartEdgeData, StatechartGraphAdapter, StatechartGraphAdapterError, StatechartGraphData,
-    StatechartGraphDocument, StatechartGraphDomain, StatechartGraphEnvelope, StatechartNodeData, StatechartPortData,
+    StatechartEdgeData, StatechartGraphData, StatechartGraphDocument, StatechartGraphDomain, StatechartGraphEnvelope,
+    StatechartGraphTransaction, StatechartGraphTransactionError, StatechartNodeData, StatechartPortData,
 };
 pub use ids::{RegionId, StateId, StatechartId, TransitionId};
 pub use model::{

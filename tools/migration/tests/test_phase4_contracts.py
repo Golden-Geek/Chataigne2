@@ -20,9 +20,11 @@ class Phase4ContractTests(unittest.TestCase):
             root = Path(directory)
             alchemist = root / "apps/chataigne/alchemist/src"
             app = root / "apps/chataigne/src/state_machine_nodes"
+            processor = root / "apps/chataigne/processor/src"
             state_machine = root / "apps/chataigne/state_machine/src"
             alchemist.mkdir(parents=True)
             app.mkdir(parents=True)
+            processor.mkdir(parents=True)
             state_machine.mkdir(parents=True)
             (alchemist / "formula.rs").write_text("pub graph: AlchemistGraph,\n", encoding="utf-8")
             (alchemist / "domain.rs").write_text(
@@ -50,7 +52,7 @@ class Phase4ContractTests(unittest.TestCase):
                 "pub graph: AlchemistGraph\nfn lower() { AlchemistGraphAdapter::to_legacy(); }\n",
                 encoding="utf-8",
             )
-            (state_machine / "value_set_pipeline.rs").write_text(
+            (processor / "value_set_pipeline.rs").write_text(
                 "fn lower() { AlchemistGraphAdapter::to_document(); }\n",
                 encoding="utf-8",
             )

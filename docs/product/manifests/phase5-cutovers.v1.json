@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "phase": 5,
+  "revision": 2,
+  "tested_tree_base": "437d61e93b2acffc8e72a897bc9ce73a9edc2bde",
+  "validation_state": "CHECKPOINT_RUNNABLE",
+  "product_gate": "PASS: Win-x64 local report target/product-gate/20260715T163517Z/product-gate-report.json (33/33 required checks passed; 7 non-required platform/manual checks NOT_RUN)",
+  "cutovers": [
+    {
+      "cutover_id": "statechart_graph_document",
+      "state": "cut_over",
+      "owner": "crates/golden_statechart",
+      "evidence": [
+        "Statechart owns StatechartGraphDocument as its only identity, topology, presentation, revision, and runtime-state document",
+        "all statechart edits use GraphTransaction",
+        "cargo test -p golden_statechart",
+        "tools/migration/check_phase5_contracts.py"
+      ]
+    },
+    {
+      "cutover_id": "statechart_ui_document",
+      "state": "cut_over",
+      "owner": "packages/golden-statechart-ui and apps/chataigne/ui",
+      "evidence": [
+        "StateMachinePanel uses StatechartDocumentView",
+        "statechart UI no longer imports LegacyGraphDocumentAdapter",
+        "npm test",
+        "mounted real-app UI workflow"
+      ]
+    },
+    {
+      "cutover_id": "compiled_condition_runtime",
+      "state": "cut_over",
+      "owner": "crates/condition and apps/chataigne",
+      "evidence": [
+        "Input Value, Input Node, Group, and Script authoring compile to flat instructions and dense migratable state",
+        "the app compiler emits direct parameter bindings and per-lane current/settled runtimes",
+        "cargo test -p golden_condition",
+        "compiled_shadow_semantics_match_the_reference_comparators_without_effects"
+      ]
+    },
+    {
+      "cutover_id": "processor_ownership",
+      "state": "relocated",
+      "owner": "apps/chataigne/processor",
+      "evidence": [
+        "Processor, InputSet, OutputSet, ValueSet, managed formula, and pipeline implementations moved to chataigne_processor",
+        "chataigne_state_machine re-exports the processor package",
+        "cargo test -p chataigne_processor",
+        "cargo test -p chataigne_state_machine"
+      ]
+    },
+    {
+      "cutover_id": "context_lane_runtime",
+      "state": "cut_over",
+      "owner": "apps/chataigne/processor",
+      "evidence": [
+        "execution plans combine inherited input, property, and output axes",
+        "stable ContextKey lane memory migrates across context changes",
+        "phase5_p50_l1_checkpoint_shares_one_compiled_kernel",
+        "phase5_p5_l127_checkpoint_preserves_sparse_lane_state",
+        "UI Phase 5 processor preview checkpoint tests"
+      ]
+    },
+    {
+      "cutover_id": "action_mapping_composition",
+      "state": "cut_over",
+      "owner": "apps/chataigne/builtin_formulas and apps/chataigne/processor",
+      "evidence": [
+        "the shipped catalog is exactly Action.json and Mapping.json",
+        "both formulas use the single Processor, condition, ValueSet, and output-intent path",
+        "catalog and default-project tests",
+        "mounted real-app UI formula and state-machine interaction"
+      ]
+    },
+    {
+      "cutover_id": "legacy_statechart_condition_runtime_removed",
+      "state": "removed",
+      "owner": "crates/golden_statechart and apps/chataigne",
+      "evidence": [
+        "StatechartGraphAdapter is deleted",
+        "condition_group_valid and input_value_condition_valid are deleted",
+        "lane inspectors consume compiled observations instead of re-evaluating authored conditions",
+        "tools/migration/check_phase5_contracts.py"
+      ]
+    }
+  ],
+  "temporary_adapters": []
+}

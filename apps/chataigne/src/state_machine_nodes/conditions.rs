@@ -25,11 +25,7 @@ macro_rules! leaf_condition_init {
 
 // ─── InputValueCondition ─────────────────────────────────────────────────────
 
-/// Legacy condition wrapper retained for tree/UI persistence.
-///
-/// Runtime typing, projections, comparator choices, and reference visibility
-/// must be supplied by that ANode declaration and lowering path. A Processor
-/// must not interpret this node directly.
+/// Authored Input Value condition lowered once into the compiled condition IR.
 #[node("sm_input_value_condition", label = "Input Value")]
 #[children(
     valid: bool = false (
@@ -129,11 +125,7 @@ impl Node for InputValueCondition {
 
 // ─── InputNodeCondition ──────────────────────────────────────────────────────
 
-/// Legacy condition wrapper retained for tree/UI persistence.
-///
-/// Runtime endpoint lookup and comparison behavior must be supplied by a
-/// managed condition ANode and lowering path. A Processor must not interpret
-/// this node directly.
+/// Authored Input Node condition lowered once into the compiled condition IR.
 #[node("sm_input_node_condition", label = "Input Node")]
 #[children(
     toggle_mode: bool = false (
@@ -165,9 +157,21 @@ impl Node for InputValueCondition {
             "is_true",
             "is_false",
             "contains",
+            "does_not_contain",
             "starts_with",
             "ends_with",
-            "value_changed"
+            "regex_match",
+            "value_changed",
+            "magnitude_greater_than",
+            "magnitude_less_than",
+            "speed_greater_than",
+            "speed_less_than",
+            "abs_speed_greater_than",
+            "abs_speed_less_than",
+            "luminance_greater_than",
+            "luminance_less_than",
+            "alpha_greater_than",
+            "alpha_less_than"
         ]
     );
     reference: f64 = 0.0 (
@@ -180,6 +184,22 @@ impl Node for InputValueCondition {
         label = "Reference (String)",
         show_in_inspector_content = false
     );
+    reference_bool: bool = true (
+        label = "Reference (Boolean)",
+        show_in_inspector_content = false
+    );
+    reference_vec2: ParamValue = ParamValue::Vec2(0.0, 0.0) (
+        label = "Reference (Vec2)",
+        show_in_inspector_content = false
+    );
+    reference_vec3: ParamValue = ParamValue::Vec3(0.0, 0.0, 0.0) (
+        label = "Reference (Vec3)",
+        show_in_inspector_content = false
+    );
+    reference_color: ParamValue = ParamValue::Color(0.0, 0.0, 0.0, 1.0) (
+        label = "Reference (Color)",
+        show_in_inspector_content = false
+    );
 )]
 pub struct InputNodeCondition {}
 
@@ -190,10 +210,8 @@ impl Node for InputNodeCondition {
 
 // ─── ScriptCondition ─────────────────────────────────────────────────────────
 
-/// Legacy script-condition wrapper retained for tree/UI persistence.
-///
-/// Script execution must happen behind a managed condition ANode or host
-/// scripting boundary. A Processor must not interpret this node directly.
+/// Authored Script condition lowered into the compiled condition IR and
+/// evaluated through the condition runtime's script-host contract.
 #[node("sm_script_condition", label = "Script")]
 #[children(
     toggle_mode: bool = false (
@@ -219,10 +237,7 @@ impl Node for ScriptCondition {
 
 // ─── ConditionGroup ──────────────────────────────────────────────────────────
 
-/// Legacy condition-group wrapper retained for tree/UI persistence.
-///
-/// Runtime reduction behavior must be supplied by a managed condition ANode and
-/// lowering path. This wrapper only owns authored child organization.
+/// Authored condition group lowered once into the compiled condition IR.
 #[node("sm_condition_group", label = "Condition Group")]
 #[children(
     toggle_mode: bool = false (

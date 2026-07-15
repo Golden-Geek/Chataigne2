@@ -17,6 +17,7 @@ dependencies = [
  "futures-util",
  "gilrs",
  "golden_codegen_support",
+ "golden_condition",
  "golden_core",
  "golden_values",
  "if-addrs",
@@ -952,10 +953,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "chataigne_processor"
+version = "0.1.0"
+dependencies = [
+ "chataigne_alchemist",
+ "golden_condition",
+ "golden_graph",
+ "golden_statechart",
+ "golden_values",
+ "indexmap 2.14.0",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "chataigne_state_machine"
 version = "0.1.0"
 dependencies = [
  "chataigne_alchemist",
+ "chataigne_processor",
  "golden_graph",
  "golden_statechart",
  "golden_values",
@@ -2489,6 +2507,19 @@ dependencies = [
  "golden_protocol",
  "golden_script",
  "ts-rs",
+]
+
+[[package]]
+name = "golden_condition"
+version = "0.1.0"
+dependencies = [
+ "golden_values",
+ "indexmap 2.14.0",
+ "regex",
+ "serde",
+ "sha2",
+ "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]

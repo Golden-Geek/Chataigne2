@@ -26,12 +26,10 @@ use golden_core::{
 };
 
 use super::{
-    collect_processor_lane_inspection, compile_processor_runtime_for_cache_rebuild,
+    collect_processor_lane_parameter_inspection, compile_processor_runtime_for_cache_rebuild,
     condition_manager_edge_previous,
-    condition_manager_value_set, param_alpha, param_luminance, param_magnitude, param_speed,
-    param_values_equal, project_condition_source_value, ConditionReference,
-    merge_output_preview_snapshot, next_input_value_condition_validity,
-    next_input_value_condition_valid_state, output_preview_signature, processor_formula_from_snapshot,
+    condition_manager_value_set,
+    merge_output_preview_snapshot, output_preview_signature, processor_formula_from_snapshot,
     processor_formula_source_ref, processor_override_value, processor_should_evaluate,
     resolve_multiplex_template_value, resolved_output_param_overrides, runtime_invalidation_for_node,
     runtime_output_previews_enabled,
@@ -323,13 +321,11 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     );
 
     let mut parameter_previews = Vec::new();
-    let mut condition_previews = Vec::new();
-    collect_processor_lane_inspection(
+    collect_processor_lane_parameter_inspection(
         &snapshot,
         command_id,
         Some(&right_resolver),
         &mut parameter_previews,
-        &mut condition_previews,
     );
     let preview_by_node = parameter_previews
         .into_iter()
@@ -463,117 +459,7 @@ fn multiplex_index_context_links_resolve_both_index_bases() {
     }
 }
 
-#[test]
-fn input_value_condition_toggle_uses_inner_invalid_to_valid_edge() {
-    assert!(next_input_value_condition_valid_state(false, false, false, true));
-    assert!(!next_input_value_condition_valid_state(false, true, true, false));
 
-    assert!(next_input_value_condition_valid_state(true, false, false, true));
-    assert!(next_input_value_condition_valid_state(true, true, true, true));
-    assert!(next_input_value_condition_valid_state(true, true, true, false));
-    assert!(!next_input_value_condition_valid_state(true, true, false, true));
-}
-
-#[test]
-fn transient_input_value_condition_pulses_then_settles_invalid() {
-    let fired = next_input_value_condition_validity(false, false, false, true, true);
-    assert!(fired.current);
-    assert!(!fired.settled);
-
-    let idle = next_input_value_condition_validity(false, false, false, false, true);
-    assert!(!idle.current);
-    assert!(!idle.settled);
-}
-
-#[test]
-fn transient_input_value_condition_does_not_toggle_valid_state() {
-    let fired = next_input_value_condition_validity(false, true, true, true, true);
-    assert!(fired.current);
-    assert!(!fired.settled);
-
-    let fired_with_toggle_enabled =
-        next_input_value_condition_validity(true, true, true, true, true);
-    assert!(fired_with_toggle_enabled.current);
-    assert!(!fired_with_toggle_enabled.settled);
-}
-
-#[test]
-fn input_value_condition_projects_vector_and_color_components() {
-    assert_eq!(
-        project_condition_source_value(&ParamValue::Vec3(1.0, 2.0, 3.0), "value.x"),
-        Some(ParamValue::Float(1.0))
-    );
-    assert_eq!(
-        project_condition_source_value(&ParamValue::Vec2(1.0, 2.0), "y"),
-        Some(ParamValue::Float(2.0))
-    );
-    assert_eq!(
-        project_condition_source_value(&ParamValue::Color(0.1, 0.2, 0.3, 0.4), "alpha"),
-        Some(ParamValue::Float(0.4))
-    );
-    assert_eq!(
-        project_condition_source_value(&ParamValue::Vec2(1.0, 2.0), "z"),
-        None
-    );
-}
-
-#[test]
-fn input_value_condition_compares_vector_and_color_references() {
-    let reference = ConditionReference {
-        number: 5.0,
-        number_max: 10.0,
-        boolean: true,
-        text: "",
-        vec2: Some((3.0, 4.0)),
-        vec3: Some((1.0, 2.0, 3.0)),
-        color: Some((0.1, 0.2, 0.3, 1.0)),
-    };
-
-    assert!(param_values_equal(&ParamValue::Bool(true), &reference));
-    assert!(!param_values_equal(&ParamValue::Bool(false), &reference));
-    assert!(param_values_equal(&ParamValue::Vec2(3.0, 4.0), &reference));
-    assert!(!param_values_equal(&ParamValue::Vec2(3.0, 5.0), &reference));
-    assert!(param_values_equal(&ParamValue::Vec3(1.0, 2.0, 3.0), &reference));
-    assert!(param_values_equal(
-        &ParamValue::Color(0.1, 0.2, 0.3, 1.0),
-        &reference
-    ));
-}
-
-#[test]
-fn input_value_condition_vector_and_color_numeric_operators() {
-    assert_eq!(param_magnitude(&ParamValue::Vec3(2.0, 3.0, 6.0)), Some(7.0));
-    assert_eq!(param_magnitude(&ParamValue::Float(-2.5)), None);
-    assert_eq!(
-        param_speed(
-            &ParamValue::Float(1.0),
-            &ParamValue::Float(4.0),
-            Duration::from_millis(500),
-        ),
-        Some(6.0)
-    );
-    assert_eq!(
-        param_speed(
-            &ParamValue::Float(4.0),
-            &ParamValue::Float(1.0),
-            Duration::from_millis(500),
-        ),
-        Some(-6.0)
-    );
-    assert_eq!(
-        param_speed(
-            &ParamValue::Vec2(0.0, 0.0),
-            &ParamValue::Vec2(3.0, 4.0),
-            Duration::from_secs(2),
-        ),
-        Some(2.5)
-    );
-    assert_eq!(param_alpha(&ParamValue::Color(0.1, 0.2, 0.3, 0.4)), Some(0.4));
-    assert_eq!(
-        param_luminance(&ParamValue::Color(1.0, 1.0, 1.0, 1.0)),
-        Some(1.0)
-    );
-}
 
 #[test]
 fn condition_manager_value_set_only_fires_transition_edges() {

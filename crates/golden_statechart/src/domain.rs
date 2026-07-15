@@ -2,15 +2,15 @@ use std::collections::BTreeSet;
 
 use golden_graph::{
     ConnectionPolicy, GraphChangeSet, GraphDiagnostic, GraphDocument, GraphDocumentData, GraphDomain, GraphEdge,
-    GraphEdgeId, GraphEnvelope, GraphId, GraphNode, GraphNodeId, GraphPersistenceError, GraphPortId, GraphPresentation,
-    GraphRevision, IncomingConnectionPolicy, NodePresentation, PortDefinition, PortDirection, PortRef, PortSchema,
+    GraphEdgeId, GraphEnvelope, GraphId, GraphNodeId, GraphPortId, GraphPresentation, GraphRevision, GraphTransaction,
+    GraphTransactionError, IncomingConnectionPolicy, PortDefinition, PortDirection, PortRef, PortSchema,
 };
 use indexmap::IndexMap;
 use uuid::Uuid;
 
 use crate::{
     ActiveConfiguration, EnterPolicy, Region, RegionId, STATECHART_SCHEMA_VERSION, StateId, StateKind, StateNode,
-    StateUiLayout, Statechart, StatechartId, Transition, TransitionId,
+    StateUiLayout, StatechartId, TransitionId,
 };
 
 const INCOMING_PORT: Uuid = Uuid::from_u128(0x4edb_9836_556c_5b31_a9ec_d2cb_4b85_f8c2);
@@ -74,12 +74,67 @@ pub struct StatechartEdgeData {
 
 pub type StatechartGraphDocument = GraphDocument<StatechartGraphData, StatechartNodeData, StatechartEdgeData>;
 pub type StatechartGraphEnvelope = GraphEnvelope<StatechartGraphData, StatechartNodeData, StatechartEdgeData>;
+pub type StatechartGraphTransaction = GraphTransaction<StatechartGraphData, StatechartNodeData, StatechartEdgeData>;
+pub type StatechartGraphTransactionError = GraphTransactionError;
+
+#[cfg(feature = "serde")]
+pub(crate) mod document_serde {
+    use golden_graph::GraphEnvelope;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
+
+    use super::{STATECHART_SCHEMA_VERSION, StatechartGraphDocument, StatechartGraphDomain, StatechartGraphEnvelope};
+
+    pub fn serialize<S>(document: &StatechartGraphDocument, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        GraphEnvelope::from_document(StatechartGraphDomain::DOMAIN_ID, STATECHART_SCHEMA_VERSION, document)
+            .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<StatechartGraphDocument, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        StatechartGraphEnvelope::deserialize(deserializer)?
+            .into_document(StatechartGraphDomain::DOMAIN_ID, STATECHART_SCHEMA_VERSION)
+            .map_err(D::Error::custom)
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StatechartGraphDomain;
 
 impl StatechartGraphDomain {
     pub const DOMAIN_ID: &'static str = "golden.statechart";
+
+    #[must_use]
+    pub fn new_document(id: StatechartId, root_region: RegionId) -> StatechartGraphDocument {
+        GraphDocumentData {
+            id: GraphId::from_uuid(id.as_uuid()),
+            revision: GraphRevision::default(),
+            data: StatechartGraphData {
+                schema_version: STATECHART_SCHEMA_VERSION,
+                root_region,
+                regions: IndexMap::from([(
+                    root_region,
+                    Region {
+                        id: root_region,
+                        parent_state: None,
+                        states: Vec::new(),
+                        initial: None,
+                    },
+                )]),
+                active: ActiveConfiguration::default(),
+                next_transition_order: 0,
+            },
+            nodes: IndexMap::new(),
+            edges: IndexMap::new(),
+            presentation: GraphPresentation::default(),
+        }
+        .into_document()
+        .expect("a fresh statechart graph document satisfies structural invariants")
+    }
 
     #[must_use]
     pub const fn node_id(id: StateId) -> GraphNodeId {
@@ -188,151 +243,6 @@ impl GraphDomain for StatechartGraphDomain {
         }
         diagnostics
     }
-}
-
-pub struct StatechartGraphAdapter;
-
-impl StatechartGraphAdapter {
-    pub fn to_document(chart: &Statechart) -> Result<StatechartGraphDocument, StatechartGraphAdapterError> {
-        for (key, region) in &chart.regions {
-            if *key != region.id {
-                return Err(StatechartGraphAdapterError::RegionKeyMismatch {
-                    key: *key,
-                    region: region.id,
-                });
-            }
-        }
-
-        let mut nodes = IndexMap::with_capacity(chart.states.len());
-        let mut presentation = GraphPresentation::default();
-        for (key, state) in &chart.states {
-            if *key != state.id {
-                return Err(StatechartGraphAdapterError::StateKeyMismatch {
-                    key: *key,
-                    state: state.id,
-                });
-            }
-            let id = StatechartGraphDomain::node_id(state.id);
-            nodes.insert(
-                id,
-                GraphNode {
-                    id,
-                    data: StatechartNodeData::from_state(state),
-                },
-            );
-            presentation.nodes.insert(
-                id,
-                NodePresentation {
-                    position: state.ui_layout.position,
-                    size: state.ui_layout.size,
-                    collapsed: false,
-                },
-            );
-        }
-
-        let mut edges = IndexMap::with_capacity(chart.transitions.len());
-        for transition in &chart.transitions {
-            let id = StatechartGraphDomain::edge_id(transition.id);
-            let edge = GraphEdge {
-                id,
-                from: PortRef::new(
-                    StatechartGraphDomain::node_id(transition.source),
-                    StatechartGraphDomain::outgoing_port(),
-                ),
-                to: PortRef::new(
-                    StatechartGraphDomain::node_id(transition.target),
-                    StatechartGraphDomain::incoming_port(),
-                ),
-                data: StatechartEdgeData {
-                    priority: transition.priority,
-                    creation_order: transition.creation_order,
-                },
-            };
-            if edges.insert(id, edge).is_some() {
-                return Err(StatechartGraphAdapterError::DuplicateTransition(transition.id));
-            }
-        }
-
-        let document = GraphDocumentData {
-            id: GraphId::from_uuid(chart.id.as_uuid()),
-            revision: GraphRevision::default(),
-            data: StatechartGraphData {
-                schema_version: chart.schema_version,
-                root_region: chart.root_region,
-                regions: chart.regions.clone(),
-                active: chart.active.clone(),
-                next_transition_order: chart.next_transition_order,
-            },
-            nodes,
-            edges,
-            presentation,
-        }
-        .into_document()?;
-        let diagnostics = StatechartGraphDomain.validate_document(&document);
-        if diagnostics.is_empty() {
-            Ok(document)
-        } else {
-            Err(StatechartGraphAdapterError::InvalidStatechart(diagnostics))
-        }
-    }
-
-    pub fn to_legacy(document: &StatechartGraphDocument) -> Result<Statechart, StatechartGraphAdapterError> {
-        let diagnostics = StatechartGraphDomain.validate_document(document);
-        if !diagnostics.is_empty() {
-            return Err(StatechartGraphAdapterError::InvalidStatechart(diagnostics));
-        }
-
-        let mut states = IndexMap::with_capacity(document.nodes().len());
-        for node in document.nodes() {
-            let id = StatechartGraphDomain::state_id(node.id);
-            let ui_layout =
-                document
-                    .presentation()
-                    .nodes
-                    .get(&node.id)
-                    .map_or_else(StateUiLayout::default, |presentation| StateUiLayout {
-                        position: presentation.position,
-                        size: presentation.size,
-                    });
-            states.insert(id, node.data.clone().into_state(id, ui_layout));
-        }
-
-        let transitions = document
-            .edges()
-            .map(|edge| Transition {
-                id: StatechartGraphDomain::transition_id(edge.id),
-                source: StatechartGraphDomain::state_id(edge.from.node),
-                target: StatechartGraphDomain::state_id(edge.to.node),
-                priority: edge.data.priority,
-                creation_order: edge.data.creation_order,
-            })
-            .collect();
-        let data = document.data();
-        Ok(Statechart {
-            schema_version: data.schema_version,
-            id: StatechartId::from_uuid(document.id().as_uuid()),
-            root_region: data.root_region,
-            regions: data.regions.clone(),
-            states,
-            transitions,
-            active: data.active.clone(),
-            next_transition_order: data.next_transition_order,
-        })
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum StatechartGraphAdapterError {
-    #[error(transparent)]
-    InvalidDocument(#[from] GraphPersistenceError),
-    #[error("state map key `{key}` differs from embedded state id `{state}`")]
-    StateKeyMismatch { key: StateId, state: StateId },
-    #[error("region map key `{key}` differs from embedded region id `{region}`")]
-    RegionKeyMismatch { key: RegionId, region: RegionId },
-    #[error("transition `{0}` is duplicated")]
-    DuplicateTransition(TransitionId),
-    #[error("statechart structure is invalid")]
-    InvalidStatechart(Vec<GraphDiagnostic>),
 }
 
 fn validate_graph_data(graph: &StatechartGraphDocument, diagnostics: &mut Vec<GraphDiagnostic>) {

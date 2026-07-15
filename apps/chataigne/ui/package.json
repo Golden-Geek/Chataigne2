@@ -45,6 +45,7 @@
 		"codemirror": "^6.0.2",
 		"dockview-core": "^7.0.2",
 		"golden_graph_ui": "*",
+		"golden_statechart_ui": "*",
 		"golden_ui": "*"
 	}
 }

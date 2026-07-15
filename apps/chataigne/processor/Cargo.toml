@@ -1,5 +1,5 @@
 [package]
-name = "chataigne_state_machine"
+name = "chataigne_processor"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,19 +7,19 @@ license.workspace = true
 [features]
 default = ["serde"]
 serde = []
+testkit = ["dep:golden_graph"]
 
 [dependencies]
 chataigne_alchemist.workspace = true
-chataigne_processor.workspace = true
+golden_condition.workspace = true
+golden_graph = { workspace = true, optional = true }
 golden_statechart.workspace = true
 golden_values.workspace = true
 indexmap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-ts-rs.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
 golden_graph.workspace = true
-chataigne_processor = { workspace = true, features = ["testkit"] }

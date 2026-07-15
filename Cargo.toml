@@ -2,6 +2,7 @@
 members = [
     "apps/chataigne",
     "apps/chataigne/alchemist",
+    "apps/chataigne/processor",
     "apps/chataigne/state_machine",
     "crates/codegen_support",
     "crates/application",
@@ -9,6 +10,7 @@ members = [
     "crates/core_facade",
     "crates/core_macros",
     "crates/context",
+    "crates/condition",
     "crates/graph",
     "crates/model",
     "crates/parameters",
@@ -33,14 +35,17 @@ repository = "https://github.com/Golden-Geek/Chataigne2"
 
 [workspace.dependencies]
 chataigne_alchemist = { path = "apps/chataigne/alchemist" }
+chataigne_processor = { path = "apps/chataigne/processor" }
 golden_application = { path = "crates/application" }
 golden_context = { path = "crates/context" }
+golden_condition = { path = "crates/condition" }
 golden_graph = { path = "crates/graph" }
 golden_model = { path = "crates/model" }
 golden_parameters = { path = "crates/parameters" }
 golden_statechart = { path = "crates/golden_statechart" }
 golden_values = { path = "crates/values" }
 indexmap = { version = "2", features = ["serde"] }
+regex = "1"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 sha2 = "0.10"

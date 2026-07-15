@@ -3,9 +3,9 @@ use crate::{EnterPolicy, HistoryPolicy, LifecycleEvent, Statechart};
 #[test]
 fn leaf_transition_emits_exit_and_enter() {
     let mut chart = Statechart::new();
-    let first = chart.add_leaf(chart.root_region, "First").unwrap();
-    let second = chart.add_leaf(chart.root_region, "Second").unwrap();
-    chart.set_initial(chart.root_region, first).unwrap();
+    let first = chart.add_leaf(chart.root_region(), "First").unwrap();
+    let second = chart.add_leaf(chart.root_region(), "Second").unwrap();
+    chart.set_initial(chart.root_region(), first).unwrap();
     let transition = chart.add_transition(first, second, 0).unwrap();
     chart.initialize().unwrap();
 
@@ -24,14 +24,14 @@ fn composite_initial_child_is_entered() {
     let mut chart = Statechart::new();
     let (parent, child_region) = chart
         .add_composite(
-            chart.root_region,
+            chart.root_region(),
             "Parent",
             HistoryPolicy::None,
             EnterPolicy::InitialChild,
         )
         .unwrap();
     let child = chart.add_leaf(child_region, "Child").unwrap();
-    chart.set_initial(chart.root_region, parent).unwrap();
+    chart.set_initial(chart.root_region(), parent).unwrap();
     chart.set_initial(child_region, child).unwrap();
 
     let lifecycle = chart.initialize().unwrap();
@@ -40,8 +40,8 @@ fn composite_initial_child_is_entered() {
         lifecycle,
         vec![LifecycleEvent::Enter(parent), LifecycleEvent::Enter(child)]
     );
-    assert!(chart.active.active_scopes.contains(&parent));
-    assert!(chart.active.active_scopes.contains(&child));
+    assert!(chart.active().active_scopes.contains(&parent));
+    assert!(chart.active().active_scopes.contains(&child));
 }
 
 #[test]
@@ -49,15 +49,15 @@ fn deepest_transition_wins_before_priority() {
     let mut chart = Statechart::new();
     let (parent, child_region) = chart
         .add_composite(
-            chart.root_region,
+            chart.root_region(),
             "Parent",
             HistoryPolicy::None,
             EnterPolicy::InitialChild,
         )
         .unwrap();
     let child = chart.add_leaf(child_region, "Child").unwrap();
-    let outer = chart.add_leaf(chart.root_region, "Outer").unwrap();
-    chart.set_initial(chart.root_region, parent).unwrap();
+    let outer = chart.add_leaf(chart.root_region(), "Outer").unwrap();
+    chart.set_initial(chart.root_region(), parent).unwrap();
     chart.set_initial(child_region, child).unwrap();
     let parent_transition = chart.add_transition(parent, outer, 100).unwrap();
     let child_transition = chart.add_transition(child, outer, 0).unwrap();
@@ -74,7 +74,7 @@ fn last_active_child_history_is_restored() {
     let mut chart = Statechart::new();
     let (parent, child_region) = chart
         .add_composite(
-            chart.root_region,
+            chart.root_region(),
             "Parent",
             HistoryPolicy::Shallow,
             EnterPolicy::LastActiveChild,
@@ -82,8 +82,8 @@ fn last_active_child_history_is_restored() {
         .unwrap();
     let first = chart.add_leaf(child_region, "First").unwrap();
     let second = chart.add_leaf(child_region, "Second").unwrap();
-    let outside = chart.add_leaf(chart.root_region, "Outside").unwrap();
-    chart.set_initial(chart.root_region, parent).unwrap();
+    let outside = chart.add_leaf(chart.root_region(), "Outside").unwrap();
+    chart.set_initial(chart.root_region(), parent).unwrap();
     chart.set_initial(child_region, first).unwrap();
     let to_second = chart.add_transition(first, second, 0).unwrap();
     let leave = chart.add_transition(parent, outside, 0).unwrap();
@@ -93,5 +93,5 @@ fn last_active_child_history_is_restored() {
     chart.step(|transition| transition.id == leave).unwrap();
     chart.step(|transition| transition.id == return_to_parent).unwrap();
 
-    assert!(chart.active.active_scopes.contains(&second));
+    assert!(chart.active().active_scopes.contains(&second));
 }

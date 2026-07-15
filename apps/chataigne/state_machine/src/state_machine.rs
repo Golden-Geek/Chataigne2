@@ -320,7 +320,7 @@ impl ChataigneStateMachineRuntime {
         context_provider: &dyn ProcessorContextProvider,
     ) -> Result<StateMachineTickOutput, golden_statechart::StatechartError> {
         let mut fired_guards = IndexSet::new();
-        let guard_context = GlobalStateMachineContextFrame::from_tick(ctx, &machine.chart.active.active_scopes);
+        let guard_context = GlobalStateMachineContextFrame::from_tick(ctx, &machine.chart.active().active_scopes);
         for runtime in self.transition_runtimes.values_mut() {
             if runtime.evaluate_guard(ctx, &guard_context) {
                 fired_guards.insert(runtime.transition_id);
@@ -338,7 +338,7 @@ impl ChataigneStateMachineRuntime {
         if let Some(outcome) = &transition {
             self.apply_lifecycle(machine, &outcome.lifecycle);
             self.rebuild_execution_matrix(machine);
-            let effect_context = GlobalStateMachineContextFrame::from_tick(ctx, &machine.chart.active.active_scopes);
+            let effect_context = GlobalStateMachineContextFrame::from_tick(ctx, &machine.chart.active().active_scopes);
             transition_output = self
                 .transition_runtimes
                 .get_mut(&outcome.transition)
@@ -404,7 +404,7 @@ impl ChataigneStateMachineRuntime {
     }
 
     fn rebuild_execution_matrix(&mut self, machine: &ChataigneStateMachine) {
-        self.execution.active_scopes = machine.chart.active.active_scopes.clone();
+        self.execution.active_scopes = machine.chart.active().active_scopes.clone();
         self.execution.active_managers.clear();
         self.execution.active_processors.clear();
         self.execution.processors_by_manager.clear();

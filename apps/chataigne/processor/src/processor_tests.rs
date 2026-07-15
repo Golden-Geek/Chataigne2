@@ -10,6 +10,7 @@ use chataigne_alchemist::{
     RuntimeRegistries, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId,
     SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
+use golden_condition::{ConditionDefinition, ConditionKind, TypedComparator};
 use golden_values::Value as RuntimeValue;
 
 use crate::{
@@ -197,6 +198,53 @@ fn evaluate_default_lane_with_capture(
         runtime.evaluate_processor_with_context_provider_and_capture(processor, ctx, &provider, &capture_all());
     assert_eq!(lanes.len(), 1);
     lanes.remove(0).output
+}
+
+#[test]
+fn compiled_condition_program_gates_processor_without_walking_authoring_nodes() {
+    let formula = formula();
+    let source = StableRef::new(ValueTypeId::new("float"), "module/input");
+    let mut condition = ConditionDefinition::input_value("threshold", source.clone(), RuntimeValue::Float(0.5));
+    let ConditionKind::InputValue(input) = &mut condition.kind else {
+        unreachable!();
+    };
+    input.comparator = TypedComparator::Greater;
+    let mut processor = Processor::from_formula("Processor", &formula);
+    processor.condition = Some(condition);
+    let mut runtime = ProcessorRuntime::new(processor.id);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    assert!(runtime.compile(
+        &processor,
+        &formula,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: Some(&formula.properties),
+        }
+    ));
+    runtime.apply_lifecycle(
+        &processor,
+        ProcessorLifecycleEvent::StateEnter(golden_statechart::StateId::new()),
+    );
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source.clone(), RuntimeValue::Float(0.25));
+    let provider = DefaultProcessorContextProvider;
+    assert!(
+        runtime
+            .evaluate_processor_with_context_provider(&processor, &evaluation_ctx(1, &inputs, &registries), &provider,)
+            .is_empty()
+    );
+
+    inputs.insert(source, RuntimeValue::Float(0.75));
+    assert!(
+        !runtime
+            .evaluate_processor_with_context_provider(&processor, &evaluation_ctx(2, &inputs, &registries), &provider,)
+            .is_empty()
+    );
 }
 
 #[test]
@@ -672,6 +720,69 @@ fn thousand_stateful_processors_allocate_sparse_lanes_only() {
         assert_eq!(lanes.len(), 3);
         assert!(lanes.iter().all(|lane| lane.output.debug_samples.is_empty()));
         assert_eq!(runtime.lanes.memory_count(), 3);
+    }
+}
+
+#[test]
+fn phase5_p50_l1_checkpoint_shares_one_compiled_kernel() {
+    let formula = formula();
+    let (_first_processor, first_runtime) = compile_active_runtime(&formula);
+    let compiled = Arc::clone(first_runtime.compiled.as_ref().unwrap());
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let ctx = evaluation_ctx(1, &inputs, &registries);
+
+    for index in 0..50 {
+        let processor = Processor::from_formula(format!("P50-L1 {index}"), &formula);
+        let mut runtime = ProcessorRuntime::new(processor.id);
+        assert!(runtime.compile_from_shared_formula(&processor, &formula, Arc::clone(&compiled)));
+        runtime.apply_lifecycle(
+            &processor,
+            ProcessorLifecycleEvent::StateEnter(golden_statechart::StateId::new()),
+        );
+        let output = runtime.evaluate_processor(&processor, &ctx);
+        assert!(Arc::ptr_eq(runtime.compiled.as_ref().unwrap(), &compiled));
+        assert!(output.debug_samples.is_empty());
+        assert_eq!(runtime.lanes.memory_count(), 1);
+    }
+}
+
+#[test]
+fn phase5_p5_l127_checkpoint_preserves_sparse_lane_state() {
+    let formula = stateful_formula();
+    let (_first_processor, first_runtime) = compile_active_runtime(&formula);
+    let compiled = Arc::clone(first_runtime.compiled.as_ref().unwrap());
+    let provider = TestContextProvider::new(device_context_keys(127));
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let ctx = evaluation_ctx(1, &inputs, &registries);
+
+    for index in 0..5 {
+        let processor = Processor::from_formula(format!("P5-L127 {index}"), &formula);
+        let mut runtime = ProcessorRuntime::new(processor.id);
+        assert!(runtime.compile_from_shared_formula(&processor, &formula, Arc::clone(&compiled)));
+        runtime.apply_lifecycle(
+            &processor,
+            ProcessorLifecycleEvent::StateEnter(golden_statechart::StateId::new()),
+        );
+        runtime.rebuild_execution_plan(
+            &provider,
+            &ProcessorBindingAnalysis {
+                input_axes: provider.available_axes(processor.id),
+                ..ProcessorBindingAnalysis::default()
+            },
+        );
+
+        let lanes = runtime.evaluate_processor_with_context_provider(&processor, &ctx, &provider);
+        assert_eq!(lanes.len(), 127);
+        assert_eq!(runtime.lanes.memory_count(), 127);
+        assert!(lanes.iter().all(|lane| lane.output.debug_samples.is_empty()));
     }
 }
 
