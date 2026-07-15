@@ -30,7 +30,6 @@ dependencies = [
  "mio",
  "notify",
  "rdev",
- "regex",
  "reqwest",
  "rosc",
  "rumqttc",
@@ -988,10 +987,7 @@ dependencies = [
  "golden_values",
  "indexmap 2.14.0",
  "serde",
- "serde_json",
- "thiserror 2.0.18",
  "ts-rs",
- "uuid",
 ]
 
 [[package]]

@@ -15,10 +15,7 @@ golden_statechart.workspace = true
 golden_values.workspace = true
 indexmap.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
 ts-rs.workspace = true
-uuid.workspace = true
 
 [dev-dependencies]
 golden_graph.workspace = true
