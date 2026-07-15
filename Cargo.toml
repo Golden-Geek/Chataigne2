@@ -19,6 +19,7 @@ members = [
     "crates/host_desktop",
     "crates/persistence",
     "crates/protocol",
+    "crates/runtime",
     "crates/script",
     "crates/transport_server",
     "xtask",
@@ -42,6 +43,7 @@ golden_condition = { path = "crates/condition" }
 golden_graph = { path = "crates/graph" }
 golden_model = { path = "crates/model" }
 golden_parameters = { path = "crates/parameters" }
+golden_runtime = { path = "crates/runtime" }
 golden_statechart = { path = "crates/golden_statechart" }
 golden_values = { path = "crates/values" }
 indexmap = { version = "2", features = ["serde"] }
@@ -54,6 +56,7 @@ smol_str = { version = "0.3", features = ["serde"] }
 thiserror = "2"
 ts-rs = { version = "12", features = ["serde-json-impl", "uuid-impl"] }
 uuid = { version = "1", features = ["serde", "v4"] }
+arc-swap = "1"
 
 [[workspace.metadata.docs.rs]]
 all-features = true

@@ -45,6 +45,20 @@ impl<T: Node> Engine<T> {
     /// | 8. stabilization rounds | inbox, edits.pending | nodes | yes | yes |
     /// | 9. logger sync | logger state | ui_event_log | no | no |
     pub fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
+        self.run_tick_with_compiled_schedule(elapsed, |_, _| {})
+    }
+
+    /// Executes a tick while delegating unique due-node ordering to an immutable compiled
+    /// generation. The public `run_tick` entry point intentionally remains as the rollback path;
+    /// production runtime ownership calls this method with the persistent scheduler.
+    pub(crate) fn run_tick_with_compiled_schedule<F>(
+        &mut self,
+        elapsed: Duration,
+        mut order_due_nodes: F,
+    ) -> Result<(), EngineRuntimeError>
+    where
+        F: FnMut(&[NodeId], &mut Vec<NodeId>),
+    {
         let tick_started = Instant::now();
         self.tick_scratch.clear_stats();
         self.tick_tree_snapshot = None;
@@ -100,7 +114,7 @@ impl<T: Node> Engine<T> {
         let control_ms = control_started.elapsed().as_millis();
 
         let scheduled_started = Instant::now();
-        self.run_scheduled_updates(elapsed)?;
+        self.run_scheduled_updates(elapsed, &mut order_due_nodes)?;
         let scheduled_ms = scheduled_started.elapsed().as_millis();
 
         let stabilization_started = Instant::now();

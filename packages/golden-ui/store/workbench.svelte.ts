@@ -14,6 +14,7 @@ import type {
 	UiClient,
 	UiEditIntent,
 	UiEventBatch,
+	UiRuntimeStats,
 	UiLogRecord,
 	UiAck,
 	UiSnapshot,
@@ -139,6 +140,7 @@ export interface WorkbenchSession {
 	readonly logMaxEntries: number;
 	readonly logUiUpdateHz: number;
 	readonly engineHz: number | null;
+	readonly runtimeStats: UiRuntimeStats | null;
 	readonly engineLowFrequencyHz: number;
 	readonly selectedNodesIds: NodeId[];
 	readonly selectedNodeId: NodeId | null;
@@ -396,6 +398,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	let hasLoadedSnapshot = false;
 	let connectionState: UiTransportConnectionState = 'connecting';
 	let engineHz = $state<number | null>(null);
+	let runtimeStats = $state<UiRuntimeStats | null>(null);
 	const pendingIntentQueue: QueuedIntent[] = [];
 	let intentQueueProcessing = false;
 	// Keep batch payloads bounded while still reducing setParam fan-out.
@@ -794,6 +797,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		const applyStartedAt = nowMs();
 		if (batch.runtime) {
 			engineHz = batch.runtime.engine_hz;
+			runtimeStats = batch.runtime;
 		}
 		const graphEvents = logger.partitionBatchEvents(batch.events);
 		customEvents.applyBatchEvents(graphEvents);
@@ -1235,6 +1239,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 			hasLoadedSnapshot = false;
 			connectionState = 'connecting';
 			engineHz = null;
+			runtimeStats = null;
 			syncConnectionStatus();
 			resetInitialLoading();
 			mountedCleanup = null;
@@ -1264,6 +1269,9 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		},
 		get engineHz(): number | null {
 			return engineHz;
+		},
+		get runtimeStats(): UiRuntimeStats | null {
+			return runtimeStats;
 		},
 		get engineLowFrequencyHz(): number {
 			return engineLowFrequencyFromGraph(graph);

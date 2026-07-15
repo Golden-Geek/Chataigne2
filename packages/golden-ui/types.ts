@@ -524,6 +524,23 @@ export interface UiEventBatch {
 
 export interface UiRuntimeStats {
 	engine_hz: number;
+	generation_id: number;
+	control_queue_depth: number;
+	control_queue_peak: number;
+	control_received: number;
+	control_applied: number;
+	control_rejected: number;
+	control_wait_ns: number;
+	control_apply_ns: number;
+	compilation_applied: number;
+	compilation_rejected: number;
+	sparse_batches: number;
+	dense_batches: number;
+	work_units: number;
+	effects_committed: number;
+	effects_suppressed: number;
+	shadow_comparisons: number;
+	shadow_mismatches: number;
 }
 
 export interface UiAnimationCurveFitPoint {

@@ -116,6 +116,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
     normalize_generated_typescript_binding(out_dir, "UiCreatableUserItemDto");
     normalize_generated_typescript_binding(out_dir, "PresentationHint");
+    normalize_generated_typescript_binding(out_dir, "UiRuntimeStatsDto");
 }
 
 /// Exports Rust-owned generic graph bindings into the graph UI package.

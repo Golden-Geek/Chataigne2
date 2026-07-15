@@ -819,6 +819,12 @@ Invoke-GateCommand `
     -Executable "python" `
     -Arguments @("tools/migration/check_phase5_contracts.py") `
     -DependsOn @("architecture.phase4_contracts") | Out-Null
+Invoke-GateCommand `
+    -Id "architecture.phase6_contracts" `
+    -Name "Phase 6 production runtime-center contracts" `
+    -Executable "python" `
+    -Arguments @("tools/migration/check_phase6_contracts.py") `
+    -DependsOn @("architecture.phase5_contracts") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `
@@ -839,11 +845,23 @@ Invoke-GateCommand `
     -Arguments (@("test", "--workspace") + $cargoFeatureArguments) `
     -DependsOn @("rust.build") | Out-Null
 Invoke-GateCommand `
+    -Id "runtime.phase6_debug_fixtures" `
+    -Name "Phase 6 P50-L1 and P5-L127 debug fixtures" `
+    -Executable "cargo" `
+    -Arguments @("test", "-p", "chataigne_processor", "phase5_p", "--", "--nocapture") `
+    -DependsOn @("rust.build", "architecture.phase6_contracts") | Out-Null
+Invoke-GateCommand `
+    -Id "runtime.phase6_release_fixtures" `
+    -Name "Phase 6 P50-L1 and P5-L127 release fixtures" `
+    -Executable "cargo" `
+    -Arguments @("test", "-p", "chataigne_processor", "--release", "phase5_p", "--", "--nocapture") `
+    -DependsOn @("runtime.phase6_debug_fixtures") | Out-Null
+Invoke-GateCommand `
     -Id "rust.runtime_build" `
     -Name "Final Chataigne runtime build" `
     -Executable "cargo" `
     -Arguments @("build", "-p", "Chataigne2", "--bin", "Chataigne2") `
-    -DependsOn @("rust.format", "rust.clippy", "rust.test") | Out-Null
+    -DependsOn @("rust.format", "rust.clippy", "rust.test", "runtime.phase6_release_fixtures") | Out-Null
 
 Invoke-GateCommand `
     -Id "ui.check" `

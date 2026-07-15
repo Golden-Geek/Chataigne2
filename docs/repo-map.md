@@ -8,6 +8,8 @@ install is required.
 
 - `apps/chataigne/src/`: executable shell and app-owned module tree.
 - `apps/chataigne/state_machine/`: Chataigne Processor/state-machine policy and protocol generation.
+- `apps/chataigne/processor/`: Chataigne-owned Processor, context-lane, `ValueSet`, and managed
+  formula composition.
 - `apps/chataigne/alchemist/`: Chataigne-owned formula domain, ANode catalog, compiler/runtime, and
   graph-domain adapter, published inside the workspace as `chataigne_alchemist`.
 - `apps/chataigne/ui/`: Svelte 5 routes, product panels, stores, branding, and assets.
@@ -19,6 +21,9 @@ install is required.
 ## Shared Rust crates
 
 - `crates/core/`: pure engine/runtime implementation (`golden_engine`).
+- `crates/runtime/`: app-agnostic actor control, immutable generation/compiler, dense input/state,
+  persistent scheduler, deterministic effect, shadow-suppression, and runtime metrics contracts
+  (`golden_runtime`).
 - `crates/core_facade/`: stable `golden_core` facade used by applications.
 - `crates/protocol/`, `crates/persistence/`, `crates/script/`: public protocol, persistence, and
   scripting boundaries.

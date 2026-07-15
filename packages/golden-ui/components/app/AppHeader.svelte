@@ -43,6 +43,21 @@
 		const hz = session.engineHz;
 		return hz === null ? '-- Hz' : `${Math.round(hz)} Hz`;
 	});
+	let engineRateDetail = $derived.by((): string => {
+		const stats = session.runtimeStats;
+		if (!stats) {
+			return 'Runtime metrics unavailable';
+		}
+		const averageQueueMs =
+			stats.control_applied > 0 ? stats.control_wait_ns / stats.control_applied / 1_000_000 : 0;
+		return [
+			`Generation ${stats.generation_id}`,
+			`control queue ${stats.control_queue_depth} (peak ${stats.control_queue_peak}, avg wait ${averageQueueMs.toFixed(2)} ms)`,
+			`batches ${stats.sparse_batches} sparse / ${stats.dense_batches} dense`,
+			`effects ${stats.effects_committed} committed / ${stats.effects_suppressed} shadow-suppressed`,
+			`shadow ${stats.shadow_comparisons} compared / ${stats.shadow_mismatches} mismatched`
+		].join(' · ');
+	});
 
 	const refreshMaximizeState = async (): Promise<void> => {
 		const maximized = await invokeDesktopCommand(
@@ -166,7 +181,7 @@
 		<div class="app-title">
 			<span class="project-title">{projectTitle}</span>
 			<span class="app-title-app">Chataigne 2.0.0</span>
-			<span class="engine-rate {engineRateClass}" title="Engine framerate">
+			<span class="engine-rate {engineRateClass}" title={engineRateDetail}>
 				<span class="engine-rate-dot" aria-hidden="true"></span>
 				<span>{engineRateLabel}</span>
 			</span>

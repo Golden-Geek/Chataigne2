@@ -3,8 +3,76 @@
 /**
  * Runtime timing metrics exposed to the UI.
  */
-export type UiRuntimeStatsDto = { 
+export type UiRuntimeStatsDto = {
 /**
  * Engine ticks completed per second over the latest sampling window.
  */
-engine_hz: number, };
+engine_hz: number,
+/**
+ * Currently published immutable runtime generation.
+ */
+generation_id: number,
+/**
+ * Current actor control queue depth.
+ */
+control_queue_depth: number,
+/**
+ * Peak actor control queue depth since startup.
+ */
+control_queue_peak: number,
+/**
+ * Control operations admitted since startup.
+ */
+control_received: number,
+/**
+ * Control operations applied since startup.
+ */
+control_applied: number,
+/**
+ * Control operations rejected since startup.
+ */
+control_rejected: number,
+/**
+ * Cumulative actor queue wait time in nanoseconds.
+ */
+control_wait_ns: number,
+/**
+ * Cumulative actor application time in nanoseconds.
+ */
+control_apply_ns: number,
+/**
+ * Generations compiled successfully since startup.
+ */
+compilation_applied: number,
+/**
+ * Generation compile failures since startup.
+ */
+compilation_rejected: number,
+/**
+ * Sparse semantic batches completed.
+ */
+sparse_batches: number,
+/**
+ * Dense semantic batches completed.
+ */
+dense_batches: number,
+/**
+ * Compile-assigned work units completed.
+ */
+work_units: number,
+/**
+ * Authoritative external effects committed.
+ */
+effects_committed: number,
+/**
+ * External effects suppressed by safe shadow execution.
+ */
+effects_suppressed: number,
+/**
+ * Authoritative values compared with the side-effect-free runtime plan.
+ */
+shadow_comparisons: number,
+/**
+ * Semantic mismatches found by safe shadow comparison.
+ */
+shadow_mismatches: number, };

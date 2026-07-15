@@ -47,6 +47,11 @@ pub mod app;
 /// Stable application-facing facade contracts and the production engine adapter.
 pub mod application;
 
+mod runtime_center;
+
+#[cfg(test)]
+mod runtime_center_tests;
+
 #[cfg(test)]
 mod application_tests;
 

@@ -1,7 +1,14 @@
 use super::*;
 
 impl<T: Node> Engine<T> {
-    pub(super) fn run_scheduled_updates(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
+    pub(super) fn run_scheduled_updates<F>(
+        &mut self,
+        elapsed: Duration,
+        order_due_nodes: &mut F,
+    ) -> Result<(), EngineRuntimeError>
+    where
+        F: FnMut(&[NodeId], &mut Vec<NodeId>),
+    {
         // Reuse scratch buffer to avoid per-tick Vec allocation.
         let mut due_nodes = std::mem::take(&mut self.tick_scratch.due_nodes);
         self.runtime_schedule.collect_due_nodes_into(
@@ -26,6 +33,42 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
+        // Translate the time-bucket result through the immutable production generation. The
+        // callback returns each due node once in compile-assigned order; catch-up multiplicity is
+        // expanded here so delta-time and callback-budget semantics remain owned by the domain
+        // arena. Scratch maps/vectors are reused to keep the steady-state tick allocation-free.
+        let mut due_counts = std::mem::take(&mut self.tick_scratch.due_counts);
+        for node_id in &due_nodes {
+            *due_counts.entry(*node_id).or_default() += 1;
+        }
+        let mut ordered_due_nodes = std::mem::take(&mut self.tick_scratch.ordered_due_nodes);
+        ordered_due_nodes.clear();
+        order_due_nodes(&due_nodes, &mut ordered_due_nodes);
+
+        let mut seen_by_node = std::mem::take(&mut self.tick_scratch.seen_by_node);
+        let compiled_order_is_complete = ordered_due_nodes.len() == due_counts.len()
+            && ordered_due_nodes
+                .iter()
+                .all(|node_id| due_counts.contains_key(node_id) && seen_by_node.insert(*node_id, 0).is_none());
+        seen_by_node.clear();
+        if !compiled_order_is_complete {
+            ordered_due_nodes.clear();
+            for node_id in &due_nodes {
+                if seen_by_node.insert(*node_id, 0).is_none() {
+                    ordered_due_nodes.push(*node_id);
+                }
+            }
+            seen_by_node.clear();
+        }
+
+        due_nodes.clear();
+        for node_id in &ordered_due_nodes {
+            let occurrences = due_counts.get(node_id).copied().unwrap_or_default();
+            due_nodes.extend(std::iter::repeat_n(*node_id, occurrences));
+        }
+        ordered_due_nodes.clear();
+        self.tick_scratch.ordered_due_nodes = ordered_due_nodes;
+
         let needs_tree_snapshot = due_nodes.iter().any(|node_id| {
             self.nodes
                 .get(*node_id)
@@ -36,13 +79,7 @@ impl<T: Node> Engine<T> {
         let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let mut callback_count = 0usize;
         // Take scratch HashMap buffers to avoid per-tick allocation.
-        let mut due_counts = std::mem::take(&mut self.tick_scratch.due_counts);
         let mut remaining_delta_by_node = std::mem::take(&mut self.tick_scratch.remaining_delta_by_node);
-        let mut seen_by_node = std::mem::take(&mut self.tick_scratch.seen_by_node);
-
-        for node_id in &due_nodes {
-            *due_counts.entry(*node_id).or_default() += 1;
-        }
 
         for node_id in due_counts.keys() {
             let previous = self

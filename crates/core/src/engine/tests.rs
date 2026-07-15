@@ -12101,6 +12101,38 @@ fn run_tick_respects_update_rate_buckets() {
     );
 }
 
+#[test]
+fn production_runtime_orders_due_callbacks_through_compiled_work_and_preserves_catch_up() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("runner", NodeExecutionRule::periodic(2)), None);
+    engine.apply_edits().expect("setup edits should succeed");
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+    let metrics = std::sync::Arc::new(golden_runtime::RuntimeMetrics::default());
+    let (mut runtime, _) = crate::runtime_center::ProductionState::new(engine, metrics.clone())
+        .expect("production runtime should compile its initial schedule");
+
+    runtime
+        .run_tick(Duration::from_millis(1000))
+        .expect("compiled production tick should succeed");
+
+    let runner = runtime.engine.nodes.get(runner).expect("runner should exist");
+    assert_eq!(
+        runner.updates, 2,
+        "the domain arena must preserve bucket catch-up multiplicity"
+    );
+    assert_eq!(runner.delta_times, vec![Duration::from_millis(500); 2]);
+    assert_eq!(
+        metrics.snapshot().work_units,
+        1,
+        "one compile-assigned work unit should order both catch-up callbacks",
+    );
+}
+
 // --- Phase 5: scheduler bucket collection tests ---
 
 #[test]

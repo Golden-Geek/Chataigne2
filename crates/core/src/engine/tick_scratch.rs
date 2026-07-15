@@ -47,6 +47,8 @@ pub struct TickStats {
 pub(crate) struct TickScratch {
     /// Due nodes collected by `collect_due_nodes_into`.
     pub(crate) due_nodes: Vec<NodeId>,
+    /// Unique due nodes reordered by the compile-assigned production schedule.
+    pub(crate) ordered_due_nodes: Vec<NodeId>,
     /// Per-node firing count for the current scheduled-update pass.
     pub(crate) due_counts: HashMap<NodeId, usize>,
     /// Remaining delta tracking for multi-fire nodes within one scheduled pass.
@@ -66,6 +68,7 @@ pub(crate) struct TickScratch {
 impl TickScratch {
     pub(crate) fn clear_scheduled(&mut self) {
         self.due_nodes.clear();
+        self.ordered_due_nodes.clear();
         self.due_counts.clear();
         self.remaining_delta_by_node.clear();
         self.seen_by_node.clear();

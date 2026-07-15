@@ -5,10 +5,11 @@
 //! runtime planes can be selected independently.
 
 use std::convert::Infallible;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use golden_application::{GraphEditing, HostLifecycle, Observation, Persistence, ProjectTransactions, RuntimeValues};
+use golden_runtime::{ControlActor, RuntimeMetrics, RuntimeMetricsSnapshot};
 
 use crate::app::{
     ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime,
@@ -18,7 +19,9 @@ use crate::app::{
 use crate::contexts::UiUserContextCandidatesDto;
 use crate::engine::{Engine, EngineRuntimeError, EngineTime, ProjectLoadRecoveryReport};
 use crate::node::{Node, NodeId};
-use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::parameter::ParamValue;
+pub use crate::runtime_center::ProductionInputPort;
+use crate::runtime_center::ProductionState;
 use crate::script::{ScriptUiConfig, ScriptUiState};
 use crate::ui_read_model::{UiReadModel, UiReadModelReplaceReason};
 use crate::ui_sync::{
@@ -127,14 +130,16 @@ pub struct RuntimeStartRequest {
 }
 
 struct ProductionRuntimeInner<T: ProjectLifecycle> {
-    engine: Mutex<Engine<T>>,
+    control: ControlActor<ProductionState<T>>,
     read_model: Arc<UiReadModel>,
+    input_port: ProductionInputPort,
 }
 
 /// Current production engine connected through stable application-facing operations.
 ///
-/// Clones share one authoritative project and one immutable observation projection. The raw engine
-/// mutex is intentionally private and is never returned to hosts or transports.
+/// Clones share one actor-owned authoritative project and one immutable observation projection.
+/// Hosts and transports can only submit typed operations; no engine lock is exposed or acquired on
+/// their threads.
 pub struct ProductionRuntime<T: ProjectLifecycle> {
     inner: Arc<ProductionRuntimeInner<T>>,
 }
@@ -151,10 +156,16 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Wraps an already-created engine and seeds its immutable observation projection.
     pub fn new(engine: Engine<T>, project_file: UiProjectFileSpec) -> Self {
         let read_model = Arc::new(UiReadModel::from_engine(&engine, project_file));
+        let metrics = Arc::new(RuntimeMetrics::default());
+        let (state, input_port) = ProductionState::new(engine, metrics.clone())
+            .expect("the initial production runtime generation must compile");
+        let control = ControlActor::spawn_with_metrics("golden-control", state, metrics)
+            .expect("the production control-plane actor must start");
         Self {
             inner: Arc::new(ProductionRuntimeInner {
-                engine: Mutex::new(engine),
+                control,
                 read_model,
+                input_port,
             }),
         }
     }
@@ -162,6 +173,21 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Returns the immutable observation projection used by transport read paths.
     pub fn read_model(&self) -> Arc<UiReadModel> {
         self.inner.read_model.clone()
+    }
+
+    /// Returns lock-free control/runtime metrics for diagnostics projection.
+    pub fn runtime_metrics(&self) -> RuntimeMetricsSnapshot {
+        self.inner.control.metrics().snapshot()
+    }
+
+    /// Returns the shared metrics source used by runtime-plane adapters.
+    pub fn runtime_metrics_source(&self) -> Arc<RuntimeMetrics> {
+        self.inner.control.metrics()
+    }
+
+    /// Returns the generation-aware dense input adapter for module and I/O producers.
+    pub fn input_port(&self) -> ProductionInputPort {
+        self.inner.input_port.clone()
     }
 
     /// Applies one UI transaction and publishes its captured observation delta.
@@ -187,70 +213,86 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         ui_client_instance_id: Option<&str>,
         stop_after_failure: bool,
     ) -> AppliedUiTransactionBatch {
-        let lock_started = Instant::now();
-        let mut engine = self.lock_engine();
-        let lock_wait = lock_started.elapsed();
-        let mut failed = false;
-        let mut opened_edit_session: Option<String> = None;
-        let mut pending = Vec::with_capacity(intents.len());
+        let ui_client_instance_id = ui_client_instance_id.map(str::to_owned);
+        let read_model = self.inner.read_model.clone();
+        let receipt = self
+            .inner
+            .control
+            .call(move |state| {
+                let engine = &mut state.engine;
+                let mut failed = false;
+                let mut opened_edit_session: Option<String> = None;
+                let mut pending = Vec::with_capacity(intents.len());
+                let mut runtime_compile_requested = false;
 
-        for intent in intents {
-            let intent_started = Instant::now();
-            let is_matching_end_edit = opened_edit_session.as_ref().is_some_and(
-                |active_id| matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id),
-            );
-            if failed && stop_after_failure && !is_matching_end_edit {
-                pending.push((
-                    skipped_after_failed_batch_ack(&engine),
-                    self.inner
-                        .read_model
-                        .collect_event_batch(&engine, engine.ui_event_log().last().map(|event| event.time)),
-                    ApplicationTransactionTiming {
-                        lock_wait: Duration::ZERO,
-                        total: intent_started.elapsed(),
-                        ..Default::default()
-                    },
-                ));
-                continue;
-            }
+                for intent in intents {
+                    let intent_started = Instant::now();
+                    let requires_runtime_compile = ui_intent_requires_runtime_compile(&intent);
+                    let is_matching_end_edit = opened_edit_session.as_ref().is_some_and(
+                        |active_id| matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id),
+                    );
+                    if failed && stop_after_failure && !is_matching_end_edit {
+                        pending.push((
+                            skipped_after_failed_batch_ack(engine),
+                            read_model.collect_event_batch(
+                                engine,
+                                engine.ui_event_log().last().map(|event| event.time),
+                            ),
+                            ApplicationTransactionTiming {
+                                lock_wait: Duration::ZERO,
+                                total: intent_started.elapsed(),
+                                ..Default::default()
+                            },
+                        ));
+                        continue;
+                    }
 
-            let begin_edit_id = match &intent {
-                UiEditIntent::BeginEdit { client_edit_id, .. } => Some(client_edit_id.clone()),
-                _ => None,
-            };
-            let end_edit_id = match &intent {
-                UiEditIntent::EndEdit { client_edit_id } => Some(client_edit_id.clone()),
-                _ => None,
-            };
+                    let begin_edit_id = match &intent {
+                        UiEditIntent::BeginEdit { client_edit_id, .. } => Some(client_edit_id.clone()),
+                        _ => None,
+                    };
+                    let end_edit_id = match &intent {
+                        UiEditIntent::EndEdit { client_edit_id } => Some(client_edit_id.clone()),
+                        _ => None,
+                    };
 
-            let before_event_time = engine.ui_event_log().last().map(|event| event.time);
-            let apply_started = Instant::now();
-            let acknowledgement = apply_ui_intent_to_engine(&mut engine, intent, ui_client_instance_id);
-            let apply = apply_started.elapsed();
-            let event_collect_started = Instant::now();
-            let capture = self.inner.read_model.collect_event_batch(&engine, before_event_time);
-            let event_collect = event_collect_started.elapsed();
-            if acknowledgement.success {
-                if let Some(client_edit_id) = begin_edit_id {
-                    opened_edit_session = Some(client_edit_id);
+                    let before_event_time = engine.ui_event_log().last().map(|event| event.time);
+                    let apply_started = Instant::now();
+                    let acknowledgement =
+                        apply_ui_intent_to_engine(engine, intent, ui_client_instance_id.as_deref());
+                    let apply = apply_started.elapsed();
+                    let event_collect_started = Instant::now();
+                    let capture = read_model.collect_event_batch(engine, before_event_time);
+                    let event_collect = event_collect_started.elapsed();
+                    if acknowledgement.success {
+                        if let Some(client_edit_id) = begin_edit_id {
+                            opened_edit_session = Some(client_edit_id);
+                        }
+                        if end_edit_id.as_ref() == opened_edit_session.as_ref() {
+                            opened_edit_session = None;
+                        }
+                    }
+                    failed |= !acknowledgement.success;
+                    runtime_compile_requested |= acknowledgement.success && requires_runtime_compile;
+                    pending.push((
+                        acknowledgement,
+                        capture,
+                        ApplicationTransactionTiming {
+                            lock_wait: Duration::ZERO,
+                            apply,
+                            event_collect,
+                            total: intent_started.elapsed(),
+                        },
+                    ));
                 }
-                if end_edit_id.as_ref() == opened_edit_session.as_ref() {
-                    opened_edit_session = None;
+                if runtime_compile_requested {
+                    state.request_compilation("ui.graph");
                 }
-            }
-            failed |= !acknowledgement.success;
-            pending.push((
-                acknowledgement,
-                capture,
-                ApplicationTransactionTiming {
-                    lock_wait: Duration::ZERO,
-                    apply,
-                    event_collect,
-                    total: intent_started.elapsed(),
-                },
-            ));
-        }
-        drop(engine);
+                pending
+            })
+            .expect("production control actor disconnected");
+        let lock_wait = receipt.queue_wait;
+        let pending = receipt.output;
 
         let transactions = pending
             .into_iter()
@@ -279,50 +321,60 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
 
     /// Cancels one client's active edit session and publishes resulting events.
     pub fn cancel_ui_edit_session(&self, ui_client_instance_id: &str) -> UiEventBatch {
-        let mut engine = self.lock_engine();
-        let before = engine.ui_event_log().last().map(|event| event.time);
-        let _ = engine.cancel_active_ui_edit_session_for_client(ui_client_instance_id);
-        let capture = self.inner.read_model.collect_event_batch(&engine, before);
-        drop(engine);
+        let ui_client_instance_id = ui_client_instance_id.to_owned();
+        let read_model = self.inner.read_model.clone();
+        let capture = self.call_engine(move |engine| {
+            let before = engine.ui_event_log().last().map(|event| event.time);
+            let _ = engine.cancel_active_ui_edit_session_for_client(&ui_client_instance_id);
+            read_model.collect_event_batch(engine, before)
+        });
         self.inner.read_model.apply_event_capture(capture)
     }
 
     /// Runs one authoritative engine tick and publishes its observation delta.
     pub fn run_tick(&self, elapsed: Duration) -> Result<ApplicationTickResult, EngineRuntimeError> {
-        let mut engine = self.lock_engine();
-        let before = engine.ui_event_log().last().map(|event| event.time);
-        engine.run_tick(elapsed)?;
-        let capture = self.inner.read_model.collect_event_batch(&engine, before);
-        apply_preferences_runtime_limits(&mut engine);
-        let next_interval = engine.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));
-        drop(engine);
+        let read_model = self.inner.read_model.clone();
+        let (capture, next_interval) = self
+            .inner
+            .control
+            .call(move |state| {
+                let before = state.engine.ui_event_log().last().map(|event| event.time);
+                state.run_tick(elapsed)?;
+                let engine = &mut state.engine;
+                let capture = read_model.collect_event_batch(engine, before);
+                apply_preferences_runtime_limits(engine);
+                let next_interval = engine.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));
+                Ok::<_, EngineRuntimeError>((capture, next_interval))
+            })
+            .expect("production control actor disconnected")
+            .output?;
         let events = self.inner.read_model.apply_event_capture(capture);
         Ok(ApplicationTickResult { events, next_interval })
     }
 
     /// Returns current history state without exposing the live engine.
     pub fn history_state(&self) -> UiHistoryState {
-        self.lock_engine().ui_history_state()
+        self.call_engine(|engine| engine.ui_history_state())
     }
 
     /// Returns reference-picker targets for one parameter.
     pub fn reference_targets(&self, param: NodeId) -> UiReferenceTargetsDto {
-        self.lock_engine().ui_reference_targets_for_param(param)
+        self.call_engine(move |engine| engine.ui_reference_targets_for_param(param))
     }
 
     /// Returns lexical context candidates for one parameter.
     pub fn context_candidates(&self, param: NodeId) -> UiUserContextCandidatesDto {
-        self.lock_engine().ui_context_candidates_for_param(param)
+        self.call_engine(move |engine| engine.ui_context_candidates_for_param(param))
     }
 
     /// Returns control-mode information for one parameter.
     pub fn param_control_info(&self, param: NodeId) -> Result<UiParamControlInfoDto, String> {
-        self.lock_engine().ui_param_control_info(param)
+        self.call_engine(move |engine| engine.ui_param_control_info(param))
     }
 
     /// Returns current script runtime state.
     pub fn script_state(&self, node: NodeId) -> Result<ScriptUiState, String> {
-        self.lock_engine().ui_script_state(node)
+        self.call_engine(move |engine| engine.ui_script_state(node))
     }
 
     /// Replaces script configuration and publishes resulting observation events.
@@ -332,38 +384,43 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         config: ScriptUiConfig,
         force_reload: bool,
     ) -> (Result<(), String>, UiEventBatch) {
-        self.apply_engine_mutation(|engine| engine.ui_set_script_config(node, config, force_reload))
+        self.apply_engine_mutation(move |engine| engine.ui_set_script_config(node, config, force_reload))
     }
 
     /// Requests script reload and publishes resulting observation events.
     pub fn reload_script(&self, node: NodeId) -> (Result<(), String>, UiEventBatch) {
-        self.apply_engine_mutation(|engine| engine.ui_reload_script(node))
+        self.apply_engine_mutation(move |engine| engine.ui_reload_script(node))
     }
 
     /// Applies project-derived runtime limits after preferences change.
     pub fn refresh_runtime_limits(&self) {
-        apply_preferences_runtime_limits(&mut self.lock_engine());
+        self.call_engine(apply_preferences_runtime_limits);
     }
 
     /// Serializes the Preferences subtree through the authoritative sparse codec.
     pub fn encode_preferences(&self) -> Result<Option<String>, String> {
-        to_sparse_preferences_json_pretty(&self.lock_engine()).map_err(|error| error.to_string())
+        self.call_engine(|engine| to_sparse_preferences_json_pretty(engine).map_err(|error| error.to_string()))
     }
 
     /// Serializes the live project through the authoritative sparse codec.
     pub fn encode_project(&self, request: ProjectSaveRequest) -> Result<EncodedProjectDocument, String> {
-        let lock_started = Instant::now();
-        let engine = self.lock_engine();
-        let lock_wait = lock_started.elapsed();
-        let node_count = engine.nodes.iter().count();
-        let serialize_started = Instant::now();
-        let json = to_sparse_project_json_pretty_with_ui_state(&engine, request.ui_state)
+        let receipt = self
+            .inner
+            .control
+            .call(move |state| {
+                let engine = &mut state.engine;
+                let node_count = engine.nodes.iter().count();
+                let serialize_started = Instant::now();
+                let json = to_sparse_project_json_pretty_with_ui_state(engine, request.ui_state)
+                    .map_err(|error| error.to_string())?;
+                Ok::<_, String>((json, node_count, serialize_started.elapsed()))
+            })
             .map_err(|error| error.to_string())?;
-        let serialize = serialize_started.elapsed();
+        let (json, node_count, serialize) = receipt.output?;
         Ok(EncodedProjectDocument {
             json,
             node_count,
-            lock_wait,
+            lock_wait: receipt.queue_wait,
             serialize,
         })
     }
@@ -371,46 +428,48 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Replaces the live project after the caller decodes and configures it.
     pub fn replace_project(&self, request: ProjectReplacement<T>) -> Result<ProjectReplacementResult, String> {
         let started = Instant::now();
-        let node_count = request.engine.nodes.iter().count();
-        let lock_started = Instant::now();
-        let mut engine = self.lock_engine();
-        let lock_wait = lock_started.elapsed();
+        let read_model = self.inner.read_model.clone();
+        let receipt = self
+            .inner
+            .control
+            .call(move |state| {
+                let engine = &mut state.engine;
+                let node_count = request.engine.nodes.iter().count();
+                let shutdown_started = Instant::now();
+                shutdown_engine_for_runtime(engine);
+                let shutdown = shutdown_started.elapsed();
 
-        let shutdown_started = Instant::now();
-        shutdown_engine_for_runtime(&mut engine);
-        let shutdown = shutdown_started.elapsed();
+                let drop_started = Instant::now();
+                let previous = std::mem::replace(engine, request.engine);
+                drop(previous);
+                let drop_previous = drop_started.elapsed();
 
-        let drop_started = Instant::now();
-        let previous = std::mem::replace(&mut *engine, request.engine);
-        drop(previous);
-        let drop_previous = drop_started.elapsed();
-
-        let prepare_started = Instant::now();
-        let recovery = if request.recover {
-            prepare_engine_for_runtime_recovering(&mut engine)
-        } else {
-            prepare_engine_for_runtime(&mut engine).map_err(|error| error.to_string())?;
-            ProjectLoadRecoveryReport::default()
-        };
-        let prepare = prepare_started.elapsed();
-        engine.clear_ui_event_log();
-        engine.push_ui_custom_event(
-            "__transport.resync_required",
-            None,
-            serde_json::json!({ "reason": request.reason }),
-        );
-        self.inner.read_model.replace_from_engine(
-            &engine,
-            request.project_file,
-            UiReadModelReplaceReason::ProjectReplaced,
-        );
-        self.inner.read_model.publish_engine_events_since(&engine, None);
-        drop(engine);
-
+                let prepare_started = Instant::now();
+                let recovery = if request.recover {
+                    prepare_engine_for_runtime_recovering(engine)
+                } else {
+                    prepare_engine_for_runtime(engine).map_err(|error| error.to_string())?;
+                    ProjectLoadRecoveryReport::default()
+                };
+                let prepare = prepare_started.elapsed();
+                state.recompile_blocking("project.replace")?;
+                let engine = &mut state.engine;
+                engine.clear_ui_event_log();
+                engine.push_ui_custom_event(
+                    "__transport.resync_required",
+                    None,
+                    serde_json::json!({ "reason": request.reason }),
+                );
+                read_model.replace_from_engine(engine, request.project_file, UiReadModelReplaceReason::ProjectReplaced);
+                read_model.publish_engine_events_since(engine, None);
+                Ok::<_, String>((recovery, node_count, shutdown, drop_previous, prepare))
+            })
+            .map_err(|error| error.to_string())?;
+        let (recovery, node_count, shutdown, drop_previous, prepare) = receipt.output?;
         Ok(ProjectReplacementResult {
             recovery,
             node_count,
-            lock_wait,
+            lock_wait: receipt.queue_wait,
             shutdown,
             drop_previous,
             prepare,
@@ -423,20 +482,29 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         self.inner.read_model.set_project_file(project_file);
     }
 
-    fn apply_engine_mutation<R>(&self, mutation: impl FnOnce(&mut Engine<T>) -> R) -> (R, UiEventBatch) {
-        let mut engine = self.lock_engine();
-        let before = engine.ui_event_log().last().map(|event| event.time);
-        let result = mutation(&mut engine);
-        let capture = self.inner.read_model.collect_event_batch(&engine, before);
-        drop(engine);
+    fn apply_engine_mutation<R>(&self, mutation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static) -> (R, UiEventBatch)
+    where
+        R: Send + 'static,
+    {
+        let read_model = self.inner.read_model.clone();
+        let (result, capture) = self.call_engine(move |engine| {
+            let before = engine.ui_event_log().last().map(|event| event.time);
+            let result = mutation(engine);
+            let capture = read_model.collect_event_batch(engine, before);
+            (result, capture)
+        });
         (result, self.inner.read_model.apply_event_capture(capture))
     }
 
-    fn lock_engine(&self) -> MutexGuard<'_, Engine<T>> {
+    fn call_engine<R>(&self, operation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static) -> R
+    where
+        R: Send + 'static,
+    {
         self.inner
-            .engine
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .control
+            .call(move |state| operation(&mut state.engine))
+            .expect("production control actor disconnected")
+            .output
     }
 }
 
@@ -475,31 +543,18 @@ impl<T: ProjectLifecycle> RuntimeValues for ProductionRuntime<T> {
     type Error = String;
 
     fn read_value(&self, key: &Self::Key) -> Result<Option<Self::Value>, Self::Error> {
-        Ok(self
-            .lock_engine()
-            .nodes
-            .get(*key)
-            .and_then(Node::engine_param_snapshot)
-            .map(|snapshot| snapshot.value))
+        let key = *key;
+        Ok(self.call_engine(move |engine| {
+            engine
+                .nodes
+                .get(key)
+                .and_then(Node::engine_param_snapshot)
+                .map(|snapshot| snapshot.value)
+        }))
     }
 
-    fn publish_input(&self, key: Self::Key, value: Self::Value, _source_time_ns: u64) -> Result<(), Self::Error> {
-        let result = self.apply_ui_transaction(
-            UiEditIntent::SetParam {
-                node: key,
-                value,
-                behaviour: ParameterEventBehaviour::Append,
-            },
-            None,
-        );
-        if result.acknowledgement.success {
-            Ok(())
-        } else {
-            Err(result
-                .acknowledgement
-                .error_message
-                .unwrap_or_else(|| "runtime input was rejected".to_string()))
-        }
+    fn publish_input(&self, key: Self::Key, value: Self::Value, source_time_ns: u64) -> Result<(), Self::Error> {
+        self.inner.input_port.publish(key, value, source_time_ns)
     }
 }
 
@@ -543,21 +598,40 @@ impl<T: ProjectLifecycle> HostLifecycle for ProductionRuntime<T> {
     type Error = String;
 
     fn start(&self, request: Self::StartRequest) -> Result<Self::StartResult, Self::Error> {
-        let mut engine = self.lock_engine();
-        let recovery = if request.recover {
-            prepare_engine_for_runtime_recovering(&mut engine)
-        } else {
-            prepare_engine_for_runtime(&mut engine).map_err(|error| error.to_string())?;
-            ProjectLoadRecoveryReport::default()
-        };
-        apply_preferences_runtime_limits(&mut engine);
-        Ok(recovery)
+        self.inner
+            .control
+            .call(move |state| {
+                let recovery = if request.recover {
+                    prepare_engine_for_runtime_recovering(&mut state.engine)
+                } else {
+                    prepare_engine_for_runtime(&mut state.engine).map_err(|error| error.to_string())?;
+                    ProjectLoadRecoveryReport::default()
+                };
+                apply_preferences_runtime_limits(&mut state.engine);
+                state.recompile_blocking("runtime.start")?;
+                Ok(recovery)
+            })
+            .map_err(|error| error.to_string())?
+            .output
     }
 
     fn stop(&self, _request: Self::StopRequest) -> Result<Self::StopResult, Self::Error> {
-        shutdown_engine_for_runtime(&mut self.lock_engine());
+        self.call_engine(shutdown_engine_for_runtime);
         Ok(())
     }
+}
+
+fn ui_intent_requires_runtime_compile(intent: &UiEditIntent) -> bool {
+    !matches!(
+        intent,
+        UiEditIntent::BeginEdit { .. }
+            | UiEditIntent::EndEdit { .. }
+            | UiEditIntent::SetParam { .. }
+            | UiEditIntent::SetTextParamSmart { .. }
+            | UiEditIntent::ReevaluateGraph
+            | UiEditIntent::ClearLogs
+            | UiEditIntent::SetLogMaxEntries { .. }
+    )
 }
 
 fn apply_ui_intent_to_engine<T: ProjectLifecycle>(

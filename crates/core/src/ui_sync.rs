@@ -1217,6 +1217,40 @@ pub struct UiEventBatch {
 pub struct UiRuntimeStatsDto {
     /// Engine ticks completed per second over the latest sampling window.
     pub engine_hz: f64,
+    /// Currently published immutable runtime generation.
+    pub generation_id: u64,
+    /// Current actor control queue depth.
+    pub control_queue_depth: u64,
+    /// Peak actor control queue depth since startup.
+    pub control_queue_peak: u64,
+    /// Control operations admitted since startup.
+    pub control_received: u64,
+    /// Control operations applied since startup.
+    pub control_applied: u64,
+    /// Control operations rejected since startup.
+    pub control_rejected: u64,
+    /// Cumulative actor queue wait time in nanoseconds.
+    pub control_wait_ns: u64,
+    /// Cumulative actor application time in nanoseconds.
+    pub control_apply_ns: u64,
+    /// Generations compiled successfully since startup.
+    pub compilation_applied: u64,
+    /// Generation compile failures since startup.
+    pub compilation_rejected: u64,
+    /// Sparse semantic batches completed.
+    pub sparse_batches: u64,
+    /// Dense semantic batches completed.
+    pub dense_batches: u64,
+    /// Compile-assigned work units completed.
+    pub work_units: u64,
+    /// Authoritative external effects committed.
+    pub effects_committed: u64,
+    /// External effects suppressed by safe shadow execution.
+    pub effects_suppressed: u64,
+    /// Authoritative values compared with the side-effect-free runtime plan.
+    pub shadow_comparisons: u64,
+    /// Semantic mismatches found by safe shadow comparison.
+    pub shadow_mismatches: u64,
 }
 
 /// UI-originated edit intent.

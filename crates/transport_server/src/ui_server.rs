@@ -609,8 +609,26 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<
             if stats_elapsed >= ENGINE_STATS_INTERVAL {
                 let elapsed_secs = stats_elapsed.as_secs_f64();
                 if elapsed_secs > 0.0 {
+                    let metrics = runtime.runtime_metrics();
                     read_model.set_runtime_stats(UiRuntimeStatsDto {
                         engine_hz: stats_window_ticks as f64 / elapsed_secs,
+                        generation_id: metrics.generation_id,
+                        control_queue_depth: metrics.control_queue_depth,
+                        control_queue_peak: metrics.control_queue_peak,
+                        control_received: metrics.control_received,
+                        control_applied: metrics.control_applied,
+                        control_rejected: metrics.control_rejected,
+                        control_wait_ns: metrics.control_wait_ns,
+                        control_apply_ns: metrics.control_apply_ns,
+                        compilation_applied: metrics.compilation_applied,
+                        compilation_rejected: metrics.compilation_rejected,
+                        sparse_batches: metrics.sparse_batches,
+                        dense_batches: metrics.dense_batches,
+                        work_units: metrics.work_units,
+                        effects_committed: metrics.effects_committed,
+                        effects_suppressed: metrics.effects_suppressed,
+                        shadow_comparisons: metrics.shadow_comparisons,
+                        shadow_mismatches: metrics.shadow_mismatches,
                     });
                 }
                 stats_window_start = Instant::now();
