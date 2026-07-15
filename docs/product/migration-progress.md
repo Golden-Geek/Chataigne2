@@ -18,27 +18,23 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 ## Current Checkpoint
 
-- State: `CONSTRUCTION`; the Phase 6 implementation cutover is complete locally, the Phase 5
-  runnable checkpoint remains the immutable rollback point, and exact-tree cross-platform
-  qualification is still required before naming the Phase 6 checkpoint runnable.
-- Completed vertical: statecharts, compiled conditions, contexts/lanes, processors, and the
-  Action/Mapping product path are cut over and recorded in
-  [`phase5-cutovers.v1.json`](manifests/phase5-cutovers.v1.json).
-- Implemented runtime center: `golden_runtime` now owns immutable generations, asynchronous incremental
-  compilation, dense slot/arena layouts, state migration, direct input routing, the persistent
-  sparse/dense scheduler, deterministic effect commit, safe shadow suppression, and runtime
-  metrics. `ProductionRuntime` owns `ProductionState` through `ControlActor`; compiled generation
-  swaps, dense module inputs, and compile-assigned domain work are authoritative. `Engine::run_tick`
-  is rollback-only; app-owned mutable node callbacks are a governed Phase 8 adapter kernel.
-- Runnable checkpoint: Win-x64 report
-  `target/product-gate/20260715T163517Z/product-gate-report.json` (33/33 required checks passed; 7
-  non-required platform/manual checks `NOT_RUN`).
-- Construction evidence: [`phase6-cutovers.v1.json`](manifests/phase6-cutovers.v1.json) revision 4;
-  local report `target/product-gate/20260715T201806Z/product-gate-report.json` is `PASS` with all 35
-  required checks green, including debug/release P50-L1 and P5-L127, production OSC module IO,
-  mounted UI, LAN, launch, and Windows product gates on the compiled domain-schedule tree.
-  Exact-tree cross-platform qualification remains open, so this tree is not yet a named runnable
-  checkpoint.
+- State: `CHECKPOINT_RUNNABLE`; the Phase 6 construction interval is closed, and exact commit
+  `c1e604f95cd11e7d17e4db31686b0caadd2bae10` is the current immutable rollback point.
+- Completed vertical: `golden_runtime` owns immutable generations, asynchronous incremental
+  compilation, dense slot/arena layouts, direct input routing, the persistent sparse/dense
+  scheduler, deterministic effect commit, safe shadow suppression, and runtime metrics.
+  `ProductionRuntime` owns `ProductionState` through `ControlActor`; compiled generation swaps,
+  dense module inputs, and compile-assigned domain work are authoritative. `Engine::run_tick` is
+  rollback-only; app-owned mutable node callbacks remain a governed Phase 8 adapter kernel.
+- Qualified layers: complete Chataigne application, Phase 5 semantics, Phase 6 runtime center,
+  debug/release P50-L1 and P5-L127 fixtures, production OSC module IO, root workflows, mounted UI,
+  LAN browser, and native/compatibility platform builds.
+- Runnable checkpoint: local Win-x64 report
+  `target/product-gate/20260715T201806Z/product-gate-report.json` passed all 35 required checks;
+  exact-tree native Windows, macOS, and Linux gates plus Linux ARMHF, Linux AArch64, Windows ARM64,
+  and aggregate reporting passed in [run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686).
+- Next construction interval: Phase 7 protocol, observation, and UI-store migration; it has not
+  been opened yet.
 
 The long-lived migration branch does not require a permanently open pull request. Focused PRs are
 opened when a review, named qualification, or merge point is ready. This keeps routine pushes local
@@ -55,7 +51,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 3 — Extract foundations and `golden-graph` through the live product      | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `1f23dbef04e544f215611771b5003489f67752f3`; [Windows/macOS/Linux product gate run 29366201894](https://github.com/Golden-Geek/Chataigne2/actions/runs/29366201894) |
 | Phase 4 — Migrate Alchemist as a complete authoring-to-runtime slice           | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T130619Z/product-gate-report.json`; all 32 required checks passed                                                                       |
 | Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                       |
-| Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Qualification pending | `PASS` (Win-x64 local) | Runtime cutovers and fresh local report `target/product-gate/20260715T201806Z/product-gate-report.json` pass; exact-tree cross-platform qualification remains                           |
+| Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)       |
 | Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Runtime planes and generation semantics must be stable                                                                                                                          |
 | Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | New runtime/protocol/UI foundations must be runnable                                                                                                                            |
 | Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Every parity row and release gate must pass                                                                                                                                     |
@@ -159,16 +155,16 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Runtime diagnostics UI                 | Cut over     | Generated protocol metrics surface through the existing engine-rate performance indicator                              |
 | App-domain semantic runtime cutover    | Cut over     | Production uses `run_tick_with_compiled_schedule`; `Engine::run_tick` is rollback-only and mutable app-node kernels are governed through Phase 8 |
 | Win-x64 product qualification          | `PASS`       | Report `target/product-gate/20260715T201806Z/product-gate-report.json`: all 35 required checks passed; 8 non-required dependency/platform checks were `NOT_RUN` |
-| Cross-platform qualification           | `NOT_RUN`    | Exact-tree Windows/macOS/Linux and compatibility qualification is mandatory for Phase 6                                |
+| Cross-platform qualification           | `PASS`       | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; native Windows/macOS/Linux, three compatibility targets, and aggregate exact-commit reporting passed in [run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686) |
 
 ## Required Root Workflow Status
 
 | Command or workflow  | Status                         | Required result                                                                            |
 | -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `cargo run`          | `PASS` on Phase 6 construction tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
-| `watch`              | `PASS` on Phase 6 construction tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
-| `cargo run -- --dev` | `PASS` on Phase 6 construction tree | Complete app with live frontend/dev server and connected engine                            |
-| Root product gate    | `PASS` on Phase 6 construction tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
+| `cargo run`          | `PASS` on Phase 6 checkpoint tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
+| `watch`              | `PASS` on Phase 6 checkpoint tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
+| `cargo run -- --dev` | `PASS` on Phase 6 checkpoint tree | Complete app with live frontend/dev server and connected engine                            |
+| Root product gate    | `PASS` on Phase 6 checkpoint tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
 
 No command above is inferred to pass from source inspection or repository provenance.
 

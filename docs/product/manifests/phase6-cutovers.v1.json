@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "phase": 6,
-  "revision": 4,
-  "tested_tree_base": "1ffef0d",
-  "validation_state": "CONSTRUCTION",
+  "revision": 5,
+  "tested_tree_base": "c1e604f95cd11e7d17e4db31686b0caadd2bae10",
+  "validation_state": "CHECKPOINT_RUNNABLE",
   "product_gate": "PASS: Win-x64 local report target/product-gate/20260715T201806Z/product-gate-report.json; all 35 required checks passed on the allocation-stable compiled domain-schedule tree, including debug/release P50-L1 and P5-L127 fixtures, production OSC module loopback ordering, root launch workflows, mounted UI, LAN browser, and Windows product build; 8 non-required dependency/platform checks were NOT_RUN",
-  "cross_platform_gate": "NOT_RUN: Phase 6 Windows/macOS/Linux and compatibility qualification requires an exact committed tree",
+  "cross_platform_gate": "PASS: exact commit c1e604f95cd11e7d17e4db31686b0caadd2bae10; GitHub Actions run https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686; native Windows, macOS, and Linux product gates plus Linux ARMHF, Linux AArch64, Windows ARM64 compatibility and aggregate exact-commit reporting all passed",
   "cutovers": [
     {
       "cutover_id": "actor_control_plane",
