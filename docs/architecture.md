@@ -12,10 +12,11 @@ the contributor-facing companion for day-to-day placement decisions.
   support.
 - `golden_ui` owns reusable Svelte components, stores, transport clients, host bridges, and
   generated Rust protocol bindings.
-- `golden_alchemist_core` owns app-agnostic typed graph compilation/runtime and hierarchical
-  statechart mechanics.
-- `golden_alchemist_ui` owns the reusable infinite node canvas, slots, wires, selection, and
-  viewport interaction.
+- `golden_graph` owns app-agnostic typed graph documents, transactions, validation contracts, and
+  traversal; `golden_graph_ui` owns the reusable canvas, slots, wires, selection, and viewport
+  interaction.
+- `apps/chataigne/alchemist` owns Chataigne Formula typing, compilation, runtime, built-in ANodes,
+  serialization, and domain adapters over `golden_graph`.
 - `apps/chataigne/state_machine` owns Chataigne value types, Processor behavior, arbitration, protocol DTOs,
   and Processor integration.
 - `apps/chataigne/ui/src/lib/state_machine` owns State Machine panel composition and Chataigne DTO adapters.
@@ -23,7 +24,7 @@ the contributor-facing companion for day-to-day placement decisions.
 Alchemist Formula authoring uses the same boundary as every other node tree.
 Formula, ANode, socket, connection, and configuration parameter nodes are
 canonical Golden Core hierarchy objects. The graph editor only projects those
-nodes and sends standard edit intents. `golden_alchemist_core` receives a
+nodes and sends standard edit intents. `chataigne_alchemist` receives a
 transient graph for typing, compilation, and execution; it does not define a
 parallel Formula persistence document.
 

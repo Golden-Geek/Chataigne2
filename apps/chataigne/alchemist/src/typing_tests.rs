@@ -1,13 +1,16 @@
+use crate::test_support::TestGraph;
+
 use crate::{
-    ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId, AlchemistGraph, ExecutionKind,
-    FacetId, InputSocketDecl, OutputSocketDecl, RuntimeValue, SignatureCtx, StableRef, TriggerValue, TypeBindingSource,
+    ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId, ExecutionKind, FacetId,
+    InputSocketDecl, OutputSocketDecl, RuntimeValue, SignatureCtx, StableRef, TriggerValue, TypeBindingSource,
     TypeBindings, TypeConstraint, TypeSolveCtx, TypeVar, ValueStorageKind, ValueTypeDescriptor, ValueTypeId,
-    ValueTypeRegistry, primitive_node_registry, solve_types,
+    ValueTypeRegistry, primitive_node_registry, solve_document_types,
 };
 
-fn solve(graph: &AlchemistGraph, value_types: &ValueTypeRegistry, nodes: &ANodeRegistry) -> crate::TypeSolveResult {
-    solve_types(
-        graph,
+fn solve(graph: &TestGraph, value_types: &ValueTypeRegistry, nodes: &ANodeRegistry) -> crate::TypeSolveResult {
+    let document = graph.to_document();
+    solve_document_types(
+        &document,
         &TypeSolveCtx {
             value_types,
             nodes,
@@ -88,7 +91,7 @@ fn assert_resolved_socket_types(
 
 #[test]
 fn math_defaults_to_float() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let add = graph
         .add_node(ANodeInstance::new(ANodeTypeId::new("math"), "Math"))
         .unwrap();
@@ -107,7 +110,7 @@ fn math_defaults_to_float() {
 
 #[test]
 fn vec3_connection_reshapes_math_inputs_and_output() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Vec3([1.0, 2.0, 3.0]))).unwrap();
     let add = graph
         .add_node(ANodeInstance::new(ANodeTypeId::new("math"), "Math"))
@@ -141,7 +144,7 @@ fn vec3_connection_reshapes_math_inputs_and_output() {
 
 #[test]
 fn first_generic_input_decides_numeric_node_type() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let vec3_source = graph.add_node(constant(RuntimeValue::Vec3([1.0, 2.0, 3.0]))).unwrap();
     let float_source = graph.add_node(constant(RuntimeValue::Float(1.0))).unwrap();
     let add = graph
@@ -192,7 +195,7 @@ fn primitive_registry_allows_runtime_supported_conversions() {
 
 #[test]
 fn numeric_node_keeps_supported_type_for_convertible_non_numeric_input() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::String("12.5".into()))).unwrap();
     let add = graph
         .add_node(ANodeInstance::new(ANodeTypeId::new("math"), "Math"))
@@ -245,7 +248,7 @@ fn numeric_generic_nodes_infer_each_supported_connected_type() {
 
     for spec in specs {
         for value_type in numeric_value_types() {
-            let mut graph = AlchemistGraph::new();
+            let mut graph = TestGraph::new();
             let source = graph.add_node(constant(runtime_value(value_type))).unwrap();
             let target = graph
                 .add_node(ANodeInstance::new(ANodeTypeId::new(spec.type_id), spec.type_id))
@@ -288,7 +291,7 @@ fn open_generic_nodes_infer_each_connected_primitive_type() {
 
     for spec in specs {
         for value_type in primitive_value_types() {
-            let mut graph = AlchemistGraph::new();
+            let mut graph = TestGraph::new();
             let source = graph.add_node(constant(runtime_value(value_type))).unwrap();
             let target = graph
                 .add_node(ANodeInstance::new(ANodeTypeId::new(spec.type_id), spec.type_id))
@@ -314,7 +317,7 @@ fn open_generic_nodes_infer_each_connected_primitive_type() {
 
 #[test]
 fn forced_float_accepts_vec3_connection_with_coercion() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Vec3([1.0, 2.0, 3.0]))).unwrap();
     let mut add_node = ANodeInstance::new(ANodeTypeId::new("math"), "Math");
     add_node.forced_type_bindings.insert(
@@ -406,7 +409,7 @@ fn facet_socket_accepts_registered_app_value() {
         .unwrap();
     let mut nodes = primitive_node_registry();
     nodes.register(FacetSink).unwrap();
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph
         .add_node(constant(RuntimeValue::Ref(StableRef::new(module_type, "module-1"))))
         .unwrap();

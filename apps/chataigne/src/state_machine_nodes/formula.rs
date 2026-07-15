@@ -8,9 +8,9 @@ use std::{
     },
 };
 
-use golden_alchemist::{
+use chataigne_alchemist::{
     ANodeFieldPath, ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula,
-    AlchemistGraph, ColorValue, CompileCtx, DiagnosticOrigin,
+    AlchemistGraphDomain, ColorValue, CompileCtx, DiagnosticOrigin,
     DiagnosticSeverity, FormulaContextContract, FormulaId, FormulaPropertyDecl,
     FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef,
     ManagedRegionDefinition, OutputSocketRef, ParamUiHints,
@@ -18,7 +18,7 @@ use golden_alchemist::{
     SurfaceSection, SurfaceSectionId, SurfaceSource, TriggerValue,
     TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx,
     ValueTypeId, ValueTypeSpec, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
-    SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, compile_graph, solve_types,
+    SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, compile_graph, solve_document_types,
 };
 use golden_values::Value as RuntimeValue;
 use golden_core::{
@@ -224,11 +224,11 @@ fn parameter_value_color(value: &ParamValue) -> Color {
     value_type_color(parameter_node_type(value))
 }
 
-fn registry() -> golden_alchemist::ANodeRegistry {
+fn registry() -> chataigne_alchemist::ANodeRegistry {
     chataigne_state_machine::alchemist::node_registry()
 }
 
-fn value_types() -> golden_alchemist::ValueTypeRegistry {
+fn value_types() -> chataigne_alchemist::ValueTypeRegistry {
     chataigne_state_machine::alchemist::value_type_registry()
 }
 
@@ -498,9 +498,9 @@ fn anode_size_parameter() -> Parameter {
 }
 
 fn default_config_for_declaration(
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
-) -> golden_alchemist::ANodeConfig {
-    let mut config = golden_alchemist::ANodeConfig::default();
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
+) -> chataigne_alchemist::ANodeConfig {
+    let mut config = chataigne_alchemist::ANodeConfig::default();
     for field in declaration.config_fields() {
         config.set(field.id, field.default_value);
     }
@@ -514,7 +514,7 @@ fn default_config_for_declaration(
 }
 
 fn config_value_parameter_for_field(
-    field: &golden_alchemist::ANodeConfigFieldDecl,
+    field: &chataigne_alchemist::ANodeConfigFieldDecl,
     value_type: &ValueTypeId,
     default: RuntimeValue,
 ) -> Option<Parameter> {
@@ -554,7 +554,7 @@ fn config_value_parameter_for_field(
 }
 
 fn config_field_trees_for_instance(
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
     instance: &ANodeInstance,
 ) -> Vec<NodeTree> {
     let value_types = value_types();
@@ -636,7 +636,7 @@ fn anode_tree_for_declaration(
     type_id: &str,
     label: &str,
     category: &str,
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
 ) -> NodeTree {
     let mut instance = ANodeInstance::new(declaration.type_id(), label);
     instance.config = default_config_for_declaration(declaration);
@@ -1123,8 +1123,8 @@ pub(crate) fn constraint_value_type(
     }
 }
 
-fn log_config_field() -> golden_alchemist::ANodeConfigFieldDecl {
-    golden_alchemist::ANodeConfigFieldDecl::new(
+fn log_config_field() -> chataigne_alchemist::ANodeConfigFieldDecl {
+    chataigne_alchemist::ANodeConfigFieldDecl::new(
         "log",
         "Log",
         RuntimeValue::Bool(false),
@@ -1133,9 +1133,9 @@ fn log_config_field() -> golden_alchemist::ANodeConfigFieldDecl {
 }
 
 fn process_on_input_change_only_config_field(
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
-) -> golden_alchemist::ANodeConfigFieldDecl {
-    golden_alchemist::ANodeConfigFieldDecl::new(
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
+) -> chataigne_alchemist::ANodeConfigFieldDecl {
+    chataigne_alchemist::ANodeConfigFieldDecl::new(
         PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
         "Process on input change only",
         RuntimeValue::Bool(declaration.default_process_on_input_change_only()),
@@ -1144,9 +1144,9 @@ fn process_on_input_change_only_config_field(
 }
 
 fn send_on_output_change_only_config_field(
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
-) -> golden_alchemist::ANodeConfigFieldDecl {
-    golden_alchemist::ANodeConfigFieldDecl::new(
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
+) -> chataigne_alchemist::ANodeConfigFieldDecl {
+    chataigne_alchemist::ANodeConfigFieldDecl::new(
         SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG,
         "Send on output change only",
         RuntimeValue::Bool(declaration.default_send_on_output_change_only()),
@@ -1155,9 +1155,9 @@ fn send_on_output_change_only_config_field(
 }
 
 fn config_fields_for_instance(
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
     instance: &ANodeInstance,
-) -> Vec<golden_alchemist::ANodeConfigFieldDecl> {
+) -> Vec<chataigne_alchemist::ANodeConfigFieldDecl> {
     let mut fields = declaration.config_fields_for(instance);
     if declaration.process_on_input_change_only_configurable()
         && !fields
@@ -1181,12 +1181,12 @@ fn config_fields_for_instance(
 fn existing_or_default_config(
     snapshot: &ProcessTreeSnapshot,
     anode: NodeId,
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
-) -> Result<golden_alchemist::ANodeConfig, String> {
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
+) -> Result<chataigne_alchemist::ANodeConfig, String> {
     let config_folder = snapshot
         .find_child_by_decl_id(anode, "config")
         .ok_or_else(|| "ANode Config folder is missing".to_string())?;
-    let mut config = golden_alchemist::ANodeConfig::default();
+    let mut config = chataigne_alchemist::ANodeConfig::default();
     for field in declaration.config_fields() {
         let value = config_field_value(snapshot, config_folder, &field);
         config.set(field.id, value);
@@ -1204,7 +1204,7 @@ fn existing_or_default_config(
 fn config_field_value(
     snapshot: &ProcessTreeSnapshot,
     config_folder: NodeId,
-    field: &golden_alchemist::ANodeConfigFieldDecl,
+    field: &chataigne_alchemist::ANodeConfigFieldDecl,
 ) -> RuntimeValue {
     if field.editor.as_deref() == Some("gradient") {
         return gradient_config_value(snapshot, config_folder, field);
@@ -1241,7 +1241,7 @@ fn config_field_value(
 fn gradient_config_value(
     snapshot: &ProcessTreeSnapshot,
     config_folder: NodeId,
-    field: &golden_alchemist::ANodeConfigFieldDecl,
+    field: &chataigne_alchemist::ANodeConfigFieldDecl,
 ) -> RuntimeValue {
     let stops = snapshot
         .find_child_by_decl_id(config_folder, config_decl_id(field.id.as_str()).as_str())
@@ -1275,9 +1275,9 @@ fn gradient_stop_to_runtime_value(stop: &GradientStop) -> RuntimeValue {
 fn apply_forced_type_bindings_from_config(
     snapshot: &ProcessTreeSnapshot,
     config_folder: NodeId,
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
-    signature: &golden_alchemist::ANodeSignature,
-    value_types: &golden_alchemist::ValueTypeRegistry,
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
+    signature: &chataigne_alchemist::ANodeSignature,
+    value_types: &chataigne_alchemist::ValueTypeRegistry,
     instance: &mut ANodeInstance,
 ) {
     for field in config_fields_for_instance(declaration, instance) {
@@ -1315,7 +1315,7 @@ fn apply_forced_type_bindings_from_config(
 }
 
 pub(crate) fn local_signature_bindings(
-    signature: &golden_alchemist::ANodeSignature,
+    signature: &chataigne_alchemist::ANodeSignature,
     instance: &ANodeInstance,
 ) -> TypeBindings {
     let mut bindings = signature.default_bindings.clone();
@@ -1328,9 +1328,9 @@ fn sync_auto_type_variable_config_params(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     config_folder: NodeId,
-    declaration: &dyn golden_alchemist::ANodeDeclaration,
-    signature: &golden_alchemist::ANodeSignature,
-    value_types: &golden_alchemist::ValueTypeRegistry,
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
+    signature: &chataigne_alchemist::ANodeSignature,
+    value_types: &chataigne_alchemist::ValueTypeRegistry,
     bindings: &TypeBindings,
 ) {
     for field in declaration.config_fields() {
@@ -1546,12 +1546,11 @@ pub(crate) fn formula_from_snapshot(
         ));
     }
 
-    let mut graph = AlchemistGraph::new();
-    graph.id = golden_alchemist::AlchemistGraphId::from_uuid(
-        formula_snapshot.uuid.0,
-    );
-    graph.metadata.label = formula_snapshot.label.clone();
+    let graph_id =
+        chataigne_alchemist::AlchemistGraphId::from_uuid(formula_snapshot.uuid.0);
     let mut anodes_by_uuid = HashMap::<NodeUuid, ANodeId>::new();
+    let mut anodes = Vec::new();
+    let mut connections = Vec::new();
 
     for child in snapshot.child_ids(formula_node) {
         let Some(child_snapshot) = snapshot.node(child) else {
@@ -1562,9 +1561,7 @@ pub(crate) fn formula_from_snapshot(
         }
         let instance = anode_from_snapshot(snapshot, child)?;
         anodes_by_uuid.insert(child_snapshot.uuid, instance.id);
-        graph
-            .add_node(instance)
-            .map_err(|error| error.to_string())?;
+        anodes.push(instance);
     }
 
     for child in snapshot.child_ids(formula_node) {
@@ -1588,20 +1585,47 @@ pub(crate) fn formula_from_snapshot(
             .ok_or_else(|| "connection source socket is missing".to_string())?;
         let target_socket = child_string(snapshot, child, "target_socket")
             .ok_or_else(|| "connection target socket is missing".to_string())?;
-        graph
-            .connect(
-                OutputSocketRef::new(source, source_socket),
-                InputSocketRef::new(target, target_socket),
-            )
-            .map_err(|error| error.to_string())?;
+        connections.push((
+            OutputSocketRef::new(source, source_socket),
+            InputSocketRef::new(target, target_socket),
+        ));
     }
 
+    let properties = formula_property_schema_from_snapshot(snapshot, formula_node);
     let surface = formula_surface_from_snapshot(
         snapshot,
         formula_node,
-        &mut graph,
+        &mut anodes,
     )?;
-    let properties = formula_property_schema_from_snapshot(snapshot, formula_node);
+    let domain = chataigne_alchemist::AlchemistGraphDomain::new(
+        registry(),
+        value_types(),
+        Some(properties.clone()),
+    );
+    let mut graph =
+        chataigne_alchemist::AlchemistGraphDomain::new_document_with_identity(
+            graph_id,
+            formula_snapshot.label.clone(),
+        );
+    let mut transaction =
+        chataigne_alchemist::AlchemistGraphTransaction::for_document(&graph);
+    for anode in anodes {
+        chataigne_alchemist::AlchemistGraphDomain::insert_node(
+            &mut transaction,
+            anode,
+        );
+    }
+    for (source, target) in connections {
+        chataigne_alchemist::AlchemistGraphDomain::connect(
+            &mut transaction,
+            &graph,
+            source,
+            target,
+        );
+    }
+    transaction
+        .commit(&mut graph, &domain)
+        .map_err(|error| error.to_string())?;
 
     Ok(AlchemistFormula {
         id: FormulaId::new(formula_snapshot.uuid.0.to_string()),
@@ -2413,7 +2437,7 @@ fn value_type_parameter(
         .filter(|descriptor| {
             !matches!(
                 descriptor.storage,
-                golden_alchemist::ValueStorageKind::Extension
+                chataigne_alchemist::ValueStorageKind::Extension
             ) && (type_options.is_empty()
                 || type_options.iter().any(|id| id == &descriptor.id))
         })
@@ -2576,7 +2600,7 @@ fn input_socket_tree(
 
 fn socket_default_param(value_type: &ValueTypeId, default: &RuntimeValue) -> Option<ParamValue> {
     let storage = value_types().get(value_type).map(|descriptor| descriptor.storage)?;
-    if matches!(storage, golden_alchemist::ValueStorageKind::Extension) {
+    if matches!(storage, chataigne_alchemist::ValueStorageKind::Extension) {
         return None;
     }
     runtime_value_to_param(default).ok()
@@ -3156,7 +3180,7 @@ impl AlchemistProperty {
 fn formula_surface_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,
-    graph: &mut AlchemistGraph,
+    anodes: &mut [ANodeInstance],
 ) -> Result<FormulaSurface, String> {
     let Some(properties) =
         snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID)
@@ -3171,7 +3195,7 @@ fn formula_surface_from_snapshot(
         };
         if node.node_type == PROPERTY_NODE_TYPE {
             parameter_items.push(surface_item_from_property(
-                snapshot, child, graph,
+                snapshot, child, anodes,
             )?);
         } else if node.node_type == PROPERTY_MANAGER_NODE_TYPE {
             let role = child_string(snapshot, child, "role")
@@ -3225,7 +3249,7 @@ fn formula_managed_regions_from_snapshot(
 fn surface_item_from_property(
     snapshot: &ProcessTreeSnapshot,
     property: NodeId,
-    graph: &mut AlchemistGraph,
+    anodes: &mut [ANodeInstance],
 ) -> Result<SurfaceItem, String> {
     let node = snapshot
         .node(property)
@@ -3247,18 +3271,17 @@ fn surface_item_from_property(
         kind: SurfaceItemKind::Parameter,
         value_type: Some(ValueTypeSpec::Exact(value_type)),
         ui: ParamUiHints::default(),
-        bindings: property_bindings(graph, &id, &runtime_value),
+        bindings: property_bindings(anodes, &id, &runtime_value),
     })
 }
 
 fn property_bindings(
-    graph: &mut AlchemistGraph,
+    anodes: &mut [ANodeInstance],
     property_id: &str,
     default_value: &RuntimeValue,
 ) -> Vec<ANodeFieldPath> {
-    graph
-        .nodes
-        .values_mut()
+    anodes
+        .iter_mut()
         .filter_map(|node| {
             let matches_property = node.type_id.as_str() == PROPERTY_ANODE_TYPE
                 && node.config.get("property_id").is_some_and(|value| {
@@ -4260,7 +4283,7 @@ impl AlchemistFormulaDefinition {
             return;
         };
         let value_types = value_types();
-        let solved = solve_types(
+        let solved = solve_document_types(
             &formula.graph,
             &TypeSolveCtx {
                 value_types: &value_types,
@@ -4284,9 +4307,10 @@ impl AlchemistFormulaDefinition {
                 continue;
             }
             let anode_id = ANodeId::from_uuid(anode.uuid.0);
-            let Some(instance) = formula.graph.nodes.get(&anode_id) else {
+            let Some(node) = formula.graph.node(AlchemistGraphDomain::node_id(anode_id)) else {
                 continue;
             };
+            let instance = node.data.to_instance(anode_id);
             let Some(declaration) = nodes.get(&instance.type_id) else {
                 continue;
             };
@@ -4302,8 +4326,8 @@ impl AlchemistFormulaDefinition {
                 continue;
             };
             let signature =
-                declaration.signature(&signature_ctx, instance, &instance.type_bindings);
-            let fallback_bindings = local_signature_bindings(&signature, instance);
+                declaration.signature(&signature_ctx, &instance, &instance.type_bindings);
+            let fallback_bindings = local_signature_bindings(&signature, &instance);
             let resolved_node = solved.graph.nodes.get(&anode_id);
             let resolved_bindings = resolved_node
                 .map(|node| &node.bindings)

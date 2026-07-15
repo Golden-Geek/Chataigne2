@@ -14,6 +14,7 @@ older documents when those documents describe the former submodule architecture 
 | [0005](0005-product-preserving-migration.md) | Accepted | Continuous runnable-product migration from the recorded baseline |
 | [0006](0006-temporary-migration-adapters.md) | Accepted | Governed temporary adapters and side-effect-safe shadowing are allowed |
 | [0007](0007-final-legacy-deletion.md) | Accepted | Old paths are deleted only after parity proof; no permanent compatibility architecture remains |
+| [0008](0008-chataigne-owned-alchemist.md) | Accepted | Alchemist is Chataigne-owned and depends on the app-agnostic Golden graph system |
 
 ## Status Meanings
 

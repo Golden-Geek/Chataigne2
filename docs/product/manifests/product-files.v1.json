@@ -29,6 +29,30 @@
       "sha256": "d7d9227f0fe5bfb4189fb6ba4dd9e2d524f6a1dfd02bd901c65330987675c0b3"
     },
     {
+      "bytes": 1212,
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/formula.svg",
+      "kind": "asset",
+      "name": "formula.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/formula.svg",
+      "sha256": "5eea7bf6852dce470267a19d2f208351c07933e56b47fc8549109dda121c6264"
+    },
+    {
+      "bytes": 2312,
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/formula_library.svg",
+      "kind": "asset",
+      "name": "formula_library.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/formula_library.svg",
+      "sha256": "36e47660fae9315cb2f7c9d4e621c927a5f860f5223fbd3d962f530b9cca1ef4"
+    },
+    {
+      "bytes": 1169,
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/lock.svg",
+      "kind": "asset",
+      "name": "lock.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/lock.svg",
+      "sha256": "8ce6d75812fbf8b70caf8883020c0f63237f4a9291088aaca5e794d12cef9b64"
+    },
+    {
       "bytes": 1822,
       "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/audio.svg",
       "kind": "asset",
@@ -117,12 +141,12 @@
       "sha256": "2e6377389f6fe5662e40934679ad125d43fb4f7edcbf6d0582017e4b43dbd985"
     },
     {
-      "bytes": 1328,
+      "bytes": 1280,
       "id": "asset/apps/chataigne/ui/src/lib/assets/icons/node-icons.svelte.ts",
       "kind": "asset",
       "name": "node-icons.svelte.ts",
       "path": "apps/chataigne/ui/src/lib/assets/icons/node-icons.svelte.ts",
-      "sha256": "4c38b84925cd2f08590b8901f226288650ec7b0f7e97bffc6c3b4febb590db05"
+      "sha256": "dca89b0e60d168a143a41a6886ac1268a77fba61ffd438a4943860f32c0d10cb"
     },
     {
       "bytes": 914,
@@ -363,30 +387,6 @@
       "name": "robots.txt",
       "path": "apps/chataigne/ui/static/robots.txt",
       "sha256": "b033243267bcbdab84cb01e940811d6d77a894d78f0470faaf0eb43f8e4efcc9"
-    },
-    {
-      "bytes": 1212,
-      "id": "asset/packages/golden-alchemist-ui/icons/formula.svg",
-      "kind": "asset",
-      "name": "formula.svg",
-      "path": "packages/golden-alchemist-ui/icons/formula.svg",
-      "sha256": "6d8d78bfa119b765e48587423096fc8aeba58e905d442eb1e9c586aaf6bb84bb"
-    },
-    {
-      "bytes": 2316,
-      "id": "asset/packages/golden-alchemist-ui/icons/formula_library.svg",
-      "kind": "asset",
-      "name": "formula_library.svg",
-      "path": "packages/golden-alchemist-ui/icons/formula_library.svg",
-      "sha256": "877c0bfa8562d9f58b2a336b22fb8b1d9d635a9d0477af7d13dfa6b2f17fceb2"
-    },
-    {
-      "bytes": 1173,
-      "id": "asset/packages/golden-alchemist-ui/icons/lock.svg",
-      "kind": "asset",
-      "name": "lock.svg",
-      "path": "packages/golden-alchemist-ui/icons/lock.svg",
-      "sha256": "80d49f767a16f5555c191ec610eda5acc22c37d1384026031feee76b8479409e"
     },
     {
       "bytes": 978,

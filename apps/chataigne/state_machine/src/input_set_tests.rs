@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use golden_alchemist::{
+use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, RuntimeInputSnapshot,
     RuntimeRegistries, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,

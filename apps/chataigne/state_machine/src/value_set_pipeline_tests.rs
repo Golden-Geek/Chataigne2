@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use golden_alchemist::{
+use chataigne_alchemist::{
     ANodeDeclaration, ANodeInstance, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     PipelineLoweringCtx, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
     SocketId, ValueTypeId,
@@ -180,7 +180,7 @@ fn condition_gate_per_lane_application_lowers_to_scalar_lanes_with_defaults() {
     assert_eq!(mapped.entries[1].value, RuntimeValue::Float(0.0));
 }
 
-fn assert_clean(output: &golden_alchemist::RuntimeOutput) {
+fn assert_clean(output: &chataigne_alchemist::RuntimeOutput) {
     assert!(
         output.diagnostics.is_empty(),
         "unexpected diagnostics: {:?}",
@@ -255,7 +255,7 @@ fn float_value_set<const N: usize>(tick: u64, entries: [(&str, &str, f64); N]) -
     )
 }
 
-fn eval_ctx<'a>(value_types: &'a golden_alchemist::ValueTypeRegistry, tick: u64) -> EvaluationCtx<'a> {
+fn eval_ctx<'a>(value_types: &'a chataigne_alchemist::ValueTypeRegistry, tick: u64) -> EvaluationCtx<'a> {
     let registries = Box::leak(Box::new(RuntimeRegistries { value_types }));
     let inputs = Box::leak(Box::new(RuntimeInputSnapshot::default()));
     EvaluationCtx {

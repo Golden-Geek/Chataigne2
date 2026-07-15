@@ -1,12 +1,12 @@
 use crate::{
-    AEdge, ANodeDeclaration, ANodeId, ANodeInstance, ANodeRoleCapability, ANodeSignature, ANodeTypeId, AlchemistGraph,
-    AutoWirePolicy, ExecutionKind, InputSocketDecl, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
-    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedSocketRef,
-    ManagedUiMode, OutputSocketDecl, OutputSocketRef, PipelineCardinality, PipelineLoweringCtx,
-    PipelineLoweringDiagnosticKind, PipelineShape, PipelineShapeCheckItem, PrimitiveNodeDeclaration, PrimitiveNodeKind,
-    RuntimeValue, SignatureCtx, SocketId, SurfaceItemKind, TypeBindings, TypeConstraint, ValueTypeId,
-    ValueTypeRegistry, check_filter_pipeline_shapes, lower_filter_pipeline_region, primitive_node_registry,
-    single_shape, value_set_shape,
+    AEdge, ANodeDeclaration, ANodeId, ANodeInstance, ANodeRoleCapability, ANodeSignature, ANodeTypeId,
+    AlchemistGraphDocument, AlchemistGraphDomain, AlchemistGraphTransaction, AutoWirePolicy, ExecutionKind,
+    InputSocketDecl, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId,
+    ManagedRegionInstance, ManagedRegionKind, ManagedSocketRef, ManagedUiMode, OutputSocketDecl, OutputSocketRef,
+    PipelineCardinality, PipelineLoweringCtx, PipelineLoweringDiagnosticKind, PipelineShape, PipelineShapeCheckItem,
+    PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue, SignatureCtx, SocketId, SurfaceItemKind, TypeBindings,
+    TypeConstraint, ValueTypeId, ValueTypeRegistry, check_filter_pipeline_shapes, lower_filter_pipeline_region,
+    primitive_node_registry, single_shape, value_set_shape,
 };
 
 fn ctx(value_types: &ValueTypeRegistry) -> SignatureCtx<'_> {
@@ -39,18 +39,22 @@ fn managed_item(kind: PrimitiveNodeKind) -> ManagedItemInstance {
     }
 }
 
-fn boundary_graph() -> (AlchemistGraph, ANodeId, ANodeId) {
-    let mut graph = AlchemistGraph::new();
-    let input = graph
-        .add_node(ANodeInstance::new(ANodeTypeId::new("boundary_input"), "Boundary Input"))
-        .unwrap();
-    let output = graph
-        .add_node(ANodeInstance::new(
-            ANodeTypeId::new("boundary_output"),
-            "Boundary Output",
-        ))
-        .unwrap();
-    (graph, input, output)
+fn boundary_graph() -> (AlchemistGraphDocument, ANodeId, ANodeId) {
+    let domain = AlchemistGraphDomain::with_primitives();
+    let mut graph = AlchemistGraphDomain::new_document();
+    let input = ANodeInstance::new(ANodeTypeId::new("constant"), "Boundary Input");
+    let input_id = input.id;
+    let output = ANodeInstance::new(ANodeTypeId::new("debug_value"), "Boundary Output");
+    let output_id = output.id;
+    let mut transaction = AlchemistGraphTransaction::for_document(&graph);
+    AlchemistGraphDomain::insert_node(&mut transaction, input);
+    AlchemistGraphDomain::insert_node(&mut transaction, output);
+    transaction.commit(&mut graph, &domain).unwrap();
+    (graph, input_id, output_id)
+}
+
+fn semantic_edges(graph: &AlchemistGraphDocument) -> Vec<AEdge> {
+    AlchemistGraphDomain::with_primitives().semantic_edges(graph).unwrap()
 }
 
 fn filter_region(input: ANodeId, output: ANodeId) -> ManagedRegionDefinition {
@@ -227,9 +231,10 @@ fn lowering_autowires_enabled_filter_items_into_graph() {
 
     assert!(result.is_valid(), "{:?}", result.diagnostics);
     assert_eq!(result.inserted_nodes, vec![remap, gate]);
-    assert_eq!(result.graph.nodes.len(), graph.nodes.len() + 2);
+    assert_eq!(result.graph.nodes().len(), graph.nodes().len() + 2);
+    assert_eq!(result.graph.revision().sequence, graph.revision().sequence + 1);
     assert_eq!(
-        result.graph.edges,
+        semantic_edges(&result.graph),
         vec![
             AEdge {
                 from: OutputSocketRef::new(input, "value"),
@@ -273,8 +278,13 @@ fn lowering_skips_disabled_filter_items() {
 
     assert!(result.is_valid(), "{:?}", result.diagnostics);
     assert_eq!(result.inserted_nodes, vec![remap]);
-    assert!(!result.graph.nodes.contains_key(&disabled_node));
-    assert_eq!(result.graph.edges.len(), 2);
+    assert!(
+        result
+            .graph
+            .node(AlchemistGraphDomain::node_id(disabled_node))
+            .is_none()
+    );
+    assert_eq!(result.graph.edges().len(), 2);
 }
 
 #[test]
@@ -387,7 +397,7 @@ fn lowering_allows_whole_valueset_filters() {
     assert!(result.is_valid(), "{:?}", result.diagnostics);
     assert_eq!(result.inserted_nodes, vec![gate]);
     assert_eq!(
-        result.graph.edges,
+        semantic_edges(&result.graph),
         vec![
             AEdge {
                 from: OutputSocketRef::new(input, "value"),

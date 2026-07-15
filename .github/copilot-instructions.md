@@ -18,9 +18,10 @@ searching, resolve the root once, and scope queries to that path.
 | Layer | Source path | Resolve path |
 | --- | --- | --- |
 | Chataigne app and UI | `apps/chataigne` | `.` |
+| Chataigne Alchemist | `apps/chataigne/alchemist` | `.` |
 | Shared Rust crates | `crates/` | `.` |
 | `golden_ui` | `packages/golden-ui` | `.` |
-| `golden_alchemist_ui` | `packages/golden-alchemist-ui` | `.` |
+| `golden_graph_ui` | `packages/golden-graph-ui` | `.` |
 
 Use the root repo id for planning, search, outlines, and reads. Run
 `.\tools\watch-jcodemunch.ps1 --status` if the index looks stale or ambiguous.

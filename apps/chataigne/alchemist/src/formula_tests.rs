@@ -1,5 +1,7 @@
+use crate::test_support::TestGraph;
+
 use crate::{
-    AEdge, ANodeDeclaration, ANodeFieldPath, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph,
+    AEdge, ANodeDeclaration, ANodeFieldPath, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain,
     FormulaContextContract, FormulaId, FormulaMaterializationError, FormulaPropertySchema, FormulaSurface,
     InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId,
     ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputSocketRef, ParamUiHints,
@@ -10,7 +12,7 @@ use crate::{
 
 #[test]
 fn formula_instance_references_shared_definition_and_materializes_overrides() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     constant.config.set("value", RuntimeValue::Float(1.0));
     let node = graph.add_node(constant).unwrap();
@@ -44,7 +46,7 @@ fn formula_instance_references_shared_definition_and_materializes_overrides() {
         label: "Test".into(),
         description: None,
         tags: Vec::new(),
-        graph,
+        graph: graph.to_document(),
         properties: FormulaPropertySchema::default(),
         surface,
         context_contract: FormulaContextContract::default(),
@@ -56,7 +58,9 @@ fn formula_instance_references_shared_definition_and_materializes_overrides() {
         .overrides
         .values
         .insert(SurfaceItemId::new("amount"), RuntimeValue::Float(2.5));
-    let materialized = formula.materialize(&instance).unwrap();
+    let materialized = formula
+        .materialize(&instance, &AlchemistGraphDomain::with_primitives())
+        .unwrap();
 
     assert_eq!(instance.formula_ref.id, formula.id);
     assert_eq!(instance.formula_ref.version, 3);
@@ -67,18 +71,57 @@ fn formula_instance_references_shared_definition_and_materializes_overrides() {
             .contains_key(&SurfaceItemId::new("amount"))
     );
     assert_eq!(
-        materialized.nodes[&node].config.get("value"),
+        materialized
+            .node(AlchemistGraphDomain::node_id(node))
+            .unwrap()
+            .data
+            .config
+            .get("value"),
         Some(&RuntimeValue::Float(2.5))
     );
     assert_eq!(
-        materialized.nodes[&second_node].config.get("value"),
+        materialized
+            .node(AlchemistGraphDomain::node_id(second_node))
+            .unwrap()
+            .data
+            .config
+            .get("value"),
         Some(&RuntimeValue::Float(2.5))
     );
     assert_eq!(
-        formula.graph.nodes[&node].config.get("value"),
+        formula
+            .graph
+            .node(AlchemistGraphDomain::node_id(node))
+            .unwrap()
+            .data
+            .config
+            .get("value"),
         Some(&RuntimeValue::Float(1.0)),
         "materializing one Processor instance must not mutate the shared Formula"
     );
+    assert_eq!(
+        materialized.revision().sequence,
+        formula.graph.revision().sequence + 1,
+        "authoring overrides must be committed as one revisioned graph transaction"
+    );
+}
+
+#[test]
+fn formula_authoring_document_roundtrips_through_versioned_graph_envelope() {
+    let mut graph = TestGraph::new();
+    graph
+        .add_node(ANodeInstance::new(ANodeTypeId::new("constant"), "Constant"))
+        .unwrap();
+    let formula = formula_with_graph_and_surface(graph, FormulaSurface::default());
+
+    let encoded = serde_json::to_value(&formula).unwrap();
+
+    assert_eq!(
+        encoded["graph"]["domain_id"],
+        serde_json::Value::String(AlchemistGraphDomain::DOMAIN_ID.into())
+    );
+    let decoded: AlchemistFormula = serde_json::from_value(encoded).unwrap();
+    assert_eq!(decoded, formula);
 }
 
 #[test]
@@ -154,15 +197,12 @@ fn invalid_managed_region_reference_reports_diagnostic() {
 
 #[test]
 fn materialize_with_filter_pipelines_lowers_managed_filter_items() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let input = graph
-        .add_node(ANodeInstance::new(ANodeTypeId::new("boundary_input"), "Boundary Input"))
+        .add_node(ANodeInstance::new(ANodeTypeId::new("constant"), "Boundary Input"))
         .unwrap();
     let output = graph
-        .add_node(ANodeInstance::new(
-            ANodeTypeId::new("boundary_output"),
-            "Boundary Output",
-        ))
+        .add_node(ANodeInstance::new(ANodeTypeId::new("debug_value"), "Boundary Output"))
         .unwrap();
     let surface = FormulaSurface {
         sections: Vec::new(),
@@ -194,9 +234,11 @@ fn materialize_with_filter_pipelines_lowers_managed_filter_items() {
         )
         .unwrap();
 
-    assert!(materialized.nodes.contains_key(&remap_id));
+    assert!(materialized.node(AlchemistGraphDomain::node_id(remap_id)).is_some());
     assert_eq!(
-        materialized.edges,
+        AlchemistGraphDomain::with_primitives()
+            .semantic_edges(&materialized)
+            .unwrap(),
         vec![
             AEdge {
                 from: OutputSocketRef::new(input, "value"),
@@ -212,7 +254,7 @@ fn materialize_with_filter_pipelines_lowers_managed_filter_items() {
 
 #[test]
 fn materialize_with_filter_pipelines_requires_initial_shape() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let input = graph
         .add_node(ANodeInstance::new(ANodeTypeId::new("boundary_input"), "Boundary Input"))
         .unwrap();
@@ -251,7 +293,7 @@ fn materialize_with_filter_pipelines_requires_initial_shape() {
 
 #[test]
 fn materialize_with_filter_pipelines_rejects_valueset_elementwise_without_lane_strategy() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let input = graph
         .add_node(ANodeInstance::new(ANodeTypeId::new("boundary_input"), "Boundary Input"))
         .unwrap();
@@ -309,14 +351,14 @@ fn materialize_with_filter_pipelines_rejects_valueset_elementwise_without_lane_s
     }
 }
 
-fn formula_with_graph_and_surface(graph: AlchemistGraph, surface: FormulaSurface) -> AlchemistFormula {
+fn formula_with_graph_and_surface(graph: TestGraph, surface: FormulaSurface) -> AlchemistFormula {
     AlchemistFormula {
         id: FormulaId::new("test"),
         version: 1,
         label: "Test".into(),
         description: None,
         tags: Vec::new(),
-        graph,
+        graph: graph.to_document(),
         properties: FormulaPropertySchema::default(),
         surface,
         context_contract: FormulaContextContract::default(),

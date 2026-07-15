@@ -1,13 +1,13 @@
 [workspace]
 members = [
     "apps/chataigne",
+    "apps/chataigne/alchemist",
     "apps/chataigne/state_machine",
     "crates/codegen_support",
     "crates/application",
     "crates/core",
     "crates/core_facade",
     "crates/core_macros",
-    "crates/golden_alchemist",
     "crates/context",
     "crates/graph",
     "crates/model",
@@ -32,7 +32,7 @@ license = "MIT"
 repository = "https://github.com/Golden-Geek/Chataigne2"
 
 [workspace.dependencies]
-golden_alchemist = { path = "crates/golden_alchemist" }
+chataigne_alchemist = { path = "apps/chataigne/alchemist" }
 golden_application = { path = "crates/application" }
 golden_context = { path = "crates/context" }
 golden_graph = { path = "crates/graph" }

@@ -1,4 +1,4 @@
-use golden_alchemist::{StableRef, ValueTypeId};
+use chataigne_alchemist::{StableRef, ValueTypeId};
 use golden_values::Value as RuntimeValue;
 
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry, value_set::VALUE_SET_TYPE};
@@ -43,7 +43,7 @@ fn value_set_roundtrips_through_runtime_extension_payload() {
 
 #[test]
 fn old_parameter_array_runtime_type_is_not_accepted_as_valueset() {
-    let old_value = RuntimeValue::Extension(golden_alchemist::ExtensionValue::new(
+    let old_value = RuntimeValue::Extension(chataigne_alchemist::ExtensionValue::new(
         ValueTypeId::new("chataigne.param_array"),
         [],
     ));

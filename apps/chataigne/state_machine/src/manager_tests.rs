@@ -1,6 +1,6 @@
-use golden_alchemist::{
-    AlchemistFormula, AlchemistGraph, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface,
-};
+use crate::test_support::TestGraph;
+
+use chataigne_alchemist::{AlchemistFormula, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface};
 
 use crate::{Processor, ProcessorExecutionPolicy, ProcessorGroup, ProcessorManager};
 
@@ -11,7 +11,7 @@ fn formula() -> AlchemistFormula {
         label: "Test".into(),
         description: None,
         tags: Vec::new(),
-        graph: AlchemistGraph::new(),
+        graph: TestGraph::new().to_document().unwrap(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface::default(),
         context_contract: FormulaContextContract::default(),

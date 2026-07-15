@@ -98,7 +98,7 @@ def main() -> int:
                 "cargo",
                 "check",
                 "-p",
-                "golden_alchemist",
+                "chataigne_alchemist",
                 "-p",
                 "golden_statechart",
                 "--locked",

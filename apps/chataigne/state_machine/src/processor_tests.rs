@@ -1,12 +1,14 @@
+use crate::test_support::TestGraph;
+
 use std::{sync::Arc, time::Duration};
 
-use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextKey,
-    ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId,
-    FormulaPropertySchema, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
-    ManagedRegionDefinition, ManagedRegionId, ManagedRegionKind, OutputPreviewStatus, OutputSocketRef,
-    RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
-    SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+use chataigne_alchemist::{
+    ANodeInstance, ANodeTypeId, AlchemistFormula, AxisSet, CompileCtx, ContextAxisId, ContextKey, ContextValuePath,
+    EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema,
+    FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition,
+    ManagedRegionId, ManagedRegionKind, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput,
+    RuntimeRegistries, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId,
+    SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -16,7 +18,7 @@ use crate::{
 };
 
 fn formula() -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     constant.config.set("value", RuntimeValue::Float(1.0));
     graph.add_node(constant).unwrap();
@@ -24,7 +26,7 @@ fn formula() -> AlchemistFormula {
 }
 
 fn stateful_formula() -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     constant.config.set("value", RuntimeValue::Bool(true));
     let source = graph.add_node(constant).unwrap();
@@ -41,7 +43,7 @@ fn stateful_formula() -> AlchemistFormula {
 }
 
 fn property_formula(property_id: &str, default_value: RuntimeValue) -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut property = ANodeInstance::new(ANodeTypeId::new("property"), "Property");
     property.config.set(
         "property_id",
@@ -55,13 +57,13 @@ fn property_formula(property_id: &str, default_value: RuntimeValue) -> Alchemist
         description: None,
         value_type: ValueTypeId::new("float"),
         default_value,
-        ui: golden_alchemist::PropertyUiHints::default(),
+        ui: chataigne_alchemist::PropertyUiHints::default(),
     });
     formula
 }
 
 fn large_stateless_formula(node_count: usize) -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     for index in 0..node_count {
         let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), format!("Constant {index}"));
         constant.config.set("value", RuntimeValue::Float(index as f64));
@@ -70,14 +72,14 @@ fn large_stateless_formula(node_count: usize) -> AlchemistFormula {
     formula_with_graph(graph)
 }
 
-fn formula_with_graph(graph: AlchemistGraph) -> AlchemistFormula {
+fn formula_with_graph(graph: TestGraph) -> AlchemistFormula {
     AlchemistFormula {
         id: FormulaId::new("test"),
         version: 1,
         label: "Test".into(),
         description: None,
         tags: Vec::new(),
-        graph,
+        graph: graph.to_document().unwrap(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface::default(),
         context_contract: FormulaContextContract::default(),
@@ -758,7 +760,7 @@ fn formula_surface_is_present_in_ui_model() {
             path: Vec::new(),
             kind: SurfaceItemKind::Command,
             value_type: None,
-            ui: golden_alchemist::ParamUiHints::default(),
+            ui: chataigne_alchemist::ParamUiHints::default(),
             bindings: Vec::new(),
         }],
         source: SurfaceSource::Formula,

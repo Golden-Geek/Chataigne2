@@ -8,11 +8,11 @@ use std::{
 use indexmap::IndexMap;
 
 use crate::{
-    ANodeId, ANodeRegistry, AlchemistFormula, AlchemistGraph, AlchemistGraphId, AxisSet, CompiledNodeEvaluator,
-    Diagnostic, DiagnosticOrigin, DiagnosticSeverity, ExecNodeId, ExecutionKind, ExposedSurface, FormulaId,
-    FormulaPropertyId, FormulaPropertySchema, FormulaPropertySlotId, FormulaRef, ResolvedANodeSignature, RuntimeValue,
-    SocketId, StableRef, TypeSolveCtx, ValueComponent, ValueSlotId, ValueTypeId, ValueTypeRegistry,
-    component_value_type, solve_types,
+    AEdge, ANodeId, ANodeInstance, ANodeRegistry, AlchemistFormula, AlchemistGraphDocument, AlchemistGraphDomain,
+    AlchemistGraphId, AxisSet, CompiledNodeEvaluator, Diagnostic, DiagnosticOrigin, DiagnosticSeverity, ExecNodeId,
+    ExecutionKind, ExposedSurface, FormulaId, FormulaPropertyId, FormulaPropertySchema, FormulaPropertySlotId,
+    FormulaRef, ResolvedANodeSignature, RuntimeValue, SocketId, StableRef, TypeSolveCtx, ValueComponent, ValueSlotId,
+    ValueTypeId, ValueTypeRegistry, component_value_type, typing::solve_semantic_types,
 };
 
 pub const FORMULA_INPUT_VALUE_TYPE: &str = "alchemist.formula_input";
@@ -235,16 +235,11 @@ pub struct FormulaCompileKey {
 
 impl FormulaCompileKey {
     #[must_use]
-    pub fn from_formula(
-        formula: &AlchemistFormula,
-        graph_revision: u64,
-        node_registry_hash: u64,
-        value_type_registry_hash: u64,
-    ) -> Self {
+    pub fn from_formula(formula: &AlchemistFormula, node_registry_hash: u64, value_type_registry_hash: u64) -> Self {
         Self {
             formula_id: formula.id.clone(),
             formula_version: formula.version,
-            graph_revision,
+            graph_revision: formula.graph.revision().sequence,
             property_schema_hash: property_schema_hash(&formula.properties),
             node_registry_hash,
             value_type_registry_hash,
@@ -271,11 +266,42 @@ pub struct CompileCtx<'a> {
 }
 
 #[must_use]
-pub fn compile_graph(graph: &AlchemistGraph, ctx: &CompileCtx<'_>) -> CompileResult {
+pub fn compile_graph(document: &AlchemistGraphDocument, ctx: &CompileCtx<'_>) -> CompileResult {
+    let domain = AlchemistGraphDomain::new(ctx.nodes.clone(), ctx.value_types.clone(), ctx.properties.cloned());
+    let edges = match domain.semantic_edges(document) {
+        Ok(edges) => edges,
+        Err(error) => {
+            return CompileResult {
+                compiled: None,
+                diagnostics: vec![Diagnostic::error(
+                    "invalid_authoring_document",
+                    error.to_string(),
+                    DiagnosticOrigin::Graph,
+                )],
+            };
+        }
+    };
+    let nodes = document
+        .nodes()
+        .map(|node| {
+            let id = AlchemistGraphDomain::anode_id(node.id);
+            (id, node.data.to_instance(id))
+        })
+        .collect();
+    compile_document_graph(document, &nodes, &edges, ctx)
+}
+
+fn compile_document_graph(
+    document: &AlchemistGraphDocument,
+    nodes: &IndexMap<ANodeId, ANodeInstance>,
+    edges: &[AEdge],
+    ctx: &CompileCtx<'_>,
+) -> CompileResult {
     let mut diagnostics = Vec::new();
     let compiled_properties = compile_property_schema(ctx.properties, ctx.value_types, &mut diagnostics);
-    let solved = solve_types(
-        graph,
+    let solved = solve_semantic_types(
+        nodes,
+        edges,
         &TypeSolveCtx {
             value_types: ctx.value_types,
             nodes: ctx.nodes,
@@ -283,7 +309,7 @@ pub fn compile_graph(graph: &AlchemistGraph, ctx: &CompileCtx<'_>) -> CompileRes
         },
     );
     diagnostics.extend(solved.diagnostics);
-    validate_exposed_surface(&graph.exposed, graph, &mut diagnostics);
+    validate_exposed_surface(&document.data().exposed, nodes, &mut diagnostics);
     if has_errors(&diagnostics) {
         return CompileResult {
             compiled: None,
@@ -300,7 +326,7 @@ pub fn compile_graph(graph: &AlchemistGraph, ctx: &CompileCtx<'_>) -> CompileRes
         }
     }
 
-    let topo_nodes = match topological_order(graph, ctx.nodes) {
+    let topo_nodes = match topological_order(nodes, edges, ctx.nodes) {
         Ok(order) => order,
         Err(cycle_nodes) => {
             diagnostics.push(Diagnostic::error(
@@ -322,16 +348,17 @@ pub fn compile_graph(graph: &AlchemistGraph, ctx: &CompileCtx<'_>) -> CompileRes
     let topo_order = topo_nodes.iter().map(|node| authored_to_exec[node]).collect::<Vec<_>>();
 
     let mut state_slot_count = 0_usize;
-    let mut ranges = vec![0..0; graph.nodes.len()];
-    let mut exec_nodes = (0..graph.nodes.len()).map(|_| None).collect::<Vec<_>>();
-    let mut direct_context_axes = vec![AxisSet::new(); graph.nodes.len()];
+    let mut ranges = vec![0..0; nodes.len()];
+    let mut exec_nodes = (0..nodes.len()).map(|_| None).collect::<Vec<_>>();
+    let mut direct_context_axes = vec![AxisSet::new(); nodes.len()];
     let input_source_ctx = InputSourceContext {
-        graph,
+        graph_id: AlchemistGraphId::from_uuid(document.id().as_uuid()),
+        edges,
         solved: &solved.graph,
         value_slots: &value_slots,
         compile: ctx,
     };
-    for (node_id, instance) in &graph.nodes {
+    for (node_id, instance) in nodes {
         let exec_id = authored_to_exec[node_id];
         let resolved = &solved.graph.nodes[node_id];
         let declaration = ctx
@@ -696,7 +723,8 @@ fn disabled_bypass_input(signature: &ResolvedANodeSignature) -> Option<usize> {
 }
 
 struct InputSourceContext<'a, 'ctx> {
-    graph: &'a AlchemistGraph,
+    graph_id: AlchemistGraphId,
+    edges: &'a [AEdge],
     solved: &'a crate::ResolvedGraph,
     value_slots: &'a IndexMap<(ANodeId, SocketId), ValueSlotId>,
     compile: &'a CompileCtx<'ctx>,
@@ -710,11 +738,10 @@ fn input_source(
     target_type: Option<&ValueTypeId>,
 ) -> InputValueSource {
     let base_edge = context
-        .graph
         .edges
         .iter()
         .find(|edge| edge.to.node == node_id && edge.to.socket == *socket);
-    let component_edges = context.graph.edges.iter().filter_map(|edge| {
+    let component_edges = context.edges.iter().filter_map(|edge| {
         if edge.to.node != node_id {
             return None;
         }
@@ -740,7 +767,7 @@ fn input_source(
                 })
                 .unwrap_or(InputValueSource::Unset);
             Some(InputValueSource::RuntimeInput {
-                reference: formula_input_value_ref(context.graph.id, node_id, socket),
+                reference: formula_input_value_ref(context.graph_id, node_id, socket),
                 fallback: Box::new(fallback),
             })
         });
@@ -831,16 +858,19 @@ fn input_default(instance: &crate::ANodeInstance, socket: &SocketId, ctx: &Compi
         .default_value
 }
 
-fn topological_order(graph: &AlchemistGraph, registry: &ANodeRegistry) -> Result<Vec<ANodeId>, Vec<ANodeId>> {
+fn topological_order(
+    nodes: &IndexMap<ANodeId, ANodeInstance>,
+    edges: &[AEdge],
+    registry: &ANodeRegistry,
+) -> Result<Vec<ANodeId>, Vec<ANodeId>> {
     let mut indegree = IndexMap::<ANodeId, usize>::new();
     let mut outgoing = IndexMap::<ANodeId, Vec<ANodeId>>::new();
-    for node in graph.nodes.keys() {
+    for node in nodes.keys() {
         indegree.insert(*node, 0);
         outgoing.insert(*node, Vec::new());
     }
-    for edge in &graph.edges {
-        let breaks_cycle = graph
-            .nodes
+    for edge in edges {
+        let breaks_cycle = nodes
             .get(&edge.from.node)
             .and_then(|node| registry.get(&node.type_id))
             .is_some_and(|declaration| declaration.breaks_dependency_cycle());
@@ -859,7 +889,7 @@ fn topological_order(graph: &AlchemistGraph, registry: &ANodeRegistry) -> Result
         .iter()
         .filter_map(|(node, degree)| (*degree == 0).then_some(*node))
         .collect();
-    let mut order = Vec::with_capacity(graph.nodes.len());
+    let mut order = Vec::with_capacity(nodes.len());
     while let Some(node) = ready.pop_front() {
         order.push(node);
         for target in &outgoing[&node] {
@@ -870,7 +900,7 @@ fn topological_order(graph: &AlchemistGraph, registry: &ANodeRegistry) -> Result
             }
         }
     }
-    if order.len() == graph.nodes.len() {
+    if order.len() == nodes.len() {
         Ok(order)
     } else {
         Err(indegree
@@ -880,7 +910,11 @@ fn topological_order(graph: &AlchemistGraph, registry: &ANodeRegistry) -> Result
     }
 }
 
-fn validate_exposed_surface(exposed: &ExposedSurface, graph: &AlchemistGraph, diagnostics: &mut Vec<Diagnostic>) {
+fn validate_exposed_surface(
+    exposed: &ExposedSurface,
+    nodes: &IndexMap<ANodeId, ANodeInstance>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let targets = exposed
         .params
         .iter()
@@ -904,7 +938,7 @@ fn validate_exposed_surface(exposed: &ExposedSurface, graph: &AlchemistGraph, di
                 .map(|declaration| (&declaration.decl_id, declaration.target.node)),
         );
     for (declaration, node) in targets {
-        if !graph.nodes.contains_key(&node) {
+        if !nodes.contains_key(&node) {
             diagnostics.push(Diagnostic::error(
                 "missing_exposed_target",
                 format!("exposed declaration `{declaration}` targets a missing node"),

@@ -17,8 +17,8 @@ triggers, scalar/vector/color values, durations, arrays, stable references, and 
 Color channels are `f64`, matching parameters, protocol DTOs, persistence, and UI numbers without
 the previous Alchemist-only precision narrowing.
 
-`golden_alchemist` and Chataigne now depend on `golden_values` directly; the former public
-`golden_alchemist::RuntimeValue` compatibility name has been removed. Alchemist may use a private
+`chataigne_alchemist` and the rest of Chataigne now depend on `golden_values` directly; the former
+public Alchemist `RuntimeValue` compatibility name has been removed. Alchemist may use a private
 semantic name internally, but package consumers receive the canonical `golden_values::Value` API.
 Parameter-specific concepts such as files, enum selections, CSS units, and node-reference hints
 cross the canonical boundary as typed extensions and round-trip through executable tests.

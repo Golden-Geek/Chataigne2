@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use golden_alchemist::{ManagedRegionDefinition, SurfaceItemKind};
+use chataigne_alchemist::{ManagedRegionDefinition, SurfaceItemKind};
 use golden_core::{
     edit::{Edit, NodeTree},
     events::{Event, EventFrame, EventKind},

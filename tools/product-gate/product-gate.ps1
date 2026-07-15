@@ -807,6 +807,12 @@ Invoke-GateCommand `
     -Executable "python" `
     -Arguments @("tools/migration/check_phase3_contracts.py") `
     -DependsOn @("architecture.phase2_contracts") | Out-Null
+Invoke-GateCommand `
+    -Id "architecture.phase4_contracts" `
+    -Name "Phase 4 Alchemist ownership and authoring contracts" `
+    -Executable "python" `
+    -Arguments @("tools/migration/check_phase4_contracts.py") `
+    -DependsOn @("architecture.phase3_contracts") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `

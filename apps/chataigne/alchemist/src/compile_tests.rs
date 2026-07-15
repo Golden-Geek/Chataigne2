@@ -1,22 +1,25 @@
+use crate::test_support::TestGraph;
+
 use crate::{
-    ANodeDeclaration, ANodeInstance, ANodeSignature, ANodeTypeId, AlchemistGraph, AxisSet, CompileCtx,
-    CompiledNodeOperation, ContextAxisId, ExecutionKind, FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema,
-    InputSocketDecl, InputSocketRef, NodeStateLayout, OutputSocketDecl, OutputSocketRef, ResolvedANodeSignature,
-    RuntimeValue, SignatureCtx, StableRef, TypeBindings, TypeConstraint, TypeSolveCtx, ValueTypeId, ValueTypeRegistry,
-    compile_graph, primitive_node_registry, solve_types,
+    ANodeDeclaration, ANodeInstance, ANodeSignature, ANodeTypeId, AxisSet, CompileCtx, CompiledNodeOperation,
+    ContextAxisId, ExecutionKind, FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketDecl,
+    InputSocketRef, NodeStateLayout, OutputSocketDecl, OutputSocketRef, ResolvedANodeSignature, RuntimeValue,
+    SignatureCtx, StableRef, TypeBindings, TypeConstraint, TypeSolveCtx, ValueTypeId, ValueTypeRegistry, compile_graph,
+    primitive_node_registry, solve_document_types,
 };
 
 fn node(type_id: &str) -> ANodeInstance {
     ANodeInstance::new(ANodeTypeId::new(type_id), type_id)
 }
 
-fn compile(graph: &AlchemistGraph) -> crate::CompileResult {
+fn compile(graph: &TestGraph) -> crate::CompileResult {
     compile_with_properties(graph, None)
 }
 
-fn compile_with_properties(graph: &AlchemistGraph, properties: Option<&FormulaPropertySchema>) -> crate::CompileResult {
+fn compile_with_properties(graph: &TestGraph, properties: Option<&FormulaPropertySchema>) -> crate::CompileResult {
+    let document = graph.to_document();
     compile_graph(
-        graph,
+        &document,
         &CompileCtx {
             value_types: &ValueTypeRegistry::with_primitives(),
             nodes: &primitive_node_registry(),
@@ -25,9 +28,10 @@ fn compile_with_properties(graph: &AlchemistGraph, properties: Option<&FormulaPr
     )
 }
 
-fn compile_with_nodes(graph: &AlchemistGraph, nodes: &crate::ANodeRegistry) -> crate::CompileResult {
+fn compile_with_nodes(graph: &TestGraph, nodes: &crate::ANodeRegistry) -> crate::CompileResult {
+    let document = graph.to_document();
     compile_graph(
-        graph,
+        &document,
         &CompileCtx {
             value_types: &ValueTypeRegistry::with_primitives(),
             nodes,
@@ -210,7 +214,7 @@ impl ANodeDeclaration for ContextAnalysisNodeDeclaration {
 
 #[test]
 fn compiler_builds_dense_schedule_and_memory_layout() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut constant = node("constant");
     constant.config.set("value", RuntimeValue::Float(2.0));
     let constant = graph.add_node(constant).unwrap();
@@ -244,7 +248,7 @@ fn stateful_node_can_request_three_slots() {
             NodeStateLayout::RuntimeValues(3),
         ))
         .unwrap();
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(node("three_slot_state")).unwrap();
 
     let result = compile_with_nodes(&graph, &nodes);
@@ -271,7 +275,7 @@ fn multiple_stateful_nodes_sum_state_slots() {
             NodeStateLayout::RuntimeValues(3),
         ))
         .unwrap();
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(node("two_slot_state")).unwrap();
     graph.add_node(node("three_slot_state")).unwrap();
 
@@ -293,7 +297,7 @@ fn stateless_node_has_empty_state_slice() {
             NodeStateLayout::Stateless,
         ))
         .unwrap();
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(node("stateless_test")).unwrap();
 
     let result = compile_with_nodes(&graph, &nodes);
@@ -326,7 +330,7 @@ fn formula_analysis_propagates_context_axes_to_stateful_nodes() {
             NodeStateLayout::RuntimeValues(1),
         ))
         .unwrap();
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(node("context_source")).unwrap();
     let state = graph.add_node(node("state_consumer")).unwrap();
     graph
@@ -371,7 +375,7 @@ fn formula_analysis_propagates_context_axes_to_effect_emitters() {
             NodeStateLayout::Stateless,
         ))
         .unwrap();
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(node("context_source")).unwrap();
     let effect = graph.add_node(node("effect_consumer")).unwrap();
     graph
@@ -395,7 +399,7 @@ fn formula_analysis_propagates_context_axes_to_effect_emitters() {
 
 #[test]
 fn cycle_without_delay_is_reported() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let first = graph.add_node(node("math")).unwrap();
     let second = graph.add_node(node("math")).unwrap();
     graph
@@ -424,7 +428,7 @@ fn cycle_without_delay_is_reported() {
 
 #[test]
 fn delay_node_allows_feedback() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let add = graph.add_node(node("math")).unwrap();
     let delay = graph.add_node(node("delay_one_tick")).unwrap();
     graph
@@ -442,7 +446,7 @@ fn delay_node_allows_feedback() {
 
 #[test]
 fn property_decl_rejects_invalid_default() {
-    let graph = AlchemistGraph::new();
+    let graph = TestGraph::new();
     let schema = property_schema("amount", "float", RuntimeValue::String("not a float".into()));
 
     let result = compile_with_properties(&graph, Some(&schema));
@@ -458,7 +462,7 @@ fn property_decl_rejects_invalid_default() {
 
 #[test]
 fn property_node_rejects_missing_property_id() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(node("property")).unwrap();
     let schema = property_schema("amount", "float", RuntimeValue::Float(1.0));
 
@@ -475,7 +479,7 @@ fn property_node_rejects_missing_property_id() {
 
 #[test]
 fn property_node_type_comes_from_schema() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut property = property_node("enabled");
     property.config.set("value", RuntimeValue::Float(123.0));
     let property = graph.add_node(property).unwrap();
@@ -483,8 +487,9 @@ fn property_node_type_comes_from_schema() {
     let value_types = ValueTypeRegistry::with_primitives();
     let nodes = primitive_node_registry();
 
-    let result = solve_types(
-        &graph,
+    let document = graph.to_document();
+    let result = solve_document_types(
+        &document,
         &TypeSolveCtx {
             value_types: &value_types,
             nodes: &nodes,

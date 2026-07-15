@@ -5,8 +5,8 @@ use chataigne_state_machine::{
     ProcessorContextProvider, ProcessorId, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorRuntime, ValueSet,
 };
-use golden_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx,
+use chataigne_alchemist::{
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, CompileCtx,
     ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract,
     FormulaId, FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus,
     OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, SocketId, TriggerValue,
@@ -408,8 +408,8 @@ fn multiplex_template_tokens_resolve_indexes_and_lists_across_named_axes() {
         )]),
     };
     let key = ContextKey::new([
-        golden_alchemist::ContextKeyPart::new(primary_axis, primary_items[1].clone()),
-        golden_alchemist::ContextKeyPart::new(secondary_axis, secondary_items[0].clone()),
+        chataigne_alchemist::ContextKeyPart::new(primary_axis, primary_items[1].clone()),
+        chataigne_alchemist::ContextKeyPart::new(secondary_axis, secondary_items[0].clone()),
     ]);
 
     let resolved = resolve_multiplex_template_value(
@@ -905,21 +905,25 @@ fn runtime_output_trigger_fired(output: &RuntimeOutput) -> bool {
 }
 
 fn stateful_trigger_formula() -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = AlchemistGraphDomain::new_document();
+    let mut transaction =
+        chataigne_alchemist::AlchemistGraphTransaction::for_document(&graph);
     let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     constant.config.set("value", RuntimeValue::Bool(true));
-    let source = graph.add_node(constant).unwrap();
-    let edge = graph
-        .add_node(ANodeInstance::new(
-            ANodeTypeId::new("trigger_on_off"),
-            "Trigger On/Off",
-        ))
-        .unwrap();
-    graph
-        .connect(
-            OutputSocketRef::new(source, "value"),
-            InputSocketRef::new(edge, "value"),
-        )
+    let source = constant.id;
+    AlchemistGraphDomain::insert_node(&mut transaction, constant);
+    let edge =
+        ANodeInstance::new(ANodeTypeId::new("trigger_on_off"), "Trigger On/Off");
+    let edge_id = edge.id;
+    AlchemistGraphDomain::insert_node(&mut transaction, edge);
+    AlchemistGraphDomain::connect(
+        &mut transaction,
+        &graph,
+        OutputSocketRef::new(source, "value"),
+        InputSocketRef::new(edge_id, "value"),
+    );
+    transaction
+        .commit(&mut graph, &AlchemistGraphDomain::with_primitives())
         .unwrap();
     AlchemistFormula {
         id: FormulaId::new("test"),

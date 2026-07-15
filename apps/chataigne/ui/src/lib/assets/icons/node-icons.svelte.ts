@@ -9,8 +9,8 @@ import moduleCategoryAudioIcon from './module/audio.svg';
 import moduleCategoryVideoIcon from './module/video.svg';
 import moduleCategoryGeneratorsIcon from './module/generators.svg';
 import moduleCategorySystemIcon from './module/system.svg';
-import formulaIcon from 'golden_alchemist_ui/icons/formula.svg';
-import formulaLibraryIcon from 'golden_alchemist_ui/icons/formula_library.svg';
+import formulaIcon from './formula.svg';
+import formulaLibraryIcon from './formula_library.svg';
 
 export const appIcons: NodeIconSet = {
 	nodeTypes: {

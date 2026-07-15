@@ -17,6 +17,7 @@ FOUNDATION_CRATES = {
     "context": {"golden_model", "golden_parameters", "serde", "ts-rs"},
     "graph": {"indexmap", "serde", "thiserror", "ts-rs", "uuid"},
 }
+ALCHEMIST_PATH = Path("apps/chataigne/alchemist")
 REQUIRED_CUTOVERS = {
     "identifiers",
     "canonical_values",
@@ -49,7 +50,10 @@ class Violation:
 
 def foundation_violations(root: Path) -> list[Violation]:
     violations: list[Violation] = []
-    forbidden_source = re.compile(r"\b(?:golden_engine|golden_alchemist|chataigne)\b", re.IGNORECASE)
+    forbidden_source = re.compile(
+        r"\b(?:golden_engine|golden_alchemist|chataigne_alchemist|chataigne)\b",
+        re.IGNORECASE,
+    )
     for directory, allowed_dependencies in FOUNDATION_CRATES.items():
         crate = root / "crates" / directory
         manifest = crate / "Cargo.toml"
@@ -118,25 +122,27 @@ def foundation_violations(root: Path) -> list[Violation]:
     if not facade.is_file() or "pub use golden_graph::*;" not in facade.read_text(encoding="utf-8"):
         violations.append(Violation(facade, "golden_core facade does not expose the live golden_graph contract"))
 
-    alchemist_value = root / "crates/golden_alchemist/src/value.rs"
+    alchemist_value = root / ALCHEMIST_PATH / "src/value.rs"
     alchemist_source = alchemist_value.read_text(encoding="utf-8")
     if "pub use golden_values" not in alchemist_source:
         violations.append(Violation(alchemist_value, "Alchemist does not consume canonical golden_values"))
     if re.search(r"pub enum RuntimeValue\b|pub struct ColorValue\b", alchemist_source):
         violations.append(Violation(alchemist_value, "Alchemist still owns canonical value definitions"))
 
-    alchemist_manifest = root / "crates/golden_alchemist/Cargo.toml"
+    alchemist_manifest = root / ALCHEMIST_PATH / "Cargo.toml"
     alchemist_dependencies = tomllib.loads(alchemist_manifest.read_text(encoding="utf-8")).get(
         "dependencies", {}
     )
     if not isinstance(alchemist_dependencies, dict) or "golden_graph" not in alchemist_dependencies:
         violations.append(Violation(alchemist_manifest, "Alchemist does not consume golden_graph"))
-    alchemist_domain = root / "crates/golden_alchemist/src/domain.rs"
+    alchemist_domain = root / ALCHEMIST_PATH / "src/domain.rs"
     alchemist_domain_source = alchemist_domain.read_text(encoding="utf-8")
-    for contract in ("AlchemistGraphDomain", "AlchemistGraphDocument", "AlchemistGraphAdapter"):
+    for contract in ("AlchemistGraphDomain", "AlchemistGraphDocument"):
         if contract not in alchemist_domain_source:
             violations.append(Violation(alchemist_domain, f"Alchemist graph adaptation lacks {contract}"))
-    alchemist_lib = root / "crates/golden_alchemist/src/lib.rs"
+    if "AlchemistGraphAdapter" in alchemist_domain_source:
+        violations.append(Violation(alchemist_domain, "expired Phase 3 Alchemist adapter still exists"))
+    alchemist_lib = root / ALCHEMIST_PATH / "src/lib.rs"
     alchemist_lib_source = alchemist_lib.read_text(encoding="utf-8")
     if "pub mod domain;" not in alchemist_lib_source or "AlchemistGraphDomain" not in alchemist_lib_source:
         violations.append(Violation(alchemist_lib, "Alchemist graph domain is not part of the public package API"))
@@ -171,23 +177,23 @@ def runtime_value_boundary_violations(root: Path) -> list[Violation]:
     if re.search(r"pub\s+type\s+RuntimeValue\b", values_source):
         violations.append(Violation(values, "golden_values still exposes the retired RuntimeValue alias"))
 
-    alchemist_lib = root / "crates/golden_alchemist/src/lib.rs"
+    alchemist_lib = root / ALCHEMIST_PATH / "src/lib.rs"
     alchemist_source = alchemist_lib.read_text(encoding="utf-8")
     public_value_exports = re.search(r"pub\s+use\s+value::\{(?P<body>.*?)\};", alchemist_source, re.DOTALL)
     if public_value_exports and re.search(r"\bRuntimeValue\b", public_value_exports.group("body")):
-        violations.append(Violation(alchemist_lib, "golden_alchemist still publicly re-exports RuntimeValue"))
+        violations.append(Violation(alchemist_lib, "Chataigne Alchemist still publicly re-exports RuntimeValue"))
 
     public_import = re.compile(
-        r"golden_alchemist::RuntimeValue|use\s+golden_alchemist::\{[^;]*\bRuntimeValue\b[^;]*\};"
+        r"chataigne_alchemist::RuntimeValue|use\s+chataigne_alchemist::\{[^;]*\bRuntimeValue\b[^;]*\};"
     )
     for source_root in (root / "crates", root / "apps"):
         if not source_root.is_dir():
             continue
         for source in source_root.rglob("*.rs"):
-            if source.is_relative_to(root / "crates/golden_alchemist"):
+            if source.is_relative_to(root / ALCHEMIST_PATH):
                 continue
             if public_import.search(source.read_text(encoding="utf-8")):
-                violations.append(Violation(source, "consumer imports the retired golden_alchemist RuntimeValue API"))
+                violations.append(Violation(source, "consumer imports the retired Alchemist RuntimeValue API"))
 
     for manifest in (root / "apps/chataigne/Cargo.toml", root / "apps/chataigne/state_machine/Cargo.toml"):
         dependencies = tomllib.loads(manifest.read_text(encoding="utf-8")).get("dependencies", {})
@@ -218,7 +224,7 @@ def graph_ui_violations(root: Path) -> list[Violation]:
     if old_canvas.exists():
         violations.append(Violation(old_canvas, "Alchemist package still owns the generic graph canvas"))
     alchemist_index = root / "packages/golden-alchemist-ui/index.ts"
-    if "GraphCanvas" in alchemist_index.read_text(encoding="utf-8"):
+    if alchemist_index.is_file() and "GraphCanvas" in alchemist_index.read_text(encoding="utf-8"):
         violations.append(Violation(alchemist_index, "Alchemist package still exports the generic graph canvas"))
 
     generated_revision = package / "generated/GraphRevision.ts"

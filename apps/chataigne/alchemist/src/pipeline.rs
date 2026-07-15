@@ -1,8 +1,8 @@
 use crate::{
-    ANodeDeclaration, ANodeId, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeTypeId, AlchemistGraph,
-    AutoWirePolicy, ContextAxisId, FormulaPropertySchema, GraphEditError, InputSocketRef, ManagedRegionDefinition,
-    ManagedRegionInstance, ManagedRegionKind, OutputSocketRef, PipelineCardinality, SignatureCtx, SurfaceItemKind,
-    TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry,
+    ANodeDeclaration, ANodeId, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeTypeId, AlchemistGraphDocument,
+    AlchemistGraphDomain, AlchemistGraphTransaction, AutoWirePolicy, ContextAxisId, FormulaPropertySchema,
+    InputSocketRef, ManagedRegionDefinition, ManagedRegionInstance, ManagedRegionKind, OutputSocketRef,
+    PipelineCardinality, SignatureCtx, SurfaceItemKind, TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -138,7 +138,7 @@ pub enum PipelineLoweringDiagnosticKind {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FilterPipelineLoweringResult {
-    pub graph: AlchemistGraph,
+    pub graph: AlchemistGraphDocument,
     pub shape: PipelineShapeResult,
     pub inserted_nodes: Vec<ANodeId>,
     pub diagnostics: Vec<PipelineLoweringDiagnostic>,
@@ -159,7 +159,7 @@ struct ResolvedPipelineItem<'a> {
 }
 
 pub fn lower_filter_pipeline_region(
-    graph: &AlchemistGraph,
+    graph: &AlchemistGraphDocument,
     definition: &ManagedRegionDefinition,
     instance: &ManagedRegionInstance,
     initial_shape: PipelineShape,
@@ -199,8 +199,11 @@ pub fn lower_filter_pipeline_region(
     }
 
     let mut draft = graph.clone();
+    let domain = AlchemistGraphDomain::new(ctx.nodes.clone(), ctx.value_types.clone(), ctx.properties.cloned());
+    let mut transaction = AlchemistGraphTransaction::for_document(&draft);
     let mut inserted_nodes = Vec::new();
     let mut edit_diagnostics = Vec::new();
+    let mut has_edits = false;
 
     if let (Some(input_socket), Some(output_socket)) = (&definition.input_socket, &definition.output_socket) {
         let mut previous_output = OutputSocketRef::new(input_socket.node, input_socket.socket.clone());
@@ -225,37 +228,36 @@ pub fn lower_filter_pipeline_region(
                 continue;
             };
 
-            let node = item.instance.clone();
-            let node_id = node.id;
-            if let Err(error) = draft.add_node(node) {
-                edit_diagnostics.push(graph_edit_diagnostic(
-                    Some(item.item_index),
-                    Some(item.instance.type_id.clone()),
-                    error,
-                ));
-                continue;
-            }
+            let node_id = item.instance.id;
+            AlchemistGraphDomain::insert_node(&mut transaction, item.instance.clone());
             inserted_nodes.push(node_id);
+            has_edits = true;
 
-            if let Err(error) = draft.connect(previous_output.clone(), InputSocketRef::new(node_id, input.clone())) {
-                edit_diagnostics.push(graph_edit_diagnostic(
-                    Some(item.item_index),
-                    Some(item.instance.type_id.clone()),
-                    error,
-                ));
-                break;
-            }
+            AlchemistGraphDomain::connect(
+                &mut transaction,
+                &draft,
+                previous_output.clone(),
+                InputSocketRef::new(node_id, input.clone()),
+            );
             previous_output = OutputSocketRef::new(node_id, output.clone());
         }
 
-        if edit_diagnostics.is_empty()
-            && let Err(error) = draft.connect(
+        if edit_diagnostics.is_empty() {
+            AlchemistGraphDomain::connect(
+                &mut transaction,
+                &draft,
                 previous_output,
                 InputSocketRef::new(output_socket.node, output_socket.socket.clone()),
-            )
-        {
-            edit_diagnostics.push(graph_edit_diagnostic(None, None, error));
+            );
+            has_edits = true;
         }
+    }
+
+    if edit_diagnostics.is_empty()
+        && has_edits
+        && let Err(error) = transaction.commit(&mut draft, &domain)
+    {
+        edit_diagnostics.push(graph_edit_diagnostic(None, None, error));
     }
 
     if edit_diagnostics.is_empty() {
@@ -406,7 +408,7 @@ fn linear_filter_sockets(capability: &ANodeRoleCapability) -> Option<(crate::Soc
 fn graph_edit_diagnostic(
     item_index: Option<usize>,
     node_type: Option<ANodeTypeId>,
-    error: GraphEditError,
+    error: impl ToString,
 ) -> PipelineLoweringDiagnostic {
     PipelineLoweringDiagnostic {
         kind: PipelineLoweringDiagnosticKind::GraphEdit,

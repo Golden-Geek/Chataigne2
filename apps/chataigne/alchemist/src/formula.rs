@@ -1,10 +1,12 @@
+use golden_graph::GraphTransaction;
 use indexmap::IndexMap;
 
 use crate::{
-    ANodeFieldPath, ANodeId, ANodeInstance, AlchemistGraph, ContextDimensionId, Diagnostic, FormulaId,
-    FormulaPropertyId, ManagedItemId, ManagedRegionId, ParamUiHints, PipelineLoweringCtx, PipelineLoweringDiagnostic,
-    PipelineShape, PipelineShapeDiagnostic, RuntimeValue, SocketId, StableRef, SurfaceContributionId, SurfaceItemId,
-    SurfaceSectionId, ValueTypeId, ValueTypeSpec, lower_filter_pipeline_region,
+    ANodeFieldPath, ANodeId, ANodeInstance, AlchemistGraphDocument, AlchemistGraphDomain, AlchemistNodeData,
+    ContextDimensionId, Diagnostic, FormulaId, FormulaPropertyId, ManagedItemId, ManagedRegionId, ParamUiHints,
+    PipelineLoweringCtx, PipelineLoweringDiagnostic, PipelineShape, PipelineShapeDiagnostic, RuntimeValue, SocketId,
+    StableRef, SurfaceContributionId, SurfaceItemId, SurfaceSectionId, ValueTypeId, ValueTypeSpec,
+    lower_filter_pipeline_region,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -263,7 +265,8 @@ pub struct AlchemistFormula {
     pub label: String,
     pub description: Option<String>,
     pub tags: Vec<String>,
-    pub graph: AlchemistGraph,
+    #[cfg_attr(feature = "serde", serde(with = "crate::domain::document_serde"))]
+    pub graph: AlchemistGraphDocument,
     pub properties: FormulaPropertySchema,
     pub surface: FormulaSurface,
     pub context_contract: FormulaContextContract,
@@ -289,9 +292,11 @@ impl AlchemistFormula {
     pub fn materialize(
         &self,
         instance: &AlchemistFormulaInstance,
-    ) -> Result<AlchemistGraph, FormulaMaterializationError> {
+        domain: &AlchemistGraphDomain,
+    ) -> Result<AlchemistGraphDocument, FormulaMaterializationError> {
         instance.require_compatible(self)?;
         let mut graph = self.graph.clone();
+        let mut updated_nodes = IndexMap::<_, AlchemistNodeData>::new();
         for (surface_item, value) in &instance.overrides.values {
             let targets = instance
                 .surface_bindings
@@ -299,13 +304,27 @@ impl AlchemistFormula {
                 .get(surface_item)
                 .ok_or_else(|| FormulaMaterializationError::MissingSurfaceBinding(surface_item.clone()))?;
             for target in targets {
-                let node = graph
-                    .nodes
-                    .get_mut(&target.node)
-                    .ok_or(FormulaMaterializationError::MissingTargetNode(target.node))?;
-                node.config.set(target.field.clone(), value.clone());
+                let node_id = AlchemistGraphDomain::node_id(target.node);
+                let data = match updated_nodes.entry(node_id) {
+                    indexmap::map::Entry::Occupied(entry) => entry.into_mut(),
+                    indexmap::map::Entry::Vacant(entry) => {
+                        let node = graph
+                            .node(node_id)
+                            .ok_or(FormulaMaterializationError::MissingTargetNode(target.node))?;
+                        entry.insert(node.data.clone())
+                    }
+                };
+                data.config.set(target.field.clone(), value.clone());
             }
         }
+
+        let mut transaction = GraphTransaction::for_document(&graph);
+        for (node, data) in updated_nodes {
+            transaction.replace_node_data(node, data);
+        }
+        transaction
+            .commit(&mut graph, domain)
+            .map_err(FormulaMaterializationError::AuthoringEdit)?;
         Ok(graph)
     }
 
@@ -314,8 +333,13 @@ impl AlchemistFormula {
         instance: &AlchemistFormulaInstance,
         lowering_ctx: &PipelineLoweringCtx<'_>,
         initial_shapes: &[(ManagedRegionId, PipelineShape)],
-    ) -> Result<AlchemistGraph, FormulaMaterializationError> {
-        let mut graph = self.materialize(instance)?;
+    ) -> Result<AlchemistGraphDocument, FormulaMaterializationError> {
+        let domain = AlchemistGraphDomain::new(
+            lowering_ctx.nodes.clone(),
+            lowering_ctx.value_types.clone(),
+            lowering_ctx.properties.cloned(),
+        );
+        let mut graph = self.materialize(instance, &domain)?;
         instance
             .managed_regions
             .validate_against(&self.surface)
@@ -400,6 +424,8 @@ pub enum FormulaMaterializationError {
     MissingSurfaceBinding(SurfaceItemId),
     #[error("formula surface binding targets missing ANode `{0}`")]
     MissingTargetNode(ANodeId),
+    #[error("typed Alchemist authoring edit failed: {0}")]
+    AuthoringEdit(golden_graph::GraphTransactionError),
     #[error("{0}")]
     ManagedRegionValidation(ManagedRegionValidationError),
     #[error("formula instance is missing managed region `{region_id}`")]

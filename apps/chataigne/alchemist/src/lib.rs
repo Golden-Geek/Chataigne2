@@ -1,4 +1,4 @@
-//! Reusable typed graph compilation and runtime primitives for Golden applications.
+//! Chataigne-owned Alchemist formula authoring, compilation, and runtime.
 
 pub mod compile;
 pub mod diagnostics;
@@ -12,15 +12,16 @@ pub mod node;
 pub mod pipeline;
 pub mod registry;
 pub mod runtime;
-#[cfg(feature = "serde")]
-pub mod serialize;
+#[cfg(test)]
+pub(crate) mod test_support;
 pub mod typing;
 pub mod value;
 
 pub use diagnostics::{Diagnostic, DiagnosticOrigin, DiagnosticSeverity};
 pub use domain::{
-    AlchemistEdgeData, AlchemistGraphAdapter, AlchemistGraphAdapterError, AlchemistGraphData, AlchemistGraphDocument,
-    AlchemistGraphDomain, AlchemistGraphEnvelope, AlchemistNodeData, AlchemistPortData,
+    AlchemistEdgeData, AlchemistGraphData, AlchemistGraphDocument, AlchemistGraphDomain, AlchemistGraphEnvelope,
+    AlchemistGraphSemanticError, AlchemistGraphTransaction, AlchemistGraphTransactionError, AlchemistNodeData,
+    AlchemistPortData,
 };
 pub use expose::{
     ANodeFieldPath, ExposedAction, ExposedInput, ExposedOutput, ExposedParam, ExposedSurface, ParamUiHints,
@@ -33,10 +34,7 @@ pub use formula::{
     ManagedRegionInstances, ManagedRegionKind, ManagedRegionValidationError, ManagedSocketRef, PropertyUiHints,
     SurfaceItem, SurfaceItemKind, SurfaceSection, SurfaceSource,
 };
-pub use graph::{
-    AEdge, ANodeConfig, ANodeInstance, ANodeUiState, AlchemistGraph, GraphComment, GraphEditError, GraphGroup,
-    GraphLayout, GraphMetadata, InputSocketRef, OutputSocketRef,
-};
+pub use graph::{AEdge, ANodeConfig, ANodeInstance, ANodeUiState, GraphMetadata, InputSocketRef, OutputSocketRef};
 pub use ids::{
     ANodeId, ANodeTypeId, AlchemistGraphId, ContextDimensionId, ExecNodeId, ExposedDeclId, FacetId, FormulaId,
     FormulaPropertyId, FormulaPropertySlotId, ManagedItemId, ManagedRegionId, SocketId, SurfaceContributionId,
@@ -66,7 +64,7 @@ pub use runtime::{
 };
 pub use typing::{
     ResolvedANode, ResolvedANodeSignature, ResolvedGraph, ResolvedSocket, TypeBinding, TypeBindingConflict,
-    TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx, TypeSolveResult, TypeVar, solve_types,
+    TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx, TypeSolveResult, TypeVar, solve_document_types,
 };
 pub use value::{
     ColorValue, ExtensionValue, StableRef, TriggerValue, ValueComponent, ValueStorageKind, component_value_type,
@@ -84,15 +82,11 @@ mod domain_tests;
 #[cfg(test)]
 mod formula_tests;
 #[cfg(test)]
-mod graph_tests;
-#[cfg(test)]
 mod library_tests;
 #[cfg(test)]
 mod pipeline_tests;
 #[cfg(test)]
 mod runtime_tests;
-#[cfg(test)]
-mod serialize_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

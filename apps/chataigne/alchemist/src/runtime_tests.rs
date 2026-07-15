@@ -1,15 +1,17 @@
+use crate::test_support::TestGraph;
+
 use std::time::Duration;
 
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistMemory, AlchemistRuntime, ColorValue, CompileCtx,
-    ContextKey, DebugCaptureMode, DebugCaptureSink, EvaluationCtx, EvaluationFrame, ExtensionValue, FormulaId,
-    FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketRef, InputValueSource, LaneRuntimePool,
-    OutputPreviewStatus, OutputSocketRef, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, RuntimeContextFrame,
-    RuntimeInputSnapshot, RuntimeOutput, RuntimePropertyFrame, RuntimeRegistries, RuntimeValue, SocketId, StableRef,
-    TriggerValue, TypeBindingSource, TypeVar, ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
-    compile_graph, evaluate_compiled_graph, formula_input_value_ref, primitive_node_registry,
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistMemory, AlchemistRuntime, ColorValue, CompileCtx, ContextKey,
+    DebugCaptureMode, DebugCaptureSink, EvaluationCtx, EvaluationFrame, ExtensionValue, FormulaId, FormulaPropertyDecl,
+    FormulaPropertyId, FormulaPropertySchema, InputSocketRef, InputValueSource, LaneRuntimePool, OutputPreviewStatus,
+    OutputSocketRef, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, RuntimeContextFrame, RuntimeInputSnapshot, RuntimeOutput,
+    RuntimePropertyFrame, RuntimeRegistries, RuntimeValue, SocketId, StableRef, TriggerValue, TypeBindingSource,
+    TypeVar, ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry, compile_graph,
+    evaluate_compiled_graph, formula_input_value_ref, primitive_node_registry,
 };
 
 fn node(type_id: &str) -> ANodeInstance {
@@ -22,13 +24,14 @@ fn constant(value: RuntimeValue) -> ANodeInstance {
     node
 }
 
-fn runtime(graph: &AlchemistGraph) -> AlchemistRuntime {
+fn runtime(graph: &TestGraph) -> AlchemistRuntime {
     runtime_with_properties(graph, None)
 }
 
-fn runtime_with_properties(graph: &AlchemistGraph, properties: Option<&FormulaPropertySchema>) -> AlchemistRuntime {
+fn runtime_with_properties(graph: &TestGraph, properties: Option<&FormulaPropertySchema>) -> AlchemistRuntime {
+    let document = graph.to_document();
     let result = compile_graph(
-        graph,
+        &document,
         &CompileCtx {
             value_types: &ValueTypeRegistry::with_primitives(),
             nodes: &primitive_node_registry(),
@@ -39,9 +42,10 @@ fn runtime_with_properties(graph: &AlchemistGraph, properties: Option<&FormulaPr
     AlchemistRuntime::new(result.compiled.unwrap())
 }
 
-fn runtime_with_value_types(graph: &AlchemistGraph, value_types: &ValueTypeRegistry) -> AlchemistRuntime {
+fn runtime_with_value_types(graph: &TestGraph, value_types: &ValueTypeRegistry) -> AlchemistRuntime {
+    let document = graph.to_document();
     let result = compile_graph(
-        graph,
+        &document,
         &CompileCtx {
             value_types,
             nodes: &primitive_node_registry(),
@@ -53,13 +57,14 @@ fn runtime_with_value_types(graph: &AlchemistGraph, value_types: &ValueTypeRegis
 }
 
 fn compile_with_properties(
-    graph: &AlchemistGraph,
+    graph: &TestGraph,
     properties: &FormulaPropertySchema,
 ) -> std::sync::Arc<crate::CompiledAlchemistGraph> {
     let value_types = ValueTypeRegistry::with_primitives();
     let nodes = primitive_node_registry();
+    let document = graph.to_document();
     let result = compile_graph(
-        graph,
+        &document,
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
@@ -165,7 +170,7 @@ fn debug_capture_default_is_off() {
 
 #[test]
 fn runtime_input_snapshot_overrides_unconnected_socket_default() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut debug = node("debug_value");
     let socket = SocketId::new("value");
     debug.input_defaults.insert(socket.clone(), RuntimeValue::Float(1.0));
@@ -212,7 +217,7 @@ fn sample_value(output: &RuntimeOutput, node: ANodeId, socket: &str) -> RuntimeV
 
 #[test]
 fn condition_gate_true_condition_passes_value() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
     let condition = graph.add_node(constant(RuntimeValue::Bool(true))).unwrap();
     let gate = graph.add_node(node("condition_gate")).unwrap();
@@ -237,7 +242,7 @@ fn condition_gate_true_condition_passes_value() {
 
 #[test]
 fn condition_gate_false_condition_blocks_value() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
     let condition = graph.add_node(constant(RuntimeValue::Bool(false))).unwrap();
     let gate = graph.add_node(node("condition_gate")).unwrap();
@@ -262,7 +267,7 @@ fn condition_gate_false_condition_blocks_value() {
 
 #[test]
 fn condition_gate_hold_last_outputs_previous_passed_value() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
     let condition = graph.add_node(property_node("condition")).unwrap();
     let mut gate_node = node("condition_gate");
@@ -300,7 +305,7 @@ fn condition_gate_hold_last_outputs_previous_passed_value() {
 
 #[test]
 fn condition_gate_output_default_uses_default_input() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
     let condition = graph.add_node(constant(RuntimeValue::Bool(false))).unwrap();
     let default = graph.add_node(constant(RuntimeValue::Float(9.0))).unwrap();
@@ -334,7 +339,7 @@ fn condition_gate_output_default_uses_default_input() {
 
 #[test]
 fn condition_gate_block_trigger_suppresses_fired_edge() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let value = graph
         .add_node(constant(RuntimeValue::Trigger(TriggerValue::fired(7, 1))))
         .unwrap();
@@ -382,7 +387,7 @@ fn condition_gate_whole_valueset_gate_uses_default_whole_value() {
         .unwrap();
     let input_value = RuntimeValue::Extension(ExtensionValue::new(value_type.clone(), vec![1_u8, 2, 3]));
     let default_value = RuntimeValue::Extension(ExtensionValue::new(value_type, vec![9_u8]));
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let value = graph.add_node(constant(input_value)).unwrap();
     let condition = graph.add_node(constant(RuntimeValue::Bool(false))).unwrap();
     let default = graph.add_node(constant(default_value.clone())).unwrap();
@@ -412,7 +417,7 @@ fn condition_gate_whole_valueset_gate_uses_default_whole_value() {
 
 #[test]
 fn condition_gate_per_lane_application_reports_incompatible_mode() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
     let condition = graph.add_node(constant(RuntimeValue::Bool(true))).unwrap();
     let mut gate_node = node("condition_gate");
@@ -445,7 +450,7 @@ fn condition_gate_per_lane_application_reports_incompatible_mode() {
 
 #[test]
 fn evaluate_compiled_graph_uses_supplied_memory() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Bool(true))).unwrap();
     let edge = graph.add_node(node("trigger_on_off")).unwrap();
     graph
@@ -521,7 +526,7 @@ fn evaluate_compiled_graph_uses_supplied_memory() {
 
 #[test]
 fn stateless_graph_has_no_persistent_state_memory() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(constant(RuntimeValue::Float(1.0))).unwrap();
     let compiled = compile_with_properties(&graph, &FormulaPropertySchema::default());
     let memory = AlchemistMemory::for_graph(&compiled);
@@ -533,7 +538,7 @@ fn stateless_graph_has_no_persistent_state_memory() {
 
 #[test]
 fn input_gated_stateless_lane_pool_keeps_process_cache() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(constant(RuntimeValue::Float(1.0))).unwrap();
     let compiled = compile_with_properties(&graph, &FormulaPropertySchema::default());
     let mut lanes = LaneRuntimePool::for_graph(&compiled);
@@ -549,7 +554,7 @@ fn input_gated_stateless_lane_pool_keeps_process_cache() {
 
 #[test]
 fn stateful_lane_pool_is_sparse_and_keyed_by_stable_context() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Bool(true))).unwrap();
     let edge = graph.add_node(node("trigger_on_off")).unwrap();
     graph
@@ -580,7 +585,7 @@ fn stateful_lane_pool_is_sparse_and_keyed_by_stable_context() {
 
 #[test]
 fn pure_math_graph_evaluates_in_compiled_order() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let left = graph.add_node(constant(RuntimeValue::Float(2.0))).unwrap();
     let right = graph.add_node(constant(RuntimeValue::Float(3.0))).unwrap();
     let add = graph.add_node(node("math")).unwrap();
@@ -614,7 +619,7 @@ fn pure_math_graph_evaluates_in_compiled_order() {
 
 #[test]
 fn idle_pure_graph_skips_all_exec_nodes_after_initial_evaluation() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let left = graph.add_node(constant(RuntimeValue::Float(2.0))).unwrap();
     let right = graph.add_node(constant(RuntimeValue::Float(3.0))).unwrap();
     let add = graph.add_node(node("math")).unwrap();
@@ -652,7 +657,7 @@ fn idle_pure_graph_skips_all_exec_nodes_after_initial_evaluation() {
 
 #[test]
 fn disabled_single_input_output_node_bypasses_matching_value_type() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Float(4.0))).unwrap();
     let mut negate_node = node("negate");
     negate_node.enabled = false;
@@ -686,7 +691,7 @@ fn disabled_single_input_output_node_bypasses_matching_value_type() {
 
 #[test]
 fn disabled_effect_node_is_noop() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::String("hello".into()))).unwrap();
     let mut log_node = node("debug_log");
     log_node.enabled = false;
@@ -704,7 +709,7 @@ fn disabled_effect_node_is_noop() {
 
 #[test]
 fn forced_float_math_coerces_vec3_input_at_runtime() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Vec3([2.0, 4.0, 8.0]))).unwrap();
     let mut add_node = node("math");
     add_node.forced_type_bindings.insert(
@@ -750,7 +755,7 @@ fn forced_float_math_coerces_vec3_input_at_runtime() {
 
 #[test]
 fn edge_trigger_fires_once_and_preserves_state() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Bool(true))).unwrap();
     let edge = graph.add_node(node("trigger_on_off")).unwrap();
     graph
@@ -801,7 +806,7 @@ fn edge_trigger_fires_once_and_preserves_state() {
 
 #[test]
 fn metronome_on_output_toggles_without_tap_input() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut metronome = node("metronome");
     metronome.config.set("mode", RuntimeValue::String("time".into()));
     metronome.config.set("value", RuntimeValue::Float(0.064));
@@ -831,7 +836,7 @@ fn metronome_on_output_toggles_without_tap_input() {
 
 #[test]
 fn counter_add_trigger_accumulates_default_amount() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph
         .add_node(constant(RuntimeValue::Trigger(TriggerValue::fired(7, 1))))
         .unwrap();
@@ -880,7 +885,7 @@ fn counter_add_trigger_accumulates_default_amount() {
 
 #[test]
 fn color_conversion_nodes_pack_and_extract_channels() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut convert = node("convert_to_color");
     convert.config.set("mode", RuntimeValue::String("hsva".into()));
     convert
@@ -945,7 +950,7 @@ fn color_conversion_nodes_pack_and_extract_channels() {
 
 #[test]
 fn log_config_emits_debug_intent_for_processed_node() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut source = constant(RuntimeValue::Float(4.0));
     source.config.set("log", RuntimeValue::Bool(true));
     let source = graph.add_node(source).unwrap();
@@ -963,7 +968,7 @@ fn log_config_emits_debug_intent_for_processed_node() {
 
 #[test]
 fn runtime_diagnostics_propagate_node_failures() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(node("remap")).unwrap();
     let mut runtime = runtime(&graph);
 
@@ -975,7 +980,7 @@ fn runtime_diagnostics_propagate_node_failures() {
 
 #[test]
 fn effect_node_emits_intent_without_dispatching_side_effect() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::String("hello".into()))).unwrap();
     let log = graph.add_node(node("debug_log")).unwrap();
     graph
@@ -992,7 +997,7 @@ fn effect_node_emits_intent_without_dispatching_side_effect() {
 
 #[test]
 fn property_node_reads_default_from_runtime_frame() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut property = property_node("amount");
     property.config.set("value", RuntimeValue::Float(99.0));
     graph.add_node(property).unwrap();
@@ -1012,7 +1017,7 @@ fn property_node_reads_default_from_runtime_frame() {
 
 #[test]
 fn formula_default_preview_shows_node_output_values() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let source = graph.add_node(constant(RuntimeValue::Float(4.25))).unwrap();
     let mut runtime = runtime(&graph);
     let formula_id = FormulaId::new("preview_formula");
@@ -1040,7 +1045,7 @@ fn formula_default_preview_shows_node_output_values() {
 
 #[test]
 fn preview_capture_off_when_editor_not_visible() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(constant(RuntimeValue::Float(1.0))).unwrap();
     let mut runtime = runtime(&graph);
 
@@ -1051,7 +1056,7 @@ fn preview_capture_off_when_editor_not_visible() {
 
 #[test]
 fn output_preview_history_is_bounded() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(constant(RuntimeValue::Float(1.0))).unwrap();
     graph.add_node(constant(RuntimeValue::Float(2.0))).unwrap();
     let mut runtime = runtime(&graph);
@@ -1064,7 +1069,7 @@ fn output_preview_history_is_bounded() {
 
 #[test]
 fn property_node_reads_processor_override_from_runtime_frame() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(property_node("amount")).unwrap();
     let schema = property_schema("amount", "float", RuntimeValue::Float(1.5));
     let compiled = compile_with_properties(&graph, &schema);
@@ -1086,7 +1091,7 @@ fn property_node_reads_processor_override_from_runtime_frame() {
 
 #[test]
 fn property_frame_change_reevaluates_property_dependents_only() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let property = graph.add_node(property_node("amount")).unwrap();
     let base = graph.add_node(constant(RuntimeValue::Float(10.0))).unwrap();
     let unrelated = graph.add_node(constant(RuntimeValue::Float(99.0))).unwrap();
@@ -1137,7 +1142,7 @@ fn property_frame_change_reevaluates_property_dependents_only() {
 
 #[test]
 fn processor_override_rejects_invalid_property_type() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(property_node("amount")).unwrap();
     let schema = property_schema("amount", "float", RuntimeValue::Float(1.5));
     let compiled = compile_with_properties(&graph, &schema);
@@ -1154,7 +1159,7 @@ fn processor_override_rejects_invalid_property_type() {
 
 #[test]
 fn changing_processor_override_does_not_recompile_formula() {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph.add_node(property_node("amount")).unwrap();
     let schema = property_schema("amount", "float", RuntimeValue::Float(1.5));
     let compiled = compile_with_properties(&graph, &schema);

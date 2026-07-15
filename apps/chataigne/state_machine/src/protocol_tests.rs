@@ -1,4 +1,4 @@
-use golden_alchemist::{
+use chataigne_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, ContextKey, ExecNodeId, FormulaId, FormulaSurface, ManagedItemId,
     ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
     ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, SocketId, SurfaceItemKind,

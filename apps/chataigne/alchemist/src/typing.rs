@@ -4,9 +4,9 @@ use indexmap::IndexMap;
 use smol_str::SmolStr;
 
 use crate::{
-    AEdge, ANodeId, ANodeRegistry, AlchemistGraph, Diagnostic, DiagnosticOrigin, DiagnosticSeverity, ExecutionKind,
-    FacetId, FormulaPropertySchema, InputSocketDecl, OutputSocketDecl, SignatureCtx, SocketId, ValueComponent,
-    ValueTypeId, ValueTypeRegistry, component_value_type,
+    AEdge, ANodeId, ANodeInstance, ANodeRegistry, AlchemistGraphDomain, Diagnostic, DiagnosticOrigin,
+    DiagnosticSeverity, ExecutionKind, FacetId, FormulaPropertySchema, InputSocketDecl, OutputSocketDecl, SignatureCtx,
+    SocketId, ValueComponent, ValueTypeId, ValueTypeRegistry, component_value_type,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -190,6 +190,32 @@ pub struct TypeSolveCtx<'a> {
     pub properties: Option<&'a FormulaPropertySchema>,
 }
 
+#[must_use]
+pub fn solve_document_types(graph: &crate::AlchemistGraphDocument, ctx: &TypeSolveCtx<'_>) -> TypeSolveResult {
+    let domain = AlchemistGraphDomain::new(ctx.nodes.clone(), ctx.value_types.clone(), ctx.properties.cloned());
+    let edges = match domain.semantic_edges(graph) {
+        Ok(edges) => edges,
+        Err(error) => {
+            return TypeSolveResult {
+                graph: ResolvedGraph::default(),
+                diagnostics: vec![Diagnostic::error(
+                    "invalid_authoring_document",
+                    error.to_string(),
+                    DiagnosticOrigin::Graph,
+                )],
+            };
+        }
+    };
+    let nodes = graph
+        .nodes()
+        .map(|node| {
+            let id = AlchemistGraphDomain::anode_id(node.id);
+            (id, node.data.to_instance(id))
+        })
+        .collect();
+    solve_semantic_types(&nodes, &edges, ctx)
+}
+
 struct WorkingNode {
     execution_kind: ExecutionKind,
     signature: crate::ANodeSignature,
@@ -197,8 +223,11 @@ struct WorkingNode {
     inferred_binding_priorities: HashMap<TypeVar, usize>,
 }
 
-#[must_use]
-pub fn solve_types(graph: &AlchemistGraph, ctx: &TypeSolveCtx<'_>) -> TypeSolveResult {
+pub(crate) fn solve_semantic_types(
+    nodes: &IndexMap<ANodeId, ANodeInstance>,
+    edges: &[AEdge],
+    ctx: &TypeSolveCtx<'_>,
+) -> TypeSolveResult {
     let mut diagnostics = Vec::new();
     let mut working = IndexMap::<ANodeId, WorkingNode>::new();
     let signature_ctx = SignatureCtx {
@@ -206,7 +235,7 @@ pub fn solve_types(graph: &AlchemistGraph, ctx: &TypeSolveCtx<'_>) -> TypeSolveR
         properties: ctx.properties,
     };
 
-    for (node_id, instance) in &graph.nodes {
+    for (node_id, instance) in nodes {
         let Some(declaration) = ctx.nodes.get(&instance.type_id) else {
             diagnostics.push(Diagnostic::error(
                 "missing_node_declaration",
@@ -238,7 +267,7 @@ pub fn solve_types(graph: &AlchemistGraph, ctx: &TypeSolveCtx<'_>) -> TypeSolveR
     let mut socket_types = HashMap::<SocketKey, ValueTypeId>::new();
     for _ in 0..=working.len() {
         let mut changed = false;
-        for edge in &graph.edges {
+        for edge in edges {
             changed |= infer_edge(edge, &mut working, &mut socket_types, ctx.value_types);
         }
         if !changed {
@@ -249,7 +278,7 @@ pub fn solve_types(graph: &AlchemistGraph, ctx: &TypeSolveCtx<'_>) -> TypeSolveR
     for (node_id, node) in &working {
         validate_generic_bindings(*node_id, node, ctx.value_types, &mut diagnostics);
     }
-    for edge in &graph.edges {
+    for edge in edges {
         validate_edge(edge, &working, &socket_types, ctx.value_types, &mut diagnostics);
     }
 

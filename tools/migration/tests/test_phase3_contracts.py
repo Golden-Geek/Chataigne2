@@ -48,19 +48,18 @@ class Phase3ContractTests(unittest.TestCase):
             (root / "crates/core/src/color.rs").write_text(
                 "pub use golden_parameters::Color;\n", encoding="utf-8"
             )
-            alchemist = root / "crates/golden_alchemist/src"
+            alchemist = root / "apps/chataigne/alchemist/src"
             alchemist.mkdir(parents=True)
             (alchemist / "value.rs").write_text("pub use golden_values::Value;\n", encoding="utf-8")
             (alchemist / "domain.rs").write_text(
                 "pub struct AlchemistGraphDomain;\n"
-                "pub struct AlchemistGraphDocument;\n"
-                "pub struct AlchemistGraphAdapter;\n",
+                "pub struct AlchemistGraphDocument;\n",
                 encoding="utf-8",
             )
             (alchemist / "lib.rs").write_text(
                 "pub mod domain;\npub use domain::AlchemistGraphDomain;\n", encoding="utf-8"
             )
-            (root / "crates/golden_alchemist/Cargo.toml").write_text(
+            (root / "apps/chataigne/alchemist/Cargo.toml").write_text(
                 "[dependencies]\ngolden_graph = { path = '../graph' }\n", encoding="utf-8"
             )
             statechart = root / "crates/golden_statechart/src"
@@ -176,7 +175,7 @@ class Phase3ContractTests(unittest.TestCase):
             values.parent.mkdir(parents=True)
             values.write_text("pub enum Value {}\n", encoding="utf-8")
 
-            alchemist = root / "crates/golden_alchemist/src/lib.rs"
+            alchemist = root / "apps/chataigne/alchemist/src/lib.rs"
             alchemist.parent.mkdir(parents=True)
             alchemist.write_text(
                 "pub use value::{StableRef, ValueComponent};\n"
@@ -197,11 +196,11 @@ class Phase3ContractTests(unittest.TestCase):
             self.assertEqual(runtime_value_boundary_violations(root), [])
 
             consumer.write_text(
-                "use golden_alchemist::{RuntimeValue, StableRef};\n",
+                "use chataigne_alchemist::{RuntimeValue, StableRef};\n",
                 encoding="utf-8",
             )
             violations = runtime_value_boundary_violations(root)
-            self.assertTrue(any("retired golden_alchemist" in violation.message for violation in violations))
+            self.assertTrue(any("retired Alchemist" in violation.message for violation in violations))
 
 
 if __name__ == "__main__":

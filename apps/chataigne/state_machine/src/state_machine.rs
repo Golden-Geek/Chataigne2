@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use indexmap::{IndexMap, IndexSet};
 
-use golden_alchemist::{
-    AlchemistFormula, AlchemistGraph, AlchemistRuntime, CompileCtx, CompiledAlchemistFormula, EvaluationCtx,
+use chataigne_alchemist::{
+    AlchemistFormula, AlchemistGraphDocument, AlchemistRuntime, CompileCtx, CompiledAlchemistFormula, EvaluationCtx,
     FormulaCompileKey, FormulaId, FormulaRef, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput,
     compile_graph,
 };
@@ -18,8 +18,8 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ChataigneTransition {
     pub transition_id: TransitionId,
-    pub guard_graph: Option<AlchemistGraph>,
-    pub effect_graph: Option<AlchemistGraph>,
+    pub guard_graph: Option<AlchemistGraphDocument>,
+    pub effect_graph: Option<AlchemistGraphDocument>,
 }
 
 #[derive(Clone, Debug)]
@@ -79,8 +79,8 @@ impl ChataigneStateMachine {
     pub fn set_transition_graphs(
         &mut self,
         transition_id: TransitionId,
-        guard_graph: Option<AlchemistGraph>,
-        effect_graph: Option<AlchemistGraph>,
+        guard_graph: Option<AlchemistGraphDocument>,
+        effect_graph: Option<AlchemistGraphDocument>,
     ) {
         self.transitions.insert(
             transition_id,
@@ -144,7 +144,7 @@ impl GlobalCompiledGraphRuntime {
         debug_assert!(std::ptr::eq(global.inputs, ctx.inputs));
         debug_assert!(std::ptr::eq(global.events, ctx.events));
         self.runtime
-            .evaluate_with_capture_mode(ctx, golden_alchemist::DebugCaptureMode::All { history_len: 1 })
+            .evaluate_with_capture_mode(ctx, chataigne_alchemist::DebugCaptureMode::All { history_len: 1 })
     }
 
     fn fired_trigger_in_last_evaluation(&self) -> bool {
@@ -231,7 +231,7 @@ impl ChataigneStateMachineRuntime {
                 ));
                 continue;
             };
-            let key = FormulaCompileKey::from_formula(formula, u64::from(formula.version), 0, 0);
+            let key = FormulaCompileKey::from_formula(formula, 0, 0);
             let compiled_formula = if let Some(compiled) = compiled_formulas.get(&key) {
                 Arc::clone(compiled)
             } else {
@@ -422,7 +422,7 @@ impl ChataigneStateMachineRuntime {
 }
 
 fn compile_global_graph_runtime(
-    graph: &AlchemistGraph,
+    graph: &AlchemistGraphDocument,
     ctx: &CompileCtx<'_>,
     errors: &mut Vec<String>,
 ) -> Option<GlobalCompiledGraphRuntime> {

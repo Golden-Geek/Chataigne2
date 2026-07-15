@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use golden_alchemist::AlchemistFormula;
+use chataigne_alchemist::AlchemistFormula;
 use golden_core::{
     app::{preferences_data_folder_from_snapshot, ProjectNode, PREFERENCES_APP_DATA_TAG},
     edit::NodeTree,

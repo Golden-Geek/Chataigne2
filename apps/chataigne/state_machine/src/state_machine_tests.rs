@@ -1,3 +1,5 @@
+use crate::test_support::TestGraph;
+
 use std::{
     sync::{
         Arc,
@@ -6,13 +8,13 @@ use std::{
     time::Duration,
 };
 
-use golden_alchemist::{
-    ANodeDeclaration, ANodeInstance, ANodeSignature, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet,
-    CompileCtx, CompiledNodeEvaluator, CompiledNodeOperation, ContextAxisId, ContextKey, ContextValuePath,
-    EvaluationCtx, ExecutionKind, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface,
-    InputSocketRef, LaneRuntimePool, NodeEvaluation, OutputSocketDecl, OutputSocketRef, ResolvedANodeSignature,
-    RuntimeInputSnapshot, RuntimeIntent, RuntimeRegistries, SignatureCtx, StableRef, TriggerValue, TypeBindings,
-    TypeConstraint, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+use chataigne_alchemist::{
+    ANodeDeclaration, ANodeInstance, ANodeSignature, ANodeTypeId, AlchemistFormula, AxisSet, CompileCtx,
+    CompiledNodeEvaluator, CompiledNodeOperation, ContextAxisId, ContextKey, ContextValuePath, EvaluationCtx,
+    ExecutionKind, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface, InputSocketRef,
+    LaneRuntimePool, NodeEvaluation, OutputSocketDecl, OutputSocketRef, ResolvedANodeSignature, RuntimeInputSnapshot,
+    RuntimeIntent, RuntimeRegistries, SignatureCtx, StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueTypeId,
+    ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
 use golden_values::Value as RuntimeValue;
@@ -23,7 +25,7 @@ use crate::{
 };
 
 fn constant_formula() -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut node = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     node.config.set("value", RuntimeValue::Float(1.0));
     graph.add_node(node).unwrap();
@@ -33,7 +35,7 @@ fn constant_formula() -> AlchemistFormula {
         label: "Constant".into(),
         description: None,
         tags: Vec::new(),
-        graph,
+        graph: graph.to_document().unwrap(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface::default(),
         context_contract: FormulaContextContract::default(),
@@ -42,7 +44,7 @@ fn constant_formula() -> AlchemistFormula {
 }
 
 fn stateful_formula() -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let mut source = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     source.config.set("value", RuntimeValue::Bool(true));
     let source = graph.add_node(source).unwrap();
@@ -61,7 +63,7 @@ fn stateful_formula() -> AlchemistFormula {
         label: "Stateful".into(),
         description: None,
         tags: Vec::new(),
-        graph,
+        graph: graph.to_document().unwrap(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface::default(),
         context_contract: FormulaContextContract::default(),
@@ -70,7 +72,7 @@ fn stateful_formula() -> AlchemistFormula {
 }
 
 fn context_formula() -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph
         .add_node(ANodeInstance::new(ANodeTypeId::new("context_source"), "Context Source"))
         .unwrap();
@@ -80,7 +82,7 @@ fn context_formula() -> AlchemistFormula {
         label: "Context".into(),
         description: None,
         tags: Vec::new(),
-        graph,
+        graph: graph.to_document().unwrap(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface::default(),
         context_contract: FormulaContextContract::default(),
@@ -89,7 +91,7 @@ fn context_formula() -> AlchemistFormula {
 }
 
 fn command_formula() -> AlchemistFormula {
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     graph
         .add_node(ANodeInstance::new(
             ANodeTypeId::new("command_emitter"),
@@ -102,7 +104,7 @@ fn command_formula() -> AlchemistFormula {
         label: "Command".into(),
         description: None,
         tags: Vec::new(),
-        graph,
+        graph: graph.to_document().unwrap(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface::default(),
         context_contract: FormulaContextContract::default(),
@@ -110,8 +112,8 @@ fn command_formula() -> AlchemistFormula {
     }
 }
 
-fn counting_graph(type_id: &str) -> AlchemistGraph {
-    let mut graph = AlchemistGraph::new();
+fn counting_graph(type_id: &str) -> TestGraph {
+    let mut graph = TestGraph::new();
     graph
         .add_node(ANodeInstance::new(ANodeTypeId::new(type_id), type_id))
         .unwrap();
@@ -168,7 +170,7 @@ impl ANodeDeclaration for CountingTriggerDeclaration {
         &self,
         _instance: &ANodeInstance,
         _resolved: &ResolvedANodeSignature,
-    ) -> Result<CompiledNodeOperation, golden_alchemist::Diagnostic> {
+    ) -> Result<CompiledNodeOperation, chataigne_alchemist::Diagnostic> {
         Ok(CompiledNodeOperation::Custom(Arc::new(CountingTriggerEval {
             count: Arc::clone(&self.count),
             fired: self.fired,
@@ -243,7 +245,7 @@ impl ANodeDeclaration for ContextSourceDeclaration {
         &self,
         _instance: &ANodeInstance,
         _resolved: &ResolvedANodeSignature,
-    ) -> Result<CompiledNodeOperation, golden_alchemist::Diagnostic> {
+    ) -> Result<CompiledNodeOperation, chataigne_alchemist::Diagnostic> {
         Ok(CompiledNodeOperation::Constant(RuntimeValue::Float(1.0)))
     }
 }
@@ -287,7 +289,7 @@ impl ANodeDeclaration for CommandEmitterDeclaration {
         &self,
         _instance: &ANodeInstance,
         _resolved: &ResolvedANodeSignature,
-    ) -> Result<CompiledNodeOperation, golden_alchemist::Diagnostic> {
+    ) -> Result<CompiledNodeOperation, chataigne_alchemist::Diagnostic> {
         Ok(CompiledNodeOperation::Custom(Arc::new(CommandEmitterEval)))
     }
 }
@@ -411,7 +413,11 @@ fn guard_evaluates_once_even_when_active_processors_have_30_lanes() {
     machine.add_processor(first, processor).unwrap();
 
     let guard_count = Arc::new(AtomicUsize::new(0));
-    machine.set_transition_graphs(transition, Some(counting_graph("counting_guard")), None);
+    machine.set_transition_graphs(
+        transition,
+        Some(counting_graph("counting_guard").to_document().unwrap()),
+        None,
+    );
 
     let mut value_types = ValueTypeRegistry::with_primitives();
     register_value_types(&mut value_types).unwrap();
@@ -479,8 +485,8 @@ fn transition_effect_runs_once_after_transition() {
     let effect_count = Arc::new(AtomicUsize::new(0));
     machine.set_transition_graphs(
         transition,
-        Some(counting_graph("counting_guard_true")),
-        Some(counting_graph("counting_effect")),
+        Some(counting_graph("counting_guard_true").to_document().unwrap()),
+        Some(counting_graph("counting_effect").to_document().unwrap()),
     );
 
     let mut value_types = ValueTypeRegistry::with_primitives();
@@ -621,7 +627,7 @@ fn state_transition_updates_active_processor_matrix() {
     machine.add_processor(first, first_processor).unwrap();
     machine.add_processor(second, second_processor).unwrap();
 
-    let mut guard = AlchemistGraph::new();
+    let mut guard = TestGraph::new();
     let mut source = ANodeInstance::new(ANodeTypeId::new("constant"), "True");
     source.config.set("value", RuntimeValue::Bool(true));
     let source = guard.add_node(source).unwrap();
@@ -634,7 +640,7 @@ fn state_transition_updates_active_processor_matrix() {
             InputSocketRef::new(edge, "value"),
         )
         .unwrap();
-    machine.set_transition_graphs(transition, Some(guard), None);
+    machine.set_transition_graphs(transition, Some(guard.to_document().unwrap()), None);
 
     let mut value_types = ValueTypeRegistry::with_primitives();
     register_value_types(&mut value_types).unwrap();

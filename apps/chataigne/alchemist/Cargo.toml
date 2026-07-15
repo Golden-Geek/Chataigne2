@@ -1,8 +1,10 @@
 [package]
-name = "golden_alchemist"
+name = "chataigne_alchemist"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
+description = "Chataigne-owned Alchemist formula domain"
 
 [features]
 default = ["serde"]

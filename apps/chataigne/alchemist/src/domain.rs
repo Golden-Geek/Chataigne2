@@ -1,25 +1,20 @@
-use std::collections::BTreeSet;
-
 use golden_graph::{
-    GraphChangeSet, GraphComment as CommonGraphComment, GraphCommentId, GraphDiagnostic, GraphDocument,
-    GraphDocumentData, GraphDomain, GraphEdge, GraphEdgeId, GraphEnvelope, GraphGroup as CommonGraphGroup,
-    GraphGroupId, GraphId, GraphNode, GraphNodeId, GraphPersistenceError, GraphPortId, GraphPresentation,
-    GraphRevision, NodePresentation, PortDefinition, PortDirection, PortRef, PortSchema,
+    GraphChangeSet, GraphDiagnostic, GraphDocument, GraphDocumentData, GraphDomain, GraphEdge, GraphEdgeId,
+    GraphEnvelope, GraphId, GraphNode, GraphNodeId, GraphPortId, GraphPresentation, GraphRevision, GraphTransaction,
+    GraphTransactionError, NodePresentation, PortDefinition, PortDirection, PortRef, PortSchema,
 };
 use indexmap::IndexMap;
 use uuid::Uuid;
 
 use crate::{
     AEdge, ALCHEMIST_SCHEMA_VERSION, ANodeConfig, ANodeId, ANodeInstance, ANodeRegistry, ANodeTypeId, ANodeUiState,
-    AlchemistGraph, AlchemistGraphId, ExposedSurface, FormulaPropertySchema, GraphComment, GraphGroup, GraphLayout,
-    GraphMetadata, InputSocketRef, OutputSocketRef, RuntimeValue, SignatureCtx, SocketId, TypeBindings, TypeConstraint,
-    ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+    AlchemistGraphId, ExposedSurface, FormulaPropertySchema, GraphMetadata, InputSocketRef, OutputSocketRef,
+    RuntimeValue, SignatureCtx, SocketId, TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry,
+    primitive_node_registry,
 };
 
 const PORT_NAMESPACE: Uuid = Uuid::from_u128(0x4b95_7068_e36a_53e7_9578_1558_f053_66ec);
 const EDGE_NAMESPACE: Uuid = Uuid::from_u128(0x1228_70ae_b9ea_53b7_922a_c4b5_0af5_8cb0);
-const COMMENT_NAMESPACE: Uuid = Uuid::from_u128(0xddb6_aa2c_d541_5f01_886b_a278_3709_a38b);
-const GROUP_NAMESPACE: Uuid = Uuid::from_u128(0xf58a_cc33_3260_5de4_971f_677b_3ea7_7869);
 
 /// Alchemist-owned graph-level payload carried by the generic graph document.
 #[derive(Clone, Debug, PartialEq)]
@@ -74,6 +69,11 @@ impl AlchemistNodeData {
         }
     }
 
+    #[must_use]
+    pub fn to_instance(&self, id: ANodeId) -> ANodeInstance {
+        self.clone().into_instance(id, ANodeUiState::default())
+    }
+
     fn signature_instance(&self) -> ANodeInstance {
         self.clone()
             .into_instance(ANodeId::from_uuid(Uuid::nil()), ANodeUiState::default())
@@ -96,6 +96,33 @@ pub struct AlchemistEdgeData;
 
 pub type AlchemistGraphDocument = GraphDocument<AlchemistGraphData, AlchemistNodeData, AlchemistEdgeData>;
 pub type AlchemistGraphEnvelope = GraphEnvelope<AlchemistGraphData, AlchemistNodeData, AlchemistEdgeData>;
+pub type AlchemistGraphTransaction = GraphTransaction<AlchemistGraphData, AlchemistNodeData, AlchemistEdgeData>;
+pub type AlchemistGraphTransactionError = GraphTransactionError;
+
+#[cfg(feature = "serde")]
+pub(crate) mod document_serde {
+    use golden_graph::GraphEnvelope;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
+
+    use super::{ALCHEMIST_SCHEMA_VERSION, AlchemistGraphDocument, AlchemistGraphDomain, AlchemistGraphEnvelope};
+
+    pub fn serialize<S>(document: &AlchemistGraphDocument, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        GraphEnvelope::from_document(AlchemistGraphDomain::DOMAIN_ID, ALCHEMIST_SCHEMA_VERSION, document)
+            .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<AlchemistGraphDocument, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        AlchemistGraphEnvelope::deserialize(deserializer)?
+            .into_document(AlchemistGraphDomain::DOMAIN_ID, ALCHEMIST_SCHEMA_VERSION)
+            .map_err(D::Error::custom)
+    }
+}
 
 /// Real Alchemist semantics plugged into the app-agnostic graph contract.
 #[derive(Clone)]
@@ -146,6 +173,68 @@ impl AlchemistGraphDomain {
         port_id(PortDirection::Output, socket)
     }
 
+    #[must_use]
+    pub fn new_document() -> AlchemistGraphDocument {
+        Self::new_document_with_identity(AlchemistGraphId::new(), String::new())
+    }
+
+    #[must_use]
+    pub fn new_document_with_identity(id: AlchemistGraphId, label: impl Into<String>) -> AlchemistGraphDocument {
+        let mut metadata = GraphMetadata::default();
+        metadata.label = label.into();
+        GraphDocumentData {
+            id: GraphId::from_uuid(id.as_uuid()),
+            revision: GraphRevision::default(),
+            data: AlchemistGraphData {
+                schema_version: ALCHEMIST_SCHEMA_VERSION,
+                exposed: ExposedSurface::default(),
+                metadata,
+                viewport_origin: [0.0, 0.0],
+                viewport_zoom: 1.0,
+            },
+            nodes: IndexMap::new(),
+            edges: IndexMap::new(),
+            presentation: GraphPresentation::default(),
+        }
+        .into_document()
+        .expect("a fresh Alchemist graph document satisfies its structural invariants")
+    }
+
+    pub fn insert_node(transaction: &mut AlchemistGraphTransaction, node: ANodeInstance) {
+        let id = Self::node_id(node.id);
+        let presentation = node_presentation(&node.ui);
+        transaction.insert_node(
+            GraphNode {
+                id,
+                data: AlchemistNodeData::from_instance(&node),
+            },
+            Some(presentation),
+        );
+    }
+
+    pub fn connect(
+        transaction: &mut AlchemistGraphTransaction,
+        document: &AlchemistGraphDocument,
+        from: OutputSocketRef,
+        to: InputSocketRef,
+    ) {
+        let semantic_edge = AEdge { from, to };
+        let from = PortRef::new(
+            Self::node_id(semantic_edge.from.node),
+            Self::output_port_id(&semantic_edge.from.socket),
+        );
+        let to = PortRef::new(
+            Self::node_id(semantic_edge.to.node),
+            Self::input_port_id(&semantic_edge.to.socket),
+        );
+        transaction.connect(GraphEdge {
+            id: edge_id(AlchemistGraphId::from_uuid(document.id().as_uuid()), &semantic_edge),
+            from,
+            to,
+            data: AlchemistEdgeData,
+        });
+    }
+
     /// Validate every current node without turning localized edits into whole-document scans.
     #[must_use]
     pub fn validate_document(&self, graph: &AlchemistGraphDocument) -> Vec<GraphDiagnostic> {
@@ -155,6 +244,27 @@ impl AlchemistGraphDomain {
             ..GraphChangeSet::default()
         };
         self.validate_graph(graph, &changes)
+    }
+
+    pub(crate) fn semantic_edges(
+        &self,
+        document: &AlchemistGraphDocument,
+    ) -> Result<Vec<AEdge>, AlchemistGraphSemanticError> {
+        document
+            .edges()
+            .map(|edge| {
+                Ok(AEdge {
+                    from: OutputSocketRef::new(
+                        Self::anode_id(edge.from.node),
+                        socket_for(document, self, edge.from, PortDirection::Output)?,
+                    ),
+                    to: InputSocketRef::new(
+                        Self::anode_id(edge.to.node),
+                        socket_for(document, self, edge.to, PortDirection::Input)?,
+                    ),
+                })
+            })
+            .collect()
     }
 
     fn ports_for_node(&self, node: &AlchemistNodeData) -> PortSchema<AlchemistPortData> {
@@ -288,196 +398,14 @@ impl GraphDomain for AlchemistGraphDomain {
     }
 }
 
-/// Governed Phase 3 bridge between the working Alchemist model and `golden_graph`.
-pub struct AlchemistGraphAdapter;
-
-impl AlchemistGraphAdapter {
-    pub fn to_document(graph: &AlchemistGraph) -> Result<AlchemistGraphDocument, AlchemistGraphAdapterError> {
-        let graph_id = GraphId::from_uuid(graph.id.as_uuid());
-        let mut nodes = IndexMap::with_capacity(graph.nodes.len());
-        let mut presentation = GraphPresentation::default();
-        for (key, node) in &graph.nodes {
-            if *key != node.id {
-                return Err(AlchemistGraphAdapterError::NodeKeyMismatch {
-                    key: *key,
-                    node: node.id,
-                });
-            }
-            let id = AlchemistGraphDomain::node_id(node.id);
-            nodes.insert(
-                id,
-                GraphNode {
-                    id,
-                    data: AlchemistNodeData::from_instance(node),
-                },
-            );
-            presentation.nodes.insert(id, node_presentation(&node.ui));
-        }
-
-        let mut edges = IndexMap::with_capacity(graph.edges.len());
-        for edge in &graph.edges {
-            let from = PortRef::new(
-                AlchemistGraphDomain::node_id(edge.from.node),
-                AlchemistGraphDomain::output_port_id(&edge.from.socket),
-            );
-            let to = PortRef::new(
-                AlchemistGraphDomain::node_id(edge.to.node),
-                AlchemistGraphDomain::input_port_id(&edge.to.socket),
-            );
-            let id = edge_id(graph.id, edge);
-            if edges
-                .insert(
-                    id,
-                    GraphEdge {
-                        id,
-                        from,
-                        to,
-                        data: AlchemistEdgeData,
-                    },
-                )
-                .is_some()
-            {
-                return Err(AlchemistGraphAdapterError::DuplicateConnection { from, to });
-            }
-        }
-
-        for (index, comment) in graph.layout.comments.iter().enumerate() {
-            let id = comment_id(graph.id, index);
-            presentation.comments.insert(
-                id,
-                CommonGraphComment {
-                    id,
-                    text: comment.text.clone(),
-                    position: comment.position,
-                    size: comment.size,
-                },
-            );
-        }
-        for (index, group) in graph.layout.groups.iter().enumerate() {
-            let id = group_id(graph.id, index);
-            presentation.groups.insert(
-                id,
-                CommonGraphGroup {
-                    id,
-                    label: group.label.clone(),
-                    nodes: group
-                        .nodes
-                        .iter()
-                        .copied()
-                        .map(AlchemistGraphDomain::node_id)
-                        .collect::<BTreeSet<_>>(),
-                    position: group.position,
-                    size: group.size,
-                },
-            );
-        }
-
-        GraphDocumentData {
-            id: graph_id,
-            revision: GraphRevision::default(),
-            data: AlchemistGraphData {
-                schema_version: graph.schema_version,
-                exposed: graph.exposed.clone(),
-                metadata: graph.metadata.clone(),
-                viewport_origin: graph.layout.viewport_origin,
-                viewport_zoom: graph.layout.viewport_zoom,
-            },
-            nodes,
-            edges,
-            presentation,
-        }
-        .into_document()
-        .map_err(Into::into)
-    }
-
-    pub fn to_legacy(
-        document: &AlchemistGraphDocument,
-        domain: &AlchemistGraphDomain,
-    ) -> Result<AlchemistGraph, AlchemistGraphAdapterError> {
-        let mut nodes = IndexMap::with_capacity(document.nodes().len());
-        for node in document.nodes() {
-            let id = AlchemistGraphDomain::anode_id(node.id);
-            let ui = document
-                .presentation()
-                .nodes
-                .get(&node.id)
-                .map(anode_ui_state)
-                .unwrap_or_default();
-            nodes.insert(id, node.data.clone().into_instance(id, ui));
-        }
-
-        let mut edges = Vec::with_capacity(document.edges().len());
-        for edge in document.edges() {
-            edges.push(AEdge {
-                from: OutputSocketRef::new(
-                    AlchemistGraphDomain::anode_id(edge.from.node),
-                    socket_for(document, domain, edge.from, PortDirection::Output)?,
-                ),
-                to: InputSocketRef::new(
-                    AlchemistGraphDomain::anode_id(edge.to.node),
-                    socket_for(document, domain, edge.to, PortDirection::Input)?,
-                ),
-            });
-        }
-
-        let comments = document
-            .presentation()
-            .comments
-            .values()
-            .map(|comment| GraphComment {
-                text: comment.text.clone(),
-                position: comment.position,
-                size: comment.size,
-            })
-            .collect();
-        let groups = document
-            .presentation()
-            .groups
-            .values()
-            .map(|group| GraphGroup {
-                label: group.label.clone(),
-                nodes: group
-                    .nodes
-                    .iter()
-                    .copied()
-                    .map(AlchemistGraphDomain::anode_id)
-                    .collect(),
-                position: group.position,
-                size: group.size,
-            })
-            .collect();
-        let data = document.data();
-        Ok(AlchemistGraph {
-            schema_version: data.schema_version,
-            id: AlchemistGraphId::from_uuid(document.id().as_uuid()),
-            nodes,
-            edges,
-            exposed: data.exposed.clone(),
-            layout: GraphLayout {
-                comments,
-                groups,
-                viewport_origin: data.viewport_origin,
-                viewport_zoom: data.viewport_zoom,
-            },
-            metadata: data.metadata.clone(),
-        })
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum AlchemistGraphAdapterError {
-    #[error(transparent)]
-    InvalidDocument(#[from] GraphPersistenceError),
-    #[error("Alchemist node map key `{key}` differs from embedded node id `{node}`")]
-    NodeKeyMismatch { key: ANodeId, node: ANodeId },
+pub enum AlchemistGraphSemanticError {
     #[error("node `{0}` is missing while materializing an Alchemist connection")]
     MissingNode(GraphNodeId),
     #[error("port `{port:?}` is missing while materializing an Alchemist connection")]
     MissingPort { port: PortRef },
     #[error("port `{port:?}` has the wrong direction while materializing an Alchemist connection")]
     WrongPortDirection { port: PortRef },
-    #[error("Alchemist connection `{from:?}` -> `{to:?}` is duplicated")]
-    DuplicateConnection { from: PortRef, to: PortRef },
 }
 
 fn port_id(direction: PortDirection, socket: &SocketId) -> GraphPortId {
@@ -502,33 +430,11 @@ fn edge_id(graph: AlchemistGraphId, edge: &AEdge) -> GraphEdgeId {
     ))
 }
 
-fn comment_id(graph: AlchemistGraphId, index: usize) -> GraphCommentId {
-    GraphCommentId::from_uuid(Uuid::new_v5(
-        &COMMENT_NAMESPACE,
-        format!("{graph}:comment:{index}").as_bytes(),
-    ))
-}
-
-fn group_id(graph: AlchemistGraphId, index: usize) -> GraphGroupId {
-    GraphGroupId::from_uuid(Uuid::new_v5(
-        &GROUP_NAMESPACE,
-        format!("{graph}:group:{index}").as_bytes(),
-    ))
-}
-
 fn node_presentation(ui: &ANodeUiState) -> NodePresentation {
     NodePresentation {
         position: ui.position,
         size: ui.size,
         collapsed: ui.collapsed,
-    }
-}
-
-fn anode_ui_state(presentation: &NodePresentation) -> ANodeUiState {
-    ANodeUiState {
-        position: presentation.position,
-        size: presentation.size,
-        collapsed: presentation.collapsed,
     }
 }
 
@@ -550,17 +456,17 @@ fn socket_for(
     domain: &AlchemistGraphDomain,
     port: PortRef,
     expected_direction: PortDirection,
-) -> Result<SocketId, AlchemistGraphAdapterError> {
+) -> Result<SocketId, AlchemistGraphSemanticError> {
     let node = document
         .node(port.node)
-        .ok_or(AlchemistGraphAdapterError::MissingNode(port.node))?;
+        .ok_or(AlchemistGraphSemanticError::MissingNode(port.node))?;
     let definition = domain
         .node_ports(&node.data, document)
         .get(port.port)
         .cloned()
-        .ok_or(AlchemistGraphAdapterError::MissingPort { port })?;
+        .ok_or(AlchemistGraphSemanticError::MissingPort { port })?;
     if definition.direction != expected_direction {
-        return Err(AlchemistGraphAdapterError::WrongPortDirection { port });
+        return Err(AlchemistGraphSemanticError::WrongPortDirection { port });
     }
     Ok(definition.data.socket)
 }

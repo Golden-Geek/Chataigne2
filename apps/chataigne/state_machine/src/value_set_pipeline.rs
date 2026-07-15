@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use golden_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, CompiledAlchemistGraph, ContextAxisId,
-    ContextItemId, ContextKey, DebugCaptureMode, DebugCaptureSink, EvaluationCtx, EvaluationFrame, FormulaPropertyDecl,
-    FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool, ManagedItemInstance,
-    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedSocketRef,
-    OutputSocketRef, ParamUiHints, PipelineLoweringCtx, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
-    SocketId, StableRef, SurfaceItemKind, ValueTypeId, compile_graph, evaluate_compiled_graph,
-    evaluate_compiled_graph_stateless, lower_filter_pipeline_region, single_shape,
+use chataigne_alchemist::{
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistGraphDomain, AlchemistGraphTransaction, CompileCtx,
+    CompiledAlchemistGraph, ContextAxisId, ContextItemId, ContextKey, DebugCaptureMode, DebugCaptureSink,
+    EvaluationCtx, EvaluationFrame, FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketRef,
+    LaneRuntimePool, ManagedItemInstance, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
+    ManagedRegionKind, ManagedSocketRef, OutputSocketRef, ParamUiHints, PipelineLoweringCtx, RuntimeContextFrame,
+    RuntimeOutput, RuntimePropertyFrame, SocketId, StableRef, SurfaceItemKind, ValueTypeId, compile_graph,
+    evaluate_compiled_graph, evaluate_compiled_graph_stateless, lower_filter_pipeline_region, single_shape,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::IndexMap;
@@ -39,16 +39,27 @@ impl ValueSetPipelineRuntime {
         ctx: &PipelineLoweringCtx<'_>,
     ) -> Result<Self, ValueSetPipelineError> {
         let items = normalize_elementwise_items(items);
-        let mut graph = AlchemistGraph::new();
+        let default_value = ctx
+            .value_types
+            .default_value(&item_type)
+            .ok_or_else(|| ValueSetPipelineError::MissingDefaultValue(item_type.clone()))?;
+        let properties = pipeline_property_schema(item_type.clone(), default_value);
+        let domain = AlchemistGraphDomain::new(ctx.nodes.clone(), ctx.value_types.clone(), Some(properties.clone()));
+        let mut document = AlchemistGraphDomain::new_document();
+        let mut transaction = AlchemistGraphTransaction::for_document(&document);
         let mut input = ANodeInstance::new(ANodeTypeId::new("property"), "Pipeline Input");
         input.config.set(
             "property_id",
             RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), PIPELINE_INPUT_PROPERTY)),
         );
-        let input_node = graph.add_node(input).map_err(ValueSetPipelineError::Graph)?;
+        let input_node = input.id;
+        AlchemistGraphDomain::insert_node(&mut transaction, input);
         let output = ANodeInstance::new(ANodeTypeId::new("debug_value"), "Pipeline Output");
         let output_node = output.id;
-        graph.add_node(output).map_err(ValueSetPipelineError::Graph)?;
+        AlchemistGraphDomain::insert_node(&mut transaction, output);
+        transaction
+            .commit(&mut document, &domain)
+            .map_err(ValueSetPipelineError::AuthoringEdit)?;
 
         let definition = ManagedRegionDefinition {
             id: ManagedRegionId::new(PIPELINE_REGION),
@@ -63,8 +74,18 @@ impl ValueSetPipelineRuntime {
             items,
         };
 
-        let lowered =
-            lower_filter_pipeline_region(&graph, &definition, &instance, single_shape(item_type.clone()), ctx);
+        let lowering_ctx = PipelineLoweringCtx {
+            value_types: ctx.value_types,
+            nodes: ctx.nodes,
+            properties: Some(&properties),
+        };
+        let lowered = lower_filter_pipeline_region(
+            &document,
+            &definition,
+            &instance,
+            single_shape(item_type.clone()),
+            &lowering_ctx,
+        );
         if !lowered.is_valid() {
             return Err(ValueSetPipelineError::Lowering {
                 diagnostics: lowered.diagnostics,
@@ -72,11 +93,6 @@ impl ValueSetPipelineRuntime {
             });
         }
 
-        let default_value = ctx
-            .value_types
-            .default_value(&item_type)
-            .ok_or_else(|| ValueSetPipelineError::MissingDefaultValue(item_type.clone()))?;
-        let properties = pipeline_property_schema(item_type, default_value);
         let compiled = compile_graph(
             &lowered.graph,
             &CompileCtx {
@@ -250,9 +266,10 @@ fn compile_projection(
         .value_types
         .default_value(&item_type)
         .ok_or_else(|| ValueSetPipelineError::MissingDefaultValue(item_type.clone()))?;
-    let mut graph = AlchemistGraph::new();
+    let mut document = AlchemistGraphDomain::new_document();
+    let mut transaction = AlchemistGraphTransaction::for_document(&document);
     let output_node = item.anode.id;
-    graph.add_node(item.anode).map_err(ValueSetPipelineError::Graph)?;
+    AlchemistGraphDomain::insert_node(&mut transaction, item.anode);
 
     let mut properties = FormulaPropertySchema::default();
     let mut property_ids = Vec::with_capacity(input_sockets.len());
@@ -272,18 +289,23 @@ fn compile_projection(
             "property_id",
             RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), property_name.as_str())),
         );
-        let input_node = graph.add_node(input).map_err(ValueSetPipelineError::Graph)?;
-        graph
-            .connect(
-                OutputSocketRef::new(input_node, "value"),
-                InputSocketRef::new(output_node, input_socket),
-            )
-            .map_err(ValueSetPipelineError::Graph)?;
+        let input_node = input.id;
+        AlchemistGraphDomain::insert_node(&mut transaction, input);
+        AlchemistGraphDomain::connect(
+            &mut transaction,
+            &document,
+            OutputSocketRef::new(input_node, "value"),
+            InputSocketRef::new(output_node, input_socket),
+        );
         property_ids.push(property_id);
     }
 
+    let domain = AlchemistGraphDomain::new(ctx.nodes.clone(), ctx.value_types.clone(), Some(properties.clone()));
+    transaction
+        .commit(&mut document, &domain)
+        .map_err(ValueSetPipelineError::AuthoringEdit)?;
     let compiled = compile_graph(
-        &graph,
+        &document,
         &CompileCtx {
             value_types: ctx.value_types,
             nodes: ctx.nodes,
@@ -356,15 +378,15 @@ fn normalize_elementwise_items(mut items: Vec<ManagedItemInstance>) -> Vec<Manag
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValueSetPipelineError {
-    #[error("{0}")]
-    Graph(golden_alchemist::GraphEditError),
+    #[error("typed Alchemist pipeline authoring edit failed: {0}")]
+    AuthoringEdit(chataigne_alchemist::AlchemistGraphTransactionError),
     #[error("managed filter pipeline failed to lower")]
     Lowering {
-        diagnostics: Vec<golden_alchemist::PipelineLoweringDiagnostic>,
-        shape_diagnostics: Vec<golden_alchemist::PipelineShapeDiagnostic>,
+        diagnostics: Vec<chataigne_alchemist::PipelineLoweringDiagnostic>,
+        shape_diagnostics: Vec<chataigne_alchemist::PipelineShapeDiagnostic>,
     },
     #[error("managed filter pipeline failed to compile")]
-    Compile(Vec<golden_alchemist::Diagnostic>),
+    Compile(Vec<chataigne_alchemist::Diagnostic>),
     #[error("managed filter pipeline did not produce a compiled graph")]
     MissingCompiledGraph,
     #[error("no default value registered for pipeline item type `{0:?}`")]
@@ -374,7 +396,7 @@ pub enum ValueSetPipelineError {
     #[error("projection pipeline expected {expected} lanes, got {actual}")]
     LaneCountMismatch { expected: usize, actual: usize },
     #[error("{0}")]
-    PropertyFrame(golden_alchemist::RuntimePropertyFrameError),
+    PropertyFrame(chataigne_alchemist::RuntimePropertyFrameError),
     #[error("managed filter pipeline produced no output for `{0}`")]
     MissingOutput(String),
 }

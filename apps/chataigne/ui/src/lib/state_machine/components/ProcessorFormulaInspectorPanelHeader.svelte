@@ -5,7 +5,7 @@
 		type UiNodeDto
 	} from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
-	import formulaIconUrl from 'golden_alchemist_ui/icons/formula.svg';
+	import formulaIconUrl from '$lib/assets/icons/formula.svg';
 	import ProcessorPreviewLaneSelector from './ProcessorPreviewLaneSelector.svelte';
 
 	let { node, defaultHeader }: NodeInspectorPanelHeaderComponentProps = $props();

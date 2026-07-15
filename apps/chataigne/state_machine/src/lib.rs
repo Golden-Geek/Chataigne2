@@ -9,6 +9,8 @@ mod output_set;
 mod processor;
 pub mod protocol;
 mod state_machine;
+#[cfg(test)]
+mod test_support;
 pub mod value_set;
 mod value_set_pipeline;
 

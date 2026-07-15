@@ -1,4 +1,4 @@
-use golden_alchemist::{
+use chataigne_alchemist::{
     ANodeId, ANodeRegistry, AlchemistFormula, AlchemistFormulaInstance, CompileCtx, Diagnostic, DiagnosticOrigin,
     EvaluationCtx, ExecNodeId, FormulaMaterializationError, ManagedItemInstance, ManagedRegionDefinition,
     ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedRegionValidationError, PipelineCardinality,
@@ -888,7 +888,9 @@ pub enum ManagedFormulaError {
     #[error("FilterPipeline region `{region_id}` must accept filter items")]
     DoesNotAcceptFilters { region_id: ManagedRegionId },
     #[error("managed filter item declaration `{node_type}` is not registered")]
-    MissingFilterDeclaration { node_type: golden_alchemist::ANodeTypeId },
+    MissingFilterDeclaration {
+        node_type: chataigne_alchemist::ANodeTypeId,
+    },
     #[error("managed filter shape is invalid: {}", messages.join("; "))]
     InvalidFilterShape { messages: Vec<String> },
     #[error("unsupported managed filter pipeline: {0}")]

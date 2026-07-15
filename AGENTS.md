@@ -29,17 +29,22 @@ Until that migration is complete, the following rules take precedence over wordi
 - "Thin app shell" describes final ownership. It does not mean replacing Chataigne with an empty
   shell, registry-only demo, headless harness, or disconnected frontend during migration.
 - "No legacy" and "no compatibility shims" describe the final production state. Typed temporary
-  adapters, converters, dual reads, and shadow execution are explicitly allowed when they keep the
-  real product runnable and make a cutover safer.
+  adapters, converters, dual reads, and shadow execution are allowed only when they make a named
+  runnable checkpoint or persisted-data migration safer; they are not required merely to keep an
+  intermediate construction commit launchable.
 - Every temporary adapter must be recorded in the parity ledger with an owner, exact scope, expiry
   phase, deletion criteria, deletion issue, and executable tests. Shadow paths must be incapable of
   duplicating commands, triggers, effects, or device traffic.
-- Do not delete an old path until its replacement passes the applicable automated and manual parity
-  gates in the real application. Remove the old path in the same or immediately following focused
-  supercommit after that proof.
-- Every supercommit accepted on the canonical migration branch must build and launch the complete
-  applicable Chataigne product. Intentionally non-runnable structural work belongs only on a
-  private/topic branch and must be restored before integration.
+- A declared `CONSTRUCTION` interval may replace and delete an old in-scope implementation before
+  the replacement passes the full application gate. The last runnable checkpoint and baseline refs
+  must remain immutable, the affected parity rows and expected breakages must be recorded, and the
+  cutover cannot be marked complete until the next named checkpoint passes in the real application.
+- The canonical migration branch may be temporarily non-runnable between named checkpoints. Keep
+  focused compile, unit, contract, serialization, and performance checks running wherever their
+  dependencies are available; do not claim full-product parity from those checks.
+- Named checkpoints at the end of Phases 4, 5, 6, 7, 8, and 9 must build, launch, and pass the
+  complete applicable Chataigne product gate. Phases 6, 8, and 9 also require their declared
+  cross-platform qualification. A checkpoint failure returns the phase to construction state.
 - The failed rewrite is a donor, not a migration base. Import or reimplement donor work one reviewed
   unit at a time; never merge or cherry-pick the donor branch wholesale.
 
@@ -72,6 +77,18 @@ pass.
 - App-owned script templates for Chataigne module nodes must live in the app layer under `src/module`, not in `golden_core`; `golden_core` may expose only generic reusable scripting primitives and snippet expansion helpers.
 - When app-specific UI needs inspector, outliner, context-menu, dashboard, or similar customization points, add a public hook or registry in `golden_*` and register the app behavior from the app layer.
 - No app-layer code inside `golden_*`.
+
+### Alchemist Ownership
+
+- `golden_graph` and the final `golden_graph_ui` are the complete app-agnostic graph document,
+  editing, presentation, and canvas system. They must never import Alchemist or Chataigne types.
+- Alchemist is Chataigne-specific. Its formula model, ANode registry, compiler/runtime, assets,
+  catalog policy, graph-domain adapter, and formula UI belong under `apps/chataigne` in the final
+  architecture and consume only public Golden contracts.
+- The Rust implementation now lives at `apps/chataigne/alchemist` as `chataigne_alchemist`. The
+  empty imported `packages/golden-alchemist-ui` placeholder has been removed.
+- Reusable Golden runtime, protocol, persistence, processor, condition, and UI layers must use
+  domain-neutral contracts and must not depend on the app-owned Alchemist implementation.
 
 ### Public Boundaries Only
 
@@ -206,10 +223,11 @@ Phase 1A formed one monorepo and one jCodemunch index. Choose the owning source 
 | --- | --- | --- |
 | App shell and app-owned modules | `apps/chataigne` | `.` |
 | `golden_core` crates | `crates/` | `.` |
-| `golden_alchemist_core` crates | `crates/golden_alchemist`, `crates/golden_statechart` | `.` |
+| Chataigne Alchemist | `apps/chataigne/alchemist` | `.` |
+| Reusable statechart | `crates/golden_statechart` | `.` |
 | App-owned UI | `apps/chataigne/ui` | `.` |
 | `golden_ui` | `packages/golden-ui` | `.` |
-| `golden_alchemist_ui` | `packages/golden-alchemist-ui` | `.` |
+| Generic graph UI | `packages/golden-graph-ui` | `.` |
 
 Call `resolve_repo` with `.` and use the returned repo id for `plan_turn`, `search_symbols`,
 `search_text`, `get_file_outline`, and reads. For cross-layer changes, plan once and scope each query

@@ -1,7 +1,9 @@
+use crate::test_support::TestGraph;
+
 use std::time::Duration;
 
-use golden_alchemist::{
-    ANodeDeclaration, ANodeId, ANodeInstance, AlchemistFormula, AlchemistFormulaInstance, AlchemistGraph,
+use chataigne_alchemist::{
+    ANodeDeclaration, ANodeId, ANodeInstance, AlchemistFormula, AlchemistFormulaInstance, AlchemistGraphDomain,
     AlchemistRuntime, CompileCtx, DebugCaptureMode, EvaluationCtx, FormulaContextContract, FormulaId,
     FormulaPropertySchema, FormulaRef, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance,
     ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind,
@@ -562,7 +564,11 @@ fn processor_runtime_evaluates_managed_trigger_pipeline_sidecar() {
     let (mut formula, mut instance) = trigger_pipeline_formula_and_instance();
     let mut constant = primitive_anode(PrimitiveNodeKind::Constant);
     constant.config.set("value", RuntimeValue::Bool(true));
-    let constant_id = formula.graph.add_node(constant).unwrap();
+    let constant_id = constant.id;
+    let domain = AlchemistGraphDomain::with_primitives();
+    let mut transaction = chataigne_alchemist::AlchemistGraphTransaction::for_document(&formula.graph);
+    AlchemistGraphDomain::insert_node(&mut transaction, constant);
+    transaction.commit(&mut formula.graph, &domain).unwrap();
     let source = endpoint_ref("module/trigger");
     let target = command_target("target/command");
     instance.managed_regions.regions.insert(
@@ -642,7 +648,7 @@ fn managed_formula_missing_command_target_uses_specific_code() {
             "commands",
             vec![ManagedItemInstance {
                 id: ManagedItemId::new(),
-                anode: ANodeInstance::new(golden_alchemist::ANodeTypeId::new("managed_output"), "Command"),
+                anode: ANodeInstance::new(chataigne_alchemist::ANodeTypeId::new("managed_output"), "Command"),
                 enabled: true,
                 ui_state: ManagedItemUiState::default(),
             }],
@@ -662,7 +668,7 @@ fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
         label: "Test Value Pipeline".into(),
         description: None,
         tags: Vec::new(),
-        graph: AlchemistGraph::new(),
+        graph: AlchemistGraphDomain::new_document(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface {
             sections: Vec::new(),
@@ -711,7 +717,7 @@ fn trigger_pipeline_formula_and_instance() -> (AlchemistFormula, AlchemistFormul
         label: "Test Trigger Pipeline".into(),
         description: None,
         tags: Vec::new(),
-        graph: AlchemistGraph::new(),
+        graph: AlchemistGraphDomain::new_document(),
         properties: FormulaPropertySchema::default(),
         surface: FormulaSurface {
             sections: Vec::new(),
@@ -768,7 +774,7 @@ fn compile_managed_formula(formula: &AlchemistFormula, instance: &AlchemistFormu
 fn compile_error_diagnostic(
     formula: &AlchemistFormula,
     instance: &AlchemistFormulaInstance,
-) -> golden_alchemist::Diagnostic {
+) -> chataigne_alchemist::Diagnostic {
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
         value_types: &value_types,
@@ -789,7 +795,7 @@ fn region(id: &str, items: Vec<ManagedItemInstance>) -> ManagedRegionInstance {
 }
 
 fn input_item(label: &str, source: StableRef) -> ManagedItemInstance {
-    let mut anode = ANodeInstance::new(golden_alchemist::ANodeTypeId::new("managed_input"), label);
+    let mut anode = ANodeInstance::new(chataigne_alchemist::ANodeTypeId::new("managed_input"), label);
     anode.config.set(INPUT_SOURCE_FIELD, RuntimeValue::Ref(source));
     ManagedItemInstance {
         id: ManagedItemId::new(),
@@ -800,7 +806,7 @@ fn input_item(label: &str, source: StableRef) -> ManagedItemInstance {
 }
 
 fn output_item(label: &str, target: StableRef) -> ManagedItemInstance {
-    let mut anode = ANodeInstance::new(golden_alchemist::ANodeTypeId::new("managed_output"), label);
+    let mut anode = ANodeInstance::new(chataigne_alchemist::ANodeTypeId::new("managed_output"), label);
     anode.config.set(OUTPUT_TARGET_FIELD, RuntimeValue::Ref(target));
     ManagedItemInstance {
         id: ManagedItemId::new(),
@@ -860,8 +866,8 @@ fn managed_item_for_primitive(kind: PrimitiveNodeKind) -> ManagedItemInstance {
 }
 
 fn direct_remap_clamp_result(value: f64) -> RuntimeValue {
-    let mut graph = AlchemistGraph::new();
-    let mut source = ANodeInstance::new(golden_alchemist::ANodeTypeId::new("constant"), "Value");
+    let mut graph = TestGraph::new();
+    let mut source = ANodeInstance::new(chataigne_alchemist::ANodeTypeId::new("constant"), "Value");
     source.config.set("value", RuntimeValue::Float(value));
     let mut remap = primitive_anode(PrimitiveNodeKind::Remap);
     remap
@@ -904,8 +910,8 @@ fn direct_remap_clamp_result(value: f64) -> RuntimeValue {
 }
 
 fn direct_condition_gate_result(trigger: TriggerValue, condition: bool) -> RuntimeValue {
-    let mut graph = AlchemistGraph::new();
-    let mut source = ANodeInstance::new(golden_alchemist::ANodeTypeId::new("constant"), "Trigger");
+    let mut graph = TestGraph::new();
+    let mut source = ANodeInstance::new(chataigne_alchemist::ANodeTypeId::new("constant"), "Trigger");
     source.config.set("value", RuntimeValue::Trigger(trigger));
     let mut gate = primitive_anode(PrimitiveNodeKind::ConditionGate);
     gate.config.set("mode", RuntimeValue::String("block_trigger".into()));
@@ -933,10 +939,10 @@ fn primitive_anode(kind: PrimitiveNodeKind) -> ANodeInstance {
     ANodeInstance::new(declaration.type_id(), declaration.label())
 }
 
-fn evaluate_direct_output(graph: AlchemistGraph, output_node: ANodeId, socket: &str) -> RuntimeValue {
+fn evaluate_direct_output(graph: TestGraph, output_node: ANodeId, socket: &str) -> RuntimeValue {
     let (value_types, nodes) = registries();
     let compiled = compile_graph(
-        &graph,
+        &graph.to_document().unwrap(),
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
@@ -968,7 +974,7 @@ fn command_target(id: &str) -> StableRef {
     StableRef::new(ValueTypeId::new("chataigne.command_target"), id)
 }
 
-fn registries() -> (ValueTypeRegistry, golden_alchemist::ANodeRegistry) {
+fn registries() -> (ValueTypeRegistry, chataigne_alchemist::ANodeRegistry) {
     (crate::alchemist::value_type_registry(), node_registry())
 }
 

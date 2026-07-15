@@ -1,4 +1,4 @@
-use golden_alchemist::{
+use chataigne_alchemist::{
     Diagnostic, DiagnosticOrigin, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
     ManagedRegionKind, StableRef, SurfaceItemKind,
 };

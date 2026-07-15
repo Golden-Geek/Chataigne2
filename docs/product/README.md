@@ -18,6 +18,8 @@ Start here:
   independently observable capability and temporary adapter.
 - [Phase 2 seam dashboard](manifests/phase2-seams.v1.json) records each application-facing seam and
   the governed production adapters that remain authoritative during later cutovers.
+- [Phase 4 cutover dashboard](manifests/phase4-cutovers.v1.json) records the Chataigne Alchemist
+  ownership and package relocation.
 - [Architecture decisions](../architecture/decisions/README.md) record the Phase 0 decisions that
   constrain implementation.
 - [Final architecture and migration plan](../Golden_Architecture_Final_Plan.md) remains the complete

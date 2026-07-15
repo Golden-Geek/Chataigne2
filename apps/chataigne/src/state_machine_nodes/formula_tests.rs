@@ -13,8 +13,9 @@ use golden_core::{
         UiDuplicateNodeSpec, UiEditIntent,
     },
 };
-use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, StableRef, TriggerValue, ValueTypeId, compile_graph,
+use chataigne_alchemist::{
+    ANodeInstance, ANodeTypeId, AlchemistGraphDomain, CompileCtx, SocketId,
+    StableRef, TriggerValue, ValueTypeId, compile_graph,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -232,17 +233,21 @@ fn formula_properties_offer_manager_roles_and_graph_getters() {
         chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE,
         chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE,
     ] {
-        let mut graph = AlchemistGraph::new();
         let mut node = ANodeInstance::new(ANodeTypeId::new(node_type), "Manager");
         node.config.set(
             chataigne_state_machine::alchemist::MANAGER_PROPERTY_FIELD,
             RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), "manager")),
         );
-        graph.add_node(node).unwrap();
         let value_types = chataigne_state_machine::alchemist::value_type_registry();
         let nodes = chataigne_state_machine::alchemist::node_registry();
+        let domain = AlchemistGraphDomain::new(nodes.clone(), value_types.clone(), None);
+        let mut document = AlchemistGraphDomain::new_document();
+        let mut transaction =
+            chataigne_alchemist::AlchemistGraphTransaction::for_document(&document);
+        AlchemistGraphDomain::insert_node(&mut transaction, node);
+        transaction.commit(&mut document, &domain).unwrap();
         let result = compile_graph(
-            &graph,
+            &document,
             &CompileCtx {
                 value_types: &value_types,
                 nodes: &nodes,
@@ -451,10 +456,9 @@ fn materialized_anode_preserves_enabled_state() {
 
     assert!(materialized
         .graph
-        .nodes
-        .values()
-        .find(|node| node.type_id.as_str() == "constant")
-        .is_some_and(|node| !node.enabled));
+        .nodes()
+        .find(|node| node.data.type_id.as_str() == "constant")
+        .is_some_and(|node| !node.data.enabled));
 }
 
 #[test]
@@ -702,12 +706,11 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         .any(|section| section.label == "Conditions"));
     let getter = materialized
         .graph
-        .nodes
-        .values()
-        .find(|node| node.type_id.as_str() == "property")
+        .nodes()
+        .find(|node| node.data.type_id.as_str() == "property")
         .expect("Property getter should materialize");
     assert_eq!(
-        getter.config.get("value"),
+        getter.data.config.get("value"),
         Some(&golden_values::Value::Float(3.5))
     );
 }
@@ -872,13 +875,12 @@ fn formula_property_getter_keeps_property_id_after_project_reload() {
             .expect("Reloaded Formula should materialize");
     let getter = materialized
         .graph
-        .nodes
-        .values()
-        .find(|node| node.type_id.as_str() == "property")
+        .nodes()
+        .find(|node| node.data.type_id.as_str() == "property")
         .expect("Property getter should materialize");
     assert!(
         matches!(
-            getter.config.get("property_id"),
+            getter.data.config.get("property_id"),
             Some(golden_values::Value::Ref(value))
                 if value.stable_id.as_ref() == property_uuid
         ),
@@ -1566,8 +1568,8 @@ fn authored_formula_subtree_survives_reload_and_compiles() {
         formula,
     )
     .expect("Formula subtree should materialize");
-    assert_eq!(materialized.graph.nodes.len(), 2);
-    assert_eq!(materialized.graph.edges.len(), 1);
+    assert_eq!(materialized.graph.nodes().len(), 2);
+    assert_eq!(materialized.graph.edges().len(), 1);
     assert_eq!(
         parameter_value(&engine, formula, "is_valid"),
         ParamValue::Bool(true)
@@ -1595,8 +1597,8 @@ fn authored_formula_subtree_survives_reload_and_compiles() {
     )
     .expect("reloaded Formula subtree should materialize");
 
-    assert_eq!(reloaded.graph.nodes.len(), 2);
-    assert_eq!(reloaded.graph.edges.len(), 1);
+    assert_eq!(reloaded.graph.nodes().len(), 2);
+    assert_eq!(reloaded.graph.edges().len(), 1);
 
     let formula_asset =
         golden_core::app::to_sparse_subtree_json_pretty(&engine, formula)
@@ -1646,8 +1648,8 @@ fn authored_formula_subtree_survives_reload_and_compiles() {
         imported_formula,
     )
     .expect("imported Formula subtree should materialize");
-    assert_eq!(imported.graph.nodes.len(), 2);
-    assert_eq!(imported.graph.edges.len(), 1);
+    assert_eq!(imported.graph.nodes().len(), 2);
+    assert_eq!(imported.graph.edges().len(), 1);
 }
 
 #[test]
@@ -1772,7 +1774,7 @@ fn undoing_anode_removal_restores_its_connections_in_one_step() {
         formula_from_snapshot(&engine.process_tree_snapshot(), formula)
             .expect("Formula should materialize after removal")
             .graph
-            .edges
+            .edges()
             .len(),
         0,
         "Removing an ANode should remove incident connections during UI stabilization"
@@ -1782,8 +1784,8 @@ fn undoing_anode_removal_restores_its_connections_in_one_step() {
     assert!(ack.success, "Undoing ANode removal should succeed: {ack:?}");
     let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula)
         .expect("Formula should materialize after undo");
-    assert_eq!(materialized.graph.nodes.len(), 2);
-    assert_eq!(materialized.graph.edges.len(), 1);
+    assert_eq!(materialized.graph.nodes().len(), 2);
+    assert_eq!(materialized.graph.edges().len(), 1);
 
     let ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: anodes[1] });
     assert!(
@@ -1944,28 +1946,26 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
 
     let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula)
         .expect("Formula should materialize after connected duplicate");
-    assert_eq!(materialized.graph.nodes.len(), 4);
-    assert_eq!(materialized.graph.edges.len(), 2);
+    assert_eq!(materialized.graph.nodes().len(), 4);
+    assert_eq!(materialized.graph.edges().len(), 2);
     let copied_source = materialized
         .graph
-        .nodes
-        .values()
-        .find(|node| node.label == "Constant 2")
+        .nodes()
+        .find(|node| node.data.label == "Constant 2")
         .expect("Copied source ANode should materialize")
         .id;
     let copied_target = materialized
         .graph
-        .nodes
-        .values()
-        .find(|node| node.label == "Debug Log 2")
+        .nodes()
+        .find(|node| node.data.label == "Debug Log 2")
         .expect("Copied target ANode should materialize")
         .id;
     assert!(
-        materialized.graph.edges.iter().any(|edge| {
+        materialized.graph.edges().any(|edge| {
             edge.from.node == copied_source
-                && edge.from.socket.to_string() == "value"
+                && edge.from.port == AlchemistGraphDomain::output_port_id(&SocketId::new("value"))
                 && edge.to.node == copied_target
-                && edge.to.socket.to_string() == "value"
+                && edge.to.port == AlchemistGraphDomain::input_port_id(&SocketId::new("value"))
         }),
         "Copied edge should connect the copied source and target ANodes"
     );
@@ -1977,8 +1977,8 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
     );
     let materialized_after_undo = formula_from_snapshot(&engine.process_tree_snapshot(), formula)
         .expect("Formula should materialize after duplicate undo");
-    assert_eq!(materialized_after_undo.graph.nodes.len(), 2);
-    assert_eq!(materialized_after_undo.graph.edges.len(), 1);
+    assert_eq!(materialized_after_undo.graph.nodes().len(), 2);
+    assert_eq!(materialized_after_undo.graph.edges().len(), 1);
     assert!(engine.nodes.get(copied[0]).is_none());
     assert!(engine.nodes.get(copied[1]).is_none());
 }
@@ -2257,9 +2257,9 @@ fn forced_value_type(engine: &AppEngine, formula: NodeId, type_id: &str) -> Opti
     let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula).ok()?;
     let value_type = materialized
         .graph
-        .nodes
-        .values()
-        .find(|node| node.type_id.as_str() == type_id)?
+        .nodes()
+        .find(|node| node.data.type_id.as_str() == type_id)?
+        .data
         .forced_type_bindings
         .iter()
         .next()

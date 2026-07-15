@@ -9,13 +9,13 @@ dependencies = [
  "base64 0.22.1",
  "buttplug",
  "buttplug_core",
+ "chataigne_alchemist",
  "chataigne_state_machine",
  "device_query",
  "dirs",
  "elgato-streamdeck",
  "futures-util",
  "gilrs",
- "golden_alchemist",
  "golden_codegen_support",
  "golden_core",
  "golden_values",
@@ -937,10 +937,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "chataigne_alchemist"
+version = "0.1.0"
+dependencies = [
+ "golden_graph",
+ "golden_values",
+ "indexmap 2.14.0",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "smol_str",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "chataigne_state_machine"
 version = "0.1.0"
 dependencies = [
- "golden_alchemist",
+ "chataigne_alchemist",
+ "golden_graph",
  "golden_statechart",
  "golden_values",
  "indexmap 2.14.0",
@@ -2454,21 +2470,6 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
-]
-
-[[package]]
-name = "golden_alchemist"
-version = "0.1.0"
-dependencies = [
- "golden_graph",
- "golden_values",
- "indexmap 2.14.0",
- "serde",
- "serde_json",
- "smallvec",
- "smol_str",
- "thiserror 2.0.18",
- "uuid",
 ]
 
 [[package]]

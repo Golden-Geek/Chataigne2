@@ -3,7 +3,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
-use golden_alchemist::{
+use chataigne_alchemist::{
     ContextKey, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionInstance,
     ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, SurfaceItemKind, ValueTypeSpec,
 };

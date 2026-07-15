@@ -1,8 +1,8 @@
-//! Chataigne-specific value types and nodes for `golden_alchemist`.
+//! Chataigne-specific value types and nodes for `chataigne_alchemist`.
 
 use std::{fmt::Debug, sync::Arc};
 
-use golden_alchemist::{
+use chataigne_alchemist::{
     ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature, ANodeTypeId,
     CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, EvaluationCtx, ExecutionKind, ExtensionValue, FacetId,
     InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent,
@@ -11,7 +11,7 @@ use golden_alchemist::{
 };
 use golden_values::Value as RuntimeValue;
 
-pub use golden_alchemist as alchemist;
+pub use chataigne_alchemist as alchemist;
 
 pub use crate::value_set::VALUE_SET_TYPE;
 use crate::value_set::ValueSet;
@@ -92,7 +92,7 @@ pub fn value_type_registry() -> ValueTypeRegistry {
 
 #[must_use]
 pub fn node_registry() -> ANodeRegistry {
-    let mut registry = golden_alchemist::primitive_node_registry();
+    let mut registry = chataigne_alchemist::primitive_node_registry();
     register_nodes(&mut registry).expect("Chataigne ANode IDs must be unique");
     registry
 }
@@ -175,13 +175,13 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
         Vec::new()
     }
 
-    fn config_fields(&self) -> Vec<golden_alchemist::ANodeConfigFieldDecl> {
+    fn config_fields(&self) -> Vec<chataigne_alchemist::ANodeConfigFieldDecl> {
         match self.0 {
             ChataigneNodeKind::ConditionsManager
             | ChataigneNodeKind::FiltersManager
             | ChataigneNodeKind::InputsManager => {
                 vec![
-                    golden_alchemist::ANodeConfigFieldDecl::new(
+                    chataigne_alchemist::ANodeConfigFieldDecl::new(
                         MANAGER_PROPERTY_FIELD,
                         "Manager",
                         RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), "")),
@@ -191,13 +191,13 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
             }
             ChataigneNodeKind::OutputsManager => {
                 vec![
-                    golden_alchemist::ANodeConfigFieldDecl::new(
+                    chataigne_alchemist::ANodeConfigFieldDecl::new(
                         MANAGER_PROPERTY_FIELD,
                         "Manager",
                         RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), "")),
                     )
                     .with_description("Referenced Formula manager property."),
-                    golden_alchemist::ANodeConfigFieldDecl::new(
+                    chataigne_alchemist::ANodeConfigFieldDecl::new(
                         TRIGGER_ON_VALUES_SIGNAL_FIELD,
                         "Trigger On Values Signal",
                         RuntimeValue::Bool(true),

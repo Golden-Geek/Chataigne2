@@ -1,9 +1,11 @@
+use crate::test_support::TestGraph;
+
 use std::time::Duration;
 
-use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistRuntime, CompileCtx, DebugCaptureMode, EvaluationCtx,
-    InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, SignatureCtx, SocketId, StableRef,
-    TriggerValue, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId, ValueTypeRegistry, compile_graph,
+use chataigne_alchemist::{
+    ANodeInstance, ANodeTypeId, AlchemistRuntime, CompileCtx, DebugCaptureMode, EvaluationCtx, InputSocketRef,
+    OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, SignatureCtx, SocketId, StableRef, TriggerValue,
+    TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId, ValueTypeRegistry, compile_graph,
     primitive_node_registry,
 };
 use golden_values::Value as RuntimeValue;
@@ -98,7 +100,7 @@ fn outputs_manager_emits_on_values_signal_without_trigger_wire() {
         MANAGER_PROPERTY_FIELD,
         RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), "outputs")),
     );
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let input = graph.add_node(input).unwrap();
     let output = graph.add_node(output).unwrap();
     graph
@@ -113,7 +115,7 @@ fn outputs_manager_emits_on_values_signal_without_trigger_wire() {
     let mut nodes = primitive_node_registry();
     register_nodes(&mut nodes).unwrap();
     let compiled = compile_graph(
-        &graph,
+        &graph.to_document().unwrap(),
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
@@ -216,7 +218,7 @@ fn outputs_manager_emits_and_samples_on_trigger_without_values_signal() {
         SocketId::new("trigger"),
         RuntimeValue::Trigger(TriggerValue::fired(7, 1)),
     );
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let output = graph.add_node(output).unwrap();
 
     let mut value_types = ValueTypeRegistry::with_primitives();
@@ -224,7 +226,7 @@ fn outputs_manager_emits_and_samples_on_trigger_without_values_signal() {
     let mut nodes = primitive_node_registry();
     register_nodes(&mut nodes).unwrap();
     let compiled = compile_graph(
-        &graph,
+        &graph.to_document().unwrap(),
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
@@ -279,7 +281,7 @@ fn module_input_can_emit_state_transition_intent() {
     input.config.set("value_type", RuntimeValue::String("bool".into()));
     let mut state = node("constant");
     state.config.set("value", RuntimeValue::Ref(state_ref.clone()));
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let input = graph.add_node(input).unwrap();
     let edge = graph.add_node(node("edge")).unwrap();
     let state = graph.add_node(state).unwrap();
@@ -306,7 +308,7 @@ fn module_input_can_emit_state_transition_intent() {
     let mut nodes = primitive_node_registry();
     register_nodes(&mut nodes).unwrap();
     let compiled = compile_graph(
-        &graph,
+        &graph.to_document().unwrap(),
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
@@ -344,7 +346,7 @@ fn routing_node_passes_value_to_downstream_consumers() {
     input.config.set("value_type", RuntimeValue::String("bool".into()));
     let mut target = node("constant");
     target.config.set("value", RuntimeValue::Ref(target_ref.clone()));
-    let mut graph = AlchemistGraph::new();
+    let mut graph = TestGraph::new();
     let input = graph.add_node(input).unwrap();
     let route = graph.add_node(node(ROUTING_TYPE)).unwrap();
     let edge = graph.add_node(node("edge")).unwrap();
@@ -386,7 +388,7 @@ fn routing_node_passes_value_to_downstream_consumers() {
     let mut nodes = primitive_node_registry();
     register_nodes(&mut nodes).unwrap();
     let compiled = compile_graph(
-        &graph,
+        &graph.to_document().unwrap(),
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
@@ -422,6 +424,6 @@ fn chataigne_values_are_registered_through_facets() {
 
     assert!(registry.supports_facet(
         &ValueTypeId::new(MODULE_TYPE),
-        &golden_alchemist::FacetId::new("command_target")
+        &chataigne_alchemist::FacetId::new("command_target")
     ));
 }

@@ -6,11 +6,11 @@ code at the narrowest layer that owns the behavior.
 ## Ownership
 
 - `apps/chataigne/` owns product composition, app lifecycle, concrete modules, module scripting
-  templates, state-machine policy, desktop resources, and product-specific UI.
+  templates, Alchemist, processor/state-machine policy, desktop resources, and product-specific UI.
 - `crates/` owns reusable Rust engine, host, transport, protocol, persistence, scripting,
-  Alchemist, statechart, macro, and codegen behavior.
-- `packages/golden-ui/` owns the reusable workbench UI; `packages/golden-alchemist-ui/` owns the
-  reusable graph canvas. They must remain app-agnostic.
+  graph, statechart, macro, and codegen behavior. Alchemist is not owned by this reusable layer.
+- `packages/golden-ui/` owns the reusable workbench UI; final `packages/golden-graph-ui/` owns the
+  reusable graph canvas. Alchemist-specific UI belongs under `apps/chataigne/ui/`.
 
 Cross these boundaries only through public Cargo crates or JavaScript package exports. Do not use
 filesystem path imports into another crate's or package's private source.

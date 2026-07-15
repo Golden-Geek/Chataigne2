@@ -3,12 +3,12 @@
 This Svelte 5 workspace is the Chataigne-specific UI shell. It owns routes, product composition,
 module and state-machine panels, branding, and app-only assets. Reusable workbench and graph-canvas
 code lives in the root packages `golden_ui` and `golden_graph_ui`; Alchemist-specific UI assets and
-adapters live in `golden_alchemist_ui`.
+adapters live in this app workspace.
 
 ## Boundaries
 
 - Consume reusable UI through package exports such as `golden_ui`,
-  `golden_ui/components/...`, `golden_graph_ui`, and `golden_alchemist_ui`.
+  `golden_ui/components/...`, and `golden_graph_ui`.
 - Keep product DTO adaptation, registry hooks, panels, and assets in this app workspace.
 - Keep Svelte code on Svelte 5 runes and direct event props.
 - Treat generated state-machine DTOs under `src/lib/state_machine/generated/` as build output.

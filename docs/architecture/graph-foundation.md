@@ -32,7 +32,9 @@ disconnected crate.
 `golden_graph_ui` owns the domain-neutral Svelte canvas, graph presentation document, viewport
 mechanics, spatial visible-node queries, and incident-edge indexes. Its `GraphRevision` TypeScript
 type is generated from the Rust contract by `golden_codegen_support`; it is not hand-maintained.
-`golden_alchemist_ui` retains only Alchemist-specific assets and domain presentation adapters.
+Alchemist-specific assets and domain presentation adapters are app-owned in the Chataigne UI. The
+imported `golden_alchemist_ui` package has been removed after its assets moved into the app; the
+generic canvas remains in the app-agnostic `golden_graph_ui` package.
 
 The working product transport does not yet publish partitioned graph revisions. A pure app-owned
 `LegacyGraphDocumentAdapter` therefore advances every revision plane conservatively. It has no

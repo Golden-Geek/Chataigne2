@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use golden_alchemist::{StableRef, ValueTypeId};
+use chataigne_alchemist::{StableRef, ValueTypeId};
 use golden_values::Value as RuntimeValue;
 
-use golden_alchemist::ContextKey;
+use chataigne_alchemist::ContextKey;
 
 use crate::{CommandIntent, CommandIntentArbiter, CommandPolicy, IntentOrigin, ProcessorId, RateLimitScope};
 

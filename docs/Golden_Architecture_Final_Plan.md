@@ -13,7 +13,7 @@ Temporary migration adapters, shadow execution, dual reads, fixture converters, 
 The final system is considered the best attainable foundation when:
 
 - `golden-graph` is the sole owner of reusable graph concepts and graph editing infrastructure;
-- Alchemist is strictly the formula domain built on an Alchemist-specific `golden-graph` domain;
+- Alchemist is a Chataigne-owned formula domain built as a plugin over app-agnostic `golden-graph` contracts;
 - statecharts are a separate domain built on `golden-graph`, with no dependency on Alchemist;
 - the editable project/graph model is never the steady-state runtime representation;
 - project changes compile incrementally into immutable runtime generations;
@@ -22,8 +22,8 @@ The final system is considered the best attainable foundation when:
 - the UI receives bounded keyed deltas for visible data and remains responsive independently of semantic load;
 - all former Git submodules are replaced by one coherent monorepo workspace;
 - the full Chataigne UI and module catalog are present and connected to a real engine after every completed migration phase;
-- a developer can launch the desktop app, open a representative project, manipulate it, and observe live runtime feedback after every supercommit;
-- old implementations are removed after parity is proven rather than retained as compatibility paths.
+- a developer can launch the desktop app, open a representative project, manipulate it, and observe live runtime feedback at every named runnable checkpoint;
+- old implementations may be replaced directly during a declared construction interval and are absent once checkpoint parity is proven.
 
 ## Product-preservation doctrine
 
@@ -31,12 +31,12 @@ The following rules override any later wording that could be read as permission 
 
 1. **The existing application is the oracle.** Preserve a named working baseline commit and executable build for behavior, interaction, visual, module, and project-fixture comparison.
 2. **Import first; reorganize second.** The first monorepo milestone imports the complete Rust application, Svelte UI, assets, built-in formulas, modules, scripts, fixtures, and desktop host. It must run before foundational extraction begins.
-3. **Keep one real product runnable.** A headless runtime, test graph, protocol demo, or placeholder workbench does not satisfy a phase gate. The actual Chataigne UI must talk to an actual engine.
+3. **Keep one real product checkpoint.** The last runnable Chataigne checkpoint remains immutable while construction proceeds. At the next checkpoint, the actual Chataigne UI must talk to an actual engine; a headless runtime, test graph, protocol demo, or placeholder workbench does not satisfy that gate.
 4. **Migrate vertical slices.** Each slice includes authoring model, runtime/compiler behavior, transport, UI store, panels/inspectors, persistence, diagnostics, and tests. Do not build six backend layers and defer the product to a late “port” phase.
 5. **Lift and refactor existing UX.** Start generic UI packages by moving and adapting the working components. Rewriting a component is allowed only with side-by-side interaction parity; recreating the UI from memory is not.
 6. **Modules are product features.** A registered name, empty adapter, mock-only backend, or disabled menu item is not module parity. Each module retains creation, configuration, connection/recovery, values, commands, script surface, diagnostics, and relevant custom UI.
-7. **No deletion before replacement.** Old code for a slice remains available until the replacement passes its automated and manual parity gates in the real app. It is then removed in the same or immediately following focused supercommit.
-8. **Every accepted cutover is demoable.** If the full app does not build, launch, connect, load a representative project, and expose the expected panels/modules, a runnable/cutover phase is incomplete regardless of crate-level tests. A deliberately non-runnable structural phase is allowed only under the explicit exception contract in Section 15.7; it is never described as product-validated.
+7. **Prefer direct replacement during construction.** Old code may be deleted as part of a coordinated in-scope replacement once the immutable baseline/checkpoint, affected parity rows, and recovery path are recorded. Do not create dual paths solely to keep intermediate commits runnable.
+8. **Every accepted checkpoint is demoable.** If the full app does not build, launch, connect, load a representative project, and expose the expected panels/modules, the checkpoint is incomplete regardless of crate-level tests. Construction intervals are never described as product-validated.
 9. **Preserve testing access.** Existing development projects must remain openable or receive verified converted equivalents. One documented command must launch the complete app with the canonical performance/UX fixture.
 10. **Deliberate UX changes are reviewed as product changes.** Pixel identity is not mandatory, but missing controls, altered workflows, degraded feedback, changed shortcuts, lost docking/layout behavior, or simplified inspectors require explicit approval and evidence that the result is equal or better.
 
@@ -161,10 +161,8 @@ Golden/
 │   ├── golden-parameters/
 │   ├── golden-graph/
 │   ├── golden-context/
-│   ├── golden-alchemist/
 │   ├── golden-condition/
 │   ├── golden-statechart/
-│   ├── golden-processor/
 │   ├── golden-runtime/
 │   ├── golden-protocol/
 │   ├── golden-transport/
@@ -179,11 +177,12 @@ Golden/
 │   ├── golden-ui/
 │   ├── golden-runtime-client/
 │   ├── golden-graph-ui/
-│   ├── golden-alchemist-ui/
 │   └── golden-statechart-ui/
 ├── apps/
 │   └── chataigne/
 │       ├── backend/
+│       ├── alchemist/
+│       ├── processor/
 │       ├── modules/
 │       ├── ui/
 │       ├── assets/
@@ -233,14 +232,12 @@ golden-model
     └── golden-context
 
 golden-graph + golden-values
-    ├── golden-alchemist
     └── golden-statechart
 
-golden-values + golden-context + golden-alchemist
-    ├── golden-condition
-    └── golden-processor
+golden-values + golden-context
+    └── golden-condition
 
-golden-statechart + golden-processor + golden-condition
+golden-statechart + golden-condition
     └── golden-runtime
 
 golden-model + golden-protocol
@@ -248,8 +245,14 @@ golden-model + golden-protocol
     ├── golden-transport
     └── golden-host
 
+apps/chataigne/alchemist
+    └── depends on golden-graph, golden-values, and domain-neutral runtime contracts
+
+apps/chataigne/processor
+    └── composes Alchemist with golden-condition, golden-context, and golden-runtime contracts
+
 apps/chataigne
-    └── composes all public layers
+    └── composes Alchemist with all required public Golden layers
 ```
 
 Precise rules:
@@ -257,12 +260,12 @@ Precise rules:
 - `golden-model` knows nothing about graphs, formulas, UI, networking, Chataigne, or Tauri.
 - `golden-values` knows nothing about Alchemist. It owns the canonical value and value-type system used by parameters, contexts, formulas, conditions, protocol DTOs, and module IO.
 - `golden-graph` knows nothing about formula evaluation, state transitions, Chataigne modules, or runtime scheduling.
-- `golden-alchemist` depends on `golden-graph`; `golden-graph` never depends on Alchemist.
+- Chataigne Alchemist depends on `golden-graph`; no reusable Golden crate depends on Alchemist.
 - `golden-statechart` depends on `golden-graph`; it never depends on Alchemist.
 - `golden-runtime` executes compiled artifacts and generic runtime systems; it does not own app node declarations or module protocols.
 - `golden-ui` knows nothing about Chataigne or Alchemist.
 - `golden-graph-ui` knows graph editor mechanics, not formula semantics.
-- `golden-alchemist-ui` adapts Alchemist to `golden-graph-ui`.
+- Chataigne's Alchemist UI adapts its app-owned domain to `golden-graph-ui`.
 - Chataigne-specific modules, policies, built-in formula catalogs, panels, icons, and script templates live under `apps/chataigne`.
 
 ## 4. Foundational crates
@@ -456,7 +459,12 @@ Use a hybrid renderer:
 
 The frontend domain adapter supplies node components, socket styles, palette entries, inspectors, connection labels, and domain-specific commands.
 
-## 7. Alchemist: formula domain only
+## 7. Chataigne-owned Alchemist: formula domain only
+
+Alchemist is not a reusable Golden package. It is a Chataigne bounded context that implements the
+public `golden-graph` domain contracts and consumes app-agnostic value/runtime services. Phase 4
+relocates its imported implementation to `apps/chataigne/alchemist` before changing the authoring
+or runtime model.
 
 ### 7.1 What stays in Alchemist
 
@@ -518,9 +526,10 @@ pub struct AlchemistFormula {
 - The IR is batch- and SIMD-ready without requiring GPU execution.
 - Custom ANode evaluators must declare purity, state layout, time dependence, effects, input-change behavior, and deterministic/thread-safety capabilities.
 
-### 7.5 `golden-alchemist-ui`
+### 7.5 Chataigne Alchemist UI
 
-This package is a domain plugin for `golden-graph-ui`.
+This app-owned UI is a domain plugin for `golden-graph-ui` and lives under
+`apps/chataigne/ui/src/lib/alchemist`.
 
 It owns:
 
@@ -574,9 +583,10 @@ Owns reusable condition authoring and compiled condition semantics:
 
 Conditions remain a state-machine/processor concern, not an Alchemist formula example. They may compile alongside a formula kernel, but Alchemist does not own them.
 
-### 9.2 `golden-processor`
+### 9.2 Chataigne processor composition
 
-Owns reusable formula instantiation:
+Because processor instances select and instantiate Alchemist formulas, this layer is Chataigne-owned
+under `apps/chataigne/processor`. It owns:
 
 - formula reference and version;
 - property overrides;
@@ -590,7 +600,10 @@ Owns reusable formula instantiation:
 - deterministic effect descriptors;
 - processor catalog DTOs that are static by revision.
 
-The compiled processor combines a compiled condition program with a shared Alchemist formula kernel without merging the two authoring domains.
+The compiled processor combines a reusable compiled condition program with a shared app-owned
+Alchemist formula kernel without merging the two authoring domains. `golden-runtime` executes the
+result through domain-neutral kernel/effect contracts and never imports the Chataigne processor or
+Alchemist implementation.
 
 Conceptually:
 
@@ -810,9 +823,9 @@ Keep invisible protections:
 
 - generic graph editing described above.
 
-#### `golden-alchemist-ui`
+#### Chataigne Alchemist UI
 
-- Alchemist domain adapter and formula-specific UI.
+- app-owned Alchemist domain adapter and formula-specific UI built on `golden-graph-ui`.
 
 #### `golden-statechart-ui`
 
@@ -956,13 +969,13 @@ Before deleting an old capability, map it to an owner and characterization test.
 | Parameters, constraints, controls, expressions | `golden-values` + `golden-parameters` |
 | Context inheritance and multiplex lists | `golden-context` |
 | Generic graph topology/layout/editing | `golden-graph` + `golden-graph-ui` |
-| ANodes, formula typing/compilation/runtime | `golden-alchemist` |
-| Formula editor/previews/surface | `golden-alchemist-ui` |
-| Formula library and built-ins | Alchemist assets/catalog + Chataigne policy |
+| ANodes, formula typing/compilation/runtime | `apps/chataigne/alchemist` |
+| Formula editor/previews/surface | `apps/chataigne/ui/src/lib/alchemist` + `golden-graph-ui` |
+| Formula library and built-ins | Chataigne Alchemist assets/catalog and product policy |
 | Statechart model and runtime | `golden-statechart` |
 | Statechart editor | `golden-statechart-ui` |
 | Conditions | `golden-condition` |
-| Processor instances, context lanes, lifecycle | `golden-processor` |
+| Processor instances, context lanes, lifecycle | `apps/chataigne/processor` |
 | State contains Processor Manager | Chataigne state-machine composition |
 | Action and Mapping formulas | Chataigne built-in formula assets |
 | Multi-input Mapping | Same Mapping formula/catalog path |
@@ -1161,16 +1174,16 @@ CI command smokes execute literal bare `cargo run` and literal `cargo run -- --d
 
 Run separate mounted remote-browser and Tauri-shell smokes. Headless HTTP/WebSocket hello checks do not substitute for either.
 
-### 15.7 Honest phase validation states
+### 15.7 Honest checkpoint and construction states
 
-Every phase declares one state before implementation:
+Every migration interval declares one state before implementation:
 
 | State | Rules |
 |---|---|
-| `RUNNABLE` | The complete applicable build, test, product, UI-engine, fixture, and root-command matrix for the required validation profile must run and pass before the phase is complete |
-| `INTENTIONALLY_NON_RUNNABLE` | Permitted only as a private/topic WIP interval for a narrowly scoped structural transition; exact expected breakages, unaffected checks, restoration phase, and rollback point are documented before work |
+| `CHECKPOINT_RUNNABLE` | The complete applicable build, test, product, UI-engine, fixture, and root-command matrix for the required validation profile must run and pass before the checkpoint is accepted |
+| `CONSTRUCTION` | Permitted on the canonical migration branch between named checkpoints; the objective, affected layers, expected breakages, focused checks, next checkpoint, and immutable last runnable checkpoint are documented before work |
 
-For a `RUNNABLE` phase:
+For a `CHECKPOINT_RUNNABLE` interval:
 
 - never claim validation from source inspection alone;
 - never substitute `cargo check` for binaries/tests that can actually compile and run;
@@ -1183,17 +1196,22 @@ Unless Section 15.4 requires a cross-platform qualification for that phase or ch
 profile is the Win-x64 iteration profile. A phase that is a named qualification point is incomplete
 until the full declared platform matrix passes.
 
-For an `INTENTIONALLY_NON_RUNNABLE` phase:
+For a `CONSTRUCTION` interval:
 
-- the progress document says prominently that the app does not compile or launch by design;
+- the progress document prominently records that full application launchability is not guaranteed;
 - no full-app, UI, performance, or product-parity validation is claimed;
-- only checks that can genuinely compile/run are reported, with exact scope;
-- it may not be an accepted/shared canonical migration-branch head, subsystem cutover, deletion, release, merge-to-`main`, or final phase;
-- it may not delete the preserved UI, modules, assets, fixtures, or baseline implementation needed for recovery;
-- the immediately scheduled restoration phase must return to `RUNNABLE` before unrelated feature or optimization work continues;
-- the intentionally broken interval must be as short as possible and remain bisectable through explicit WIP commits/tags.
+- focused compile, unit, contract, serialization, migration, and performance checks run wherever
+  their dependencies are available, and every skipped or broken check has an exact reason;
+- coordinated API/schema replacement and deletion are allowed within the declared scope, but the
+  interval is not a subsystem cutover, release, merge-to-`main`, or completed phase;
+- the recorded baseline, last runnable checkpoint ref/report, product manifests, modules, assets,
+  fixtures, and recovery instructions remain available even when their former implementation path
+  is removed from the working tree;
+- unrelated feature or optimization work waits until the named checkpoint restores full-product
+  validation; construction commits remain reviewable through explicit WIP commits or tags.
 
-Every supercommit accepted onto the canonical migration branch is `RUNNABLE`. Intentionally broken commits stay on a topic branch and are squashed, repaired, or followed by the restoring commits before integration.
+The canonical migration branch may therefore contain `CONSTRUCTION` heads. Only named checkpoints
+are required to be fully runnable, and only those checkpoints may claim application parity.
 
 All phase reports record `PASS`, `FAIL`, `NOT_RUN`, or `BLOCKED` for each exact command together with commit SHA, toolchain fingerprint, target/features, exit code, ignored tests, manual checks, and artifact IDs. A compilation failure is `FAIL`; dependent tests are `BLOCKED`, never silently “not applicable.” “Tests pass” without a successfully compiled applicable target is forbidden.
 
@@ -1299,38 +1317,38 @@ Section 15.4.
 
 ## 18. Product-preserving implementation progression
 
-The work starts on a fresh migration branch/worktree created from the recorded `origin/main` commit. That branch is transformed into the canonical monorepo by importing the complete dependency repositories and product sources; an empty replacement repository is not an alternative path. The last working repositories and commits remain immutable comparison points. The migration branch itself must contain a complete runnable Chataigne application from its first accepted supercommit.
+The work starts on a fresh migration branch/worktree created from the recorded `origin/main` commit. That branch is transformed into the canonical monorepo by importing the complete dependency repositories and product sources; an empty replacement repository is not an alternative path. The last working repositories, commits, and named runnable checkpoints remain immutable comparison points. After the initial import checkpoint, the migration branch may enter declared construction intervals under Section 15.7.
 
-Temporary adapters are expected where they reduce cutover risk. Every adapter is recorded in the parity ledger with an owner and deletion phase. Permanent compatibility architecture is still forbidden.
+Temporary adapters are optional tools for persisted-data migration or checkpoint risk reduction, not a default migration technique. Every adapter is recorded in the parity ledger with an owner and deletion phase. Permanent compatibility architecture is still forbidden.
 
-All phases listed below are `RUNNABLE`. If implementation reality requires an intentionally broken structural interval, declare it on a private/topic branch under Section 15.7 and restore it before forming the phase's canonical supercommit. Never silently downgrade a runnable phase after tests fail.
+Every phase listed below ends with a `CHECKPOINT_RUNNABLE` gate. Its internal implementation may use one or more declared `CONSTRUCTION` intervals on the canonical migration branch. Never describe a failed checkpoint as an accepted construction result after the fact.
 
 The implementation updates this table in every phase-closing supercommit:
 
 | Phase | Validation | Initial status |
 |---|---|---|
-| 0 — `main` baseline and contract | `RUNNABLE` | Pending |
-| 1A — complete-product monorepo import | `RUNNABLE` | Pending |
-| 1B — toolchain modernization | `RUNNABLE` | Pending |
-| 2 — product seams and shadowing | `RUNNABLE` | Pending |
-| 3 — foundations and graph extraction | `RUNNABLE` | Pending |
-| 4 — Alchemist vertical migration | `RUNNABLE` | Pending |
-| 5 — statechart/condition/context/processor migration | `RUNNABLE` | Pending |
-| 6 — runtime-center cutover | `RUNNABLE` | Pending |
-| 7 — protocol/observation/UI migration | `RUNNABLE` | Pending |
-| 8 — concrete modules and specialized systems | `RUNNABLE` | Pending |
-| 9 — final qualification and deletion | `RUNNABLE` | Pending |
+| 0 — `main` baseline and contract | `CHECKPOINT_RUNNABLE` | Pending |
+| 1A — complete-product monorepo import | `CHECKPOINT_RUNNABLE` | Pending |
+| 1B — toolchain modernization | `CHECKPOINT_RUNNABLE` | Pending |
+| 2 — product seams and shadowing | `CHECKPOINT_RUNNABLE` | Pending |
+| 3 — foundations and graph extraction | `CHECKPOINT_RUNNABLE` | Pending |
+| 4 — Alchemist vertical migration | `CHECKPOINT_RUNNABLE` | Pending |
+| 5 — statechart/condition/context/processor migration | `CHECKPOINT_RUNNABLE` | Pending |
+| 6 — runtime-center cutover | `CHECKPOINT_RUNNABLE` | Pending |
+| 7 — protocol/observation/UI migration | `CHECKPOINT_RUNNABLE` | Pending |
+| 8 — concrete modules and specialized systems | `CHECKPOINT_RUNNABLE` | Pending |
+| 9 — final qualification and deletion | `CHECKPOINT_RUNNABLE` | Pending |
 
 Each phase ends with:
 
-1. its validation state (`RUNNABLE` or `INTENTIONALLY_NON_RUNNABLE`) declared and unchanged from the pre-phase plan unless the progress document explains an approved correction;
+1. its final validation state is `CHECKPOINT_RUNNABLE`, with every preceding construction interval and its focused evidence recorded honestly;
 2. the progress and parity ledgers updated with exact completed, shadowing, cut-over, and remaining work;
 3. only genuinely executed characterization, visual, connectivity, and performance evidence committed in machine-readable form;
 4. every applicable compile/build command executed first and recorded; any failure marked `FAIL`, with dependent tests explicitly `BLOCKED`, otherwise all applicable checks executed;
-5. for every `RUNNABLE` phase, the required Section 15.4 product-gate profile and `cargo run`, `watch`, and `cargo run -- --dev` contracts passing against the real backend and real Svelte/Tauri application; the Win-x64 profile is sufficient between named qualification points;
-6. one focused, independently buildable/launchable monorepo supercommit for the canonical migration branch; any `INTENTIONALLY_NON_RUNNABLE` work remains on a private/topic branch until restored;
+5. the required Section 15.4 product-gate profile and `cargo run`, `watch`, and `cargo run -- --dev` contracts passing against the real backend and real Svelte/Tauri application; the Win-x64 profile is sufficient between named qualification points;
+6. an immutable checkpoint ref/report for the independently buildable and launchable complete product;
 7. no phase marked complete without its honest exit criteria;
-8. a return to `RUNNABLE` immediately after any intentionally broken structural interval, before unrelated work continues.
+8. no unrelated feature or optimization work carried across an unfinished construction interval.
 
 ### Phase 0 — Branch from `main`, prove the product, and freeze the contract
 
@@ -1476,7 +1494,10 @@ Exit:
 
 Deliver:
 
-- `AlchemistGraphDomain` on `golden-graph`;
+- relocate the complete Alchemist Rust and UI implementations from their imported `golden_*`
+  locations into the Chataigne app boundary, preserving public behavior and recorded provenance;
+- keep `AlchemistGraphDomain` app-owned on the public `golden-graph` contract, with architecture
+  checks proving that neither `golden-graph` nor `golden-graph-ui` imports Alchemist;
 - formula model, surface, properties/defaults, managed regions, registries, type solver, compiler, dense IR, state layout, direct functional outputs, and optional observation;
 - existing ANode catalog and behaviors, including scripts, value operations, effects, managed structures, and ConditionGate;
 - move/adapt the complete current formula UI: graph editing, formula surface, properties, built-in/external/shared formulas, catalog, export/removal guards, diagnostics, preview modes, lane selection, and ANode output previews;
@@ -1492,7 +1513,9 @@ Exit:
 - preview/debug capture is observational only and the visible feedback remains smooth;
 - the old Alchemist graph/runtime/UI path is removed only after all rows are signed off.
 
-**Supercommits:** authoring model, compiler/runtime, UI adapter, fixtures, then cutover/removal; each remains runnable.
+**Supercommits:** ownership relocation, authoring model, compiler/runtime, UI adapter, fixtures, then
+cutover/removal; each remains runnable. The relocated Rust crate uses the Chataigne-owned
+`chataigne_alchemist` name; no reusable Golden package alias remains in production.
 
 ### Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically
 
@@ -1636,7 +1659,9 @@ Deliver:
 - module/network/multi-client/hardware soak;
 - cross-platform desktop and browser release tests;
 - install/package smoke from produced Windows installer/archive, macOS bundle/package, and Linux artifact on clean test environments, followed by launch, UI-engine connection, fixture mutation, save/reload, and uninstall/cleanup where applicable;
-- remove every old runtime, protocol, graph store, Alchemist graph type, temporary adapter, dual-run switch, converter not needed for the new v1, submodule, and obsolete doc;
+- remove every old runtime, protocol, graph store, superseded Alchemist graph type and former
+  `golden_alchemist*` package path, temporary adapter, dual-run switch, converter not needed for the
+  new v1, submodule, and obsolete doc;
 - archive old repositories only after the monorepo is self-contained and the working baseline remains tagged;
 - final architecture, module-authoring, UI-extension, performance, troubleshooting, and contributor documentation.
 
@@ -1675,6 +1700,7 @@ The implementation must reject these shortcuts:
 - copying the full project graph to a worker each tick;
 - creating `golden-graph` as a renamed folder while leaving graph concepts duplicated elsewhere;
 - making `golden-graph` depend on Alchemist;
+- treating Alchemist as a reusable Golden package instead of a Chataigne-owned graph domain;
 - hiding domain payloads in unvalidated JSON everywhere;
 - introducing a generic god `golden-core` crate again;
 - retaining submodules for packages that require atomic changes;
@@ -1687,7 +1713,13 @@ The implementation must reject these shortcuts:
 
 The architecture is complete only when the following statement is true:
 
-> Golden provides one reusable project/value/parameter/context foundation, one generic graph document and editor system, separate Alchemist formula and statechart domains built on that graph foundation, an incremental compiler producing immutable data-oriented runtime generations, isolated IO/effect/observation planes, a responsive keyed Svelte UI, one generated public protocol, and one coherent monorepo. Chataigne preserves its current creative functionality while containing only product-specific composition, modules, assets, and UI. Steady-state execution and visible feedback meet published scale gates, and no legacy architecture remains in production.
+> Golden provides reusable project/value/parameter/context foundations, one app-agnostic graph
+> document and editor system, an incremental domain-neutral runtime foundation, isolated
+> IO/effect/observation planes, a responsive keyed Svelte UI, one generated public protocol, and one
+> coherent monorepo. Chataigne owns Alchemist as its formula-domain plugin over those public
+> contracts and preserves its current creative functionality through product-specific composition,
+> modules, assets, and UI. Steady-state execution and visible feedback meet published scale gates,
+> and no legacy architecture remains in production.
 
 And the product statement is simultaneously true:
 

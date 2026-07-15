@@ -18,8 +18,9 @@ Phase 1A formed one monorepo and one jCodemunch index. Choose the owning source 
 | App shell and app-owned modules | `apps/chataigne` | `.` |
 | Shared Rust crates | `crates/` | `.` |
 | App-owned UI | `apps/chataigne/ui` | `.` |
+| Chataigne Alchemist | `apps/chataigne/alchemist` | `.` |
 | `golden_ui` | `packages/golden-ui` | `.` |
-| `golden_alchemist_ui` | `packages/golden-alchemist-ui` | `.` |
+| `golden_graph_ui` | `packages/golden-graph-ui` | `.` |
 
 Call `resolve_repo` with `.` and use the returned repo id for planning, search, outlines, and reads.
 For cross-layer changes, scope each query to the owning source path. Run

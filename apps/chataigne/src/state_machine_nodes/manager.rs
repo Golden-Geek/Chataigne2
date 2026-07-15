@@ -15,8 +15,8 @@ use chataigne_state_machine::{
     ValueLaneKey, ValueSet, ValueSetEntry, lane_scoped_stable_ref,
     alchemist::{CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, node_registry, value_type_registry},
 };
-use golden_alchemist::{
-    ANodeId, AlchemistFormula, AxisSet, CompiledAlchemistFormula, ContextAxisId, ContextItemId,
+use chataigne_alchemist::{
+    ANodeId, AlchemistFormula, AlchemistGraphDomain, AxisSet, CompiledAlchemistFormula, ContextAxisId, ContextItemId,
     ContextKey, ContextKeyPart, ContextValuePath, EvaluationCtx, DebugValueSample, FormulaCompileKey, FormulaRef,
     ManagedItemId, ManagedItemInstance,
     ManagedItemUiState, ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
@@ -768,7 +768,7 @@ pub(crate) struct StateMachineRuntimePerfStats {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct OutputPreviewSampleKey {
-    formula_id: golden_alchemist::FormulaId,
+    formula_id: chataigne_alchemist::FormulaId,
     processor_id: Option<ProcessorId>,
     context_key: Option<ContextKey>,
     author_node_id: ANodeId,
@@ -905,7 +905,7 @@ struct StateMachineRuntimeCache {
     transient_condition_valid_resets: HashMap<NodeId, u64>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
-    formula_default_previews: HashMap<golden_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
+    formula_default_previews: HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
     output_preview_snapshot: HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
     processor_lane_snapshot: HashMap<String, ProcessorLaneSummaryDto>,
     processor_lane_inspection_snapshot: HashMap<String, ProcessorLaneInspectionDto>,
@@ -1134,7 +1134,7 @@ impl StateMachineManager {
         };
         self.runtime_cache.dirty_formula_values.insert(input.formula);
         let reference = formula_input_value_ref(
-            golden_alchemist::AlchemistGraphId::from_uuid(input.formula.0),
+            chataigne_alchemist::AlchemistGraphId::from_uuid(input.formula.0),
             ANodeId::from_uuid(input.anode.0),
             &input.socket,
         );
@@ -1582,7 +1582,7 @@ impl StateMachineManager {
         let mut next_processors = HashMap::new();
         let value_types = value_type_registry();
         let nodes = node_registry();
-        let compile_ctx = golden_alchemist::CompileCtx {
+        let compile_ctx = chataigne_alchemist::CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
             properties: None,
@@ -1673,14 +1673,14 @@ impl StateMachineManager {
     fn shared_compiled_formula(
         &mut self,
         formula: &AlchemistFormula,
-        ctx: &golden_alchemist::CompileCtx<'_>,
-    ) -> Result<Arc<CompiledAlchemistFormula>, Vec<golden_alchemist::Diagnostic>> {
-        let key = FormulaCompileKey::from_formula(formula, u64::from(formula.version), 0, 0);
+        ctx: &chataigne_alchemist::CompileCtx<'_>,
+    ) -> Result<Arc<CompiledAlchemistFormula>, Vec<chataigne_alchemist::Diagnostic>> {
+        let key = FormulaCompileKey::from_formula(formula, 0, 0);
         if let Some(compiled) = self.runtime_cache.compiled_formulas.get(&key) {
             return Ok(Arc::clone(compiled));
         }
         self.runtime_cache.perf_stats.formula_compiles += 1;
-        let formula_ctx = golden_alchemist::CompileCtx {
+        let formula_ctx = chataigne_alchemist::CompileCtx {
             value_types: ctx.value_types,
             nodes: ctx.nodes,
             properties: Some(&formula.properties),
@@ -1849,7 +1849,8 @@ fn formula_input_socket_value_type(
     input: &FormulaInputValueParam,
 ) -> Option<ValueTypeId> {
     let anode_id = ANodeId::from_uuid(input.anode.0);
-    let instance = formula.graph.nodes.get(&anode_id)?;
+    let node = formula.graph.node(AlchemistGraphDomain::node_id(anode_id))?;
+    let instance = node.data.to_instance(anode_id);
     let value_types = value_type_registry();
     let nodes = node_registry();
     let declaration = nodes.get(&instance.type_id)?;
@@ -1858,10 +1859,10 @@ fn formula_input_socket_value_type(
             value_types: &value_types,
             properties: Some(&formula.properties),
         },
-        instance,
+        &instance,
         &instance.type_bindings,
     );
-    let bindings = local_signature_bindings(&signature, instance);
+    let bindings = local_signature_bindings(&signature, &instance);
     let socket = signature
         .inputs
         .into_iter()
@@ -2080,13 +2081,13 @@ fn compile_processor_runtime_for_cache_rebuild(
     runtime: &mut ProcessorRuntime,
     processor: &Processor,
     formula: &AlchemistFormula,
-    ctx: &golden_alchemist::CompileCtx<'_>,
+    ctx: &chataigne_alchemist::CompileCtx<'_>,
 ) -> bool {
     runtime.compile_preserving_compatible_lanes(processor, formula, ctx)
 }
 
 fn formula_default_output_preview_samples(
-    cache: &mut HashMap<golden_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
+    cache: &mut HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
     compiled: Arc<CompiledAlchemistFormula>,
     formula: &AlchemistFormula,
     ctx: &EvaluationCtx<'_>,
@@ -2679,7 +2680,7 @@ fn format_debug_log_intent(
     snapshot: &ProcessTreeSnapshot,
     formula_label: &str,
     processor_node: NodeId,
-    context_key: Option<&golden_alchemist::ContextKey>,
+    context_key: Option<&chataigne_alchemist::ContextKey>,
     anode_nodes: &HashMap<ANodeId, NodeId>,
     intent: &RuntimeIntent,
 ) -> (NodeId, String) {
@@ -2701,7 +2702,7 @@ fn format_debug_value_sample(
     snapshot: &ProcessTreeSnapshot,
     formula_label: &str,
     processor_node: NodeId,
-    context_key: Option<&golden_alchemist::ContextKey>,
+    context_key: Option<&chataigne_alchemist::ContextKey>,
     anode_node: NodeId,
     sample: &DebugValueSample,
 ) -> String {
@@ -2717,7 +2718,7 @@ fn runtime_processing_context_label(
     snapshot: &ProcessTreeSnapshot,
     formula_label: &str,
     processor_node: NodeId,
-    context_key: Option<&golden_alchemist::ContextKey>,
+    context_key: Option<&chataigne_alchemist::ContextKey>,
 ) -> String {
     format!(
         "Formula: {} / Processor: {} / Lane: {}",
@@ -4234,7 +4235,7 @@ fn param_to_runtime_value(value: &ParamValue) -> Option<RuntimeValue> {
         ParamValue::CssValue(value) => Some(RuntimeValue::Float(value.value)),
         ParamValue::Vec2(x, y) => Some(RuntimeValue::Vec2([*x, *y])),
         ParamValue::Vec3(x, y, z) => Some(RuntimeValue::Vec3([*x, *y, *z])),
-        ParamValue::Color(r, g, b, a) => Some(RuntimeValue::Color(golden_alchemist::ColorValue {
+        ParamValue::Color(r, g, b, a) => Some(RuntimeValue::Color(chataigne_alchemist::ColorValue {
             red: *r,
             green: *g,
             blue: *b,

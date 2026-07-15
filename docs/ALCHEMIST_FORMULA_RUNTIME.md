@@ -5,10 +5,10 @@ instances, sparse context lanes, and output previews.
 
 ## Ownership Boundaries
 
-Reusable formula compilation and evaluation mechanics belong in
-`golden_alchemist_core`. Chataigne-specific processor policy, state-machine
-integration, protocol DTOs, command arbitration, and product UI behavior belong
-in the Chataigne workspace.
+Alchemist formula compilation and evaluation mechanics belong in
+`apps/chataigne/alchemist`. They build on the app-agnostic `golden_graph`
+contracts; processor policy, state-machine integration, protocol DTOs, command
+arbitration, and product UI behavior remain in their focused Chataigne layers.
 
 The app must not clone or patch a Formula graph for each processor instance.
 The graph is authored once, compiled into a reusable plan, and evaluated with
@@ -80,9 +80,30 @@ Complex branching belongs in custom formulas.
 
 ## Core Model
 
-`Formula` is the authored recipe. It owns the graph, typed property
-declarations, and default values. It does not own processor-specific runtime
-state.
+`Formula` is the authored recipe. Its graph field is the app-owned
+`AlchemistGraphDocument` specialization of `golden_graph::GraphDocument`; it
+also owns typed property declarations and default values. It does not own
+processor-specific runtime state. The live Chataigne Formula subtree
+materializes this typed document, and serialized Formula assets write the
+versioned Golden graph envelope.
+
+Legacy Formula assets are accepted through a governed deserialize-only
+converter and are rewritten as the typed envelope on the next save. Compilation
+and type solving consume typed-document semantics directly. Formula managed
+regions and Chataigne-managed `ValueSet` pipeline builders also construct typed
+documents directly and commit each complete pipeline as one revisioned
+transaction. This avoids intermediate snapshots and event fan-out while a
+pipeline is being assembled.
+
+Live Formula snapshot materialization preserves the stable graph identity while
+batching its ANodes, property bindings, and connections into one typed
+transaction. Transition guard and effect runtimes also store and compile typed
+documents directly.
+
+The former `AlchemistGraph` shape, its serializer, and its adapter are removed.
+Formula persistence accepts only the versioned typed graph envelope. Tests
+construct typed document fixtures directly, and no compatibility graph model is
+compiled into production.
 
 `CompiledFormula` is the optimized reusable executable plan produced from a
 Formula graph, its property schema, and the node/value registries. It must be
@@ -141,7 +162,7 @@ to `true`; declarations for continuous primitives such as LFO, noise,
 metronome, smooth filter, speed, and delay opt out of input-change-only
 processing by default.
 
-`golden_alchemist_core` compiles those config values into each execution node.
+`chataigne_alchemist` compiles those config values into each execution node.
 Input-change-only nodes keep a lightweight per-lane process cache and are
 skipped when their resolved runtime inputs are unchanged. Output-change-only
 nodes still update runtime slots when they process, but they do not emit
@@ -185,7 +206,7 @@ stable lane keys, labels, sources, and runtime values together. The old
 `chataigne.param_array` type is a clean schema break and is rejected rather than
 registered as an alias.
 
-The reusable pipeline shape checker lives in `golden_alchemist_core`. It uses
+The Alchemist pipeline shape checker lives in `chataigne_alchemist`. It uses
 ANode role capability metadata to classify filter transitions as elementwise,
 aggregate, reshape, expand, or whole-set. Unsupported transitions produce typed
 diagnostics instead of silently broadcasting, merging, or wiring scalar sockets
@@ -264,7 +285,7 @@ No memory is shared between lanes unless a future explicit policy says so.
 Sparse lane pools allocate memory only for lanes that actually evaluate and
 only when the compiled Formula contains stateful nodes.
 
-`golden_alchemist` owns the reusable context identity primitives:
+`chataigne_alchemist` owns the Alchemist context identity primitives:
 `ContextAxisId`, `ContextItemId`, `ContextKeyPart`, `ContextKey`,
 `ContextValuePath`, `RuntimeContextFrame`, and `LaneRuntimePool`.
 `ContextKey` is stable identity only; display labels and indices stay outside
