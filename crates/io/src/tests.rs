@@ -69,6 +69,16 @@ fn bounded_queue_enforces_item_and_weight_limits_without_losing_ownership() {
     assert_eq!(queue.pop_front(), Some("two"));
     assert!(queue.is_empty());
     assert_eq!(queue.total_weight(), 0);
+
+    queue.try_push("four", 1).expect("queue accepts after drain");
+    queue.try_push("five", 1).expect("second item fits");
+    assert_eq!(queue.take_all(), vec!["four", "five"]);
+    assert_eq!(queue.total_weight(), 0);
+
+    queue.try_push("six", 1).expect("queue accepts before clear");
+    queue.clear();
+    assert!(queue.is_empty());
+    assert_eq!(queue.total_weight(), 0);
 }
 
 #[test]

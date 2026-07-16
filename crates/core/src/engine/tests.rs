@@ -12152,6 +12152,20 @@ fn production_runtime_compiles_named_domain_kernel_families() {
         None,
     );
     engine.add_node(RuntimeNode::new("adapter", NodeExecutionRule::periodic(60)), None);
+    engine.add_node(
+        RuntimeNode::new(
+            "tcp-client",
+            NodeExecutionRule::periodic(120).with_compiled_kernel("chataigne.runtime.tcp"),
+        ),
+        None,
+    );
+    engine.add_node(
+        RuntimeNode::new(
+            "tcp-server",
+            NodeExecutionRule::periodic(120).with_compiled_kernel("chataigne.runtime.tcp"),
+        ),
+        None,
+    );
     engine.apply_edits().expect("setup edits should succeed");
     engine.resolve().expect("runtime schedule should resolve");
 
@@ -12159,6 +12173,13 @@ fn production_runtime_compiles_named_domain_kernel_families() {
     assert!(keys.iter().any(|key| key == "chataigne.runtime.signals"));
     assert!(keys.iter().any(|key| key == "chataigne.runtime.metronomes"));
     assert!(keys.iter().any(|key| key == "golden.runtime.domain-node-adapter"));
+    assert_eq!(
+        keys.iter()
+            .filter(|key| key.as_str() == "chataigne.runtime.tcp")
+            .count(),
+        1,
+        "one compiled family kernel must serve both TCP client and server work units"
+    );
 }
 
 // --- Phase 5: scheduler bucket collection tests ---

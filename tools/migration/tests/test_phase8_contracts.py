@@ -17,6 +17,8 @@ CONTRACT_FILES = (
     "Cargo.toml",
     "apps/chataigne/Cargo.toml",
     "apps/chataigne/src/module/common/mod.rs",
+    "apps/chataigne/src/module/common/streaming/module_helpers.rs",
+    "apps/chataigne/src/module/common/streaming/module_helpers_tests.rs",
     "apps/chataigne/src/module/common/serial.rs",
     "apps/chataigne/src/module/modules/controllers/buttplug/transport.rs",
     "apps/chataigne/src/module/modules/generators/metronomes/metronomes_tests.rs",
@@ -28,8 +30,26 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/protocol/midi/midi_message/midi_message_tests.rs",
     "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs",
     "apps/chataigne/src/module/modules/protocol/midi/midi_module_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/http/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/http/tests.rs",
+    "apps/chataigne/src/module/modules/protocol/http/transport.rs",
+    "apps/chataigne/src/module/modules/protocol/mqtt/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/mqtt/tests.rs",
+    "apps/chataigne/src/module/modules/protocol/mqtt/transport.rs",
     "apps/chataigne/src/module/modules/protocol/osc/generic_osc_module_tests.rs",
     "apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/serial/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/serial/tests.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/tcpclient/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/tcpclient/tests.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/tcpserver/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/tcpserver/tests.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/udp/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/udp/tests.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/websocketclient/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/websocketclient/transport_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/websocketserver/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/websocketserver/transport_tests.rs",
     "crates/io/src/lib.rs",
     "crates/core/src/engine/runtime/limits.rs",
     "crates/core/src/runtime_center.rs",
@@ -97,6 +117,17 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("OSC does not declare" in item for item in violations))
+
+    def test_http_without_bounded_request_channel_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/src/module/modules/protocol/http/transport.rs"
+            source = path.read_text(encoding="utf-8").replace("mpsc::sync_channel", "mpsc::channel")
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("HTTP request backpressure" in item for item in violations))
 
 
 if __name__ == "__main__":

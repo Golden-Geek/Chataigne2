@@ -482,6 +482,7 @@ impl Node for WebSocketServerModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(WEBSOCKET_SERVER_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.websocket")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {

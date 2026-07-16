@@ -52,6 +52,19 @@ impl<T> BoundedQueue<T> {
         Some(entry.value)
     }
 
+    pub fn take_all(&mut self) -> Vec<T> {
+        let mut values = Vec::with_capacity(self.entries.len());
+        while let Some(value) = self.pop_front() {
+            values.push(value);
+        }
+        values
+    }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.total_weight = 0;
+    }
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }

@@ -5,6 +5,7 @@ use golden_core::{
     parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use golden_io::BoundedQueue;
 
 use crate::app::module::common::received_values::{
     apply_received_value_payload, ReceivedValueApplyOptions, ReceivedValueApplyResult,
@@ -17,14 +18,31 @@ use super::{
 
 pub(crate) struct StreamingIncomingQueue {
     ignored_param_changes: HashSet<NodeId>,
-    pending_messages: Vec<StreamingIncomingMessage>,
+    pending_messages: BoundedQueue<StreamingIncomingMessage>,
+    dropped_messages: u64,
 }
+
+const MAX_PENDING_STREAM_MESSAGES: usize = 16_384;
+const MAX_PENDING_STREAM_WEIGHT: usize = 65_536;
 
 impl StreamingIncomingQueue {
     pub(crate) fn new() -> Self {
         Self {
             ignored_param_changes: HashSet::new(),
-            pending_messages: Vec::new(),
+            pending_messages: BoundedQueue::new(
+                MAX_PENDING_STREAM_MESSAGES,
+                MAX_PENDING_STREAM_WEIGHT,
+            ),
+            dropped_messages: 0,
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_limits(maximum_items: usize, maximum_weight: usize) -> Self {
+        Self {
+            ignored_param_changes: HashSet::new(),
+            pending_messages: BoundedQueue::new(maximum_items, maximum_weight),
+            dropped_messages: 0,
         }
     }
 
@@ -37,7 +55,30 @@ impl StreamingIncomingQueue {
     }
 
     pub(crate) fn push_messages(&mut self, messages: Vec<StreamingIncomingMessage>) {
-        self.pending_messages.extend(messages);
+        self.queue_messages(messages);
+    }
+
+    fn queue_messages(&mut self, messages: impl IntoIterator<Item = StreamingIncomingMessage>) {
+        for message in messages {
+            let weight = streaming_message_weight(&message);
+            if self.pending_messages.try_push(message, weight).is_err() {
+                self.dropped_messages = self.dropped_messages.saturating_add(1);
+            }
+        }
+    }
+
+    pub(crate) fn take_dropped_message_count(&mut self) -> u64 {
+        std::mem::take(&mut self.dropped_messages)
+    }
+
+    #[cfg(test)]
+    pub(super) fn pending_message_count(&self) -> usize {
+        self.pending_messages.len()
+    }
+
+    #[cfg(test)]
+    pub(super) fn take_pending_messages_for_test(&mut self) -> Vec<StreamingIncomingMessage> {
+        self.pending_messages.take_all()
     }
 
     pub(crate) fn has_pending_messages(&self) -> bool {
@@ -60,7 +101,7 @@ impl StreamingIncomingQueue {
         }
 
         let mut remaining = Vec::new();
-        let mut messages = std::mem::take(&mut self.pending_messages).into_iter();
+        let mut messages = self.pending_messages.take_all().into_iter();
 
         while let Some(message) = messages.next() {
             let result = apply_received_value_payload(
@@ -85,7 +126,7 @@ impl StreamingIncomingQueue {
                     }
                     if needs_snapshot_refresh {
                         remaining.extend(messages);
-                        self.pending_messages = remaining;
+                        self.queue_messages(remaining);
                         return true;
                     }
                 }
@@ -93,15 +134,23 @@ impl StreamingIncomingQueue {
                 ReceivedValueApplyResult::Retry => {
                     remaining.push(message);
                     remaining.extend(messages);
-                    self.pending_messages = remaining;
+                    self.queue_messages(remaining);
                     return true;
                 }
             }
         }
 
-        self.pending_messages = remaining;
+        self.queue_messages(remaining);
         false
     }
+}
+
+fn streaming_message_weight(message: &StreamingIncomingMessage) -> usize {
+    let payload_values = match &message.payload {
+        crate::app::module::common::received_values::ReceivedValuePayload::Single(_) => 1,
+        crate::app::module::common::received_values::ReceivedValuePayload::Multi(values) => values.len().max(1),
+    };
+    message.path_segments.len().saturating_add(payload_values).max(1)
 }
 
 pub(crate) fn streaming_parse_config(

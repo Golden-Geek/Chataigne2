@@ -68,6 +68,62 @@ def collect_violations(root: Path) -> list[str]:
         root,
         "apps/chataigne/src/module/modules/protocol/midi/midi_message/midi_message_tests.rs",
     )
+    http = read(root, "apps/chataigne/src/module/modules/protocol/http/mod.rs")
+    http_transport = read(
+        root, "apps/chataigne/src/module/modules/protocol/http/transport.rs"
+    )
+    http_tests = read(root, "apps/chataigne/src/module/modules/protocol/http/tests.rs")
+    mqtt = read(root, "apps/chataigne/src/module/modules/protocol/mqtt/mod.rs")
+    mqtt_transport = read(
+        root, "apps/chataigne/src/module/modules/protocol/mqtt/transport.rs"
+    )
+    mqtt_tests = read(root, "apps/chataigne/src/module/modules/protocol/mqtt/tests.rs")
+    stream_queue = read(
+        root, "apps/chataigne/src/module/common/streaming/module_helpers.rs"
+    )
+    stream_queue_tests = read(
+        root, "apps/chataigne/src/module/common/streaming/module_helpers_tests.rs"
+    )
+    serial_module = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/serial/mod.rs"
+    )
+    serial_tests = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/serial/tests.rs"
+    )
+    tcp_client_module = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/tcpclient/mod.rs"
+    )
+    tcp_client_tests = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/tcpclient/tests.rs"
+    )
+    tcp_server_module = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/tcpserver/mod.rs"
+    )
+    tcp_server_tests = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/tcpserver/tests.rs"
+    )
+    udp_module = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/udp/mod.rs"
+    )
+    udp_tests = read(
+        root, "apps/chataigne/src/module/modules/protocol/stream/udp/tests.rs"
+    )
+    websocket_client_module = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/stream/websocketclient/mod.rs",
+    )
+    websocket_client_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/stream/websocketclient/transport_tests.rs",
+    )
+    websocket_server_module = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/stream/websocketserver/mod.rs",
+    )
+    websocket_server_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/stream/websocketserver/transport_tests.rs",
+    )
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -169,6 +225,47 @@ def collect_violations(root: Path) -> list[str]:
         if fixture not in source:
             violations.append(f"Phase 8C is missing parity fixture `{fixture}`")
 
+    for family, source, kernel in (
+        ("HTTP", http, "chataigne.runtime.http"),
+        ("MQTT", mqtt, "chataigne.runtime.mqtt"),
+        ("Serial", serial_module, "chataigne.runtime.serial"),
+        ("TCP client", tcp_client_module, "chataigne.runtime.tcp"),
+        ("TCP server", tcp_server_module, "chataigne.runtime.tcp"),
+        ("UDP", udp_module, "chataigne.runtime.udp"),
+        ("WebSocket client", websocket_client_module, "chataigne.runtime.websocket"),
+        ("WebSocket server", websocket_server_module, "chataigne.runtime.websocket"),
+    ):
+        if kernel not in source or "with_compiled_kernel" not in source:
+            violations.append(f"{family} does not declare its compiled kernel")
+    for contract in (
+        "BoundedQueue<StreamingIncomingMessage>",
+        "MAX_PENDING_STREAM_MESSAGES",
+        "MAX_PENDING_STREAM_WEIGHT",
+        "take_dropped_message_count",
+    ):
+        if contract not in stream_queue:
+            violations.append(f"stream backpressure is missing `{contract}`")
+    if "incoming_stream_queue_applies_bounded_backpressure_without_reordering" not in stream_queue_tests:
+        violations.append("Phase 8D is missing the bounded stream-queue fixture")
+    for family, source in (("HTTP", http_transport), ("MQTT", mqtt_transport)):
+        for contract in ("sync_channel", "try_send", "TrySendError::Full"):
+            if contract not in source:
+                violations.append(f"{family} request backpressure is missing `{contract}`")
+    for fixture, source in (
+        ("large_json_response_auto_adds_values_in_one_runtime_tick", http_tests),
+        ("repeated_large_json_responses_update_existing_values_without_duplicate_folders", http_tests),
+        ("incoming_json_publish_expands_under_topic", mqtt_tests),
+        ("script_publish_json_request_encodes_payload_qos_and_retain", mqtt_tests),
+        ("serial_module_root_enable_toggle_stops_and_restarts_transport_while_recovering", serial_tests),
+        ("tcp_module_recovers_when_server_appears_and_after_connection_loss", tcp_client_tests),
+        ("tcp_server_transport_closes_client_connections_when_stopped", tcp_server_tests),
+        ("udp_module_root_enable_toggle_stops_and_restarts_transport", udp_tests),
+        ("websocket_transport_client_connects_to_server", websocket_client_tests),
+        ("websocket_transport_server_accepts_websocket_connection", websocket_server_tests),
+    ):
+        if fixture not in source:
+            violations.append(f"Phase 8D is missing transport fixture `{fixture}`")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -180,7 +277,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8B is not recorded as runnable")
     if subphases.get("8C", {}).get("state") != "runnable":
         violations.append("Phase 8C is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T103001Z/product-gate-report.json"
+    if subphases.get("8D", {}).get("state") != "runnable":
+        violations.append("Phase 8D is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T104707Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}

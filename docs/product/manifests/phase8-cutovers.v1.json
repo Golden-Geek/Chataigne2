@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 6,
+  "revision": 8,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8C on Win-x64: target/product-gate/20260716T103001Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8D on Win-x64: target/product-gate/20260716T104707Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -49,7 +49,23 @@
         "target/product-gate/20260716T103001Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8D", "state": "pending" },
+    {
+      "subphase_id": "8D",
+      "state": "runnable",
+      "owner": "apps/chataigne/src/module/modules/protocol and crates/io",
+      "evidence": [
+        "Serial, MQTT, HTTP, TCP, UDP, and WebSocket declare compile-assigned family kernels; TCP and WebSocket share one kernel per client/server family",
+        "incoming stream materialization uses a count/weight-bounded queue with explicit dropped-message warnings",
+        "HTTP and MQTT request channels are bounded and reject overload without blocking the engine thread",
+        "Serial, TCP client/server, UDP, and WebSocket loopback fixtures enforce enable recovery, reconnect, client lifecycle, and ordered transport behavior",
+        "HTTP and MQTT fixtures enforce commands, scripts, structured dynamic values, and repeated large payload updates",
+        "cargo test -p golden_io",
+        "cargo test -p golden_engine production_runtime_compiles_named_domain_kernel_families",
+        "cargo test -p Chataigne2 incoming_stream_queue_applies_bounded_backpressure_without_reordering",
+        "cargo test -p Chataigne2 tcp_module_recovers_when_server_appears_and_after_connection_loss",
+        "target/product-gate/20260716T104707Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8E", "state": "pending" },
     { "subphase_id": "8F", "state": "pending" },
     { "subphase_id": "8G", "state": "pending" },

@@ -1,8 +1,10 @@
 use std::{
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver, Sender, SyncSender, TrySendError},
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
+
+const HTTP_REQUEST_CHANNEL_CAPACITY: usize = 256;
 
 use reqwest::{
     blocking::{multipart, Client, RequestBuilder},
@@ -72,7 +74,7 @@ pub(crate) enum HttpWorkerEvent {
 }
 
 pub(crate) struct HttpTransportHandle {
-    command_tx: Sender<HttpWorkerCommand>,
+    command_tx: SyncSender<HttpWorkerCommand>,
     event_rx: Receiver<HttpWorkerEvent>,
     worker: Option<JoinHandle<()>>,
 }
@@ -85,7 +87,7 @@ impl HttpTransportHandle {
             .build()
             .map_err(|error| format!("failed to build HTTP client: {error}"))?;
 
-        let (command_tx, command_rx) = mpsc::channel();
+        let (command_tx, command_rx) = mpsc::sync_channel(HTTP_REQUEST_CHANNEL_CAPACITY);
         let (event_tx, event_rx) = mpsc::channel();
         let thread_name = http_thread_name(config.base_address.as_str());
 
@@ -103,8 +105,11 @@ impl HttpTransportHandle {
 
     pub(crate) fn send(&self, request: HttpQueuedRequest) -> Result<(), String> {
         self.command_tx
-            .send(HttpWorkerCommand::Send(Box::new(request)))
-            .map_err(|_| "HTTP worker is no longer running".to_string())
+            .try_send(HttpWorkerCommand::Send(Box::new(request)))
+            .map_err(|error| match error {
+                TrySendError::Full(_) => "HTTP request queue is full".to_string(),
+                TrySendError::Disconnected(_) => "HTTP worker is no longer running".to_string(),
+            })
     }
 
     pub(crate) fn try_recv(&self) -> Result<HttpWorkerEvent, mpsc::TryRecvError> {

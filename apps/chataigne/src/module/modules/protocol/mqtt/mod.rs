@@ -705,6 +705,7 @@ impl Node for MqttModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(MQTT_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.mqtt")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {

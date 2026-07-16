@@ -20700,11 +20700,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 16,
+          "line": 18,
           "path": "apps/chataigne/src/module/modules/protocol/stream/stream_module_base.rs"
         },
         {
-          "line": 204,
+          "line": 217,
           "path": "apps/chataigne/src/module/modules/protocol/stream/stream_module_base.rs"
         }
       ],

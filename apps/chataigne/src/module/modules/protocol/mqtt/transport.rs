@@ -1,7 +1,7 @@
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Receiver, Sender, SyncSender, TrySendError},
         Arc,
     },
     thread::{self, JoinHandle},
@@ -63,7 +63,7 @@ pub(crate) enum MqttWorkerEvent {
 }
 
 pub(crate) struct MqttTransportHandle {
-    command_tx: Sender<MqttWorkerCommand>,
+    command_tx: SyncSender<MqttWorkerCommand>,
     event_rx: Receiver<MqttWorkerEvent>,
     connected: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
@@ -71,7 +71,7 @@ pub(crate) struct MqttTransportHandle {
 
 impl MqttTransportHandle {
     pub(crate) fn spawn(config: MqttTransportConfig) -> Result<Self, String> {
-        let (command_tx, command_rx) = mpsc::channel();
+        let (command_tx, command_rx) = mpsc::sync_channel(MQTT_REQUEST_CHANNEL_CAPACITY);
         let (event_tx, event_rx) = mpsc::channel();
         let connected = Arc::new(AtomicBool::new(false));
         let worker_connected = Arc::clone(&connected);
@@ -96,8 +96,11 @@ impl MqttTransportHandle {
         }
 
         self.command_tx
-            .send(MqttWorkerCommand::Publish(request))
-            .map_err(|_| "MQTT worker is no longer running".to_string())
+            .try_send(MqttWorkerCommand::Publish(request))
+            .map_err(|error| match error {
+                TrySendError::Full(_) => "MQTT request queue is full".to_string(),
+                TrySendError::Disconnected(_) => "MQTT worker is no longer running".to_string(),
+            })
     }
 
     pub(crate) fn try_recv(&self) -> Result<MqttWorkerEvent, mpsc::TryRecvError> {

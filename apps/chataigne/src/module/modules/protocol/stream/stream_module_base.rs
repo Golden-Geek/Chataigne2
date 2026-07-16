@@ -13,6 +13,8 @@ use crate::app::module::{
     ModuleDataCapabilities,
 };
 
+const STREAM_BACKPRESSURE_WARNING_ID: &str = "stream_backpressure";
+
 #[node("streaming_module_base", label = "Streaming Module")]
 #[children(
     folder(parameters) {
@@ -128,6 +130,17 @@ impl StreamingModuleBase {
     }
 
     pub(crate) fn process_pending(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) -> bool {
+        let dropped = self.incoming.take_dropped_message_count();
+        if dropped > 0 {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(STREAM_BACKPRESSURE_WARNING_ID),
+                format!("Dropped {dropped} incoming stream messages because the bounded queue was full."),
+                None,
+            );
+        } else {
+            ctx.clear_node_warning(self.id(), Some(STREAM_BACKPRESSURE_WARNING_ID));
+        }
         self.incoming
             .process_pending(ctx, snapshot, self.base.values_id(), self.auto_add.get())
     }
