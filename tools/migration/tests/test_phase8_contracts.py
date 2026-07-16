@@ -68,6 +68,12 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/protocol/stream/websocketclient/transport_tests.rs",
     "apps/chataigne/src/module/modules/protocol/stream/websocketserver/mod.rs",
     "apps/chataigne/src/module/modules/protocol/stream/websocketserver/transport_tests.rs",
+    "apps/chataigne/src/module/modules/system/app_control/app_control.rs",
+    "apps/chataigne/src/module/modules/system/app_control/app_control_runtime.rs",
+    "apps/chataigne/src/module/modules/system/app_control/app_control_tests.rs",
+    "apps/chataigne/src/module/modules/system/os/os.rs",
+    "apps/chataigne/src/module/modules/system/os/os_runtime.rs",
+    "apps/chataigne/src/module/modules/system/os/os_tests.rs",
     "crates/io/src/lib.rs",
     "crates/core/src/engine/runtime/limits.rs",
     "crates/core/src/runtime_center.rs",
@@ -160,6 +166,17 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("controller `gamepad`" in item for item in violations))
+
+    def test_unnamed_system_worker_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/src/module/modules/system/os/os_runtime.rs"
+            source = path.read_text(encoding="utf-8").replace('"os-metrics"', '""')
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("OS background runtime" in item for item in violations))
 
 
 if __name__ == "__main__":

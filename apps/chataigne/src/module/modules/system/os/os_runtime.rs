@@ -95,11 +95,14 @@ impl OsMetricsWorker {
             stop_requested: AtomicBool::new(false),
         });
         let worker_state = Arc::clone(&state);
-        let worker = thread::spawn(move || os_metrics_worker_loop(worker_state, process_id));
+        let worker = thread::Builder::new()
+            .name("os-metrics".to_string())
+            .spawn(move || os_metrics_worker_loop(worker_state, process_id))
+            .ok();
 
         let worker_handle = Self {
             state,
-            worker: Some(worker),
+            worker,
         };
         worker_handle.request_refresh();
         worker_handle

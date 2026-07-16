@@ -491,6 +491,7 @@ impl Node for OsModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(OS_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.os")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {

@@ -1253,6 +1253,7 @@ impl Node for AppControlModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(APP_CONTROL_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.app-control")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {

@@ -177,7 +177,10 @@ impl WatchedAppMetricsWorker {
 
         self.state.stop_requested.store(false, Ordering::Relaxed);
         let worker_state = Arc::clone(&self.state);
-        self.worker = Some(thread::spawn(move || watched_app_worker_loop(worker_state)));
+        self.worker = thread::Builder::new()
+            .name("app-control-metrics".to_string())
+            .spawn(move || watched_app_worker_loop(worker_state))
+            .ok();
     }
 
     fn sync_targets<'a, I>(&mut self, target_paths: I)

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 10,
+  "revision": 12,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8E on Win-x64: target/product-gate/20260716T110028Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8F on Win-x64: target/product-gate/20260716T111256Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -83,7 +83,24 @@
         "target/product-gate/20260716T110028Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8F", "state": "pending" },
+    {
+      "subphase_id": "8F",
+      "state": "runnable",
+      "owner": "apps/chataigne/src/module/modules/system",
+      "evidence": [
+        "App Control and OS declare distinct compile-assigned kernels",
+        "process/window and OS metrics polling run on named background workers at 500 ms and 1 s intervals rather than the engine thread",
+        "worker teardown uses explicit stop, unpark, and join lifecycle; platform implementations are cfg-scoped for Windows, macOS, and Linux",
+        "App Control fixtures cover idle behavior, watched-app lifecycle, command selection, scripts, and periodic actual-state refresh",
+        "OS fixtures cover host values, snapshot-free updates, scripts, Wake-on-LAN parsing, and magic-packet encoding",
+        "cargo check -p Chataigne2 --all-targets",
+        "cargo test -p Chataigne2 app_control_module_stays_idle_without_watch_entries",
+        "cargo test -p Chataigne2 stale_running_value_only_reflects_actual_state_during_periodic_updates",
+        "cargo test -p Chataigne2 os_module_updates_without_tree_snapshot",
+        "cargo test -p Chataigne2 wake_on_lan_magic_packet_has_expected_shape",
+        "target/product-gate/20260716T111256Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8G", "state": "pending" },
     { "subphase_id": "8H", "state": "pending" },
     { "subphase_id": "8I", "state": "pending" },

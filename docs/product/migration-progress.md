@@ -20,9 +20,9 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 - State: `CONSTRUCTION`; the Phase 8 module and specialized-subsystem interval is open from the
   immutable Phase 7 checkpoint `1a1609a`.
-- Current subphase: 8F App Control and OS. Phase 8A established app-agnostic IO ownership in
-  `golden_io`; Phases 8B through 8E cut generator, protocol, and controller families over to
-  compiled kernels.
+- Current subphase: 8G Spatializer, dashboards, custom editors, live workflows, and scale
+  fixtures. Phase 8A established app-agnostic IO ownership in `golden_io`; Phases 8B through 8F
+  cut generator, protocol, controller, App Control, and OS families over to compiled kernels.
 - 8B proof: deterministic worker fixtures prove fixed-delta values, cycles, tick multiplicity, and
   counts. Local Win-x64 report `target/product-gate/20260716T101347Z/product-gate-report.json`
   passed all 38 required checks; 7 non-required checks were `NOT_RUN`.
@@ -38,11 +38,15 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
   hardware evidence matrix records each platform scope, deterministic adapter, executable fixture,
   and physical-device status. Local Win-x64 report
   `target/product-gate/20260716T110028Z/product-gate-report.json` passed all 38 required checks.
+- 8F proof: App Control and OS declare family kernels; their recurring system inspection runs on
+  named background workers with explicit stop/unpark/join lifecycle and platform-scoped
+  implementations. Local Win-x64 report
+  `target/product-gate/20260716T111256Z/product-gate-report.json` passed all 38 required checks.
 - Focused proof: local Win-x64 report
   `target/product-gate/20260716T095204Z/product-gate-report.json` passed all 38 required checks for
   the 8A tree; 7 non-required dependency/platform checks were `NOT_RUN`.
-- Last runnable checkpoint: Phase 8E, based on Phase 8D commit `3cf2a42`.
-- Remaining Phase 8 work: gate module families 8F through 8J and close with the
+- Last runnable checkpoint: Phase 8F, based on Phase 8E commit `ec0486b`.
+- Remaining Phase 8 work: gate module families 8G through 8J and close with the
   full local and required cross-platform product qualifications.
 
 The long-lived migration branch does not require a permanently open pull request. Focused PRs are
@@ -62,7 +66,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                       |
 | Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)       |
 | Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`; local report `target/product-gate/20260716T070444Z/product-gate-report.json`; all 37 required checks passed |
-| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `PASS` (8E Win-x64)    | Controller/hardware kernels passed `target/product-gate/20260716T110028Z/product-gate-report.json`; 8F is next                                                                  |
+| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `PASS` (8F Win-x64)    | System kernels passed `target/product-gate/20260716T111256Z/product-gate-report.json`; 8G is next                                                                                |
 | Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Every parity row and release gate must pass                                                                                                                                     |
 
 ## Phase 0 Governance Slice
@@ -189,7 +193,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | 8C       | `RUNNABLE`     | OSC and MIDI have compile-assigned family kernels and enforced parity/recovery fixtures; all 38 required product-gate checks pass |
 | 8D       | `RUNNABLE`     | Transport families have compile-assigned kernels, bounded queues, and enforced recovery/loopback fixtures; all 38 required product-gate checks pass |
 | 8E       | `RUNNABLE`     | All controller/hardware entries have family kernels and named deterministic adapter evidence; all 38 required product-gate checks pass |
-| 8F       | Pending        | Gate App Control and OS background workers, lifecycle, commands, callbacks, and platform behavior                     |
+| 8F       | `RUNNABLE`     | App Control and OS have family kernels, named workers, lifecycle, and enforced platform fixtures; all 38 required product-gate checks pass |
 | 8G       | Pending        | Gate Spatializer, dashboards, custom editors, live workflows, and scale fixtures                                      |
 | 8H       | Pending        | Gate the shared script host and every method, callback, snippet/template, asset, icon, and registration               |
 | 8I       | Pending        | Gate persistence/recovery, desktop/headless/LAN hosts, discovery, packaging, and release assets                       |

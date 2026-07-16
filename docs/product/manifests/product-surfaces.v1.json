@@ -2746,11 +2746,11 @@
       "name": "app_control_watch_folders",
       "sources": [
         {
-          "line": 1407,
+          "line": 1408,
           "path": "apps/chataigne/src/module/modules/system/app_control/app_control.rs"
         },
         {
-          "line": 1410,
+          "line": 1411,
           "path": "apps/chataigne/src/module/modules/system/app_control/app_control.rs"
         }
       ]
@@ -2766,11 +2766,11 @@
       "name": "app_control_watched_apps",
       "sources": [
         {
-          "line": 1377,
+          "line": 1378,
           "path": "apps/chataigne/src/module/modules/system/app_control/app_control.rs"
         },
         {
-          "line": 1380,
+          "line": 1381,
           "path": "apps/chataigne/src/module/modules/system/app_control/app_control.rs"
         }
       ]
@@ -2786,11 +2786,11 @@
       "name": "app_control_watched_folder",
       "sources": [
         {
-          "line": 1441,
+          "line": 1442,
           "path": "apps/chataigne/src/module/modules/system/app_control/app_control.rs"
         },
         {
-          "line": 1455,
+          "line": 1456,
           "path": "apps/chataigne/src/module/modules/system/app_control/app_control.rs"
         }
       ]

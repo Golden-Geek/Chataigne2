@@ -149,6 +149,21 @@ def collect_violations(root: Path) -> list[str]:
     hardware = json.loads(
         read(root, "docs/product/manifests/phase8-hardware-evidence.v1.json")
     )
+    app_control = read(
+        root,
+        "apps/chataigne/src/module/modules/system/app_control/app_control.rs",
+    )
+    app_control_runtime = read(
+        root,
+        "apps/chataigne/src/module/modules/system/app_control/app_control_runtime.rs",
+    )
+    app_control_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/system/app_control/app_control_tests.rs",
+    )
+    os_module = read(root, "apps/chataigne/src/module/modules/system/os/os.rs")
+    os_runtime = read(root, "apps/chataigne/src/module/modules/system/os/os_runtime.rs")
+    os_tests = read(root, "apps/chataigne/src/module/modules/system/os/os_tests.rs")
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -323,6 +338,33 @@ def collect_violations(root: Path) -> list[str]:
         if not str(entry.get("physical_hardware", "")).startswith("NOT_RUN:"):
             violations.append(f"controller `{family}` physical-device status is not explicit")
 
+    for family, source, kernel in (
+        ("App Control", app_control, "chataigne.runtime.app-control"),
+        ("OS", os_module, "chataigne.runtime.os"),
+    ):
+        if kernel not in source or "with_compiled_kernel" not in source:
+            violations.append(f"{family} does not declare its compiled kernel")
+    for family, source, worker_name, interval in (
+        ("App Control", app_control_runtime, "app-control-metrics", "WATCHED_APP_WORKER_INTERVAL"),
+        ("OS", os_runtime, "os-metrics", "OS_METRICS_WORKER_INTERVAL"),
+    ):
+        for contract in ("thread::Builder", worker_name, interval, "unpark", "join"):
+            if contract not in source:
+                violations.append(f"{family} background runtime is missing `{contract}`")
+    for platform_contract in ('cfg(windows)', 'target_os = "macos"', 'target_os = "linux"'):
+        if platform_contract not in app_control_runtime and platform_contract not in os_runtime:
+            violations.append(f"system runtime is missing platform contract `{platform_contract}`")
+    for fixture, source in (
+        ("app_control_module_stays_idle_without_watch_entries", app_control_tests),
+        ("stale_running_value_only_reflects_actual_state_during_periodic_updates", app_control_tests),
+        ("app_control_script_template_scaffolds_functions_and_callbacks", app_control_tests),
+        ("os_module_updates_without_tree_snapshot", os_tests),
+        ("wake_on_lan_magic_packet_has_expected_shape", os_tests),
+        ("os_script_template_scaffolds_functions_and_callbacks", os_tests),
+    ):
+        if fixture not in source:
+            violations.append(f"Phase 8F is missing system fixture `{fixture}`")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -338,7 +380,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8D is not recorded as runnable")
     if subphases.get("8E", {}).get("state") != "runnable":
         violations.append("Phase 8E is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T110028Z/product-gate-report.json"
+    if subphases.get("8F", {}).get("state") != "runnable":
+        violations.append("Phase 8F is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T111256Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}
