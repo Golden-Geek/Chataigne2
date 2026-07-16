@@ -26,6 +26,8 @@ Start here:
   cross-platform qualification, and governed Phase 8 adapter carried forward.
 - [Phase 7 cutover dashboard](manifests/phase7-cutovers.v1.json) records the generated protocol,
   observation planes, panel-area migrations, slow-client isolation, and old-protocol deletion.
+- [Phase 8 construction dashboard](manifests/phase8-cutovers.v1.json) records the separately gated
+  module families, shared IO cutovers, carried runtime adapter, and qualification state.
 - [Architecture decisions](../architecture/decisions/README.md) record the Phase 0 decisions that
   constrain implementation.
 - [Final architecture and migration plan](../Golden_Architecture_Final_Plan.md) remains the complete

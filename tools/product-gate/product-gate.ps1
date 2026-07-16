@@ -831,6 +831,12 @@ Invoke-GateCommand `
     -Executable "python" `
     -Arguments @("tools/migration/check_phase7_contracts.py") `
     -DependsOn @("architecture.phase6_contracts") | Out-Null
+Invoke-GateCommand `
+    -Id "architecture.phase8_contracts" `
+    -Name "Phase 8 module and IO construction contracts" `
+    -Executable "python" `
+    -Arguments @("tools/migration/check_phase8_contracts.py") `
+    -DependsOn @("architecture.phase7_contracts") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `

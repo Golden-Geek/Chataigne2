@@ -7,7 +7,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{pending_channel, PendingReceiver, PendingSender};
 
 use mio::{net::UdpSocket, Events, Interest, Poll, Token, Waker};
 use rosc::{decoder, encoder};

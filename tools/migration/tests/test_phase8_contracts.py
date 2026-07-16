@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).resolve().parents[1] / "check_phase8_contracts.py"
+SPEC = importlib.util.spec_from_file_location("check_phase8_contracts", SCRIPT)
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+
+CONTRACT_FILES = (
+    "Cargo.toml",
+    "apps/chataigne/Cargo.toml",
+    "apps/chataigne/src/module/common/mod.rs",
+    "apps/chataigne/src/module/common/serial.rs",
+    "apps/chataigne/src/module/modules/controllers/buttplug/transport.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/tcpclient/transport.rs",
+    "apps/chataigne/src/module/modules/protocol/stream/websocketclient/transport.rs",
+    "crates/io/src/lib.rs",
+    "docs/product/manifests/phase8-cutovers.v1.json",
+    "docs/product/migration-progress.md",
+)
+
+
+def copy_contract_tree(root: Path, copy: Path) -> None:
+    for relative in CONTRACT_FILES:
+        target = copy / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+
+class Phase8ContractTests(unittest.TestCase):
+    def test_current_tree_satisfies_phase8_contracts(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        self.assertEqual(MODULE.collect_violations(root), [])
+
+    def test_app_owned_pending_channel_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            pending = copy / "apps/chataigne/src/module/common/pending_channel.rs"
+            pending.write_text("pub fn pending_channel() {}\n", encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("pending channel remains" in item for item in violations))
+
+    def test_pending_phase8a_dashboard_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "docs/product/manifests/phase8-cutovers.v1.json"
+            dashboard = json.loads(path.read_text(encoding="utf-8"))
+            dashboard["subphases"][0]["state"] = "pending"
+            path.write_text(json.dumps(dashboard), encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("8A is not recorded" in item for item in violations))
+
+
+if __name__ == "__main__":
+    unittest.main()

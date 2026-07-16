@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::HashSet,
     io::{Read, Write},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -10,7 +10,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{
+    pending_channel, BoundedQueue, PendingReceiver, PendingSender, ReconnectBackoff, WorkerTask,
+};
 
 #[cfg(not(windows))]
 use std::path::Path;
@@ -92,10 +94,9 @@ pub(crate) enum SerialConnectionEvent {
 }
 
 pub(crate) struct SerialConnectionHandle {
-    command_tx: Sender<SerialConnectionCommand>,
+    worker: WorkerTask<SerialConnectionCommand>,
     event_rx: PendingReceiver<SerialConnectionEvent>,
     connected: Arc<AtomicBool>,
-    worker: Option<JoinHandle<()>>,
 }
 
 impl SerialDiscoveryState {
@@ -199,21 +200,22 @@ impl SerialConnectionHandle {
             return Err("serial port is not selected".to_string());
         }
 
-        let (command_tx, command_rx) = mpsc::channel();
         let (event_tx, event_rx) = pending_channel();
         let connected = Arc::new(AtomicBool::new(false));
         let worker_connected = Arc::clone(&connected);
 
-        let worker = thread::Builder::new()
-            .name(connection_worker_thread_name(config.port_name.as_str()))
-            .spawn(move || serial_connection_worker_loop(config, command_rx, event_tx, worker_connected))
+        let worker = WorkerTask::spawn(
+            connection_worker_thread_name(config.port_name.as_str()),
+            move |command_rx| {
+                serial_connection_worker_loop(config, command_rx, event_tx, worker_connected)
+            },
+        )
             .map_err(|error| format!("failed to start serial connection thread: {error}"))?;
 
         Ok(Self {
-            command_tx,
+            worker,
             event_rx,
             connected,
-            worker: Some(worker),
         })
     }
 
@@ -222,7 +224,7 @@ impl SerialConnectionHandle {
             return Err("serial port is not connected".to_string());
         }
 
-        self.command_tx
+        self.worker
             .send(SerialConnectionCommand::Send(bytes))
             .map_err(|_| "serial connection is no longer running".to_string())
     }
@@ -240,10 +242,7 @@ impl SerialConnectionHandle {
     }
 
     pub(crate) fn stop(&mut self) {
-        let _ = self.command_tx.send(SerialConnectionCommand::Stop);
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
+        self.worker.stop(SerialConnectionCommand::Stop);
     }
 }
 
@@ -446,9 +445,12 @@ fn serial_connection_worker_loop(
 ) {
     let mut buffer = [0u8; 8192];
     let mut port = None;
-    let mut pending_writes = VecDeque::<Vec<u8>>::new();
-    let mut pending_write_bytes = 0usize;
-    let mut reconnect_delay = SERIAL_RECONNECT_BASE_DELAY;
+    let mut pending_writes = BoundedQueue::<Vec<u8>>::new(
+        SERIAL_PENDING_WRITE_LIMIT,
+        SERIAL_PENDING_WRITE_BYTES_LIMIT,
+    );
+    let mut reconnect_delay =
+        ReconnectBackoff::new(SERIAL_RECONNECT_BASE_DELAY, SERIAL_RECONNECT_MAX_DELAY);
     let mut next_open_at = Instant::now();
     let mut last_status = None;
 
@@ -458,7 +460,7 @@ fn serial_connection_worker_loop(
                 match open_serial_port(&config) {
                     Ok(open_port) => {
                         port = Some(open_port);
-                        reconnect_delay = SERIAL_RECONNECT_BASE_DELAY;
+                        reconnect_delay.reset();
                         if !emit_status(
                             &event_tx,
                             &connected,
@@ -497,7 +499,6 @@ fn serial_connection_worker_loop(
                     command,
                     &event_tx,
                     &mut pending_writes,
-                    &mut pending_write_bytes,
                 ) {
                     WorkerLoopControl::Continue => {}
                     WorkerLoopControl::Stop => break,
@@ -513,7 +514,6 @@ fn serial_connection_worker_loop(
             &command_rx,
             &event_tx,
             &mut pending_writes,
-            &mut pending_write_bytes,
         ) {
             WorkerLoopControl::Continue => {}
             WorkerLoopControl::Stop => break,
@@ -523,7 +523,6 @@ fn serial_connection_worker_loop(
             if let Some(error_message) = flush_pending_writes(
                 active_port,
                 &mut pending_writes,
-                &mut pending_write_bytes,
                 config.port_name.as_str(),
             ) {
                 port = None;
@@ -578,17 +577,11 @@ fn serial_connection_worker_loop(
 fn drain_commands(
     command_rx: &Receiver<SerialConnectionCommand>,
     event_tx: &PendingSender<SerialConnectionEvent>,
-    pending_writes: &mut VecDeque<Vec<u8>>,
-    pending_write_bytes: &mut usize,
+    pending_writes: &mut BoundedQueue<Vec<u8>>,
 ) -> WorkerLoopControl {
     loop {
         match command_rx.try_recv() {
-            Ok(command) => match handle_worker_command(
-                command,
-                event_tx,
-                pending_writes,
-                pending_write_bytes,
-            ) {
+            Ok(command) => match handle_worker_command(command, event_tx, pending_writes) {
                 WorkerLoopControl::Continue => {}
                 WorkerLoopControl::Stop => return WorkerLoopControl::Stop,
             },
@@ -601,13 +594,12 @@ fn drain_commands(
 fn handle_worker_command(
     command: SerialConnectionCommand,
     event_tx: &PendingSender<SerialConnectionEvent>,
-    pending_writes: &mut VecDeque<Vec<u8>>,
-    pending_write_bytes: &mut usize,
+    pending_writes: &mut BoundedQueue<Vec<u8>>,
 ) -> WorkerLoopControl {
     match command {
         SerialConnectionCommand::Stop => WorkerLoopControl::Stop,
         SerialConnectionCommand::Send(bytes) => {
-            enqueue_pending_write(event_tx, pending_writes, pending_write_bytes, bytes);
+            enqueue_pending_write(event_tx, pending_writes, bytes);
             WorkerLoopControl::Continue
         }
     }
@@ -615,32 +607,23 @@ fn handle_worker_command(
 
 fn enqueue_pending_write(
     event_tx: &PendingSender<SerialConnectionEvent>,
-    pending_writes: &mut VecDeque<Vec<u8>>,
-    pending_write_bytes: &mut usize,
+    pending_writes: &mut BoundedQueue<Vec<u8>>,
     bytes: Vec<u8>,
 ) {
-    if pending_writes.len() >= SERIAL_PENDING_WRITE_LIMIT
-        || pending_write_bytes.saturating_add(bytes.len()) > SERIAL_PENDING_WRITE_BYTES_LIMIT
-    {
+    let byte_count = bytes.len();
+    if pending_writes.try_push(bytes, byte_count).is_err() {
         let _ = event_tx.send(SerialConnectionEvent::Warning(
             "serial write queue is full; outgoing bytes were dropped".to_string(),
         ));
-        return;
     }
-
-    *pending_write_bytes = pending_write_bytes.saturating_add(bytes.len());
-    pending_writes.push_back(bytes);
 }
 
 fn flush_pending_writes(
     port: &mut Box<dyn serialport::SerialPort>,
-    pending_writes: &mut VecDeque<Vec<u8>>,
-    pending_write_bytes: &mut usize,
+    pending_writes: &mut BoundedQueue<Vec<u8>>,
     port_name: &str,
 ) -> Option<String> {
     while let Some(bytes) = pending_writes.pop_front() {
-        *pending_write_bytes = pending_write_bytes.saturating_sub(bytes.len());
-
         if let Err(error) = port.write_all(bytes.as_slice()) {
             return Some(format_write_error(port_name, &error));
         }
@@ -685,15 +668,12 @@ fn enter_recovery(
     event_tx: &PendingSender<SerialConnectionEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<SerialConnectionStatus>,
-    reconnect_delay: &mut Duration,
+    reconnect_delay: &mut ReconnectBackoff,
     next_open_at: &mut Instant,
     port_name: &str,
     message: String,
 ) -> bool {
-    *next_open_at = Instant::now() + *reconnect_delay;
-    *reconnect_delay = reconnect_delay
-        .saturating_mul(2)
-        .min(SERIAL_RECONNECT_MAX_DELAY);
+    *next_open_at = reconnect_delay.schedule(Instant::now());
 
     emit_status(
         event_tx,

@@ -19523,11 +19523,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 412,
+          "line": 424,
           "path": "crates/codegen_support/src/lib.rs"
         },
         {
-          "line": 414,
+          "line": 426,
           "path": "crates/codegen_support/src/lib.rs"
         }
       ],

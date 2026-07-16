@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{pending_channel, PendingReceiver, PendingSender};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct UdpStreamingTransportConfig {

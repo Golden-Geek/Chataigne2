@@ -18,21 +18,16 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 ## Current Checkpoint
 
-- State: `CHECKPOINT_RUNNABLE`; the Phase 7 construction interval is closed on a tested tree based
-  on immutable Phase 6 checkpoint `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`.
-- Completed vertical: Rust-owned generated client/server messages define control, structure, value,
-  trigger, observation, catalog, and preview planes. The transport owns interest filtering, replay,
-  scoped resync, bounded latest-wins queues, and slow-client isolation. Golden UI stages coherent
-  frames through `requestAnimationFrame`; every retained panel area consumes the final workbench
-  client/store path, and the old runtime HTTP/polling path is removed.
-- Qualified layers: complete Chataigne application, generated protocol/codegen, all Phase 7 panel
-  areas, Phase 5/6 fixtures, production OSC module IO, root workflows, mounted UI, LAN browser, and
-  the Windows product build.
-- Runnable checkpoint: local Win-x64 report
-  `target/product-gate/20260716T070444Z/product-gate-report.json` passed all 37 required checks; 7
-  non-required dependency/platform checks were `NOT_RUN`.
-- Next construction interval: Phase 8 module and specialized-subsystem migration; it has not been
-  opened yet.
+- State: `CONSTRUCTION`; the Phase 8 module and specialized-subsystem interval is open from the
+  immutable Phase 7 checkpoint `1a1609a`.
+- Current subphase: 8B Signal and Metronome. Phase 8A established app-agnostic IO ownership in
+  `golden_io` and is a separately gated runnable checkpoint.
+- Focused proof: local Win-x64 report
+  `target/product-gate/20260716T095204Z/product-gate-report.json` passed all 38 required checks for
+  the 8A tree; 7 non-required dependency/platform checks were `NOT_RUN`.
+- Last runnable checkpoint: Phase 8A, based on immutable Phase 7 checkpoint `1a1609a`.
+- Remaining Phase 8 work: gate module families 8B through 8J and close with the
+  full local and required cross-platform product qualifications.
 
 The long-lived migration branch does not require a permanently open pull request. Focused PRs are
 opened when a review, named qualification, or merge point is ready. This keeps routine pushes local
@@ -51,7 +46,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                       |
 | Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)       |
 | Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`; local report `target/product-gate/20260716T070444Z/product-gate-report.json`; all 37 required checks passed |
-| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | New runtime/protocol/UI foundations must be runnable                                                                                                                            |
+| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `PASS` (8A Win-x64)    | 8A module framework and `golden_io` ownership passed `target/product-gate/20260716T095204Z/product-gate-report.json`; 8B is next                                                 |
 | Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Every parity row and release gate must pass                                                                                                                                     |
 
 ## Phase 0 Governance Slice
@@ -168,6 +163,21 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Old protocol/runtime HTTP adapter      | Removed  | Hand-maintained WebSocket declarations, runtime HTTP polling/fallback, and `createHttpUiClient` are absent             |
 | Revisioned cutover evidence            | Complete | [`manifests/phase7-cutovers.v1.json`](manifests/phase7-cutovers.v1.json) and `tools/migration/check_phase7_contracts.py` |
 | Win-x64 product qualification          | `PASS`   | Report `target/product-gate/20260716T070444Z/product-gate-report.json`: all 37 required checks passed; 7 non-required checks were `NOT_RUN` |
+
+## Phase 8 Module And Specialized-Subsystem Construction
+
+| Subphase | Status         | Current evidence or next proof                                                                                         |
+| -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 8A       | `RUNNABLE`     | `golden_io` owns pending signaling, reconnect backoff, bounded queues, worker tasks, and deterministic test transports; all 38 required product-gate checks pass |
+| 8B       | Pending        | Gate Signal and Metronome deterministic value/event fixtures                                                           |
+| 8C       | Pending        | Gate OSC and MIDI dynamic values, commands, parsing, recovery, scripts, and UI                                         |
+| 8D       | Pending        | Gate Serial, MQTT, HTTP, TCP, UDP, and WebSocket recovery, multiplicity, ordering, and backpressure                   |
+| 8E       | Pending        | Gate every controller/hardware registry entry through injectable adapters and named hardware evidence                 |
+| 8F       | Pending        | Gate App Control and OS background workers, lifecycle, commands, callbacks, and platform behavior                     |
+| 8G       | Pending        | Gate Spatializer, dashboards, custom editors, live workflows, and scale fixtures                                      |
+| 8H       | Pending        | Gate the shared script host and every method, callback, snippet/template, asset, icon, and registration               |
+| 8I       | Pending        | Gate persistence/recovery, desktop/headless/LAN hosts, discovery, packaging, and release assets                       |
+| 8J       | Pending        | Implement approved Art-Net/sACN/DMX and Node modules to the complete module standard                                  |
 
 ## Required Root Workflow Status
 

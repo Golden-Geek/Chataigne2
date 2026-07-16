@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{pending_channel, PendingReceiver, PendingSender, ReconnectBackoff};
 
 const TCP_CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
 const TCP_RECONNECT_BASE_DELAY: Duration = Duration::from_millis(250);
@@ -118,7 +118,8 @@ fn worker_loop(
 ) {
     let mut buffer = [0u8; 8192];
     let mut stream = None;
-    let mut reconnect_delay = TCP_RECONNECT_BASE_DELAY;
+    let mut reconnect_delay =
+        ReconnectBackoff::new(TCP_RECONNECT_BASE_DELAY, TCP_RECONNECT_MAX_DELAY);
     let mut next_connect_at = Instant::now();
     let mut last_status = None;
     let mut last_health_check = Instant::now();
@@ -129,7 +130,7 @@ fn worker_loop(
                 match connect_stream(remote_address) {
                     Ok(open_stream) => {
                         stream = Some(open_stream);
-                        reconnect_delay = TCP_RECONNECT_BASE_DELAY;
+                        reconnect_delay.reset();
                         last_health_check = Instant::now();
                         if !emit_status(
                             &event_tx,
@@ -375,13 +376,12 @@ fn enter_recovery(
     event_tx: &PendingSender<StreamingWorkerEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<TcpStreamingConnectionStatus>,
-    reconnect_delay: &mut Duration,
+    reconnect_delay: &mut ReconnectBackoff,
     next_connect_at: &mut Instant,
     remote_address: SocketAddr,
     message: String,
 ) -> bool {
-    *next_connect_at = Instant::now() + *reconnect_delay;
-    *reconnect_delay = reconnect_delay.saturating_mul(2).min(TCP_RECONNECT_MAX_DELAY);
+    *next_connect_at = reconnect_delay.schedule(Instant::now());
 
     emit_status(
         event_tx,

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "phase": 8,
+  "revision": 2,
+  "tested_tree_base": "dfcc369",
+  "validation_state": "CONSTRUCTION",
+  "product_gate": "PASS for 8A on Win-x64: target/product-gate/20260716T095204Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
+  "subphases": [
+    {
+      "subphase_id": "8A",
+      "state": "runnable",
+      "owner": "crates/io and apps/chataigne/src/module",
+      "evidence": [
+        "golden_io owns pending-work signaling, capped reconnect backoff, bounded weighted queues, named worker tasks, and deterministic test transports",
+        "Serial uses the shared worker and bounded queue; Serial, TCP client, WebSocket client, and Buttplug use the shared reconnect policy",
+        "cargo test -p golden_io",
+        "cargo test -p Chataigne2",
+        "cargo check -p Chataigne2 --all-targets",
+        "target/product-gate/20260716T095204Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
+    { "subphase_id": "8B", "state": "pending" },
+    { "subphase_id": "8C", "state": "pending" },
+    { "subphase_id": "8D", "state": "pending" },
+    { "subphase_id": "8E", "state": "pending" },
+    { "subphase_id": "8F", "state": "pending" },
+    { "subphase_id": "8G", "state": "pending" },
+    { "subphase_id": "8H", "state": "pending" },
+    { "subphase_id": "8I", "state": "pending" },
+    { "subphase_id": "8J", "state": "pending" }
+  ],
+  "carried_temporary_adapters": [
+    "phase6.app-domain-node-kernels"
+  ]
+}

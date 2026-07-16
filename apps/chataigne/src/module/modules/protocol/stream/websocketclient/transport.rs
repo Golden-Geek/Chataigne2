@@ -14,7 +14,7 @@ use tokio::runtime::{Builder, Runtime};
 use tokio::time::timeout;
 use tokio_tungstenite::{client_async_with_config, tungstenite::protocol::Message, WebSocketStream};
 
-use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{pending_channel, PendingReceiver, PendingSender, ReconnectBackoff};
 use crate::app::module::common::streaming::commands::StreamingSendFrameKind;
 use crate::app::module::common::streaming::websocket::{
     websocket_client_url, websocket_config, websocket_message,
@@ -154,7 +154,10 @@ fn worker_loop(
     };
 
     let mut stream = None;
-    let mut reconnect_delay = WEBSOCKET_RECONNECT_BASE_DELAY;
+    let mut reconnect_delay = ReconnectBackoff::new(
+        WEBSOCKET_RECONNECT_BASE_DELAY,
+        WEBSOCKET_RECONNECT_MAX_DELAY,
+    );
     let mut next_connect_at = Instant::now();
     let mut last_status = None;
 
@@ -164,7 +167,7 @@ fn worker_loop(
                 match connect_stream(&runtime, &config, remote_address) {
                     Ok(open_stream) => {
                         stream = Some(open_stream);
-                        reconnect_delay = WEBSOCKET_RECONNECT_BASE_DELAY;
+                        reconnect_delay.reset();
                         if !emit_status(
                             &event_tx,
                             &mut last_status,
@@ -451,14 +454,13 @@ fn enter_recovery(
     event_tx: &PendingSender<StreamingWorkerEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<WebSocketClientConnectionStatus>,
-    reconnect_delay: &mut Duration,
+    reconnect_delay: &mut ReconnectBackoff,
     next_connect_at: &mut Instant,
     remote_address: SocketAddr,
     message: String,
 ) -> bool {
     connected.store(false, Ordering::Release);
-    *next_connect_at = Instant::now() + *reconnect_delay;
-    *reconnect_delay = (*reconnect_delay * 2).min(WEBSOCKET_RECONNECT_MAX_DELAY);
+    *next_connect_at = reconnect_delay.schedule(Instant::now());
 
     emit_status(
         event_tx,

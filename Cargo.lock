@@ -19,6 +19,7 @@ dependencies = [
  "golden_codegen_support",
  "golden_condition",
  "golden_core",
+ "golden_io",
  "golden_values",
  "if-addrs",
  "image",
@@ -2610,6 +2611,10 @@ dependencies = [
  "serde_json",
  "tauri",
 ]
+
+[[package]]
+name = "golden_io"
+version = "0.1.0"
 
 [[package]]
 name = "golden_model"
