@@ -25,6 +25,11 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/generators/signals/mod.rs",
     "apps/chataigne/src/module/modules/protocol/stream/tcpclient/transport.rs",
     "apps/chataigne/src/module/modules/protocol/stream/websocketclient/transport.rs",
+    "apps/chataigne/src/module/modules/protocol/midi/midi_message/midi_message_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs",
+    "apps/chataigne/src/module/modules/protocol/midi/midi_module_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/osc/generic_osc_module_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs",
     "crates/io/src/lib.rs",
     "crates/core/src/engine/runtime/limits.rs",
     "crates/core/src/runtime_center.rs",
@@ -79,6 +84,19 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("Signal does not declare" in item for item in violations))
+
+    def test_osc_without_compiled_kernel_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs"
+            source = path.read_text(encoding="utf-8").replace(
+                ".with_compiled_kernel(OSC_COMPILED_KERNEL)", ""
+            )
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("OSC does not declare" in item for item in violations))
 
 
 if __name__ == "__main__":

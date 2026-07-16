@@ -14,6 +14,13 @@ use super::{
 };
 
 #[test]
+fn midi_module_declares_compiled_runtime_kernel_and_periodic_recovery() {
+    let rule = MidiModule::create().execution_rule();
+    assert_eq!(rule.compiled_kernel_key, Some("chataigne.runtime.midi"));
+    assert_eq!(rule.update_rate, Some(240));
+}
+
+#[test]
 fn midi_transport_connected_requires_every_selected_port_ready() {
     assert!(!midi_transport_connected(false, false, false, false));
     assert!(midi_transport_connected(true, true, false, false));

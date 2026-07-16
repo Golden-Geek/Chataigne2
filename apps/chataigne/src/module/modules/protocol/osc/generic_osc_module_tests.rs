@@ -16,6 +16,14 @@ use crate::app::{
 };
 
 #[test]
+fn osc_module_declares_compiled_runtime_kernel() {
+    assert_eq!(
+        GenericOscModule::create().execution_rule().compiled_kernel_key,
+        Some("chataigne.runtime.osc")
+    );
+}
+
+#[test]
 fn osc_module_script_descriptor_advertises_message_send_method() {
     let descriptor = GenericOscModule::create().engine_script_descriptor();
 

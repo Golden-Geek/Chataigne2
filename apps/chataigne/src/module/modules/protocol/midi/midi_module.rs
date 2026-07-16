@@ -38,6 +38,7 @@ use self::{
 use crate::app::MidiSendRequest;
 
 const MIDI_MODULE_UPDATE_RATE_HZ: u32 = 240;
+const MIDI_COMPILED_KERNEL: &str = "chataigne.runtime.midi";
 const MIDI_PORT_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const MIDI_INPUT_WARNING_ID: &str = "midi_input_connection";
 const MIDI_OUTPUT_WARNING_ID: &str = "midi_output_connection";
@@ -2552,6 +2553,7 @@ impl Node for MidiModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(MIDI_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel(MIDI_COMPILED_KERNEL)
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {

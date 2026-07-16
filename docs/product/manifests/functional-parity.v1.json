@@ -9927,7 +9927,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 344,
+          "line": 345,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         }
       ],
@@ -15298,7 +15298,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 200,
+          "line": 201,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         },
         {
@@ -17335,11 +17335,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 57,
+          "line": 58,
           "path": "apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs"
         },
         {
-          "line": 719,
+          "line": 720,
           "path": "apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs"
         }
       ],
@@ -23125,7 +23125,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 85,
+          "line": 86,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         }
       ],
@@ -24273,7 +24273,7 @@
           "path": "apps/chataigne/src/module/modules/protocol/mqtt/mod.rs"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs"
         }
       ],
@@ -24380,7 +24380,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 82,
+          "line": 83,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         }
       ],
@@ -24796,7 +24796,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 84,
+          "line": 85,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         }
       ],
@@ -24848,7 +24848,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 83,
+          "line": 84,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         }
       ],
@@ -25212,7 +25212,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 86,
+          "line": 87,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         }
       ],

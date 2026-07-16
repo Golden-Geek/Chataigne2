@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 4,
+  "revision": 6,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8B on Win-x64: target/product-gate/20260716T101347Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8C on Win-x64: target/product-gate/20260716T103001Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -35,7 +35,20 @@
         "target/product-gate/20260716T101347Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8C", "state": "pending" },
+    {
+      "subphase_id": "8C",
+      "state": "runnable",
+      "owner": "apps/chataigne/src/module/modules/protocol/osc and apps/chataigne/src/module/modules/protocol/midi",
+      "evidence": [
+        "OSC and MIDI declare distinct compile-assigned family kernel identities",
+        "OSC loopback covers ordered send/receive, dynamic batched value paths, commands, enable recovery, scripts, and sparse persistence",
+        "MIDI codec and module fixtures cover messages, sorted dynamic values, commands, clock/MTC state, scripts, and selected-port readiness",
+        "OSC periodically refreshes interfaces and rebinds dirty transports; MIDI periodically rescans ports and retries input/output handles",
+        "cargo test -p Chataigne2 osc_module_declares_compiled_runtime_kernel",
+        "cargo test -p Chataigne2 midi_module_declares_compiled_runtime_kernel_and_periodic_recovery",
+        "target/product-gate/20260716T103001Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8D", "state": "pending" },
     { "subphase_id": "8E", "state": "pending" },
     { "subphase_id": "8F", "state": "pending" },

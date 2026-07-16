@@ -23,6 +23,7 @@ const NETWORK_INTERFACE_WARNING_ID: &str = "network_interface_options";
 const OSC_RECEIVER_WARNING_ID: &str = "receiver_transport";
 const OSC_INTERFACE_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const OSC_MODULE_UPDATE_RATE_HZ: u32 = 120;
+const OSC_COMPILED_KERNEL: &str = "chataigne.runtime.osc";
 const OSC_OUTPUT_NODE_TYPE: &str = "osc_output";
 const OSC_MODULE_COMMAND_TYPES: &[&str] = &[crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE];
 const VALUE_LABEL_PREFIX: &str = "value ";
@@ -794,6 +795,7 @@ impl Node for OscModuleBase {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(OSC_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel(OSC_COMPILED_KERNEL)
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {

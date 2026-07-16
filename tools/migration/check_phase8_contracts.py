@@ -48,6 +48,26 @@ def collect_violations(root: Path) -> list[str]:
         root,
         "apps/chataigne/src/module/modules/generators/metronomes/metronomes_tests.rs",
     )
+    osc = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs",
+    )
+    osc_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/osc/generic_osc_module_tests.rs",
+    )
+    midi = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs",
+    )
+    midi_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/midi/midi_module_tests.rs",
+    )
+    midi_codec_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/protocol/midi/midi_message/midi_message_tests.rs",
+    )
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -115,6 +135,40 @@ def collect_violations(root: Path) -> list[str]:
         if fixture not in source:
             violations.append(f"Phase 8B is missing deterministic fixture `{fixture}`")
 
+    for family, source, kernel in (
+        ("OSC", osc, "chataigne.runtime.osc"),
+        ("MIDI", midi, "chataigne.runtime.midi"),
+    ):
+        if kernel not in source or "with_compiled_kernel" not in source:
+            violations.append(f"{family} does not declare its compiled kernel")
+    for contract in (
+        "OSC_INTERFACE_REFRESH_INTERVAL_SECS",
+        "interface_refresh_due",
+        "transport_dirty",
+    ):
+        if contract not in osc:
+            violations.append(f"OSC recovery is missing `{contract}`")
+    for contract in (
+        "MIDI_PORT_REFRESH_INTERVAL_SECS",
+        "refresh_port_options",
+        "self.input_dirty = true",
+        "self.output_dirty = true",
+    ):
+        if contract not in midi:
+            violations.append(f"MIDI recovery is missing `{contract}`")
+    for fixture, source in (
+        ("incoming_multi_message_auto_adds_missing_path_with_batched_trees", osc_tests),
+        ("osc_module_root_enable_toggle_stops_and_restarts_transport", osc_tests),
+        ("send_custom_message_command_sends_osc_packet_through_module_output", osc_tests),
+        ("sparse_project_round_trip_preserves_saved_osc_command_tester_children", osc_tests),
+        ("incoming_note_messages_create_one_direct_velocity_param", midi_tests),
+        ("incoming_system_messages_populate_mtc_and_midi_clock_folders", midi_tests),
+        ("midi_module_script_template_scaffolds_midi_callbacks_only", midi_tests),
+        ("note_on_round_trips_through_midly_codec", midi_codec_tests),
+    ):
+        if fixture not in source:
+            violations.append(f"Phase 8C is missing parity fixture `{fixture}`")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -124,7 +178,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8A is not recorded as runnable")
     if subphases.get("8B", {}).get("state") != "runnable":
         violations.append("Phase 8B is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T101347Z/product-gate-report.json"
+    if subphases.get("8C", {}).get("state") != "runnable":
+        violations.append("Phase 8C is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T103001Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}
