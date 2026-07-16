@@ -28069,6 +28069,165 @@
       "baseline_sources": [
         {
           "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ],
+      "capability_id": "script_method/streamdeck-callbacks-streamdeckkeypressed",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_method",
+        "inventory_name": "streamdeck_callbacks::streamDeckKeyPressed",
+        "method": "streamDeckKeyPressed",
+        "scope": "streamdeck_callbacks"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_method/streamdeck-callbacks-streamdeckkeypressed",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_method/streamdeck-callbacks-streamdeckkeypressed; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_method/streamdeck-callbacks-streamdeckkeypressed.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 3,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ],
+      "capability_id": "script_method/streamdeck-callbacks-streamdeckkeyreleased",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_method",
+        "inventory_name": "streamdeck_callbacks::streamDeckKeyReleased",
+        "method": "streamDeckKeyReleased",
+        "scope": "streamdeck_callbacks"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_method/streamdeck-callbacks-streamdeckkeyreleased",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_method/streamdeck-callbacks-streamdeckkeyreleased; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_method/streamdeck-callbacks-streamdeckkeyreleased.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 6,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ],
+      "capability_id": "script_method/streamdeck-callbacks-streamdeckpagechanged",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_method",
+        "inventory_name": "streamdeck_callbacks::streamDeckPageChanged",
+        "method": "streamDeckPageChanged",
+        "scope": "streamdeck_callbacks"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_method/streamdeck-callbacks-streamdeckpagechanged",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_method/streamdeck-callbacks-streamdeckpagechanged; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_method/streamdeck-callbacks-streamdeckpagechanged.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
           "path": "apps/chataigne/src/module/script_templates/snippets/app_control_callbacks.js"
         }
       ],
@@ -29752,6 +29911,108 @@
       "baseline_sources": [
         {
           "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ],
+      "capability_id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-callbacks-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_snippet",
+        "inventory_name": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-callbacks-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-callbacks-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-callbacks-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_functions.js"
+        }
+      ],
+      "capability_id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-functions-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_snippet",
+        "inventory_name": "apps/chataigne/src/module/script_templates/snippets/streamdeck_functions.js"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-functions-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-functions-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-functions-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
           "path": "crates/core/src/script/templates/snippets/callbacks.js"
         }
       ],
@@ -30839,19 +31100,19 @@
       "baseline_sources": [
         {
           "line": 1,
-          "path": "apps/chataigne/src/module/script_templates/spatializer.js"
+          "path": "apps/chataigne/src/module/script_templates/spatializer_module.js"
         }
       ],
-      "capability_id": "script_template/apps-chataigne-src-module-script-templates-spatializer-js",
+      "capability_id": "script_template/apps-chataigne-src-module-script-templates-spatializer-module-js",
       "discovered_facts": {
         "discovery_is_behavioral_proof": false,
         "inventory_kind": "script_template",
-        "inventory_name": "apps/chataigne/src/module/script_templates/spatializer.js",
-        "scope": "spatializer"
+        "inventory_name": "apps/chataigne/src/module/script_templates/spatializer_module.js",
+        "scope": "spatializer_module"
       },
       "evidence": {
         "artifact_id": null,
-        "id": "evidence/script_template/apps-chataigne-src-module-script-templates-spatializer-js",
+        "id": "evidence/script_template/apps-chataigne-src-module-script-templates-spatializer-module-js",
         "kind": "unassigned",
         "status": "pending"
       },
@@ -30871,7 +31132,7 @@
         "inputs": [],
         "ordering": null,
         "outputs": [],
-        "placeholder": "Characterize runtime semantics for script_template/apps-chataigne-src-module-script-templates-spatializer-js; source discovery is insufficient evidence.",
+        "placeholder": "Characterize runtime semantics for script_template/apps-chataigne-src-module-script-templates-spatializer-module-js; source discovery is insufficient evidence.",
         "recovery": null,
         "state": null,
         "status": "pending_characterization",
@@ -30880,7 +31141,59 @@
       "temporary_adapter": null,
       "user_workflow": {
         "expected_feedback": null,
-        "placeholder": "Record the exact baseline user workflow for script_template/apps-chataigne-src-module-script-templates-spatializer-js.",
+        "placeholder": "Record the exact baseline user workflow for script_template/apps-chataigne-src-module-script-templates-spatializer-module-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/streamdeck_module.js"
+        }
+      ],
+      "capability_id": "script_template/apps-chataigne-src-module-script-templates-streamdeck-module-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_template",
+        "inventory_name": "apps/chataigne/src/module/script_templates/streamdeck_module.js",
+        "scope": "streamdeck_module"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_template/apps-chataigne-src-module-script-templates-streamdeck-module-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_template/apps-chataigne-src-module-script-templates-streamdeck-module-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_template/apps-chataigne-src-module-script-templates-streamdeck-module-js.",
         "status": "pending_characterization",
         "steps": []
       },

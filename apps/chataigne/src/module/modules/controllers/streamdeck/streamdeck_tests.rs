@@ -5,6 +5,7 @@ use golden_core::{
     node::{Folder, Node, NodeId, NodeMetaPatch},
     parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
+    script::ScriptSource,
 };
 
 use super::streamdeck_runtime::SimulatedStreamDeck;
@@ -12,6 +13,30 @@ use super::StreamDeckModule;
 
 /// "mini" model => 6 keys.
 const MODEL_KEYS: usize = 6;
+
+#[test]
+fn streamdeck_script_template_scaffolds_functions_and_callbacks() {
+    let config =
+        crate::app::module::script_api::module_script_config(StreamDeckModule::NODE_TYPE);
+    let ScriptSource::Inline(source) = config.source else {
+        panic!("Stream Deck module script template should resolve to inline source");
+    };
+
+    for expected in [
+        "local.addPage",
+        "local.removePage",
+        "local.pressKey",
+        "local.releaseKey",
+        "function streamDeckKeyPressed",
+        "function streamDeckKeyReleased",
+        "function streamDeckPageChanged",
+    ] {
+        assert!(
+            source.contains(expected),
+            "Stream Deck script template is missing `{expected}`"
+        );
+    }
+}
 
 #[test]
 fn generates_one_based_control_and_flat_inputs() {

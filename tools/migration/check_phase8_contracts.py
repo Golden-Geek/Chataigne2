@@ -191,6 +191,17 @@ def collect_violations(root: Path) -> list[str]:
         "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte",
     )
     dashboard_route = read(root, "apps/chataigne/ui/src/routes/dashboard/+layout.svelte")
+    script_package = read(root, "crates/script/src/lib.rs")
+    script_runtime = read(root, "crates/core/src/script/mod.rs")
+    script_runtime_tests = read(root, "crates/script/tests/runtime_contract.rs")
+    module_script_tests = read(root, "apps/chataigne/src/module/script_api/tests.rs")
+    formula_catalog_tests = read(root, "apps/chataigne/src/state_machine_nodes/catalog_tests.rs")
+    product_files = json.loads(
+        read(root, "docs/product/manifests/product-files.v1.json")
+    )
+    product_surfaces = json.loads(
+        read(root, "docs/product/manifests/product-surfaces.v1.json")
+    )
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -457,6 +468,103 @@ def collect_violations(root: Path) -> list[str]:
     if "DashboardViewer" not in dashboard_route:
         violations.append("dashboard route does not mount the persistent viewer")
 
+    if "#![warn(missing_docs)]" not in script_package:
+        violations.append("golden_script does not enforce its public package contract")
+    for contract in (
+        "ScriptBudgets",
+        "callback_timed",
+        "ScriptSourceStamp",
+        "SCRIPT_HOST_CALL_BUDGET_MESSAGE",
+        "ScriptRuntimeError::BudgetViolation",
+    ):
+        if contract not in script_runtime:
+            violations.append(f"shared script runtime is missing `{contract}`")
+    for fixture in (
+        "public_script_runtime_loads_manifest_and_calls_exports",
+        "public_script_runtime_enforces_host_call_budget",
+        "public_script_runtime_reload_replaces_cached_manifest",
+    ):
+        if fixture not in script_runtime_tests:
+            violations.append(f"Phase 8H is missing public script fixture `{fixture}`")
+    if "module_script_templates_document_available_functions_for_each_module" not in module_script_tests:
+        violations.append("Phase 8H is missing the module script-template surface fixture")
+
+    expected_surface_counts = {
+        "anode": 37,
+        "command": 50,
+        "formula": 2,
+        "module": 23,
+        "node_type": 200,
+        "panel": 14,
+        "script_callback": 51,
+        "script_method": 51,
+        "script_snippet": 40,
+        "script_template": 24,
+    }
+    if product_surfaces.get("category_counts") != expected_surface_counts:
+        violations.append("Phase 8H product registration counts drifted from the recorded baseline")
+    surface_entries = product_surfaces.get("entries", [])
+    module_names = {
+        entry.get("name") for entry in surface_entries if entry.get("kind") == "module"
+    }
+    template_scopes = {
+        entry.get("facts", {}).get("scope")
+        for entry in surface_entries
+        if entry.get("kind") == "script_template"
+    }
+    if template_scopes - {"module"} != module_names or len(template_scopes) != len(module_names) + 1:
+        violations.append("Phase 8H does not have exactly one script template per module")
+    for entry in surface_entries:
+        if entry.get("kind") not in {
+            "formula",
+            "script_callback",
+            "script_method",
+            "script_snippet",
+            "script_template",
+        }:
+            continue
+        for source in entry.get("sources", []):
+            source_path = source.get("path")
+            if not source_path or not (root / source_path).is_file():
+                violations.append(f"Phase 8H surface `{entry.get('id')}` has a missing source")
+
+    file_entries = product_files.get("entries", [])
+    if product_files.get("category_counts") != {"asset": 90, "fixture": 3}:
+        violations.append("Phase 8H asset/fixture counts drifted from the recorded baseline")
+    asset_paths = {
+        entry.get("path") for entry in file_entries if entry.get("kind") == "asset"
+    }
+    missing_module_icons = {
+        module_name
+        for module_name in module_names
+        if f"apps/chataigne/ui/src/lib/assets/icons/nodes/{module_name}.svg" not in asset_paths
+    }
+    if missing_module_icons:
+        violations.append(
+            f"Phase 8H is missing module icons: {sorted(missing_module_icons)}"
+        )
+    for entry in file_entries:
+        path = entry.get("path")
+        if not path or not (root / path).is_file() or not entry.get("sha256"):
+            violations.append(f"Phase 8H file inventory entry `{entry.get('id')}` is invalid")
+
+    formulas = {
+        entry.get("name"): entry
+        for entry in surface_entries
+        if entry.get("kind") == "formula"
+    }
+    if set(formulas) != {"Action", "Mapping"} or any(
+        not entry.get("facts", {}).get("sha256") for entry in formulas.values()
+    ):
+        violations.append("Phase 8H formula assets do not exactly match Action and Mapping")
+    for fixture in (
+        "builtin_formula_with_sibling_svg_gets_icon_presentation",
+        "builtin_formula_without_sibling_icon_has_no_icon_presentation",
+        "processor_palette_builtin_items_expose_sibling_icon",
+    ):
+        if fixture not in formula_catalog_tests:
+            violations.append(f"Phase 8H is missing formula-asset fixture `{fixture}`")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -476,7 +584,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8F is not recorded as runnable")
     if subphases.get("8G", {}).get("state") != "runnable":
         violations.append("Phase 8G is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T113731Z/product-gate-report.json"
+    if subphases.get("8H", {}).get("state") != "runnable":
+        violations.append("Phase 8H is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T115920Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}

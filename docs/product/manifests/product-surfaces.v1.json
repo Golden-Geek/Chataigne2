@@ -7,9 +7,9 @@
     "node_type": 200,
     "panel": 14,
     "script_callback": 51,
-    "script_method": 48,
-    "script_snippet": 38,
-    "script_template": 23
+    "script_method": 51,
+    "script_snippet": 40,
+    "script_template": 24
   },
   "entries": [
     {
@@ -8686,6 +8686,63 @@
       ]
     },
     {
+      "certainty": "declared",
+      "discovery_methods": [
+        "template_function"
+      ],
+      "facts": {
+        "method": "streamDeckKeyPressed",
+        "scope": "streamdeck_callbacks"
+      },
+      "id": "script_method/streamdeck-callbacks-streamdeckkeypressed",
+      "kind": "script_method",
+      "name": "streamdeck_callbacks::streamDeckKeyPressed",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "template_function"
+      ],
+      "facts": {
+        "method": "streamDeckKeyReleased",
+        "scope": "streamdeck_callbacks"
+      },
+      "id": "script_method/streamdeck-callbacks-streamdeckkeyreleased",
+      "kind": "script_method",
+      "name": "streamdeck_callbacks::streamDeckKeyReleased",
+      "sources": [
+        {
+          "line": 3,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "template_function"
+      ],
+      "facts": {
+        "method": "streamDeckPageChanged",
+        "scope": "streamdeck_callbacks"
+      },
+      "id": "script_method/streamdeck-callbacks-streamdeckpagechanged",
+      "kind": "script_method",
+      "name": "streamdeck_callbacks::streamDeckPageChanged",
+      "sources": [
+        {
+          "line": 6,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ]
+    },
+    {
       "certainty": "file_discovered",
       "discovery_methods": [
         "snippet_file"
@@ -9219,6 +9276,38 @@
         "snippet_file"
       ],
       "facts": {},
+      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-callbacks-js",
+      "kind": "script_snippet",
+      "name": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "snippet_file"
+      ],
+      "facts": {},
+      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-functions-js",
+      "kind": "script_snippet",
+      "name": "apps/chataigne/src/module/script_templates/snippets/streamdeck_functions.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/streamdeck_functions.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "snippet_file"
+      ],
+      "facts": {},
       "id": "script_snippet/crates-core-src-script-templates-snippets-callbacks-js",
       "kind": "script_snippet",
       "name": "crates/core/src/script/templates/snippets/callbacks.js",
@@ -9587,15 +9676,33 @@
         "template_file"
       ],
       "facts": {
-        "scope": "spatializer"
+        "scope": "spatializer_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-spatializer-js",
+      "id": "script_template/apps-chataigne-src-module-script-templates-spatializer-module-js",
       "kind": "script_template",
-      "name": "apps/chataigne/src/module/script_templates/spatializer.js",
+      "name": "apps/chataigne/src/module/script_templates/spatializer_module.js",
       "sources": [
         {
           "line": 1,
-          "path": "apps/chataigne/src/module/script_templates/spatializer.js"
+          "path": "apps/chataigne/src/module/script_templates/spatializer_module.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "template_file"
+      ],
+      "facts": {
+        "scope": "streamdeck_module"
+      },
+      "id": "script_template/apps-chataigne-src-module-script-templates-streamdeck-module-js",
+      "kind": "script_template",
+      "name": "apps/chataigne/src/module/script_templates/streamdeck_module.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/streamdeck_module.js"
         }
       ]
     },

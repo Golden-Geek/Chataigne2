@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 14,
+  "revision": 16,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8G on Win-x64: target/product-gate/20260716T113731Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8H on Win-x64: target/product-gate/20260716T115920Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -117,7 +117,22 @@
         "target/product-gate/20260716T113731Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8H", "state": "pending" },
+    {
+      "subphase_id": "8H",
+      "state": "runnable",
+      "owner": "crates/script, apps/chataigne module scripting, and product manifests",
+      "evidence": [
+        "golden_script exposes the shared QuickJS runtime contract with callback wall-time, memory, host-call, edit, and event budgets plus source-stamp reload caching",
+        "public-package fixtures execute exports, return typed host-call budget violations, and replace cached manifests on reload",
+        "the generated product surface is locked to 23 module templates plus the shared base template, 51 script methods, 51 callbacks, 40 snippets, 2 formula assets, 37 ANodes, 50 commands, 14 panels, and 200 node types",
+        "the hashed product file inventory is locked to 90 assets and 3 fixtures; every baseline module has its app-owned node icon",
+        "Action and Mapping formula assets carry generated hashes and their optional sibling-icon presentation behavior remains covered",
+        "cargo test -p golden_script",
+        "cargo test -p Chataigne2 module_script_templates_document_available_functions_for_each_module",
+        "python tools/migration/product_manifest.py check",
+        "target/product-gate/20260716T115920Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8I", "state": "pending" },
     { "subphase_id": "8J", "state": "pending" }
   ],

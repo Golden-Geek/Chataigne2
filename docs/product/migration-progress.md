@@ -20,8 +20,8 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 - State: `CONSTRUCTION`; the Phase 8 module and specialized-subsystem interval is open from the
   immutable Phase 7 checkpoint `1a1609a`.
-- Current subphase: 8H shared script host, per-module script surfaces, formula assets, icons, and
-  product registrations. Spatializer and dashboard specialized authoring are now runnable.
+- Current subphase: 8I persistence, recovery, host, discovery, packaging, and release readiness.
+  The shared script host and complete generated product inventory are now runnable.
 - 8B proof: deterministic worker fixtures prove fixed-delta values, cycles, tick multiplicity, and
   counts. Local Win-x64 report `target/product-gate/20260716T101347Z/product-gate-report.json`
   passed all 38 required checks; 7 non-required checks were `NOT_RUN`.
@@ -46,6 +46,11 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
   backend and UI contracts enforce authored pages/widgets, bindings, drag/drop, resize,
   multi-selection, viewer routing, and live value intents. Local Win-x64 report
   `target/product-gate/20260716T113731Z/product-gate-report.json` passed all 38 required checks.
+- 8H focused proof: public `golden_script` fixtures cover export execution, typed host-call budget
+  failures, and cached-manifest replacement. Generated manifests enforce all 23 module templates
+  plus the shared base template, 51 methods, 51 callbacks, 40 snippets, Action/Mapping hashes, 90
+  assets, and every module icon. Local Win-x64 report
+  `target/product-gate/20260716T115920Z/product-gate-report.json` passed all 38 required checks.
 - Focused proof: local Win-x64 report
   `target/product-gate/20260716T095204Z/product-gate-report.json` passed all 38 required checks for
   the 8A tree; 7 non-required dependency/platform checks were `NOT_RUN`.
@@ -199,7 +204,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | 8E       | `RUNNABLE`     | All controller/hardware entries have family kernels and named deterministic adapter evidence; all 38 required product-gate checks pass |
 | 8F       | `RUNNABLE`     | App Control and OS have family kernels, named workers, lifecycle, and enforced platform fixtures; all 38 required product-gate checks pass |
 | 8G       | `RUNNABLE`     | Spatializer uses sparse Delaunay topology at the declared scale; dashboard/editor workflows are enforced; all 38 required product-gate checks pass |
-| 8H       | Pending        | Gate the shared script host and every method, callback, snippet/template, asset, icon, and registration               |
+| 8H       | `RUNNABLE`     | Public runtime/cache/budget contracts and the complete generated script/asset/registration inventory are enforced; all 38 required product-gate checks pass |
 | 8I       | Pending        | Gate persistence/recovery, desktop/headless/LAN hosts, discovery, packaging, and release assets                       |
 | 8J       | Pending        | Implement approved Art-Net/sACN/DMX and Node modules to the complete module standard                                  |
 

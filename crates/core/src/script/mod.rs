@@ -128,6 +128,7 @@ const SCRIPT_TEMPLATE_EXTENSIONS: [&str; 3] = ["js", "mjs", "cjs"];
 const SCRIPT_TEMPLATE_DEFAULT_SOURCE: &str = include_str!("templates/default.js");
 const SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ: u32 = 60;
 const SCRIPT_FILE_RELOAD_POLL_HZ: u32 = 30;
+const SCRIPT_HOST_CALL_BUDGET_MESSAGE: &str = "script host-call budget exceeded in current callback";
 
 struct ScriptTemplateResolved {
     source: String,
@@ -2290,8 +2291,13 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
     ) -> ScriptRuntimeError {
         match error {
             ScriptRuntimeError::QuickJs(message) => {
-                if Self::is_exception_placeholder(&message) {
-                    ScriptRuntimeError::QuickJs(format!("{phase}: {}", Self::describe_quickjs_exception(ctx)))
+                let message = if Self::is_exception_placeholder(&message) {
+                    Self::describe_quickjs_exception(ctx)
+                } else {
+                    message
+                };
+                if message.contains(SCRIPT_HOST_CALL_BUDGET_MESSAGE) {
+                    ScriptRuntimeError::BudgetViolation(format!("{phase}: {SCRIPT_HOST_CALL_BUDGET_MESSAGE}"))
                 } else {
                     ScriptRuntimeError::QuickJs(format!("{phase}: {message}"))
                 }

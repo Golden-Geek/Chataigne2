@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -76,6 +77,8 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/system/os/os.rs",
     "apps/chataigne/src/module/modules/system/os/os_runtime.rs",
     "apps/chataigne/src/module/modules/system/os/os_tests.rs",
+    "apps/chataigne/src/module/script_api/tests.rs",
+    "apps/chataigne/src/state_machine_nodes/catalog_tests.rs",
     "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
     "apps/chataigne/ui/src/routes/dashboard/+layout.svelte",
     "crates/core/src/node/dashboard/mod.rs",
@@ -83,8 +86,13 @@ CONTRACT_FILES = (
     "crates/io/src/lib.rs",
     "crates/core/src/engine/runtime/limits.rs",
     "crates/core/src/runtime_center.rs",
+    "crates/core/src/script/mod.rs",
+    "crates/script/src/lib.rs",
+    "crates/script/tests/runtime_contract.rs",
     "docs/product/manifests/phase8-cutovers.v1.json",
     "docs/product/manifests/phase8-hardware-evidence.v1.json",
+    "docs/product/manifests/product-files.v1.json",
+    "docs/product/manifests/product-surfaces.v1.json",
     "docs/product/migration-progress.md",
     "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte",
     "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte",
@@ -93,10 +101,31 @@ CONTRACT_FILES = (
 
 
 def copy_contract_tree(root: Path, copy: Path) -> None:
-    for relative in CONTRACT_FILES:
+    relative_paths = set(CONTRACT_FILES)
+    product_surfaces = json.loads(
+        (root / "docs/product/manifests/product-surfaces.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    for entry in product_surfaces.get("entries", []):
+        relative_paths.update(
+            source["path"]
+            for source in entry.get("sources", [])
+            if source.get("path")
+        )
+    product_files = json.loads(
+        (root / "docs/product/manifests/product-files.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    relative_paths.update(
+        entry["path"] for entry in product_files.get("entries", []) if entry.get("path")
+    )
+
+    for relative in sorted(relative_paths):
         target = copy / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text((root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+        shutil.copy2(root / relative, target)
 
 
 class Phase8ContractTests(unittest.TestCase):
@@ -197,6 +226,23 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("Spatializer compiled topology" in item for item in violations))
+
+    def test_missing_module_icon_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "docs/product/manifests/product-files.v1.json"
+            inventory = json.loads(path.read_text(encoding="utf-8"))
+            inventory["entries"] = [
+                entry
+                for entry in inventory["entries"]
+                if entry.get("path")
+                != "apps/chataigne/ui/src/lib/assets/icons/nodes/osc_module.svg"
+            ]
+            path.write_text(json.dumps(inventory), encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("missing module icons" in item for item in violations))
 
 
 if __name__ == "__main__":
