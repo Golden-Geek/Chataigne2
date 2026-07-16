@@ -5,15 +5,15 @@ import type { UiUserContextEntryDto } from "./UiUserContextEntryDto";
 /**
  * UI payload for one scope owned by one node.
  */
-export type UiUserContextScopeDto = { 
+export type UiUserContextScopeDto = {
 /**
  * Scope owner node id.
  */
-owner: NodeId, 
+owner: NodeId,
 /**
  * Scope generation.
  */
-generation: number, 
+generation: number,
 /**
  * Scope entries.
  */

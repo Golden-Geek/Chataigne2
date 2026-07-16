@@ -4,7 +4,7 @@ import type { NodeUuid } from "./NodeUuid";
 /**
  * Root scope used to validate and recover reference parameters.
  */
-export type ReferenceRoot = "EngineRoot" | { "Uuid": NodeUuid } | { "RelativeToOwner": { 
+export type ReferenceRoot = "EngineRoot" | { "Uuid": NodeUuid } | { "RelativeToOwner": {
 /**
  * Child decl-id path under the owner node (parameter parent).
  */

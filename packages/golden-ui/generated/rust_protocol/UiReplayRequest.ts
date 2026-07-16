@@ -5,11 +5,11 @@ import type { UiSubscriptionScope } from "./UiSubscriptionScope";
 /**
  * HTTP replay request payload.
  */
-export type UiReplayRequest = { 
+export type UiReplayRequest = {
 /**
  * Requested replay scope.
  */
-scope: UiSubscriptionScope, 
+scope: UiSubscriptionScope,
 /**
  * Optional replay cursor.
  */

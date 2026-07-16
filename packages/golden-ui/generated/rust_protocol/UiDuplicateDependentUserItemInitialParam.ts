@@ -5,11 +5,11 @@ import type { UiDuplicateDependentInitialParamValue } from "./UiDuplicateDepende
 /**
  * Initializer for an item that depends on roots materialized earlier in the same copy batch.
  */
-export type UiDuplicateDependentUserItemInitialParam = { 
+export type UiDuplicateDependentUserItemInitialParam = {
 /**
  * Direct child decl id on the newly-created dependent item.
  */
-decl_id: DeclId, 
+decl_id: DeclId,
 /**
  * Literal value or a reference resolved from the copy batch source map.
  */

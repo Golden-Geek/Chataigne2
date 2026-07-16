@@ -5,35 +5,35 @@ import type { PresentationHint } from "./PresentationHint";
 /**
  * Incremental metadata patch for one UI node.
  */
-export type UiNodeMetaPatch = { 
+export type UiNodeMetaPatch = {
 /**
  * Replacement display label.
  */
-label?: string | null, 
+label?: string | null,
 /**
  * Replacement short script/reference name.
  */
-short_name?: string | null, 
+short_name?: string | null,
 /**
  * Replacement enabled state.
  */
-enabled?: boolean | null, 
+enabled?: boolean | null,
 /**
  * Replacement disablement capability.
  */
-can_be_disabled?: boolean | null, 
+can_be_disabled?: boolean | null,
 /**
  * Replacement optional description, where `Some(None)` clears it.
  */
-description?: string | null | null, 
+description?: string | null | null,
 /**
  * Replacement user-edit permissions.
  */
-user_permissions?: NodeUserPermissions | null, 
+user_permissions?: NodeUserPermissions | null,
 /**
  * Replacement tag list.
  */
-tags?: Array<string> | null, 
+tags?: Array<string> | null,
 /**
  * Replacement presentation hints.
  */

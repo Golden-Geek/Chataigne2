@@ -4,7 +4,6 @@ import type {
 	ParamEventBehaviour,
 	ParamValue,
 	UiAck,
-	UiClient,
 	UiCreatableUserItem,
 	UiCreateUserItemInitialParam,
 	UiDuplicateDependentUserItemInitialParam,
@@ -57,31 +56,42 @@ import type { UiProjectPathRequest as RustProjectPathRequest } from '../generate
 import type { UiProjectUploadRequest as RustProjectUploadRequest } from '../generated/rust_protocol/UiProjectUploadRequest';
 import type { UiReferenceTargetsDto as RustReferenceTargetsResponse } from '../generated/rust_protocol/UiReferenceTargetsDto';
 import type { UiReferenceTargetsRequest as RustReferenceTargetsRequest } from '../generated/rust_protocol/UiReferenceTargetsRequest';
-import type { UiReplayRequest as RustReplayRequest } from '../generated/rust_protocol/UiReplayRequest';
 import type { UiScriptConfigRequest as RustScriptConfigRequest } from '../generated/rust_protocol/UiScriptConfigRequest';
 import type { UiScriptReloadRequest as RustScriptReloadRequest } from '../generated/rust_protocol/UiScriptReloadRequest';
 import type { UiScriptStateRequest as RustScriptStateRequest } from '../generated/rust_protocol/UiScriptStateRequest';
 import type { UiSnapshot as RustUiSnapshot } from '../generated/rust_protocol/UiSnapshot';
-import type { UiSnapshotRequest as RustSnapshotRequest } from '../generated/rust_protocol/UiSnapshotRequest';
 import type { UiSubscriptionScope as RustUiSubscriptionScope } from '../generated/rust_protocol/UiSubscriptionScope';
 import type { JsonValue as RustJsonValue } from '../generated/rust_protocol/serde_json/JsonValue';
 import { isCssUnit } from '../css-value';
-import { wholeGraphScope } from '../types';
 import { getUiClientInstanceId } from './client-instance';
 
 const DEFAULT_BASE_URL = 'http://localhost:7010/api/ui';
-const DEFAULT_POLL_INTERVAL_MS = 150;
 const DEFAULT_POST_TIMEOUT_MS = 15000;
 const PROJECT_LOAD_TIMEOUT_MS = 60000;
 
 interface HttpClientOptions {
 	baseUrl?: string;
-	pollIntervalMs?: number;
 	fetchImpl?: typeof fetch;
 }
 
 interface PostJsonOptions {
 	timeoutMs?: number;
+}
+
+export interface UiHttpAuxiliaryClient {
+	referenceTargets(paramNodeId: number): Promise<UiReferenceTargets>;
+	paramControlInfo(paramNodeId: number): Promise<UiParamControlInfo>;
+	scriptState(nodeId: number): Promise<UiScriptState>;
+	setScriptConfig(nodeId: number, config: UiScriptConfig, forceReload?: boolean): Promise<void>;
+	reloadScript(nodeId: number): Promise<void>;
+	projectNew(): Promise<void>;
+	projectSave(path: string, uiState?: unknown): Promise<void>;
+	projectLoad(path: string, options?: UiProjectLoadOptions): Promise<UiProjectFileLoadResult>;
+	projectUploadLoad(
+		fileName: string,
+		contents: string,
+		options?: UiProjectLoadOptions
+	): Promise<UiProjectFileLoadResult>;
 }
 
 export type RustScope = RustUiSubscriptionScope;
@@ -811,7 +821,11 @@ const fromRustParamControlCandidate = (value: unknown): UiParamControlCandidate 
 
 const fromRustReferenceTargetCandidate = (
 	value: unknown
-): { target_id: number; direct: boolean; projections: UiParamValueProjection[] } | null => {
+): {
+	target_id: number;
+	direct: boolean;
+	projections: UiParamValueProjection[];
+} | null => {
 	if (!isRecord(value)) {
 		return null;
 	}
@@ -932,7 +946,10 @@ const fromRustSchemaEnumVariants = (
 
 const parseRustSchemaEnums = (
 	definitions: RustUiSchemaEnumDefinition[] | undefined
-): { enums: UiSnapshot['schema']['enums']; enumOptionsById: EnumOptionsById } => {
+): {
+	enums: UiSnapshot['schema']['enums'];
+	enumOptionsById: EnumOptionsById;
+} => {
 	const enums: UiSnapshot['schema']['enums'] = [];
 	const enumOptionsById: EnumOptionsById = new Map();
 	for (const definition of definitions ?? []) {
@@ -1024,7 +1041,10 @@ const fromRustNodeData = (
 	enumOptionsById: EnumOptionsById
 ): UiNodeDataDto => {
 	if (data.kind === 'parameter') {
-		return { kind: 'parameter', param: fromRustParam(data.param, enumOptionsById) };
+		return {
+			kind: 'parameter',
+			param: fromRustParam(data.param, enumOptionsById)
+		};
 	}
 	return { kind: 'node', node_type: data.node_type };
 };
@@ -1246,7 +1266,10 @@ const fromRustEvent = (event: RustUiEventDto): UiEventDto => {
 			}
 			if (isRecord(op) && op.kind === 'subtreeInserted') {
 				const rawNodes = Array.isArray(op.nodes) ? (op.nodes as unknown[]) : [];
-				return { ...op, nodes: rawNodes.map((n) => fromRustEventNodeSnapshot(n)) };
+				return {
+					...op,
+					nodes: rawNodes.map((n) => fromRustEventNodeSnapshot(n))
+				};
 			}
 			return op;
 		});
@@ -1389,7 +1412,7 @@ export const fromRustParamControlInfo = (
 	};
 };
 
-const fromRustAck = (ack: RustUiAck): UiAck => ({
+export const fromRustAck = (ack: RustUiAck): UiAck => ({
 	success: ack.success,
 	status: ack.status,
 	error_code: ack.error_code ?? undefined,
@@ -1481,10 +1504,11 @@ const formatError = (context: string, response: Response, body: unknown): Error 
 	);
 };
 
-export const createHttpUiClient = (options: HttpClientOptions = {}): UiClient => {
+export const createHttpAuxiliaryClient = (
+	options: HttpClientOptions = {}
+): UiHttpAuxiliaryClient => {
 	const fetchImpl = options.fetchImpl ?? fetch;
 	const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
-	const pollIntervalMs = Math.max(50, options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
 	const clientInstanceId = getUiClientInstanceId();
 
 	const postJson = async <TResponse>(
@@ -1539,124 +1563,7 @@ export const createHttpUiClient = (options: HttpClientOptions = {}): UiClient =>
 		}
 	};
 
-	const client: UiClient = {
-		async snapshot(scope: UiSubscriptionScope = wholeGraphScope): Promise<UiSnapshot> {
-			const totalStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
-			const request: RustSnapshotRequest = {
-				scope: toRustScope(scope),
-				cancel_active_edit_session: true
-			};
-			const fetchStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
-			const response = await fetchImpl(`${baseUrl}/snapshot`, {
-				method: 'POST',
-				headers: {
-					'content-type': 'application/json',
-					'x-gc-ui-client-instance': clientInstanceId
-				},
-				body: JSON.stringify(request)
-			});
-			const fetchMs =
-				(typeof performance !== 'undefined' ? performance.now() : Date.now()) - fetchStart;
-
-			const readStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
-			const text = await response.text();
-			const readMs =
-				(typeof performance !== 'undefined' ? performance.now() : Date.now()) - readStart;
-
-			const parseStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
-			let body: unknown = undefined;
-			if (text.length > 0) {
-				try {
-					body = JSON.parse(text) as unknown;
-				} catch {
-					body = text;
-				}
-			}
-
-			if (!response.ok) {
-				throw formatError(`POST /snapshot`, response, body);
-			}
-
-			const snapshot = body as RustUiSnapshot;
-			const parsed = fromRustSnapshot(snapshot);
-			const parseMs =
-				(typeof performance !== 'undefined' ? performance.now() : Date.now()) - parseStart;
-			const totalMs =
-				(typeof performance !== 'undefined' ? performance.now() : Date.now()) - totalStart;
-
-			(parsed as any).__timings = { fetchMs, readMs, parseMs, totalMs, bytes: text.length };
-			return parsed;
-		},
-
-		subscribe(
-			scope: UiSubscriptionScope,
-			from: EventTime | undefined,
-			onBatch: (batch: UiEventBatch) => void
-		): () => void {
-			let cursor = from;
-			let active = true;
-			let inFlight = false;
-
-			const poll = async (): Promise<void> => {
-				if (!active || inFlight) {
-					return;
-				}
-				inFlight = true;
-				try {
-					const batch = await client.replay(scope, cursor);
-					if (!active) {
-						return;
-					}
-					if (batch.events.length > 0 || batch.runtime) {
-						onBatch(batch);
-					}
-					if (batch.to) {
-						cursor = batch.to;
-					}
-				} catch (error) {
-					console.error('ui subscribe replay polling failed', error);
-				} finally {
-					inFlight = false;
-				}
-			};
-
-			const timer = setInterval(() => {
-				void poll();
-			}, pollIntervalMs);
-			void poll();
-
-			return () => {
-				active = false;
-				clearInterval(timer);
-			};
-		},
-
-		async sendIntent(intent: UiEditIntent): Promise<UiAck> {
-			const ack = await postJson<RustUiAck>('/intent', toRustIntent(intent));
-			return fromRustAck(ack);
-		},
-
-		async sendIntents(intents: UiEditIntent[]): Promise<UiAck[]> {
-			if (intents.length === 0) {
-				return [];
-			}
-			if (intents.length === 1) {
-				return [await client.sendIntent(intents[0])];
-			}
-			const payload = intents.map((intent) => toRustIntent(intent));
-			const acks = await postJson<RustUiAck[]>('/intent/batch', payload);
-			if (!Array.isArray(acks)) {
-				throw new Error('POST /intent/batch returned invalid payload');
-			}
-			return acks.map(fromRustAck);
-		},
-
-		async replay(scope: UiSubscriptionScope, from?: EventTime): Promise<UiEventBatch> {
-			const request: RustReplayRequest = { scope: toRustScope(scope), from };
-			const batch = await postJson<RustUiEventBatch>('/replay', request);
-			return fromRustEventBatch(batch);
-		},
-
+	const client: UiHttpAuxiliaryClient = {
 		async referenceTargets(paramNodeId: number): Promise<UiReferenceTargets> {
 			const request: RustReferenceTargetsRequest = { param: paramNodeId };
 			const response = await postJson<RustReferenceTargetsResponse>('/reference-targets', request);

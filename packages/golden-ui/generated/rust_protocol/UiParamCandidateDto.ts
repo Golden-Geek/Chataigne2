@@ -5,15 +5,15 @@ import type { ParamValueProjection } from "./ParamValueProjection";
 /**
  * UI-facing control candidate for proxy/binding target pickers.
  */
-export type UiParamCandidateDto = { 
+export type UiParamCandidateDto = {
 /**
  * Candidate parameter node id.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Whether candidate value type is compatible.
  */
-compatible: boolean, 
+compatible: boolean,
 /**
  * Projections that enable compatibility.
  */

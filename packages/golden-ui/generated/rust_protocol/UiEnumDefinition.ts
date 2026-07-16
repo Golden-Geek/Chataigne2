@@ -4,11 +4,11 @@ import type { UiEnumVariantDefinition } from "./UiEnumVariantDefinition";
 /**
  * UI-facing enum descriptor.
  */
-export type UiEnumDefinition = { 
+export type UiEnumDefinition = {
 /**
  * Stable enum id.
  */
-enum_id: string, 
+enum_id: string,
 /**
  * Enum variant definitions.
  */

@@ -9,19 +9,19 @@ import type { ParamValueProjection } from "./ParamValueProjection";
  * The cached runtime id is optional and never serialized.
  * A cached display name is persisted to keep dangling references user-readable.
  */
-export type NodeReference = { 
+export type NodeReference = {
 /**
  * Persistent target identity.
  */
-uuid: NodeUuid, 
+uuid: NodeUuid,
 /**
  * Optional projection applied when resolving source value from this target.
  */
-projection?: ParamValueProjection | null, 
+projection?: ParamValueProjection | null,
 /**
  * Cached user-facing target name used when the reference is currently unresolved.
  */
-cached_name?: string | null, 
+cached_name?: string | null,
 /**
  * Optional relative path from the resolved root to this target.
  *

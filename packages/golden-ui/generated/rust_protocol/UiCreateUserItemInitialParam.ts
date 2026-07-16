@@ -5,11 +5,11 @@ import type { ParamValue } from "./ParamValue";
 /**
  * Direct parameter initializer applied immediately after one user-item is created.
  */
-export type UiCreateUserItemInitialParam = { 
+export type UiCreateUserItemInitialParam = {
 /**
  * Direct child decl id on the newly-created root node.
  */
-decl_id: DeclId, 
+decl_id: DeclId,
 /**
  * Initial value to assign.
  */

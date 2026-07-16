@@ -5,15 +5,15 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * HTTP response payload carrying a resolved project path.
  */
-export type UiProjectPathDto = { 
+export type UiProjectPathDto = {
 /**
  * Resolved project path on the host.
  */
-path: string, 
+path: string,
 /**
  * Optional project-owned UI state loaded from the project document.
  */
-ui_state?: JsonValue | null, 
+ui_state?: JsonValue | null,
 /**
  * Recovery diagnostics when the user approved a partial project load.
  */

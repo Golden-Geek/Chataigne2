@@ -3,11 +3,11 @@
 /**
  * One recorded sample used when fitting a curve to bezier keys.
  */
-export type CurveFitPoint = { 
+export type CurveFitPoint = {
 /**
  * Sample position on the curve domain axis.
  */
-position: number, 
+position: number,
 /**
  * Sample value on the curve value axis.
  */

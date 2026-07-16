@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": 6,
-  "revision": 5,
+  "revision": 6,
   "tested_tree_base": "c1e604f95cd11e7d17e4db31686b0caadd2bae10",
   "validation_state": "CHECKPOINT_RUNNABLE",
   "product_gate": "PASS: Win-x64 local report target/product-gate/20260715T201806Z/product-gate-report.json; all 35 required checks passed on the allocation-stable compiled domain-schedule tree, including debug/release P50-L1 and P5-L127 fixtures, production OSC module loopback ordering, root launch workflows, mounted UI, LAN browser, and Windows product build; 8 non-required dependency/platform checks were NOT_RUN",
@@ -118,7 +118,7 @@
     {
       "adapter_id": "phase6.ui-control-observation-compat",
       "owner": "Golden UI and transport maintainers",
-      "scope": "The complete current HTTP/WebSocket UI continues to use UiEditIntent, UiReadModel, snapshots, and event batches while Phase 7 migrates generated multi-plane stores panel by panel.",
+      "scope": "Retired adapter: the complete HTTP/WebSocket UI formerly used the mixed UiEditIntent, snapshot, and UiEventBatch wire path before the generated Phase 7 multi-plane client cutover.",
       "authoritative_path": "crates/core/src/application.rs and crates/transport_server/src/ui_server.rs",
       "introduced_phase": "Phase 6 control-plane construction",
       "expiry_phase": "Phase 7F",
@@ -130,8 +130,14 @@
         "product-gate real browser and LAN workflows"
       ],
       "side_effect_policy": "The adapter submits each intent exactly once to the actor-owned authoritative path and only projects immutable read-model observations; it cannot duplicate semantic execution or module effects.",
-      "current_state": "active",
-      "removed_in": null
+      "current_state": "removed",
+      "removed_in": "Phase 7 generated multi-plane protocol and UI-store cutover",
+      "deletion_evidence": [
+        "UiClientMessage and UiServerMessage are Rust-owned generated protocol declarations",
+        "the production client sends snapshots, replay, control, subscriptions, and scoped resync exclusively over the generated WebSocket protocol",
+        "the all-purpose HTTP UI client and polling fallback are removed",
+        "tools/migration/check_phase7_contracts.py"
+      ]
     },
     {
       "adapter_id": "phase2.production-engine-runtime",

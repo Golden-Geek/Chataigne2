@@ -10,47 +10,47 @@ import type { UserNodeRole } from "./UserNodeRole";
 /**
  * UI-facing node DTO.
  */
-export type UiNodeDto = { 
+export type UiNodeDto = {
 /**
  * Runtime node id.
  */
-node_id: NodeId, 
+node_id: NodeId,
 /**
  * Stable persistent uuid.
  */
-uuid: NodeUuid, 
+uuid: NodeUuid,
 /**
  * Declared id for this node in its parent scope.
  */
-decl_id: DeclId, 
+decl_id: DeclId,
 /**
  * Runtime node type identifier.
  */
-node_type: string, 
+node_type: string,
 /**
  * User-facing metadata.
  */
-meta: UiNodeMetaDto, 
+meta: UiNodeMetaDto,
 /**
  * Node payload summary.
  */
-data: UiNodeDataDto, 
+data: UiNodeDataDto,
 /**
  * Runtime role for user curation semantics.
  */
-user_role: UserNodeRole, 
+user_role: UserNodeRole,
 /**
  * Logical item kind used by container admission.
  */
-user_item_kind: string, 
+user_item_kind: string,
 /**
  * Accepted item kinds when this node acts as a container.
  */
-accepted_user_item_kinds?: Array<string>, 
+accepted_user_item_kinds?: Array<string>,
 /**
  * User-creatable item node types for this container instance.
  */
-creatable_user_items?: Array<UiCreatableUserItemDto>, 
+creatable_user_items?: Array<UiCreatableUserItemDto>,
 /**
  * Direct children ids in visual order.
  */

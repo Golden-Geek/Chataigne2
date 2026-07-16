@@ -3,27 +3,27 @@
 /**
  * UI-facing history status payload.
  */
-export type UiHistoryState = { 
+export type UiHistoryState = {
 /**
  * Whether undo is currently possible.
  */
-can_undo: boolean, 
+can_undo: boolean,
 /**
  * Whether redo is currently possible.
  */
-can_redo: boolean, 
+can_redo: boolean,
 /**
  * Number of undo transactions available.
  */
-undo_len: number, 
+undo_len: number,
 /**
  * Number of redo transactions available.
  */
-redo_len: number, 
+redo_len: number,
 /**
  * Whether an edit session is currently active.
  */
-active_edit_session: boolean, 
+active_edit_session: boolean,
 /**
  * Logical content-state id for the current graph relative to undo/redo history.
  */

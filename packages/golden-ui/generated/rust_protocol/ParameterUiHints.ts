@@ -3,11 +3,11 @@
 /**
  * UI presentation hints for parameter editors.
  */
-export type ParameterUiHints = { 
+export type ParameterUiHints = {
 /**
  * Preferred widget id (for example `slider`, `toggle`, `text`).
  */
-widget?: string | null, 
+widget?: string | null,
 /**
  * Optional display unit.
  */

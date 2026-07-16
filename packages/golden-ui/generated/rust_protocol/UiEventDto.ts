@@ -13,167 +13,167 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * UI-facing event payload.
  */
-export type UiEventDto = { 
+export type UiEventDto = {
 /**
  * Event time.
  */
-time: EngineTime, } & ({ "kind": "graphTransaction", 
+time: EngineTime, } & ({ "kind": "graphTransaction",
 /**
  * Monotonic transaction id within the current project epoch.
  */
-tx_id: number, 
+tx_id: number,
 /**
  * Project epoch this transaction belongs to.
  */
-epoch: number, 
+epoch: number,
 /**
  * Graph version expected before applying `ops`.
  */
-base_graph_version: number, 
+base_graph_version: number,
 /**
  * Graph version after applying `ops`.
  */
-next_graph_version: number, 
+next_graph_version: number,
 /**
  * Ordered patch operations applied atomically by the UI.
  */
-ops: Array<UiGraphOp>, } | { "kind": "paramChanged", 
+ops: Array<UiGraphOp>, } | { "kind": "paramChanged",
 /**
  * Parameter node id.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Previous value.
  */
-old_value: ParamValue, 
+old_value: ParamValue,
 /**
  * New value.
  */
-new_value: ParamValue, } | { "kind": "paramControlChanged", 
+new_value: ParamValue, } | { "kind": "paramControlChanged",
 /**
  * Parameter node id.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Previous control state.
  */
-old_state: UiParameterControlStateDto, 
+old_state: UiParameterControlStateDto,
 /**
  * New control state.
  */
-new_state: UiParameterControlStateDto, } | { "kind": "paramConstraintsChanged", 
+new_state: UiParameterControlStateDto, } | { "kind": "paramConstraintsChanged",
 /**
  * Parameter node id.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Previous constraints.
  */
-old_constraints: ParameterConstraints, 
+old_constraints: ParameterConstraints,
 /**
  * New constraints.
  */
-new_constraints: ParameterConstraints, } | { "kind": "childAdded", 
+new_constraints: ParameterConstraints, } | { "kind": "childAdded",
 /**
  * Parent id.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Child id.
  */
-child: NodeId, 
+child: NodeId,
 /**
  * Declared slot id.
  */
-decl_id: DeclId, 
+decl_id: DeclId,
 /**
  * Current direct child order for the parent when available.
  */
-parent_children?: Array<NodeId> | null, } | { "kind": "childRemoved", 
+parent_children?: Array<NodeId> | null, } | { "kind": "childRemoved",
 /**
  * Parent id.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Child id.
  */
-child: NodeId, } | { "kind": "childReplaced", 
+child: NodeId, } | { "kind": "childReplaced",
 /**
  * Parent id.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Old child id.
  */
-old: NodeId, 
+old: NodeId,
 /**
  * New child id.
  */
-new: NodeId, 
+new: NodeId,
 /**
  * Declared slot id.
  */
-decl_id: DeclId, } | { "kind": "childMoved", 
+decl_id: DeclId, } | { "kind": "childMoved",
 /**
  * Child id.
  */
-child: NodeId, 
+child: NodeId,
 /**
  * Previous parent id.
  */
-old_parent: NodeId, 
+old_parent: NodeId,
 /**
  * New parent id.
  */
-new_parent: NodeId, 
+new_parent: NodeId,
 /**
  * Current direct child order for the previous parent when available.
  */
-old_parent_children?: Array<NodeId> | null, 
+old_parent_children?: Array<NodeId> | null,
 /**
  * Current direct child order for the new parent when available.
  */
-new_parent_children?: Array<NodeId> | null, } | { "kind": "childReordered", 
+new_parent_children?: Array<NodeId> | null, } | { "kind": "childReordered",
 /**
  * Parent id.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Child id.
  */
-child: NodeId, 
+child: NodeId,
 /**
  * Current direct child order for the parent when available.
  */
-parent_children?: Array<NodeId> | null, } | { "kind": "nodeCreated", 
+parent_children?: Array<NodeId> | null, } | { "kind": "nodeCreated",
 /**
  * Node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Node snapshot for incremental UI insertion when the node is still live.
  */
-snapshot?: UiNodeDto | null, } | { "kind": "nodeDeleted", 
+snapshot?: UiNodeDto | null, } | { "kind": "nodeDeleted",
 /**
  * Node id.
  */
-node: NodeId, } | { "kind": "metaChanged", 
+node: NodeId, } | { "kind": "metaChanged",
 /**
  * Node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Applied patch.
  */
-patch: NodeMetaPatch, } | { "kind": "custom", 
+patch: NodeMetaPatch, } | { "kind": "custom",
 /**
  * Topic.
  */
-topic: string, 
+topic: string,
 /**
  * Origin node when known.
  */
-origin: NodeId | null, 
+origin: NodeId | null,
 /**
  * Raw JSON payload.
  */

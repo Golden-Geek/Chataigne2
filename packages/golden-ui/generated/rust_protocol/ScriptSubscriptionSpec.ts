@@ -4,11 +4,11 @@ import type { ScriptNodeSelector } from "./ScriptNodeSelector";
 /**
  * One subscription entry declared by a script.
  */
-export type ScriptSubscriptionSpec = { 
+export type ScriptSubscriptionSpec = {
 /**
  * Target selector.
  */
-node: ScriptNodeSelector, 
+node: ScriptNodeSelector,
 /**
  * Maximum depth under target.
  */

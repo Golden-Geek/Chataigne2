@@ -3,11 +3,11 @@
 /**
  * HTTP response payload for one skipped project-load problem.
  */
-export type UiProjectLoadProblemDto = { 
+export type UiProjectLoadProblemDto = {
 /**
  * Stable load stage identifier.
  */
-stage: string, 
+stage: string,
 /**
  * Human-readable problem description.
  */

@@ -5,43 +5,43 @@ import type { PresentationHint } from "./PresentationHint";
 /**
  * UI-facing node metadata payload.
  */
-export type UiNodeMetaDto = { 
+export type UiNodeMetaDto = {
 /**
  * Generated short name.
  */
-short_name: string, 
+short_name: string,
 /**
  * User-visible label.
  */
-label: string, 
+label: string,
 /**
  * Enabled flag.
  */
-enabled: boolean, 
+enabled: boolean,
 /**
  * Whether disable is allowed.
  */
-can_be_disabled: boolean, 
+can_be_disabled: boolean,
 /**
  * User-edit permissions.
  */
-user_permissions?: NodeUserPermissions, 
+user_permissions?: NodeUserPermissions,
 /**
  * Optional description.
  */
-description?: string | null, 
+description?: string | null,
 /**
  * Shared declaration-description key resolved via `UiSchemaView.declared_descriptions`.
  */
-declared_description_key?: string | null, 
+declared_description_key?: string | null,
 /**
  * Whether `description` is an instance-level override relative to the declared description.
  */
-description_overridden?: boolean, 
+description_overridden?: boolean,
 /**
  * Optional tags.
  */
-tags?: Array<string>, 
+tags?: Array<string>,
 /**
  * Presentation hints, including warnings.
  */

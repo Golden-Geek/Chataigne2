@@ -6,23 +6,23 @@ import type { ScriptSubscriptionSpec } from "./ScriptSubscriptionSpec";
 /**
  * Parsed script manifest.
  */
-export type ScriptManifest = { 
+export type ScriptManifest = {
 /**
  * Manifest schema version.
  */
-api_version: number, 
+api_version: number,
 /**
  * Optional runtime update rate.
  */
-update_rate_hz?: number | null, 
+update_rate_hz?: number | null,
 /**
  * Script-defined parameters.
  */
-parameters?: Array<ScriptParameterSpec>, 
+parameters?: Array<ScriptParameterSpec>,
 /**
  * Event subscriptions.
  */
-subscriptions?: Array<ScriptSubscriptionSpec>, 
+subscriptions?: Array<ScriptSubscriptionSpec>,
 /**
  * Exported functions.
  */

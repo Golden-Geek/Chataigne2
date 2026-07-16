@@ -6,15 +6,15 @@ import type { UiParameterControlStateDto } from "./UiParameterControlStateDto";
 /**
  * Incremental parameter patch for one UI parameter node.
  */
-export type UiParamPatch = { 
+export type UiParamPatch = {
 /**
  * Replacement parameter value.
  */
-value?: ParamValue | null, 
+value?: ParamValue | null,
 /**
  * Replacement control state.
  */
-control?: UiParameterControlStateDto | null, 
+control?: UiParameterControlStateDto | null,
 /**
  * Replacement runtime constraints.
  */

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc;
 
 use serde_json::json;
 
@@ -56,13 +56,13 @@ fn readiness_dto_has_a_stable_versioned_http_shape() {
 }
 
 fn client_with_subscription_count(count: usize) -> WsClientState {
-    let (outbound, _receiver) = mpsc::channel();
+    let outbound = Arc::new(WsOutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY));
     let subscriptions = (0..count)
         .map(|index| {
             (
                 format!("subscription-{index}"),
                 WsSubscriptionState {
-                    scope: UiSubscriptionScope::WholeGraph,
+                    interest: UiInterest::workbench(format!("view-{index}"), UiSubscriptionScope::WholeGraph),
                     cursor: None,
                     last_runtime_stats: None,
                     pending_value_from: None,
@@ -77,4 +77,100 @@ fn client_with_subscription_count(count: usize) -> WsClientState {
         subscriptions,
         client_instance_id: None,
     }
+}
+
+#[test]
+fn outbound_queue_supersedes_latest_wins_plane_for_the_same_view() {
+    let queue = WsOutboundQueue::new(2);
+    assert_eq!(queue.push(observation_message(1)), QueuePushResult::Queued);
+    assert_eq!(queue.push(observation_message(2)), QueuePushResult::Superseded);
+    assert_eq!(queue.len(), 1);
+
+    let Some(WsOutbound::Message(WsServerMessage::Delta { delta, .. })) = queue.pop() else {
+        panic!("expected observation delta");
+    };
+    assert_eq!(delta.batch.to.unwrap().tick, 2);
+}
+
+#[test]
+fn outbound_queue_never_silently_drops_reliable_messages() {
+    let queue = WsOutboundQueue::new(2);
+    assert_eq!(queue.push(reliable_message(1)), QueuePushResult::Queued);
+    assert_eq!(queue.push(reliable_message(2)), QueuePushResult::Queued);
+    assert_eq!(queue.push(reliable_message(3)), QueuePushResult::Full);
+    assert_eq!(queue.len(), 2);
+}
+
+#[test]
+fn slow_client_is_removed_when_only_reliable_messages_fill_its_queue() {
+    let mut clients = HashMap::new();
+    clients.insert(7, client_with_subscription_count(1));
+    let outbound = clients.get(&7).unwrap().outbound.clone();
+    for client_id in 0..DEFAULT_OUTBOUND_CAPACITY as u64 {
+        assert_eq!(outbound.push(reliable_message(client_id)), QueuePushResult::Queued);
+    }
+
+    send_to_client(
+        &mut clients,
+        7,
+        WsServerMessage::Hello {
+            protocol_version: UI_PROTOCOL_VERSION.to_string(),
+            client_id: 99,
+            session_id: "overflow".to_string(),
+        },
+    );
+
+    assert!(!clients.contains_key(&7));
+}
+
+#[test]
+fn canonical_subscribe_message_serializes_view_scope_and_planes() {
+    let message = WsClientMessage::Subscribe {
+        subscription_id: "sub-1".to_string(),
+        interest: UiInterest {
+            view_id: "state-machine".to_string(),
+            scope: UiSubscriptionScope::Subtree {
+                root: NodeId(42),
+                max_depth: 3,
+            },
+            planes: vec![UiDataPlane::Structure, UiDataPlane::Preview],
+        },
+        from: None,
+    };
+
+    assert_eq!(
+        serde_json::to_value(message).unwrap(),
+        json!({
+            "kind": "subscribe",
+            "subscription_id": "sub-1",
+            "interest": {
+                "view_id": "state-machine",
+                "scope": { "subtree": { "root": 42, "max_depth": 3 } },
+                "planes": ["structure", "preview"]
+            }
+        })
+    );
+}
+
+fn observation_message(tick: u64) -> WsOutbound {
+    WsOutbound::Message(WsServerMessage::Delta {
+        subscription_id: "workbench".to_string(),
+        delta: UiPlaneDelta {
+            plane: UiDataPlane::Observation,
+            batch: UiEventBatch {
+                from: None,
+                to: Some(EngineTime { tick, micro: 0, seq: 0 }),
+                runtime: None,
+                events: Vec::new(),
+            },
+        },
+    })
+}
+
+fn reliable_message(client_id: u64) -> WsOutbound {
+    WsOutbound::Message(WsServerMessage::Hello {
+        protocol_version: UI_PROTOCOL_VERSION.to_string(),
+        client_id,
+        session_id: "test-session".to_string(),
+    })
 }

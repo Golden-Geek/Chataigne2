@@ -5,23 +5,23 @@ import type { UiCreateUserItemInitialParam } from "./UiCreateUserItemInitialPara
 /**
  * One fresh user item to create as part of a copy batch.
  */
-export type UiDuplicateCreateUserItemSpec = { 
+export type UiDuplicateCreateUserItemSpec = {
 /**
  * Source key used by dependent references to address this created item.
  */
-source: NodeId, 
+source: NodeId,
 /**
  * Parent receiving the created item.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Runtime node type identifier to instantiate.
  */
-node_type: string, 
+node_type: string,
 /**
  * Optional explicit label for the new item.
  */
-label?: string | null, 
+label?: string | null,
 /**
  * Optional direct parameter values applied to the created root before the batch completes.
  */

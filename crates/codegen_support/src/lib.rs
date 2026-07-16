@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 
 use golden_graph::GraphRevision;
 use golden_protocol::{
-    UiAck, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest,
-    UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest,
-    UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest,
-    UiScriptStateRequest, UiSnapshot, UiSnapshotRequest,
+    UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto,
+    UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto,
+    UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest,
+    UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSnapshot, UiSnapshotRequest,
 };
 use golden_script::ScriptUiState;
 use ts_rs::{Config, TS};
@@ -96,6 +96,8 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
 
     export_binding::<UiSnapshot>(&config, "UiSnapshot");
     export_binding::<UiEventBatch>(&config, "UiEventBatch");
+    export_binding::<UiClientMessage>(&config, "UiClientMessage");
+    export_binding::<UiServerMessage>(&config, "UiServerMessage");
     export_binding::<UiAck>(&config, "UiAck");
     export_binding::<UiEditIntent>(&config, "UiEditIntent");
     export_binding::<UiReferenceTargetsDto>(&config, "UiReferenceTargetsDto");
@@ -114,9 +116,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiProjectLoadProblemDto>(&config, "UiProjectLoadProblemDto");
     export_binding::<UiProjectLoadRecoveryDto>(&config, "UiProjectLoadRecoveryDto");
     export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
-    normalize_generated_typescript_binding(out_dir, "UiCreatableUserItemDto");
-    normalize_generated_typescript_binding(out_dir, "PresentationHint");
-    normalize_generated_typescript_binding(out_dir, "UiRuntimeStatsDto");
+    normalize_generated_typescript_bindings(out_dir);
 }
 
 /// Exports Rust-owned generic graph bindings into the graph UI package.
@@ -128,6 +128,7 @@ pub fn generate_graph_ui_bindings(out_dir: &Path) {
 
     let config = Config::new().with_out_dir(out_dir).with_large_int("number");
     export_binding::<GraphRevision>(&config, "GraphRevision");
+    normalize_generated_typescript_bindings(out_dir);
 }
 
 /// Small command-line wrapper around the codegen helpers.
@@ -174,16 +175,29 @@ fn export_binding<T: TS + 'static>(config: &Config, name: &str) {
     T::export_all(config).unwrap_or_else(|err| panic!("failed to export {name}: {err}"));
 }
 
-fn normalize_generated_typescript_binding(out_dir: &Path, name: &str) {
-    let path = out_dir.join(format!("{name}.ts"));
-    let source = fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
-    let mut normalized = source.lines().map(str::trim_end).collect::<Vec<_>>().join("\n");
-    if source.ends_with('\n') {
-        normalized.push('\n');
-    }
+fn normalize_generated_typescript_bindings(out_dir: &Path) {
+    let mut paths = fs::read_dir(out_dir)
+        .unwrap_or_else(|err| panic!("failed to read {}: {}", out_dir.display(), err))
+        .map(|entry| {
+            entry
+                .unwrap_or_else(|err| panic!("failed to read {} entry: {}", out_dir.display(), err))
+                .path()
+        })
+        .filter(|path| path.extension().is_some_and(|extension| extension == "ts"))
+        .collect::<Vec<_>>();
+    paths.sort();
 
-    if normalized != source {
-        fs::write(&path, normalized).unwrap_or_else(|err| panic!("failed to write {}: {}", path.display(), err));
+    for path in paths {
+        let source =
+            fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
+        let mut normalized = source.lines().map(str::trim_end).collect::<Vec<_>>().join("\n");
+        if source.ends_with('\n') {
+            normalized.push('\n');
+        }
+
+        if normalized != source {
+            fs::write(&path, normalized).unwrap_or_else(|err| panic!("failed to write {}: {}", path.display(), err));
+        }
     }
 }
 

@@ -5,19 +5,19 @@ import type { UiDuplicateDependentUserItemInitialParam } from "./UiDuplicateDepe
 /**
  * One dependent user item to create after copy-batch roots have been materialized.
  */
-export type UiDuplicateDependentUserItem = { 
+export type UiDuplicateDependentUserItem = {
 /**
  * Parent receiving the dependent item.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Runtime node type identifier to instantiate.
  */
-node_type: string, 
+node_type: string,
 /**
  * Optional explicit label for the dependent item.
  */
-label?: string | null, 
+label?: string | null,
 /**
  * Initial values applied after references to copied roots have been resolved.
  */

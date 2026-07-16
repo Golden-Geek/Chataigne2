@@ -5,37 +5,37 @@ import type { ReferenceTargetKind } from "./ReferenceTargetKind";
 /**
  * Additional constraints specific to `ParamValue::Reference`.
  */
-export type ReferenceConstraints = { 
+export type ReferenceConstraints = {
 /**
  * Root scope used by target validation and relative recovery.
  */
-root: ReferenceRoot, 
+root: ReferenceRoot,
 /**
  * High-level target family.
  */
-target_kind: ReferenceTargetKind, 
+target_kind: ReferenceTargetKind,
 /**
  * Optional allowed runtime node types.
  *
  * Empty means all node types are accepted.
  */
-allowed_node_types?: Array<string>, 
+allowed_node_types?: Array<string>,
 /**
  * Optional allowed parameter value kinds (`int`, `float`, `str`, ...).
  *
  * Empty means all parameter kinds are accepted.
  */
-allowed_parameter_types?: Array<string>, 
+allowed_parameter_types?: Array<string>,
 /**
  * Whether projection-based compatibility is accepted for typed references.
  *
  * When `false`, only direct type compatibility is accepted.
  */
-allow_projections?: boolean, 
+allow_projections?: boolean,
 /**
  * Optional app-defined runtime filter key looked up in the engine registry.
  */
-custom_filter_key?: string | null, 
+custom_filter_key?: string | null,
 /**
  * Optional UI default search filter suggested by the engine/app.
  */

@@ -5,11 +5,11 @@ import type { ParameterControlSpec } from "./ParameterControlSpec";
 /**
  * UI-facing parameter control state.
  */
-export type UiParameterControlStateDto = { 
+export type UiParameterControlStateDto = {
 /**
  * Active control mode.
  */
-mode: ParameterControlMode, 
+mode: ParameterControlMode,
 /**
  * Authoring control specification.
  */

@@ -4,7 +4,7 @@ import type { NodeId } from "./NodeId";
 /**
  * HTTP request payload for script-state queries.
  */
-export type UiScriptStateRequest = { 
+export type UiScriptStateRequest = {
 /**
  * Target script node id.
  */

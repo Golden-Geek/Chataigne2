@@ -6,15 +6,15 @@ import type { UiNodeTypeDescriptor } from "./UiNodeTypeDescriptor";
 /**
  * UI-facing schema payload needed by editors.
  */
-export type UiSchemaView = { 
+export type UiSchemaView = {
 /**
  * Known node types within the snapshot scope.
  */
-node_types?: Array<UiNodeTypeDescriptor>, 
+node_types?: Array<UiNodeTypeDescriptor>,
 /**
  * Shared descriptions for repeated declared nodes and parameters.
  */
-declared_descriptions?: Array<UiDeclaredDescriptionDescriptor>, 
+declared_descriptions?: Array<UiDeclaredDescriptionDescriptor>,
 /**
  * Enum definitions used by UI editors.
  */

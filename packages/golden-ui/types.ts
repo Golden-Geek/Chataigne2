@@ -1,17 +1,15 @@
+import type { UiControlPhase } from './generated/rust_protocol/UiControlPhase';
+import type { UiDataPlane } from './generated/rust_protocol/UiDataPlane';
+
 export type NodeId = number;
 
 export type ParamEventBehaviour = 'Coalesce' | 'Append';
 export type ParamConstraintPolicy = 'ClampAdapt' | 'Reject';
 export type UiAckStatus = 'applied' | 'staged' | 'rejected';
+export type UiControlLifecycle = UiControlPhase;
 export type UiLogLevel = 'info' | 'warning' | 'error' | 'success';
 export type UiParameterControlMode =
-	| 'manual'
-	| 'contextLink'
-	| 'templateText'
-	| 'expression'
-	| 'proxy'
-	| 'binding'
-	| 'animation';
+	'manual' | 'contextLink' | 'templateText' | 'expression' | 'proxy' | 'binding' | 'animation';
 
 export type CssUnit = 'px' | 'rem' | 'em' | 'percent' | 'vw' | 'vh';
 
@@ -61,8 +59,7 @@ export interface UiReferenceConstraints {
 }
 
 export type UiScriptSource =
-	| { kind: 'inline'; text: string }
-	| { kind: 'projectFile'; path: string };
+	{ kind: 'inline'; text: string } | { kind: 'projectFile'; path: string };
 
 export interface UiScriptConfig {
 	source: UiScriptSource;
@@ -92,8 +89,7 @@ export interface UiScriptState {
 }
 
 export type UiSubscriptionScope =
-	| { kind: 'wholeGraph' }
-	| { kind: 'subtree'; root: NodeId; max_depth: number };
+	{ kind: 'wholeGraph' } | { kind: 'subtree'; root: NodeId; max_depth: number };
 
 export type UiUserNodeRole = 'regular' | 'itemRoot';
 
@@ -325,8 +321,7 @@ export interface UiReferenceTargetCandidate {
 }
 
 export type UiNodeDataDto =
-	| { kind: 'parameter'; param: UiParamDto }
-	| { kind: 'node'; node_type: string };
+	{ kind: 'parameter'; param: UiParamDto } | { kind: 'node'; node_type: string };
 
 export interface UiNodeDto {
 	node_id: NodeId;
@@ -427,7 +422,12 @@ export interface UiChildrenOrderPatch {
 }
 
 export type UiGraphOp =
-	| { kind: 'nodeCreated'; snapshot: UiNodeDto; parent?: NodeId | null; index?: number | null }
+	| {
+			kind: 'nodeCreated';
+			snapshot: UiNodeDto;
+			parent?: NodeId | null;
+			index?: number | null;
+	  }
 	| {
 			kind: 'subtreeInserted';
 			root: NodeId;
@@ -462,7 +462,11 @@ export type UiGraphOp =
 			};
 	  }
 	| { kind: 'historyPatched'; history: UiHistoryState }
-	| { kind: 'loggerPatched'; records_added: UiLogRecord[]; dropped_before?: number | null };
+	| {
+			kind: 'loggerPatched';
+			records_added: UiLogRecord[];
+			dropped_before?: number | null;
+	  };
 
 export interface UiGraphTransaction {
 	tx_id: number;
@@ -474,7 +478,12 @@ export interface UiGraphTransaction {
 
 export type UiEventKind =
 	| ({ kind: 'graphTransaction' } & UiGraphTransaction)
-	| { kind: 'paramChanged'; param: NodeId; old_value: ParamValue; new_value: ParamValue }
+	| {
+			kind: 'paramChanged';
+			param: NodeId;
+			old_value: ParamValue;
+			new_value: ParamValue;
+	  }
 	| {
 			kind: 'paramControlChanged';
 			param: NodeId;
@@ -495,7 +504,13 @@ export type UiEventKind =
 			parent_children?: NodeId[] | null;
 	  }
 	| { kind: 'childRemoved'; parent: NodeId; child: NodeId }
-	| { kind: 'childReplaced'; parent: NodeId; old: NodeId; new: NodeId; decl_id: string }
+	| {
+			kind: 'childReplaced';
+			parent: NodeId;
+			old: NodeId;
+			new: NodeId;
+			decl_id: string;
+	  }
 	| {
 			kind: 'childMoved';
 			child: NodeId;
@@ -504,7 +519,12 @@ export type UiEventKind =
 			old_parent_children?: NodeId[] | null;
 			new_parent_children?: NodeId[] | null;
 	  }
-	| { kind: 'childReordered'; parent: NodeId; child: NodeId; parent_children?: NodeId[] | null }
+	| {
+			kind: 'childReordered';
+			parent: NodeId;
+			child: NodeId;
+			parent_children?: NodeId[] | null;
+	  }
 	| { kind: 'nodeCreated'; node: NodeId; snapshot?: UiNodeDto | null }
 	| { kind: 'nodeDeleted'; node: NodeId }
 	| { kind: 'metaChanged'; node: NodeId; patch: Partial<UiNodeMetaDto> }
@@ -593,8 +613,7 @@ export interface UiDuplicateCreateUserItemSpec {
 }
 
 export type UiDuplicateDependentInitialParamValue =
-	| { kind: 'literal'; value: ParamValue }
-	| { kind: 'duplicatedNodeReference'; source: NodeId };
+	{ kind: 'literal'; value: ParamValue } | { kind: 'duplicatedNodeReference'; source: NodeId };
 
 export interface UiDuplicateDependentUserItemInitialParam {
 	decl_id: string;
@@ -611,11 +630,34 @@ export interface UiDuplicateDependentUserItem {
 export type UiEditIntent =
 	| { kind: 'beginEdit'; client_edit_id: string; label?: string }
 	| { kind: 'endEdit'; client_edit_id: string }
-	| { kind: 'setParam'; node: NodeId; value: ParamValue; behaviour: ParamEventBehaviour }
-	| { kind: 'setTextParamSmart'; node: NodeId; value: string; behaviour?: ParamEventBehaviour }
-	| { kind: 'setParamControlState'; node: NodeId; state: UiParameterControlState }
-	| { kind: 'setParamConstraints'; node: NodeId; constraints: UiParamConstraints }
-	| { kind: 'moveNode'; node: NodeId; new_parent: NodeId; new_prev_sibling?: NodeId }
+	| {
+			kind: 'setParam';
+			node: NodeId;
+			value: ParamValue;
+			behaviour: ParamEventBehaviour;
+	  }
+	| {
+			kind: 'setTextParamSmart';
+			node: NodeId;
+			value: string;
+			behaviour?: ParamEventBehaviour;
+	  }
+	| {
+			kind: 'setParamControlState';
+			node: NodeId;
+			state: UiParameterControlState;
+	  }
+	| {
+			kind: 'setParamConstraints';
+			node: NodeId;
+			constraints: UiParamConstraints;
+	  }
+	| {
+			kind: 'moveNode';
+			node: NodeId;
+			new_parent: NodeId;
+			new_prev_sibling?: NodeId;
+	  }
 	| { kind: 'removeNode'; node: NodeId }
 	| { kind: 'removeNodes'; nodes: NodeId[] }
 	| {
@@ -716,8 +758,21 @@ export interface UiClient {
 		from: EventTime | undefined,
 		onBatch: (batch: UiEventBatch) => void
 	): () => void;
-	sendIntent(intent: UiEditIntent): Promise<UiAck>;
-	sendIntents(intents: UiEditIntent[]): Promise<UiAck[]>;
+	subscribeInterest?(
+		viewId: string,
+		scope: UiSubscriptionScope,
+		planes: UiDataPlane[],
+		from: EventTime | undefined,
+		onBatch: (batch: UiEventBatch) => void
+	): () => void;
+	sendIntent(
+		intent: UiEditIntent,
+		onLifecycle?: (phase: UiControlLifecycle) => void
+	): Promise<UiAck>;
+	sendIntents(
+		intents: UiEditIntent[],
+		onLifecycle?: (phase: UiControlLifecycle) => void
+	): Promise<UiAck[]>;
 	replay(scope: UiSubscriptionScope, from?: EventTime): Promise<UiEventBatch>;
 	referenceTargets(paramNodeId: NodeId): Promise<UiReferenceTargets>;
 	paramControlInfo(paramNodeId: NodeId): Promise<UiParamControlInfo>;

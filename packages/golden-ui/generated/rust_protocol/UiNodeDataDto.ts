@@ -4,11 +4,11 @@ import type { UiParamDto } from "./UiParamDto";
 /**
  * UI-facing node data summary.
  */
-export type UiNodeDataDto = { "kind": "parameter", 
+export type UiNodeDataDto = { "kind": "parameter",
 /**
  * Parameter details.
  */
-param: UiParamDto, } | { "kind": "node", 
+param: UiParamDto, } | { "kind": "node",
 /**
  * Runtime type identifier.
  */

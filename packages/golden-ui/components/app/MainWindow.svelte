@@ -12,7 +12,6 @@
 	const props = $props<{
 		wsUrl?: string;
 		httpBaseUrl?: string;
-		pollIntervalMs?: number;
 		bootstrapRetryMs?: number;
 		userPanels?: UserPanelDefinitionMap;
 		initialPanels?: PanelSpawnRequest[];
@@ -24,7 +23,6 @@
 <WorkbenchSessionRoot
 	wsUrl={props.wsUrl}
 	httpBaseUrl={props.httpBaseUrl}
-	pollIntervalMs={props.pollIntervalMs}
 	bootstrapRetryMs={props.bootstrapRetryMs}>
 	{#if session}
 		<div class="gc-main os-{platform.name}">

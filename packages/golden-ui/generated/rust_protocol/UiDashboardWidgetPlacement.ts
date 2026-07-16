@@ -5,23 +5,23 @@ import type { UiDashboardWidgetSizeEnabled } from "./UiDashboardWidgetSizeEnable
 /**
  * UI-provided placement hint for dashboard widget creation.
  */
-export type UiDashboardWidgetPlacement = { 
+export type UiDashboardWidgetPlacement = {
 /**
  * Anchor used by free-layout parents.
  */
-anchor: string, 
+anchor: string,
 /**
  * Position used by free-layout parents.
  */
-position: [number, number], 
+position: [number, number],
 /**
  * Preferred widget width.
  */
-width: CssValue, 
+width: CssValue,
 /**
  * Preferred widget height.
  */
-height: CssValue, 
+height: CssValue,
 /**
  * Optional size enablement hints for non-free layouts.
  */

@@ -5,31 +5,31 @@ import type { NodeId } from "./NodeId";
 /**
  * One logger entry stored and streamed to the UI.
  */
-export type LogRecord = { 
+export type LogRecord = {
 /**
  * Monotonic record id.
  */
-id: number, 
+id: number,
 /**
  * Wall-clock timestamp in unix milliseconds.
  */
-timestamp_ms: number, 
+timestamp_ms: number,
 /**
  * Severity level.
  */
-level: LogLevel, 
+level: LogLevel,
 /**
  * Free-form log tag.
  */
-tag: string, 
+tag: string,
 /**
  * Final rendered message.
  */
-message: string, 
+message: string,
 /**
  * Number of consecutive identical messages represented by this record.
  */
-repeat_count?: number, 
+repeat_count?: number,
 /**
  * Optional node origin.
  */

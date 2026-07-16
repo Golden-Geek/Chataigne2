@@ -10,103 +10,103 @@ import type { UiParamPatch } from "./UiParamPatch";
 /**
  * One deterministic graph patch operation inside an atomic UI transaction.
  */
-export type UiGraphOp = { "kind": "nodeCreated", 
+export type UiGraphOp = { "kind": "nodeCreated",
 /**
  * Full UI snapshot for the created node.
  */
-snapshot: UiNodeDto, 
+snapshot: UiNodeDto,
 /**
  * Parent receiving the node, if attached.
  */
-parent?: NodeId | null, 
+parent?: NodeId | null,
 /**
  * Direct child index under `parent`, if known.
  */
-index?: number | null, } | { "kind": "subtreeInserted", 
+index?: number | null, } | { "kind": "subtreeInserted",
 /**
  * Root of the inserted subtree.
  */
-root: NodeId, 
+root: NodeId,
 /**
  * Parent node where `root` was attached.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Full snapshots for all inserted nodes (root and descendants, depth-first).
  */
-nodes: Array<UiNodeDto>, 
+nodes: Array<UiNodeDto>,
 /**
  * Final direct child order for `parent` after insertion.
  */
-parent_children_after: Array<NodeId>, } | { "kind": "subtreeRemoved", 
+parent_children_after: Array<NodeId>, } | { "kind": "subtreeRemoved",
 /**
  * Root of the removed subtree.
  */
-root: NodeId, 
+root: NodeId,
 /**
  * Root and descendant ids removed by this operation.
  */
-removed_ids: Array<NodeId>, 
+removed_ids: Array<NodeId>,
 /**
  * Post-removal child order for the former parent.
  */
-parent_after?: UiChildrenOrderPatch | null, } | { "kind": "nodeMoved", 
+parent_after?: UiChildrenOrderPatch | null, } | { "kind": "nodeMoved",
 /**
  * Node that moved.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Previous parent before the move.
  */
-old_parent?: NodeId | null, 
+old_parent?: NodeId | null,
 /**
  * New parent after the move.
  */
-new_parent?: NodeId | null, 
+new_parent?: NodeId | null,
 /**
  * Post-move child order for the previous parent.
  */
-old_parent_after?: UiChildrenOrderPatch | null, 
+old_parent_after?: UiChildrenOrderPatch | null,
 /**
  * Post-move child order for the new parent.
  */
-new_parent_after?: UiChildrenOrderPatch | null, } | { "kind": "childrenReordered", 
+new_parent_after?: UiChildrenOrderPatch | null, } | { "kind": "childrenReordered",
 /**
  * Parent whose children were reordered.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Complete direct child order after the reorder.
  */
-children: Array<NodeId>, } | { "kind": "nodeMetaPatched", 
+children: Array<NodeId>, } | { "kind": "nodeMetaPatched",
 /**
  * Node whose metadata changed.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Metadata fields that changed.
  */
-patch: UiNodeMetaPatch, } | { "kind": "paramPatched", 
+patch: UiNodeMetaPatch, } | { "kind": "paramPatched",
 /**
  * Node owning the parameter in the UI graph.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Parameter node that changed.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Parameter fields that changed.
  */
-patch: UiParamPatch, } | { "kind": "historyPatched", 
+patch: UiParamPatch, } | { "kind": "historyPatched",
 /**
  * Current history state after the transaction.
  */
-history: UiHistoryState, } | { "kind": "loggerPatched", 
+history: UiHistoryState, } | { "kind": "loggerPatched",
 /**
  * New logger records appended by the transaction.
  */
-records_added: Array<LogRecord>, 
+records_added: Array<LogRecord>,
 /**
  * Earliest retained record id after dropping old records.
  */

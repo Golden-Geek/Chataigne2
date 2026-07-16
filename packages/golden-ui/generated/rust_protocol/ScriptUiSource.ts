@@ -3,11 +3,11 @@
 /**
  * UI payload for script source configuration.
  */
-export type ScriptUiSource = { "kind": "inline", 
+export type ScriptUiSource = { "kind": "inline",
 /**
  * Inline script text.
  */
-text: string, } | { "kind": "projectFile", 
+text: string, } | { "kind": "projectFile",
 /**
  * Project-relative script path.
  */

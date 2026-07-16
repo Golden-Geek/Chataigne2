@@ -8,35 +8,35 @@ import type { ReferenceConstraints } from "./ReferenceConstraints";
 /**
  * Runtime data constraints for parameter values.
  */
-export type ParameterConstraints = { 
+export type ParameterConstraints = {
 /**
  * Optional numeric range constraints.
  */
-range?: RangeConstraint | null, 
+range?: RangeConstraint | null,
 /**
  * Optional numeric step increment.
  *
  * Applies to scalar numeric values and each component of vector values.
  */
-step?: number | null, 
+step?: number | null,
 /**
  * Optional base used for step snapping/validation.
  *
  * Applies to scalar numeric values and each component of vector values.
  */
-step_base?: number | null, 
+step_base?: number | null,
 /**
  * Optional enum-domain constraints.
  */
-enum_options?: Array<ParameterEnumOption>, 
+enum_options?: Array<ParameterEnumOption>,
 /**
  * Enforcement strategy for invalid incoming values.
  */
-policy: ParameterConstraintPolicy, 
+policy: ParameterConstraintPolicy,
 /**
  * Reference-specific filtering and recovery constraints.
  */
-reference?: ReferenceConstraints, 
+reference?: ReferenceConstraints,
 /**
  * File-specific extension constraints.
  */

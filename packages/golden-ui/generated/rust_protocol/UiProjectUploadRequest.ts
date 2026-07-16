@@ -3,15 +3,15 @@
 /**
  * HTTP request payload for uploading a browser-selected project file before loading it.
  */
-export type UiProjectUploadRequest = { 
+export type UiProjectUploadRequest = {
 /**
  * Original browser-side file name.
  */
-file_name: string, 
+file_name: string,
 /**
  * Uploaded project document contents.
  */
-contents: string, 
+contents: string,
 /**
  * Whether to skip recoverable load-time rebuild problems after user confirmation.
  */

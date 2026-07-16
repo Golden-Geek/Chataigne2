@@ -4,7 +4,7 @@ import type { NodeId } from "./NodeId";
 /**
  * HTTP request payload for parameter-control info queries.
  */
-export type UiParamControlInfoRequest = { 
+export type UiParamControlInfoRequest = {
 /**
  * Target parameter node id.
  */

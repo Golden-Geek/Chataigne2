@@ -5,15 +5,15 @@ import type { UiReferenceTargetCandidateDto } from "./UiReferenceTargetCandidate
 /**
  * UI payload for on-demand reference picker target resolution.
  */
-export type UiReferenceTargetsDto = { 
+export type UiReferenceTargetsDto = {
 /**
  * Selectable targets for the requested reference parameter.
  */
-allowed_targets?: Array<NodeId>, 
+allowed_targets?: Array<NodeId>,
 /**
  * Visible picker nodes (targets + path ancestors).
  */
-visible_nodes?: Array<NodeId>, 
+visible_nodes?: Array<NodeId>,
 /**
  * Compatibility details for each selectable target.
  */

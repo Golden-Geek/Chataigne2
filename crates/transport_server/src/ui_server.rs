@@ -3,7 +3,7 @@ use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -17,13 +17,15 @@ use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::node::NodeId;
 use golden_engine::ui_read_model::UiReadModel;
 use golden_protocol::{
-    UI_PROTOCOL_VERSION, UiAck, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent, UiEventBatch,
-    UiEventDto, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
-    UiProjectLoadRecoveryDto as ProjectLoadRecoveryDto, UiProjectPathDto as ProjectPathDto,
-    UiProjectPathRequest as ProjectPathRequest, UiProjectUploadRequest as ProjectUploadRequest,
-    UiReferenceTargetsRequest as ReferenceTargetsRequest, UiReplayRequest as ReplayRequest, UiRuntimeStatsDto,
-    UiScriptConfigRequest as ScriptConfigRequest, UiScriptReloadRequest as ScriptReloadRequest,
-    UiScriptStateRequest as ScriptStateRequest, UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
+    UI_PROTOCOL_VERSION, UiAck, UiClientMessage as WsClientMessage,
+    UiContextCandidatesRequest as ContextCandidatesRequest, UiControlPhase, UiControlUpdate, UiDataPlane, UiEditIntent,
+    UiEventBatch, UiEventDto, UiEventKind, UiInterest, UiParamControlInfoRequest as ParamControlInfoRequest,
+    UiPlaneDelta, UiProjectFileSpec, UiProjectLoadRecoveryDto as ProjectLoadRecoveryDto,
+    UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
+    UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
+    UiReplayRequest as ReplayRequest, UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest,
+    UiScriptReloadRequest as ScriptReloadRequest, UiScriptStateRequest as ScriptStateRequest,
+    UiServerMessage as WsServerMessage, UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
 };
 use serde::{Deserialize, Serialize};
 use tokio::runtime::{Builder, Runtime};
@@ -38,6 +40,10 @@ use tokio_tungstenite::{
 };
 
 use crate::project_host;
+
+mod outbound_queue;
+
+use outbound_queue::{DEFAULT_OUTBOUND_CAPACITY, QueuePushResult, WsOutboundQueue};
 
 const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
@@ -302,6 +308,14 @@ struct WsHubHandle {
     readiness: Arc<UiSessionReadiness>,
 }
 
+struct WsHubContext<T: ProjectLifecycle> {
+    runtime: ProductionRuntime<T>,
+    read_model: Arc<UiReadModel>,
+    preferences: Option<UiPreferencesConfig>,
+    session_id: String,
+    readiness: Arc<UiSessionReadiness>,
+}
+
 #[derive(Default)]
 struct UiSessionReadiness {
     active_websocket_clients: AtomicU64,
@@ -341,13 +355,13 @@ struct HttpRequest {
 }
 
 struct WsClientState {
-    outbound: Sender<WsOutbound>,
+    outbound: Arc<WsOutboundQueue>,
     subscriptions: HashMap<String, WsSubscriptionState>,
     client_instance_id: Option<String>,
 }
 
 struct WsSubscriptionState {
-    scope: UiSubscriptionScope,
+    interest: UiInterest,
     cursor: Option<EngineTime>,
     last_runtime_stats: Option<UiRuntimeStatsDto>,
     pending_value_from: Option<EngineTime>,
@@ -366,14 +380,13 @@ impl WsSubscriptionState {
         }
 
         for event in events {
-            if let Some(param) = value_plane_param(&event) {
-                if let Some(index) = self
+            if let Some(param) = value_plane_param(&event)
+                && let Some(index) = self
                     .pending_value_events
                     .iter()
                     .position(|pending| value_plane_param(pending) == Some(param))
-                {
-                    self.pending_value_events.remove(index);
-                }
+            {
+                self.pending_value_events.remove(index);
             }
             self.pending_value_to = Some(event.time);
             self.pending_value_events.push(event);
@@ -413,7 +426,7 @@ struct WsEventOrigin {
 enum WsHubCommand {
     RegisterClient {
         client_id: u64,
-        outbound: Sender<WsOutbound>,
+        outbound: Arc<WsOutboundQueue>,
     },
     BindClientInstance {
         client_id: u64,
@@ -425,17 +438,28 @@ enum WsHubCommand {
     Subscribe {
         client_id: u64,
         subscription_id: String,
-        scope: UiSubscriptionScope,
+        interest: UiInterest,
         from: Option<EngineTime>,
     },
     Unsubscribe {
         client_id: u64,
         subscription_id: String,
     },
+    Snapshot {
+        client_id: u64,
+        request_id: String,
+        scope: UiSubscriptionScope,
+    },
+    Replay {
+        client_id: u64,
+        request_id: String,
+        scope: UiSubscriptionScope,
+        from: Option<EngineTime>,
+    },
     Intent {
         client_id: u64,
         request_id: String,
-        intent: UiEditIntent,
+        intent: Box<UiEditIntent>,
         include_self_events: bool,
     },
     IntentBatch {
@@ -446,72 +470,13 @@ enum WsHubCommand {
     },
 }
 
+// The queue is strictly bounded to 64 entries; keeping messages inline avoids a heap allocation on
+// every high-rate value/preview update while retaining a small fixed per-client memory ceiling.
+#[allow(clippy::large_enum_variant)]
 enum WsOutbound {
     Message(WsServerMessage),
     Ping(Vec<u8>),
     Close,
-}
-
-#[derive(Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-enum WsServerMessage {
-    Hello {
-        protocol_version: String,
-        client_id: u64,
-        session_id: String,
-    },
-    Batch {
-        subscription_id: String,
-        batch: UiEventBatch,
-    },
-    IntentAck {
-        request_id: String,
-        ack: UiAck,
-    },
-    IntentBatchAck {
-        request_id: String,
-        acks: Vec<UiAck>,
-    },
-    ResyncRequired {
-        subscription_id: String,
-        reason: String,
-    },
-    Error {
-        message: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        request_id: Option<String>,
-    },
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-enum WsClientMessage {
-    Hello {
-        protocol_version: String,
-        #[serde(default)]
-        client_instance_id: Option<String>,
-    },
-    Subscribe {
-        subscription_id: String,
-        scope: UiSubscriptionScope,
-        #[serde(default)]
-        from: Option<EngineTime>,
-    },
-    Unsubscribe {
-        subscription_id: String,
-    },
-    Intent {
-        request_id: String,
-        intent: UiEditIntent,
-        #[serde(default)]
-        include_self_events: bool,
-    },
-    IntentBatch {
-        request_id: String,
-        intents: Vec<UiEditIntent>,
-        #[serde(default)]
-        include_self_events: bool,
-    },
 }
 
 enum UiWebSocketPoll {
@@ -668,29 +633,23 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     let readiness = Arc::new(UiSessionReadiness::default());
     let readiness_for_hub = readiness.clone();
     thread::spawn(move || {
-        ws_hub_loop(
+        let context = WsHubContext {
             runtime,
             read_model,
-            cmd_rx,
-            dispatch_interval,
-            value_flush_interval,
             preferences,
             session_id,
-            readiness_for_hub,
-        )
+            readiness: readiness_for_hub,
+        };
+        ws_hub_loop(context, cmd_rx, dispatch_interval, value_flush_interval)
     });
     WsHubHandle { cmd_tx, readiness }
 }
 
 fn ws_hub_loop<T: ProjectLifecycle>(
-    runtime: ProductionRuntime<T>,
-    read_model: Arc<UiReadModel>,
+    context: WsHubContext<T>,
     cmd_rx: Receiver<WsHubCommand>,
     dispatch_interval: Duration,
     value_flush_interval: Duration,
-    preferences: Option<UiPreferencesConfig>,
-    session_id: String,
-    readiness: Arc<UiSessionReadiness>,
 ) {
     let mut clients = HashMap::<u64, WsClientState>::new();
     let mut client_instances = HashMap::<String, u64>::new();
@@ -700,27 +659,9 @@ fn ws_hub_loop<T: ProjectLifecycle>(
     loop {
         match cmd_rx.recv_timeout(dispatch_interval) {
             Ok(command) => {
-                handle_ws_hub_command(
-                    &runtime,
-                    &mut clients,
-                    &mut client_instances,
-                    &mut origins,
-                    command,
-                    preferences.as_ref(),
-                    &session_id,
-                    &readiness,
-                );
+                handle_ws_hub_command(&context, &mut clients, &mut client_instances, &mut origins, command);
                 while let Ok(next) = cmd_rx.try_recv() {
-                    handle_ws_hub_command(
-                        &runtime,
-                        &mut clients,
-                        &mut client_instances,
-                        &mut origins,
-                        next,
-                        preferences.as_ref(),
-                        &session_id,
-                        &readiness,
-                    );
+                    handle_ws_hub_command(&context, &mut clients, &mut client_instances, &mut origins, next);
                 }
             }
             Err(RecvTimeoutError::Timeout) => {}
@@ -728,21 +669,18 @@ fn ws_hub_loop<T: ProjectLifecycle>(
         }
 
         let value_flush_due = last_value_flush_at.elapsed() >= value_flush_interval;
-        if dispatch_ws_batches(&read_model, &mut clients, &mut origins, value_flush_due) {
+        if dispatch_ws_batches(&context.read_model, &mut clients, &mut origins, value_flush_due) {
             last_value_flush_at = Instant::now();
         }
     }
 }
 
 fn handle_ws_hub_command<T: ProjectLifecycle>(
-    runtime: &ProductionRuntime<T>,
+    context: &WsHubContext<T>,
     clients: &mut HashMap<u64, WsClientState>,
     client_instances: &mut HashMap<String, u64>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
     command: WsHubCommand,
-    preferences: Option<&UiPreferencesConfig>,
-    session_id: &str,
-    readiness: &UiSessionReadiness,
 ) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
@@ -765,7 +703,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 WsServerMessage::Hello {
                     protocol_version: UI_PROTOCOL_VERSION.to_string(),
                     client_id,
-                    session_id: session_id.to_string(),
+                    session_id: context.session_id.clone(),
                 },
             );
         }
@@ -780,23 +718,22 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 client.client_instance_id.replace(client_instance_id.clone())
             };
 
-            if let Some(previous_instance_id) = previous_instance_id {
-                if client_instances
+            if let Some(previous_instance_id) = previous_instance_id
+                && client_instances
                     .get(&previous_instance_id)
                     .is_some_and(|mapped_client_id| *mapped_client_id == client_id)
-                {
-                    client_instances.remove(&previous_instance_id);
-                }
+            {
+                client_instances.remove(&previous_instance_id);
             }
 
-            if let Some(previous_client_id) = client_instances.insert(client_instance_id.clone(), client_id) {
-                if previous_client_id != client_id {
-                    if let Some(previous_client) = clients.remove(&previous_client_id) {
-                        let _ = previous_client.outbound.send(WsOutbound::Close);
-                    }
-
-                    runtime.cancel_ui_edit_session(&client_instance_id);
+            if let Some(previous_client_id) = client_instances.insert(client_instance_id.clone(), client_id)
+                && previous_client_id != client_id
+            {
+                if let Some(previous_client) = clients.remove(&previous_client_id) {
+                    let _ = previous_client.outbound.push(WsOutbound::Close);
                 }
+
+                context.runtime.cancel_ui_edit_session(&client_instance_id);
             }
         }
         WsHubCommand::UnregisterClient { client_id } => {
@@ -810,7 +747,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     client_instances.remove(client_instance_id);
                 }
 
-                runtime.cancel_ui_edit_session(client_instance_id);
+                context.runtime.cancel_ui_edit_session(client_instance_id);
             }
             eprintln!(
                 "[ui-ws] client {client_id} unregistered (removed_subscriptions={subscription_count}, connected_clients={})",
@@ -820,7 +757,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
         WsHubCommand::Subscribe {
             client_id,
             subscription_id,
-            scope,
+            interest,
             from,
         } => {
             if let Some(client) = clients.get_mut(&client_id) {
@@ -829,7 +766,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     .insert(
                         subscription_id,
                         WsSubscriptionState {
-                            scope,
+                            interest,
                             cursor: from,
                             last_runtime_stats: None,
                             pending_value_from: None,
@@ -850,18 +787,53 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 eprintln!("[ui-ws] unsubscribe ignored for unknown client {client_id} id='{subscription_id}'");
             }
         }
+        WsHubCommand::Snapshot {
+            client_id,
+            request_id,
+            scope,
+        } => {
+            let snapshot = context.read_model.snapshot_for_scope(scope);
+            send_to_client(
+                clients,
+                client_id,
+                WsServerMessage::Snapshot {
+                    request_id,
+                    snapshot: Box::new(snapshot),
+                },
+            );
+        }
+        WsHubCommand::Replay {
+            client_id,
+            request_id,
+            scope,
+            from,
+        } => {
+            let batch = context.read_model.replay(from, scope);
+            send_to_client(clients, client_id, WsServerMessage::Replay { request_id, batch });
+        }
         WsHubCommand::Intent {
             client_id,
             request_id,
             intent,
             include_self_events,
         } => {
+            send_to_client(
+                clients,
+                client_id,
+                WsServerMessage::Control {
+                    update: UiControlUpdate::pending(request_id.clone(), UiControlPhase::Accepted),
+                },
+            );
             let kind = ui_intent_kind(&intent);
             let client_instance_id = clients
                 .get(&client_id)
                 .and_then(|client| client.client_instance_id.as_deref());
-            let result = runtime.apply_ui_transaction(intent, client_instance_id);
-            save_preferences_after_success(runtime, preferences, result.acknowledgement.success);
+            let result = context.runtime.apply_ui_transaction(*intent, client_instance_id);
+            save_preferences_after_success(
+                &context.runtime,
+                context.preferences.as_ref(),
+                result.acknowledgement.success,
+            );
             let timing = ui_intent_timing_from_application(kind, &result);
             log_ui_intent_timing("ui-ws", &timing);
 
@@ -875,12 +847,21 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 );
             }
 
+            let phase = if result.acknowledgement.success {
+                UiControlPhase::Applied
+            } else {
+                UiControlPhase::Rejected
+            };
             send_to_client(
                 clients,
                 client_id,
-                WsServerMessage::IntentAck {
-                    request_id,
-                    ack: result.acknowledgement,
+                WsServerMessage::Control {
+                    update: UiControlUpdate {
+                        request_id,
+                        phase,
+                        acknowledgement: Some(result.acknowledgement),
+                        acknowledgements: Vec::new(),
+                    },
                 },
             );
         }
@@ -890,13 +871,22 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             intents,
             include_self_events,
         } => {
+            send_to_client(
+                clients,
+                client_id,
+                WsServerMessage::Control {
+                    update: UiControlUpdate::pending(request_id.clone(), UiControlPhase::Accepted),
+                },
+            );
             let total_started = Instant::now();
             let client_instance_id = clients
                 .get(&client_id)
                 .and_then(|client| client.client_instance_id.as_deref());
-            let batch = runtime.apply_ui_transaction_batch(intents, client_instance_id, true);
+            let batch = context
+                .runtime
+                .apply_ui_transaction_batch(intents, client_instance_id, true);
             let any_success = batch.transactions.iter().any(|result| result.acknowledgement.success);
-            save_preferences_after_success(runtime, preferences, any_success);
+            save_preferences_after_success(&context.runtime, context.preferences.as_ref(), any_success);
             let mut produced_times = Vec::<EngineTime>::new();
             let mut acks = Vec::<UiAck>::with_capacity(batch.transactions.len());
             let mut timing_rows = Vec::<UiIntentTiming>::with_capacity(batch.transactions.len());
@@ -928,10 +918,26 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 );
             }
 
-            send_to_client(clients, client_id, WsServerMessage::IntentBatchAck { request_id, acks });
+            let phase = if acks.iter().all(|ack| ack.success) {
+                UiControlPhase::Applied
+            } else {
+                UiControlPhase::Rejected
+            };
+            send_to_client(
+                clients,
+                client_id,
+                WsServerMessage::Control {
+                    update: UiControlUpdate {
+                        request_id,
+                        phase,
+                        acknowledgement: None,
+                        acknowledgements: acks,
+                    },
+                },
+            );
         }
     }
-    readiness.update(clients);
+    context.readiness.update(clients);
 }
 
 fn value_plane_param(event: &UiEventDto) -> Option<NodeId> {
@@ -950,11 +956,8 @@ fn dispatch_ws_batches(
     let total_started = Instant::now();
     let mut pending = Vec::<(u64, WsServerMessage)>::new();
     let mut flushed_value_plane = false;
-
     let mut events_count = 0;
     let mut subscriptions_count = 0;
-
-    let lock_wait_ms = 0;
     let collect_started = Instant::now();
     let server_time = read_model
         .current_event_time()
@@ -972,29 +975,31 @@ fn dispatch_ws_batches(
                         *client_id,
                         WsServerMessage::ResyncRequired {
                             subscription_id: subscription_id.clone(),
+                            plane: None,
                             reason: "cursor_ahead_of_server_time".to_string(),
                         },
                     ));
                     continue;
                 }
 
-                if let Some(first_time) = first_retained {
-                    if cursor < first_time {
-                        subscription.cursor = Some(first_time);
-                        subscription.clear_pending_value_events();
-                        pending.push((
-                            *client_id,
-                            WsServerMessage::ResyncRequired {
-                                subscription_id: subscription_id.clone(),
-                                reason: "cursor_out_of_retention_window".to_string(),
-                            },
-                        ));
-                        continue;
-                    }
+                if let Some(first_time) = first_retained
+                    && cursor < first_time
+                {
+                    subscription.cursor = Some(first_time);
+                    subscription.clear_pending_value_events();
+                    pending.push((
+                        *client_id,
+                        WsServerMessage::ResyncRequired {
+                            subscription_id: subscription_id.clone(),
+                            plane: None,
+                            reason: "cursor_out_of_retention_window".to_string(),
+                        },
+                    ));
+                    continue;
                 }
             }
 
-            let batch = read_model.replay(subscription.cursor, subscription.scope.clone());
+            let batch = read_model.replay(subscription.cursor, subscription.interest.scope.clone());
             let runtime_changed = batch.runtime != subscription.last_runtime_stats;
             subscription.last_runtime_stats = batch.runtime;
             if let Some(to) = batch.to {
@@ -1015,53 +1020,126 @@ fn dispatch_ws_batches(
             }
             visible_events = read_model.coalesce_ui_feedback_events(visible_events);
 
-            let contains_structure = visible_events
-                .iter()
-                .any(|event| !read_model.event_is_coalescable_value(event));
-            if contains_structure {
-                if let Some(value_batch) = subscription.take_value_batch() {
-                    events_count += value_batch.events.len();
-                    flushed_value_plane = true;
-                    pending.push((
-                        *client_id,
-                        WsServerMessage::Batch {
-                            subscription_id: subscription_id.clone(),
-                            batch: value_batch,
-                        },
-                    ));
+            let mut values = Vec::new();
+            let mut structure = Vec::new();
+            let mut triggers = Vec::new();
+            let mut catalogs = Vec::new();
+            let mut previews = Vec::new();
+            let mut observations = Vec::new();
+            for event in visible_events {
+                match ui_data_plane(read_model, &event) {
+                    UiDataPlane::Value => values.push(event),
+                    UiDataPlane::Structure => structure.push(event),
+                    UiDataPlane::Trigger => triggers.push(event),
+                    UiDataPlane::Catalog => catalogs.push(event),
+                    UiDataPlane::Preview => previews.push(event),
+                    UiDataPlane::Observation => observations.push(event),
                 }
-                events_count += visible_events.len();
+            }
+
+            let contains_reliable = !structure.is_empty() || !triggers.is_empty() || !catalogs.is_empty();
+            if !values.is_empty() {
+                subscription.queue_value_events(batch.from, values);
+            }
+
+            if contains_reliable
+                && subscription.interest.includes(UiDataPlane::Value)
+                && let Some(value_batch) = subscription.take_value_batch()
+            {
+                events_count += value_batch.events.len();
+                flushed_value_plane = true;
                 pending.push((
                     *client_id,
-                    WsServerMessage::Batch {
+                    WsServerMessage::Delta {
                         subscription_id: subscription_id.clone(),
-                        batch: UiEventBatch {
-                            from: batch.from,
-                            to: batch.to,
-                            runtime: batch.runtime,
-                            events: visible_events,
+                        delta: UiPlaneDelta {
+                            plane: UiDataPlane::Value,
+                            batch: value_batch,
                         },
                     },
                 ));
-            } else {
-                if !visible_events.is_empty() {
-                    subscription.queue_value_events(batch.from, visible_events);
-                }
+            }
 
-                if runtime_changed {
-                    pending.push((
-                        *client_id,
-                        WsServerMessage::Batch {
-                            subscription_id: subscription_id.clone(),
+            if !structure.is_empty() && subscription.interest.includes(UiDataPlane::Structure) {
+                events_count += structure.len();
+                pending.push((
+                    *client_id,
+                    WsServerMessage::Delta {
+                        subscription_id: subscription_id.clone(),
+                        delta: UiPlaneDelta {
+                            plane: UiDataPlane::Structure,
                             batch: UiEventBatch {
                                 from: batch.from,
-                                to: None,
+                                to: batch.to,
+                                runtime: None,
+                                events: structure,
+                            },
+                        },
+                    },
+                ));
+            }
+
+            if !triggers.is_empty() && subscription.interest.includes(UiDataPlane::Trigger) {
+                events_count += triggers.len();
+                pending.push((
+                    *client_id,
+                    WsServerMessage::Delta {
+                        subscription_id: subscription_id.clone(),
+                        delta: UiPlaneDelta {
+                            plane: UiDataPlane::Trigger,
+                            batch: UiEventBatch {
+                                from: batch.from,
+                                to: batch.to,
+                                runtime: None,
+                                events: triggers,
+                            },
+                        },
+                    },
+                ));
+            }
+
+            for (plane, events) in [
+                (UiDataPlane::Catalog, catalogs),
+                (UiDataPlane::Preview, previews),
+                (UiDataPlane::Observation, observations),
+            ] {
+                if events.is_empty() || !subscription.interest.includes(plane) {
+                    continue;
+                }
+                events_count += events.len();
+                pending.push((
+                    *client_id,
+                    WsServerMessage::Delta {
+                        subscription_id: subscription_id.clone(),
+                        delta: UiPlaneDelta {
+                            plane,
+                            batch: UiEventBatch {
+                                from: batch.from,
+                                to: batch.to,
+                                runtime: None,
+                                events,
+                            },
+                        },
+                    },
+                ));
+            }
+
+            if runtime_changed && subscription.interest.includes(UiDataPlane::Observation) {
+                pending.push((
+                    *client_id,
+                    WsServerMessage::Delta {
+                        subscription_id: subscription_id.clone(),
+                        delta: UiPlaneDelta {
+                            plane: UiDataPlane::Observation,
+                            batch: UiEventBatch {
+                                from: batch.from,
+                                to: batch.to,
                                 runtime: batch.runtime,
                                 events: Vec::new(),
                             },
                         },
-                    ));
-                }
+                    },
+                ));
             }
         }
     }
@@ -1069,6 +1147,10 @@ fn dispatch_ws_batches(
     if value_flush_due {
         for (client_id, client) in clients.iter_mut() {
             for (subscription_id, subscription) in client.subscriptions.iter_mut() {
+                if !subscription.interest.includes(UiDataPlane::Value) {
+                    subscription.clear_pending_value_events();
+                    continue;
+                }
                 let Some(batch) = subscription.take_value_batch() else {
                     continue;
                 };
@@ -1076,9 +1158,12 @@ fn dispatch_ws_batches(
                 flushed_value_plane = true;
                 pending.push((
                     *client_id,
-                    WsServerMessage::Batch {
+                    WsServerMessage::Delta {
                         subscription_id: subscription_id.clone(),
-                        batch,
+                        delta: UiPlaneDelta {
+                            plane: UiDataPlane::Value,
+                            batch,
+                        },
                     },
                 ));
             }
@@ -1092,22 +1177,11 @@ fn dispatch_ws_batches(
         origins.clear();
     }
 
-    let mut disconnected = Vec::<u64>::new();
     let send_started = Instant::now();
     for (client_id, message) in pending {
-        if let Some(client) = clients.get(&client_id) {
-            if client.outbound.send(WsOutbound::Message(message)).is_err() {
-                disconnected.push(client_id);
-            }
-        }
+        send_to_client(clients, client_id, message);
     }
     let send_ms = send_started.elapsed().as_millis();
-
-    disconnected.sort_unstable();
-    disconnected.dedup();
-    for client_id in disconnected {
-        clients.remove(&client_id);
-    }
 
     let total_ms = total_started.elapsed().as_millis();
     if total_ms >= 5 {
@@ -1115,7 +1189,7 @@ fn dispatch_ws_batches(
             "[ui-ws] dispatch clients={} subscriptions={} lock_wait_ms={} collect_ms={} serialize_ms=0 send_ms={} events={} total_ms={}",
             clients.len(),
             subscriptions_count,
-            lock_wait_ms,
+            0,
             collect_ms,
             send_ms,
             events_count,
@@ -1126,16 +1200,33 @@ fn dispatch_ws_batches(
     flushed_value_plane
 }
 
-fn send_to_client(clients: &mut HashMap<u64, WsClientState>, client_id: u64, message: WsServerMessage) {
-    let mut is_disconnected = false;
-    if let Some(client) = clients.get(&client_id) {
-        if client.outbound.send(WsOutbound::Message(message)).is_err() {
-            is_disconnected = true;
-        }
+fn ui_data_plane(read_model: &UiReadModel, event: &UiEventDto) -> UiDataPlane {
+    if read_model.event_is_coalescable_value(event) {
+        return UiDataPlane::Value;
     }
+    match &event.kind {
+        UiEventKind::ParamChanged { .. } => UiDataPlane::Trigger,
+        UiEventKind::Custom { topic, .. } if topic.contains("preview") => UiDataPlane::Preview,
+        UiEventKind::Custom { topic, .. } if topic.contains("catalog") || topic.ends_with("_items_changed") => {
+            UiDataPlane::Catalog
+        }
+        UiEventKind::Custom { topic, .. } if topic.starts_with("__runtime.") || topic.starts_with("__diagnostics.") => {
+            UiDataPlane::Observation
+        }
+        UiEventKind::Custom { .. } => UiDataPlane::Trigger,
+        _ => UiDataPlane::Structure,
+    }
+}
 
-    if is_disconnected {
-        clients.remove(&client_id);
+fn send_to_client(clients: &mut HashMap<u64, WsClientState>, client_id: u64, message: WsServerMessage) {
+    let result = clients
+        .get(&client_id)
+        .map(|client| client.outbound.push(WsOutbound::Message(message)));
+    if result == Some(QueuePushResult::Full) {
+        eprintln!("[ui-ws] disconnecting slow client {client_id}: reliable outbound queue exhausted");
+        if let Some(client) = clients.remove(&client_id) {
+            let _ = client.outbound.push(WsOutbound::Close);
+        }
     }
 }
 
@@ -1158,10 +1249,10 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 return Ok(());
             }
 
-            if let Err(write_err) = write_json_error(stream, "400 Bad Request", &format!("invalid request: {err}")) {
-                if !is_client_disconnect_error(&write_err) {
-                    return Err(write_err);
-                }
+            if let Err(write_err) = write_json_error(stream, "400 Bad Request", &format!("invalid request: {err}"))
+                && !is_client_disconnect_error(&write_err)
+            {
+                return Err(write_err);
             }
             return Ok(());
         }
@@ -1180,11 +1271,11 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         return handle_ws_connection(stream, state, &request);
     }
 
-    if request.method.eq_ignore_ascii_case("GET") {
-        if let Some(asset) = resolve_frontend_asset(state.frontend_assets, &request.path) {
-            write_response(stream, "200 OK", asset.content_type, asset.bytes)?;
-            return Ok(());
-        }
+    if request.method.eq_ignore_ascii_case("GET")
+        && let Some(asset) = resolve_frontend_asset(state.frontend_assets, &request.path)
+    {
+        write_response(stream, "200 OK", asset.content_type, asset.bytes)?;
+        return Ok(());
     }
 
     let route = request.path.as_str();
@@ -1531,18 +1622,14 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     let runtime = Builder::new_current_thread()
         .enable_all()
         .build()
-        .map_err(|error| Error::new(ErrorKind::Other, format!("failed to build websocket runtime: {error}")))?;
+        .map_err(|error| Error::other(format!("failed to build websocket runtime: {error}")))?;
 
     let ws_request = build_websocket_request(request)?;
     let mut response = match create_response(&ws_request) {
         Ok(response) => response,
         Err(tokio_tungstenite::tungstenite::Error::Http(response)) => {
-            write_ws_handshake_response(&mut *stream, &response).map_err(|error| {
-                Error::new(
-                    ErrorKind::Other,
-                    format!("failed to write websocket handshake rejection: {error}"),
-                )
-            })?;
+            write_ws_handshake_response(&mut *stream, &response)
+                .map_err(|error| Error::other(format!("failed to write websocket handshake rejection: {error}")))?;
             stream.flush()?;
             return Ok(());
         }
@@ -1556,12 +1643,8 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     response
         .headers_mut()
         .insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
-    write_ws_handshake_response(&mut *stream, &response).map_err(|error| {
-        Error::new(
-            ErrorKind::Other,
-            format!("failed to write websocket handshake response: {error}"),
-        )
-    })?;
+    write_ws_handshake_response(&mut *stream, &response)
+        .map_err(|error| Error::other(format!("failed to write websocket handshake response: {error}")))?;
     stream.flush()?;
     stream.set_read_timeout(None)?;
     stream.set_write_timeout(None)?;
@@ -1570,12 +1653,8 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     let tokio_stream = {
         let cloned_stream = stream.try_clone()?;
         let _guard = runtime.enter();
-        tokio::net::TcpStream::from_std(cloned_stream).map_err(|error| {
-            Error::new(
-                ErrorKind::Other,
-                format!("failed to convert websocket stream to tokio stream: {error}"),
-            )
-        })?
+        tokio::net::TcpStream::from_std(cloned_stream)
+            .map_err(|error| Error::other(format!("failed to convert websocket stream to tokio stream: {error}")))?
     };
     let mut websocket = runtime.block_on(WebSocketStream::from_raw_socket(
         tokio_stream,
@@ -1585,13 +1664,13 @@ fn handle_ws_connection<T: ProjectLifecycle>(
 
     let client_id = NEXT_WS_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
     eprintln!("[ui-ws] upgraded connection to websocket (client_id={client_id})");
-    let (outbound_tx, outbound_rx) = mpsc::channel::<WsOutbound>();
+    let outbound = Arc::new(WsOutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY));
     state
         .ws_hub
         .cmd_tx
         .send(WsHubCommand::RegisterClient {
             client_id,
-            outbound: outbound_tx.clone(),
+            outbound: outbound.clone(),
         })
         .map_err(|_| Error::new(ErrorKind::BrokenPipe, "websocket hub unavailable"))?;
 
@@ -1599,18 +1678,14 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     let mut awaiting_pong_since = None::<Instant>;
 
     'connection: loop {
-        loop {
-            match outbound_rx.try_recv() {
-                Ok(outbound) => match send_ws_outbound(&runtime, &mut websocket, outbound) {
-                    Ok(true) => break 'connection,
-                    Ok(false) => {}
-                    Err(err) => {
-                        eprintln!("websocket write failed for client {client_id}: {err}");
-                        break 'connection;
-                    }
-                },
-                Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => break 'connection,
+        while let Some(message) = outbound.pop() {
+            match send_ws_outbound(&runtime, &mut websocket, message) {
+                Ok(true) => break 'connection,
+                Ok(false) => {}
+                Err(err) => {
+                    eprintln!("websocket write failed for client {client_id}: {err}");
+                    break 'connection;
+                }
             }
         }
 
@@ -1623,7 +1698,7 @@ fn handle_ws_connection<T: ProjectLifecycle>(
                     let message: WsClientMessage = match serde_json::from_str(text.as_ref()) {
                         Ok(message) => message,
                         Err(err) => {
-                            let _ = outbound_tx.send(WsOutbound::Message(WsServerMessage::Error {
+                            let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                                 message: format!("invalid websocket message: {err}"),
                                 request_id: None,
                             }));
@@ -1631,12 +1706,12 @@ fn handle_ws_connection<T: ProjectLifecycle>(
                         }
                     };
 
-                    if !handle_ws_client_message(message, client_id, &state.ws_hub, &outbound_tx) {
+                    if !handle_ws_client_message(message, client_id, &state.ws_hub, &outbound) {
                         break;
                     }
                 }
                 Message::Binary(_) => {
-                    let _ = outbound_tx.send(WsOutbound::Message(WsServerMessage::Error {
+                    let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                         message: "binary websocket messages are not supported".to_string(),
                         request_id: None,
                     }));
@@ -1661,11 +1736,11 @@ fn handle_ws_connection<T: ProjectLifecycle>(
         }
 
         let now = Instant::now();
-        if let Some(since) = awaiting_pong_since {
-            if now.duration_since(since) > WS_PONG_TIMEOUT {
-                eprintln!("[ui-ws] client {client_id} timed out waiting for pong");
-                break;
-            }
+        if let Some(since) = awaiting_pong_since
+            && now.duration_since(since) > WS_PONG_TIMEOUT
+        {
+            eprintln!("[ui-ws] client {client_id} timed out waiting for pong");
+            break;
         }
         if now.duration_since(last_ping_at) >= WS_PING_INTERVAL {
             match send_ws_outbound(&runtime, &mut websocket, WsOutbound::Ping(Vec::new())) {
@@ -1711,7 +1786,7 @@ fn send_ws_outbound(
 
     runtime
         .block_on(async { websocket.send(message).await })
-        .map_err(|error| Error::new(ErrorKind::Other, format!("failed to write websocket frame: {error}")))?;
+        .map_err(|error| Error::other(format!("failed to write websocket frame: {error}")))?;
     Ok(close_requested)
 }
 
@@ -1724,14 +1799,14 @@ fn poll_ws_message(
         Err(_) => Ok(UiWebSocketPoll::Idle),
         Ok(None) => Ok(UiWebSocketPoll::Closed),
         Ok(Some(Ok(message))) => Ok(UiWebSocketPoll::Message(message)),
-        Ok(Some(Err(error))) => Err(Error::new(ErrorKind::Other, format!("websocket read failed: {error}"))),
+        Ok(Some(Err(error))) => Err(Error::other(format!("websocket read failed: {error}"))),
     }
 }
 
 fn flush_ws_stream(runtime: &Runtime, websocket: &mut UiWebSocketStream) -> std::io::Result<()> {
     runtime
         .block_on(async { websocket.flush().await })
-        .map_err(|error| Error::new(ErrorKind::Other, format!("failed to flush websocket stream: {error}")))
+        .map_err(|error| Error::other(format!("failed to flush websocket stream: {error}")))
 }
 
 fn build_websocket_request(request: &HttpRequest) -> std::io::Result<WsRequest> {
@@ -1759,7 +1834,7 @@ fn handle_ws_client_message(
     message: WsClientMessage,
     client_id: u64,
     hub: &WsHubHandle,
-    outbound: &Sender<WsOutbound>,
+    outbound: &Arc<WsOutboundQueue>,
 ) -> bool {
     match message {
         WsClientMessage::Hello {
@@ -1767,7 +1842,7 @@ fn handle_ws_client_message(
             client_instance_id,
         } => {
             if protocol_version != UI_PROTOCOL_VERSION {
-                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                     message: format!("protocol mismatch: client={protocol_version}, server={UI_PROTOCOL_VERSION}"),
                     request_id: None,
                 }));
@@ -1775,7 +1850,7 @@ fn handle_ws_client_message(
 
             if let Some(client_instance_id) = client_instance_id {
                 let Some(client_instance_id) = normalize_ui_client_instance_id(&client_instance_id) else {
-                    let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                    let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                         message: "client_instance_id is invalid".to_string(),
                         request_id: None,
                     }));
@@ -1797,11 +1872,11 @@ fn handle_ws_client_message(
         }
         WsClientMessage::Subscribe {
             subscription_id,
-            scope,
+            interest,
             from,
         } => {
             if subscription_id.trim().is_empty() {
-                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                     message: "subscription_id cannot be empty".to_string(),
                     request_id: None,
                 }));
@@ -1812,7 +1887,7 @@ fn handle_ws_client_message(
                 .send(WsHubCommand::Subscribe {
                     client_id,
                     subscription_id,
-                    scope,
+                    interest,
                     from,
                 })
                 .is_ok()
@@ -1824,24 +1899,65 @@ fn handle_ws_client_message(
                 subscription_id,
             })
             .is_ok(),
+        WsClientMessage::Snapshot { request_id, scope } => {
+            if request_id.trim().is_empty() {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
+                    message: "request_id cannot be empty".to_string(),
+                    request_id: None,
+                }));
+                return true;
+            }
+            hub.cmd_tx
+                .send(WsHubCommand::Snapshot {
+                    client_id,
+                    request_id,
+                    scope,
+                })
+                .is_ok()
+        }
+        WsClientMessage::Replay {
+            request_id,
+            scope,
+            from,
+        } => {
+            if request_id.trim().is_empty() {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
+                    message: "request_id cannot be empty".to_string(),
+                    request_id: None,
+                }));
+                return true;
+            }
+            hub.cmd_tx
+                .send(WsHubCommand::Replay {
+                    client_id,
+                    request_id,
+                    scope,
+                    from,
+                })
+                .is_ok()
+        }
         WsClientMessage::Intent {
             request_id,
             intent,
             include_self_events,
         } => {
             if request_id.trim().is_empty() {
-                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                     message: "request_id cannot be empty".to_string(),
                     request_id: None,
                 }));
                 return true;
             }
 
+            let _ = outbound.push(WsOutbound::Message(WsServerMessage::Control {
+                update: UiControlUpdate::pending(request_id.clone(), UiControlPhase::Received),
+            }));
+
             hub.cmd_tx
                 .send(WsHubCommand::Intent {
                     client_id,
                     request_id,
-                    intent,
+                    intent: Box::new(intent),
                     include_self_events,
                 })
                 .is_ok()
@@ -1852,19 +1968,23 @@ fn handle_ws_client_message(
             include_self_events,
         } => {
             if request_id.trim().is_empty() {
-                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                     message: "request_id cannot be empty".to_string(),
                     request_id: None,
                 }));
                 return true;
             }
             if intents.is_empty() {
-                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
                     message: "intent batch cannot be empty".to_string(),
                     request_id: Some(request_id),
                 }));
                 return true;
             }
+
+            let _ = outbound.push(WsOutbound::Message(WsServerMessage::Control {
+                update: UiControlUpdate::pending(request_id.clone(), UiControlPhase::Received),
+            }));
 
             hub.cmd_tx
                 .send(WsHubCommand::IntentBatch {
@@ -1923,20 +2043,20 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
             ));
         }
 
-        if header_end.is_none() {
-            if let Some(idx) = find_header_end(&buffer) {
-                header_end = Some(idx + 4);
-                let header_text = std::str::from_utf8(&buffer[..idx])
-                    .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid header utf-8: {err}")))?;
-                parsed_headers = parse_headers(header_text)?;
-                content_length = parse_content_length(&parsed_headers)?;
-            }
+        if header_end.is_none()
+            && let Some(idx) = find_header_end(&buffer)
+        {
+            header_end = Some(idx + 4);
+            let header_text = std::str::from_utf8(&buffer[..idx])
+                .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid header utf-8: {err}")))?;
+            parsed_headers = parse_headers(header_text)?;
+            content_length = parse_content_length(&parsed_headers)?;
         }
 
-        if let Some(end) = header_end {
-            if buffer.len() >= end + content_length {
-                break;
-            }
+        if let Some(end) = header_end
+            && buffer.len() >= end + content_length
+        {
+            break;
         }
     }
 

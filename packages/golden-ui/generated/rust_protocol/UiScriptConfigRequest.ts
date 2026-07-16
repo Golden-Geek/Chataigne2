@@ -5,15 +5,15 @@ import type { ScriptUiConfig } from "./ScriptUiConfig";
 /**
  * HTTP request payload for script-config updates.
  */
-export type UiScriptConfigRequest = { 
+export type UiScriptConfigRequest = {
 /**
  * Target script node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Replacement config payload.
  */
-config: ScriptUiConfig, 
+config: ScriptUiConfig,
 /**
  * Whether the runtime should force an immediate reload.
  */

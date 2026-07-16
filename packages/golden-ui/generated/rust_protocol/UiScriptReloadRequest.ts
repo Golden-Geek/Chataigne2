@@ -4,7 +4,7 @@ import type { NodeId } from "./NodeId";
 /**
  * HTTP request payload for script reloads.
  */
-export type UiScriptReloadRequest = { 
+export type UiScriptReloadRequest = {
 /**
  * Target script node id.
  */

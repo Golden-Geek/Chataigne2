@@ -4,15 +4,15 @@ import type { ParamValueProjection } from "./ParamValueProjection";
 /**
  * Persisted authoring intent for one parameter control mode.
  */
-export type ParameterControlSpec = { "mode": "manual" } | { "mode": "contextLink", 
+export type ParameterControlSpec = { "mode": "manual" } | { "mode": "contextLink",
 /**
  * Symbol to resolve from nearest visible `UserContext` scope.
  */
-symbol: string, 
+symbol: string,
 /**
  * Optional projection applied before coercion.
  */
-projection?: ParamValueProjection | null, } | { "mode": "templateText", 
+projection?: ParamValueProjection | null, } | { "mode": "templateText",
 /**
  * Raw user-authored template string.
  */

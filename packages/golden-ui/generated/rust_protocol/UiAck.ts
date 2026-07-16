@@ -6,27 +6,27 @@ import type { UiHistoryState } from "./UiHistoryState";
 /**
  * Acknowledgement payload for UI edit intents.
  */
-export type UiAck = { 
+export type UiAck = {
 /**
  * Success flag.
  */
-success: boolean, 
+success: boolean,
 /**
  * Ack status.
  */
-status: UiAckStatus, 
+status: UiAckStatus,
 /**
  * Optional error code.
  */
-error_code?: string | null, 
+error_code?: string | null,
 /**
  * Optional error message.
  */
-error_message?: string | null, 
+error_message?: string | null,
 /**
  * Optional earliest resulting event timestamp.
  */
-earliest_event_time?: EngineTime | null, 
+earliest_event_time?: EngineTime | null,
 /**
  * Current undo/redo state after applying the intent.
  */

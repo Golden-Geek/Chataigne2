@@ -6,19 +6,19 @@ import type { UiRuntimeStatsDto } from "./UiRuntimeStatsDto";
 /**
  * Event replay batch.
  */
-export type UiEventBatch = { 
+export type UiEventBatch = {
 /**
  * Replay cursor used by the request.
  */
-from?: EngineTime | null, 
+from?: EngineTime | null,
 /**
  * Last event timestamp included in this batch.
  */
-to?: EngineTime | null, 
+to?: EngineTime | null,
 /**
  * Latest runtime timing metrics sampled by the host loop.
  */
-runtime?: UiRuntimeStatsDto | null, 
+runtime?: UiRuntimeStatsDto | null,
 /**
  * Delivered events.
  */

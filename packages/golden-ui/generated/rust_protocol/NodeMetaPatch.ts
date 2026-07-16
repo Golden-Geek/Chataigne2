@@ -6,39 +6,39 @@ import type { SemanticsHint } from "./SemanticsHint";
 /**
  * Patch payload for metadata updates.
  */
-export type NodeMetaPatch = { 
+export type NodeMetaPatch = {
 /**
  * Optional short name replacement.
  */
-short_name?: string | null, 
+short_name?: string | null,
 /**
  * Optional enabled-state replacement.
  */
-enabled?: boolean | null, 
+enabled?: boolean | null,
 /**
  * Optional disablement capability replacement.
  */
-can_be_disabled?: boolean | null, 
+can_be_disabled?: boolean | null,
 /**
  * Optional label replacement.
  */
-label?: string | null, 
+label?: string | null,
 /**
  * Optional description replacement (`Some(None)` clears the description).
  */
-description?: string | null | null, 
+description?: string | null | null,
 /**
  * Optional tags replacement.
  */
-tags?: Array<string> | null, 
+tags?: Array<string> | null,
 /**
  * Optional user-edit permissions replacement.
  */
-user_permissions?: NodeUserPermissions | null, 
+user_permissions?: NodeUserPermissions | null,
 /**
  * Optional semantic hints replacement.
  */
-semantics?: SemanticsHint | null, 
+semantics?: SemanticsHint | null,
 /**
  * Optional presentation hints replacement.
  */

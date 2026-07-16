@@ -3,15 +3,15 @@
 /**
  * UI-facing app project-file metadata.
  */
-export type UiProjectFileSpec = { 
+export type UiProjectFileSpec = {
 /**
  * Human-readable name for one project document, such as `Noisette`.
  */
-display_name: string, 
+display_name: string,
 /**
  * Preferred filename extension without a leading dot.
  */
-extension: string, 
+extension: string,
 /**
  * Resolved host path for the currently open project document, when any.
  */

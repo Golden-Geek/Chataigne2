@@ -4,11 +4,11 @@ import type { CssUnit } from "./CssUnit";
 /**
  * CSS scalar value with an explicit unit.
  */
-export type CssValue = { 
+export type CssValue = {
 /**
  * Numeric component.
  */
-value: number, 
+value: number,
 /**
  * CSS unit.
  */

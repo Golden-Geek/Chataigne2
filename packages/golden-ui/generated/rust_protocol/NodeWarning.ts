@@ -3,15 +3,15 @@
 /**
  * Warning message shown in UI for a node.
  */
-export type NodeWarning = { 
+export type NodeWarning = {
 /**
  * Warning identifier. Empty string is the default id.
  */
-id?: string, 
+id?: string,
 /**
  * Main warning message.
  */
-message: string, 
+message: string,
 /**
  * Optional warning details.
  */

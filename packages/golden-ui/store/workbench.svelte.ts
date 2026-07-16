@@ -58,7 +58,6 @@ export { appState } from './app-state.svelte';
 export interface WorkbenchSessionOptions {
 	wsUrl?: string;
 	httpBaseUrl?: string;
-	pollIntervalMs?: number;
 	scope?: UiSubscriptionScope;
 	bootstrapRetryMs?: number;
 	transportFactory?: UiTransportFactory;
@@ -257,11 +256,7 @@ const toConnectionStatus = (
 	if (transportState === 'connected') {
 		return hasLoadedSnapshot ? 'connected' : 'connecting';
 	}
-	if (
-		transportState === 'connecting' ||
-		transportState === 'reconnecting' ||
-		transportState === 'fallbackPolling'
-	) {
+	if (transportState === 'connecting' || transportState === 'reconnecting') {
 		return 'connecting';
 	}
 	return 'disconnected';
@@ -613,17 +608,6 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 			});
 			return;
 		}
-		if (state === 'fallbackPolling') {
-			setLoadingState({
-				activeStep: 'snapshot',
-				title: 'Using fallback transport',
-				message: 'Loading the graph over HTTP',
-				detail: detail ?? 'Live updates will reconnect in the background',
-				progress: 0.32,
-				tone: 'attention'
-			});
-			return;
-		}
 		if (state === 'reconnecting') {
 			setLoadingState(
 				{
@@ -664,18 +648,19 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	const transportOptions: UiTransportOptions = {
 		wsUrl: options.wsUrl,
 		httpBaseUrl: options.httpBaseUrl,
-		pollIntervalMs: options.pollIntervalMs,
 		onConnectionStateChange: (state, detail) => {
 			connectionState = state;
 			syncConnectionStatus();
 			updateLoadingForTransportState(state, detail);
-			if (state === 'fallbackPolling') {
-				appendUiLogRecord(
-					'warning',
-					UI_LOG_TAG_TRANSPORT,
-					'WebSocket lost. Using HTTP fallback while reconnecting...'
-				);
-			}
+		},
+		onResyncRequired: (_scope, plane, reason) => {
+			const planeDetail = plane ? ` (${plane})` : '';
+			appendUiLogRecord(
+				'warning',
+				UI_LOG_TAG_TRANSPORT,
+				`Runtime requested a scoped resync${planeDetail}: ${reason}`
+			);
+			void resyncSnapshot('Live runtime state resynchronized.');
 		}
 	};
 	const client = (options.transportFactory ?? createDefaultUiClient)(transportOptions);
@@ -1169,7 +1154,14 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 					detail: null,
 					progress: 0.9
 				});
-				unsubscribe = client.subscribe(scope, snapshot.at, applyBatch);
+				unsubscribe =
+					client.subscribeInterest?.(
+						'workbench',
+						scope,
+						['structure', 'value', 'trigger', 'observation', 'catalog', 'preview'],
+						snapshot.at,
+						applyBatch
+					) ?? client.subscribe(scope, snapshot.at, applyBatch);
 				subscribed = true;
 				clearRetry();
 				retryDelayMs = retryMs;

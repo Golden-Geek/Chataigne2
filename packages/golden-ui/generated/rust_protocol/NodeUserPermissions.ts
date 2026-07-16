@@ -3,23 +3,23 @@
 /**
  * User-edit permissions for UI tooling and editor workflows.
  */
-export type NodeUserPermissions = { 
+export type NodeUserPermissions = {
 /**
  * Whether the node label can be edited by users.
  */
-can_edit_name?: boolean, 
+can_edit_name?: boolean,
 /**
  * Whether the node can be removed or duplicated.
  */
-can_remove_and_duplicate?: boolean, 
+can_remove_and_duplicate?: boolean,
 /**
  * Whether parameter constraints can be edited.
  */
-can_edit_constraints?: boolean, 
+can_edit_constraints?: boolean,
 /**
  * Whether metadata tags can be edited.
  */
-can_edit_tags?: boolean, 
+can_edit_tags?: boolean,
 /**
  * Whether presentation color can be edited.
  */

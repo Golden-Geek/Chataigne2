@@ -7,23 +7,23 @@ import type { UserContextValueType } from "./UserContextValueType";
 /**
  * UI payload for one context entry.
  */
-export type UiUserContextEntryDto = { 
+export type UiUserContextEntryDto = {
 /**
  * Symbol name.
  */
-symbol: string, 
+symbol: string,
 /**
  * Backing parameter node id.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Entry value type.
  */
-value_type: UserContextValueType, 
+value_type: UserContextValueType,
 /**
  * Entry kind.
  */
-kind: UserContextEntryKind, 
+kind: UserContextEntryKind,
 /**
  * Multiplex metadata for list entries.
  */

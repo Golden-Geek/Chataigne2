@@ -4,7 +4,7 @@ import type { UiProjectLoadProblemDto } from "./UiProjectLoadProblemDto";
 /**
  * HTTP response payload describing a project load completed with recovery.
  */
-export type UiProjectLoadRecoveryDto = { 
+export type UiProjectLoadRecoveryDto = {
 /**
  * Problems skipped while loading as much of the project as possible.
  */

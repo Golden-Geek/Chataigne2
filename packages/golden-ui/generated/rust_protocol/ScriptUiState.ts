@@ -5,19 +5,19 @@ import type { ScriptUiConfig } from "./ScriptUiConfig";
 /**
  * UI-facing script node runtime state payload.
  */
-export type ScriptUiState = { 
+export type ScriptUiState = {
 /**
  * Current script configuration.
  */
-config: ScriptUiConfig, 
+config: ScriptUiConfig,
 /**
  * Effective update-rate used by scheduler.
  */
-effective_update_rate_hz?: number | null, 
+effective_update_rate_hz?: number | null,
 /**
  * Export names currently available.
  */
-export_names?: Array<string>, 
+export_names?: Array<string>,
 /**
  * Last successfully parsed manifest.
  */

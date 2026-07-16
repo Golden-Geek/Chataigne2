@@ -4,23 +4,23 @@ import type { ParamValue } from "./ParamValue";
 /**
  * UI-facing enum variant descriptor.
  */
-export type UiEnumVariantDefinition = { 
+export type UiEnumVariantDefinition = {
 /**
  * Stable variant id.
  */
-variant_id: string, 
+variant_id: string,
 /**
  * Value represented by this variant.
  */
-value: ParamValue, 
+value: ParamValue,
 /**
  * Display label.
  */
-label: string, 
+label: string,
 /**
  * Optional tags.
  */
-tags?: Array<string>, 
+tags?: Array<string>,
 /**
  * Optional ordering key.
  */

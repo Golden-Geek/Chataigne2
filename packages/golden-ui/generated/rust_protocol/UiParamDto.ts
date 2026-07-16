@@ -9,43 +9,43 @@ import type { UiParameterControlStateDto } from "./UiParameterControlStateDto";
 /**
  * UI-facing parameter payload.
  */
-export type UiParamDto = { 
+export type UiParamDto = {
 /**
  * Current value.
  */
-value: ParamValue, 
+value: ParamValue,
 /**
  * Declared default value.
  */
-default_value?: ParamValue | null, 
+default_value?: ParamValue | null,
 /**
  * Coalescing policy.
  */
-event_behaviour?: ParameterEventBehaviour, 
+event_behaviour?: ParameterEventBehaviour,
 /**
  * Read-only flag.
  */
-read_only?: boolean, 
+read_only?: boolean,
 /**
  * Runtime value constraints.
  */
-constraints?: ParameterConstraints, 
+constraints?: ParameterConstraints,
 /**
  * Presentation and editing hints.
  */
-ui_hints?: ParameterUiHints, 
+ui_hints?: ParameterUiHints,
 /**
  * Runtime control-plane state.
  */
-control?: UiParameterControlStateDto, 
+control?: UiParameterControlStateDto,
 /**
  * Optional shared enum-options id resolved via `UiSchemaView.enums`.
  */
-enum_options_id?: string | null, 
+enum_options_id?: string | null,
 /**
  * Engine-computed selectable targets for reference parameters.
  */
-reference_allowed_targets?: Array<NodeId>, 
+reference_allowed_targets?: Array<NodeId>,
 /**
  * Engine-computed visible tree nodes for reference picker (targets + relevant ancestor paths).
  */

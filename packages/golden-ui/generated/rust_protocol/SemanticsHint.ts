@@ -3,11 +3,11 @@
 /**
  * Semantic hints used for tooling, UX, and interpretation.
  */
-export type SemanticsHint = { 
+export type SemanticsHint = {
 /**
  * Optional high-level intent of the node.
  */
-intent: string | null, 
+intent: string | null,
 /**
  * Optional unit for value-oriented nodes.
  */

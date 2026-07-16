@@ -2,87 +2,83 @@ import type {
 	EventTime,
 	UiAck,
 	UiClient,
+	UiControlLifecycle,
 	UiEditIntent,
 	UiEventBatch,
+	UiSnapshot,
 	UiSubscriptionScope
 } from '../types';
+import type { UiClientMessage as WsClientMessage } from '../generated/rust_protocol/UiClientMessage';
+import type { UiDataPlane } from '../generated/rust_protocol/UiDataPlane';
+import type { UiInterest } from '../generated/rust_protocol/UiInterest';
+import type { UiServerMessage as WsServerMessage } from '../generated/rust_protocol/UiServerMessage';
 import { wholeGraphScope } from '../types';
 import {
-	createHttpUiClient,
+	createHttpAuxiliaryClient,
+	fromRustAck,
 	fromRustEventBatch,
+	fromRustSnapshot,
 	toRustIntent,
-	toRustScope,
-	type RustScope,
-	type RustUiEventBatch
+	toRustScope
 } from './http';
 import { getUiClientInstanceId } from './client-instance';
 
 const DEFAULT_WS_URL = 'ws://localhost:7010/api/ui/ws';
-const UI_PROTOCOL_VERSION = '0.1.0';
+const UI_PROTOCOL_VERSION = '0.2.0';
 const INTENT_TIMEOUT_MS = 4000;
 const RECONNECT_BASE_MS = 250;
 const RECONNECT_MAX_MS = 5000;
-const RESYNC_REQUIRED_TOPIC = '__transport.resync_required';
 
 export type UiTransportConnectionState =
-	| 'connecting'
-	| 'connected'
-	| 'disconnected'
-	| 'reconnecting'
-	| 'fallbackPolling';
+	'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
 interface WebSocketUiClientOptions {
 	wsUrl?: string;
 	httpBaseUrl?: string;
-	pollIntervalMs?: number;
 	fetchImpl?: typeof fetch;
 	webSocketImpl?: typeof WebSocket;
 	onConnectionStateChange?: (state: UiTransportConnectionState, detail?: string) => void;
+	onResyncRequired?: (
+		scope: UiSubscriptionScope,
+		plane: UiDataPlane | undefined,
+		reason: string
+	) => void;
 }
-
-type WsClientMessage =
-	| { kind: 'hello'; protocol_version: string; client_instance_id?: string }
-	| { kind: 'subscribe'; subscription_id: string; scope: RustScope; from?: EventTime }
-	| { kind: 'unsubscribe'; subscription_id: string }
-	| {
-			kind: 'intent';
-			request_id: string;
-			intent: unknown;
-			include_self_events: boolean;
-	  }
-	| {
-			kind: 'intentBatch';
-			request_id: string;
-			intents: unknown[];
-			include_self_events: boolean;
-	  };
-
-type WsServerMessage =
-	| { kind: 'hello'; protocol_version: string; client_id: number; session_id?: string }
-	| { kind: 'batch'; subscription_id: string; batch: RustUiEventBatch }
-	| { kind: 'intentAck'; request_id: string; ack: UiAck }
-	| { kind: 'intentBatchAck'; request_id: string; acks: UiAck[] }
-	| { kind: 'resyncRequired'; subscription_id: string; reason: string }
-	| { kind: 'error'; message: string; request_id?: string };
 
 interface PendingIntent {
 	resolve: (ack: UiAck) => void;
 	reject: (error: Error) => void;
 	timer: ReturnType<typeof setTimeout>;
+	onLifecycle?: (phase: UiControlLifecycle) => void;
 }
 
 interface PendingIntentBatch {
 	resolve: (acks: UiAck[]) => void;
 	reject: (error: Error) => void;
 	timer: ReturnType<typeof setTimeout>;
+	onLifecycle?: (phase: UiControlLifecycle) => void;
+}
+
+interface PendingSnapshot {
+	resolve: (snapshot: UiSnapshot) => void;
+	reject: (error: Error) => void;
+	timer: ReturnType<typeof setTimeout>;
+}
+
+interface PendingReplay {
+	resolve: (batch: UiEventBatch) => void;
+	reject: (error: Error) => void;
+	timer: ReturnType<typeof setTimeout>;
 }
 
 interface SubscriptionState {
+	interest: UiInterest;
 	scope: UiSubscriptionScope;
 	onBatch: (batch: UiEventBatch) => void;
 	cursor?: EventTime;
 	closed: boolean;
-	fallbackUnsubscribe: (() => void) | null;
+	stagedBatches: UiEventBatch[];
+	frameScheduled: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -123,6 +119,50 @@ interface WsMessageTiming {
 	parseMs: number;
 }
 
+const compareEventTime = (left: EventTime, right: EventTime): number =>
+	left.tick - right.tick || left.micro - right.micro || left.seq - right.seq;
+
+const stageFrameBatch = (state: SubscriptionState, batch: UiEventBatch): void => {
+	state.stagedBatches.push(batch);
+	if (state.frameScheduled) {
+		return;
+	}
+	state.frameScheduled = true;
+	const flush = (): void => {
+		state.frameScheduled = false;
+		if (state.closed || state.stagedBatches.length === 0) {
+			state.stagedBatches.length = 0;
+			return;
+		}
+		const staged = state.stagedBatches.splice(0);
+		const events = staged
+			.flatMap((entry) => entry.events)
+			.sort((left, right) => compareEventTime(left.time, right.time));
+		const merged: UiEventBatch = {
+			from: staged.find((entry) => entry.from !== undefined)?.from,
+			to: staged
+				.map((entry) => entry.to)
+				.filter((value): value is EventTime => value !== undefined)
+				.sort(compareEventTime)
+				.at(-1),
+			runtime: staged
+				.map((entry) => entry.runtime)
+				.filter((value) => value !== undefined)
+				.at(-1),
+			events
+		};
+		if (merged.to) {
+			state.cursor = merged.to;
+		}
+		state.onBatch(merged);
+	};
+	if (typeof requestAnimationFrame === 'function') {
+		requestAnimationFrame(flush);
+	} else {
+		setTimeout(flush, 0);
+	}
+};
+
 export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}): UiClient => {
 	const wsUrl = toWsUrl(
 		options.wsUrl ??
@@ -131,9 +171,8 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 	const WebSocketImpl =
 		options.webSocketImpl ?? (typeof WebSocket !== 'undefined' ? WebSocket : null);
 	const clientInstanceId = getUiClientInstanceId();
-	const httpClient = createHttpUiClient({
+	const httpClient = createHttpAuxiliaryClient({
 		baseUrl: options.httpBaseUrl,
-		pollIntervalMs: options.pollIntervalMs,
 		fetchImpl: options.fetchImpl
 	});
 
@@ -150,6 +189,8 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 	const subscriptions = new Map<string, SubscriptionState>();
 	const pendingIntents = new Map<string, PendingIntent>();
 	const pendingIntentBatches = new Map<string, PendingIntentBatch>();
+	const pendingSnapshots = new Map<string, PendingSnapshot>();
+	const pendingReplays = new Map<string, PendingReplay>();
 
 	let seq = 0;
 	const nextId = (prefix: string): string => {
@@ -167,6 +208,16 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			clearTimeout(pending.timer);
 			pending.reject(new Error(message));
 			pendingIntentBatches.delete(requestId);
+		}
+		for (const [requestId, pending] of pendingSnapshots) {
+			clearTimeout(pending.timer);
+			pending.reject(new Error(message));
+			pendingSnapshots.delete(requestId);
+		}
+		for (const [requestId, pending] of pendingReplays) {
+			clearTimeout(pending.timer);
+			pending.reject(new Error(message));
+			pendingReplays.delete(requestId);
 		}
 	};
 
@@ -200,42 +251,6 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		openReject = null;
 	};
 
-	const startPollingFallback = (subscriptionId: string, state: SubscriptionState): void => {
-		if (state.closed || state.fallbackUnsubscribe !== null) {
-			return;
-		}
-		state.fallbackUnsubscribe = httpClient.subscribe(state.scope, state.cursor, (batch) => {
-			if (state.closed) {
-				return;
-			}
-			if (batch.to) {
-				state.cursor = batch.to;
-			}
-			state.onBatch(batch);
-		});
-		emitConnectionState('fallbackPolling', subscriptionId);
-		console.warn(`[ui ws] subscription ${subscriptionId} switched to HTTP polling fallback`);
-	};
-
-	const stopPollingFallback = (state: SubscriptionState): void => {
-		if (state.fallbackUnsubscribe) {
-			state.fallbackUnsubscribe();
-			state.fallbackUnsubscribe = null;
-		}
-	};
-
-	const startFallbackForAllSubscriptions = (): void => {
-		for (const [subscriptionId, state] of subscriptions) {
-			startPollingFallback(subscriptionId, state);
-		}
-	};
-
-	const stopFallbackForAllSubscriptions = (): void => {
-		for (const state of subscriptions.values()) {
-			stopPollingFallback(state);
-		}
-	};
-
 	const scheduleReconnect = (reason: string): void => {
 		if (!WebSocketImpl || subscriptions.size === 0 || reconnectTimer !== null || reconnecting) {
 			return;
@@ -258,69 +273,22 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		socket.send(JSON.stringify(message));
 	};
 
-	const replayMissedEvents = async (
-		subscriptionId: string,
-		state: SubscriptionState
-	): Promise<void> => {
-		try {
-			const replay = await httpClient.replay(state.scope, state.cursor);
-			if (state.closed) {
-				return;
-			}
-			if (replay.events.length > 0) {
-				state.onBatch(replay);
-			}
-			if (replay.to) {
-				state.cursor = replay.to;
-			}
-		} catch (error) {
-			console.error(`[ui ws] replay failed for subscription ${subscriptionId}`, error);
-		}
-	};
-
 	const sendSubscribe = (subscriptionId: string, state: SubscriptionState): void => {
 		sendRawOnOpenSocket({
 			kind: 'subscribe',
 			subscription_id: subscriptionId,
-			scope: toRustScope(state.scope),
+			interest: state.interest,
 			from: state.cursor
 		});
 	};
 
 	const resubscribeAll = async (): Promise<void> => {
-		stopFallbackForAllSubscriptions();
 		for (const [subscriptionId, state] of subscriptions) {
-			if (state.closed) {
-				continue;
-			}
-			await replayMissedEvents(subscriptionId, state);
 			if (state.closed) {
 				continue;
 			}
 			sendSubscribe(subscriptionId, state);
 		}
-	};
-
-	const emitResyncMarker = (
-		subscriptionId: string,
-		state: SubscriptionState,
-		reason: string
-	): void => {
-		const markerTime: EventTime = state.cursor ?? { tick: 0, micro: 0, seq: 0 };
-		state.onBatch({
-			from: state.cursor,
-			to: state.cursor,
-			events: [
-				{
-					time: markerTime,
-					kind: {
-						kind: 'custom',
-						topic: RESYNC_REQUIRED_TOPIC,
-						payload: { reason, subscription_id: subscriptionId }
-					}
-				}
-			]
-		});
 	};
 
 	const forceResyncAll = (reason: string): void => {
@@ -328,20 +296,24 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			if (state.closed) {
 				continue;
 			}
-			emitResyncMarker(subscriptionId, state, reason);
+			options.onResyncRequired?.(state.scope, undefined, reason);
 			state.cursor = undefined;
 			sendSubscribe(subscriptionId, state);
 		}
 	};
 
-	const handleResyncRequired = (subscriptionId: string, reason: string): void => {
+	const handleResyncRequired = (
+		subscriptionId: string,
+		plane: UiDataPlane | undefined,
+		reason: string
+	): void => {
 		const state = subscriptions.get(subscriptionId);
 		if (!state || state.closed) {
 			return;
 		}
 
 		console.warn(`[ui ws] subscription ${subscriptionId} requires resync: ${reason}`);
-		emitResyncMarker(subscriptionId, state, reason);
+		options.onResyncRequired?.(state.scope, plane, reason);
 
 		state.cursor = undefined;
 		sendSubscribe(subscriptionId, state);
@@ -367,19 +339,16 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				}
 				return;
 			}
-			case 'batch': {
+			case 'delta': {
 				const state = subscriptions.get(message.subscription_id);
 				if (!state || state.closed) {
 					return;
 				}
 				const convertStartedAt = nowMs();
-				const batch = fromRustEventBatch(message.batch);
+				const batch = fromRustEventBatch(message.delta.batch);
 				const convertMs = nowMs() - convertStartedAt;
-				if (batch.to) {
-					state.cursor = batch.to;
-				}
 				const applyStartedAt = nowMs();
-				state.onBatch(batch);
+				stageFrameBatch(state, batch);
 				const applyMs = nowMs() - applyStartedAt;
 				const totalMs = timing ? nowMs() - timing.receivedAtMs : convertMs + applyMs;
 				logUiPerf(
@@ -391,28 +360,57 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				);
 				return;
 			}
-			case 'intentAck': {
-				const pending = pendingIntents.get(message.request_id);
+			case 'snapshot': {
+				const pending = pendingSnapshots.get(message.request_id);
 				if (!pending) {
 					return;
 				}
 				clearTimeout(pending.timer);
-				pendingIntents.delete(message.request_id);
-				pending.resolve(message.ack);
+				pendingSnapshots.delete(message.request_id);
+				pending.resolve(fromRustSnapshot(message.snapshot));
 				return;
 			}
-			case 'intentBatchAck': {
-				const pending = pendingIntentBatches.get(message.request_id);
+			case 'replay': {
+				const pending = pendingReplays.get(message.request_id);
 				if (!pending) {
 					return;
 				}
 				clearTimeout(pending.timer);
-				pendingIntentBatches.delete(message.request_id);
-				pending.resolve(message.acks);
+				pendingReplays.delete(message.request_id);
+				pending.resolve(fromRustEventBatch(message.batch));
+				return;
+			}
+			case 'control': {
+				const { update } = message;
+				const pending = pendingIntents.get(update.request_id);
+				if (pending) {
+					pending.onLifecycle?.(update.phase);
+					if (update.phase === 'applied' || update.phase === 'rejected') {
+						clearTimeout(pending.timer);
+						pendingIntents.delete(update.request_id);
+						if (update.acknowledgement) {
+							pending.resolve(fromRustAck(update.acknowledgement));
+						} else {
+							pending.reject(new Error('final control update did not include an acknowledgement'));
+						}
+					}
+					return;
+				}
+
+				const pendingBatch = pendingIntentBatches.get(update.request_id);
+				if (!pendingBatch) {
+					return;
+				}
+				pendingBatch.onLifecycle?.(update.phase);
+				if (update.phase === 'applied' || update.phase === 'rejected') {
+					clearTimeout(pendingBatch.timer);
+					pendingIntentBatches.delete(update.request_id);
+					pendingBatch.resolve((update.acknowledgements ?? []).map(fromRustAck));
+				}
 				return;
 			}
 			case 'resyncRequired':
-				handleResyncRequired(message.subscription_id, message.reason);
+				handleResyncRequired(message.subscription_id, message.plane ?? undefined, message.reason);
 				return;
 			case 'error': {
 				if (message.request_id) {
@@ -428,6 +426,20 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 						clearTimeout(pendingBatch.timer);
 						pendingIntentBatches.delete(message.request_id);
 						pendingBatch.reject(new Error(message.message));
+						return;
+					}
+					const pendingSnapshot = pendingSnapshots.get(message.request_id);
+					if (pendingSnapshot) {
+						clearTimeout(pendingSnapshot.timer);
+						pendingSnapshots.delete(message.request_id);
+						pendingSnapshot.reject(new Error(message.message));
+						return;
+					}
+					const pendingReplay = pendingReplays.get(message.request_id);
+					if (pendingReplay) {
+						clearTimeout(pendingReplay.timer);
+						pendingReplays.delete(message.request_id);
+						pendingReplay.reject(new Error(message.message));
 						return;
 					}
 				}
@@ -488,7 +500,6 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			openPromise = null;
 			openResolve = null;
 			openReject = null;
-			startFallbackForAllSubscriptions();
 			emitConnectionState('disconnected', 'socket closed', true);
 			scheduleReconnect('socket closed');
 		};
@@ -538,9 +549,75 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		ws.send(JSON.stringify(message));
 	};
 
+	const subscribeWithInterest = (
+		interest: UiInterest,
+		scope: UiSubscriptionScope,
+		from: EventTime | undefined,
+		onBatch: (batch: UiEventBatch) => void
+	): (() => void) => {
+		const subscriptionId = nextId('sub');
+		const state: SubscriptionState = {
+			interest,
+			scope,
+			onBatch,
+			cursor: from,
+			closed: false,
+			stagedBatches: [],
+			frameScheduled: false
+		};
+		subscriptions.set(subscriptionId, state);
+
+		if (!WebSocketImpl) {
+			emitConnectionState('disconnected', 'websocket unavailable', true);
+		} else {
+			void ensureSocket()
+				.then(() => {
+					if (!state.closed) {
+						sendSubscribe(subscriptionId, state);
+					}
+				})
+				.catch((error) => {
+					console.error('ws subscribe failed', error);
+					scheduleReconnect('initial subscribe failed');
+				});
+		}
+
+		return () => {
+			state.closed = true;
+			subscriptions.delete(subscriptionId);
+			if (socket && WebSocketImpl && socket.readyState === WebSocketImpl.OPEN) {
+				sendRawOnOpenSocket({
+					kind: 'unsubscribe',
+					subscription_id: subscriptionId
+				});
+			}
+			if (subscriptions.size === 0) {
+				clearReconnectTimer();
+			}
+		};
+	};
+
 	const client: UiClient = {
 		async snapshot(scope: UiSubscriptionScope = wholeGraphScope) {
-			return httpClient.snapshot(scope);
+			const requestId = nextId('snapshot');
+			return new Promise<UiSnapshot>(async (resolve, reject) => {
+				const timer = setTimeout(() => {
+					pendingSnapshots.delete(requestId);
+					reject(new Error(`snapshot timeout (${requestId})`));
+				}, INTENT_TIMEOUT_MS);
+				pendingSnapshots.set(requestId, { resolve, reject, timer });
+				try {
+					await sendWsMessage({
+						kind: 'snapshot',
+						request_id: requestId,
+						scope: toRustScope(scope)
+					});
+				} catch (error) {
+					clearTimeout(timer);
+					pendingSnapshots.delete(requestId);
+					reject(error as Error);
+				}
+			});
 		},
 
 		subscribe(
@@ -548,49 +625,37 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			from: EventTime | undefined,
 			onBatch: (batch: UiEventBatch) => void
 		): () => void {
-			const subscriptionId = nextId('sub');
-			const state: SubscriptionState = {
+			return subscribeWithInterest(
+				{
+					view_id: 'workbench',
+					scope: toRustScope(scope),
+					planes: ['structure', 'value', 'trigger', 'observation', 'catalog', 'preview']
+				},
 				scope,
-				onBatch,
-				cursor: from,
-				closed: false,
-				fallbackUnsubscribe: null
-			};
-			subscriptions.set(subscriptionId, state);
-
-			if (!WebSocketImpl) {
-				startPollingFallback(subscriptionId, state);
-			} else {
-				void ensureSocket()
-					.then(() => {
-						if (!state.closed) {
-							sendSubscribe(subscriptionId, state);
-						}
-					})
-					.catch((error) => {
-						console.error('ws subscribe failed, switching to polling fallback', error);
-						startPollingFallback(subscriptionId, state);
-						scheduleReconnect('initial subscribe failed');
-					});
-			}
-
-			return () => {
-				state.closed = true;
-				stopPollingFallback(state);
-				subscriptions.delete(subscriptionId);
-				if (socket && WebSocketImpl && socket.readyState === WebSocketImpl.OPEN) {
-					sendRawOnOpenSocket({
-						kind: 'unsubscribe',
-						subscription_id: subscriptionId
-					});
-				}
-				if (subscriptions.size === 0) {
-					clearReconnectTimer();
-				}
-			};
+				from,
+				onBatch
+			);
 		},
 
-		async sendIntent(intent: UiEditIntent): Promise<UiAck> {
+		subscribeInterest(
+			viewId: string,
+			scope: UiSubscriptionScope,
+			planes: UiDataPlane[],
+			from: EventTime | undefined,
+			onBatch: (batch: UiEventBatch) => void
+		): () => void {
+			return subscribeWithInterest(
+				{ view_id: viewId, scope: toRustScope(scope), planes },
+				scope,
+				from,
+				onBatch
+			);
+		},
+
+		async sendIntent(
+			intent: UiEditIntent,
+			onLifecycle?: (phase: UiControlLifecycle) => void
+		): Promise<UiAck> {
 			let sent = false;
 			try {
 				const requestId = nextId('intent');
@@ -601,7 +666,12 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 						reject(new Error(`intent timeout (${requestId})`));
 					}, INTENT_TIMEOUT_MS);
 
-					pendingIntents.set(requestId, { resolve, reject, timer });
+					pendingIntents.set(requestId, {
+						resolve,
+						reject,
+						timer,
+						onLifecycle
+					});
 					try {
 						await sendWsMessage({
 							kind: 'intent',
@@ -621,16 +691,19 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				if (sent) {
 					throw error;
 				}
-				return httpClient.sendIntent(intent);
+				throw error;
 			}
 		},
 
-		async sendIntents(intents: UiEditIntent[]): Promise<UiAck[]> {
+		async sendIntents(
+			intents: UiEditIntent[],
+			onLifecycle?: (phase: UiControlLifecycle) => void
+		): Promise<UiAck[]> {
 			if (intents.length === 0) {
 				return [];
 			}
 			if (intents.length === 1) {
-				return [await client.sendIntent(intents[0])];
+				return [await client.sendIntent(intents[0], onLifecycle)];
 			}
 			let sent = false;
 			try {
@@ -642,7 +715,12 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 						pendingIntentBatches.delete(requestId);
 						reject(new Error(`intent batch timeout (${requestId})`));
 					}, timeoutMs);
-					pendingIntentBatches.set(requestId, { resolve, reject, timer });
+					pendingIntentBatches.set(requestId, {
+						resolve,
+						reject,
+						timer,
+						onLifecycle
+					});
 					try {
 						await sendWsMessage({
 							kind: 'intentBatch',
@@ -662,12 +740,31 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				if (sent) {
 					throw error;
 				}
-				return httpClient.sendIntents(intents);
+				throw error;
 			}
 		},
 
 		async replay(scope: UiSubscriptionScope, from?: EventTime) {
-			return httpClient.replay(scope, from);
+			const requestId = nextId('replay');
+			return new Promise<UiEventBatch>(async (resolve, reject) => {
+				const timer = setTimeout(() => {
+					pendingReplays.delete(requestId);
+					reject(new Error(`replay timeout (${requestId})`));
+				}, INTENT_TIMEOUT_MS);
+				pendingReplays.set(requestId, { resolve, reject, timer });
+				try {
+					await sendWsMessage({
+						kind: 'replay',
+						request_id: requestId,
+						scope: toRustScope(scope),
+						from
+					});
+				} catch (error) {
+					clearTimeout(timer);
+					pendingReplays.delete(requestId);
+					reject(error as Error);
+				}
+			});
 		},
 
 		async referenceTargets(paramNodeId: number) {
@@ -719,13 +816,12 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		defer(() => {
 			void ensureSocket().catch((error) => {
 				console.error('initial websocket connect failed', error);
-				startFallbackForAllSubscriptions();
 				emitConnectionState('disconnected', 'initial connect failed', true);
 				scheduleReconnect('initial connect failed');
 			});
 		});
 	} else {
-		emitConnectionState('fallbackPolling', 'websocket unavailable', true);
+		emitConnectionState('disconnected', 'websocket unavailable', true);
 	}
 
 	return client;

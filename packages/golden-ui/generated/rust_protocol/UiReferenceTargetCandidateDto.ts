@@ -5,15 +5,15 @@ import type { ParamValueProjection } from "./ParamValueProjection";
 /**
  * UI-facing compatibility details for one selectable reference target.
  */
-export type UiReferenceTargetCandidateDto = { 
+export type UiReferenceTargetCandidateDto = {
 /**
  * Candidate node id.
  */
-target: NodeId, 
+target: NodeId,
 /**
  * Whether this candidate can be consumed without projection.
  */
-direct: boolean, 
+direct: boolean,
 /**
  * Projections that make this candidate compatible.
  */

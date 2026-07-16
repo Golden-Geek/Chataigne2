@@ -4,7 +4,7 @@ import type { ScriptUiSource } from "./ScriptUiSource";
 /**
  * UI payload for script source configuration.
  */
-export type ScriptUiConfig = { 
+export type ScriptUiConfig = {
 /**
  * Script source selector.
  */

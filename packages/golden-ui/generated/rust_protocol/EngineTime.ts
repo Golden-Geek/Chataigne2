@@ -3,16 +3,16 @@
 /**
  * Logical time tracked by the engine.
  */
-export type EngineTime = { 
+export type EngineTime = {
 /**
  * Monotonic engine tick counter. Increments only on EngineTick.
  */
-tick: number, 
+tick: number,
 /**
  * Micro-step index within the same tick.
  * 0 = main tick pass, 1.. = stabilisation rounds or flushImmediate rounds within that same tick.
  */
-micro: number, 
+micro: number,
 /**
  * Total ordering within the same (tick, micro).
  */

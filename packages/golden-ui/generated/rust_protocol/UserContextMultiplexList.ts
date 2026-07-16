@@ -6,35 +6,35 @@ import type { UserContextValueType } from "./UserContextValueType";
 /**
  * Metadata for one multiplex list context entry.
  */
-export type UserContextMultiplexList = { 
+export type UserContextMultiplexList = {
 /**
  * Multiplex node hosting the list.
  */
-multiplex: NodeId, 
+multiplex: NodeId,
 /**
  * Typed list node.
  */
-list: NodeId, 
+list: NodeId,
 /**
  * Stable axis id derived from the multiplex node UUID.
  */
-axis_id: string, 
+axis_id: string,
 /**
  * Opaque link target for the one-based lane index.
  */
-index_link_symbol: string, 
+index_link_symbol: string,
 /**
  * Opaque link target for the zero-based lane index.
  */
-index0_link_symbol: string, 
+index0_link_symbol: string,
 /**
  * Opaque link target for this list.
  */
-list_link_symbol: string, 
+list_link_symbol: string,
 /**
  * Entry value type.
  */
-value_type: UserContextValueType, 
+value_type: UserContextValueType,
 /**
  * Direct parameter entries in display order.
  */

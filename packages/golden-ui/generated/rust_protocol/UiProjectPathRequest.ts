@@ -4,15 +4,15 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * HTTP request payload carrying a project path.
  */
-export type UiProjectPathRequest = { 
+export type UiProjectPathRequest = {
 /**
  * Project path selected by the host.
  */
-path: string, 
+path: string,
 /**
  * Optional project-owned UI state to write into the saved project document.
  */
-ui_state?: JsonValue | null, 
+ui_state?: JsonValue | null,
 /**
  * Whether to skip recoverable load-time rebuild problems after user confirmation.
  */

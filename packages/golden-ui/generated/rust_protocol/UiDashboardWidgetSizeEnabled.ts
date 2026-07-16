@@ -3,11 +3,11 @@
 /**
  * Optional size-enabled hints for dashboard widget creation.
  */
-export type UiDashboardWidgetSizeEnabled = { 
+export type UiDashboardWidgetSizeEnabled = {
 /**
  * Whether width should be enabled when the parent layout uses horizontal sizing.
  */
-width?: boolean, 
+width?: boolean,
 /**
  * Whether height should be enabled when the parent layout uses vertical sizing.
  */

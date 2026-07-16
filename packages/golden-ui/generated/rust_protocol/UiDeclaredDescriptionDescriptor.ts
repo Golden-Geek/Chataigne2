@@ -3,11 +3,11 @@
 /**
  * UI-facing shared declaration-description descriptor.
  */
-export type UiDeclaredDescriptionDescriptor = { 
+export type UiDeclaredDescriptionDescriptor = {
 /**
  * Stable key used by nodes that share this declared description.
  */
-key: string, 
+key: string,
 /**
  * Canonical declared description text.
  */

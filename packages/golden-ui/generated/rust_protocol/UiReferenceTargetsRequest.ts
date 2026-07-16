@@ -4,7 +4,7 @@ import type { NodeId } from "./NodeId";
 /**
  * HTTP request payload for reference-target queries.
  */
-export type UiReferenceTargetsRequest = { 
+export type UiReferenceTargetsRequest = {
 /**
  * Target reference parameter node id.
  */

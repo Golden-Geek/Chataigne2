@@ -4,11 +4,11 @@ import type { NodeId } from "./NodeId";
 /**
  * Post-edit direct child order for one parent node.
  */
-export type UiChildrenOrderPatch = { 
+export type UiChildrenOrderPatch = {
 /**
  * Parent whose child list changed.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Complete direct child order after the operation.
  */

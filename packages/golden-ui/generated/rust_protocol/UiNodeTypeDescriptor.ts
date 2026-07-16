@@ -3,11 +3,11 @@
 /**
  * UI-facing node-type descriptor.
  */
-export type UiNodeTypeDescriptor = { 
+export type UiNodeTypeDescriptor = {
 /**
  * Runtime node type identifier.
  */
-node_type: string, 
+node_type: string,
 /**
  * Canonical description shared by all nodes of this type when available.
  */

@@ -8,31 +8,31 @@ import type { UserContextCandidate } from "./UserContextCandidate";
 /**
  * UI-facing per-parameter control info payload.
  */
-export type UiParamControlInfoDto = { 
+export type UiParamControlInfoDto = {
 /**
  * Parameter node id.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Active control mode.
  */
-active_mode: ParameterControlMode, 
+active_mode: ParameterControlMode,
 /**
  * Supported control modes for this parameter.
  */
-available_modes: Array<ParameterControlMode>, 
+available_modes: Array<ParameterControlMode>,
 /**
  * Lexical user-context candidates.
  */
-context_candidates?: Array<UserContextCandidate>, 
+context_candidates?: Array<UserContextCandidate>,
 /**
  * Token suggestions for text/expression editors.
  */
-token_suggestions?: Array<UiTokenSuggestionDto>, 
+token_suggestions?: Array<UiTokenSuggestionDto>,
 /**
  * Candidate proxy targets.
  */
-proxy_candidates?: Array<UiParamCandidateDto>, 
+proxy_candidates?: Array<UiParamCandidateDto>,
 /**
  * Candidate binding targets.
  */

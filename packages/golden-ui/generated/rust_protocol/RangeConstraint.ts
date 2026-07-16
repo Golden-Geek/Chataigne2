@@ -3,19 +3,19 @@
 /**
  * Numeric range constraints for scalar and vector-like parameter values.
  */
-export type RangeConstraint = { "kind": "uniform", 
+export type RangeConstraint = { "kind": "uniform",
 /**
  * Optional minimum bound.
  */
-min?: number | null, 
+min?: number | null,
 /**
  * Optional maximum bound.
  */
-max?: number | null, } | { "kind": "components", 
+max?: number | null, } | { "kind": "components",
 /**
  * Optional per-component minimum bounds.
  */
-min?: Array<number> | null, 
+min?: Array<number> | null,
 /**
  * Optional per-component maximum bounds.
  */

@@ -4,13 +4,13 @@ import type { FileTypeGroup } from "./FileTypeGroup";
 /**
  * Additional constraints specific to `ParamValue::File`.
  */
-export type FileConstraints = { 
+export type FileConstraints = {
 /**
  * Optional extension groups accepted by this file parameter.
  *
  * Empty means all groups are accepted.
  */
-allowed_types?: Array<FileTypeGroup>, 
+allowed_types?: Array<FileTypeGroup>,
 /**
  * Optional explicit extension allow-list (`wav`, `.mp3`, ...).
  *

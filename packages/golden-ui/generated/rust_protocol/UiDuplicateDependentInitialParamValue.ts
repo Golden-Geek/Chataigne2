@@ -5,11 +5,11 @@ import type { ParamValue } from "./ParamValue";
 /**
  * Value source for a dependent item initializer inside a copy batch.
  */
-export type UiDuplicateDependentInitialParamValue = { "kind": "literal", 
+export type UiDuplicateDependentInitialParamValue = { "kind": "literal",
 /**
  * Parameter value assigned directly to the dependent item.
  */
-value: ParamValue, } | { "kind": "duplicatedNodeReference", 
+value: ParamValue, } | { "kind": "duplicatedNodeReference",
 /**
  * Source key whose copied root becomes the reference target.
  */

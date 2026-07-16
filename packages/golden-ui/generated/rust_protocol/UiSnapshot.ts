@@ -11,39 +11,39 @@ import type { UiUserContextsDto } from "./UiUserContextsDto";
 /**
  * Snapshot payload for initial sync.
  */
-export type UiSnapshot = { 
+export type UiSnapshot = {
 /**
  * Protocol version.
  */
-protocol_version: string, 
+protocol_version: string,
 /**
  * Snapshot scope.
  */
-scope: UiSubscriptionScope, 
+scope: UiSubscriptionScope,
 /**
  * Engine time when snapshot was produced.
  */
-at: EngineTime, 
+at: EngineTime,
 /**
  * Nodes included in this snapshot.
  */
-nodes: Array<UiNodeDto>, 
+nodes: Array<UiNodeDto>,
 /**
  * Schema fragments required by editors.
  */
-schema: UiSchemaView, 
+schema: UiSchemaView,
 /**
  * Current undo/redo state.
  */
-history: UiHistoryState, 
+history: UiHistoryState,
 /**
  * Current logger state.
  */
-logger: UiLoggerState, 
+logger: UiLoggerState,
 /**
  * App-provided project file metadata.
  */
-project_file: UiProjectFileSpec, 
+project_file: UiProjectFileSpec,
 /**
  * Current user-context scopes.
  */

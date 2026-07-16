@@ -3,11 +3,11 @@
 /**
  * One exported function signature descriptor.
  */
-export type ScriptFnSignature = { 
+export type ScriptFnSignature = {
 /**
  * Named argument labels for tooling.
  */
-args?: Array<string>, 
+args?: Array<string>,
 /**
  * Optional return label.
  */

@@ -78,6 +78,10 @@ Run-Step "Phase 3 foundation contracts" {
     python tools/migration/check_phase3_contracts.py
 }
 
+Run-Step "Phase 7 generated protocol contracts" {
+    python tools/migration/check_phase7_contracts.py
+}
+
 if (-not $SkipUiInstall) {
     Run-Step "npm ci" {
         npm ci

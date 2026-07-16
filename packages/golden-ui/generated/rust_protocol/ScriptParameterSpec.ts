@@ -8,35 +8,35 @@ import type { ScriptValueType } from "./ScriptValueType";
 /**
  * Script-defined parameter descriptor.
  */
-export type ScriptParameterSpec = { 
+export type ScriptParameterSpec = {
 /**
  * Script-local stable name.
  */
-name: string, 
+name: string,
 /**
  * Decl-id used when materialized as node.
  */
-decl_id: DeclId, 
+decl_id: DeclId,
 /**
  * Optional user-facing label.
  */
-label?: string | null, 
+label?: string | null,
 /**
  * Declared parameter value family.
  */
-value_type: ScriptValueType, 
+value_type: ScriptValueType,
 /**
  * Default value.
  */
-default_value: ParamValue, 
+default_value: ParamValue,
 /**
  * Read-only flag.
  */
-read_only: boolean, 
+read_only: boolean,
 /**
  * Parameter constraints.
  */
-constraints: ParameterConstraints, 
+constraints: ParameterConstraints,
 /**
  * UI hints.
  */

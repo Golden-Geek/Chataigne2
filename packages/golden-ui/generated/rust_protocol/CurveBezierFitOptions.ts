@@ -3,11 +3,11 @@
 /**
  * Tuning parameters for sample-to-bezier fitting.
  */
-export type CurveBezierFitOptions = { 
+export type CurveBezierFitOptions = {
 /**
  * Maximum tolerated absolute value error between the source samples and the fitted bezier curve.
  */
-max_value_error: number, 
+max_value_error: number,
 /**
  * Maximum number of keys emitted by the fit.
  */

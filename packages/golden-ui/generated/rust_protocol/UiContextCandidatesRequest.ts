@@ -4,7 +4,7 @@ import type { NodeId } from "./NodeId";
 /**
  * HTTP request payload for user-context candidate queries.
  */
-export type UiContextCandidatesRequest = { 
+export type UiContextCandidatesRequest = {
 /**
  * Target parameter node id.
  */

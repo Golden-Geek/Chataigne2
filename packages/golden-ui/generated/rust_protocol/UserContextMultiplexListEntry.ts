@@ -4,15 +4,15 @@ import type { NodeId } from "./NodeId";
 /**
  * One direct parameter entry inside a multiplex list.
  */
-export type UserContextMultiplexListEntry = { 
+export type UserContextMultiplexListEntry = {
 /**
  * Entry parameter node.
  */
-param: NodeId, 
+param: NodeId,
 /**
  * Stable lane item id derived from the direct entry parameter UUID.
  */
-item_id: string, 
+item_id: string,
 /**
  * Zero-based display/order index.
  */

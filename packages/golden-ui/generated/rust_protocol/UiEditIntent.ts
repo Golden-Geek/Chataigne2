@@ -16,251 +16,251 @@ import type { UiParameterControlStateDto } from "./UiParameterControlStateDto";
 /**
  * UI-originated edit intent.
  */
-export type UiEditIntent = { "kind": "beginEdit", 
+export type UiEditIntent = { "kind": "beginEdit",
 /**
  * Client-generated id.
  */
-client_edit_id: string, 
+client_edit_id: string,
 /**
  * Optional label.
  */
-label?: string | null, } | { "kind": "endEdit", 
+label?: string | null, } | { "kind": "endEdit",
 /**
  * Client-generated id.
  */
-client_edit_id: string, } | { "kind": "setParam", 
+client_edit_id: string, } | { "kind": "setParam",
 /**
  * Target node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * New value.
  */
-value: ParamValue, 
+value: ParamValue,
 /**
  * Requested coalescing behavior.
  */
-behaviour: ParameterEventBehaviour, } | { "kind": "setTextParamSmart", 
+behaviour: ParameterEventBehaviour, } | { "kind": "setTextParamSmart",
 /**
  * Target parameter node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Text entered by the client.
  */
-value: string, 
+value: string,
 /**
  * Requested coalescing behavior.
  */
-behaviour?: ParameterEventBehaviour, } | { "kind": "setParamControlState", 
+behaviour?: ParameterEventBehaviour, } | { "kind": "setParamControlState",
 /**
  * Target parameter node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * New control state payload.
  */
-state: UiParameterControlStateDto, } | { "kind": "setParamConstraints", 
+state: UiParameterControlStateDto, } | { "kind": "setParamConstraints",
 /**
  * Target parameter node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * New constraints payload.
  */
-constraints: ParameterConstraints, } | { "kind": "moveNode", 
+constraints: ParameterConstraints, } | { "kind": "moveNode",
 /**
  * Target node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * New parent id.
  */
-new_parent: NodeId, 
+new_parent: NodeId,
 /**
  * Optional previous sibling under the new parent.
  */
-new_prev_sibling?: NodeId | null, } | { "kind": "removeNode", 
+new_prev_sibling?: NodeId | null, } | { "kind": "removeNode",
 /**
  * Target node id.
  */
-node: NodeId, } | { "kind": "removeNodes", 
+node: NodeId, } | { "kind": "removeNodes",
 /**
  * Target node ids.
  */
-nodes: Array<NodeId>, } | { "kind": "createUserItem", 
+nodes: Array<NodeId>, } | { "kind": "createUserItem",
 /**
  * Parent node id.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Runtime node type identifier to instantiate.
  */
-node_type: string, 
+node_type: string,
 /**
  * Optional explicit label for the new item.
  */
-label?: string | null, 
+label?: string | null,
 /**
  * Optional direct parameter values applied before the intent completes.
  */
-initial_params?: Array<UiCreateUserItemInitialParam>, } | { "kind": "createDashboardContainerWidget", 
+initial_params?: Array<UiCreateUserItemInitialParam>, } | { "kind": "createDashboardContainerWidget",
 /**
  * Dashboard page or container receiving the widget.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Optional explicit label.
  */
-label?: string | null, 
+label?: string | null,
 /**
  * Optional placement hint.
  */
-placement?: UiDashboardWidgetPlacement | null, 
+placement?: UiDashboardWidgetPlacement | null,
 /**
  * Optional child layout kind for the new container.
  */
-layout_kind?: string | null, 
+layout_kind?: string | null,
 /**
  * Optional sibling after which insertion occurs.
  */
-prev_sibling?: NodeId | null, } | { "kind": "createDashboardNodeWidget", 
+prev_sibling?: NodeId | null, } | { "kind": "createDashboardNodeWidget",
 /**
  * Dashboard page or container receiving the widget.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Target node rendered by the widget.
  */
-target: NodeId, 
+target: NodeId,
 /**
  * Optional placement hint.
  */
-placement?: UiDashboardWidgetPlacement | null, 
+placement?: UiDashboardWidgetPlacement | null,
 /**
  * Optional sibling after which insertion occurs.
  */
-prev_sibling?: NodeId | null, } | { "kind": "createDashboardGenericWidget", 
+prev_sibling?: NodeId | null, } | { "kind": "createDashboardGenericWidget",
 /**
  * Dashboard page or container receiving the widget.
  */
-parent: NodeId, 
+parent: NodeId,
 /**
  * Target parameter bound by the widget.
  */
-target: NodeId, 
+target: NodeId,
 /**
  * Optional placement hint.
  */
-placement?: UiDashboardWidgetPlacement | null, 
+placement?: UiDashboardWidgetPlacement | null,
 /**
  * Optional sibling after which insertion occurs.
  */
-prev_sibling?: NodeId | null, } | { "kind": "bindDashboardNodeWidgetTarget", 
+prev_sibling?: NodeId | null, } | { "kind": "bindDashboardNodeWidgetTarget",
 /**
  * Existing dashboard node widget.
  */
-widget: NodeId, 
+widget: NodeId,
 /**
  * Target node rendered by the widget.
  */
-target: NodeId, } | { "kind": "bindDashboardGenericWidgetTarget", 
+target: NodeId, } | { "kind": "bindDashboardGenericWidgetTarget",
 /**
  * Existing generic dashboard widget.
  */
-widget: NodeId, 
+widget: NodeId,
 /**
  * Target parameter bound by the widget.
  */
-target: NodeId, } | { "kind": "wrapDashboardWidgetInContainer", 
+target: NodeId, } | { "kind": "wrapDashboardWidgetInContainer",
 /**
  * Existing widget to wrap.
  */
-widget: NodeId, 
+widget: NodeId,
 /**
  * Optional placement hint for the new container.
  */
-placement?: UiDashboardWidgetPlacement | null, 
+placement?: UiDashboardWidgetPlacement | null,
 /**
  * Optional child layout kind for the new container.
  */
-layout_kind?: string | null, } | { "kind": "duplicateNode", 
+layout_kind?: string | null, } | { "kind": "duplicateNode",
 /**
  * Source node id to clone.
  */
-source: NodeId, 
+source: NodeId,
 /**
  * Parent receiving the duplicated subtree root.
  */
-new_parent: NodeId, 
+new_parent: NodeId,
 /**
  * Optional sibling after which insertion occurs.
  */
-new_prev_sibling?: NodeId | null, 
+new_prev_sibling?: NodeId | null,
 /**
  * Optional direct parameter values applied to the duplicated root before the intent completes.
  */
-initial_params?: Array<UiCreateUserItemInitialParam>, } | { "kind": "duplicateNodes", 
+initial_params?: Array<UiCreateUserItemInitialParam>, } | { "kind": "duplicateNodes",
 /**
  * Existing subtree roots to clone.
  */
-nodes?: Array<UiDuplicateNodeSpec>, 
+nodes?: Array<UiDuplicateNodeSpec>,
 /**
  * Fresh user items to create and expose to dependent references.
  */
-created_items?: Array<UiDuplicateCreateUserItemSpec>, 
+created_items?: Array<UiDuplicateCreateUserItemSpec>,
 /**
  * Items whose initial parameters can reference roots created earlier in the batch.
  */
-dependent_items?: Array<UiDuplicateDependentUserItem>, } | { "kind": "fitAnimationCurvePath", 
+dependent_items?: Array<UiDuplicateDependentUserItem>, } | { "kind": "fitAnimationCurvePath",
 /**
  * Target animation-curve node id.
  */
-curve: NodeId, 
+curve: NodeId,
 /**
  * Recorded path samples.
  */
-points: Array<CurveFitPoint>, 
+points: Array<CurveFitPoint>,
 /**
  * Fit controls.
  */
-options: CurveBezierFitOptions, } | { "kind": "patchMeta", 
+options: CurveBezierFitOptions, } | { "kind": "patchMeta",
 /**
  * Target node id.
  */
-node: NodeId, 
+node: NodeId,
 /**
  * Metadata patch.
  */
-patch: NodeMetaPatch, } | { "kind": "ensureUserContextScope", 
+patch: NodeMetaPatch, } | { "kind": "ensureUserContextScope",
 /**
  * Scope owner node id.
  */
-owner: NodeId, } | { "kind": "removeUserContextScope", 
+owner: NodeId, } | { "kind": "removeUserContextScope",
 /**
  * Scope owner node id.
  */
-owner: NodeId, } | { "kind": "upsertUserContextEntry", 
+owner: NodeId, } | { "kind": "upsertUserContextEntry",
 /**
  * Scope owner node id.
  */
-owner: NodeId, 
+owner: NodeId,
 /**
  * Symbol name.
  */
-symbol: string, 
+symbol: string,
 /**
  * Parameter node backing this entry.
  */
-param: NodeId, } | { "kind": "removeUserContextEntry", 
+param: NodeId, } | { "kind": "removeUserContextEntry",
 /**
  * Scope owner node id.
  */
-owner: NodeId, 
+owner: NodeId,
 /**
  * Symbol to remove.
  */
-symbol: string, } | { "kind": "reevaluateGraph" } | { "kind": "clearLogs" } | { "kind": "setLogMaxEntries", 
+symbol: string, } | { "kind": "reevaluateGraph" } | { "kind": "clearLogs" } | { "kind": "setLogMaxEntries",
 /**
  * Requested maximum number of retained records.
  */

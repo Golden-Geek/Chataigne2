@@ -4,7 +4,7 @@ import type { UiUserContextScopeDto } from "./UiUserContextScopeDto";
 /**
  * UI payload for all user context scopes.
  */
-export type UiUserContextsDto = { 
+export type UiUserContextsDto = {
 /**
  * Registered scopes.
  */

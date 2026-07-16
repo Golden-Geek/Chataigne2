@@ -4,11 +4,11 @@ import type { LogRecord } from "./LogRecord";
 /**
  * UI-facing logger state included in snapshots.
  */
-export type UiLoggerState = { 
+export type UiLoggerState = {
 /**
  * Maximum number of logger records retained server-side.
  */
-max_entries: number, 
+max_entries: number,
 /**
  * Retained records in ascending record-id order.
  */

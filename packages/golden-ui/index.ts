@@ -33,7 +33,6 @@ export {
 	type UiTransportFactory,
 	type UiTransportOptions
 } from './transport';
-export { createHttpUiClient } from './transport/http';
 export { createWebSocketUiClient } from './transport/ws';
 
 export { default as MainWindow } from './components/app/MainWindow.svelte';

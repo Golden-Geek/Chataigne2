@@ -4,23 +4,23 @@ import type { ParamValue } from "./ParamValue";
 /**
  * Data-level enum option descriptor used by validation and UI rendering.
  */
-export type ParameterEnumOption = { 
+export type ParameterEnumOption = {
 /**
  * Stable enum variant id.
  */
-variant_id: string, 
+variant_id: string,
 /**
  * Value represented by this variant.
  */
-value: ParamValue, 
+value: ParamValue,
 /**
  * Display label for this variant.
  */
-label: string, 
+label: string,
 /**
  * Optional tags used for filtering/grouping.
  */
-tags?: Array<string>, 
+tags?: Array<string>,
 /**
  * Optional explicit ordering key.
  */

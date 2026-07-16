@@ -16,7 +16,6 @@
 	let {
 		wsUrl,
 		httpBaseUrl,
-		pollIntervalMs,
 		scope,
 		bootstrapRetryMs,
 		transportFactory,
@@ -25,7 +24,6 @@
 	} = $props<{
 		wsUrl?: string;
 		httpBaseUrl?: string;
-		pollIntervalMs?: number;
 		scope?: WorkbenchSessionOptions['scope'];
 		bootstrapRetryMs?: number;
 		transportFactory?: WorkbenchSessionOptions['transportFactory'];
@@ -39,7 +37,6 @@
 		createWorkbenchSession({
 			wsUrl: wsUrl ?? 'ws://localhost:7010/api/ui/ws',
 			httpBaseUrl: httpBaseUrl ?? 'http://localhost:7010/api/ui',
-			pollIntervalMs: pollIntervalMs ?? 120,
 			scope,
 			bootstrapRetryMs: bootstrapRetryMs ?? 1000,
 			transportFactory,

@@ -4,11 +4,11 @@ import type { UiSubscriptionScope } from "./UiSubscriptionScope";
 /**
  * HTTP snapshot request payload.
  */
-export type UiSnapshotRequest = { 
+export type UiSnapshotRequest = {
 /**
  * Requested snapshot scope.
  */
-scope: UiSubscriptionScope, 
+scope: UiSubscriptionScope,
 /**
  * Whether any active grouped edit should be cancelled before snapshotting.
  */

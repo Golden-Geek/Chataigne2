@@ -5,19 +5,19 @@ import type { UiCreateUserItemInitialParam } from "./UiCreateUserItemInitialPara
 /**
  * One existing subtree root to clone as part of a copy batch.
  */
-export type UiDuplicateNodeSpec = { 
+export type UiDuplicateNodeSpec = {
 /**
  * Source node id to clone. Also acts as the key used by dependent references.
  */
-source: NodeId, 
+source: NodeId,
 /**
  * Parent receiving the duplicated subtree root.
  */
-new_parent: NodeId, 
+new_parent: NodeId,
 /**
  * Optional sibling after which insertion occurs.
  */
-new_prev_sibling?: NodeId | null, 
+new_prev_sibling?: NodeId | null,
 /**
  * Optional direct parameter values applied to the duplicated root before the batch completes.
  */

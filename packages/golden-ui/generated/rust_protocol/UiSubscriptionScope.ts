@@ -4,11 +4,11 @@ import type { NodeId } from "./NodeId";
 /**
  * Scope used by snapshot/event subscriptions.
  */
-export type UiSubscriptionScope = "wholeGraph" | { "subtree": { 
+export type UiSubscriptionScope = "wholeGraph" | { "subtree": {
 /**
  * Subtree root node id.
  */
-root: NodeId, 
+root: NodeId,
 /**
  * Maximum descendant depth (`0` means only root).
  */

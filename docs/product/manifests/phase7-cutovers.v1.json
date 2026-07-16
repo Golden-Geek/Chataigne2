@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "phase": 7,
+  "revision": 1,
+  "tested_tree_base": "6e02f0f6300e550e18b64aec324c5a15f2be4ebe",
+  "validation_state": "CHECKPOINT_RUNNABLE",
+  "product_gate": "PASS: Win-x64 local report target/product-gate/20260716T070444Z/product-gate-report.json; all 37 required checks passed on the generated multi-plane protocol and UI-store tree, including protocol contracts, workspace tests, debug/release performance fixtures, production OSC loopback ordering, root launch workflows, mounted UI, LAN browser, and Windows product build; 7 non-required dependency/platform checks were NOT_RUN",
+  "cutovers": [
+    {
+      "cutover_id": "generated_multi_plane_protocol",
+      "state": "cut_over",
+      "owner": "crates/core, crates/codegen_support, and packages/golden-ui",
+      "evidence": [
+        "Rust owns UiClientMessage, UiServerMessage, UiDataPlane, UiInterest, UiPlaneDelta, UiControlPhase, and UiControlUpdate",
+        "golden_codegen emits the TypeScript client/server protocol declarations consumed by Golden UI",
+        "cargo run -p golden_codegen_support --bin golden_codegen -- ui-protocol packages/golden-ui/generated/rust_protocol",
+        "tools/migration/check_phase7_contracts.py"
+      ]
+    },
+    {
+      "cutover_id": "control_lifecycle",
+      "state": "cut_over",
+      "owner": "crates/transport_server and packages/golden-ui",
+      "evidence": [
+        "control intents report received, accepted, applied, or rejected through generated UiControlUpdate messages",
+        "the WebSocket hub submits each intent once to the actor-owned runtime and never acquires an Engine mutex",
+        "cargo test -p golden_transport_server",
+        "mounted real-app UI workflow"
+      ]
+    },
+    {
+      "cutover_id": "interest_and_observation_planes",
+      "state": "cut_over",
+      "owner": "crates/transport_server and packages/golden-ui",
+      "evidence": [
+        "structure, value, trigger, observation, catalog, and preview deltas are explicit generated planes",
+        "subscriptions carry stable view IDs, scopes, planes, and replay cursors",
+        "value, observation, and keyed preview deltas are latest-wins while structure and trigger delivery remains reliable",
+        "scoped resync requests a fresh read-model snapshot without an HTTP runtime fallback"
+      ]
+    },
+    {
+      "cutover_id": "bounded_slow_client_isolation",
+      "state": "cut_over",
+      "owner": "crates/transport_server",
+      "evidence": [
+        "each WebSocket client owns a bounded 64-entry outbound queue",
+        "reliable overflow disconnects only the slow client instead of dropping structural or trigger messages",
+        "outbound_queue_never_silently_drops_reliable_messages",
+        "slow_client_is_removed_when_only_reliable_messages_fill_its_queue"
+      ]
+    },
+    {
+      "cutover_id": "frame_coherent_ui_client",
+      "state": "cut_over",
+      "owner": "packages/golden-ui",
+      "evidence": [
+        "the typed WebSocket client stages plane deltas and runtime stats until requestAnimationFrame",
+        "events are merged in EventTime order and the replay cursor advances only after the frame commits",
+        "the production client has no polling or HTTP snapshot, replay, subscription, or intent fallback",
+        "Svelte check, lint, unit tests, production build, and mounted real-app UI workflow"
+      ]
+    },
+    {
+      "cutover_id": "phase7a_session_workbench",
+      "state": "cut_over",
+      "owner": "packages/golden-ui session and workbench stores",
+      "evidence": [
+        "WorkbenchSessionRoot uses the generated client for connect, reconnect, subscription, replay, and scoped resync",
+        "docking, menus, theme, startup, and error states remain mounted through the existing workbench",
+        "root cargo run, watch, and cargo run -- --dev readiness workflows"
+      ]
+    },
+    {
+      "cutover_id": "phase7b_core_authoring_ui",
+      "state": "cut_over",
+      "owner": "packages/golden-ui core stores and components",
+      "evidence": [
+        "outliner, selection, inspectors, parameter controls, dashboard, logger, diagnostics, dialogs, context menus, and history consume the workbench client facade",
+        "the product inventory retains all 14 panel rows and the regenerated functional-parity ledger",
+        "mounted real-app UI workflow"
+      ]
+    },
+    {
+      "cutover_id": "phase7c_graph_alchemist",
+      "state": "cut_over",
+      "owner": "packages/golden-graph-ui and apps/chataigne/ui",
+      "evidence": [
+        "generic graph and Alchemist panels receive structure, value, catalog, and preview changes through the final client/store path",
+        "formula authoring, managed-item, catalog, preview, and clipboard interactions remain in the mounted application",
+        "mounted real-app UI workflow"
+      ]
+    },
+    {
+      "cutover_id": "phase7d_state_machine",
+      "state": "cut_over",
+      "owner": "packages/golden-statechart-ui and apps/chataigne/ui",
+      "evidence": [
+        "statechart, condition, processor, context/lane, inspector, and preview surfaces consume the final workbench client/store path",
+        "Phase 5 P50-L1 and P5-L127 UI and backend fixtures pass through the new transport",
+        "mounted real-app UI workflow"
+      ]
+    },
+    {
+      "cutover_id": "phase7e_modules_specialized_panels",
+      "state": "cut_over",
+      "owner": "apps/chataigne/ui and packages/golden-ui",
+      "evidence": [
+        "module panels, commands, indicators, Spatializer, custom UI, icons, and connection feedback consume the final workbench client/store path",
+        "production OSC module loopback evidence passes without duplicate effects",
+        "mounted real-app UI workflow"
+      ]
+    },
+    {
+      "cutover_id": "phase7f_packaging_remote_client",
+      "state": "cut_over",
+      "owner": "crates/transport_server, packages/golden-ui, and golden_core hosts",
+      "evidence": [
+        "Tauri and remote browser clients share the generated public WebSocket protocol",
+        "production bundle, root launch modes, mounted UI, and non-loopback LAN browser workflows pass",
+        "the old runtime HTTP/polling client and mixed protocol declarations are deleted"
+      ]
+    },
+    {
+      "cutover_id": "phase6_ui_compat_removed",
+      "state": "removed",
+      "owner": "crates/transport_server and packages/golden-ui",
+      "evidence": [
+        "phase6.ui-control-observation-compat is recorded as removed in phase6-cutovers.v1.json",
+        "createHttpUiClient and runtime HTTP polling/fallback calls are absent",
+        "UiEventBatch is carried only inside generated plane deltas and is not a mixed transport declaration",
+        "tools/migration/check_phase7_contracts.py"
+      ]
+    }
+  ],
+  "temporary_adapters": []
+}

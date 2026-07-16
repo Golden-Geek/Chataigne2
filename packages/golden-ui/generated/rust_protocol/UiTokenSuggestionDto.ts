@@ -3,7 +3,7 @@
 /**
  * UI-facing token suggestion for template/expression editors.
  */
-export type UiTokenSuggestionDto = { 
+export type UiTokenSuggestionDto = {
 /**
  * Suggested token string.
  */

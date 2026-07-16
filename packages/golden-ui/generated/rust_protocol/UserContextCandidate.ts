@@ -8,51 +8,51 @@ import type { UserContextValueType } from "./UserContextValueType";
 /**
  * UI/query candidate entry returned for one consumer.
  */
-export type UserContextCandidate = { 
+export type UserContextCandidate = {
 /**
  * Entry symbol.
  */
-symbol: string, 
+symbol: string,
 /**
  * Entry value type.
  */
-value_type: UserContextValueType, 
+value_type: UserContextValueType,
 /**
  * Entry kind.
  */
-kind: UserContextEntryKind, 
+kind: UserContextEntryKind,
 /**
  * Multiplex metadata for list entries.
  */
-multiplex?: UserContextMultiplexList | null, 
+multiplex?: UserContextMultiplexList | null,
 /**
  * Scope owner node id.
  */
-scope_owner: NodeId, 
+scope_owner: NodeId,
 /**
  * Ancestor distance from consumer (`0` means same node).
  */
-lexical_depth: number, 
+lexical_depth: number,
 /**
  * Backing parameter node id.
  */
-entry_param: NodeId, 
+entry_param: NodeId,
 /**
  * Whether the candidate is compatible with the expected type.
  */
-compatible: boolean, 
+compatible: boolean,
 /**
  * Whether the source can be coerced without selecting a projection.
  */
-directly_compatible: boolean, 
+directly_compatible: boolean,
 /**
  * Whether this candidate's multiplex indexes can be linked to the target parameter.
  */
-multiplex_index_compatible: boolean, 
+multiplex_index_compatible: boolean,
 /**
  * Whether this candidate is shadowed by a nearer scope with the same symbol.
  */
-shadowed: boolean, 
+shadowed: boolean,
 /**
  * Optional projections that can make this candidate compatible.
  */

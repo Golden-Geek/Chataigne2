@@ -4,11 +4,11 @@ import type { ScriptFnSignature } from "./ScriptFnSignature";
 /**
  * One exported Rust-callable script function.
  */
-export type ScriptExportSpec = { 
+export type ScriptExportSpec = {
 /**
  * Exported function name.
  */
-name: string, 
+name: string,
 /**
  * Tooling signature metadata.
  */
