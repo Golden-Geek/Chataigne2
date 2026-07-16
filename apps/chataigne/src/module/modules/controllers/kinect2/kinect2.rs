@@ -645,6 +645,7 @@ impl Node for Kinect2Module {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(KINECT2_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.kinect2")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {

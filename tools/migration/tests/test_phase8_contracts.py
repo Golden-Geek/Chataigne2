@@ -21,6 +21,24 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/common/streaming/module_helpers_tests.rs",
     "apps/chataigne/src/module/common/serial.rs",
     "apps/chataigne/src/module/modules/controllers/buttplug/transport.rs",
+    "apps/chataigne/src/module/modules/controllers/buttplug/mod.rs",
+    "apps/chataigne/src/module/modules/controllers/buttplug/tests.rs",
+    "apps/chataigne/src/module/modules/controllers/buttplug/commands/tests.rs",
+    "apps/chataigne/src/module/modules/controllers/gamepad/gamepad.rs",
+    "apps/chataigne/src/module/modules/controllers/gamepad/gamepad_tests.rs",
+    "apps/chataigne/src/module/modules/controllers/joycon/mod.rs",
+    "apps/chataigne/src/module/modules/controllers/joycon/tests.rs",
+    "apps/chataigne/src/module/modules/controllers/joycon/runtime/runtime_tests.rs",
+    "apps/chataigne/src/module/modules/controllers/keyboard/keyboard.rs",
+    "apps/chataigne/src/module/modules/controllers/keyboard/keyboard_tests.rs",
+    "apps/chataigne/src/module/modules/controllers/kinect2/kinect2.rs",
+    "apps/chataigne/src/module/modules/controllers/kinect2/kinect2_tests.rs",
+    "apps/chataigne/src/module/modules/controllers/mouse/mouse.rs",
+    "apps/chataigne/src/module/modules/controllers/mouse/mouse_tests.rs",
+    "apps/chataigne/src/module/modules/controllers/streamdeck/streamdeck.rs",
+    "apps/chataigne/src/module/modules/controllers/streamdeck/streamdeck_tests.rs",
+    "apps/chataigne/src/module/modules/controllers/ultraleap/ultraleap.rs",
+    "apps/chataigne/src/module/modules/controllers/ultraleap/ultraleap_tests.rs",
     "apps/chataigne/src/module/modules/generators/metronomes/metronomes_tests.rs",
     "apps/chataigne/src/module/modules/generators/metronomes/mod.rs",
     "apps/chataigne/src/module/modules/generators/signals/signals_tests.rs",
@@ -54,6 +72,7 @@ CONTRACT_FILES = (
     "crates/core/src/engine/runtime/limits.rs",
     "crates/core/src/runtime_center.rs",
     "docs/product/manifests/phase8-cutovers.v1.json",
+    "docs/product/manifests/phase8-hardware-evidence.v1.json",
     "docs/product/migration-progress.md",
 )
 
@@ -128,6 +147,19 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("HTTP request backpressure" in item for item in violations))
+
+    def test_controller_without_compiled_kernel_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/src/module/modules/controllers/gamepad/gamepad.rs"
+            source = path.read_text(encoding="utf-8").replace(
+                '.with_compiled_kernel("chataigne.runtime.gamepad")', ""
+            )
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("controller `gamepad`" in item for item in violations))
 
 
 if __name__ == "__main__":

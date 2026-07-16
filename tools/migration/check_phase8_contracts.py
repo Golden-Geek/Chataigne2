@@ -124,6 +124,31 @@ def collect_violations(root: Path) -> list[str]:
         root,
         "apps/chataigne/src/module/modules/protocol/stream/websocketserver/transport_tests.rs",
     )
+    controller_sources = {
+        "buttplug": read(root, "apps/chataigne/src/module/modules/controllers/buttplug/mod.rs"),
+        "gamepad": read(root, "apps/chataigne/src/module/modules/controllers/gamepad/gamepad.rs"),
+        "joycon": read(root, "apps/chataigne/src/module/modules/controllers/joycon/mod.rs"),
+        "keyboard": read(root, "apps/chataigne/src/module/modules/controllers/keyboard/keyboard.rs"),
+        "kinect2": read(root, "apps/chataigne/src/module/modules/controllers/kinect2/kinect2.rs"),
+        "mouse": read(root, "apps/chataigne/src/module/modules/controllers/mouse/mouse.rs"),
+        "streamdeck": read(root, "apps/chataigne/src/module/modules/controllers/streamdeck/streamdeck.rs"),
+        "ultraleap": read(root, "apps/chataigne/src/module/modules/controllers/ultraleap/ultraleap.rs"),
+    }
+    controller_tests = {
+        "buttplug": read(root, "apps/chataigne/src/module/modules/controllers/buttplug/tests.rs"),
+        "buttplug_commands": read(root, "apps/chataigne/src/module/modules/controllers/buttplug/commands/tests.rs"),
+        "gamepad": read(root, "apps/chataigne/src/module/modules/controllers/gamepad/gamepad_tests.rs"),
+        "joycon": read(root, "apps/chataigne/src/module/modules/controllers/joycon/tests.rs"),
+        "joycon_runtime": read(root, "apps/chataigne/src/module/modules/controllers/joycon/runtime/runtime_tests.rs"),
+        "keyboard": read(root, "apps/chataigne/src/module/modules/controllers/keyboard/keyboard_tests.rs"),
+        "kinect2": read(root, "apps/chataigne/src/module/modules/controllers/kinect2/kinect2_tests.rs"),
+        "mouse": read(root, "apps/chataigne/src/module/modules/controllers/mouse/mouse_tests.rs"),
+        "streamdeck": read(root, "apps/chataigne/src/module/modules/controllers/streamdeck/streamdeck_tests.rs"),
+        "ultraleap": read(root, "apps/chataigne/src/module/modules/controllers/ultraleap/ultraleap_tests.rs"),
+    }
+    hardware = json.loads(
+        read(root, "docs/product/manifests/phase8-hardware-evidence.v1.json")
+    )
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -266,6 +291,38 @@ def collect_violations(root: Path) -> list[str]:
         if fixture not in source:
             violations.append(f"Phase 8D is missing transport fixture `{fixture}`")
 
+    for family, source in controller_sources.items():
+        kernel = f"chataigne.runtime.{family}"
+        if kernel not in source or "with_compiled_kernel" not in source:
+            violations.append(f"controller `{family}` does not declare its compiled kernel")
+    controller_fixtures = (
+        ("buttplug_path_is_normalized_for_websocket_url", controller_tests["buttplug"]),
+        ("buttplug_commands_are_module_command_items", controller_tests["buttplug_commands"]),
+        ("selected_gamepad_events_update_values_after_axis_processing", controller_tests["gamepad"]),
+        ("joycon_module_command_tester_creates_joycon_commands", controller_tests["joycon"]),
+        ("joycon_report_heartbeat_marks_stale_after_timeout", controller_tests["joycon_runtime"]),
+        ("keyboard_events_update_values", controller_tests["keyboard"]),
+        ("reference_space_changes_joint_output_origin", controller_tests["kinect2"]),
+        ("mouse_events_update_values", controller_tests["mouse"]),
+        ("feedback_pushes_active_page_color_to_device", controller_tests["streamdeck"]),
+        ("ultraleap_disconnect_resets_tracking_outputs", controller_tests["ultraleap"]),
+    )
+    for fixture, source in controller_fixtures:
+        if fixture not in source:
+            violations.append(f"Phase 8E is missing controller fixture `{fixture}`")
+    hardware_entries = {entry.get("id"): entry for entry in hardware.get("entries", [])}
+    expected_hardware = set(controller_sources)
+    if set(hardware_entries) != expected_hardware:
+        violations.append("Phase 8E hardware evidence does not exactly cover the controller registry")
+    for family in expected_hardware:
+        entry = hardware_entries.get(family, {})
+        if entry.get("qualification") != "PASS":
+            violations.append(f"controller `{family}` lacks deterministic adapter qualification")
+        if not entry.get("adapter") or not entry.get("evidence"):
+            violations.append(f"controller `{family}` lacks named adapter evidence")
+        if not str(entry.get("physical_hardware", "")).startswith("NOT_RUN:"):
+            violations.append(f"controller `{family}` physical-device status is not explicit")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -279,7 +336,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8C is not recorded as runnable")
     if subphases.get("8D", {}).get("state") != "runnable":
         violations.append("Phase 8D is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T104707Z/product-gate-report.json"
+    if subphases.get("8E", {}).get("state") != "runnable":
+        violations.append("Phase 8E is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T110028Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}

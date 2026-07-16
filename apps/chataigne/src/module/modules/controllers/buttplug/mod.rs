@@ -650,6 +650,7 @@ impl Node for ButtplugModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(BUTTPLUG_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.buttplug")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {

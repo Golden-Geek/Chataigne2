@@ -528,6 +528,7 @@ impl Node for UltraleapModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(ULTRALEAP_MODULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.ultraleap")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {

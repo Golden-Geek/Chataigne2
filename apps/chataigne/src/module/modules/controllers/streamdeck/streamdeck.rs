@@ -515,6 +515,7 @@ impl Node for StreamDeckModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(STREAMDECK_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.streamdeck")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {

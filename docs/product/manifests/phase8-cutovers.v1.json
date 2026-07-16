@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 8,
+  "revision": 10,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8D on Win-x64: target/product-gate/20260716T104707Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8E on Win-x64: target/product-gate/20260716T110028Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -66,7 +66,23 @@
         "target/product-gate/20260716T104707Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8E", "state": "pending" },
+    {
+      "subphase_id": "8E",
+      "state": "runnable",
+      "owner": "apps/chataigne/src/module/modules/controllers",
+      "evidence": [
+        "all eight controller/hardware registry modules declare distinct compile-assigned kernels",
+        "docs/product/manifests/phase8-hardware-evidence.v1.json records platform scope, deterministic adapter, fixtures, qualification result, and physical-device status for every family",
+        "Gamepad, Keyboard, Kinect2, Mouse, and Ultraleap inject deterministic runtime events with native backends disabled",
+        "Joy-Con scan/heartbeat fixtures, Stream Deck bidirectional fixtures, and Buttplug protocol/reconnect contracts cover the remaining families",
+        "cargo check -p Chataigne2 --all-targets",
+        "cargo test -p Chataigne2 selected_gamepad_events_update_values_after_axis_processing",
+        "cargo test -p Chataigne2 joycon_report_heartbeat_marks_stale_after_timeout",
+        "cargo test -p Chataigne2 feedback_pushes_active_page_color_to_device",
+        "cargo test -p Chataigne2 ultraleap_disconnect_resets_tracking_outputs",
+        "target/product-gate/20260716T110028Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8F", "state": "pending" },
     { "subphase_id": "8G", "state": "pending" },
     { "subphase_id": "8H", "state": "pending" },

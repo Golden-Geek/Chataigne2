@@ -28,6 +28,8 @@ Start here:
   observation planes, panel-area migrations, slow-client isolation, and old-protocol deletion.
 - [Phase 8 construction dashboard](manifests/phase8-cutovers.v1.json) records the separately gated
   module families, shared IO cutovers, carried runtime adapter, and qualification state.
+- [Phase 8 controller/hardware evidence](manifests/phase8-hardware-evidence.v1.json) names the
+  platform scope, deterministic adapter, executable fixtures, and physical-device status per family.
 - [Architecture decisions](../architecture/decisions/README.md) record the Phase 0 decisions that
   constrain implementation.
 - [Final architecture and migration plan](../Golden_Architecture_Final_Plan.md) remains the complete
