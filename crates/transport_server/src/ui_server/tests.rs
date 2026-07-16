@@ -55,6 +55,20 @@ fn readiness_dto_has_a_stable_versioned_http_shape() {
     );
 }
 
+#[test]
+fn discovery_document_uses_relative_open_lan_endpoints() {
+    assert_eq!(
+        serde_json::to_value(ui_discovery_document()).unwrap(),
+        json!({
+            "version": 1,
+            "service": "chataigne",
+            "health_path": "/api/ui/health",
+            "websocket_path": "/ws",
+            "relative_endpoints": true,
+        })
+    );
+}
+
 fn client_with_subscription_count(count: usize) -> WsClientState {
     let outbound = Arc::new(WsOutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY));
     let subscriptions = (0..count)

@@ -17,6 +17,11 @@
     "test": "npm run test --workspace golden_statechart_ui && npm run test --workspace chataigne-ui",
     "check": "npm run check --workspace chataigne-ui",
     "lint": "npm run lint --workspace chataigne-ui",
-    "format": "npm run format --workspace chataigne-ui"
+    "format": "npm run format --workspace chataigne-ui",
+    "package": "node tools/release/check-signing.mjs && npm run build && npm exec -- tauri build --config apps/chataigne/tauri.conf.json",
+    "package:check": "node tools/release/check-signing.mjs && npm run build && npm exec -- tauri build --config apps/chataigne/tauri.conf.json --no-bundle"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4"
   }
 }

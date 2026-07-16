@@ -299,6 +299,11 @@ pub enum ProjectPersistenceError {
         /// Human-readable codec message.
         message: String,
     },
+    /// Primary and backup project files could not produce a valid document.
+    Recovery {
+        /// Combined recovery diagnostic.
+        message: String,
+    },
 }
 
 /// Recoverable problems encountered while rebuilding a project file.
@@ -345,6 +350,14 @@ impl ProjectLoadRecoveryReport {
             message: format!("runtime startup error: {}", message.into()),
         });
     }
+
+    /// Records that the last complete backup replaced an unreadable primary project file.
+    pub fn push_project_file_recovery(&mut self, message: impl Into<String>) {
+        self.problems.push(ProjectLoadRecoveryProblem {
+            stage: ProjectLoadRecoveryStage::ProjectFile,
+            message: message.into(),
+        });
+    }
 }
 
 /// One recoverable project-load problem.
@@ -359,6 +372,8 @@ pub struct ProjectLoadRecoveryProblem {
 /// Project-load stage for a recoverable problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProjectLoadRecoveryStage {
+    /// Primary file corruption or interruption required the last complete backup.
+    ProjectFile,
     /// Load-time lifecycle replay emitted invalid rebuild edits.
     LifecycleReplay,
     /// Host runtime startup emitted invalid edits or failed to resolve.
@@ -369,6 +384,7 @@ impl ProjectLoadRecoveryStage {
     /// Stable protocol value for this recovery stage.
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::ProjectFile => "project_file",
             Self::LifecycleReplay => "lifecycle_replay",
             Self::RuntimeStartup => "runtime_startup",
         }
@@ -386,6 +402,7 @@ impl fmt::Display for ProjectPersistenceError {
                 write!(f, "unsupported project version '{found}' (expected '{expected}')")
             }
             Self::Codec { node_type, message } => write!(f, "node codec error for '{node_type}': {message}"),
+            Self::Recovery { message } => write!(f, "project recovery error: {message}"),
         }
     }
 }
@@ -452,7 +469,7 @@ impl<T: Node> Engine<T> {
         F: FnMut(&T) -> Result<serde_json::Value, String>,
     {
         let json = self.to_project_json_pretty_with(encode_data)?;
-        fs::write(path, json)?;
+        golden_persistence::write_file_atomically_with_recovery(path, json.as_bytes())?;
         Ok(())
     }
 

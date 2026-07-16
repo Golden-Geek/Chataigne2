@@ -442,6 +442,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "atomic-write-file"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84790c55b5704b0d35130bf16a4ce22a8e70eb0ea773522557524d9a4852663d"
+dependencies = [
+ "nix 0.30.1",
+ "rand 0.9.5",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2587,12 +2597,14 @@ dependencies = [
  "golden_core_macros",
  "golden_model",
  "golden_parameters",
+ "golden_persistence",
  "golden_runtime",
  "golden_values",
  "rquickjs",
  "serde",
  "serde_json",
  "slotmap",
+ "tempfile",
  "ts-rs",
  "uuid",
 ]
@@ -2652,7 +2664,11 @@ dependencies = [
 name = "golden_persistence"
 version = "0.1.0"
 dependencies = [
- "golden_engine",
+ "atomic-write-file",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]
@@ -2695,6 +2711,7 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "golden_engine",
+ "golden_persistence",
  "golden_protocol",
  "serde",
  "serde_json",
@@ -3894,6 +3911,18 @@ checksum = "598beaf3cc6fdd9a5dfb1630c2800c7acd31df7aaf0f565796fba2b53ca1af1b"
 dependencies = [
  "bitflags 1.3.2",
  "cfg-if",
+ "libc",
+]
+
+[[package]]
+name = "nix"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
+dependencies = [
+ "bitflags 2.13.0",
+ "cfg-if",
+ "cfg_aliases",
  "libc",
 ]
 

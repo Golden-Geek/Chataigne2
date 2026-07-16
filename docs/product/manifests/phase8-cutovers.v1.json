@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 16,
+  "revision": 19,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8H on Win-x64: target/product-gate/20260716T115920Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8I on Win-x64: target/product-gate/20260716T125330Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -133,7 +133,24 @@
         "target/product-gate/20260716T115920Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8I", "state": "pending" },
+    {
+      "subphase_id": "8I",
+      "state": "runnable",
+      "owner": "golden_persistence, golden host runtimes, transport discovery, and release tooling",
+      "evidence": [
+        "golden_persistence owns cross-platform atomic replacement, last-complete backups, versioned SHA-256 recovery journals, and recovery candidate reads without depending on golden_engine",
+        "project, preferences, and uploaded-project writes use the durable file boundary; user-approved load recovery falls back from a corrupt primary and atomically repairs it from the last complete sparse project backup",
+        "a 10002-node sparse project fixture round-trips through the v1 project codec",
+        "desktop, headless, no-remote, configurable-bind, open-LAN, and versioned well-known discovery contracts share the production host stack",
+        "native Tauri packaging is active with release icons and license; the workspace-pinned CLI completes npm run package:check",
+        "the native release matrix and fail-closed Windows, macOS notarization, and Linux signing hooks are checked in without repository secrets",
+        "formula authoring documents and managed regions round-trip through the versioned graph envelope",
+        "cargo test -p golden_persistence",
+        "cargo test -p golden_engine large_sparse_project_roundtrip_preserves_ten_thousand_node_subtree",
+        "npm run package:check",
+        "target/product-gate/20260716T125330Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8J", "state": "pending" }
   ],
   "carried_temporary_adapters": [

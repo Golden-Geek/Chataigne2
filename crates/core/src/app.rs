@@ -687,8 +687,11 @@ where
     T: ProjectNode + From<Folder>,
     P: AsRef<Path>,
 {
+    let path = path.as_ref();
     let json = fs::read_to_string(path)?;
-    from_sparse_project_json_with_ui_state(&json)
+    let loaded = from_sparse_project_json_with_ui_state(&json)?;
+    let _ = golden_persistence::clear_recovery_journal(path);
+    Ok(loaded)
 }
 
 /// Loads one sparse project file, skipping user-approved recoverable rebuild problems.
@@ -699,8 +702,65 @@ where
     T: ProjectNode + From<Folder>,
     P: AsRef<Path>,
 {
-    let json = fs::read_to_string(path)?;
-    from_sparse_project_json_with_ui_state_recovering(&json)
+    let path = path.as_ref();
+    let candidates = golden_persistence::read_recovery_candidates(path)?;
+    let mut primary_failure = candidates.primary_error.clone();
+
+    if let Some(primary) = candidates.primary.as_deref() {
+        match std::str::from_utf8(primary) {
+            Ok(json) => match from_sparse_project_json_with_ui_state_recovering(json) {
+                Ok(loaded) => {
+                    let _ = golden_persistence::clear_recovery_journal(path);
+                    return Ok(loaded);
+                }
+                Err(error) => primary_failure = Some(error.to_string()),
+            },
+            Err(error) => primary_failure = Some(format!("project file is not UTF-8: {error}")),
+        }
+    }
+
+    let backup = candidates
+        .backup
+        .as_deref()
+        .ok_or_else(|| ProjectPersistenceError::Recovery {
+            message: format!(
+                "primary failed ({}) and no readable backup exists{}",
+                primary_failure.as_deref().unwrap_or("unknown error"),
+                candidates
+                    .backup_error
+                    .as_deref()
+                    .map(|error| format!(": {error}"))
+                    .unwrap_or_default()
+            ),
+        })?;
+    let backup_json = std::str::from_utf8(backup).map_err(|error| ProjectPersistenceError::Recovery {
+        message: format!(
+            "primary failed ({}) and backup is not UTF-8: {error}",
+            primary_failure.as_deref().unwrap_or("unknown error")
+        ),
+    })?;
+    let (engine, ui_state, mut recovery) =
+        from_sparse_project_json_with_ui_state_recovering(backup_json).map_err(|backup_error| {
+            ProjectPersistenceError::Recovery {
+                message: format!(
+                    "primary failed ({}); backup failed ({backup_error})",
+                    primary_failure.as_deref().unwrap_or("unknown error")
+                ),
+            }
+        })?;
+    golden_persistence::restore_primary_from_backup(&candidates.paths, backup)?;
+    let journal_diagnostic = candidates
+        .journal_error
+        .as_deref()
+        .map(|error| format!("; journal={error}"))
+        .unwrap_or_default();
+    recovery.push_project_file_recovery(format!(
+        "primary project file failed ({}); loaded last complete backup {}{}",
+        primary_failure.as_deref().unwrap_or("unknown error"),
+        candidates.paths.backup.display(),
+        journal_diagnostic
+    ));
+    Ok((engine, ui_state, recovery))
 }
 
 /// Imports one sparse persisted subtree beneath `parent`.

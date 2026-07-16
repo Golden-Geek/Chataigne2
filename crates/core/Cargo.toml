@@ -11,6 +11,7 @@ golden_application.workspace = true
 golden_context.workspace = true
 golden_model.workspace = true
 golden_parameters.workspace = true
+golden_persistence.workspace = true
 golden_runtime.workspace = true
 golden_values.workspace = true
 arc-swap.workspace = true
@@ -24,6 +25,7 @@ ts-rs.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+tempfile.workspace = true
 
 [[bench]]
 name = "tick"

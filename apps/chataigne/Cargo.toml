@@ -51,7 +51,7 @@ serde_json = "1"
 smallvec = "1"
 uuid = { version = "1", features = ["serde", "v4", "v5"] }
 sysinfo = "0.39.1"
-tauri = "2"
+tauri = { version = "2", features = [] }
 tokio = { version = "1", features = ["net", "rt", "time"] }
 tokio-tungstenite = "0.29"
 rdev = "0.5.3"

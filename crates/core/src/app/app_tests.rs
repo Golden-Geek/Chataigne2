@@ -2,12 +2,14 @@ use std::path::PathBuf;
 
 use crate::app::{
     DEFAULT_ENGINE_LOW_FREQUENCY_HZ, DEFAULT_ENGINE_MAX_FREQUENCY_HZ, ProjectLifecycle, ensure_preferences_tree,
-    from_sparse_project_json_with_ui_state, insert_sparse_preferences_json, preferences_data_folder,
-    preferences_engine_low_frequency_hz, preferences_engine_max_frequency_hz, to_sparse_preferences_json_pretty,
-    to_sparse_project_json_pretty, to_sparse_project_json_pretty_with_ui_state,
+    from_sparse_project_json_with_ui_state, insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
+    load_sparse_project_file_with_ui_state_recovering, preferences_data_folder, preferences_engine_low_frequency_hz,
+    preferences_engine_max_frequency_hz, to_sparse_preferences_json_pretty, to_sparse_project_json_pretty,
+    to_sparse_project_json_pretty_with_ui_state,
 };
 use crate::define_node_enum;
-use crate::engine::Engine;
+use crate::edit::{Edit, NodeTree};
+use crate::engine::{Engine, ProjectLoadRecoveryStage};
 use crate::node::Folder;
 
 define_node_enum!(
@@ -124,4 +126,58 @@ fn sparse_project_roundtrip_preserves_project_ui_state() {
     let first: serde_json::Value = serde_json::from_str(&project_json).expect("first project json should parse");
     let second: serde_json::Value = serde_json::from_str(&saved_again).expect("second project json should parse");
     assert_eq!(first, second);
+}
+
+#[test]
+fn recovering_sparse_file_load_uses_last_complete_atomic_backup() {
+    let directory = tempfile::tempdir().expect("temporary project directory should be created");
+    let path = directory.path().join("recovery.noisette");
+    let root: PreferencesTestNode = Folder::new("root").into();
+    let engine = Engine::new(root);
+    let ui_state = serde_json::json!({ "selected_node_ids": [7] });
+    let valid = to_sparse_project_json_pretty_with_ui_state(&engine, Some(ui_state.clone()))
+        .expect("valid sparse project should encode");
+
+    golden_persistence::write_file_atomically_with_recovery(&path, valid.as_bytes())
+        .expect("initial save should succeed");
+    golden_persistence::write_file_atomically_with_recovery(&path, b"{")
+        .expect("atomic replacement should preserve the valid backup");
+
+    assert!(
+        load_sparse_project_file_with_ui_state::<PreferencesTestNode, _>(&path).is_err(),
+        "strict load must reject the corrupt primary"
+    );
+    let (_loaded, loaded_ui_state, recovery) =
+        load_sparse_project_file_with_ui_state_recovering::<PreferencesTestNode, _>(&path)
+            .expect("recovery load should use the last complete backup");
+    assert_eq!(loaded_ui_state, Some(ui_state));
+    assert!(recovery.problems.iter().any(|problem| {
+        problem.stage == ProjectLoadRecoveryStage::ProjectFile
+            && problem.message.contains("loaded last complete backup")
+    }));
+    load_sparse_project_file_with_ui_state::<PreferencesTestNode, _>(&path)
+        .expect("approved recovery should atomically repair the primary file");
+}
+
+#[test]
+fn large_sparse_project_roundtrip_preserves_ten_thousand_node_subtree() {
+    let root: PreferencesTestNode = Folder::new("root").into();
+    let mut engine = Engine::new(root);
+    let mut tree = NodeTree::new(Folder::new("large subtree"));
+    for index in 0..10_000 {
+        tree.push_child(NodeTree::new(Folder::new(format!("node {index}"))));
+    }
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    engine
+        .apply_edits()
+        .expect("large detached subtree should attach in one edit");
+
+    let json = to_sparse_project_json_pretty(&engine).expect("large project should encode");
+    let (loaded, _) =
+        from_sparse_project_json_with_ui_state::<PreferencesTestNode>(&json).expect("large project should decode");
+    assert_eq!(loaded.nodes.iter().count(), 10_002);
 }

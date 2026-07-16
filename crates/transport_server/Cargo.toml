@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 golden_engine = { path = "../core" }
+golden_persistence.workspace = true
 golden_protocol = { path = "../protocol" }
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }

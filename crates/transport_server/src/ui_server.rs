@@ -110,6 +110,31 @@ pub struct UiReadinessDto {
     pub read_model_revision: EngineTime,
 }
 
+/// Stable well-known document for discovering the built-in HTTP and WebSocket surfaces.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiDiscoveryDto {
+    /// Discovery document schema version.
+    pub version: u16,
+    /// Stable service identifier.
+    pub service: String,
+    /// Relative readiness endpoint.
+    pub health_path: String,
+    /// Relative WebSocket endpoint.
+    pub websocket_path: String,
+    /// Whether non-loopback clients may use the same host when the listener is open-LAN.
+    pub relative_endpoints: bool,
+}
+
+fn ui_discovery_document() -> UiDiscoveryDto {
+    UiDiscoveryDto {
+        version: 1,
+        service: "chataigne".to_string(),
+        health_path: "/api/ui/health".to_string(),
+        websocket_path: "/ws".to_string(),
+        relative_endpoints: true,
+    }
+}
+
 impl Default for UiServerConfig {
     fn default() -> Self {
         Self {
@@ -1280,6 +1305,9 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
 
     let route = request.path.as_str();
     match (request.method.as_str(), route) {
+        ("GET", "/.well-known/chataigne") => {
+            write_json(stream, "200 OK", &ui_discovery_document())?;
+        }
         ("GET", "/api/ui/health") => {
             write_json(stream, "200 OK", &state.ws_hub.readiness.snapshot(&state.read_model))?;
         }

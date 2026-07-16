@@ -180,12 +180,14 @@ pub(crate) fn save_preferences<T: ProjectLifecycle>(
         fs::create_dir_all(parent)
             .map_err(|err| format!("failed to create preferences directory {}: {err}", parent.display()))?;
     }
-    fs::write(&preferences.file_path, json.as_bytes()).map_err(|err| {
-        format!(
-            "failed to write preferences file {}: {err}",
-            preferences.file_path.display()
-        )
-    })
+    golden_persistence::write_file_atomically_with_recovery(&preferences.file_path, json.as_bytes())
+        .map(|_| ())
+        .map_err(|err| {
+            format!(
+                "failed to write preferences file {}: {err}",
+                preferences.file_path.display()
+            )
+        })
 }
 
 pub(crate) fn create_new_project<T: ProjectLifecycle>(
@@ -213,7 +215,8 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
     let clone_or_snapshot_ms = 0;
 
     let write_started = Instant::now();
-    fs::write(path.as_str(), encoded.json.as_bytes()).map_err(|err| err.to_string())?;
+    golden_persistence::write_file_atomically_with_recovery(path.as_str(), encoded.json.as_bytes())
+        .map_err(|err| err.to_string())?;
     let write_elapsed = write_started.elapsed();
     eprintln!(
         "[project-host] save_project path='{}' nodes={} bytes={} lock_wait_ms={} clone_or_snapshot_ms={} serialize_ms={} write_ms={} total_ms={}",
@@ -399,9 +402,11 @@ fn upload_project_and_load_with_options<T: ProjectLifecycle>(
     let file_spec = T::project_file_spec();
     let file_name = sanitize_browser_upload_file_name(raw_file_name, &file_spec);
     let path = directory.join(file_name);
-    fs::write(&path, contents).map_err(|err| ProjectLoadError {
-        message: format!("failed to write uploaded project file {}: {err}", path.display()),
-        recovery: None,
+    golden_persistence::write_file_atomically_with_recovery(&path, contents.as_bytes()).map_err(|err| {
+        ProjectLoadError {
+            message: format!("failed to write uploaded project file {}: {err}", path.display()),
+            recovery: None,
+        }
     })?;
 
     let normalized_path = path.to_string_lossy().to_string();

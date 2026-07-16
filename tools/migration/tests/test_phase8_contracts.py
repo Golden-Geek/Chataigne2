@@ -15,8 +15,14 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 CONTRACT_FILES = (
+    ".github/workflows/release.yml",
     "Cargo.toml",
+    "Cargo.lock",
+    "package.json",
+    "package-lock.json",
     "apps/chataigne/Cargo.toml",
+    "apps/chataigne/tauri.conf.json",
+    "apps/chataigne/alchemist/src/formula_tests.rs",
     "apps/chataigne/src/module/common/mod.rs",
     "apps/chataigne/src/module/common/streaming/module_helpers.rs",
     "apps/chataigne/src/module/common/streaming/module_helpers_tests.rs",
@@ -86,17 +92,29 @@ CONTRACT_FILES = (
     "crates/io/src/lib.rs",
     "crates/core/src/engine/runtime/limits.rs",
     "crates/core/src/runtime_center.rs",
+    "crates/core/src/app.rs",
+    "crates/core/src/app/app_tests.rs",
     "crates/core/src/script/mod.rs",
     "crates/script/src/lib.rs",
     "crates/script/tests/runtime_contract.rs",
+    "crates/persistence/Cargo.toml",
+    "crates/persistence/src/file_store.rs",
+    "crates/persistence/src/file_store_tests.rs",
+    "crates/host_desktop/src/desktop.rs",
+    "crates/transport_server/src/project_host.rs",
+    "crates/transport_server/src/ui_server.rs",
+    "crates/transport_server/src/ui_server/tests.rs",
     "docs/product/manifests/phase8-cutovers.v1.json",
     "docs/product/manifests/phase8-hardware-evidence.v1.json",
     "docs/product/manifests/product-files.v1.json",
     "docs/product/manifests/product-surfaces.v1.json",
     "docs/product/migration-progress.md",
+    "docs/release-readiness.md",
     "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte",
     "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte",
     "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte",
+    "tools/release/check-signing.mjs",
+    "tools/release/sign-windows.ps1",
 )
 
 
@@ -243,6 +261,33 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(json.dumps(inventory), encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("missing module icons" in item for item in violations))
+
+    def test_non_atomic_project_host_save_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "crates/transport_server/src/project_host.rs"
+            source = path.read_text(encoding="utf-8").replace(
+                "golden_persistence::write_file_atomically_with_recovery(path.as_str(), encoded.json.as_bytes())",
+                "fs::write(path.as_str(), encoded.json.as_bytes())",
+                1,
+            )
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("non-atomically" in item for item in violations))
+
+    def test_disabled_native_packaging_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/tauri.conf.json"
+            config = json.loads(path.read_text(encoding="utf-8"))
+            config["bundle"]["active"] = False
+            path.write_text(json.dumps(config), encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("native packaging" in item for item in violations))
 
 
 if __name__ == "__main__":

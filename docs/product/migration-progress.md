@@ -20,8 +20,8 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 - State: `CONSTRUCTION`; the Phase 8 module and specialized-subsystem interval is open from the
   immutable Phase 7 checkpoint `1a1609a`.
-- Current subphase: 8I persistence, recovery, host, discovery, packaging, and release readiness.
-  The shared script host and complete generated product inventory are now runnable.
+- Current subphase: 8J approved Art-Net/sACN/DMX and Node module expansion. Durable persistence,
+  recovery, host discovery, and native release contracts are now runnable.
 - 8B proof: deterministic worker fixtures prove fixed-delta values, cycles, tick multiplicity, and
   counts. Local Win-x64 report `target/product-gate/20260716T101347Z/product-gate-report.json`
   passed all 38 required checks; 7 non-required checks were `NOT_RUN`.
@@ -51,12 +51,19 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
   plus the shared base template, 51 methods, 51 callbacks, 40 snippets, Action/Mapping hashes, 90
   assets, and every module icon. Local Win-x64 report
   `target/product-gate/20260716T115920Z/product-gate-report.json` passed all 38 required checks.
+- 8I focused proof: project/preferences/upload writes use atomic replacement with a last-complete
+  backup and versioned recovery journal; a corrupt primary recovers through the existing user
+  confirmation flow and is atomically repaired before the next save can rotate it. A 10,002-node
+  sparse project round-trips, open-LAN discovery is versioned, and `npm run package:check` builds
+  the optimized Tauri application with pinned release tooling.
+  Local Win-x64 report `target/product-gate/20260716T125330Z/product-gate-report.json` passed all 38
+  required checks, including the real-app save/reload and non-loopback LAN workflows.
 - Focused proof: local Win-x64 report
   `target/product-gate/20260716T095204Z/product-gate-report.json` passed all 38 required checks for
   the 8A tree; 7 non-required dependency/platform checks were `NOT_RUN`.
-- Last runnable checkpoint: Phase 8G, based on Phase 8F commit `7baeafd`.
-- Remaining Phase 8 work: gate module families 8H through 8J and close with the
-  full local and required cross-platform product qualifications.
+- Last runnable checkpoint: Phase 8I, based on Phase 8H commit `453a5a1`.
+- Remaining Phase 8 work: complete the approved 8J module expansion and close with the full local
+  and required cross-platform product qualifications.
 
 The long-lived migration branch does not require a permanently open pull request. Focused PRs are
 opened when a review, named qualification, or merge point is ready. This keeps routine pushes local
@@ -75,7 +82,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                       |
 | Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)       |
 | Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`; local report `target/product-gate/20260716T070444Z/product-gate-report.json`; all 37 required checks passed |
-| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `PASS` (8G Win-x64)    | Specialized authoring passed `target/product-gate/20260716T113731Z/product-gate-report.json`; 8H is next                                                                        |
+| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `PASS` (8I Win-x64)    | Persistence, host discovery, and packaging passed `target/product-gate/20260716T125330Z/product-gate-report.json`; 8J is next                                                   |
 | Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Every parity row and release gate must pass                                                                                                                                     |
 
 ## Phase 0 Governance Slice
@@ -205,7 +212,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | 8F       | `RUNNABLE`     | App Control and OS have family kernels, named workers, lifecycle, and enforced platform fixtures; all 38 required product-gate checks pass |
 | 8G       | `RUNNABLE`     | Spatializer uses sparse Delaunay topology at the declared scale; dashboard/editor workflows are enforced; all 38 required product-gate checks pass |
 | 8H       | `RUNNABLE`     | Public runtime/cache/budget contracts and the complete generated script/asset/registration inventory are enforced; all 38 required product-gate checks pass |
-| 8I       | Pending        | Gate persistence/recovery, desktop/headless/LAN hosts, discovery, packaging, and release assets                       |
+| 8I       | `RUNNABLE`     | Durable project recovery, desktop/headless/LAN discovery, active native bundles, signing/notarization hooks, and release assets are enforced; all 38 required product-gate checks pass |
 | 8J       | Pending        | Implement approved Art-Net/sACN/DMX and Node modules to the complete module standard                                  |
 
 ## Required Root Workflow Status

@@ -202,6 +202,23 @@ def collect_violations(root: Path) -> list[str]:
     product_surfaces = json.loads(
         read(root, "docs/product/manifests/product-surfaces.v1.json")
     )
+    persistence_cargo = read(root, "crates/persistence/Cargo.toml")
+    persistence_store = read(root, "crates/persistence/src/file_store.rs")
+    persistence_tests = read(root, "crates/persistence/src/file_store_tests.rs")
+    core_app = read(root, "crates/core/src/app.rs")
+    core_app_tests = read(root, "crates/core/src/app/app_tests.rs")
+    project_host = read(root, "crates/transport_server/src/project_host.rs")
+    ui_server = read(root, "crates/transport_server/src/ui_server.rs")
+    ui_server_tests = read(root, "crates/transport_server/src/ui_server/tests.rs")
+    desktop_host = read(root, "crates/host_desktop/src/desktop.rs")
+    formula_tests = read(root, "apps/chataigne/alchemist/src/formula_tests.rs")
+    tauri_config = json.loads(read(root, "apps/chataigne/tauri.conf.json"))
+    root_package = json.loads(read(root, "package.json"))
+    package_lock = read(root, "package-lock.json")
+    release_workflow = read(root, ".github/workflows/release.yml")
+    release_preflight = read(root, "tools/release/check-signing.mjs")
+    windows_signing = read(root, "tools/release/sign-windows.ps1")
+    release_docs = read(root, "docs/release-readiness.md")
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -565,6 +582,79 @@ def collect_violations(root: Path) -> list[str]:
         if fixture not in formula_catalog_tests:
             violations.append(f"Phase 8H is missing formula-asset fixture `{fixture}`")
 
+    if "golden_engine" in persistence_cargo:
+        violations.append("golden_persistence still depends on the engine implementation")
+    for contract in (
+        "AtomicWriteFile",
+        "RecoveryJournal",
+        "backup_sha256",
+        "pending_sha256",
+        "write_file_atomically_with_recovery",
+        "read_recovery_candidates",
+        "restore_primary_from_backup",
+    ):
+        if contract not in persistence_store:
+            violations.append(f"Phase 8I durable persistence is missing `{contract}`")
+    for fixture in (
+        "atomic_replacement_keeps_previous_complete_file_and_clears_journal",
+        "recovery_candidates_preserve_corrupt_primary_and_last_complete_backup",
+    ):
+        if fixture not in persistence_tests:
+            violations.append(f"Phase 8I is missing persistence fixture `{fixture}`")
+    if "read_recovery_candidates" not in core_app or "push_project_file_recovery" not in core_app:
+        violations.append("Phase 8I sparse project loader does not use recovery candidates")
+    for fixture in (
+        "recovering_sparse_file_load_uses_last_complete_atomic_backup",
+        "large_sparse_project_roundtrip_preserves_ten_thousand_node_subtree",
+    ):
+        if fixture not in core_app_tests:
+            violations.append(f"Phase 8I is missing project fixture `{fixture}`")
+    if project_host.count("write_file_atomically_with_recovery") < 3:
+        violations.append("project, preferences, and uploaded files are not all durable writes")
+    if "fs::write(path.as_str(), encoded.json.as_bytes())" in project_host:
+        violations.append("project host still writes the authoritative project non-atomically")
+
+    for contract in ("headless", "GC_UI_BIND", "--no-remote", "run_with_ui_server_config"):
+        if contract not in desktop_host:
+            violations.append(f"Phase 8I host runtime is missing `{contract}`")
+    for contract in ("UiDiscoveryDto", '"/.well-known/chataigne"', "relative_endpoints"):
+        if contract not in ui_server:
+            violations.append(f"Phase 8I host discovery is missing `{contract}`")
+    if "discovery_document_uses_relative_open_lan_endpoints" not in ui_server_tests:
+        violations.append("Phase 8I is missing the open-LAN discovery fixture")
+
+    bundle = tauri_config.get("bundle", {})
+    if bundle.get("active") is not True or bundle.get("targets") != "all":
+        violations.append("Phase 8I Tauri native packaging is not active for all native targets")
+    if set(bundle.get("icon", [])) != {"icons/icon.png", "icons/icon.ico"}:
+        violations.append("Phase 8I Tauri package does not carry the release icons")
+    if bundle.get("licenseFile") != "../../LICENSE":
+        violations.append("Phase 8I Tauri package does not carry the repository license")
+    scripts = root_package.get("scripts", {})
+    if "tauri build" not in scripts.get("package", "") or "--no-bundle" not in scripts.get("package:check", ""):
+        violations.append("Phase 8I root package and packaging-smoke commands are missing")
+    if root_package.get("devDependencies", {}).get("@tauri-apps/cli") != "2.11.4":
+        violations.append("Phase 8I Tauri CLI is not pinned in the root package")
+    if '"node_modules/@tauri-apps/cli"' not in package_lock:
+        violations.append("Phase 8I package lock does not contain the pinned Tauri CLI")
+    for contract in ("windows-latest", "macos-latest", "ubuntu-24.04", "actions/upload-artifact@v4"):
+        if contract not in release_workflow:
+            violations.append(f"Phase 8I native release matrix is missing `{contract}`")
+    for contract in ("GC_REQUIRE_SIGNING", "APPLE_CERTIFICATE", "SIGN_KEY"):
+        if contract not in release_preflight:
+            violations.append(f"Phase 8I signing preflight is missing `{contract}`")
+    for contract in ("WINDOWS_CERTIFICATE_THUMBPRINT", "WINDOWS_TIMESTAMP_URL", "signtool"):
+        if contract.lower() not in windows_signing.lower():
+            violations.append(f"Phase 8I Windows signing hook is missing `{contract}`")
+    if "notarization" not in release_docs or "clean environment" not in release_docs:
+        violations.append("Phase 8I release qualification documentation is incomplete")
+    for fixture in (
+        "formula_authoring_document_roundtrips_through_versioned_graph_envelope",
+        "managed_region_kind_roundtrips_through_json",
+    ):
+        if fixture not in formula_tests:
+            violations.append(f"Phase 8I is missing formula-schema fixture `{fixture}`")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -586,7 +676,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8G is not recorded as runnable")
     if subphases.get("8H", {}).get("state") != "runnable":
         violations.append("Phase 8H is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T115920Z/product-gate-report.json"
+    if subphases.get("8I", {}).get("state") != "runnable":
+        violations.append("Phase 8I is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T125330Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}
