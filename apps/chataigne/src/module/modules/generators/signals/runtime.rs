@@ -203,7 +203,7 @@ fn handle_command(
     }
 }
 
-fn compute_signal_update(
+pub(super) fn compute_signal_update(
     config: &SignalWorkerConfig,
     states: &mut HashMap<NodeId, SignalRuntimeState>,
     delta_seconds: f64,

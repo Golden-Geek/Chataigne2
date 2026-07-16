@@ -9,6 +9,7 @@ use golden_core::{
 };
 
 use super::SignalsModule;
+use std::collections::HashMap;
 
 #[test]
 fn signals_module_is_declared_under_generators_menu() {
@@ -224,6 +225,26 @@ fn signal_range_and_reverse_saw_shape_are_applied() {
         (value - 17.5).abs() < 0.000_001,
         "reverse saw at quarter cycle over 10..20 should be 17.5, got {value}",
     );
+}
+
+#[test]
+fn signal_worker_fixture_is_deterministic_across_cycles() {
+    let config = test_signal_config(super::SignalShape::Sine, -1.0, 1.0);
+    let worker_config = super::runtime::SignalWorkerConfig {
+        update_rate_hz: 60,
+        signals: vec![config],
+    };
+    let mut states = HashMap::new();
+
+    let first = super::runtime::compute_signal_update(&worker_config, &mut states, 0.25);
+    let first = first.samples.get(&NodeId(1)).expect("first signal sample");
+    assert!((first.value - 1.0).abs() < 0.000_001);
+    assert_eq!((first.cycle, first.cycles), (0, 0));
+
+    let second = super::runtime::compute_signal_update(&worker_config, &mut states, 1.0);
+    let second = second.samples.get(&NodeId(1)).expect("second signal sample");
+    assert!((second.value - 1.0).abs() < 0.000_001);
+    assert_eq!((second.cycle, second.cycles), (1, 1));
 }
 
 #[test]

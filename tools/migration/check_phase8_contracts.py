@@ -32,6 +32,22 @@ def collect_violations(root: Path) -> list[str]:
         root,
         "apps/chataigne/src/module/modules/controllers/buttplug/transport.rs",
     )
+    limits = read(root, "crates/core/src/engine/runtime/limits.rs")
+    runtime_center = read(root, "crates/core/src/runtime_center.rs")
+    signals = read(
+        root, "apps/chataigne/src/module/modules/generators/signals/mod.rs"
+    )
+    signal_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/generators/signals/signals_tests.rs",
+    )
+    metronomes = read(
+        root, "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
+    )
+    metronome_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/generators/metronomes/metronomes_tests.rs",
+    )
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -72,6 +88,33 @@ def collect_violations(root: Path) -> list[str]:
         if "ReconnectBackoff" not in source:
             violations.append(f"{family} does not consume the shared reconnect policy")
 
+    if "with_compiled_kernel" not in limits:
+        violations.append("NodeExecutionRule cannot declare a compiled domain kernel")
+    for required_runtime_contract in (
+        "CompiledScheduledNode",
+        "domain_kernels",
+        "DOMAIN_NODE_ADAPTER_KERNEL",
+    ):
+        if required_runtime_contract not in runtime_center:
+            violations.append(
+                f"runtime compilation is missing `{required_runtime_contract}`"
+            )
+    for family, source, kernel in (
+        ("Signal", signals, "chataigne.runtime.signals"),
+        ("Metronome", metronomes, "chataigne.runtime.metronomes"),
+    ):
+        if kernel not in source or "with_compiled_kernel" not in source:
+            violations.append(f"{family} does not declare its compiled kernel")
+    for fixture, source in (
+        ("signal_worker_fixture_is_deterministic_across_cycles", signal_tests),
+        (
+            "metronome_worker_fixture_preserves_tick_multiplicity_and_count",
+            metronome_tests,
+        ),
+    ):
+        if fixture not in source:
+            violations.append(f"Phase 8B is missing deterministic fixture `{fixture}`")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -79,9 +122,11 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8 dashboard does not record the construction interval")
     if subphases.get("8A", {}).get("state") != "runnable":
         violations.append("Phase 8A is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T095204Z/product-gate-report.json"
+    if subphases.get("8B", {}).get("state") != "runnable":
+        violations.append("Phase 8B is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T101347Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
-        violations.append("Phase 8A product-gate evidence is not recorded")
+        violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}
     missing = expected - subphases.keys()
     if missing:

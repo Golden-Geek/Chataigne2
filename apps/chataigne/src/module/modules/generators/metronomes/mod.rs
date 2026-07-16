@@ -22,6 +22,7 @@ use golden_core::{
 
 const METRONOMES_UPDATE_RATE_DEFAULT_HZ: i32 = 60;
 const METRONOMES_UPDATE_RATE_MAX_HZ: i32 = 240;
+const METRONOMES_COMPILED_KERNEL: &str = "chataigne.runtime.metronomes";
 const METRONOME_ITEM_KIND: &str = "metronome";
 const METRONOME_ITEM_LABEL: &str = "Metronome";
 const METRONOME_MODE_FREQUENCY: &str = "frequency";
@@ -434,6 +435,7 @@ impl Node for MetronomesModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(runtime_update_rate_hz(self.update_rate_hz.get()))
+            .with_compiled_kernel(METRONOMES_COMPILED_KERNEL)
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {

@@ -21,6 +21,7 @@ use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 const INPUT_LOSSLESS_CAPACITY: usize = 16_384;
+const DOMAIN_NODE_ADAPTER_KERNEL: &str = "golden.runtime.domain-node-adapter";
 
 #[derive(Clone)]
 struct CompiledParameter {
@@ -31,7 +32,13 @@ struct CompiledParameter {
 #[derive(Clone)]
 struct EngineCompileSnapshot {
     parameters: Vec<CompiledParameter>,
-    scheduled_nodes: Vec<NodeId>,
+    scheduled_nodes: Vec<CompiledScheduledNode>,
+}
+
+#[derive(Clone)]
+struct CompiledScheduledNode {
+    node: NodeId,
+    kernel_key: String,
 }
 
 impl EngineCompileSnapshot {
@@ -47,9 +54,25 @@ impl EngineCompileSnapshot {
             })
             .collect::<Vec<_>>();
         parameters.sort_unstable_by_key(|parameter| parameter.node.0);
+        let scheduled_nodes = engine
+            .schedule_topology()
+            .iter()
+            .map(|node| {
+                let kernel_key = engine
+                    .nodes
+                    .get(*node)
+                    .and_then(|value| value.execution_rule().compiled_kernel_key)
+                    .unwrap_or(DOMAIN_NODE_ADAPTER_KERNEL)
+                    .to_string();
+                CompiledScheduledNode {
+                    node: *node,
+                    kernel_key,
+                }
+            })
+            .collect();
         Self {
             parameters,
-            scheduled_nodes: engine.schedule_topology().to_vec(),
+            scheduled_nodes,
         }
     }
 
@@ -70,7 +93,7 @@ impl EngineCompileSnapshot {
         self.scheduled_nodes
             .iter()
             .enumerate()
-            .map(|(index, node)| (*node, WorkUnitId((input_count + index) as u32)))
+            .map(|(index, scheduled)| (scheduled.node, WorkUnitId((input_count + index) as u32)))
             .collect()
     }
 }
@@ -121,27 +144,28 @@ fn compile_generation(
             state_per_lane: 0,
         });
     }
-    let domain_kernel = KernelId(kernels.len() as u32);
-    if !snapshot.scheduled_nodes.is_empty() {
-        kernels.push(CompiledProcessorKernel {
-            id: domain_kernel,
-            stable_key: "golden.runtime.domain-node-adapter".into(),
-            inputs_per_lane: 0,
-            outputs_per_lane: 0,
-            state_per_lane: 0,
+    let mut domain_kernels = BTreeMap::<String, KernelId>::new();
+    for (index, scheduled) in snapshot.scheduled_nodes.iter().enumerate() {
+        let kernel = if let Some(kernel) = domain_kernels.get(&scheduled.kernel_key) {
+            *kernel
+        } else {
+            let kernel = KernelId(kernels.len() as u32);
+            kernels.push(CompiledProcessorKernel {
+                id: kernel,
+                stable_key: scheduled.kernel_key.clone().into(),
+                inputs_per_lane: 0,
+                outputs_per_lane: 0,
+                state_per_lane: 0,
+            });
+            domain_kernels.insert(scheduled.kernel_key.clone(), kernel);
+            kernel
+        };
+        units.push(ScheduledWork {
+            id: WorkUnitId((input_count + index) as u32),
+            kernel,
+            first_lane: index as u32,
+            lane_count: 1,
         });
-        units.extend(
-            snapshot
-                .scheduled_nodes
-                .iter()
-                .enumerate()
-                .map(|(index, _)| ScheduledWork {
-                    id: WorkUnitId((input_count + index) as u32),
-                    kernel: domain_kernel,
-                    first_lane: index as u32,
-                    lane_count: 1,
-                }),
-        );
     }
     let observation = ObservationCatalog {
         routes: snapshot
@@ -177,6 +201,17 @@ fn compile_generation(
     }
     .build()
     .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+pub(crate) fn compiled_kernel_keys<T: Node>(engine: &Engine<T>) -> Result<Vec<String>, String> {
+    let snapshot = EngineCompileSnapshot::capture(engine);
+    let generation = compile_generation(RuntimeGenerationId(1), ProjectRevision(1), &snapshot)?;
+    Ok(generation
+        .processor_kernels
+        .iter()
+        .map(|kernel| kernel.stable_key.to_string())
+        .collect())
 }
 
 struct InputGeneration {
@@ -361,7 +396,11 @@ impl<T: Node> ProductionState<T> {
                 input_mailbox,
                 slot_to_node: snapshot.slot_to_node(),
                 scheduled_node_to_work: snapshot.scheduled_node_to_work(),
-                scheduled_work_nodes: snapshot.scheduled_nodes.clone(),
+                scheduled_work_nodes: snapshot
+                    .scheduled_nodes
+                    .iter()
+                    .map(|scheduled| scheduled.node)
+                    .collect(),
                 input_work_count: snapshot.parameters.len(),
                 input_scratch: Vec::new(),
                 dirty: DirtySet::new(work_count),
@@ -532,7 +571,11 @@ impl<T: Node> ProductionState<T> {
         self.input_generation = next_input_generation;
         self.slot_to_node = snapshot.slot_to_node();
         self.scheduled_node_to_work = snapshot.scheduled_node_to_work();
-        self.scheduled_work_nodes = snapshot.scheduled_nodes.clone();
+        self.scheduled_work_nodes = snapshot
+            .scheduled_nodes
+            .iter()
+            .map(|scheduled| scheduled.node)
+            .collect();
         self.input_work_count = snapshot.parameters.len();
         self.dirty = DirtySet::new(work_count);
         self.scheduler_outputs.clear();

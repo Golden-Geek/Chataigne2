@@ -221,7 +221,7 @@ fn handle_command(
     }
 }
 
-fn compute_metronome_update(
+pub(super) fn compute_metronome_update(
     config: &MetronomeWorkerConfig,
     states: &mut HashMap<NodeId, MetronomeRuntimeState>,
     delta_seconds: f64,

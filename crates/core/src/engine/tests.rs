@@ -12133,6 +12133,34 @@ fn production_runtime_orders_due_callbacks_through_compiled_work_and_preserves_c
     );
 }
 
+#[test]
+fn production_runtime_compiles_named_domain_kernel_families() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        RuntimeNode::new(
+            "signals",
+            NodeExecutionRule::periodic(60).with_compiled_kernel("chataigne.runtime.signals"),
+        ),
+        None,
+    );
+    engine.add_node(
+        RuntimeNode::new(
+            "metronomes",
+            NodeExecutionRule::periodic(60).with_compiled_kernel("chataigne.runtime.metronomes"),
+        ),
+        None,
+    );
+    engine.add_node(RuntimeNode::new("adapter", NodeExecutionRule::periodic(60)), None);
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let keys = crate::runtime_center::compiled_kernel_keys(&engine).expect("compiled kernel catalog should build");
+    assert!(keys.iter().any(|key| key == "chataigne.runtime.signals"));
+    assert!(keys.iter().any(|key| key == "chataigne.runtime.metronomes"));
+    assert!(keys.iter().any(|key| key == "golden.runtime.domain-node-adapter"));
+}
+
 // --- Phase 5: scheduler bucket collection tests ---
 
 #[test]

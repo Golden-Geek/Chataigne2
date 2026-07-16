@@ -23,6 +23,7 @@ use golden_core::{
 
 const SIGNALS_UPDATE_RATE_DEFAULT_HZ: i32 = 60;
 const SIGNALS_UPDATE_RATE_MAX_HZ: i32 = 240;
+const SIGNALS_COMPILED_KERNEL: &str = "chataigne.runtime.signals";
 const SIGNAL_ITEM_KIND: &str = "signal";
 const SIGNAL_ITEM_LABEL: &str = "Signal";
 const SIGNAL_SHAPE_SINE: &str = "sine";
@@ -435,6 +436,7 @@ impl Node for SignalsModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(runtime_update_rate_hz(self.update_rate_hz.get()))
+            .with_compiled_kernel(SIGNALS_COMPILED_KERNEL)
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {

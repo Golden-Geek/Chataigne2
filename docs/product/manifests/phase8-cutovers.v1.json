@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 2,
+  "revision": 4,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS for 8A on Win-x64: target/product-gate/20260716T095204Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8B on Win-x64: target/product-gate/20260716T101347Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -20,7 +20,21 @@
         "target/product-gate/20260716T095204Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8B", "state": "pending" },
+    {
+      "subphase_id": "8B",
+      "state": "runnable",
+      "owner": "apps/chataigne/src/module/modules/generators and crates/core",
+      "evidence": [
+        "Signal and Metronome declare distinct compile-assigned domain kernel identities through NodeExecutionRule",
+        "the runtime compiler groups scheduled work by stable family key while remaining modules stay on the governed Phase 6 adapter",
+        "deterministic Signal samples preserve values and cycle multiplicity across fixed deltas",
+        "deterministic Metronome ticks preserve firing multiplicity, cumulative count, interval, and gap",
+        "cargo test -p golden_engine production_runtime_compiles_named_domain_kernel_families",
+        "cargo test -p Chataigne2 signal_worker_fixture_is_deterministic_across_cycles",
+        "cargo test -p Chataigne2 metronome_worker_fixture_preserves_tick_multiplicity_and_count",
+        "target/product-gate/20260716T101347Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8C", "state": "pending" },
     { "subphase_id": "8D", "state": "pending" },
     { "subphase_id": "8E", "state": "pending" },

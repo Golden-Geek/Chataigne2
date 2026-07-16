@@ -48,6 +48,9 @@ pub struct NodeExecutionRule {
     ///
     /// `None` means this node does not request periodic updates.
     pub update_rate: Option<NodeUpdateRate>,
+    /// Stable compiled-kernel identity for domain nodes that have completed a
+    /// family cutover. `None` keeps the node on the governed domain adapter.
+    pub compiled_kernel_key: Option<&'static str>,
 }
 
 impl NodeExecutionRule {
@@ -61,6 +64,7 @@ impl NodeExecutionRule {
         Self {
             dependencies: Vec::new(),
             update_rate: Some(rate_hz),
+            compiled_kernel_key: None,
         }
     }
 
@@ -72,6 +76,13 @@ impl NodeExecutionRule {
         self.dependencies = dependencies.into_iter().collect();
         self
     }
+
+    /// Assigns this scheduled node to a named compiled domain kernel.
+    pub fn with_compiled_kernel(mut self, stable_key: &'static str) -> Self {
+        assert!(!stable_key.trim().is_empty(), "compiled kernel key must not be empty");
+        self.compiled_kernel_key = Some(stable_key);
+        self
+    }
 }
 
 impl Default for NodeExecutionRule {
@@ -79,6 +90,7 @@ impl Default for NodeExecutionRule {
         Self {
             dependencies: Vec::new(),
             update_rate: None,
+            compiled_kernel_key: None,
         }
     }
 }

@@ -7,6 +7,7 @@ use golden_core::{
 };
 
 use super::MetronomesModule;
+use std::collections::HashMap;
 
 #[test]
 fn metronomes_module_is_declared_under_generators_menu() {
@@ -165,6 +166,23 @@ fn metronome_supports_bpm_and_multiple_items() {
         (0.125..=0.375).contains(&randomized_gap),
         "randomized gap should stay inside the configured multiplier range, got {randomized_gap}"
     );
+}
+
+#[test]
+fn metronome_worker_fixture_preserves_tick_multiplicity_and_count() {
+    let config = test_config(0.5, false, 1.0, 1.0, 0);
+    let worker_config = super::runtime::MetronomeWorkerConfig {
+        update_rate_hz: 60,
+        metronomes: vec![config],
+    };
+    let mut states = HashMap::new();
+
+    let event = super::runtime::compute_metronome_update(&worker_config, &mut states, 1.25);
+    let tick = event.ticks.get(&NodeId(1)).expect("metronome tick");
+    assert_eq!(tick.fired, 2);
+    assert_eq!(tick.total_ticks, 2);
+    assert_eq!(tick.interval_seconds, 0.5);
+    assert_eq!(tick.last_gap_seconds, 0.5);
 }
 
 #[test]

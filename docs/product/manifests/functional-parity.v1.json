@@ -9874,7 +9874,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 115,
+          "line": 116,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         }
       ],
@@ -10245,7 +10245,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 128,
+          "line": 129,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         }
       ],
@@ -15137,11 +15137,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 555,
+          "line": 557,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         },
         {
-          "line": 597,
+          "line": 599,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         }
       ],
@@ -15192,11 +15192,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 524,
+          "line": 526,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         },
         {
-          "line": 527,
+          "line": 529,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         }
       ],
@@ -15247,7 +15247,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 94,
+          "line": 95,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         }
       ],
@@ -18353,11 +18353,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 567,
+          "line": 569,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         },
         {
-          "line": 594,
+          "line": 596,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         }
       ],
@@ -18408,11 +18408,11 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 530,
+          "line": 532,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         },
         {
-          "line": 533,
+          "line": 535,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         }
       ],
@@ -18463,7 +18463,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 107,
+          "line": 108,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         }
       ],
@@ -24328,7 +24328,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 35,
+          "line": 36,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         }
       ],
@@ -25004,7 +25004,7 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
-          "line": 36,
+          "line": 37,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         }
       ],
