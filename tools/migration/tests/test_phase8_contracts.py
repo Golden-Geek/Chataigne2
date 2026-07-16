@@ -43,6 +43,8 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/generators/metronomes/mod.rs",
     "apps/chataigne/src/module/modules/generators/signals/signals_tests.rs",
     "apps/chataigne/src/module/modules/generators/signals/mod.rs",
+    "apps/chataigne/src/module/modules/generators/spatializer.rs",
+    "apps/chataigne/src/module/modules/generators/spatializer_tests.rs",
     "apps/chataigne/src/module/modules/protocol/stream/tcpclient/transport.rs",
     "apps/chataigne/src/module/modules/protocol/stream/websocketclient/transport.rs",
     "apps/chataigne/src/module/modules/protocol/midi/midi_message/midi_message_tests.rs",
@@ -74,12 +76,19 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/system/os/os.rs",
     "apps/chataigne/src/module/modules/system/os/os_runtime.rs",
     "apps/chataigne/src/module/modules/system/os/os_tests.rs",
+    "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
+    "apps/chataigne/ui/src/routes/dashboard/+layout.svelte",
+    "crates/core/src/node/dashboard/mod.rs",
+    "crates/core/src/node/dashboard/tests.rs",
     "crates/io/src/lib.rs",
     "crates/core/src/engine/runtime/limits.rs",
     "crates/core/src/runtime_center.rs",
     "docs/product/manifests/phase8-cutovers.v1.json",
     "docs/product/manifests/phase8-hardware-evidence.v1.json",
     "docs/product/migration-progress.md",
+    "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte",
+    "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte",
+    "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte",
 )
 
 
@@ -177,6 +186,17 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("OS background runtime" in item for item in violations))
+
+    def test_spatializer_without_compiled_topology_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/src/module/modules/generators/spatializer.rs"
+            source = path.read_text(encoding="utf-8").replace("triangulate(&points)", "Default::default()")
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("Spatializer compiled topology" in item for item in violations))
 
 
 if __name__ == "__main__":

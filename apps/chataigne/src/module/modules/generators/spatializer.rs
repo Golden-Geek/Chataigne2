@@ -3,6 +3,7 @@ mod spatializer_tests;
 
 use std::collections::{HashMap, HashSet};
 
+use delaunator::{Point, triangulate};
 use golden_core::{
     edit::NodeTree,
     events::{CustomEvent, Event, EventFrame, EventKind},
@@ -1728,6 +1729,7 @@ fn scalar_spatializer_values_for_target(
 }
 
 fn voronoi_values_by_target(config: &SpatializerConfig) -> HashMap<NodeId, HashMap<NodeId, f64>> {
+    let topology = VoronoiTopology::compile(config);
     let mut values_by_target: HashMap<NodeId, HashMap<NodeId, f64>> = config
         .targets
         .iter()
@@ -1735,7 +1737,7 @@ fn voronoi_values_by_target(config: &SpatializerConfig) -> HashMap<NodeId, HashM
         .collect();
 
     for source in config.sources.iter().filter(|source| source.enabled) {
-        for (target_id, value) in voronoi_target_values_for_source(config, source) {
+        for (target_id, value) in voronoi_target_values_for_source(config, source, &topology) {
             values_by_target
                 .entry(target_id)
                 .or_default()
@@ -1749,18 +1751,19 @@ fn voronoi_values_by_target(config: &SpatializerConfig) -> HashMap<NodeId, HashM
 fn voronoi_target_values_for_source(
     config: &SpatializerConfig,
     source: &SpatializerEndpointConfig,
+    topology: &VoronoiTopology,
 ) -> HashMap<NodeId, f64> {
-    let target_indices = enabled_target_indices(config);
+    let target_indices = topology.target_indices.as_slice();
     if target_indices.is_empty() {
         return HashMap::new();
     }
 
-    let frozen_indices = frozen_target_indices(config, source.position, &target_indices);
+    let frozen_indices = frozen_target_indices(config, source.position, target_indices);
     if !frozen_indices.is_empty() {
         return split_between_targets(config, &frozen_indices);
     }
 
-    let Some(current_index) = nearest_target_index(config, source.position, &target_indices) else {
+    let Some(current_index) = nearest_target_index(config, source.position, target_indices) else {
         return HashMap::new();
     };
     let current = &config.targets[current_index];
@@ -1775,25 +1778,43 @@ fn voronoi_target_values_for_source(
         morpher_raw_weight_from_distance(current_distance),
     )];
     let mut boundary_entries = if config.dimension == SpatializerDimension::Two {
-        morpher_boundary_entries_2d(config, source.position, current_index, &target_indices)
+        morpher_boundary_entries_2d(
+            config,
+            source.position,
+            current_index,
+            target_indices,
+            topology.neighbours(current_index),
+        )
     } else {
-        morpher_boundary_entries_nd(config, source.position, current_index, &target_indices)
+        morpher_boundary_entries_nd(config, source.position, current_index, target_indices)
     };
     if boundary_entries.is_empty() && target_indices.len() > 1 {
-        boundary_entries =
-            morpher_boundary_entries_nd(config, source.position, current_index, &target_indices);
+        boundary_entries = morpher_boundary_entries_nd(
+            config,
+            source.position,
+            current_index,
+            target_indices,
+        );
     }
 
+    let mut smallest_edge = (usize::MAX, f64::INFINITY);
+    let mut second_smallest_edge = f64::INFINITY;
+    for (index, entry) in boundary_entries.iter().enumerate() {
+        if entry.edge_distance < smallest_edge.1 {
+            second_smallest_edge = smallest_edge.1;
+            smallest_edge = (index, entry.edge_distance);
+        } else if entry.edge_distance < second_smallest_edge {
+            second_smallest_edge = entry.edge_distance;
+        }
+    }
     for entry_index in 0..boundary_entries.len() {
         let entry = boundary_entries[entry_index];
         let weight = if boundary_entries.len() > 1 {
-            let min_other_edge_distance = boundary_entries
-                .iter()
-                .enumerate()
-                .filter(|(other_index, _)| *other_index != entry_index)
-                .map(|(_, other)| other.edge_distance)
-                .min_by(f64::total_cmp)
-                .unwrap_or(f64::INFINITY);
+            let min_other_edge_distance = if entry_index == smallest_edge.0 {
+                second_smallest_edge
+            } else {
+                smallest_edge.1
+            };
             let denominator = entry.edge_distance + min_other_edge_distance;
             let ratio = if denominator <= VORONOI_TIE_EPSILON {
                 1.0
@@ -1824,6 +1845,132 @@ struct VoronoiBoundaryEntry {
     neighbour_index: usize,
     edge_distance: f64,
     neighbour_distance: f64,
+}
+
+#[derive(Debug)]
+struct VoronoiTopology {
+    target_indices: Vec<usize>,
+    neighbours_by_target: Vec<Vec<usize>>,
+}
+
+impl VoronoiTopology {
+    fn compile(config: &SpatializerConfig) -> Self {
+        let target_indices = enabled_target_indices(config);
+        let mut neighbours_by_target = vec![Vec::new(); config.targets.len()];
+        if target_indices.len() < 2 {
+            return Self {
+                target_indices,
+                neighbours_by_target,
+            };
+        }
+
+        if target_indices.len() == 2 {
+            connect_topology_targets(
+                &mut neighbours_by_target,
+                target_indices[0],
+                target_indices[1],
+            );
+        } else {
+            let points: Vec<Point> = target_indices
+                .iter()
+                .map(|target_index| {
+                    let position = config.targets[*target_index].position;
+                    Point {
+                        x: position.x,
+                        y: position.y,
+                    }
+                })
+                .collect();
+            let triangulation = triangulate(&points);
+            for triangle in triangulation.triangles.chunks_exact(3) {
+                let first = target_indices[triangle[0]];
+                let second = target_indices[triangle[1]];
+                let third = target_indices[triangle[2]];
+                connect_topology_targets(&mut neighbours_by_target, first, second);
+                connect_topology_targets(&mut neighbours_by_target, second, third);
+                connect_topology_targets(&mut neighbours_by_target, third, first);
+            }
+
+            if triangulation.is_empty() {
+                connect_collinear_topology(config, &target_indices, &mut neighbours_by_target);
+            }
+        }
+
+        // Delaunator deliberately omits duplicate points. Keep those valid product inputs
+        // connected to their nearest site without falling back to an all-pairs topology.
+        for target_index in target_indices.iter().copied() {
+            if neighbours_by_target[target_index].is_empty() {
+                let neighbour_index = target_indices
+                    .iter()
+                    .copied()
+                    .filter(|candidate| *candidate != target_index)
+                    .min_by(|left, right| {
+                        let position = config.targets[target_index].position;
+                        position
+                            .distance_to(config.targets[*left].position, SpatializerDimension::Two)
+                            .total_cmp(&position.distance_to(
+                                config.targets[*right].position,
+                                SpatializerDimension::Two,
+                            ))
+                    });
+                if let Some(neighbour_index) = neighbour_index {
+                    connect_topology_targets(
+                        &mut neighbours_by_target,
+                        target_index,
+                        neighbour_index,
+                    );
+                }
+            }
+        }
+        for neighbours in &mut neighbours_by_target {
+            neighbours.sort_unstable();
+            neighbours.dedup();
+        }
+
+        Self {
+            target_indices,
+            neighbours_by_target,
+        }
+    }
+
+    fn neighbours(&self, target_index: usize) -> &[usize] {
+        self.neighbours_by_target
+            .get(target_index)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+}
+
+fn connect_topology_targets(
+    neighbours_by_target: &mut [Vec<usize>],
+    first: usize,
+    second: usize,
+) {
+    if first == second {
+        return;
+    }
+    neighbours_by_target[first].push(second);
+    neighbours_by_target[second].push(first);
+}
+
+fn connect_collinear_topology(
+    config: &SpatializerConfig,
+    target_indices: &[usize],
+    neighbours_by_target: &mut [Vec<usize>],
+) {
+    let mut sorted = target_indices.to_vec();
+    sorted.sort_by(|left, right| {
+        let left_position = config.targets[*left].position;
+        let right_position = config.targets[*right].position;
+        left_position
+            .x
+            .total_cmp(&right_position.x)
+            .then_with(|| left_position.y.total_cmp(&right_position.y))
+            .then_with(|| left.cmp(right))
+    });
+    for adjacent in sorted.windows(2) {
+        connect_topology_targets(neighbours_by_target, adjacent[0], adjacent[1]);
+    }
 }
 
 fn enabled_target_indices(config: &SpatializerConfig) -> Vec<usize> {
@@ -1899,13 +2046,20 @@ fn morpher_boundary_entries_2d(
     position: SpatialPoint,
     current_index: usize,
     target_indices: &[usize],
+    neighbour_indices: &[usize],
 ) -> Vec<VoronoiBoundaryEntry> {
-    let current_cell = target_voronoi_cell_polygon(config, current_index, position, target_indices);
+    let current_cell = target_voronoi_cell_polygon(
+        config,
+        current_index,
+        position,
+        target_indices,
+        neighbour_indices,
+    );
     if current_cell.len() < 3 {
         return Vec::new();
     }
 
-    target_indices
+    neighbour_indices
         .iter()
         .copied()
         .filter(|target_index| *target_index != current_index)
@@ -1936,13 +2090,11 @@ fn target_voronoi_cell_polygon(
     current_index: usize,
     position: SpatialPoint,
     target_indices: &[usize],
+    neighbour_indices: &[usize],
 ) -> Vec<SpatialPoint> {
     let current = config.targets[current_index].position;
     let mut polygon = voronoi_bounds_polygon(config, position, target_indices);
-    for other_index in target_indices {
-        if *other_index == current_index {
-            continue;
-        }
+    for other_index in neighbour_indices {
         polygon = clip_to_closer_site(polygon, current, config.targets[*other_index].position);
         if polygon.len() < 3 {
             break;

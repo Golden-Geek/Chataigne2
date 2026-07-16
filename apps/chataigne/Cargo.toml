@@ -20,6 +20,7 @@ base64 = "0.22"
 buttplug = "10.0.3"
 buttplug_core = "10.0.3"
 chataigne_state_machine = { path = "state_machine" }
+delaunator.workspace = true
 device_query = "4.0.1"
 dirs = "6"
 elgato-streamdeck = { version = "0.13", optional = true }

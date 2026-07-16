@@ -38,6 +38,7 @@ repository = "https://github.com/Golden-Geek/Chataigne2"
 [workspace.dependencies]
 chataigne_alchemist = { path = "apps/chataigne/alchemist" }
 chataigne_processor = { path = "apps/chataigne/processor" }
+delaunator = "1.1.0"
 golden_application = { path = "crates/application" }
 golden_context = { path = "crates/context" }
 golden_condition = { path = "crates/condition" }

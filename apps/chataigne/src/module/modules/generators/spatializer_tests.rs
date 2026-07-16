@@ -644,6 +644,70 @@ fn spatializer_math_covers_all_modes() {
 }
 
 #[test]
+fn spatializer_supported_scale_uses_sparse_delaunay_topology() {
+    const TARGET_SIDE: usize = 32;
+    const TARGET_COUNT: usize = TARGET_SIDE * TARGET_SIDE;
+    const SOURCE_COUNT: usize = 512;
+
+    let targets: Vec<_> = (0..TARGET_COUNT)
+        .map(|index| {
+            let x = (index % TARGET_SIDE) as f64;
+            let y = (index / TARGET_SIDE) as f64 + x * 0.000_1;
+            test_endpoint(
+                NodeId(100_000 + index as u64),
+                "Target",
+                SpatialPoint::new(x, y, 0.0),
+                1.0,
+            )
+        })
+        .collect();
+    let sources: Vec<_> = (0..SOURCE_COUNT)
+        .map(|index| {
+            let x = ((index * 17) % (TARGET_SIDE * 10)) as f64 / 10.0;
+            let y = ((index * 29) % (TARGET_SIDE * 10)) as f64 / 10.0;
+            test_endpoint(
+                NodeId(200_000 + index as u64),
+                "Source",
+                SpatialPoint::new(x, y, 0.0),
+                1.0,
+            )
+        })
+        .collect();
+    let config = test_config(SpatializerMode::Voronoi, sources.clone(), targets);
+
+    let topology = super::VoronoiTopology::compile(&config);
+    let directed_edge_count: usize = topology
+        .target_indices
+        .iter()
+        .map(|target_index| topology.neighbours(*target_index).len())
+        .sum();
+    assert_eq!(topology.target_indices.len(), TARGET_COUNT);
+    assert!(
+        directed_edge_count <= TARGET_COUNT * 6,
+        "planar topology should stay linear at the supported target scale; got {directed_edge_count} directed edges"
+    );
+    assert!(
+        topology
+            .target_indices
+            .iter()
+            .all(|target_index| !topology.neighbours(*target_index).is_empty())
+    );
+
+    let values = super::spatializer_values_by_target(&config);
+    for source in sources {
+        let total: f64 = values
+            .values()
+            .filter_map(|target_values| target_values.get(&source.item_id))
+            .sum();
+        assert!(
+            (total - 1.0).abs() < 0.000_001,
+            "source {} should retain normalized Voronoi influence, got {total}",
+            source.item_id.0
+        );
+    }
+}
+
+#[test]
 fn spatializer_script_template_documents_value_matrix_surface() {
     let config = crate::app::module::script_api::module_script_config(SpatializerModule::NODE_TYPE);
     let ScriptSource::Inline(source) = config.source else {

@@ -164,6 +164,33 @@ def collect_violations(root: Path) -> list[str]:
     os_module = read(root, "apps/chataigne/src/module/modules/system/os/os.rs")
     os_runtime = read(root, "apps/chataigne/src/module/modules/system/os/os_runtime.rs")
     os_tests = read(root, "apps/chataigne/src/module/modules/system/os/os_tests.rs")
+    spatializer = read(
+        root,
+        "apps/chataigne/src/module/modules/generators/spatializer.rs",
+    )
+    spatializer_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/generators/spatializer_tests.rs",
+    )
+    spatializer_editor = read(
+        root,
+        "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
+    )
+    dashboard_backend = read(root, "crates/core/src/node/dashboard/mod.rs")
+    dashboard_tests = read(root, "crates/core/src/node/dashboard/tests.rs")
+    dashboard_canvas = read(
+        root,
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte",
+    )
+    dashboard_panel = read(
+        root,
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte",
+    )
+    dashboard_viewer = read(
+        root,
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte",
+    )
+    dashboard_route = read(root, "apps/chataigne/ui/src/routes/dashboard/+layout.svelte")
     dashboard = json.loads(
         read(root, "docs/product/manifests/phase8-cutovers.v1.json")
     )
@@ -365,6 +392,71 @@ def collect_violations(root: Path) -> list[str]:
         if fixture not in source:
             violations.append(f"Phase 8F is missing system fixture `{fixture}`")
 
+    for declaration in ('delaunator = "1.1.0"', "delaunator.workspace = true"):
+        if declaration not in workspace and declaration not in app_manifest:
+            violations.append(f"Spatializer is missing proven geometry dependency `{declaration}`")
+    for contract in (
+        "VoronoiTopology",
+        "triangulate(&points)",
+        "connect_collinear_topology",
+        "topology.neighbours(current_index)",
+    ):
+        if contract not in spatializer:
+            violations.append(f"Spatializer compiled topology is missing `{contract}`")
+    for fixture in (
+        "spatializer_math_covers_all_modes",
+        "voronoi_weights_do_not_jump_when_source_crosses_target_cell_boundary",
+        "value_layout_switches_between_source_and_target_centric_trees",
+        "sparse_reload_preserves_single_declared_parameter_block",
+        "spatializer_script_template_documents_value_matrix_surface",
+        "spatializer_supported_scale_uses_sparse_delaunay_topology",
+    ):
+        if fixture not in spatializer_tests:
+            violations.append(f"Phase 8G is missing Spatializer fixture `{fixture}`")
+    for contract in (
+        "sendSetParamIntent",
+        "DragGesture",
+        "selectedEndpoint",
+        "startInspectorResize",
+        "debugView",
+    ):
+        if contract not in spatializer_editor:
+            violations.append(f"Spatializer editor is missing `{contract}`")
+
+    for contract in (
+        "DashboardWidgetTargetDescriptor",
+        "DASHBOARD_PAGE_NODE_TYPE",
+        "DASHBOARD_NODE_WIDGET_NODE_TYPE",
+        "DASHBOARD_GENERIC_WIDGET_NODE_TYPE",
+    ):
+        if contract not in dashboard_backend:
+            violations.append(f"dashboard backend is missing `{contract}`")
+    for fixture in (
+        "dashboard_catalog_exposes_pages_and_widgets",
+        "dashboard_widgets_materialize_binding_constraints",
+        "dashboard_widget_layout_dependencies_follow_parent_layout",
+        "dashboard_page_vertical_layout_change_via_ui_intent_stabilizes",
+        "ui_create_user_item_initial_params_materialize_dashboard_widget_without_follow_up_edits",
+    ):
+        if fixture not in dashboard_tests:
+            violations.append(f"Phase 8G is missing dashboard fixture `{fixture}`")
+    for contract in (
+        "readDashboardDragPayload",
+        "sendSetParamIntent",
+        "FreeLayoutInteractionMode",
+        "MarqueeSelectionState",
+        "session?.selectNodes",
+    ):
+        if contract not in dashboard_canvas:
+            violations.append(f"dashboard authoring canvas is missing `{contract}`")
+    if "DashboardCanvas" not in dashboard_panel:
+        violations.append("dashboard panel does not mount the authoring canvas")
+    for contract in ("selectedPage", "hrefForPage"):
+        if contract not in dashboard_viewer:
+            violations.append(f"dashboard viewer is missing `{contract}`")
+    if "DashboardViewer" not in dashboard_route:
+        violations.append("dashboard route does not mount the persistent viewer")
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -382,7 +474,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8E is not recorded as runnable")
     if subphases.get("8F", {}).get("state") != "runnable":
         violations.append("Phase 8F is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T111256Z/product-gate-report.json"
+    if subphases.get("8G", {}).get("state") != "runnable":
+        violations.append("Phase 8G is not recorded as runnable")
+    expected_report = "target/product-gate/20260716T113731Z/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}

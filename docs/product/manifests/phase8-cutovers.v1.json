@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 12,
+  "revision": 14,
   "tested_tree_base": "dfcc369",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8F on Win-x64: target/product-gate/20260716T111256Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8G on Win-x64: target/product-gate/20260716T113731Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -101,7 +101,22 @@
         "target/product-gate/20260716T111256Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8G", "state": "pending" },
+    {
+      "subphase_id": "8G",
+      "state": "runnable",
+      "owner": "apps/chataigne Spatializer and golden-ui dashboard surfaces",
+      "evidence": [
+        "Spatializer compiles enabled 2D targets through delaunator into a sparse Delaunay neighbour topology once per value-matrix evaluation",
+        "Voronoi cells clip only against compiled neighbours and boundary normalization finds alternate edges in one pass, removing the former per-source all-pairs cell path",
+        "the 1,024-target by 512-source deterministic fixture enforces a linear-size topology and normalized output weights",
+        "all baseline Spatializer modes, 2D/3D controls, radius/freeze behavior, value layouts, live position updates, editor interactions, scripts, and persistence fixtures remain enforced",
+        "dashboard backend and UI contracts retain pages, widgets, bindings, drag/drop, resize, multi-selection, inspectors, persistence, authoring, viewer routes, and live keyed values",
+        "cargo test -p Chataigne2 spatializer",
+        "cargo test -p golden_engine dashboard",
+        "npm run test --workspace chataigne-ui",
+        "target/product-gate/20260716T113731Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    },
     { "subphase_id": "8H", "state": "pending" },
     { "subphase_id": "8I", "state": "pending" },
     { "subphase_id": "8J", "state": "pending" }

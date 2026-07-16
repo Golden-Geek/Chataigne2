@@ -2030,7 +2030,7 @@
       "name": "spatializer_module",
       "sources": [
         {
-          "line": 200,
+          "line": 201,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5607,7 +5607,7 @@
       "name": "spatializer_module",
       "sources": [
         {
-          "line": 165,
+          "line": 166,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5623,11 +5623,11 @@
       "name": "spatializer_source",
       "sources": [
         {
-          "line": 743,
+          "line": 744,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 746,
+          "line": 747,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5643,11 +5643,11 @@
       "name": "spatializer_source_list",
       "sources": [
         {
-          "line": 665,
+          "line": 666,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 668,
+          "line": 669,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5663,11 +5663,11 @@
       "name": "spatializer_target",
       "sources": [
         {
-          "line": 769,
+          "line": 770,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 772,
+          "line": 773,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5683,11 +5683,11 @@
       "name": "spatializer_target_list",
       "sources": [
         {
-          "line": 704,
+          "line": 705,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 707,
+          "line": 708,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
