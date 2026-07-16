@@ -201,6 +201,9 @@ When a task spans multiple architectural areas, prefer this order:
 - For reused Params DSL folders, do not restate inherited metadata such as `label` unless the change intentionally diverges from the base declaration.
 - Do not leave path-based imports into private submodule internals in app code or build scripts.
 - When the repository already violates these rules, treat that as cleanup pressure, not as precedent.
+- After a migration phase is fully validated, commit the completed phase and refresh the monorepo
+  jCodemunch index before beginning the next phase so subsequent sessions start from a clean Git
+  and navigation state.
 - Always finish with cargo fmt on both root and golden_core to avoid CI failures
 
 ## Code Exploration Policy
