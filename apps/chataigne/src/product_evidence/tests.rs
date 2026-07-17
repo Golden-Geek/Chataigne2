@@ -1,4 +1,5 @@
 use std::ffi::OsString;
+use std::time::{Duration, Instant};
 
 use serde_json::json;
 
@@ -53,6 +54,7 @@ fn unknown_named_scenario_fails() {
 
 #[test]
 fn osc_loopback_runs_through_real_app_engine_and_round_trips_semantics() {
+    let started = Instant::now();
     let evidence = run_named_scenario(OSC_LOOPBACK_SCENARIO).expect("OSC loopback evidence should pass");
     assert_eq!(
         digest::semantic_digest(&evidence).expect("scenario evidence should encode"),
@@ -69,4 +71,8 @@ fn osc_loopback_runs_through_real_app_engine_and_round_trips_semantics() {
         evidence["input"]["value"]
     );
     assert_eq!(evidence["save_reload"]["semantic_digest"], "fnv1a64:78a1a93d927b4a39");
+    assert!(
+        started.elapsed() < Duration::from_secs(3),
+        "OSC loopback evidence must not block the engine thread"
+    );
 }

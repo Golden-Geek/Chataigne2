@@ -24,7 +24,7 @@ use golden_values::Value as RuntimeValue;
 use golden_core::{
     color::Color,
     edit::{Edit, NodeTree},
-    events::Event,
+    events::{Event, EventKind},
     item, node,
     node::{
         DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
@@ -3350,6 +3350,129 @@ impl Node for AlchemistConnection {
 )]
 pub struct AlchemistFormulaDefinition {}
 
+const FORMULA_BULK_INBOX_THRESHOLD: usize = 32;
+
+impl AlchemistFormulaDefinition {
+    fn dispatch_bulk_inbox(&mut self, ctx: &mut ProcessCtx) {
+        let param_changes = ctx
+            .events
+            .iter()
+            .filter_map(|event| match &event.kind {
+                EventKind::ParamChanged {
+                    param, old_value, ..
+                } => Some((*param, old_value.clone())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let meta_changes = ctx
+            .events
+            .iter()
+            .filter_map(|event| match &event.kind {
+                EventKind::MetaChanged { node, patch } => Some((*node, patch.clone())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let has_child_added = ctx
+            .events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::ChildAdded { .. }));
+        let has_child_removed = ctx
+            .events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::ChildRemoved { .. }));
+
+        let mut needs_reconcile = has_child_added || has_child_removed;
+        let mut needs_property_getters = false;
+        let mut needs_save = needs_reconcile;
+
+        for (param, _old_value) in param_changes {
+            if self.is_formula_copy_source_param(ctx, param) && self.copy_formula_from_source(ctx) {
+                continue;
+            }
+            if self.is_external_formula_source_param(ctx, param)
+                && self.write_external_formula_from_source(ctx)
+            {
+                continue;
+            }
+            if self.is_external_formula_delete_file_param(ctx, param)
+                && self.delete_external_formula_file_if_requested(ctx)
+            {
+                continue;
+            }
+            if self.is_external_formula_file_param(ctx, param)
+                && self.sync_external_formula_file(ctx)
+            {
+                continue;
+            }
+            if self.is_formula_internal_param(param) {
+                continue;
+            }
+            if ctx
+                .tree_snapshot()
+                .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), param))
+            {
+                needs_save = true;
+            } else {
+                needs_reconcile = true;
+                needs_save = true;
+            }
+        }
+
+        let latest_formula_label = meta_changes
+            .iter()
+            .rev()
+            .find(|(node, patch)| *node == self.id() && patch.label.is_some())
+            .and_then(|(_, patch)| patch.label.clone());
+        for (node, _) in &meta_changes {
+            if ctx
+                .tree_snapshot()
+                .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), *node))
+            {
+                needs_save = true;
+                continue;
+            }
+            if ctx.tree_snapshot().is_some_and(|snapshot| {
+                snapshot
+                    .node(*node)
+                    .is_some_and(|node| node.node_type == PROPERTY_NODE_TYPE)
+            }) {
+                needs_property_getters = true;
+            }
+            needs_reconcile = true;
+            needs_save = true;
+        }
+
+        if has_child_removed {
+            self.remove_dangling_connections(ctx);
+        }
+        if needs_property_getters {
+            self.sync_property_getters(ctx);
+        }
+        if needs_reconcile {
+            self.sync_anode_sockets(ctx, None);
+            self.validate(ctx);
+        }
+        if has_child_added && self.is_read_only_external_formula() {
+            self.enforce_external_formula_permissions(ctx);
+            self.schedule_external_formula_permission_enforcement(ctx);
+        }
+        if !needs_save {
+            return;
+        }
+
+        let shared_formula_rename = latest_formula_label
+            .as_deref()
+            .and_then(|label| self.rename_shared_formula_file_for_label(ctx, label));
+        match shared_formula_rename {
+            Some(SharedFormulaFileRename::Renamed(path)) => {
+                self.save_external_formula_file_to_path(ctx, path.as_path());
+            }
+            Some(SharedFormulaFileRename::Blocked) => {}
+            None => self.save_external_formula_file(ctx),
+        }
+    }
+}
+
 #[item("alchemist_formula", node = "alchemist_formula", from_struct)]
 impl Node for AlchemistFormulaDefinition {
     fn init(&mut self, ctx: &mut ProcessCtx) {
@@ -3385,6 +3508,14 @@ impl Node for AlchemistFormulaDefinition {
         self.validate(ctx);
         self.enforce_external_formula_permissions(ctx);
         self.schedule_external_formula_permission_enforcement(ctx);
+    }
+
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        if ctx.events.len() < FORMULA_BULK_INBOX_THRESHOLD {
+            self.dispatch_inbox(ctx);
+            return;
+        }
+        self.dispatch_bulk_inbox(ctx);
     }
 
     fn on_param_change(
