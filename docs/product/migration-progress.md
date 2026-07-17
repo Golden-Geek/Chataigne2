@@ -18,10 +18,10 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 ## Current Checkpoint
 
-- State: `CONSTRUCTION`; the Phase 8 module and specialized-subsystem interval is open from the
-  immutable Phase 7 checkpoint `1a1609a`.
-- Current subphase: 8J approved Art-Net/sACN/DMX and Node module expansion. Durable persistence,
-  recovery, host discovery, and native release contracts are now runnable.
+- State: `CHECKPOINT_RUNNABLE`; Phase 8 is qualified at exact commit
+  `b45a9b0a7a01ebee386e24a91daa42f897054bc6`.
+- Current subphase: Phase 8 is complete. Phase 9 final qualification, approved UX improvements,
+  and governed deletion is next.
 - 8B proof: deterministic worker fixtures prove fixed-delta values, cycles, tick multiplicity, and
   counts. Local Win-x64 report `target/product-gate/20260716T101347Z/product-gate-report.json`
   passed all 38 required checks; 7 non-required checks were `NOT_RUN`.
@@ -58,20 +58,21 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
   the optimized Tauri application with pinned release tooling.
   Local Win-x64 report `target/product-gate/20260716T125330Z/product-gate-report.json` passed all 38
   required checks, including the real-app save/reload and non-loopback LAN workflows.
-- 8J focused construction: Art-Net and sACN are distinct catalog modules over one bounded DMX
+- 8J proof: Art-Net and sACN are distinct catalog modules over one bounded DMX
   worker/frame foundation, with protocol loopbacks, latest-wins input diagnostics, reconnect,
   commands, scripts, callbacks, persistence, and app-owned icons. The Node module provides stable
   ID/UUID parameter references for set and trigger operations through commands and scripts. These
   are approved new capabilities and are not recorded as restored baseline parity. Local Win-x64
   report `target/product-gate/phase8-final-candidate/product-gate-report.json` passed all 38
-  required checks; the Phase 8 checkpoint remains in construction until exact-commit
-  cross-platform qualification passes.
+  required checks. Exact commit `b45a9b0a7a01ebee386e24a91daa42f897054bc6` passed native
+  Windows/macOS/Linux, Windows ARM64, Linux AArch64, Linux ARMHF, and aggregate qualification in
+  [GitHub Actions run 29580856581](https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581).
 - Focused proof: local Win-x64 report
   `target/product-gate/20260716T095204Z/product-gate-report.json` passed all 38 required checks for
   the 8A tree; 7 non-required dependency/platform checks were `NOT_RUN`.
-- Last runnable checkpoint: Phase 8I, based on Phase 8H commit `453a5a1`.
-- Remaining Phase 8 work: complete the approved 8J module expansion and close with the full local
-  and required cross-platform product qualifications.
+- Last runnable checkpoint: Phase 8 at exact commit
+  `b45a9b0a7a01ebee386e24a91daa42f897054bc6`.
+- Remaining Phase 8 work: none.
 
 The long-lived migration branch does not require a permanently open pull request. Focused PRs are
 opened when a review, named qualification, or merge point is ready. This keeps routine pushes local
@@ -90,7 +91,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                       |
 | Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)       |
 | Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`; local report `target/product-gate/20260716T070444Z/product-gate-report.json`; all 37 required checks passed |
-| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `PASS` (8I Win-x64)    | Persistence, host discovery, and packaging passed `target/product-gate/20260716T125330Z/product-gate-report.json`; 8J is next                                                   |
+| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `b45a9b0a7a01ebee386e24a91daa42f897054bc6`; [six-platform product gate run 29580856581](https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581)       |
 | Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Every parity row and release gate must pass                                                                                                                                     |
 
 ## Phase 0 Governance Slice
@@ -208,7 +209,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Revisioned cutover evidence            | Complete | [`manifests/phase7-cutovers.v1.json`](manifests/phase7-cutovers.v1.json) and `tools/migration/check_phase7_contracts.py` |
 | Win-x64 product qualification          | `PASS`   | Report `target/product-gate/20260716T070444Z/product-gate-report.json`: all 37 required checks passed; 7 non-required checks were `NOT_RUN` |
 
-## Phase 8 Module And Specialized-Subsystem Construction
+## Phase 8 Module And Specialized-Subsystem Checkpoint
 
 | Subphase | Status         | Current evidence or next proof                                                                                         |
 | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -227,10 +228,10 @@ while preserving full cross-platform closure before affected cutovers and final 
 
 | Command or workflow  | Status                         | Required result                                                                            |
 | -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `cargo run`          | `PASS` on Phase 7 checkpoint tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
-| `watch`              | `PASS` on Phase 7 checkpoint tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
-| `cargo run -- --dev` | `PASS` on Phase 7 checkpoint tree | Complete app with live frontend/dev server and connected engine                            |
-| Root product gate    | `PASS` on Phase 7 checkpoint tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/Windows matrix               |
+| `cargo run`          | `PASS` on Phase 8 checkpoint tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
+| `watch`              | `PASS` on Phase 8 checkpoint tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
+| `cargo run -- --dev` | `PASS` on Phase 8 checkpoint tree | Complete app with live frontend/dev server and connected engine                            |
+| Root product gate    | `PASS` on Phase 8 checkpoint tree | Full Rust/UI/product/fixture/Playwright/manifest/loopback/LAN/cross-platform matrix        |
 
 No command above is inferred to pass from source inspection or repository provenance.
 

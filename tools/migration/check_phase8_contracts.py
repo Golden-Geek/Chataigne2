@@ -832,8 +832,11 @@ def collect_violations(root: Path) -> list[str]:
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
-    if dashboard.get("phase") != 8 or dashboard.get("validation_state") != "CONSTRUCTION":
-        violations.append("Phase 8 dashboard does not record the construction interval")
+    if (
+        dashboard.get("phase") != 8
+        or dashboard.get("validation_state") != "CHECKPOINT_RUNNABLE"
+    ):
+        violations.append("Phase 8 dashboard does not record the runnable checkpoint")
     if subphases.get("8A", {}).get("state") != "runnable":
         violations.append("Phase 8A is not recorded as runnable")
     if subphases.get("8B", {}).get("state") != "runnable":
@@ -857,6 +860,26 @@ def collect_violations(root: Path) -> list[str]:
     expected_report = "target/product-gate/phase8-final-candidate/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
+    expected_commit = "b45a9b0a7a01ebee386e24a91daa42f897054bc6"
+    if dashboard.get("tested_tree_base") != expected_commit:
+        violations.append("Phase 8 dashboard does not name the qualified exact commit")
+    cross_platform_gate = dashboard.get("cross_platform_gate", "")
+    expected_run = "https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581"
+    for required_evidence in (
+        "PASS",
+        expected_commit,
+        expected_run,
+        "native Windows, macOS, and Linux",
+        "windows-arm64",
+        "linux-aarch64",
+        "linux-armhf",
+        "aggregate exact-commit report passed",
+    ):
+        if required_evidence not in cross_platform_gate:
+            violations.append(
+                "Phase 8 cross-platform qualification is missing evidence: "
+                f"{required_evidence}"
+            )
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}
     missing = expected - subphases.keys()
     if missing:
@@ -865,8 +888,8 @@ def collect_violations(root: Path) -> list[str]:
         "phase6.app-domain-node-kernels"
     ]:
         violations.append("Phase 8 does not carry the governed Phase 6 domain adapter")
-    if "State: `CONSTRUCTION`; the Phase 8" not in progress:
-        violations.append("migration progress does not declare the Phase 8 construction interval")
+    if "State: `CHECKPOINT_RUNNABLE`; Phase 8" not in progress:
+        violations.append("migration progress does not declare the Phase 8 runnable checkpoint")
 
     return violations
 
@@ -880,7 +903,7 @@ def main() -> int:
         for violation in violations:
             print(f"phase8 contract violation: {violation}", file=sys.stderr)
         return 1
-    print("phase8 module and IO construction contracts: PASS")
+    print("phase8 module and IO checkpoint contracts: PASS")
     return 0
 
 

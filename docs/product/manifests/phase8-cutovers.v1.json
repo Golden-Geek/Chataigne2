@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 21,
-  "tested_tree_base": "dc0b3cc",
-  "validation_state": "CONSTRUCTION",
+  "revision": 22,
+  "tested_tree_base": "b45a9b0a7a01ebee386e24a91daa42f897054bc6",
+  "validation_state": "CHECKPOINT_RUNNABLE",
   "product_gate": "PASS through 8J on Win-x64: target/product-gate/phase8-final-candidate/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
-  "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
+  "cross_platform_gate": "PASS: exact commit b45a9b0a7a01ebee386e24a91daa42f897054bc6; GitHub Actions run https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581; native Windows, macOS, and Linux plus windows-arm64, linux-aarch64, linux-armhf, and the aggregate exact-commit report passed",
   "subphases": [
     {
       "subphase_id": "8A",

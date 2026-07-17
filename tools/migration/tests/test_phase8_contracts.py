@@ -184,6 +184,22 @@ class Phase8ContractTests(unittest.TestCase):
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("8A is not recorded" in item for item in violations))
 
+    def test_unqualified_phase8_checkpoint_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "docs/product/manifests/phase8-cutovers.v1.json"
+            dashboard = json.loads(path.read_text(encoding="utf-8"))
+            dashboard["validation_state"] = "CONSTRUCTION"
+            dashboard["tested_tree_base"] = "unqualified"
+            dashboard["cross_platform_gate"] = "NOT_RUN"
+            path.write_text(json.dumps(dashboard), encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("runnable checkpoint" in item for item in violations))
+            self.assertTrue(any("qualified exact commit" in item for item in violations))
+            self.assertTrue(any("cross-platform qualification" in item for item in violations))
+
     def test_signal_without_compiled_kernel_is_rejected(self) -> None:
         root = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as directory:
