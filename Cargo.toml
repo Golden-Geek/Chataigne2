@@ -36,6 +36,7 @@ license = "MIT"
 repository = "https://github.com/Golden-Geek/Chataigne2"
 
 [workspace.dependencies]
+artnet_protocol = "0.4.4"
 atomic-write-file = "0.3.0"
 chataigne_alchemist = { path = "apps/chataigne/alchemist" }
 chataigne_processor = { path = "apps/chataigne/processor" }
@@ -53,6 +54,7 @@ golden_statechart = { path = "crates/golden_statechart" }
 golden_values = { path = "crates/values" }
 indexmap = { version = "2", features = ["serde"] }
 regex = "1"
+sacn = "0.11.1"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 sha2 = "0.10"

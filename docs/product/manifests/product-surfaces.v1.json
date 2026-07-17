@@ -1,15 +1,15 @@
 {
   "category_counts": {
     "anode": 37,
-    "command": 50,
+    "command": 55,
     "formula": 2,
-    "module": 23,
-    "node_type": 200,
+    "module": 26,
+    "node_type": 209,
     "panel": 14,
-    "script_callback": 51,
-    "script_method": 51,
-    "script_snippet": 40,
-    "script_template": 24
+    "script_callback": 54,
+    "script_method": 54,
+    "script_snippet": 44,
+    "script_template": 27
   },
   "entries": [
     {
@@ -871,6 +871,63 @@
       ]
     },
     {
+      "certainty": "declared",
+      "discovery_methods": [
+        "command_node_declaration"
+      ],
+      "facts": {
+        "node_type": "dmx_blackout_command",
+        "rust_type": "DmxBlackoutCommand"
+      },
+      "id": "command/dmx-blackout-command",
+      "kind": "command",
+      "name": "dmx_blackout_command",
+      "sources": [
+        {
+          "line": 150,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "command_node_declaration"
+      ],
+      "facts": {
+        "node_type": "dmx_send_frame_command",
+        "rust_type": "DmxSendFrameCommand"
+      },
+      "id": "command/dmx-send-frame-command",
+      "kind": "command",
+      "name": "dmx_send_frame_command",
+      "sources": [
+        {
+          "line": 100,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "command_node_declaration"
+      ],
+      "facts": {
+        "node_type": "dmx_set_channel_command",
+        "rust_type": "DmxSetChannelCommand"
+      },
+      "id": "command/dmx-set-channel-command",
+      "kind": "command",
+      "name": "dmx_set_channel_command",
+      "sources": [
+        {
+          "line": 40,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ]
+    },
+    {
       "certainty": "registered",
       "discovery_methods": [
         "registerCommandHandler"
@@ -1417,6 +1474,44 @@
         "command_node_declaration"
       ],
       "facts": {
+        "node_type": "node_set_value_command",
+        "rust_type": "NodeSetValueCommand"
+      },
+      "id": "command/node-set-value-command",
+      "kind": "command",
+      "name": "node_set_value_command",
+      "sources": [
+        {
+          "line": 36,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "command_node_declaration"
+      ],
+      "facts": {
+        "node_type": "node_trigger_command",
+        "rust_type": "NodeTriggerCommand"
+      },
+      "id": "command/node-trigger-command",
+      "kind": "command",
+      "name": "node_trigger_command",
+      "sources": [
+        {
+          "line": 94,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "command_node_declaration"
+      ],
+      "facts": {
         "node_type": "os_logout_command",
         "rust_type": "OsLogoutCommand"
       },
@@ -1756,6 +1851,25 @@
         "module_node_declaration"
       ],
       "facts": {
+        "node_type": "artnet_module",
+        "rust_type": "ArtNetModule"
+      },
+      "id": "module/artnet-module",
+      "kind": "module",
+      "name": "artnet_module",
+      "sources": [
+        {
+          "line": 607,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "module_node_declaration"
+      ],
+      "facts": {
         "node_type": "buttplug_module",
         "rust_type": "ButtplugModule"
       },
@@ -1946,6 +2060,25 @@
         "module_node_declaration"
       ],
       "facts": {
+        "node_type": "node_module",
+        "rust_type": "NodeModule"
+      },
+      "id": "module/node-module",
+      "kind": "module",
+      "name": "node_module",
+      "sources": [
+        {
+          "line": 33,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "module_node_declaration"
+      ],
+      "facts": {
         "node_type": "os_module",
         "rust_type": "OsModule"
       },
@@ -1975,6 +2108,25 @@
         {
           "line": 18,
           "path": "apps/chataigne/src/module/modules/protocol/osc/generic_osc_module.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "module_node_declaration"
+      ],
+      "facts": {
+        "node_type": "sacn_module",
+        "rust_type": "SacnModule"
+      },
+      "id": "module/sacn-module",
+      "kind": "module",
+      "name": "sacn_module",
+      "sources": [
+        {
+          "line": 633,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
         }
       ]
     },
@@ -2817,6 +2969,22 @@
         "node_macro_attribute"
       ],
       "facts": {},
+      "id": "node_type/artnet-module",
+      "kind": "node_type",
+      "name": "artnet_module",
+      "sources": [
+        {
+          "line": 606,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
       "id": "node_type/auto-declared",
       "kind": "node_type",
       "name": "auto_declared",
@@ -3452,6 +3620,74 @@
         {
           "line": 35,
           "path": "crates/transport_server/src/project_host/project_host_tests.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
+      "id": "node_type/dmx-blackout-command",
+      "kind": "node_type",
+      "name": "dmx_blackout_command",
+      "sources": [
+        {
+          "line": 149,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
+      "id": "node_type/dmx-module-base",
+      "kind": "node_type",
+      "name": "dmx_module_base",
+      "sources": [
+        {
+          "line": 35,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        },
+        {
+          "line": 438,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
+      "id": "node_type/dmx-send-frame-command",
+      "kind": "node_type",
+      "name": "dmx_send_frame_command",
+      "sources": [
+        {
+          "line": 93,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
+      "id": "node_type/dmx-set-channel-command",
+      "kind": "node_type",
+      "name": "dmx_set_channel_command",
+      "sources": [
+        {
+          "line": 29,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
         }
       ]
     },
@@ -4673,6 +4909,54 @@
         "node_macro_attribute"
       ],
       "facts": {},
+      "id": "node_type/node-module",
+      "kind": "node_type",
+      "name": "node_module",
+      "sources": [
+        {
+          "line": 18,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
+      "id": "node_type/node-set-value-command",
+      "kind": "node_type",
+      "name": "node_set_value_command",
+      "sources": [
+        {
+          "line": 24,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
+      "id": "node_type/node-trigger-command",
+      "kind": "node_type",
+      "name": "node_trigger_command",
+      "sources": [
+        {
+          "line": 86,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
       "id": "node_type/os-logout-command",
       "kind": "node_type",
       "name": "os_logout_command",
@@ -5132,6 +5416,22 @@
         {
           "line": 745,
           "path": "crates/core/src/engine/tests.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "node_macro_attribute"
+      ],
+      "facts": {},
+      "id": "node_type/sacn-module",
+      "kind": "node_type",
+      "name": "sacn_module",
+      "sources": [
+        {
+          "line": 632,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
         }
       ]
     },
@@ -7052,6 +7352,24 @@
         "callback_constant"
       ],
       "facts": {
+        "constant": "DMX_FRAME_RECEIVED_CALLBACK"
+      },
+      "id": "script_callback/dmxframereceived",
+      "kind": "script_callback",
+      "name": "dmxFrameReceived",
+      "sources": [
+        {
+          "line": 32,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "callback_constant"
+      ],
+      "facts": {
         "constant": "GAMEPAD_AXIS_CHANGED_CALLBACK"
       },
       "id": "script_callback/gamepadaxischanged",
@@ -7527,6 +7845,42 @@
         "callback_constant"
       ],
       "facts": {
+        "constant": "NODE_TRIGGERED_CALLBACK"
+      },
+      "id": "script_callback/nodetriggered",
+      "kind": "script_callback",
+      "name": "nodeTriggered",
+      "sources": [
+        {
+          "line": 16,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "callback_constant"
+      ],
+      "facts": {
+        "constant": "NODE_VALUE_SET_CALLBACK"
+      },
+      "id": "script_callback/nodevalueset",
+      "kind": "script_callback",
+      "name": "nodeValueSet",
+      "sources": [
+        {
+          "line": 15,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "callback_constant"
+      ],
+      "facts": {
         "constant": "MIDI_NOTE_OFF_RECEIVED_CALLBACK"
       },
       "id": "script_callback/noteoffreceived",
@@ -7884,6 +8238,25 @@
         {
           "line": 8,
           "path": "apps/chataigne/src/module/script_templates/snippets/buttplug_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "template_function"
+      ],
+      "facts": {
+        "method": "dmxFrameReceived",
+        "scope": "dmx_callbacks"
+      },
+      "id": "script_method/dmx-callbacks-dmxframereceived",
+      "kind": "script_method",
+      "name": "dmx_callbacks::dmxFrameReceived",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/dmx_callbacks.js"
         }
       ]
     },
@@ -8501,6 +8874,44 @@
         "template_function"
       ],
       "facts": {
+        "method": "nodeTriggered",
+        "scope": "node_callbacks"
+      },
+      "id": "script_method/node-callbacks-nodetriggered",
+      "kind": "script_method",
+      "name": "node_callbacks::nodeTriggered",
+      "sources": [
+        {
+          "line": 5,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "template_function"
+      ],
+      "facts": {
+        "method": "nodeValueSet",
+        "scope": "node_callbacks"
+      },
+      "id": "script_method/node-callbacks-nodevalueset",
+      "kind": "script_method",
+      "name": "node_callbacks::nodeValueSet",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "declared",
+      "discovery_methods": [
+        "template_function"
+      ],
+      "facts": {
         "method": "systemCommandFailed",
         "scope": "os_callbacks"
       },
@@ -8828,6 +9239,38 @@
         "snippet_file"
       ],
       "facts": {},
+      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-callbacks-js",
+      "kind": "script_snippet",
+      "name": "apps/chataigne/src/module/script_templates/snippets/dmx_callbacks.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/dmx_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "snippet_file"
+      ],
+      "facts": {},
+      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-functions-js",
+      "kind": "script_snippet",
+      "name": "apps/chataigne/src/module/script_templates/snippets/dmx_functions.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/dmx_functions.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "snippet_file"
+      ],
+      "facts": {},
       "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-gamepad-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/gamepad_callbacks.js",
@@ -9091,6 +9534,38 @@
         {
           "line": 1,
           "path": "apps/chataigne/src/module/script_templates/snippets/mqtt_functions.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "snippet_file"
+      ],
+      "facts": {},
+      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-node-callbacks-js",
+      "kind": "script_snippet",
+      "name": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "snippet_file"
+      ],
+      "facts": {},
+      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-node-functions-js",
+      "kind": "script_snippet",
+      "name": "apps/chataigne/src/module/script_templates/snippets/node_functions.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_functions.js"
         }
       ]
     },
@@ -9406,6 +9881,24 @@
         "template_file"
       ],
       "facts": {
+        "scope": "artnet_module"
+      },
+      "id": "script_template/apps-chataigne-src-module-script-templates-artnet-module-js",
+      "kind": "script_template",
+      "name": "apps/chataigne/src/module/script_templates/artnet_module.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/artnet_module.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "template_file"
+      ],
+      "facts": {
         "scope": "buttplug_module"
       },
       "id": "script_template/apps-chataigne-src-module-script-templates-buttplug-module-js",
@@ -9604,6 +10097,24 @@
         "template_file"
       ],
       "facts": {
+        "scope": "node_module"
+      },
+      "id": "script_template/apps-chataigne-src-module-script-templates-node-module-js",
+      "kind": "script_template",
+      "name": "apps/chataigne/src/module/script_templates/node_module.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/node_module.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "template_file"
+      ],
+      "facts": {
         "scope": "os_module"
       },
       "id": "script_template/apps-chataigne-src-module-script-templates-os-module-js",
@@ -9631,6 +10142,24 @@
         {
           "line": 1,
           "path": "apps/chataigne/src/module/script_templates/osc_module.js"
+        }
+      ]
+    },
+    {
+      "certainty": "file_discovered",
+      "discovery_methods": [
+        "template_file"
+      ],
+      "facts": {
+        "scope": "sacn_module"
+      },
+      "id": "script_template/apps-chataigne-src-module-script-templates-sacn-module-js",
+      "kind": "script_template",
+      "name": "apps/chataigne/src/module/script_templates/sacn_module.js",
+      "sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/sacn_module.js"
         }
       ]
     },

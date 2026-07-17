@@ -80,6 +80,26 @@ const SERVER_STREAM_FUNCTION_DOCS: &[&str] = &[
     "source client id",
 ];
 
+const DMX_FUNCTION_DOCS: &[&str] = &[
+    "Art-Net and sACN DMX functions",
+    "local.setChannel(channel, value)",
+    "local.sendFrame(\"[0, 127, 255]\")",
+    "local.blackout()",
+];
+
+const DMX_CALLBACK_DOCS: &[&str] = &["dmxFrameReceived(universe, channels, metadata)"];
+
+const NODE_FUNCTION_DOCS: &[&str] = &[
+    "Node module functions",
+    "local.setValue(targetReference, value)",
+    "local.trigger(targetReference)",
+];
+
+const NODE_CALLBACK_DOCS: &[&str] = &[
+    "nodeValueSet(target, value)",
+    "nodeTriggered(target)",
+];
+
 #[test]
 fn module_script_templates_document_available_functions_for_each_module() {
     let osc_module_type = <crate::app::GenericOscModule as DeclaredUserItemNode>::ITEM_NODE_TYPE;
@@ -102,6 +122,21 @@ fn module_script_templates_document_available_functions_for_each_module() {
             MOUSE_CALLBACK_DOCS,
         ),
         (crate::app::MidiModule::NODE_TYPE, MIDI_FUNCTION_DOCS, &[]),
+        (
+            crate::app::ArtNetModule::NODE_TYPE,
+            DMX_FUNCTION_DOCS,
+            DMX_CALLBACK_DOCS,
+        ),
+        (
+            crate::app::SacnModule::NODE_TYPE,
+            DMX_FUNCTION_DOCS,
+            DMX_CALLBACK_DOCS,
+        ),
+        (
+            crate::app::NodeModule::NODE_TYPE,
+            NODE_FUNCTION_DOCS,
+            NODE_CALLBACK_DOCS,
+        ),
         (osc_module_type, OSC_FUNCTION_DOCS, &[]),
         (crate::app::SerialModule::NODE_TYPE, STREAM_FUNCTION_DOCS, &[]),
         (crate::app::UdpModule::NODE_TYPE, STREAM_FUNCTION_DOCS, &[]),

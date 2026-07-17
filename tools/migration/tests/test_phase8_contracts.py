@@ -57,6 +57,13 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/protocol/midi/midi_message/midi_message_tests.rs",
     "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs",
     "apps/chataigne/src/module/modules/protocol/midi/midi_module_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/dmx/command_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/dmx/commands.rs",
+    "apps/chataigne/src/module/modules/protocol/dmx/dmx_tests.rs",
+    "apps/chataigne/src/module/modules/protocol/dmx/frame.rs",
+    "apps/chataigne/src/module/modules/protocol/dmx/mod.rs",
+    "apps/chataigne/src/module/modules/protocol/dmx/transport.rs",
+    "apps/chataigne/src/module/modules/protocol/dmx/transport/tests.rs",
     "apps/chataigne/src/module/modules/protocol/http/mod.rs",
     "apps/chataigne/src/module/modules/protocol/http/tests.rs",
     "apps/chataigne/src/module/modules/protocol/http/transport.rs",
@@ -83,6 +90,10 @@ CONTRACT_FILES = (
     "apps/chataigne/src/module/modules/system/os/os.rs",
     "apps/chataigne/src/module/modules/system/os/os_runtime.rs",
     "apps/chataigne/src/module/modules/system/os/os_tests.rs",
+    "apps/chataigne/src/module/modules/system/node_control/command_tests.rs",
+    "apps/chataigne/src/module/modules/system/node_control/commands.rs",
+    "apps/chataigne/src/module/modules/system/node_control/mod.rs",
+    "apps/chataigne/src/module/modules/system/node_control/node_control_tests.rs",
     "apps/chataigne/src/module/script_api/tests.rs",
     "apps/chataigne/src/state_machine_nodes/catalog_tests.rs",
     "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
@@ -288,6 +299,65 @@ class Phase8ContractTests(unittest.TestCase):
             path.write_text(json.dumps(config), encoding="utf-8")
             violations = MODULE.collect_violations(copy)
             self.assertTrue(any("native packaging" in item for item in violations))
+
+    def test_missing_artnet_dependency_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "Cargo.toml"
+            source = path.read_text(encoding="utf-8").replace(
+                'artnet_protocol = "0.4.4"', ""
+            )
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("reliable dependency" in item for item in violations))
+
+    def test_unbounded_dmx_output_channel_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/src/module/modules/protocol/dmx/transport.rs"
+            source = path.read_text(encoding="utf-8").replace(
+                "mpsc::sync_channel", "mpsc::channel"
+            )
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("bounded DMX transport" in item for item in violations))
+
+    def test_node_module_without_stable_reference_resolution_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+            source = path.read_text(encoding="utf-8").replace(
+                ".cached_id()",
+                ".unstable_id()",
+            )
+            path.write_text(source, encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("Node module is missing" in item for item in violations))
+
+    def test_missing_phase8j_catalog_module_is_rejected(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "docs/product/manifests/product-surfaces.v1.json"
+            inventory = json.loads(path.read_text(encoding="utf-8"))
+            inventory["entries"] = [
+                entry
+                for entry in inventory["entries"]
+                if not (
+                    entry.get("kind") == "module"
+                    and entry.get("name") == "artnet_module"
+                )
+            ]
+            path.write_text(json.dumps(inventory), encoding="utf-8")
+            violations = MODULE.collect_violations(copy)
+            self.assertTrue(any("new-feature catalog" in item for item in violations))
 
 
 if __name__ == "__main__":

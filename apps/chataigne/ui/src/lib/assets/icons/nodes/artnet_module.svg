@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Art-Net module">
+  <rect width="64" height="64" rx="12" fill="#292d3e"/>
+  <path d="M13 20h38v24H13z" fill="#56b6c2"/>
+  <path d="M18 25h28v14H18z" fill="#171923"/>
+  <path d="M22 29h4v6h-4zm8 0h4v6h-4zm8 0h4v6h-4z" fill="#ffd866"/>
+  <path d="M24 15v5m16-5v5M24 44v5m16-5v5" stroke="#c5cadb" stroke-width="4" stroke-linecap="round"/>
+</svg>

@@ -1,6 +1,6 @@
 {
   "category_counts": {
-    "asset": 90,
+    "asset": 93,
     "fixture": 3
   },
   "entries": [
@@ -157,6 +157,14 @@
       "sha256": "8795b0ada052b5435c222b3f0f90fcdaaf5b6f7822cb0463abd9edb18a450b88"
     },
     {
+      "bytes": 425,
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg",
+      "kind": "asset",
+      "name": "artnet_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg",
+      "sha256": "a0730a1f5b5dcbe94aaa2c7af6ae79fa2e6530dd97e2d7be80574b9aeba571f0"
+    },
+    {
       "bytes": 14812,
       "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/buttplug_module.svg",
       "kind": "asset",
@@ -261,6 +269,14 @@
       "sha256": "4823c6087cd722fdb189781cc7ebe3e7e6cff26fc9d0274b13bd91b3e7c08f03"
     },
     {
+      "bytes": 500,
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg",
+      "kind": "asset",
+      "name": "node_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg",
+      "sha256": "c491d91b0fd00e165064b260494305cbf65a1a851740d588e6218e55a4c52d34"
+    },
+    {
       "bytes": 1730,
       "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/os_module.svg",
       "kind": "asset",
@@ -275,6 +291,14 @@
       "name": "osc_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/osc_module.svg",
       "sha256": "e8f80558ed9eeeb7dcf3aa74a4f457f78dcc09e467a527a484886741f43d5a47"
+    },
+    {
+      "bytes": 393,
+      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg",
+      "kind": "asset",
+      "name": "sacn_module.svg",
+      "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg",
+      "sha256": "ded036aa0a3958bfcb28e41a6b759a43371b21b32ca0c28820d72c1e09e3d6cb"
     },
     {
       "bytes": 3248,

@@ -61,6 +61,10 @@ if ($workflowSource -notmatch "inputs\.native_platform == 'all'.*inputs\.run_com
 }
 
 $gateSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/product-gate.ps1"))
+if ($gateSource -notmatch '\& \$resolvedExecutable \@Arguments 2>&1 \| ForEach-Object' -or
+    $gateSource -notmatch 'Write-Host \$line') {
+    throw "Product-gate commands must stream child output while retaining complete log files."
+}
 if ([regex]::Matches($gateSource, '-Id "evidence\.module_loopback"').Count -ne 1) {
     throw "The product gate must contain exactly one evidence.module_loopback item."
 }
@@ -90,7 +94,7 @@ if ($clippyIndex -lt 0 -or $testIndex -lt 0 -or $runtimeBuildIndex -lt 0 -or
     $runtimeBuildIndex -lt $clippyIndex -or $runtimeBuildIndex -lt $testIndex) {
     throw "The final runtime build must restore normal Cargo artifacts after clippy and tests."
 }
-if ($gateSource -notmatch '-Id "rust\.runtime_build"(?s:.*?)-Arguments @\("build", "-p", "Chataigne2", "--bin", "Chataigne2"\)(?s:.*?)-DependsOn @\("rust\.format", "rust\.clippy", "rust\.test"\)') {
+if ($gateSource -notmatch '-Id "rust\.runtime_build"(?s:.*?)-Arguments @\("build", "-p", "Chataigne2", "--bin", "Chataigne2"\)(?s:.*?)-DependsOn @\("rust\.format", "rust\.clippy", "rust\.test", "runtime\.phase6_release_fixtures"\)') {
     throw "The final runtime build must compile the exact Chataigne binary after Rust checks."
 }
 if ($gateSource -notmatch '-Id "smoke\.cargo_run"(?s:.*?)-DependsOn @\("rust\.runtime_build", "ui\.browser_install"\)') {

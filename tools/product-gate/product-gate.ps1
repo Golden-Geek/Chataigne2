@@ -252,7 +252,13 @@ function Invoke-GateCommand {
         # Keep those records in the log without turning a normal nonzero native exit
         # into a terminating PowerShell exception that would erase the real exit code.
         $ErrorActionPreference = "Continue"
-        $output = @(& $resolvedExecutable @Arguments 2>&1)
+        $output = @(
+            & $resolvedExecutable @Arguments 2>&1 | ForEach-Object {
+                $line = [string]$_
+                Write-Host $line
+                $line
+            }
+        )
         $exitCode = $LASTEXITCODE
         if ($null -eq $exitCode) {
             $exitCode = 0
@@ -271,10 +277,6 @@ function Invoke-GateCommand {
 
     $outputText = @($output | ForEach-Object { [string]$_ })
     [System.IO.File]::WriteAllLines($logPath, $outputText, [System.Text.UTF8Encoding]::new($false))
-    foreach ($line in $outputText) {
-        Write-Host $line
-    }
-
     $finished = [DateTimeOffset]::UtcNow
     if ($exitCode -eq 0) {
         return Add-GateResult `

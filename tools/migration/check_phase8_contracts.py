@@ -68,6 +68,27 @@ def collect_violations(root: Path) -> list[str]:
         root,
         "apps/chataigne/src/module/modules/protocol/midi/midi_message/midi_message_tests.rs",
     )
+    dmx_module = read(
+        root, "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+    )
+    dmx_frame = read(
+        root, "apps/chataigne/src/module/modules/protocol/dmx/frame.rs"
+    )
+    dmx_transport = read(
+        root, "apps/chataigne/src/module/modules/protocol/dmx/transport.rs"
+    )
+    dmx_transport_tests = read(
+        root, "apps/chataigne/src/module/modules/protocol/dmx/transport/tests.rs"
+    )
+    dmx_tests = read(
+        root, "apps/chataigne/src/module/modules/protocol/dmx/dmx_tests.rs"
+    )
+    dmx_commands = read(
+        root, "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+    )
+    dmx_command_tests = read(
+        root, "apps/chataigne/src/module/modules/protocol/dmx/command_tests.rs"
+    )
     http = read(root, "apps/chataigne/src/module/modules/protocol/http/mod.rs")
     http_transport = read(
         root, "apps/chataigne/src/module/modules/protocol/http/transport.rs"
@@ -164,6 +185,20 @@ def collect_violations(root: Path) -> list[str]:
     os_module = read(root, "apps/chataigne/src/module/modules/system/os/os.rs")
     os_runtime = read(root, "apps/chataigne/src/module/modules/system/os/os_runtime.rs")
     os_tests = read(root, "apps/chataigne/src/module/modules/system/os/os_tests.rs")
+    node_module = read(
+        root, "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+    )
+    node_commands = read(
+        root, "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+    )
+    node_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/system/node_control/node_control_tests.rs",
+    )
+    node_command_tests = read(
+        root,
+        "apps/chataigne/src/module/modules/system/node_control/command_tests.rs",
+    )
     spatializer = read(
         root,
         "apps/chataigne/src/module/modules/generators/spatializer.rs",
@@ -506,7 +541,7 @@ def collect_violations(root: Path) -> list[str]:
     if "module_script_templates_document_available_functions_for_each_module" not in module_script_tests:
         violations.append("Phase 8H is missing the module script-template surface fixture")
 
-    expected_surface_counts = {
+    phase8h_surface_baseline = {
         "anode": 37,
         "command": 50,
         "formula": 2,
@@ -518,8 +553,26 @@ def collect_violations(root: Path) -> list[str]:
         "script_snippet": 40,
         "script_template": 24,
     }
+    phase8j_surface_expansion = {
+        "anode": 0,
+        "command": 5,
+        "formula": 0,
+        "module": 3,
+        "node_type": 9,
+        "panel": 0,
+        "script_callback": 3,
+        "script_method": 3,
+        "script_snippet": 4,
+        "script_template": 3,
+    }
+    expected_surface_counts = {
+        kind: count + phase8j_surface_expansion[kind]
+        for kind, count in phase8h_surface_baseline.items()
+    }
     if product_surfaces.get("category_counts") != expected_surface_counts:
-        violations.append("Phase 8H product registration counts drifted from the recorded baseline")
+        violations.append(
+            "Phase 8H baseline plus Phase 8J expansion registration counts drifted"
+        )
     surface_entries = product_surfaces.get("entries", [])
     module_names = {
         entry.get("name") for entry in surface_entries if entry.get("kind") == "module"
@@ -546,8 +599,10 @@ def collect_violations(root: Path) -> list[str]:
                 violations.append(f"Phase 8H surface `{entry.get('id')}` has a missing source")
 
     file_entries = product_files.get("entries", [])
-    if product_files.get("category_counts") != {"asset": 90, "fixture": 3}:
-        violations.append("Phase 8H asset/fixture counts drifted from the recorded baseline")
+    if product_files.get("category_counts") != {"asset": 93, "fixture": 3}:
+        violations.append(
+            "Phase 8H baseline plus Phase 8J expansion asset/fixture counts drifted"
+        )
     asset_paths = {
         entry.get("path") for entry in file_entries if entry.get("kind") == "asset"
     }
@@ -655,6 +710,125 @@ def collect_violations(root: Path) -> list[str]:
         if fixture not in formula_tests:
             violations.append(f"Phase 8I is missing formula-schema fixture `{fixture}`")
 
+    for declaration in (
+        'artnet_protocol = "0.4.4"',
+        'sacn = "0.11.1"',
+        "artnet_protocol.workspace = true",
+        "sacn.workspace = true",
+    ):
+        if declaration not in workspace and declaration not in app_manifest:
+            violations.append(
+                f"Phase 8J DMX expansion is missing reliable dependency `{declaration}`"
+            )
+    for family, node_type, kernel in (
+        ("Art-Net", "artnet_module", "chataigne.runtime.artnet"),
+        ("sACN", "sacn_module", "chataigne.runtime.sacn"),
+    ):
+        if node_type not in dmx_module or kernel not in dmx_module:
+            violations.append(
+                f"Phase 8J {family} module is missing its catalog type or compiled kernel"
+            )
+    for contract in (
+        "DMX_SLOT_COUNT",
+        "ARTNET_MAX_UNIVERSE",
+        "SACN_MAX_UNIVERSE",
+        "set_channel",
+        "with_metadata",
+    ):
+        if contract not in dmx_frame:
+            violations.append(f"Phase 8J DMX frame contract is missing `{contract}`")
+    for contract in (
+        "WORKER_COMMAND_CAPACITY",
+        "sync_channel",
+        "try_send",
+        "latest_event",
+        "replaced_frames",
+        "stop_requested",
+        "thread.join",
+        "set_is_sending_discovery(false)",
+        "set_nonblocking(true)",
+        "AcnRootLayerProtocol::parse",
+        "SacnSource",
+        "ArtCommand",
+    ):
+        if contract not in dmx_transport:
+            violations.append(f"Phase 8J bounded DMX transport is missing `{contract}`")
+    for contract in (
+        "ReconnectBackoff",
+        "set_data_capabilities",
+        "dmxFrameReceived",
+        "setChannel",
+        "sendFrame",
+        "blackout",
+    ):
+        if contract not in dmx_module:
+            violations.append(f"Phase 8J DMX module surface is missing `{contract}`")
+    for contract in (
+        "dmx_set_channel_command",
+        "dmx_send_frame_command",
+        "dmx_blackout_command",
+    ):
+        if contract not in dmx_commands:
+            violations.append(f"Phase 8J DMX commands are missing `{contract}`")
+    for fixture, source in (
+        ("artnet_worker_sends_a_protocol_encoded_frame", dmx_transport_tests),
+        ("artnet_worker_receives_latest_frame_without_an_unbounded_queue", dmx_transport_tests),
+        ("sacn_worker_round_trips_a_unicast_frame", dmx_transport_tests),
+        ("output_queue_reports_overload_instead_of_growing_without_bound", dmx_transport_tests),
+        ("lighting_modules_are_distinct_catalog_items_with_distinct_kernels", dmx_tests),
+        ("phase8j_modules_round_trip_through_sparse_project_persistence", dmx_tests),
+        ("dmx_commands_are_project_creatable", dmx_command_tests),
+    ):
+        if fixture not in source:
+            violations.append(f"Phase 8J is missing DMX fixture `{fixture}`")
+
+    for contract in (
+        'node("node_module"',
+        "resolve_script_reference",
+        ".cached_id()",
+        "node_id_by_uuid",
+        "param_value.is_none()",
+        "setValue",
+        "trigger",
+        "nodeValueSet",
+        "nodeTriggered",
+    ):
+        if contract not in node_module:
+            violations.append(f"Phase 8J Node module is missing `{contract}`")
+    for contract in (
+        "node_set_value_command",
+        "node_trigger_command",
+        "ReferenceTargetKind::ParameterOnly",
+    ):
+        if contract not in node_commands:
+            violations.append(f"Phase 8J Node commands are missing `{contract}`")
+    for fixture, source in (
+        ("node_script_methods_require_stable_references", node_tests),
+        ("node_module_is_a_project_creatable_system_module", node_tests),
+        ("node_commands_are_project_creatable", node_command_tests),
+    ):
+        if fixture not in source:
+            violations.append(f"Phase 8J is missing Node fixture `{fixture}`")
+    for contract in (
+        "DMX_FUNCTION_DOCS",
+        "DMX_CALLBACK_DOCS",
+        "NODE_FUNCTION_DOCS",
+        "NODE_CALLBACK_DOCS",
+        "ArtNetModule::NODE_TYPE",
+        "SacnModule::NODE_TYPE",
+        "NodeModule::NODE_TYPE",
+    ):
+        if contract not in module_script_tests:
+            violations.append(f"Phase 8J script surface fixture is missing `{contract}`")
+
+    expansion_modules = {"artnet_module", "sacn_module", "node_module"}
+    missing_expansion_modules = expansion_modules - module_names
+    if missing_expansion_modules:
+        violations.append(
+            "Phase 8J new-feature catalog is missing modules: "
+            f"{sorted(missing_expansion_modules)}"
+        )
+
     subphases = {
         item.get("subphase_id"): item for item in dashboard.get("subphases", [])
     }
@@ -678,7 +852,9 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8H is not recorded as runnable")
     if subphases.get("8I", {}).get("state") != "runnable":
         violations.append("Phase 8I is not recorded as runnable")
-    expected_report = "target/product-gate/20260716T125330Z/product-gate-report.json"
+    if subphases.get("8J", {}).get("state") != "runnable":
+        violations.append("Phase 8J is not recorded as runnable")
+    expected_report = "target/product-gate/phase8-final-candidate/product-gate-report.json"
     if expected_report not in dashboard.get("product_gate", ""):
         violations.append("latest Phase 8 product-gate evidence is not recorded")
     expected = {f"8{letter}" for letter in "ABCDEFGHIJ"}

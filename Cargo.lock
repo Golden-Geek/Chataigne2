@@ -6,6 +6,7 @@ version = 4
 name = "Chataigne2"
 version = "0.1.0"
 dependencies = [
+ "artnet_protocol",
  "base64 0.22.1",
  "buttplug",
  "buttplug_core",
@@ -35,6 +36,7 @@ dependencies = [
  "reqwest",
  "rosc",
  "rumqttc",
+ "sacn",
  "serde",
  "serde_json",
  "serialport",
@@ -205,6 +207,16 @@ name = "arrayvec"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
+
+[[package]]
+name = "artnet_protocol"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "686b971a57c02682e07fdb0866b09aad7df7054d9f3c3bb62a5eaa2092621367"
+dependencies = [
+ "bitflags 2.13.0",
+ "byteorder",
+]
 
 [[package]]
 name = "as-slice"
@@ -5442,6 +5454,19 @@ name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
+name = "sacn"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fa6b27099bea4cf80b420fe02b1e2101721b1e13197e0a34a9f3811dd26d63f"
+dependencies = [
+ "byteorder",
+ "libc",
+ "socket2",
+ "thiserror 2.0.18",
+ "uuid",
+]
 
 [[package]]
 name = "same-file"

@@ -186,6 +186,10 @@ When a task spans multiple architectural areas, prefer this order:
 
 ## Working Rules For Agents
 
+- Never invoke or spawn `run-visible-command`, computer-use, desktop-control, SendKeys,
+  AutoHotkey, or any mechanism that synthesizes keyboard or mouse input or takes control of the
+  user's desktop. A request to show output in a terminal does not authorize GUI automation; use
+  ordinary non-interactive processes or provide a command for the user to run.
 - Start by identifying the layer that should own the change.
 - Prefer moving responsibility to the right layer over adding glue.
 - Move parsing, timestamping, and transport-side preprocessing out of the engine loop whenever an IO/runtime boundary can do that work first; keep the engine loop focused on applying state and graph mutations.

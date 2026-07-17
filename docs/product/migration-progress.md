@@ -58,6 +58,14 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
   the optimized Tauri application with pinned release tooling.
   Local Win-x64 report `target/product-gate/20260716T125330Z/product-gate-report.json` passed all 38
   required checks, including the real-app save/reload and non-loopback LAN workflows.
+- 8J focused construction: Art-Net and sACN are distinct catalog modules over one bounded DMX
+  worker/frame foundation, with protocol loopbacks, latest-wins input diagnostics, reconnect,
+  commands, scripts, callbacks, persistence, and app-owned icons. The Node module provides stable
+  ID/UUID parameter references for set and trigger operations through commands and scripts. These
+  are approved new capabilities and are not recorded as restored baseline parity. Local Win-x64
+  report `target/product-gate/phase8-final-candidate/product-gate-report.json` passed all 38
+  required checks; the Phase 8 checkpoint remains in construction until exact-commit
+  cross-platform qualification passes.
 - Focused proof: local Win-x64 report
   `target/product-gate/20260716T095204Z/product-gate-report.json` passed all 38 required checks for
   the 8A tree; 7 non-required dependency/platform checks were `NOT_RUN`.
@@ -213,7 +221,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | 8G       | `RUNNABLE`     | Spatializer uses sparse Delaunay topology at the declared scale; dashboard/editor workflows are enforced; all 38 required product-gate checks pass |
 | 8H       | `RUNNABLE`     | Public runtime/cache/budget contracts and the complete generated script/asset/registration inventory are enforced; all 38 required product-gate checks pass |
 | 8I       | `RUNNABLE`     | Durable project recovery, desktop/headless/LAN discovery, active native bundles, signing/notarization hooks, and release assets are enforced; all 38 required product-gate checks pass |
-| 8J       | Pending        | Implement approved Art-Net/sACN/DMX and Node modules to the complete module standard                                  |
+| 8J       | `RUNNABLE`     | Art-Net/sACN/DMX and Node implementation, focused contracts, and all 38 required local product-gate checks pass       |
 
 ## Required Root Workflow Status
 

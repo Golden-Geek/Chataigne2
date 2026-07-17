@@ -2924,6 +2924,57 @@
       "baseline_sources": [
         {
           "line": 1,
+          "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg"
+        }
+      ],
+      "capability_id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "asset",
+        "inventory_name": "artnet_module.svg"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/asset/apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "ux_asset",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for asset/apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for asset/apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
           "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/buttplug_module.svg"
         }
       ],
@@ -3587,6 +3638,57 @@
       "baseline_sources": [
         {
           "line": 1,
+          "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg"
+        }
+      ],
+      "capability_id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "asset",
+        "inventory_name": "node_module.svg"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/asset/apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "ux_asset",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for asset/apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for asset/apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
           "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/os_module.svg"
         }
       ],
@@ -3679,6 +3781,57 @@
       "user_workflow": {
         "expected_feedback": null,
         "placeholder": "Record the exact baseline user workflow for asset/apps/chataigne/ui/src/lib/assets/icons/nodes/osc_module.svg.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg"
+        }
+      ],
+      "capability_id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "asset",
+        "inventory_name": "sacn_module.svg"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/asset/apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "ux_asset",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for asset/apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for asset/apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg.",
         "status": "pending_characterization",
         "steps": []
       },
@@ -7019,6 +7172,165 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 150,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ],
+      "capability_id": "command/dmx-blackout-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "command",
+        "inventory_name": "dmx_blackout_command",
+        "node_type": "dmx_blackout_command",
+        "rust_type": "DmxBlackoutCommand"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/command/dmx-blackout-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "command",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for command/dmx-blackout-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for command/dmx-blackout-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 100,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ],
+      "capability_id": "command/dmx-send-frame-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "command",
+        "inventory_name": "dmx_send_frame_command",
+        "node_type": "dmx_send_frame_command",
+        "rust_type": "DmxSendFrameCommand"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/command/dmx-send-frame-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "command",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for command/dmx-send-frame-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for command/dmx-send-frame-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 40,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ],
+      "capability_id": "command/dmx-set-channel-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "command",
+        "inventory_name": "dmx_set_channel_command",
+        "node_type": "dmx_set_channel_command",
+        "rust_type": "DmxSetChannelCommand"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/command/dmx-set-channel-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "command",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for command/dmx-set-channel-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for command/dmx-set-channel-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 1867,
           "path": "apps/chataigne/ui/src/lib/state_machine/components/AlchemistEditorPanel.svelte"
         },
@@ -8517,6 +8829,112 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 36,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ],
+      "capability_id": "command/node-set-value-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "command",
+        "inventory_name": "node_set_value_command",
+        "node_type": "node_set_value_command",
+        "rust_type": "NodeSetValueCommand"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/command/node-set-value-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "command",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for command/node-set-value-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for command/node-set-value-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 94,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ],
+      "capability_id": "command/node-trigger-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "command",
+        "inventory_name": "node_trigger_command",
+        "node_type": "node_trigger_command",
+        "rust_type": "NodeTriggerCommand"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/command/node-trigger-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "command",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for command/node-trigger-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for command/node-trigger-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 114,
           "path": "apps/chataigne/src/module/modules/system/os/commands/mod.rs"
         }
@@ -9556,6 +9974,59 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 607,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ],
+      "capability_id": "module/artnet-module",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "module",
+        "inventory_name": "artnet_module",
+        "node_type": "artnet_module",
+        "rust_type": "ArtNetModule"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/module/artnet-module",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "module",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for module/artnet-module; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for module/artnet-module.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 137,
           "path": "apps/chataigne/src/module/modules/controllers/buttplug/mod.rs"
         }
@@ -10086,6 +10557,59 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 33,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ],
+      "capability_id": "module/node-module",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "module",
+        "inventory_name": "node_module",
+        "node_type": "node_module",
+        "rust_type": "NodeModule"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/module/node-module",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "module",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for module/node-module; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for module/node-module.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 153,
           "path": "apps/chataigne/src/module/modules/system/os/os.rs"
         }
@@ -10183,6 +10707,59 @@
       "user_workflow": {
         "expected_feedback": null,
         "placeholder": "Record the exact baseline user workflow for module/osc-module.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 633,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ],
+      "capability_id": "module/sacn-module",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "module",
+        "inventory_name": "sacn_module",
+        "node_type": "sacn_module",
+        "rust_type": "SacnModule"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/module/sacn-module",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "module",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for module/sacn-module; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for module/sacn-module.",
         "status": "pending_characterization",
         "steps": []
       },
@@ -12003,6 +12580,57 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 606,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ],
+      "capability_id": "node_type/artnet-module",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "artnet_module"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/artnet-module",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/artnet-module; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/artnet-module.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 624,
           "path": "crates/core/src/engine/tests.rs"
         }
@@ -13653,6 +14281,214 @@
       "user_workflow": {
         "expected_feedback": null,
         "placeholder": "Record the exact baseline user workflow for node_type/destroy-probe-node.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 149,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ],
+      "capability_id": "node_type/dmx-blackout-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "dmx_blackout_command"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/dmx-blackout-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/dmx-blackout-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/dmx-blackout-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 35,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        },
+        {
+          "line": 438,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ],
+      "capability_id": "node_type/dmx-module-base",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "dmx_module_base"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/dmx-module-base",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/dmx-module-base; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/dmx-module-base.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 93,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ],
+      "capability_id": "node_type/dmx-send-frame-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "dmx_send_frame_command"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/dmx-send-frame-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/dmx-send-frame-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/dmx-send-frame-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 29,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/commands.rs"
+        }
+      ],
+      "capability_id": "node_type/dmx-set-channel-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "dmx_set_channel_command"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/dmx-set-channel-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/dmx-set-channel-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/dmx-set-channel-command.",
         "status": "pending_characterization",
         "steps": []
       },
@@ -16974,6 +17810,159 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 18,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ],
+      "capability_id": "node_type/node-module",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "node_module"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/node-module",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/node-module; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/node-module.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 24,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ],
+      "capability_id": "node_type/node-set-value-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "node_set_value_command"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/node-set-value-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/node-set-value-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/node-set-value-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 86,
+          "path": "apps/chataigne/src/module/modules/system/node_control/commands.rs"
+        }
+      ],
+      "capability_id": "node_type/node-trigger-command",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "node_trigger_command"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/node-trigger-command",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/node-trigger-command; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/node-trigger-command.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 113,
           "path": "apps/chataigne/src/module/modules/system/os/commands/mod.rs"
         }
@@ -18238,6 +19227,57 @@
       "user_workflow": {
         "expected_feedback": null,
         "placeholder": "Record the exact baseline user workflow for node_type/reuse-folder-via-node.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 632,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ],
+      "capability_id": "node_type/sacn-module",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "node_type",
+        "inventory_name": "sacn_module"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/node_type/sacn-module",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "project_model",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for node_type/sacn-module; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for node_type/sacn-module.",
         "status": "pending_characterization",
         "steps": []
       },
@@ -23437,6 +24477,58 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 32,
+          "path": "apps/chataigne/src/module/modules/protocol/dmx/mod.rs"
+        }
+      ],
+      "capability_id": "script_callback/dmxframereceived",
+      "discovered_facts": {
+        "constant": "DMX_FRAME_RECEIVED_CALLBACK",
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_callback",
+        "inventory_name": "dmxFrameReceived"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_callback/dmxframereceived",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_callback/dmxframereceived; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_callback/dmxframereceived.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 28,
           "path": "apps/chataigne/src/module/modules/controllers/gamepad/gamepad.rs"
         }
@@ -24796,6 +25888,110 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 16,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ],
+      "capability_id": "script_callback/nodetriggered",
+      "discovered_facts": {
+        "constant": "NODE_TRIGGERED_CALLBACK",
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_callback",
+        "inventory_name": "nodeTriggered"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_callback/nodetriggered",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_callback/nodetriggered; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_callback/nodetriggered.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 15,
+          "path": "apps/chataigne/src/module/modules/system/node_control/mod.rs"
+        }
+      ],
+      "capability_id": "script_callback/nodevalueset",
+      "discovered_facts": {
+        "constant": "NODE_VALUE_SET_CALLBACK",
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_callback",
+        "inventory_name": "nodeValueSet"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_callback/nodevalueset",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_callback/nodevalueset; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_callback/nodevalueset.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 85,
           "path": "apps/chataigne/src/module/modules/protocol/midi/midi_module.rs"
         }
@@ -25833,6 +27029,59 @@
       "user_workflow": {
         "expected_feedback": null,
         "placeholder": "Record the exact baseline user workflow for script_method/buttplug-callbacks-buttplugscanningfinished.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/dmx_callbacks.js"
+        }
+      ],
+      "capability_id": "script_method/dmx-callbacks-dmxframereceived",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_method",
+        "inventory_name": "dmx_callbacks::dmxFrameReceived",
+        "method": "dmxFrameReceived",
+        "scope": "dmx_callbacks"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_method/dmx-callbacks-dmxframereceived",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_method/dmx-callbacks-dmxframereceived; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_method/dmx-callbacks-dmxframereceived.",
         "status": "pending_characterization",
         "steps": []
       },
@@ -27538,6 +28787,112 @@
       "approval": "not_requested",
       "baseline_sources": [
         {
+          "line": 5,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js"
+        }
+      ],
+      "capability_id": "script_method/node-callbacks-nodetriggered",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_method",
+        "inventory_name": "node_callbacks::nodeTriggered",
+        "method": "nodeTriggered",
+        "scope": "node_callbacks"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_method/node-callbacks-nodetriggered",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_method/node-callbacks-nodetriggered; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_method/node-callbacks-nodetriggered.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js"
+        }
+      ],
+      "capability_id": "script_method/node-callbacks-nodevalueset",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_method",
+        "inventory_name": "node_callbacks::nodeValueSet",
+        "method": "nodeValueSet",
+        "scope": "node_callbacks"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_method/node-callbacks-nodevalueset",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_method/node-callbacks-nodevalueset; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_method/node-callbacks-nodevalueset.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
           "line": 18,
           "path": "apps/chataigne/src/module/script_templates/snippets/os_callbacks.js"
         }
@@ -28483,6 +29838,108 @@
       "baseline_sources": [
         {
           "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/dmx_callbacks.js"
+        }
+      ],
+      "capability_id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-callbacks-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_snippet",
+        "inventory_name": "apps/chataigne/src/module/script_templates/snippets/dmx_callbacks.js"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-callbacks-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-callbacks-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-callbacks-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/dmx_functions.js"
+        }
+      ],
+      "capability_id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-functions-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_snippet",
+        "inventory_name": "apps/chataigne/src/module/script_templates/snippets/dmx_functions.js"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-functions-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-functions-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-functions-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
           "path": "apps/chataigne/src/module/script_templates/snippets/gamepad_callbacks.js"
         }
       ],
@@ -29340,6 +30797,108 @@
       "user_workflow": {
         "expected_feedback": null,
         "placeholder": "Record the exact baseline user workflow for script_snippet/apps-chataigne-src-module-script-templates-snippets-mqtt-functions-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js"
+        }
+      ],
+      "capability_id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-node-callbacks-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_snippet",
+        "inventory_name": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_snippet/apps-chataigne-src-module-script-templates-snippets-node-callbacks-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_snippet/apps-chataigne-src-module-script-templates-snippets-node-callbacks-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_snippet/apps-chataigne-src-module-script-templates-snippets-node-callbacks-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/snippets/node_functions.js"
+        }
+      ],
+      "capability_id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-node-functions-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_snippet",
+        "inventory_name": "apps/chataigne/src/module/script_templates/snippets/node_functions.js"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_snippet/apps-chataigne-src-module-script-templates-snippets-node-functions-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_snippet/apps-chataigne-src-module-script-templates-snippets-node-functions-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_snippet/apps-chataigne-src-module-script-templates-snippets-node-functions-js.",
         "status": "pending_characterization",
         "steps": []
       },
@@ -30320,6 +31879,58 @@
       "baseline_sources": [
         {
           "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/artnet_module.js"
+        }
+      ],
+      "capability_id": "script_template/apps-chataigne-src-module-script-templates-artnet-module-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_template",
+        "inventory_name": "apps/chataigne/src/module/script_templates/artnet_module.js",
+        "scope": "artnet_module"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_template/apps-chataigne-src-module-script-templates-artnet-module-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_template/apps-chataigne-src-module-script-templates-artnet-module-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_template/apps-chataigne-src-module-script-templates-artnet-module-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
           "path": "apps/chataigne/src/module/script_templates/buttplug_module.js"
         }
       ],
@@ -30892,6 +32503,58 @@
       "baseline_sources": [
         {
           "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/node_module.js"
+        }
+      ],
+      "capability_id": "script_template/apps-chataigne-src-module-script-templates-node-module-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_template",
+        "inventory_name": "apps/chataigne/src/module/script_templates/node_module.js",
+        "scope": "node_module"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_template/apps-chataigne-src-module-script-templates-node-module-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_template/apps-chataigne-src-module-script-templates-node-module-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_template/apps-chataigne-src-module-script-templates-node-module-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
           "path": "apps/chataigne/src/module/script_templates/os_module.js"
         }
       ],
@@ -30986,6 +32649,58 @@
       "user_workflow": {
         "expected_feedback": null,
         "placeholder": "Record the exact baseline user workflow for script_template/apps-chataigne-src-module-script-templates-osc-module-js.",
+        "status": "pending_characterization",
+        "steps": []
+      },
+      "verification_state": "pending"
+    },
+    {
+      "approval": "not_requested",
+      "baseline_sources": [
+        {
+          "line": 1,
+          "path": "apps/chataigne/src/module/script_templates/sacn_module.js"
+        }
+      ],
+      "capability_id": "script_template/apps-chataigne-src-module-script-templates-sacn-module-js",
+      "discovered_facts": {
+        "discovery_is_behavioral_proof": false,
+        "inventory_kind": "script_template",
+        "inventory_name": "apps/chataigne/src/module/script_templates/sacn_module.js",
+        "scope": "sacn_module"
+      },
+      "evidence": {
+        "artifact_id": null,
+        "id": "evidence/script_template/apps-chataigne-src-module-script-templates-sacn-module-js",
+        "kind": "unassigned",
+        "status": "pending"
+      },
+      "final_owner": {
+        "path": null,
+        "status": "pending"
+      },
+      "last_passing_result": null,
+      "manual_evidence": {
+        "required": null,
+        "status": "pending"
+      },
+      "migration_state": "baseline",
+      "product_area": "script",
+      "runtime_semantics": {
+        "errors": null,
+        "inputs": [],
+        "ordering": null,
+        "outputs": [],
+        "placeholder": "Characterize runtime semantics for script_template/apps-chataigne-src-module-script-templates-sacn-module-js; source discovery is insufficient evidence.",
+        "recovery": null,
+        "state": null,
+        "status": "pending_characterization",
+        "timing": null
+      },
+      "temporary_adapter": null,
+      "user_workflow": {
+        "expected_feedback": null,
+        "placeholder": "Record the exact baseline user workflow for script_template/apps-chataigne-src-module-script-templates-sacn-module-js.",
         "status": "pending_characterization",
         "steps": []
       },

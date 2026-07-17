@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "phase": 8,
-  "revision": 19,
-  "tested_tree_base": "dfcc369",
+  "revision": 21,
+  "tested_tree_base": "dc0b3cc",
   "validation_state": "CONSTRUCTION",
-  "product_gate": "PASS through 8I on Win-x64: target/product-gate/20260716T125330Z/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
+  "product_gate": "PASS through 8J on Win-x64: target/product-gate/phase8-final-candidate/product-gate-report.json (38 required PASS; 7 non-required NOT_RUN)",
   "cross_platform_gate": "NOT_RUN: required at the Phase 8 checkpoint",
   "subphases": [
     {
@@ -151,7 +151,25 @@
         "target/product-gate/20260716T125330Z/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
       ]
     },
-    { "subphase_id": "8J", "state": "pending" }
+    {
+      "subphase_id": "8J",
+      "state": "runnable",
+      "owner": "apps/chataigne Art-Net, sACN/DMX, and Node modules",
+      "feature_classification": "approved new product capability; not baseline parity evidence",
+      "evidence": [
+        "Art-Net and sACN are distinct catalog modules with distinct compiled kernels over one app-owned DMX frame, command, script, diagnostics, and bounded worker foundation",
+        "Art-Net uses artnet_protocol 0.4.4 and sACN uses sacn 0.11.1; both dependencies are workspace-pinned and the engine thread performs no socket IO",
+        "bounded output rejects overload, input is latest-wins with replacement diagnostics, reconnect uses golden_io policy, and stop/unpark/join lifecycle is deterministic",
+        "Art-Net protocol loopback and sACN unicast loopback prove encoded send/receive behavior without claiming physical DMX qualification",
+        "Node setValue and trigger resolve stable ID/UUID references, constrain authoring to parameters, use append semantics for triggers, and expose commands, scripts, callbacks, diagnostics, and persistence",
+        "generated manifests expand the Phase 8H baseline by 3 modules, 5 commands, 9 node types, 3 methods, 3 callbacks, 4 snippets, 3 templates, and 3 app-owned icons",
+        "cargo test -p Chataigne2 dmx",
+        "cargo test -p Chataigne2 node_control",
+        "cargo test -p Chataigne2 phase8j_modules_round_trip_through_sparse_project_persistence",
+        "python tools/migration/product_manifest.py check",
+        "target/product-gate/phase8-final-candidate/product-gate-report.json: RUNNABLE with 38 required PASS and 7 non-required NOT_RUN"
+      ]
+    }
   ],
   "carried_temporary_adapters": [
     "phase6.app-domain-node-kernels"
