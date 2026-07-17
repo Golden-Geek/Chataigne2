@@ -42,6 +42,7 @@ fn artnet_worker_sends_a_protocol_encoded_frame() {
 
 #[test]
 fn artnet_worker_receives_latest_frame_without_an_unbounded_queue() {
+    let started = Instant::now();
     let probe = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let listen_port = probe.local_addr().unwrap().port();
     drop(probe);
@@ -55,7 +56,7 @@ fn artnet_worker_receives_latest_frame_without_an_unbounded_queue() {
     })
     .unwrap();
     let sender = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
-    for value in [10, 20, 30] {
+    let send_frame = |value| {
         let packet = ArtCommand::Output(Output {
             data: vec![value].into(),
             ..Output::default()
@@ -65,24 +66,38 @@ fn artnet_worker_receives_latest_frame_without_an_unbounded_queue() {
         sender
             .send_to(packet.as_slice(), (Ipv4Addr::LOCALHOST, listen_port))
             .unwrap();
+    };
+
+    send_frame(10);
+    let deadline = Instant::now() + Duration::from_millis(500);
+    while !transport.has_pending() {
+        assert!(Instant::now() < deadline, "timed out waiting for ArtDMX");
+        thread::sleep(Duration::from_millis(1));
     }
 
-    thread::sleep(Duration::from_millis(30));
+    let mut replaced_frames = 0;
+    let mut next_value = 20;
+    while replaced_frames == 0 {
+        send_frame(next_value);
+        next_value = if next_value == 20 { 30 } else { 20 };
+        thread::sleep(Duration::from_millis(1));
+        replaced_frames += transport.take_replaced_frames();
+        assert!(
+            Instant::now() < deadline,
+            "timed out creating deterministic latest-wins pressure"
+        );
+    }
 
-    let deadline = Instant::now() + Duration::from_secs(1);
-    let event = loop {
-        if let Some(event) = transport.take_latest_event() {
-            break event;
-        }
-        assert!(Instant::now() < deadline, "timed out waiting for ArtDMX");
-        thread::sleep(Duration::from_millis(5));
-    };
+    let event = transport
+        .take_latest_event()
+        .expect("latest-wins slot should retain a frame");
     let DmxWorkerEvent::Frame(frame) = event else {
         panic!("expected a received DMX frame");
     };
-    assert!(matches!(frame.slots.first(), Some(10 | 20 | 30)));
-    assert!(transport.take_replaced_frames() >= 1);
+    assert!(matches!(frame.slots.first(), Some(20 | 30)));
+    assert!(replaced_frames >= 1);
     transport.stop();
+    assert!(started.elapsed() < Duration::from_secs(1));
 }
 
 #[test]

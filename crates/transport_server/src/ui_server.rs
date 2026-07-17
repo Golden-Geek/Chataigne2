@@ -138,7 +138,7 @@ fn ui_discovery_document() -> UiDiscoveryDto {
 impl Default for UiServerConfig {
     fn default() -> Self {
         Self {
-            bind_addr: "localhost:7010".to_string(),
+            bind_addr: "127.0.0.1:7010".to_string(),
             tick_interval: Duration::from_millis(16),
             value_flush_interval: DEFAULT_WS_VALUE_FLUSH_INTERVAL,
             frontend_assets: &[],

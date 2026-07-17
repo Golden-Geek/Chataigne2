@@ -7,6 +7,11 @@ use serde_json::json;
 use super::*;
 
 #[test]
+fn default_ui_server_config_uses_explicit_ipv4_loopback() {
+    assert_eq!(UiServerConfig::default().bind_addr, "127.0.0.1:7010");
+}
+
+#[test]
 fn readiness_counts_only_clients_with_active_subscriptions() {
     let readiness = UiSessionReadiness::default();
     let mut clients = HashMap::new();
