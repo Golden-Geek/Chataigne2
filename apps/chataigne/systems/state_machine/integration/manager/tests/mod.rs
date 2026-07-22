@@ -4,56 +4,48 @@ use std::{
     time::Duration,
 };
 
-use chataigne_state_machine::{
-    ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorDebugCapture,
-    ProcessorContextProvider, ProcessorId, ProcessorLaneInspectionDto, ProcessorLifecycleEvent,
-    ProcessorLifecyclePolicy, ProcessorRuntime,
-};
 use chataigne_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, CompileCtx,
-    ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract,
-    FormulaId, FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus,
-    OutputSocketRef, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput, RuntimeRegistries,
-    SocketId, TriggerValue, ValueTypeRegistry, primitive_node_registry,
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, CompileCtx, ContextAxisId,
+    ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId, FormulaPropertySchema,
+    FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot, RuntimeIntent,
+    RuntimeOutput, RuntimeRegistries, SocketId, TriggerValue, ValueTypeRegistry, primitive_node_registry,
 };
-use golden_values::Value as RuntimeValue;
+use chataigne_state_machine::{
+    ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorContextProvider,
+    ProcessorDebugCapture, ProcessorId, ProcessorLaneInspectionDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
+    ProcessorRuntime,
+};
 use golden_core::{
     app::ProjectNode,
     engine::{DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, EngineTime},
     node::{
-        DashboardWidgetTargetDescriptor, DeclId, Folder, Node, NodeId, NodeUuid,
-        PresentationHint, USER_CONTEXT_NODE_TYPE,
+        DashboardWidgetTargetDescriptor, DeclId, Folder, Node, NodeId, NodeUuid, PresentationHint,
+        USER_CONTEXT_NODE_TYPE,
     },
     parameter::{
-        ParamValue, Parameter, ParameterChangeCheck, ParameterControlMode, ParameterControlSpec,
-        ParameterControlState,
+        ParamValue, Parameter, ParameterChangeCheck, ParameterControlMode, ParameterControlSpec, ParameterControlState,
     },
     process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot},
     ui_sync::UiEditIntent,
 };
+use golden_values::Value as RuntimeValue;
 
 use super::{
+    ActivePreviewSelection, FormulaPreviewDemandLease, LaneParamResolver, PROCESSOR_MANAGER_DECL_ID,
+    ProcessorContextAxisRuntime, ProcessorContextListRuntime, ProcessorContextRuntime, ProcessorContextScopeCache,
+    ProcessorLanePreviewKey, RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor,
+    STATE_ITEM_KIND, SnapshotProcessorContextProvider, StateMachineManager,
     collect_processor_lane_parameter_inspection, compile_processor_runtime_for_cache_rebuild,
-    condition_manager_edge_previous, condition_manager_value,
-    formula_default_output_preview_samples, merge_output_preview_snapshot,
-    intern_runtime_command_invocation, output_preview_signature, processor_formula_from_snapshot,
-    processor_formula_source_ref, processor_override_value, processor_preview_needs_hydration,
-    processor_preview_plan, processor_requires_forced_recompute, processor_should_evaluate,
-    resolve_multiplex_template_value, resolved_output_param_overrides,
+    condition_manager_edge_previous, condition_manager_value, formula_default_output_preview_samples,
+    intern_runtime_command_invocation, latest_param_value, merge_output_preview_snapshot, output_preview_signature,
+    processor_formula_from_snapshot, processor_formula_source_ref, processor_override_value,
+    processor_preview_needs_hydration, processor_preview_plan, processor_requires_forced_recompute,
+    processor_should_evaluate, resolve_multiplex_template_value, resolved_output_param_overrides,
     retain_requested_preview_snapshots, runtime_invalidation_for_node, set_output_target_param,
-    should_emit_runtime_log, LaneParamResolver, ProcessorContextAxisRuntime,
-    ProcessorContextListRuntime, ProcessorContextRuntime,
-    ActivePreviewSelection, FormulaPreviewDemandLease, RuntimeFormulaPreviewMode,
-    RuntimeInvalidation, RuntimeLogKey, ProcessorContextScopeCache, ProcessorLanePreviewKey,
-    RuntimeProcessor, SnapshotProcessorContextProvider, StateMachineManager,
-    PROCESSOR_MANAGER_DECL_ID, STATE_ITEM_KIND,
+    should_emit_runtime_log,
 };
 
-fn context_axis(
-    axis: ContextAxisId,
-    name: &str,
-    items: Vec<ContextItemId>,
-) -> ProcessorContextAxisRuntime {
+fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
     ProcessorContextAxisRuntime {
         axis,
         name: name.to_owned(),
@@ -102,9 +94,7 @@ fn context_provider(
     provider.insert_processor_runtime(processor_id, runtime);
     provider
 }
-use crate::app::systems_alchemist_processor::{
-    FormulaCatalog, FormulaSourceRef, PROCESSOR_FORMULA_SOURCE_DECL_ID,
-};
+use crate::app::systems_alchemist_processor::{FormulaCatalog, FormulaSourceRef, PROCESSOR_FORMULA_SOURCE_DECL_ID};
 
 fn context_scope_test_node(
     id: NodeId,
@@ -147,29 +137,14 @@ fn processor_context_scope_cache_preserves_nearest_first_order_and_reuses_ancest
     let manager_scope = NodeId(6);
     let processor_scope = NodeId(7);
     let nodes = HashMap::from([
-        (
-            root,
-            context_scope_test_node(root, None, Some(manager), None, "root"),
-        ),
+        (root, context_scope_test_node(root, None, Some(manager), None, "root")),
         (
             manager,
-            context_scope_test_node(
-                manager,
-                Some(root),
-                Some(first_processor),
-                Some(root_scope),
-                "manager",
-            ),
+            context_scope_test_node(manager, Some(root), Some(first_processor), Some(root_scope), "manager"),
         ),
         (
             root_scope,
-            context_scope_test_node(
-                root_scope,
-                Some(root),
-                None,
-                None,
-                USER_CONTEXT_NODE_TYPE,
-            ),
+            context_scope_test_node(root_scope, Some(root), None, None, USER_CONTEXT_NODE_TYPE),
         ),
         (
             first_processor,
@@ -183,23 +158,11 @@ fn processor_context_scope_cache_preserves_nearest_first_order_and_reuses_ancest
         ),
         (
             second_processor,
-            context_scope_test_node(
-                second_processor,
-                Some(manager),
-                None,
-                Some(manager_scope),
-                "processor",
-            ),
+            context_scope_test_node(second_processor, Some(manager), None, Some(manager_scope), "processor"),
         ),
         (
             manager_scope,
-            context_scope_test_node(
-                manager_scope,
-                Some(manager),
-                None,
-                None,
-                USER_CONTEXT_NODE_TYPE,
-            ),
+            context_scope_test_node(manager_scope, Some(manager), None, None, USER_CONTEXT_NODE_TYPE),
         ),
         (
             processor_scope,
@@ -221,10 +184,7 @@ fn processor_context_scope_cache_preserves_nearest_first_order_and_reuses_ancest
     );
     let manager_scopes = cache.scopes_for(manager);
     let second_processor_scopes = cache.scopes_for(second_processor);
-    assert_eq!(
-        second_processor_scopes.as_ref(),
-        &[manager_scope, root_scope]
-    );
+    assert_eq!(second_processor_scopes.as_ref(), &[manager_scope, root_scope]);
     assert!(Arc::ptr_eq(&manager_scopes, &second_processor_scopes));
 }
 
@@ -245,32 +205,17 @@ fn processor_context_scope_cache_stops_at_parent_cycles() {
         ),
         (
             first_scope,
-            context_scope_test_node(
-                first_scope,
-                Some(first),
-                None,
-                None,
-                USER_CONTEXT_NODE_TYPE,
-            ),
+            context_scope_test_node(first_scope, Some(first), None, None, USER_CONTEXT_NODE_TYPE),
         ),
         (
             second_scope,
-            context_scope_test_node(
-                second_scope,
-                Some(second),
-                None,
-                None,
-                USER_CONTEXT_NODE_TYPE,
-            ),
+            context_scope_test_node(second_scope, Some(second), None, None, USER_CONTEXT_NODE_TYPE),
         ),
     ]);
     let snapshot = ProcessTreeSnapshot::new(first, nodes);
     let mut cache = ProcessorContextScopeCache::new(&snapshot);
 
-    assert_eq!(
-        cache.scopes_for(first).as_ref(),
-        &[first_scope, second_scope]
-    );
+    assert_eq!(cache.scopes_for(first).as_ref(), &[first_scope, second_scope]);
 }
 
 #[test]
@@ -338,10 +283,7 @@ fn steady_single_lane_preview_captures_only_that_lane_without_rebuilding_catalog
     let selected_lane = ContextKey::single("device", "selected");
     let selection = ActivePreviewSelection {
         formula_defaults: HashSet::new(),
-        processor_lanes: HashMap::from([(
-            processor_id,
-            HashSet::from([selected_lane.clone()]),
-        )]),
+        processor_lanes: HashMap::from([(processor_id, HashSet::from([selected_lane.clone()]))]),
     };
 
     let steady_plan = processor_preview_plan(&selection, processor_id, false);
@@ -386,10 +328,7 @@ fn dirty_source_wakes_only_its_indexed_processors() {
 
     manager.mark_source_processors_dirty(source);
 
-    assert_eq!(
-        manager.runtime_cache.dirty_source_processors,
-        HashSet::from([affected])
-    );
+    assert_eq!(manager.runtime_cache.dirty_source_processors, HashSet::from([affected]));
     assert!(!manager.runtime_cache.dirty_source_processors.contains(&unrelated));
 }
 
@@ -398,9 +337,7 @@ fn states_do_not_accept_user_items() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(StateMachineManager::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("state machine manager should attach");
+    engine.apply_edits().expect("state machine manager should attach");
     let manager_id = engine
         .nodes
         .iter()
@@ -410,9 +347,7 @@ fn states_do_not_accept_user_items() {
 
     engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
     engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
-    engine
-        .apply_edits()
-        .expect("states should attach to the manager");
+    engine.apply_edits().expect("states should attach to the manager");
 
     let states = engine.process_tree_snapshot().child_ids(manager_id);
     assert_eq!(states.len(), 2);
@@ -430,17 +365,10 @@ fn output_target_param_write_skips_unchanged_non_trigger_values() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(
-        Parameter::new(
-            "Target",
-            ParamValue::Float(1.0),
-            ParameterChangeCheck::ValueChange,
-        )
-        .into(),
+        Parameter::new("Target", ParamValue::Float(1.0), ParameterChangeCheck::ValueChange).into(),
         None,
     );
-    engine
-        .apply_edits()
-        .expect("target parameter should attach");
+    engine.apply_edits().expect("target parameter should attach");
     let target = engine
         .nodes
         .iter()
@@ -480,9 +408,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     let mut engine = crate::app::AppEngine::new(root);
 
     engine.add_node(Folder::new("Command").into(), None);
-    engine
-        .apply_edits()
-        .expect("command container should attach");
+    engine.apply_edits().expect("command container should attach");
     let command_id = engine
         .nodes
         .iter()
@@ -538,9 +464,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
         ))
         .expect("template text should be valid for a string parameter");
     engine.add_node(template.into(), Some(command_id));
-    engine
-        .apply_edits()
-        .expect("output parameters should attach");
+    engine.apply_edits().expect("output parameters should attach");
 
     let snapshot = engine.process_tree_snapshot();
     let message_id = snapshot
@@ -581,8 +505,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
         context_key: &left_key,
         context_provider: &provider,
     };
-    let left_overrides =
-        resolved_output_param_overrides(&snapshot, command_id, Some(&left_resolver));
+    let left_overrides = resolved_output_param_overrides(&snapshot, command_id, Some(&left_resolver));
     assert_eq!(left_overrides.len(), 3);
     assert_eq!(
         &left_overrides
@@ -615,8 +538,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
         context_key: &right_key,
         context_provider: &provider,
     };
-    let right_overrides =
-        resolved_output_param_overrides(&snapshot, command_id, Some(&right_resolver));
+    let right_overrides = resolved_output_param_overrides(&snapshot, command_id, Some(&right_resolver));
     assert_eq!(right_overrides.len(), 3);
     assert_eq!(
         &right_overrides
@@ -636,12 +558,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     );
 
     let mut parameter_previews = Vec::new();
-    collect_processor_lane_parameter_inspection(
-        &snapshot,
-        command_id,
-        Some(&right_resolver),
-        &mut parameter_previews,
-    );
+    collect_processor_lane_parameter_inspection(&snapshot, command_id, Some(&right_resolver), &mut parameter_previews);
     let preview_by_node = parameter_previews
         .into_iter()
         .map(|preview| (preview.node_id, preview.value))
@@ -727,10 +644,7 @@ fn multiplex_index_context_links_resolve_both_index_bases() {
     let items = [ContextItemId::new("first"), ContextItemId::new("second")];
     let provider = context_provider(
         processor_id,
-        context_runtime(
-            vec![context_axis(axis.clone(), "Rows", items.to_vec())],
-            Vec::new(),
-        ),
+        context_runtime(vec![context_axis(axis.clone(), "Rows", items.to_vec())], Vec::new()),
     );
     let key = ContextKey::single("axis", "second");
 
@@ -745,8 +659,6 @@ fn multiplex_index_context_links_resolve_both_index_bases() {
         );
     }
 }
-
-
 
 #[test]
 fn condition_manager_value_only_fires_transition_edges() {
@@ -791,25 +703,13 @@ fn processor_override_only_forces_its_own_runtime() {
     let unchanged = NodeId(42);
     let dirty_overrides = HashSet::from([changed]);
 
-    assert!(processor_requires_forced_recompute(
-        false,
-        changed,
-        &dirty_overrides
-    ));
-    assert!(!processor_requires_forced_recompute(
-        false,
-        unchanged,
-        &dirty_overrides
-    ));
-    assert!(processor_requires_forced_recompute(
-        true,
-        unchanged,
-        &HashSet::new()
-    ));
+    assert!(processor_requires_forced_recompute(false, changed, &dirty_overrides));
+    assert!(!processor_requires_forced_recompute(false, unchanged, &dirty_overrides));
+    assert!(processor_requires_forced_recompute(true, unchanged, &HashSet::new()));
 }
 
 #[test]
-fn pending_transient_condition_reset_requests_tree_snapshot() {
+fn pending_transient_condition_reset_reuses_runtime_snapshot() {
     let mut manager = StateMachineManager::new();
     manager.runtime_cache.topology_dirty = false;
 
@@ -820,7 +720,32 @@ fn pending_transient_condition_reset_requests_tree_snapshot() {
         .transient_condition_valid_resets
         .insert(manager.id(), 1);
 
-    assert!(manager.update_requires_tree_snapshot());
+    assert!(!manager.update_requires_tree_snapshot());
+}
+
+#[test]
+fn live_source_cache_reads_the_latest_value_from_the_inbox_batch() {
+    let param = NodeId(42);
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+    for value in [1.0, 2.0] {
+        ctx.events.push_shared(Arc::new(golden_core::events::Event {
+            time: ctx.time,
+            kind: golden_core::events::EventKind::ParamChanged {
+                param,
+                old_value: ParamValue::Float(value - 1.0),
+                new_value: ParamValue::Float(value),
+            },
+        }));
+    }
+
+    assert_eq!(latest_param_value(&ctx, param), Some(ParamValue::Float(2.0)));
 }
 
 #[test]
@@ -852,7 +777,7 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
     )]));
 
     assert_eq!(manager.runtime_cache.continuous_processor_count, 1);
-    assert!(manager.update_requires_tree_snapshot());
+    assert!(!manager.update_requires_tree_snapshot());
 
     manager.runtime_cache.replace_processors(HashMap::new());
 
@@ -901,13 +826,8 @@ fn removed_formula_default_lease_prunes_continuous_runtime_while_other_demand_re
         false,
     );
 
-    assert_eq!(
-        manager
-            .runtime_cache
-            .continuous_formula_default_preview_count,
-        1
-    );
-    assert!(manager.update_requires_tree_snapshot());
+    assert_eq!(manager.runtime_cache.continuous_formula_default_preview_count, 1);
+    assert!(!manager.update_requires_tree_snapshot());
 
     manager.runtime_cache.preview_demands.insert(
         "formula-default".to_owned(),
@@ -926,10 +846,7 @@ fn removed_formula_default_lease_prunes_continuous_runtime_while_other_demand_re
             expires_at: Duration::from_secs(60),
         },
     );
-    manager
-        .runtime_cache
-        .preview_demands
-        .remove("formula-default");
+    manager.runtime_cache.preview_demands.remove("formula-default");
     let selection = ActivePreviewSelection::from_leases(&manager.runtime_cache.preview_demands);
     assert!(!selection.is_empty());
     assert!(selection.formula_defaults.is_empty());
@@ -939,12 +856,7 @@ fn removed_formula_default_lease_prunes_continuous_runtime_while_other_demand_re
         .retain_formula_default_previews(&selection.formula_defaults);
 
     assert!(manager.runtime_cache.formula_default_previews.is_empty());
-    assert_eq!(
-        manager
-            .runtime_cache
-            .continuous_formula_default_preview_count,
-        0
-    );
+    assert_eq!(manager.runtime_cache.continuous_formula_default_preview_count, 0);
     assert!(!manager.update_requires_tree_snapshot());
 }
 
@@ -953,9 +865,7 @@ fn processor_root_invalidation_rebuilds_topology_but_descendants_are_local() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(StateMachineManager::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("state machine manager should attach");
+    engine.apply_edits().expect("state machine manager should attach");
     let manager_id = engine
         .nodes
         .iter()
@@ -964,9 +874,7 @@ fn processor_root_invalidation_rebuilds_topology_but_descendants_are_local() {
         .expect("state machine manager should exist");
 
     engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
-    engine
-        .apply_edits()
-        .expect("state should attach to the manager");
+    engine.apply_edits().expect("state should attach to the manager");
     let snapshot = engine.process_tree_snapshot();
     let state_id = snapshot
         .child_ids(manager_id)
@@ -981,10 +889,7 @@ fn processor_root_invalidation_rebuilds_topology_but_descendants_are_local() {
         .find_child_by_decl_id(state_id, PROCESSOR_MANAGER_DECL_ID)
         .expect("state should have a processor manager");
 
-    engine.add_user_item(
-        crate::app::StateProcessor::new().into(),
-        Some(processor_manager_id),
-    );
+    engine.add_user_item(crate::app::StateProcessor::new().into(), Some(processor_manager_id));
     engine
         .apply_edits()
         .expect("processor should attach to the processor manager");
@@ -1017,9 +922,7 @@ fn duplicated_processor_marks_manager_topology_dirty_after_queued_structure_disp
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(StateMachineManager::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("state machine manager should attach");
+    engine.apply_edits().expect("state machine manager should attach");
     let manager_id = engine
         .nodes
         .iter()
@@ -1028,9 +931,7 @@ fn duplicated_processor_marks_manager_topology_dirty_after_queued_structure_disp
         .expect("state machine manager should exist");
 
     engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
-    engine
-        .apply_edits()
-        .expect("state should attach to the manager");
+    engine.apply_edits().expect("state should attach to the manager");
     let snapshot = engine.process_tree_snapshot();
     let state_id = snapshot
         .child_ids(manager_id)
@@ -1045,10 +946,7 @@ fn duplicated_processor_marks_manager_topology_dirty_after_queued_structure_disp
         .find_child_by_decl_id(state_id, PROCESSOR_MANAGER_DECL_ID)
         .expect("state should have a processor manager");
 
-    engine.add_user_item(
-        crate::app::StateProcessor::new().into(),
-        Some(processor_manager_id),
-    );
+    engine.add_user_item(crate::app::StateProcessor::new().into(), Some(processor_manager_id));
     engine
         .apply_edits()
         .expect("processor should attach to the processor manager");
@@ -1128,12 +1026,8 @@ fn cache_rebuild_compile_preserves_stateful_trigger_memory() {
         inputs: &inputs,
         registries: &registries,
     };
-    let first = runtime.evaluate_processor_with_context_provider_and_runtime_capture(
-        &processor,
-        &first_ctx,
-        &provider,
-        &capture,
-    );
+    let first = runtime
+        .evaluate_processor_with_context_provider_and_runtime_capture(&processor, &first_ctx, &provider, &capture);
     assert_eq!(first.len(), 1);
     assert!(runtime_output_trigger_fired(&first[0].output));
 
@@ -1192,15 +1086,10 @@ fn run_manager_runtime_tick(engine: &mut crate::app::AppEngine) {
     engine
         .run_tick(Duration::from_millis(20))
         .expect("state-machine runtime tick should run");
-    engine
-        .apply_edits()
-        .expect("state-machine runtime edits should apply");
+    engine.apply_edits().expect("state-machine runtime edits should apply");
 }
 
-fn manager_topology_dirty(
-    engine: &crate::app::AppEngine,
-    manager_id: golden_core::node::NodeId,
-) -> bool {
+fn manager_topology_dirty(engine: &crate::app::AppEngine, manager_id: golden_core::node::NodeId) -> bool {
     let crate::app::AppNode::StateMachineManager(manager) = engine
         .nodes
         .get(manager_id)
@@ -1228,8 +1117,7 @@ fn continuous_formula() -> AlchemistFormula {
 
 fn trigger_formula(process_on_input_change_only: bool) -> AlchemistFormula {
     let mut graph = AlchemistGraphDomain::new_document();
-    let mut transaction =
-        chataigne_alchemist::AlchemistGraphTransaction::for_document(&graph);
+    let mut transaction = chataigne_alchemist::AlchemistGraphTransaction::for_document(&graph);
     let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     constant.config.set("value", RuntimeValue::Bool(true));
     constant.config.set(
@@ -1238,8 +1126,7 @@ fn trigger_formula(process_on_input_change_only: bool) -> AlchemistFormula {
     );
     let source = constant.id;
     AlchemistGraphDomain::insert_node(&mut transaction, constant);
-    let edge =
-        ANodeInstance::new(ANodeTypeId::new("trigger_on_off"), "Trigger On/Off");
+    let edge = ANodeInstance::new(ANodeTypeId::new("trigger_on_off"), "Trigger On/Off");
     let edge_id = edge.id;
     AlchemistGraphDomain::insert_node(&mut transaction, edge);
     AlchemistGraphDomain::connect(
@@ -1349,15 +1236,9 @@ fn requested_lane_returned_then_suppressed_clears_retained_preview_state() {
     )]);
     let selection = ActivePreviewSelection {
         formula_defaults: HashSet::new(),
-        processor_lanes: HashMap::from([(
-            processor_id,
-            HashSet::from([context_key.clone()]),
-        )]),
+        processor_lanes: HashMap::from([(processor_id, HashSet::from([context_key.clone()]))]),
     };
-    let mut evaluated_lanes = HashMap::from([(
-        processor_id,
-        HashSet::from([context_key.clone()]),
-    )]);
+    let mut evaluated_lanes = HashMap::from([(processor_id, HashSet::from([context_key.clone()]))]);
     assert!(!processor_preview_needs_hydration(
         &inspection_snapshot,
         processor_id,
@@ -1429,18 +1310,12 @@ fn output_preview_signature_is_order_independent_and_trigger_sensitive() {
     );
 
     let signature = output_preview_signature(&[value.clone(), trigger.clone()]);
-    assert_eq!(
-        signature,
-        output_preview_signature(&[trigger.clone(), value.clone()])
-    );
+    assert_eq!(signature, output_preview_signature(&[trigger.clone(), value.clone()]));
     assert_eq!(
         signature,
         output_preview_signature(&[value_at_next_tick, trigger.clone()])
     );
-    assert_ne!(
-        signature,
-        output_preview_signature(&[value, changed_trigger])
-    );
+    assert_ne!(signature, output_preview_signature(&[value, changed_trigger]));
 }
 
 #[test]
@@ -1523,16 +1398,10 @@ fn command_invocation_interner_reuses_exact_streams_without_collapsing_lanes() {
 fn processor_override_value_reads_direct_parameter_nodes() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
-    let mut parameter = Parameter::new(
-        "Amount",
-        ParamValue::Float(7.5),
-        ParameterChangeCheck::ValueChange,
-    );
+    let mut parameter = Parameter::new("Amount", ParamValue::Float(7.5), ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().meta.decl_id = DeclId("surface/amount".to_owned());
     engine.add_node(parameter.into(), None);
-    engine
-        .apply_edits()
-        .expect("override parameter should attach");
+    engine.apply_edits().expect("override parameter should attach");
     let parameter_id = engine
         .nodes
         .iter()
@@ -1552,9 +1421,7 @@ fn processor_formula_resolver_reads_project_source_key() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(crate::app::FormulaLibrary::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("formula library should attach");
+    engine.apply_edits().expect("formula library should attach");
     let library_id = engine
         .nodes
         .iter()
@@ -1565,14 +1432,10 @@ fn processor_formula_resolver_reads_project_source_key() {
     formula.node_data_mut().meta.label = "Project Formula".to_owned();
     let formula_uuid = formula.node_data().meta.uuid;
     engine.add_user_item(formula.into(), Some(library_id));
-    engine
-        .apply_edits()
-        .expect("project formula should attach");
+    engine.apply_edits().expect("project formula should attach");
 
     engine.add_node(crate::app::StateProcessorManager::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("processor manager should attach");
+    engine.apply_edits().expect("processor manager should attach");
     let manager_id = engine
         .nodes
         .iter()
@@ -1593,8 +1456,7 @@ fn processor_formula_resolver_reads_project_source_key() {
         .map(|(id, _)| id)
         .expect("processor should exist");
     let snapshot = engine.process_tree_snapshot();
-    let source = processor_formula_source_ref(&snapshot, processor_id)
-        .expect("processor source should resolve");
+    let source = processor_formula_source_ref(&snapshot, processor_id).expect("processor source should resolve");
 
     assert!(matches!(
         &source,

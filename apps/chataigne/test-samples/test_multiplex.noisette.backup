@@ -2,9 +2,9 @@
   "version": "1.0",
   "ui_state": {
     "dock_layout": {
-      "activeGroup": "4",
+      "activeGroup": "2",
       "grid": {
-        "height": 1026,
+        "height": 1042,
         "orientation": "HORIZONTAL",
         "root": {
           "data": [
@@ -18,7 +18,7 @@
                       "modules-1"
                     ]
                   },
-                  "size": 511,
+                  "size": 519,
                   "type": "leaf"
                 },
                 {
@@ -29,61 +29,71 @@
                       "outliner"
                     ]
                   },
-                  "size": 509,
+                  "size": 517,
                   "type": "leaf"
                 }
               ],
-              "size": 350,
+              "size": 351,
               "type": "branch"
-            },
-            {
-              "data": {
-                "activeView": "state-machine",
-                "id": "2",
-                "views": [
-                  "state-machine",
-                  "dashboard",
-                  "warnings"
-                ]
-              },
-              "size": 731,
-              "type": "leaf"
             },
             {
               "data": [
                 {
                   "data": {
-                    "activeView": "inspector",
-                    "id": "4",
+                    "activeView": "state-machine",
+                    "id": "2",
                     "views": [
-                      "inspector"
+                      "state-machine",
+                      "dashboard",
+                      "warnings"
                     ]
                   },
-                  "size": 674,
+                  "size": 518,
                   "type": "leaf"
                 },
                 {
                   "data": {
-                    "activeView": "logger",
-                    "id": "8",
+                    "activeView": "alchemist-editor",
+                    "id": "3",
                     "views": [
-                      "logger"
+                      "alchemist-editor"
                     ]
                   },
-                  "size": 346,
+                  "size": 518,
                   "type": "leaf"
                 }
               ],
-              "size": 536,
+              "size": 746,
               "type": "branch"
+            },
+            {
+              "data": {
+                "activeView": "inspector",
+                "id": "4",
+                "views": [
+                  "inspector"
+                ]
+              },
+              "size": 549,
+              "type": "leaf"
             }
           ],
-          "size": 1026,
+          "size": 1042,
           "type": "branch"
         },
-        "width": 1629
+        "width": 1658
       },
       "panels": {
+        "alchemist-editor": {
+          "contentComponent": "alchemistEditor",
+          "id": "alchemist-editor",
+          "params": {
+            "formulaNodeId": 4294968179,
+            "processorNodeId": 4294967616
+          },
+          "tabComponent": "golden-tab",
+          "title": "Alchemist: Action"
+        },
         "dashboard": {
           "contentComponent": "dashboard",
           "id": "dashboard",
@@ -219,13 +229,7 @@
             }
           },
           "tabComponent": "golden-tab",
-          "title": "Inspector: MAction 2"
-        },
-        "logger": {
-          "contentComponent": "logger",
-          "id": "logger",
-          "tabComponent": "golden-tab",
-          "title": "Logger"
+          "title": "Inspector"
         },
         "modules-1": {
           "contentComponent": "modules",
@@ -241,11 +245,8 @@
               "opennessByNodeId": {
                 "4294967297": true,
                 "4294967591": true,
-                "4294967606": true,
-                "4294967609": true,
                 "4294967610": true,
                 "4294967611": true,
-                "4294967614": true,
                 "4294967615": true
               }
             }
@@ -281,9 +282,7 @@
         }
       }
     },
-    "selected_node_ids": [
-      4294967660
-    ]
+    "selected_node_ids": []
   },
   "root": {
     "uuid": "7a4dcadc-14ff-44b0-8224-daa727975f34",
@@ -1901,7 +1900,7 @@
             },
             "children": [
               {
-                "uuid": "1afd2c96-5a7e-4bd4-b3b0-c972895b9136",
+                "uuid": "a7e09f2f-bc86-4786-9076-3716fe4611c0",
                 "type": "file",
                 "meta": {
                   "decl_id": "external_formula_file",
@@ -1918,7 +1917,7 @@
                 }
               },
               {
-                "uuid": "206bb609-2c0a-42c4-8063-fb1c5eda9d06",
+                "uuid": "22570765-d15b-4a3a-bfc4-9dd8ca086b9a",
                 "type": "reference",
                 "meta": {
                   "decl_id": "external_formula_source",
@@ -1930,7 +1929,7 @@
                 }
               },
               {
-                "uuid": "b0c44460-40c2-4531-9013-aa9e4630c449",
+                "uuid": "3a5db63c-9cba-49cd-ab69-259931214887",
                 "type": "bool",
                 "meta": {
                   "decl_id": "external_formula_delete_file",
@@ -4254,7 +4253,7 @@
                     },
                     "children": [
                       {
-                        "uuid": "33757bf8-091e-456a-8918-f940c99fd695",
+                        "uuid": "9635d241-3e1f-448f-b169-b387ab810ea6",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4271,7 +4270,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "f5571615-efc3-4fcb-ad7c-4f008b2102db",
+                            "uuid": "6e50d144-04e8-4347-afaa-03e09789b7cf",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4290,7 +4289,7 @@
                             }
                           },
                           {
-                            "uuid": "761be2ae-2429-4dcf-867b-b337563f446b",
+                            "uuid": "e76619a8-f9bb-43a7-877a-c9432178496c",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4309,7 +4308,7 @@
                             }
                           },
                           {
-                            "uuid": "a58d7e93-b009-41f6-9e57-b30d1af95810",
+                            "uuid": "7c182708-8544-4053-a991-76b5dbcd0e58",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -4328,7 +4327,7 @@
                         ]
                       },
                       {
-                        "uuid": "085ced48-3f7f-4413-bd68-9772ff752116",
+                        "uuid": "be117149-17fd-4e2f-be23-43c7cfe31424",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4345,7 +4344,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "4b5591d1-7c75-4fd2-bf27-e9988d7768f2",
+                            "uuid": "f30ea8d6-41da-491a-b02c-b875ba997b42",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4364,7 +4363,7 @@
                             }
                           },
                           {
-                            "uuid": "7dfd2d50-ee89-4761-a13d-3bc7ec0ef255",
+                            "uuid": "bdcd138b-8fd4-47a7-a0b8-87a7b7ab9548",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4383,7 +4382,7 @@
                             }
                           },
                           {
-                            "uuid": "2feb48b5-afdc-4766-9013-8849c838eb97",
+                            "uuid": "91128756-e377-41fb-8545-857f9a0a15c5",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -5710,8 +5709,8 @@
                 "data": {
                   "value": {
                     "Vec2": [
-                      19.592306171304088,
-                      13.192410204215914
+                      20.10992358211875,
+                      15.262884783871424
                     ]
                   }
                 }
@@ -6985,11 +6984,11 @@
                                     "mode": "templateText",
                                     "spec": {
                                       "mode": "templateText",
-                                      "template": "down {index} : {list:thresh}"
+                                      "template": "down {index}"
                                     }
                                   },
                                   "value": {
-                                    "Str": "down {index} : {list:thresh}"
+                                    "Str": "down {index}"
                                   }
                                 }
                               }
@@ -7408,11 +7407,11 @@
                                     "mode": "templateText",
                                     "spec": {
                                       "mode": "templateText",
-                                      "template": "down {index} : {list:thresh}"
+                                      "template": "down {index}"
                                     }
                                   },
                                   "value": {
-                                    "Str": "down {index} : {list:thresh}"
+                                    "Str": "down {index}"
                                   }
                                 }
                               }
@@ -7831,11 +7830,434 @@
                                     "mode": "templateText",
                                     "spec": {
                                       "mode": "templateText",
-                                      "template": "down {index} : {list:thresh}"
+                                      "template": "down {index}"
                                     }
                                   },
                                   "value": {
-                                    "Str": "down {index} : {list:thresh}"
+                                    "Str": "down {index}"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "c92d9d7a-e053-4265-8be8-8557ed520020",
+                    "type": "state_processor",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "decl_id": "maction6",
+                      "short_name": "maction6",
+                      "label": "MAction 6",
+                      "tags": [
+                        "context_link_lane_deferred"
+                      ],
+                      "presentation": {
+                        "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPgo="
+                      }
+                    },
+                    "data": {
+                      "formula_source": {
+                        "Project": {
+                          "uuid": "22930516-b6bb-56de-9914-d55cd7f6f094"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "709d9eeb-10ae-405f-b50c-11e37a0f4099",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "formula"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Reference": {
+                              "uuid": "22930516-b6bb-56de-9914-d55cd7f6f094"
+                            }
+                          },
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Action",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula"
+                              ],
+                              "uuid": "22930516-b6bb-56de-9914-d55cd7f6f094"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "0dbcd784-6226-41e0-b287-6a2a7caffd2c",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "formula_source_key"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "state_processor:project:22930516-b6bb-56de-9914-d55cd7f6f094"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "7b6b22bd-40cb-4a5d-86bc-f1e496543675",
+                        "type": "state_processor_managed_regions",
+                        "meta": {
+                          "decl_id": "managed_regions",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "672c4d4e-3e05-4cf6-ab5d-ca5cefcbd9d0",
+                        "type": "sm_condition_manager",
+                        "meta": {
+                          "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.186,
+                              "g": 0.569,
+                              "b": 0.8171,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "1a087a19-0eb6-427e-a80e-4e6f26968882",
+                            "type": "sm_input_value_condition",
+                            "user_role": "itemRoot",
+                            "meta": {
+                              "decl_id": "inputValue",
+                              "short_name": "inputValue",
+                              "can_be_disabled": true,
+                              "label": "Input Value",
+                              "user_permissions": {
+                                "can_edit_name": true,
+                                "can_remove_and_duplicate": true,
+                                "can_edit_constraints": true,
+                                "can_edit_tags": true,
+                                "can_edit_color": true
+                              }
+                            },
+                            "children": [
+                              {
+                                "uuid": "24491531-d132-4837-8e23-928af71e6d45",
+                                "type": "reference",
+                                "meta": {
+                                  "decl_id": "source"
+                                },
+                                "data": {
+                                  "value": {
+                                    "Reference": {
+                                      "cached_name": "Signal",
+                                      "relative_path_from_root": [
+                                        "moduleManager",
+                                        "module",
+                                        "values",
+                                        "signal_6f5dbf06f11146868c08bdfbe6a2c9db"
+                                      ],
+                                      "uuid": "15673b51-9ef7-4ff3-8415-af13d32de7c3"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "9de09e71-aec7-4ec5-858c-74e53704deba",
+                                "type": "enum",
+                                "meta": {
+                                  "decl_id": "comparator"
+                                },
+                                "data": {
+                                  "value": {
+                                    "Enum": "greater_than"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "8e1ec036-a919-45a4-a842-812dafd6aa2e",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "reference"
+                                },
+                                "data": {
+                                  "control": {
+                                    "mode": "contextLink",
+                                    "spec": {
+                                      "mode": "contextLink",
+                                      "symbol": "float"
+                                    }
+                                  },
+                                  "value": {
+                                    "Float": 0.5
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "42280d1a-d701-46a9-b9f4-2a4552c54834",
+                        "type": "sm_outputs_manager",
+                        "meta": {
+                          "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "can_be_disabled": false,
+                          "label": "On True",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.3785,
+                              "g": 0.8584,
+                              "b": 0.2502,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "db81e351-3a9e-4601-b88b-46ce1ff98f3f",
+                            "type": "folder",
+                            "meta": {
+                              "decl_id": "advanced",
+                              "user_permissions": {}
+                            },
+                            "children": [
+                              {
+                                "uuid": "a9f394d6-2149-49f0-b346-67fd6f46e543",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "cabfd88b-de85-4818-a45e-c94f7db2fd82",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "15eee49b-8296-4bfa-924e-767cc19f56ba",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "uuid": "708f5157-f9ad-434f-88d8-02e38cce31f2",
+                            "type": "generic_log_command",
+                            "user_role": "itemRoot",
+                            "meta": {
+                              "decl_id": "command",
+                              "short_name": "command",
+                              "can_be_disabled": true,
+                              "label": "Log",
+                              "declared_description_key": null,
+                              "declared_description": null,
+                              "user_permissions": {
+                                "can_edit_name": true,
+                                "can_remove_and_duplicate": true,
+                                "can_edit_constraints": true,
+                                "can_edit_tags": true,
+                                "can_edit_color": true
+                              }
+                            },
+                            "children": [
+                              {
+                                "uuid": "8ae256f9-9d03-4703-bfe2-f13ce5f865a2",
+                                "type": "str",
+                                "meta": {
+                                  "decl_id": "message"
+                                },
+                                "data": {
+                                  "control": {
+                                    "mode": "contextLink",
+                                    "spec": {
+                                      "mode": "contextLink",
+                                      "symbol": "float"
+                                    }
+                                  },
+                                  "value": {
+                                    "Str": "kjjj"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "f56a0daa-7da9-45a6-9e21-82e60bf7cc90",
+                        "type": "sm_outputs_manager",
+                        "meta": {
+                          "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "can_be_disabled": false,
+                          "label": "On False",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.8471,
+                              "g": 0.427,
+                              "b": 0.0987,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "155d4377-aa29-4369-93c7-a58dcbe922a4",
+                            "type": "folder",
+                            "meta": {
+                              "decl_id": "advanced",
+                              "user_permissions": {}
+                            },
+                            "children": [
+                              {
+                                "uuid": "b45827a2-ae51-4bd4-a207-f6206785efe7",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "68d985a6-791f-4844-8816-2de37aabdbd9",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "7f43041a-2e90-4a27-902d-8df798ebbf67",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "uuid": "12f51ba3-0098-4d83-b9b5-67451b2cfb73",
+                            "type": "generic_log_command",
+                            "user_role": "itemRoot",
+                            "meta": {
+                              "decl_id": "command",
+                              "short_name": "command",
+                              "can_be_disabled": true,
+                              "label": "Log",
+                              "declared_description_key": null,
+                              "declared_description": null,
+                              "user_permissions": {
+                                "can_edit_name": true,
+                                "can_remove_and_duplicate": true,
+                                "can_edit_constraints": true,
+                                "can_edit_tags": true,
+                                "can_edit_color": true
+                              }
+                            },
+                            "children": [
+                              {
+                                "uuid": "cc5002f7-d39d-4fc3-9cf8-2892f45889af",
+                                "type": "str",
+                                "meta": {
+                                  "decl_id": "message"
+                                },
+                                "data": {
+                                  "control": {
+                                    "mode": "templateText",
+                                    "spec": {
+                                      "mode": "templateText",
+                                      "template": "down {index}"
+                                    }
+                                  },
+                                  "value": {
+                                    "Str": "down {index}"
                                   }
                                 }
                               }

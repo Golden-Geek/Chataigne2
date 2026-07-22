@@ -8,8 +8,8 @@ use golden_core::{
 };
 
 use super::{
-    emit_command_execute_with_invocation, ModuleCommandDeliveryPolicy,
-    ModuleCommandInvocationId, ModuleCommandTester, MODULE_COMMAND_ITEM_KIND,
+    MODULE_COMMAND_ITEM_KIND, ModuleCommandDeliveryPolicy, ModuleCommandInvocationId, ModuleCommandTester,
+    emit_command_execute_with_invocation,
 };
 
 #[test]
@@ -51,9 +51,8 @@ fn internal_command_execute_events_are_transient_and_keep_invocation_identity() 
 
 #[test]
 fn module_command_tester_uses_advertised_command_catalog() {
-    let tester = ModuleCommandTester::create(
-        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
-    );
+    let tester =
+        ModuleCommandTester::create(crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES);
     let items = tester.user_creatable_items();
     let item_types = items.iter().map(|item| item.node_type.as_str()).collect::<Vec<_>>();
 
@@ -71,19 +70,19 @@ fn module_command_tester_uses_advertised_command_catalog() {
         crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
         "module command tester should preserve the advertised command order"
     );
-    assert!(!items.iter().any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE));
     assert!(
-        tester.user_container_accepts_item(
-            crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
-            MODULE_COMMAND_ITEM_KIND,
-        )
+        !items
+            .iter()
+            .any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE)
     );
-    assert!(
-        !tester.user_container_accepts_item(
-            crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
-            MODULE_COMMAND_ITEM_KIND,
-        )
-    );
+    assert!(tester.user_container_accepts_item(
+        crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+        MODULE_COMMAND_ITEM_KIND,
+    ));
+    assert!(!tester.user_container_accepts_item(
+        crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+        MODULE_COMMAND_ITEM_KIND,
+    ));
 
     let created = tester
         .create_user_item(crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE)
@@ -97,9 +96,8 @@ fn module_command_tester_uses_advertised_command_catalog() {
 
 #[test]
 fn module_command_tester_uses_owned_command_catalog() {
-    let tester = ModuleCommandTester::create_owned(vec![
-        crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE.to_string(),
-    ]);
+    let tester =
+        ModuleCommandTester::create_owned(vec![crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE.to_string()]);
 
     let item_types = tester
         .user_creatable_items()
@@ -141,9 +139,8 @@ fn module_command_tester_decodes_from_project_node_type() {
 
 #[test]
 fn decoded_module_command_tester_restores_persisted_command_catalog() {
-    let tester = ModuleCommandTester::create(
-        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
-    );
+    let tester =
+        ModuleCommandTester::create(crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES);
     let data = tester
         .project_encode_data()
         .expect("module command tester should encode its advertised catalog");
@@ -163,7 +160,11 @@ fn decoded_module_command_tester_restores_persisted_command_catalog() {
         crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
         "decoded testers should restore their persisted advertised command order"
     );
-    assert!(!items.iter().any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE));
+    assert!(
+        !items
+            .iter()
+            .any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE)
+    );
     assert!(
         node.user_container_accepts_item(
             crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,

@@ -8,18 +8,20 @@ use golden_core::{
 };
 
 use super::{
-    GenericLogCommand, GenericLogRuntimeCache, LOG_INVOCATION_KEEPALIVE_TICKS,
-    LOG_INVOCATION_STALE_TICKS,
+    GenericLogCommand, GenericLogRuntimeCache, LOG_INVOCATION_KEEPALIVE_TICKS, LOG_INVOCATION_STALE_TICKS,
+    command_string_param_override,
 };
 use crate::app::module_command::{
-    ModuleCommandDeliveryPolicy, ModuleCommandExecuteEvent, ModuleCommandInvocationId,
-    ModuleCommandParamOverride, MODULE_COMMAND_EXECUTE_TOPIC,
+    MODULE_COMMAND_EXECUTE_TOPIC, ModuleCommandDeliveryPolicy, ModuleCommandExecuteEvent, ModuleCommandInvocationId,
+    ModuleCommandParamOverride,
 };
 
 #[test]
-fn log_command_execute_with_overrides_requires_tree_snapshot_even_when_cached() {
+fn cached_log_command_resolves_overrides_without_tree_snapshot() {
     let mut command = GenericLogCommand::create();
     command.cached_message = "original".to_owned();
+    let message_param = NodeId(42);
+    command.cached_message_param = Some(message_param);
 
     let event = CustomEvent::new(
         MODULE_COMMAND_EXECUTE_TOPIC,
@@ -27,7 +29,7 @@ fn log_command_execute_with_overrides_requires_tree_snapshot_even_when_cached() 
         serde_json::to_value(ModuleCommandExecuteEvent {
             command_id: command.id(),
             param_overrides: vec![ModuleCommandParamOverride {
-                param_id: command.id(),
+                param_id: message_param,
                 value: ParamValue::Str("lane message".to_owned()),
             }],
             invocation_id: None,
@@ -44,7 +46,19 @@ fn log_command_execute_with_overrides_requires_tree_snapshot_even_when_cached() 
         event,
     ))]);
 
-    assert!(command.inbox_requires_tree_snapshot(&frame));
+    assert!(!command.inbox_requires_tree_snapshot(&frame));
+    let execute = crate::app::module_command::command_execute_request(
+        match &frame[0].kind {
+            golden_core::events::EventKind::Custom(event) => event,
+            _ => panic!("expected custom execute event"),
+        },
+        command.id(),
+    )
+    .expect("execute event should decode");
+    assert_eq!(
+        command_string_param_override(&execute.param_overrides, message_param),
+        Some("lane message".to_owned())
+    );
 }
 
 #[test]
@@ -82,7 +96,10 @@ fn invocation_keepalive_is_bounded_across_more_than_one_hundred_ticks() {
         .filter(|tick| cache.should_emit(invocation, "steady", *tick))
         .collect::<Vec<_>>();
 
-    assert_eq!(emitted, vec![0, LOG_INVOCATION_KEEPALIVE_TICKS, LOG_INVOCATION_KEEPALIVE_TICKS * 2]);
+    assert_eq!(
+        emitted,
+        vec![0, LOG_INVOCATION_KEEPALIVE_TICKS, LOG_INVOCATION_KEEPALIVE_TICKS * 2]
+    );
 }
 
 #[test]

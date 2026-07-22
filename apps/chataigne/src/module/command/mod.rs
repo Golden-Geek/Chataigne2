@@ -3,10 +3,7 @@ use std::{borrow::Cow, collections::HashMap};
 use golden_core::{
     events::CustomEvent,
     node,
-    node::{
-        DeclId, Node, NodeData, NodeId, NodeReference, NodeUserPermissions, UserContainerRules,
-        UserCreatableItem,
-    },
+    node::{DeclId, Node, NodeData, NodeId, NodeReference, NodeUserPermissions, UserContainerRules, UserCreatableItem},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -47,25 +44,14 @@ pub(crate) fn module_command_triggered(
         || module_command_auto_triggered(snapshot, command_id, changed_param)
 }
 
-fn module_command_manual_triggered(
-    snapshot: &ProcessTreeSnapshot,
-    command_id: NodeId,
-    changed_param: NodeId,
-) -> bool {
+fn module_command_manual_triggered(snapshot: &ProcessTreeSnapshot, command_id: NodeId, changed_param: NodeId) -> bool {
     resolve_module_command_control(snapshot, command_id, MODULE_COMMAND_TRIGGER_PATH)
         .is_some_and(|trigger_id| trigger_id == changed_param)
 }
 
-fn module_command_auto_triggered(
-    snapshot: &ProcessTreeSnapshot,
-    command_id: NodeId,
-    changed_param: NodeId,
-) -> bool {
-    let Some(auto_trigger_id) = resolve_module_command_control(
-        snapshot,
-        command_id,
-        MODULE_COMMAND_AUTO_TRIGGER_PATH,
-    ) else {
+fn module_command_auto_triggered(snapshot: &ProcessTreeSnapshot, command_id: NodeId, changed_param: NodeId) -> bool {
+    let Some(auto_trigger_id) = resolve_module_command_control(snapshot, command_id, MODULE_COMMAND_AUTO_TRIGGER_PATH)
+    else {
         return false;
     };
 
@@ -98,11 +84,7 @@ fn bool_param(snapshot: &ProcessTreeSnapshot, param_id: NodeId) -> bool {
         .unwrap_or(false)
 }
 
-fn node_is_descendant_of(
-    snapshot: &ProcessTreeSnapshot,
-    node_id: NodeId,
-    ancestor_id: NodeId,
-) -> bool {
+fn node_is_descendant_of(snapshot: &ProcessTreeSnapshot, node_id: NodeId, ancestor_id: NodeId) -> bool {
     let mut current = snapshot.node(node_id).and_then(|node| node.parent);
     while let Some(current_id) = current {
         if current_id == ancestor_id {
@@ -126,31 +108,18 @@ pub(crate) fn resolve_module_command_child(
         .or_else(|| snapshot.resolve_path_from(command_id, path))
 }
 
-fn resolve_module_command_control(
-    snapshot: &ProcessTreeSnapshot,
-    command_id: NodeId,
-    path: &str,
-) -> Option<NodeId> {
-    find_direct_child_by_decl_id(snapshot, command_id, path)
-        .or_else(|| snapshot.find_child(command_id, path))
+fn resolve_module_command_control(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<NodeId> {
+    find_direct_child_by_decl_id(snapshot, command_id, path).or_else(|| snapshot.find_child(command_id, path))
 }
 
-fn find_direct_child_by_decl_id(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<NodeId> {
+fn find_direct_child_by_decl_id(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
     snapshot
         .child_ids(parent)
         .into_iter()
         .find(|child_id| snapshot.node(*child_id).is_some_and(|child| child.decl_id == decl_id))
 }
 
-fn find_descendant_by_decl_id(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<NodeId> {
+fn find_descendant_by_decl_id(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
     for child_id in snapshot.child_ids(parent) {
         let Some(child) = snapshot.node(child_id) else {
             continue;
@@ -166,8 +135,7 @@ fn find_descendant_by_decl_id(
 }
 
 fn resolve_linked_module_root(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> Option<NodeId> {
-    let target_module_param =
-        resolve_module_command_child(snapshot, command_id, MODULE_COMMAND_TARGET_MODULE_PATH)?;
+    let target_module_param = resolve_module_command_child(snapshot, command_id, MODULE_COMMAND_TARGET_MODULE_PATH)?;
     let reference = snapshot
         .node(target_module_param)
         .and_then(|node| node.param_value.as_ref())
@@ -182,10 +150,7 @@ fn resolve_linked_module_root(snapshot: &ProcessTreeSnapshot, command_id: NodeId
     snapshot
         .node(module_id)
         .filter(|node| {
-            crate::app::declared_user_item_type_matches(
-                &node.node_type,
-                crate::app::module::MODULE_ITEM_KIND,
-            )
+            crate::app::declared_user_item_type_matches(&node.node_type, crate::app::module::MODULE_ITEM_KIND)
         })
         .map(|_| module_id)
 }
@@ -298,10 +263,7 @@ pub(crate) fn is_command_execute_request(event: &CustomEvent, command_id: NodeId
     command_execute_request(event, command_id).is_some()
 }
 
-pub(crate) fn command_execute_request(
-    event: &CustomEvent,
-    command_id: NodeId,
-) -> Option<ModuleCommandExecuteEvent> {
+pub(crate) fn command_execute_request(event: &CustomEvent, command_id: NodeId) -> Option<ModuleCommandExecuteEvent> {
     (event.topic == MODULE_COMMAND_EXECUTE_TOPIC)
         .then(|| event.payload_as::<ModuleCommandExecuteEvent>().ok())
         .flatten()
@@ -313,14 +275,6 @@ pub(crate) fn command_execute_param_overrides(
     command_id: NodeId,
 ) -> Option<ModuleCommandParamOverrides> {
     command_execute_request(event, command_id).map(|decoded| decoded.param_overrides)
-}
-
-pub(crate) fn command_execute_has_param_overrides(
-    event: &CustomEvent,
-    command_id: NodeId,
-) -> bool {
-    command_execute_request(event, command_id)
-        .is_some_and(|decoded| !decoded.param_overrides.is_empty())
 }
 
 pub(crate) fn command_execute_snapshot<'a>(
@@ -396,8 +350,7 @@ impl ModuleCommandTester {
     fn create_with_available_command_types(available_command_types: Option<Vec<String>>) -> Self {
         let mut tester = Self::new(ModuleCommandManagerBase::new());
         tester.available_command_types = available_command_types;
-        tester.node_data_mut().meta.description =
-            Some(MODULE_COMMAND_TESTER_DESCRIPTION.to_string());
+        tester.node_data_mut().meta.description = Some(MODULE_COMMAND_TESTER_DESCRIPTION.to_string());
         tester
     }
 
@@ -509,8 +462,7 @@ fn create_auto_trigger_parameter() -> Parameter {
     let meta = &mut parameter.node_data_mut().meta;
     meta.decl_id = DeclId(MODULE_COMMAND_AUTO_TRIGGER_PATH.to_string());
     meta.short_name = MODULE_COMMAND_AUTO_TRIGGER_PATH.to_string();
-    meta.description =
-        Some("Run this command automatically when one of its command parameters changes.".to_string());
+    meta.description = Some("Run this command automatically when one of its command parameters changes.".to_string());
     meta.presentation.show_in_inspector_content = false;
     parameter
 }

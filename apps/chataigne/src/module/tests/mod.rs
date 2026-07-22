@@ -2,8 +2,8 @@ use std::time::{Duration, Instant};
 
 use golden_core::{
     app::{
-        configure_loaded_engine, from_sparse_project_json, load_sparse_project_file,
-        prepare_engine_for_runtime, to_sparse_project_json_pretty, ProjectFileSpec, ProjectNode,
+        ProjectFileSpec, ProjectNode, configure_loaded_engine, from_sparse_project_json, load_sparse_project_file,
+        prepare_engine_for_runtime, to_sparse_project_json_pretty,
     },
     node::{Folder, Node, NodeId},
     ui_read_model::UiReadModel,
@@ -43,8 +43,12 @@ fn measure_ticks(engine: &mut crate::app::AppEngine, n: usize) -> (u64, u64, u64
         let t = Instant::now();
         engine.run_tick(dt).expect("tick should not fail");
         let elapsed = t.elapsed().as_micros() as u64;
-        if elapsed < min_us { min_us = elapsed; }
-        if elapsed > max_us { max_us = elapsed; }
+        if elapsed < min_us {
+            min_us = elapsed;
+        }
+        if elapsed > max_us {
+            max_us = elapsed;
+        }
         total_us += elapsed;
     }
     (min_us, max_us, total_us)
@@ -55,6 +59,17 @@ fn sample_project_path(name: &str) -> std::path::PathBuf {
         .join("tests")
         .join("samples")
         .join(name)
+}
+
+fn context_provider_rebuilds(engine: &crate::app::AppEngine) -> u64 {
+    engine
+        .nodes
+        .iter()
+        .find_map(|(_, node)| match node {
+            AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats().context_provider_rebuilds),
+            _ => None,
+        })
+        .expect("app should contain a state-machine manager")
 }
 
 fn targeted_performance_sample_path(name: &str) -> std::path::PathBuf {
@@ -100,10 +115,7 @@ fn duplicate_node(
     engine: &mut crate::app::AppEngine,
     source: NodeId,
 ) -> Result<NodeId, golden_core::engine::ProjectPersistenceError> {
-    let source_node = engine
-        .nodes
-        .get(source)
-        .expect("duplicate source should exist");
+    let source_node = engine.nodes.get(source).expect("duplicate source should exist");
     let parent = source_node
         .node_data()
         .parent
@@ -144,8 +156,7 @@ fn simple_sample_project_loads_and_round_trips() {
     );
 
     let saved_json = to_sparse_project_json_pretty(&engine).expect("simple sample should save");
-    let reloaded =
-        from_sparse_project_json::<AppNode>(&saved_json).expect("saved simple sample should reload");
+    let reloaded = from_sparse_project_json::<AppNode>(&saved_json).expect("saved simple sample should reload");
     assert_eq!(
         reloaded
             .nodes
@@ -185,14 +196,14 @@ fn multiplex_sample_active_runtime_stays_realtime() {
 
     let path = targeted_performance_sample_path(SAMPLE);
     let mut engine = load_sparse_project_file::<AppNode, _>(&path).expect("multiplex sample should load");
-    assert_eq!(
-        engine
-            .nodes
-            .iter()
-            .filter(|(_, node)| node.get_type() == "state_processor")
-            .count(),
-        5,
-        "the performance regression must exercise all five sample processors"
+    let processor_count = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.get_type() == "state_processor")
+        .count();
+    assert!(
+        processor_count >= 5,
+        "the performance regression must exercise at least five sample processors"
     );
     configure_loaded_engine(&mut engine).expect("multiplex sample should configure");
     prepare_engine_for_runtime(&mut engine).expect("multiplex sample should prepare");
@@ -203,16 +214,23 @@ fn multiplex_sample_active_runtime_stays_realtime() {
             .expect("multiplex warmup tick should run");
     }
 
+    let provider_rebuilds_before = context_provider_rebuilds(&engine);
     let (min_us, max_us, total_us) = measure_ticks(&mut engine, MEASURED);
+    let provider_rebuilds_after = context_provider_rebuilds(&engine);
     let avg_us = total_us / MEASURED as u64;
     let stats = engine.tick_stats();
     eprintln!(
-        "multiplex runtime: avg={avg_us}us min={min_us}us max={max_us}us stats={stats:?}"
+        "multiplex runtime: avg={avg_us}us min={min_us}us max={max_us}us provider_rebuilds={} stats={stats:?}",
+        provider_rebuilds_after - provider_rebuilds_before,
     );
 
     assert!(
         stats.callbacks_fired > 0,
         "the measured tick must execute scheduled runtime work"
+    );
+    assert_eq!(
+        stats.snapshot_builds, 0,
+        "steady multiplex ticks must reuse the state runtime snapshot"
     );
     assert!(
         avg_us < 10_000,
@@ -225,8 +243,7 @@ fn sample_project_structure_operations_stay_interactive() {
     const SAMPLE: &str = "test_perf.noisette";
 
     let path = sample_project_path(SAMPLE);
-    let (loaded, load_ms) =
-        elapsed_ms(|| load_sparse_project_file::<AppNode, _>(&path).expect("sample should load"));
+    let (loaded, load_ms) = elapsed_ms(|| load_sparse_project_file::<AppNode, _>(&path).expect("sample should load"));
     let mut engine = loaded;
     let node_count = engine.nodes.len();
     let module_count = engine
@@ -239,8 +256,7 @@ fn sample_project_structure_operations_stay_interactive() {
         to_sparse_project_json_pretty(&engine).expect("sample should serialize sparsely")
     });
 
-    let (ui_snapshot, snapshot_ms) =
-        best_elapsed_ms(3, || engine.ui_snapshot(UiSubscriptionScope::WholeGraph));
+    let (ui_snapshot, snapshot_ms) = best_elapsed_ms(3, || engine.ui_snapshot(UiSubscriptionScope::WholeGraph));
     let (read_model, read_model_ms) = best_elapsed_ms(3, || {
         UiReadModel::from_engine(&engine, ProjectFileSpec::new("Noisette", "noisette"))
     });
@@ -266,14 +282,8 @@ fn sample_project_structure_operations_stay_interactive() {
         "sample {SAMPLE}: load={load_ms}ms save={save_ms}ms ui_snapshot={snapshot_ms}ms read_model={read_model_ms}ms duplicate={duplicate_ms}ms collect_events={collect_ms}ms apply_capture={apply_capture_ms}ms events={event_count}",
     );
 
-    assert!(
-        load_ms < 1_500,
-        "sample load took {load_ms}ms for {node_count} nodes"
-    );
-    assert!(
-        save_ms < 250,
-        "sample save took {save_ms}ms for {node_count} nodes"
-    );
+    assert!(load_ms < 1_500, "sample load took {load_ms}ms for {node_count} nodes");
+    assert!(save_ms < 250, "sample save took {save_ms}ms for {node_count} nodes");
     assert!(
         snapshot_ms < 250,
         "whole-graph UI snapshot took {snapshot_ms}ms for {node_count} nodes"
@@ -286,10 +296,7 @@ fn sample_project_structure_operations_stay_interactive() {
         duplicate_ms < 400,
         "module duplicate took {duplicate_ms}ms for {node_count} existing nodes"
     );
-    assert!(
-        collect_ms < 50,
-        "event capture took {collect_ms}ms after duplicate"
-    );
+    assert!(collect_ms < 50, "event capture took {collect_ms}ms after duplicate");
     assert!(
         apply_capture_ms < 50,
         "read model event apply took {apply_capture_ms}ms after duplicate"

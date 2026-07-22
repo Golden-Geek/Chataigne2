@@ -15,9 +15,7 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::module_command::{
-    self, ModuleCommandDeliveryPolicy, ModuleCommandInvocationId,
-};
+use crate::app::module_command::{self, ModuleCommandDeliveryPolicy, ModuleCommandInvocationId};
 
 /// User-item kind for built-in, module-independent output commands.
 pub(crate) const GENERIC_COMMAND_ITEM_KIND: &str = "generic_command";
@@ -51,12 +49,7 @@ struct GenericLogInvocationRecord {
 }
 
 impl GenericLogRuntimeCache {
-    fn should_emit(
-        &mut self,
-        invocation_id: ModuleCommandInvocationId,
-        message: &str,
-        tick: u64,
-    ) -> bool {
+    fn should_emit(&mut self, invocation_id: ModuleCommandInvocationId, message: &str, tick: u64) -> bool {
         if self.budget_tick != Some(tick) {
             self.budget_tick = Some(tick);
             self.emissions_this_tick = 0;
@@ -66,8 +59,7 @@ impl GenericLogRuntimeCache {
         let mut touch_recency = false;
         if let Some(previous) = self.records.get_mut(&invocation_id) {
             previous.last_seen_tick = tick;
-            touch_recency = tick.saturating_sub(previous.recency_tick)
-                >= LOG_INVOCATION_RECENCY_TOUCH_TICKS;
+            touch_recency = tick.saturating_sub(previous.recency_tick) >= LOG_INVOCATION_RECENCY_TOUCH_TICKS;
             let minimum_ticks = if previous.message == message {
                 LOG_INVOCATION_KEEPALIVE_TICKS
             } else {
@@ -93,12 +85,7 @@ impl GenericLogRuntimeCache {
         true
     }
 
-    fn record_emission(
-        &mut self,
-        invocation_id: ModuleCommandInvocationId,
-        message: &str,
-        tick: u64,
-    ) {
+    fn record_emission(&mut self, invocation_id: ModuleCommandInvocationId, message: &str, tick: u64) {
         if !self.records.contains_key(&invocation_id) {
             self.make_room();
         }
@@ -190,6 +177,8 @@ impl GenericLogRuntimeCache {
 pub struct GenericLogCommand {
     #[state(default = String::new())]
     cached_message: String,
+    #[state(default = None)]
+    cached_message_param: Option<NodeId>,
     #[state(default = GenericLogRuntimeCache::default())]
     runtime_cache: GenericLogRuntimeCache,
     base: crate::app::ModuleCommandBase,
@@ -218,11 +207,7 @@ impl Node for GenericLogCommand {
         events.iter().any(|event| match &event.kind {
             EventKind::ParamChanged { .. } => true,
             EventKind::Custom(custom) => {
-                if self.cached_message.is_empty() {
-                    module_command::is_command_execute_request(custom, self.id())
-                } else {
-                    module_command::command_execute_has_param_overrides(custom, self.id())
-                }
+                self.cached_message_param.is_none() && module_command::is_command_execute_request(custom, self.id())
             }
             _ => false,
         })
@@ -239,8 +224,7 @@ impl Node for GenericLogCommand {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
-        if module_command::resolve_module_command_child(snapshot, self.id(), "message") == Some(param)
-        {
+        if module_command::resolve_module_command_child(snapshot, self.id(), "message") == Some(param) {
             self.refresh_cached_message(snapshot);
         }
         if !module_command::module_command_triggered(snapshot, self.id(), param) {
@@ -253,14 +237,10 @@ impl Node for GenericLogCommand {
         let Some(execute) = module_command::command_execute_request(&event, self.id()) else {
             return;
         };
-        if let Some(message) = ctx.tree_snapshot().and_then(|snapshot| {
-            command_string_param_override(
-                &execute.param_overrides,
-                snapshot,
-                self.id(),
-                "message",
-            )
-        }) {
+        if let Some(message) = self
+            .cached_message_param
+            .and_then(|param_id| command_string_param_override(&execute.param_overrides, param_id))
+        {
             self.run_execute(
                 ctx.time.tick,
                 execute.invocation_id,
@@ -304,39 +284,34 @@ impl GenericLogCommand {
             self.run_message(message);
             return;
         }
-        if invocation_id.is_some_and(|invocation_id| {
-            !self.runtime_cache.should_emit(invocation_id, message, tick)
-        }) {
+        if invocation_id.is_some_and(|invocation_id| !self.runtime_cache.should_emit(invocation_id, message, tick)) {
             return;
         }
         self.run_message(message);
     }
 
     fn refresh_cached_message(&mut self, snapshot: &ProcessTreeSnapshot) {
-        self.cached_message = command_string_param(snapshot, self.id(), "message").unwrap_or_default();
+        self.cached_message_param = module_command::resolve_module_command_child(snapshot, self.id(), "message");
+        self.cached_message = self
+            .cached_message_param
+            .and_then(|param_id| {
+                snapshot
+                    .node(param_id)
+                    .and_then(|node| node.param_value.as_ref())
+                    .and_then(ParamValue::as_str)
+            })
+            .unwrap_or_default();
     }
 }
 
 fn command_string_param_override(
     param_overrides: &module_command::ModuleCommandParamOverrides,
-    snapshot: &ProcessTreeSnapshot,
-    command_id: NodeId,
-    path: &str,
+    param_id: NodeId,
 ) -> Option<String> {
-    let param_id = module_command::resolve_module_command_child(snapshot, command_id, path)?;
     param_overrides
         .iter()
         .find(|entry| entry.param_id == param_id)
         .and_then(|entry| entry.value.as_str())
-}
-
-fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str)
-    })
 }
 
 #[cfg(test)]
