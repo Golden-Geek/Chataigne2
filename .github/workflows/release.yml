@@ -1,8 +1,6 @@
 name: Release package qualification
 
 on:
-  push:
-    branches: [architecture/aaa-product-rewrite]
   workflow_dispatch:
     inputs:
       require_signing:
