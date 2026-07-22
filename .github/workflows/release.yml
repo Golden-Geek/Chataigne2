@@ -124,18 +124,33 @@ jobs:
       - name: Build, install/extract, exercise, and clean the package
         if: runner.os != 'Linux'
         shell: pwsh
-        run: >-
-          python tools/migration/run_phase9_package_smoke.py
-          --platform ${{ matrix.platform }}
-          --output-dir target/phase9/package-ci/${{ matrix.platform }}
+        run: |
+          if ($env:GC_REQUIRE_SIGNING -ne '1') {
+            @(
+              'APPLE_CERTIFICATE',
+              'APPLE_CERTIFICATE_PASSWORD',
+              'APPLE_ID',
+              'APPLE_PASSWORD',
+              'APPLE_TEAM_ID',
+              'APPLE_API_KEY',
+              'APPLE_API_ISSUER',
+              'WINDOWS_TIMESTAMP_URL'
+            ) | ForEach-Object { Remove-Item -LiteralPath "Env:$_" -ErrorAction SilentlyContinue }
+          }
+          python tools/migration/run_phase9_package_smoke.py `
+            --platform ${{ matrix.platform }} `
+            --output-dir target/phase9/package-ci/${{ matrix.platform }}
 
       - name: Build and exercise Linux package under a virtual display
         if: runner.os == 'Linux'
         shell: bash
-        run: >-
-          xvfb-run -a python tools/migration/run_phase9_package_smoke.py
-          --platform linux
-          --output-dir target/phase9/package-ci/linux
+        run: |
+          if [[ "${GC_REQUIRE_SIGNING:-0}" != "1" ]]; then
+            unset SIGN_KEY
+          fi
+          xvfb-run -a python tools/migration/run_phase9_package_smoke.py \
+            --platform linux \
+            --output-dir target/phase9/package-ci/linux
 
       - name: Upload native packages and smoke evidence
         if: always()
