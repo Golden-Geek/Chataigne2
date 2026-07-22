@@ -31,15 +31,15 @@ jobs:
     timeout-minutes: 120
     env:
       GC_REQUIRE_SIGNING: ${{ inputs.require_signing && '1' || '0' }}
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-      SIGN_KEY: ${{ secrets.LINUX_SIGN_KEY }}
-      WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+      APPLE_CERTIFICATE: ${{ inputs.require_signing && secrets.APPLE_CERTIFICATE || '' }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ inputs.require_signing && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+      APPLE_ID: ${{ inputs.require_signing && secrets.APPLE_ID || '' }}
+      APPLE_PASSWORD: ${{ inputs.require_signing && secrets.APPLE_PASSWORD || '' }}
+      APPLE_TEAM_ID: ${{ inputs.require_signing && secrets.APPLE_TEAM_ID || '' }}
+      APPLE_API_KEY: ${{ inputs.require_signing && secrets.APPLE_API_KEY || '' }}
+      APPLE_API_ISSUER: ${{ inputs.require_signing && secrets.APPLE_API_ISSUER || '' }}
+      SIGN_KEY: ${{ inputs.require_signing && secrets.LINUX_SIGN_KEY || '' }}
+      WINDOWS_TIMESTAMP_URL: ${{ inputs.require_signing && secrets.WINDOWS_TIMESTAMP_URL || '' }}
     steps:
       - uses: actions/checkout@v6
 
