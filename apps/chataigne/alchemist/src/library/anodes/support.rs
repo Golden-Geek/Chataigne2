@@ -773,7 +773,9 @@ pub(super) fn state_values(state: Option<&RuntimeValue>, minimum_len: usize) -> 
         Some(RuntimeValue::Int(value)) => vec![*value as f64],
         _ => Vec::new(),
     };
-    values.resize(minimum_len, 0.0);
+    if values.len() < minimum_len {
+        values.resize(minimum_len, 0.0);
+    }
     values
 }
 

@@ -19,8 +19,6 @@ pub struct RuntimeMetrics {
     work_units: AtomicU64,
     effects_committed: AtomicU64,
     effects_suppressed: AtomicU64,
-    shadow_comparisons: AtomicU64,
-    shadow_mismatches: AtomicU64,
 }
 
 /// One consistent-enough diagnostics sample of monotonic runtime counters.
@@ -56,12 +54,8 @@ pub struct RuntimeMetricsSnapshot {
     pub work_units: u64,
     /// Authoritative effects committed.
     pub effects_committed: u64,
-    /// Shadow effects suppressed.
+    /// Non-authoritative effects suppressed by the routing policy.
     pub effects_suppressed: u64,
-    /// Authoritative results compared with the side-effect-free runtime plan.
-    pub shadow_comparisons: u64,
-    /// Semantic mismatches found by safe shadow comparison.
-    pub shadow_mismatches: u64,
 }
 
 impl RuntimeMetrics {
@@ -115,12 +109,6 @@ impl RuntimeMetrics {
         self.effects_suppressed.fetch_add(suppressed as u64, Ordering::Relaxed);
     }
 
-    /// Records side-effect-free semantic comparison results from a production adapter.
-    pub fn shadow_compared(&self, comparisons: usize, mismatches: usize) {
-        self.shadow_comparisons.fetch_add(comparisons as u64, Ordering::Relaxed);
-        self.shadow_mismatches.fetch_add(mismatches as u64, Ordering::Relaxed);
-    }
-
     /// Captures the current metrics without blocking runtime work.
     pub fn snapshot(&self) -> RuntimeMetricsSnapshot {
         RuntimeMetricsSnapshot {
@@ -140,8 +128,6 @@ impl RuntimeMetrics {
             work_units: self.work_units.load(Ordering::Relaxed),
             effects_committed: self.effects_committed.load(Ordering::Relaxed),
             effects_suppressed: self.effects_suppressed.load(Ordering::Relaxed),
-            shadow_comparisons: self.shadow_comparisons.load(Ordering::Relaxed),
-            shadow_mismatches: self.shadow_mismatches.load(Ordering::Relaxed),
         }
     }
 }

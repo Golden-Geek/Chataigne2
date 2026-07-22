@@ -12,9 +12,40 @@ from tools.migration.product_manifest import (
     validate_schema,
     write_documents,
 )
+from tools.migration.product_manifest.discovery import _stable_product_path
 
 
 class ProductManifestTests(unittest.TestCase):
+    def test_monorepo_relocations_preserve_phase0_capability_identity(self) -> None:
+        self.assertEqual(
+            _stable_product_path("apps/chataigne/test-samples/test_perf.noisette"),
+            "test-samples/test_perf.noisette",
+        )
+        self.assertEqual(
+            _stable_product_path(
+                "packages/golden-ui/style/icons/parameter/control/manual.svg"
+            ),
+            "src-ui/src/lib/golden_ui/style/icons/parameter/control/manual.svg",
+        )
+        self.assertEqual(
+            _stable_product_path(
+                "apps/chataigne/ui/src/lib/assets/icons/formula_library.svg"
+            ),
+            "src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
+        )
+        self.assertEqual(
+            _stable_product_path(
+                "apps/chataigne/src/module/script_templates/spatializer_module.js"
+            ),
+            "src/module/script_templates/spatializer.js",
+        )
+        self.assertEqual(
+            _stable_product_path(
+                "apps/chataigne/src/module/script_templates/artnet_module.js"
+            ),
+            "src/module/script_templates/artnet_module.js",
+        )
+
     def fixture_repo(self, root: Path) -> None:
         (root / "docs/product").mkdir(parents=True)
         (root / "docs/product/source-imports.v1.json").write_text(
@@ -85,6 +116,9 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
         (root / "test-samples/baseline.noisette").write_text(
             "baseline project\n", encoding="utf-8"
         )
+        (root / "test-samples/baseline.noisette.backup").write_text(
+            "recovery copy\n", encoding="utf-8"
+        )
         (root / "apps/chataigne/ui/static/assets").mkdir(parents=True)
         (root / "apps/chataigne/ui/static/assets/icon.svg").write_text(
             "<svg/>\n", encoding="utf-8"
@@ -132,6 +166,10 @@ fn install(engine: &mut Engine) { engine.register_fn("sendDemo", send_demo); }
             )
             self.assertIn(
                 "fixture/test-samples/baseline.noisette",
+                {entry["id"] for entry in files["entries"]},
+            )
+            self.assertNotIn(
+                "fixture/test-samples/baseline.noisette.backup",
                 {entry["id"] for entry in files["entries"]},
             )
             self.assertEqual(

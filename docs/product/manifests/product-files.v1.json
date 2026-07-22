@@ -6,7 +6,7 @@
   "entries": [
     {
       "bytes": 149836,
-      "id": "asset/apps/chataigne/icons/icon.ico",
+      "id": "asset/icons/icon.ico",
       "kind": "asset",
       "name": "icon.ico",
       "path": "apps/chataigne/icons/icon.ico",
@@ -14,7 +14,7 @@
     },
     {
       "bytes": 149814,
-      "id": "asset/apps/chataigne/icons/icon.png",
+      "id": "asset/icons/icon.png",
       "kind": "asset",
       "name": "icon.png",
       "path": "apps/chataigne/icons/icon.png",
@@ -22,7 +22,7 @@
     },
     {
       "bytes": 1569,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/favicon.svg",
+      "id": "asset/src-ui/src/lib/assets/favicon.svg",
       "kind": "asset",
       "name": "favicon.svg",
       "path": "apps/chataigne/ui/src/lib/assets/favicon.svg",
@@ -30,7 +30,7 @@
     },
     {
       "bytes": 1212,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/formula.svg",
+      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula.svg",
       "kind": "asset",
       "name": "formula.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/formula.svg",
@@ -38,7 +38,7 @@
     },
     {
       "bytes": 2312,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/formula_library.svg",
+      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/formula_library.svg",
       "kind": "asset",
       "name": "formula_library.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/formula_library.svg",
@@ -46,7 +46,7 @@
     },
     {
       "bytes": 1169,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/lock.svg",
+      "id": "asset/src-ui/src/lib/golden_alchemist_ui/icons/lock.svg",
       "kind": "asset",
       "name": "lock.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/lock.svg",
@@ -54,7 +54,7 @@
     },
     {
       "bytes": 1822,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/audio.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/audio.svg",
       "kind": "asset",
       "name": "audio.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/audio.svg",
@@ -62,7 +62,7 @@
     },
     {
       "bytes": 973,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/connected.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/connected.svg",
       "kind": "asset",
       "name": "connected.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/connected.svg",
@@ -70,7 +70,7 @@
     },
     {
       "bytes": 2405,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/controllers.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/controllers.svg",
       "kind": "asset",
       "name": "controllers.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/controllers.svg",
@@ -78,7 +78,7 @@
     },
     {
       "bytes": 1554,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/disconnected.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/disconnected.svg",
       "kind": "asset",
       "name": "disconnected.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/disconnected.svg",
@@ -86,7 +86,7 @@
     },
     {
       "bytes": 1520,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/generators.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/generators.svg",
       "kind": "asset",
       "name": "generators.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/generators.svg",
@@ -94,7 +94,7 @@
     },
     {
       "bytes": 2361,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/hardware.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/hardware.svg",
       "kind": "asset",
       "name": "hardware.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/hardware.svg",
@@ -102,7 +102,7 @@
     },
     {
       "bytes": 718,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/incoming.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/incoming.svg",
       "kind": "asset",
       "name": "incoming.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/incoming.svg",
@@ -110,7 +110,7 @@
     },
     {
       "bytes": 2560,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/network.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/network.svg",
       "kind": "asset",
       "name": "network.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/network.svg",
@@ -118,7 +118,7 @@
     },
     {
       "bytes": 719,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/outgoing.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/outgoing.svg",
       "kind": "asset",
       "name": "outgoing.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/outgoing.svg",
@@ -126,7 +126,7 @@
     },
     {
       "bytes": 1886,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/system.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/system.svg",
       "kind": "asset",
       "name": "system.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/system.svg",
@@ -134,23 +134,23 @@
     },
     {
       "bytes": 1440,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/module/video.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/module/video.svg",
       "kind": "asset",
       "name": "video.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/module/video.svg",
       "sha256": "2e6377389f6fe5662e40934679ad125d43fb4f7edcbf6d0582017e4b43dbd985"
     },
     {
-      "bytes": 1280,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/node-icons.svelte.ts",
+      "bytes": 1370,
+      "id": "asset/src-ui/src/lib/assets/icons/node-icons.svelte.ts",
       "kind": "asset",
       "name": "node-icons.svelte.ts",
       "path": "apps/chataigne/ui/src/lib/assets/icons/node-icons.svelte.ts",
-      "sha256": "dca89b0e60d168a143a41a6886ac1268a77fba61ffd438a4943860f32c0d10cb"
+      "sha256": "fbfb042aec0a14a30c9448be996ae2114739e701f81f99b31a5051d0d9b5f436"
     },
     {
       "bytes": 914,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/app_control_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/app_control_module.svg",
       "kind": "asset",
       "name": "app_control_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/app_control_module.svg",
@@ -158,7 +158,7 @@
     },
     {
       "bytes": 425,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/artnet_module.svg",
       "kind": "asset",
       "name": "artnet_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/artnet_module.svg",
@@ -166,7 +166,7 @@
     },
     {
       "bytes": 14812,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/buttplug_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/buttplug_module.svg",
       "kind": "asset",
       "name": "buttplug_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/buttplug_module.svg",
@@ -174,7 +174,7 @@
     },
     {
       "bytes": 1811,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/dmx_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/dmx_module.svg",
       "kind": "asset",
       "name": "dmx_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/dmx_module.svg",
@@ -182,7 +182,7 @@
     },
     {
       "bytes": 7116,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/gamepad_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/gamepad_module.svg",
       "kind": "asset",
       "name": "gamepad_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/gamepad_module.svg",
@@ -190,7 +190,7 @@
     },
     {
       "bytes": 2218,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/http_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/http_module.svg",
       "kind": "asset",
       "name": "http_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/http_module.svg",
@@ -198,7 +198,7 @@
     },
     {
       "bytes": 913,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/joycon_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/joycon_module.svg",
       "kind": "asset",
       "name": "joycon_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/joycon_module.svg",
@@ -206,7 +206,7 @@
     },
     {
       "bytes": 2370,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/keyboard_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/keyboard_module.svg",
       "kind": "asset",
       "name": "keyboard_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/keyboard_module.svg",
@@ -214,7 +214,7 @@
     },
     {
       "bytes": 926,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/kinect2_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/kinect2_module.svg",
       "kind": "asset",
       "name": "kinect2_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/kinect2_module.svg",
@@ -222,7 +222,7 @@
     },
     {
       "bytes": 1687,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/metronomes_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/metronomes_module.svg",
       "kind": "asset",
       "name": "metronomes_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/metronomes_module.svg",
@@ -230,7 +230,7 @@
     },
     {
       "bytes": 1653,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/midi_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/midi_module.svg",
       "kind": "asset",
       "name": "midi_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/midi_module.svg",
@@ -238,7 +238,7 @@
     },
     {
       "bytes": 1229,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/module.svg",
       "kind": "asset",
       "name": "module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/module.svg",
@@ -246,7 +246,7 @@
     },
     {
       "bytes": 1508,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/module_manager.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/module_manager.svg",
       "kind": "asset",
       "name": "module_manager.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/module_manager.svg",
@@ -254,7 +254,7 @@
     },
     {
       "bytes": 1205,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/mouse_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/mouse_module.svg",
       "kind": "asset",
       "name": "mouse_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/mouse_module.svg",
@@ -262,7 +262,7 @@
     },
     {
       "bytes": 808,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/mqtt_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/mqtt_module.svg",
       "kind": "asset",
       "name": "mqtt_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/mqtt_module.svg",
@@ -270,7 +270,7 @@
     },
     {
       "bytes": 500,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/node_module.svg",
       "kind": "asset",
       "name": "node_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/node_module.svg",
@@ -278,7 +278,7 @@
     },
     {
       "bytes": 1730,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/os_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/os_module.svg",
       "kind": "asset",
       "name": "os_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/os_module.svg",
@@ -286,7 +286,7 @@
     },
     {
       "bytes": 1399,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/osc_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/osc_module.svg",
       "kind": "asset",
       "name": "osc_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/osc_module.svg",
@@ -294,7 +294,7 @@
     },
     {
       "bytes": 393,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/sacn_module.svg",
       "kind": "asset",
       "name": "sacn_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/sacn_module.svg",
@@ -302,7 +302,7 @@
     },
     {
       "bytes": 3248,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/serial_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/serial_module.svg",
       "kind": "asset",
       "name": "serial_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/serial_module.svg",
@@ -310,7 +310,7 @@
     },
     {
       "bytes": 603,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/signals_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/signals_module.svg",
       "kind": "asset",
       "name": "signals_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/signals_module.svg",
@@ -318,7 +318,7 @@
     },
     {
       "bytes": 1631,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/spatializer_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/spatializer_module.svg",
       "kind": "asset",
       "name": "spatializer_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/spatializer_module.svg",
@@ -326,7 +326,7 @@
     },
     {
       "bytes": 1472,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
       "kind": "asset",
       "name": "state_machine_manager.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/state_machine_manager.svg",
@@ -334,7 +334,7 @@
     },
     {
       "bytes": 1122,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/state_processor.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/state_processor.svg",
       "kind": "asset",
       "name": "state_processor.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/state_processor.svg",
@@ -342,7 +342,7 @@
     },
     {
       "bytes": 835,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
       "kind": "asset",
       "name": "streamdeck_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/streamdeck_module.svg",
@@ -350,7 +350,7 @@
     },
     {
       "bytes": 958,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
       "kind": "asset",
       "name": "tcp_client_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_client_module.svg",
@@ -358,7 +358,7 @@
     },
     {
       "bytes": 988,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
       "kind": "asset",
       "name": "tcp_server_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/tcp_server_module.svg",
@@ -366,7 +366,7 @@
     },
     {
       "bytes": 949,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/udp_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/udp_module.svg",
       "kind": "asset",
       "name": "udp_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/udp_module.svg",
@@ -374,7 +374,7 @@
     },
     {
       "bytes": 1117,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
       "kind": "asset",
       "name": "ultraleap_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/ultraleap_module.svg",
@@ -382,7 +382,7 @@
     },
     {
       "bytes": 1523,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
       "kind": "asset",
       "name": "websocket_client_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_client_module.svg",
@@ -390,7 +390,7 @@
     },
     {
       "bytes": 1523,
-      "id": "asset/apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
+      "id": "asset/src-ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
       "kind": "asset",
       "name": "websocket_server_module.svg",
       "path": "apps/chataigne/ui/src/lib/assets/icons/nodes/websocket_server_module.svg",
@@ -398,7 +398,7 @@
     },
     {
       "bytes": 0,
-      "id": "asset/apps/chataigne/ui/static/favicon.ico",
+      "id": "asset/src-ui/static/favicon.ico",
       "kind": "asset",
       "name": "favicon.ico",
       "path": "apps/chataigne/ui/static/favicon.ico",
@@ -406,7 +406,7 @@
     },
     {
       "bytes": 63,
-      "id": "asset/apps/chataigne/ui/static/robots.txt",
+      "id": "asset/src-ui/static/robots.txt",
       "kind": "asset",
       "name": "robots.txt",
       "path": "apps/chataigne/ui/static/robots.txt",
@@ -414,7 +414,7 @@
     },
     {
       "bytes": 978,
-      "id": "asset/packages/golden-ui/style/icons/add.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/add.svg",
       "kind": "asset",
       "name": "add.svg",
       "path": "packages/golden-ui/style/icons/add.svg",
@@ -422,7 +422,7 @@
     },
     {
       "bytes": 851,
-      "id": "asset/packages/golden-ui/style/icons/arrow.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/arrow.svg",
       "kind": "asset",
       "name": "arrow.svg",
       "path": "packages/golden-ui/style/icons/arrow.svg",
@@ -430,7 +430,7 @@
     },
     {
       "bytes": 874,
-      "id": "asset/packages/golden-ui/style/icons/arrow_down.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/arrow_down.svg",
       "kind": "asset",
       "name": "arrow_down.svg",
       "path": "packages/golden-ui/style/icons/arrow_down.svg",
@@ -438,7 +438,7 @@
     },
     {
       "bytes": 1280,
-      "id": "asset/packages/golden-ui/style/icons/clipboard.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/clipboard.svg",
       "kind": "asset",
       "name": "clipboard.svg",
       "path": "packages/golden-ui/style/icons/clipboard.svg",
@@ -446,7 +446,7 @@
     },
     {
       "bytes": 890,
-      "id": "asset/packages/golden-ui/style/icons/copy.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/copy.svg",
       "kind": "asset",
       "name": "copy.svg",
       "path": "packages/golden-ui/style/icons/copy.svg",
@@ -454,7 +454,7 @@
     },
     {
       "bytes": 1677,
-      "id": "asset/packages/golden-ui/style/icons/delete.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/delete.svg",
       "kind": "asset",
       "name": "delete.svg",
       "path": "packages/golden-ui/style/icons/delete.svg",
@@ -462,7 +462,7 @@
     },
     {
       "bytes": 1080,
-      "id": "asset/packages/golden-ui/style/icons/duplicate.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/duplicate.svg",
       "kind": "asset",
       "name": "duplicate.svg",
       "path": "packages/golden-ui/style/icons/duplicate.svg",
@@ -470,7 +470,7 @@
     },
     {
       "bytes": 1203,
-      "id": "asset/packages/golden-ui/style/icons/lock.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/lock.svg",
       "kind": "asset",
       "name": "lock.svg",
       "path": "packages/golden-ui/style/icons/lock.svg",
@@ -478,7 +478,7 @@
     },
     {
       "bytes": 1266,
-      "id": "asset/packages/golden-ui/style/icons/node/add.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/add.svg",
       "kind": "asset",
       "name": "add.svg",
       "path": "packages/golden-ui/style/icons/node/add.svg",
@@ -486,7 +486,7 @@
     },
     {
       "bytes": 1887,
-      "id": "asset/packages/golden-ui/style/icons/node/curve/key.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/curve/key.svg",
       "kind": "asset",
       "name": "key.svg",
       "path": "packages/golden-ui/style/icons/node/curve/key.svg",
@@ -494,7 +494,7 @@
     },
     {
       "bytes": 816,
-      "id": "asset/packages/golden-ui/style/icons/node/dashboard.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/dashboard.svg",
       "kind": "asset",
       "name": "dashboard.svg",
       "path": "packages/golden-ui/style/icons/node/dashboard.svg",
@@ -502,7 +502,7 @@
     },
     {
       "bytes": 744,
-      "id": "asset/packages/golden-ui/style/icons/node/default.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/default.svg",
       "kind": "asset",
       "name": "default.svg",
       "path": "packages/golden-ui/style/icons/node/default.svg",
@@ -510,7 +510,7 @@
     },
     {
       "bytes": 1338,
-      "id": "asset/packages/golden-ui/style/icons/node/folder.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/folder.svg",
       "kind": "asset",
       "name": "folder.svg",
       "path": "packages/golden-ui/style/icons/node/folder.svg",
@@ -518,7 +518,7 @@
     },
     {
       "bytes": 1443,
-      "id": "asset/packages/golden-ui/style/icons/node/manager.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/manager.svg",
       "kind": "asset",
       "name": "manager.svg",
       "path": "packages/golden-ui/style/icons/node/manager.svg",
@@ -526,7 +526,7 @@
     },
     {
       "bytes": 2084,
-      "id": "asset/packages/golden-ui/style/icons/node/script.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/node/script.svg",
       "kind": "asset",
       "name": "script.svg",
       "path": "packages/golden-ui/style/icons/node/script.svg",
@@ -534,7 +534,7 @@
     },
     {
       "bytes": 1266,
-      "id": "asset/packages/golden-ui/style/icons/panels/add_tab.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/panels/add_tab.svg",
       "kind": "asset",
       "name": "add_tab.svg",
       "path": "packages/golden-ui/style/icons/panels/add_tab.svg",
@@ -542,7 +542,7 @@
     },
     {
       "bytes": 1146,
-      "id": "asset/packages/golden-ui/style/icons/panels/close.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/panels/close.svg",
       "kind": "asset",
       "name": "close.svg",
       "path": "packages/golden-ui/style/icons/panels/close.svg",
@@ -550,7 +550,7 @@
     },
     {
       "bytes": 686,
-      "id": "asset/packages/golden-ui/style/icons/parameter/bool.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/bool.svg",
       "kind": "asset",
       "name": "bool.svg",
       "path": "packages/golden-ui/style/icons/parameter/bool.svg",
@@ -558,7 +558,7 @@
     },
     {
       "bytes": 1981,
-      "id": "asset/packages/golden-ui/style/icons/parameter/color.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/color.svg",
       "kind": "asset",
       "name": "color.svg",
       "path": "packages/golden-ui/style/icons/parameter/color.svg",
@@ -566,7 +566,7 @@
     },
     {
       "bytes": 708,
-      "id": "asset/packages/golden-ui/style/icons/parameter/control/animation.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/animation.svg",
       "kind": "asset",
       "name": "animation.svg",
       "path": "packages/golden-ui/style/icons/parameter/control/animation.svg",
@@ -574,7 +574,7 @@
     },
     {
       "bytes": 1393,
-      "id": "asset/packages/golden-ui/style/icons/parameter/control/binding.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/binding.svg",
       "kind": "asset",
       "name": "binding.svg",
       "path": "packages/golden-ui/style/icons/parameter/control/binding.svg",
@@ -582,7 +582,7 @@
     },
     {
       "bytes": 2037,
-      "id": "asset/packages/golden-ui/style/icons/parameter/control/context.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/context.svg",
       "kind": "asset",
       "name": "context.svg",
       "path": "packages/golden-ui/style/icons/parameter/control/context.svg",
@@ -590,7 +590,7 @@
     },
     {
       "bytes": 765,
-      "id": "asset/packages/golden-ui/style/icons/parameter/control/expression.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/expression.svg",
       "kind": "asset",
       "name": "expression.svg",
       "path": "packages/golden-ui/style/icons/parameter/control/expression.svg",
@@ -598,7 +598,7 @@
     },
     {
       "bytes": 1608,
-      "id": "asset/packages/golden-ui/style/icons/parameter/control/manual.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/manual.svg",
       "kind": "asset",
       "name": "manual.svg",
       "path": "packages/golden-ui/style/icons/parameter/control/manual.svg",
@@ -606,7 +606,7 @@
     },
     {
       "bytes": 595,
-      "id": "asset/packages/golden-ui/style/icons/parameter/control/proxy.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/control/proxy.svg",
       "kind": "asset",
       "name": "proxy.svg",
       "path": "packages/golden-ui/style/icons/parameter/control/proxy.svg",
@@ -614,7 +614,7 @@
     },
     {
       "bytes": 1144,
-      "id": "asset/packages/golden-ui/style/icons/parameter/enum.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/enum.svg",
       "kind": "asset",
       "name": "enum.svg",
       "path": "packages/golden-ui/style/icons/parameter/enum.svg",
@@ -622,7 +622,7 @@
     },
     {
       "bytes": 2160,
-      "id": "asset/packages/golden-ui/style/icons/parameter/file.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/file.svg",
       "kind": "asset",
       "name": "file.svg",
       "path": "packages/golden-ui/style/icons/parameter/file.svg",
@@ -630,7 +630,7 @@
     },
     {
       "bytes": 747,
-      "id": "asset/packages/golden-ui/style/icons/parameter/float.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/float.svg",
       "kind": "asset",
       "name": "float.svg",
       "path": "packages/golden-ui/style/icons/parameter/float.svg",
@@ -638,7 +638,7 @@
     },
     {
       "bytes": 1011,
-      "id": "asset/packages/golden-ui/style/icons/parameter/int.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/int.svg",
       "kind": "asset",
       "name": "int.svg",
       "path": "packages/golden-ui/style/icons/parameter/int.svg",
@@ -646,7 +646,7 @@
     },
     {
       "bytes": 1859,
-      "id": "asset/packages/golden-ui/style/icons/parameter/reference.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/reference.svg",
       "kind": "asset",
       "name": "reference.svg",
       "path": "packages/golden-ui/style/icons/parameter/reference.svg",
@@ -654,7 +654,7 @@
     },
     {
       "bytes": 1194,
-      "id": "asset/packages/golden-ui/style/icons/parameter/string.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/string.svg",
       "kind": "asset",
       "name": "string.svg",
       "path": "packages/golden-ui/style/icons/parameter/string.svg",
@@ -662,7 +662,7 @@
     },
     {
       "bytes": 726,
-      "id": "asset/packages/golden-ui/style/icons/parameter/trigger.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/trigger.svg",
       "kind": "asset",
       "name": "trigger.svg",
       "path": "packages/golden-ui/style/icons/parameter/trigger.svg",
@@ -670,7 +670,7 @@
     },
     {
       "bytes": 585,
-      "id": "asset/packages/golden-ui/style/icons/parameter/vec2.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/vec2.svg",
       "kind": "asset",
       "name": "vec2.svg",
       "path": "packages/golden-ui/style/icons/parameter/vec2.svg",
@@ -678,7 +678,7 @@
     },
     {
       "bytes": 1507,
-      "id": "asset/packages/golden-ui/style/icons/parameter/vec3.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/parameter/vec3.svg",
       "kind": "asset",
       "name": "vec3.svg",
       "path": "packages/golden-ui/style/icons/parameter/vec3.svg",
@@ -686,7 +686,7 @@
     },
     {
       "bytes": 1506,
-      "id": "asset/packages/golden-ui/style/icons/redo.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/redo.svg",
       "kind": "asset",
       "name": "redo.svg",
       "path": "packages/golden-ui/style/icons/redo.svg",
@@ -694,7 +694,7 @@
     },
     {
       "bytes": 824,
-      "id": "asset/packages/golden-ui/style/icons/reset.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/reset.svg",
       "kind": "asset",
       "name": "reset.svg",
       "path": "packages/golden-ui/style/icons/reset.svg",
@@ -702,7 +702,7 @@
     },
     {
       "bytes": 955,
-      "id": "asset/packages/golden-ui/style/icons/select-node.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/select-node.svg",
       "kind": "asset",
       "name": "select-node.svg",
       "path": "packages/golden-ui/style/icons/select-node.svg",
@@ -710,7 +710,7 @@
     },
     {
       "bytes": 1587,
-      "id": "asset/packages/golden-ui/style/icons/settings.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/settings.svg",
       "kind": "asset",
       "name": "settings.svg",
       "path": "packages/golden-ui/style/icons/settings.svg",
@@ -718,7 +718,7 @@
     },
     {
       "bytes": 1544,
-      "id": "asset/packages/golden-ui/style/icons/undo.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/undo.svg",
       "kind": "asset",
       "name": "undo.svg",
       "path": "packages/golden-ui/style/icons/undo.svg",
@@ -726,7 +726,7 @@
     },
     {
       "bytes": 1245,
-      "id": "asset/packages/golden-ui/style/icons/variable.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/variable.svg",
       "kind": "asset",
       "name": "variable.svg",
       "path": "packages/golden-ui/style/icons/variable.svg",
@@ -734,7 +734,7 @@
     },
     {
       "bytes": 810,
-      "id": "asset/packages/golden-ui/style/icons/warning.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/warning.svg",
       "kind": "asset",
       "name": "warning.svg",
       "path": "packages/golden-ui/style/icons/warning.svg",
@@ -742,23 +742,23 @@
     },
     {
       "bytes": 805,
-      "id": "asset/packages/golden-ui/style/icons/watch.svg",
+      "id": "asset/src-ui/src/lib/golden_ui/style/icons/watch.svg",
       "kind": "asset",
       "name": "watch.svg",
       "path": "packages/golden-ui/style/icons/watch.svg",
       "sha256": "8e7f2dd0ad215a29b5e5b69c09a7048d878d95ce035abb64c5c9efa73a62feda"
     },
     {
-      "bytes": 377134,
-      "id": "fixture/apps/chataigne/test-samples/test_multiplex.noisette",
+      "bytes": 399587,
+      "id": "fixture/test-samples/test_multiplex.noisette",
       "kind": "fixture",
       "name": "test_multiplex.noisette",
       "path": "apps/chataigne/test-samples/test_multiplex.noisette",
-      "sha256": "577ada23ab612db7432dbefc7111ae3bb9e8bc1a761355ac60fc00f9150d4386"
+      "sha256": "6e01215b58e021b847574db18ba9b43b7be6c11490008efcb42cbfcbfa3eb102"
     },
     {
       "bytes": 153775,
-      "id": "fixture/apps/chataigne/test-samples/test_perf.noisette",
+      "id": "fixture/test-samples/test_perf.noisette",
       "kind": "fixture",
       "name": "test_perf.noisette",
       "path": "apps/chataigne/test-samples/test_perf.noisette",
@@ -766,7 +766,7 @@
     },
     {
       "bytes": 250642,
-      "id": "fixture/apps/chataigne/test-samples/test_simple_load.noisette",
+      "id": "fixture/test-samples/test_simple_load.noisette",
       "kind": "fixture",
       "name": "test_simple_load.noisette",
       "path": "apps/chataigne/test-samples/test_simple_load.noisette",

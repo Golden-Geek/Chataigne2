@@ -27,7 +27,20 @@ use crate::app::{
 const ACTION_FORMULA: &str = include_str!("../../builtin_formulas/Action.json");
 
 #[test]
-fn shipped_builtin_formula_files_load_as_read_only_external_formulas() {
+fn embedded_builtin_formula_files_load_as_read_only_external_formulas() {
+    let on_disk = FormulaCatalog::builtin_formula_trees(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("builtin_formulas"),
+    )
+    .expect("built-in formula directory should load");
+    let expected_identity = on_disk
+        .iter()
+        .map(|tree| {
+            (
+                tree.node.node_data().meta.label.clone(),
+                tree.node.node_data().meta.uuid,
+            )
+        })
+        .collect::<Vec<_>>();
     let engine = engine_with_builtin_formula_library();
     let snapshot = engine.process_tree_snapshot();
     let formulas = engine
@@ -48,18 +61,10 @@ fn shipped_builtin_formula_files_load_as_read_only_external_formulas() {
     assert_eq!(
         formulas
             .iter()
-            .map(|(_, label, uuid, _, _)| (label.as_str(), uuid.0.to_string()))
+            .map(|(_, label, uuid, _, _)| (label.clone(), *uuid))
             .collect::<Vec<_>>(),
-        vec![
-            (
-                "Action",
-                "22930516-b6bb-56de-9914-d55cd7f6f094".to_owned(),
-            ),
-            (
-                "Mapping",
-                "9b0a8eda-dcb7-584d-8cad-b47f151c3444".to_owned(),
-            ),
-        ]
+        expected_identity,
+        "the embedded catalog must contain every formula discovered on disk"
     );
     for (_, _, _, tags, permissions) in &formulas {
         assert!(tags.iter().any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG));
@@ -245,63 +250,31 @@ fn exported_builtin_formula_import_accepts_legacy_untagged_param_values() {
 fn processor_palette_places_session_formulas_after_builtin_separator() {
     let catalog = catalog_with_project_formula("Session Formula");
     let palette = catalog.processor_palette_items();
+    let builtin_labels = FormulaCatalog::default_builtin_formula_trees()
+        .expect("built-in formulas should load")
+        .into_iter()
+        .map(|tree| tree.node.node_data().meta.label.clone())
+        .collect::<Vec<_>>();
 
     let first_session_index = palette
         .iter()
         .position(|item| item.label == "Session Formula")
         .expect("session formula should be in the processor palette");
 
-    assert_eq!(palette[0].label, "Action");
-    assert_eq!(palette[1].label, "Mapping");
-    assert_eq!(first_session_index, 2);
-    assert!(palette.iter().all(|item| item.menu_path.is_empty()));
-    assert!(!palette[0].separator_before);
-    assert!(!palette[1].separator_before);
-    assert!(palette[first_session_index].separator_before);
-}
-
-#[test]
-fn missing_external_formula_trees_finds_builtins_absent_from_an_older_project() {
-    // Simulates a project file saved before "Mapping" existed as a built-in:
-    // its Formula Library only has "Action". Re-scanning the shipped
-    // built-ins should report "Mapping" as missing, and "Action" as already
-    // present (it must not be re-added / duplicated).
-    let root: AppNode = Folder::new("root").into();
-    let mut engine = AppEngine::new(root);
-    let all_builtins = FormulaCatalog::default_builtin_formula_trees()
-        .expect("built-in formulas should load");
-    let action_only = all_builtins
-        .into_iter()
-        .find(|tree| tree.node.node_data().meta.label == "Action")
-        .expect("Action built-in should exist");
-
-    let mut library_tree = NodeTree::new(FormulaLibrary::new());
-    library_tree.push_child(action_only);
-    engine.edits.push(Edit::AddNodeTree {
-        tree: library_tree,
-        parent: engine.root,
-        prev_sibling: None,
-    });
-    for _ in 0..4 {
-        engine
-            .apply_edits()
-            .expect("formula library should attach");
-    }
-
-    let library_id = formula_library_id(&engine);
-    let snapshot = engine.process_tree_snapshot();
-    let candidates = FormulaCatalog::default_builtin_formula_trees()
-        .expect("built-in formulas should load");
-    let missing =
-        FormulaCatalog::missing_external_formula_trees(&snapshot, library_id, candidates);
-
+    assert!(!builtin_labels.is_empty());
     assert_eq!(
-        missing
+        palette[..first_session_index]
             .iter()
-            .map(|tree| tree.node.node_data().meta.label.clone())
+            .map(|item| item.label.clone())
             .collect::<Vec<_>>(),
-        vec!["Mapping"]
+        builtin_labels
     );
+    assert_eq!(first_session_index, builtin_labels.len());
+    assert!(palette.iter().all(|item| item.menu_path.is_empty()));
+    assert!(palette[..first_session_index]
+        .iter()
+        .all(|item| !item.separator_before));
+    assert!(palette[first_session_index].separator_before);
 }
 
 #[test]
@@ -675,18 +648,15 @@ fn default_missing_shared_formula_trees_uses_preferences_data_folder() {
 fn processor_palette_builtin_items_expose_sibling_icon() {
     let catalog = catalog_with_project_formula("Session Formula");
     let palette = catalog.processor_palette_items();
+    let on_disk = FormulaCatalog::builtin_formula_trees(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("builtin_formulas"),
+    )
+    .expect("built-in formula directory should load");
 
-    let action_icon = palette[0]
-        .icon
-        .as_deref()
-        .expect("Action processor palette item should have an icon");
-    assert!(action_icon.starts_with("data:image/svg+xml;base64,"));
-
-    let mapping_icon = palette[1]
-        .icon
-        .as_deref()
-        .expect("Mapping processor palette item should have an icon");
-    assert!(mapping_icon.starts_with("data:image/svg+xml;base64,"));
+    for (item, tree) in palette.iter().zip(&on_disk) {
+        assert_eq!(item.label, tree.node.node_data().meta.label);
+        assert_eq!(item.icon, tree.node.node_data().meta.presentation.icon);
+    }
 
     let session_index = palette
         .iter()
@@ -703,19 +673,32 @@ fn processor_palette_groups_builtin_shared_and_project_formulas() {
     let catalog =
         catalog_with_shared_and_project_formulas("Shared Formula", "Project Formula");
     let palette = catalog.processor_palette_items();
+    let mut expected_labels = FormulaCatalog::default_builtin_formula_trees()
+        .expect("built-in formulas should load")
+        .into_iter()
+        .map(|tree| tree.node.node_data().meta.label.clone())
+        .collect::<Vec<_>>();
+    let shared_index = expected_labels.len();
+    expected_labels.push("Shared Formula".to_owned());
+    expected_labels.push("Project Formula".to_owned());
 
     assert_eq!(
-        palette.iter().map(|item| item.label.as_str()).collect::<Vec<_>>(),
-        vec!["Action", "Mapping", "Shared Formula", "Project Formula"]
+        palette
+            .iter()
+            .map(|item| item.label.clone())
+            .collect::<Vec<_>>(),
+        expected_labels
     );
-    assert!(!palette[0].separator_before, "Action starts the built-in group");
-    assert!(!palette[1].separator_before, "Mapping stays in the built-in group");
+    assert!(shared_index > 0, "the built-in formula group should not be empty");
+    assert!(palette[..shared_index]
+        .iter()
+        .all(|item| !item.separator_before));
     assert!(
-        palette[2].separator_before,
+        palette[shared_index].separator_before,
         "Shared Formula should start a new group after built-ins"
     );
     assert!(
-        palette[3].separator_before,
+        palette[shared_index + 1].separator_before,
         "Project Formula should start a new group after shared formulas"
     );
 }

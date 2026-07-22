@@ -163,7 +163,43 @@ const waitForRuntimeReady = async (page, timeoutMs) => {
 	);
 };
 
+const installProjectUploadObserver = async (page) => {
+	await page.addInitScript(() => {
+		const originalFetch = globalThis.fetch.bind(globalThis);
+		globalThis.fetch = async (input, init) => {
+			const response = await originalFetch(input, init);
+			const requestUrl = typeof input === 'string' ? input : input.url;
+			const requestMethod = init?.method ?? (typeof input === 'string' ? 'GET' : input.method);
+			if (
+				requestMethod.toUpperCase() === 'POST' &&
+				new URL(requestUrl, globalThis.location.href).pathname.endsWith(
+					'/api/ui/project-upload-load'
+				)
+			) {
+				void response
+					.clone()
+					.json()
+					.then(
+						(value) => {
+							globalThis.__gcObservedProjectUpload = { value, error: null };
+						},
+						(error) => {
+							globalThis.__gcObservedProjectUpload = {
+								value: null,
+								error: error instanceof Error ? error.message : String(error)
+							};
+						}
+					);
+			}
+			return response;
+		};
+	});
+};
+
 const uploadProjectThroughFileMenu = async (page, fixturePath, timeoutMs) => {
+	await page.evaluate(() => {
+		globalThis.__gcObservedProjectUpload = null;
+	});
 	const responsePromise = page.waitForResponse(
 		(response) =>
 			new URL(response.url()).pathname.endsWith('/api/ui/project-upload-load') &&
@@ -182,7 +218,16 @@ const uploadProjectThroughFileMenu = async (page, fixturePath, timeoutMs) => {
 	if (!response.ok()) {
 		throw new Error(`project upload failed with HTTP ${response.status()}`);
 	}
-	const result = await response.json();
+	const observed = await page.waitForFunction(
+		() => globalThis.__gcObservedProjectUpload,
+		undefined,
+		{ timeout: timeoutMs }
+	);
+	const upload = await observed.jsonValue();
+	if (upload.error) {
+		throw new Error(`project upload response could not be decoded: ${upload.error}`);
+	}
+	const result = upload.value;
 	try {
 		await page.locator('.gc-loading-overlay').waitFor({
 			state: 'visible',
@@ -335,6 +380,23 @@ const selectManagerItem = async (page, label, timeoutMs) => {
 	return row;
 };
 
+const selectVisibleNode = async (page, label, timeoutMs) => {
+	const labelButton = page
+		.locator('button.outliner-item-label:visible')
+		.filter({ hasText: exactTextPattern(label) });
+	const row = page
+		.locator('.outliner-item-content[data-node-id]:visible')
+		.filter({ has: labelButton })
+		.first();
+	await row.waitFor({ state: 'visible', timeout: timeoutMs });
+	await row
+		.locator('button.outliner-item-label')
+		.filter({ hasText: exactTextPattern(label) })
+		.click();
+	await visibleInspectorTitle(page, label).waitFor({ state: 'visible', timeout: timeoutMs });
+	return row;
+};
+
 const renameOutlinerNode = async (page, telemetry, selectedRow, oldLabel, newLabel, timeoutMs) => {
 	const nodeId = await selectedRow.getAttribute('data-node-id');
 	if (!nodeId) {
@@ -412,7 +474,8 @@ const observeChangingSignal = async (page, timeoutMs) => {
 };
 
 const clickFileMenuItem = async (page, label, timeoutMs) => {
-	const fileMenu = page.getByRole('button', { name: 'Open File menu' });
+	const fileMenu = page.locator('button.gc-file-menu-trigger').first();
+	await fileMenu.waitFor({ state: 'visible', timeout: timeoutMs });
 	await fileMenu.click();
 	await page.waitForFunction(
 		(button) => button?.getAttribute('aria-expanded') === 'true',
@@ -461,18 +524,55 @@ const openFormulaAndExerciseGraph = async (page, timeoutMs) => {
 		.filter({ hasText: exactTextPattern('ActionTest') })
 		.first();
 	await actionTestButton.waitFor({ state: 'visible', timeout: timeoutMs });
-	await actionTestButton.click();
+	const formulaSelectionStarted = Date.now();
+	await actionTestButton.click({ timeout: timeoutMs });
+	const formulaSelectionMs = Date.now() - formulaSelectionStarted;
 	const graph = page
 		.getByRole('application', { name: 'Alchemist graph drop target' })
 		.filter({ visible: true })
 		.first();
+	const graphReadyStarted = Date.now();
 	await graph.waitFor({ state: 'visible', timeout: timeoutMs });
+	const graphReadyMs = Date.now() - graphReadyStarted;
+	const homeStarted = Date.now();
 	await graph.getByRole('button', { name: 'Home', exact: true }).click();
-	const nodeCount = await graph.locator('article.node').count();
-	if (nodeCount < 1) {
+	const canvas = graph.locator('.graph-canvas').first();
+	let previousCamera = null;
+	let stableSamples = 0;
+	const cameraDeadline = Date.now() + timeoutMs;
+	while (stableSamples < 3 && Date.now() < cameraDeadline) {
+		const camera = await canvas.getAttribute('style');
+		if (camera === previousCamera) {
+			stableSamples += 1;
+		} else {
+			previousCamera = camera;
+			stableSamples = 0;
+		}
+		await page.waitForTimeout(50);
+	}
+	if (stableSamples < 3) {
+		throw new Error('Alchemist graph camera did not settle after Home');
+	}
+	const totalNodeCount = Number(await canvas.getAttribute('data-node-count'));
+	const visibleNodeCount = Number(await canvas.getAttribute('data-visible-node-count'));
+	const renderedNodeCount = await graph.locator('article.node').count();
+	if (totalNodeCount < 1 || visibleNodeCount < 1 || renderedNodeCount < 1) {
 		throw new Error('ActionTest opened no Alchemist graph nodes');
 	}
-	return { formula: 'ActionTest', nodeCount };
+	if (visibleNodeCount !== renderedNodeCount) {
+		throw new Error(
+			`Alchemist graph visible/rendered node count drifted (${visibleNodeCount} != ${renderedNodeCount})`
+		);
+	}
+	return {
+		formula: 'ActionTest',
+		formulaSelectionMs,
+		graphReadyMs,
+		homeSettleMs: Date.now() - homeStarted,
+		totalNodeCount,
+		visibleNodeCount,
+		renderedNodeCount
+	};
 };
 
 const exerciseStateMachineGraph = async (page, timeoutMs) => {
@@ -500,6 +600,56 @@ const isLoopbackHostname = (hostname) => {
 
 const ensureParentDirectory = async (filePath) => {
 	await mkdir(path.dirname(filePath), { recursive: true });
+};
+
+const median = (values) => {
+	const sorted = [...values].sort((left, right) => left - right);
+	const middle = Math.floor(sorted.length / 2);
+	return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+};
+
+const summarizeMemoryPlateau = (samples, clients) =>
+	clients.map((client) => {
+		const values = samples
+			.filter(
+				(sample) =>
+					sample.client === client.index &&
+					Number.isFinite(sample.usedJsHeapSize) &&
+					sample.usedJsHeapSize > 0
+			)
+			.map((sample) => sample.usedJsHeapSize);
+		if (values.length < 8) {
+			return { client: client.index, status: 'insufficient_samples', sampleCount: values.length };
+		}
+		const steady = values.slice(Math.floor(values.length * 0.2));
+		const split = Math.floor(steady.length / 2);
+		const baselineMedianBytes = median(steady.slice(0, split));
+		const terminalMedianBytes = median(steady.slice(split));
+		const growthBytes = Math.max(0, terminalMedianBytes - baselineMedianBytes);
+		const allowedGrowthBytes = Math.max(64 * 1024 * 1024, baselineMedianBytes * 0.25);
+		return {
+			client: client.index,
+			status: growthBytes <= allowedGrowthBytes ? 'passed' : 'failed',
+			sampleCount: values.length,
+			baselineMedianBytes,
+			terminalMedianBytes,
+			growthBytes,
+			allowedGrowthBytes
+		};
+	});
+
+const sampleRuntimeQueue = async (client) => {
+	const title = await client.page.locator('.engine-rate').first().getAttribute('title');
+	const match = title?.match(/control queue\s+(\d+)\s+\(peak\s+(\d+)/i);
+	if (!match) {
+		return { client: client.index, currentDepth: null, peakDepth: null, title };
+	}
+	return {
+		client: client.index,
+		currentDepth: Number(match[1]),
+		peakDepth: Number(match[2]),
+		title
+	};
 };
 
 const runSmoke = async () => {
@@ -659,6 +809,7 @@ const runProjectInspect = async () => {
 	const timeoutMs = getNumberArg('timeout', defaultTimeoutMs);
 	const browser = await chromium.launch(resolveBrowserLaunchOptions());
 	const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+	await installProjectUploadObserver(page);
 	const issues = createIssueCollector();
 	attachIssueCollectors(page, issues);
 
@@ -767,6 +918,7 @@ const runProductGate = async (mode) => {
 	);
 	const timeoutMs = getNumberArg('timeout', 90000);
 	const expectedHost = getArgValue('expected-host', '');
+	const traceEnabled = getArgValue('trace', 'true') !== 'false';
 	const tracePath = path.join(artifactDirectory, `${mode}.trace.zip`);
 	const loadedScreenshotPath = path.join(artifactDirectory, '01-loaded.png');
 	const interactionScreenshotPath = path.join(artifactDirectory, '02-interaction.png');
@@ -784,7 +936,7 @@ const runProductGate = async (mode) => {
 		fixturePath,
 		loadedProjectPath: null,
 		artifacts: {
-			trace: tracePath,
+			trace: traceEnabled ? tracePath : null,
 			loadedScreenshot: loadedScreenshotPath,
 			interactionScreenshot: interactionScreenshotPath,
 			reloadedScreenshot: mode === 'ui-workflow' ? reloadedScreenshotPath : null,
@@ -804,8 +956,11 @@ const runProductGate = async (mode) => {
 		locale: 'en-US',
 		reducedMotion: 'reduce'
 	});
-	await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+	if (traceEnabled) {
+		await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+	}
 	const page = await context.newPage();
+	await installProjectUploadObserver(page);
 	attachIssueCollectors(page, issues);
 	attachNetworkTelemetry(page, telemetry);
 	let failure = null;
@@ -945,13 +1100,15 @@ const runProductGate = async (mode) => {
 			// The report still carries the browser error when the page itself disappeared.
 		}
 	} finally {
-		try {
-			await context.tracing.stop({ path: tracePath });
-		} catch (error) {
-			if (!failure) {
-				failure = error;
-				report.status = 'failed';
-				report.error = toSerializableError(error);
+		if (traceEnabled) {
+			try {
+				await context.tracing.stop({ path: tracePath });
+			} catch (error) {
+				if (!failure) {
+					failure = error;
+					report.status = 'failed';
+					report.error = toSerializableError(error);
+				}
 			}
 		}
 		await ensureParentDirectory(reportPath);
@@ -982,6 +1139,177 @@ const runProductGate = async (mode) => {
 	}
 };
 
+const runMultiClientSoak = async () => {
+	const url = getArgValue('url', defaultUiUrl);
+	const fixturePath = getArgValue('fixture', '');
+	const reportPath = path.resolve(getArgValue('report', 'phase9-soak.browser-report.json'));
+	const artifactDirectory = path.resolve(
+		getArgValue('artifact-directory', path.dirname(reportPath))
+	);
+	const timeoutMs = getNumberArg('timeout', 120_000);
+	const durationMs = getNumberArg('duration-ms', 5 * 60 * 1000);
+	const clientCount = Math.max(2, Math.floor(getNumberArg('clients', 3)));
+	const intervalMs = Math.max(250, getNumberArg('interval-ms', 1000));
+	if (!fixturePath) {
+		throw new Error('--fixture is required for the multi-client soak');
+	}
+
+	await mkdir(artifactDirectory, { recursive: true });
+	const browser = await chromium.launch(resolveBrowserLaunchOptions());
+	const clients = [];
+	const report = {
+		contract: 'chataigne-phase9-multiclient-soak-v1',
+		status: 'running',
+		url,
+		fixturePath,
+		clientCount,
+		durationMs,
+		intervalMs,
+		startedAt: new Date().toISOString(),
+		finishedAt: null,
+		iterations: 0,
+		memorySamples: [],
+		memoryPlateau: [],
+		queueSamples: [],
+		queueSummary: [],
+		clients: [],
+		error: null
+	};
+	let failure = null;
+	try {
+		for (let index = 0; index < clientCount; index += 1) {
+			const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+			const page = await context.newPage();
+			const issues = createIssueCollector();
+			const telemetry = createNetworkTelemetry();
+			attachIssueCollectors(page, issues);
+			attachNetworkTelemetry(page, telemetry);
+			await installProjectUploadObserver(page);
+			await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+			await waitForRuntimeReady(page, timeoutMs);
+			await waitForWebSocketReady(telemetry, timeoutMs);
+			clients.push({ context, page, issues, telemetry, index });
+		}
+
+		const upload = await uploadProjectThroughFileMenu(clients[0].page, fixturePath, timeoutMs);
+		report.loadedProjectPath = typeof upload?.path === 'string' ? upload.path : null;
+		for (const client of clients) {
+			await waitForRuntimeReady(client.page, timeoutMs);
+			await selectVisibleNode(client.page, 'Signals', timeoutMs);
+		}
+
+		const deadline = Date.now() + durationMs;
+		while (Date.now() < deadline) {
+			const author = clients[report.iterations % clients.length];
+			const value = 31 + (report.iterations % 59);
+			await setNumericParameter(author.page, author.telemetry, 'Update Rate', value, timeoutMs);
+			for (const client of clients) {
+				const input = parameterInspector(client.page, 'Update Rate')
+					.locator('input[type="number"]:not(.readonly)')
+					.first();
+				await waitForCondition(
+					async () => Number(await input.inputValue()) === value,
+					timeoutMs,
+					`client ${client.index} did not observe Update Rate=${value}`
+				);
+			}
+			if (report.iterations % 30 === 0) {
+				for (const client of clients) {
+					const usedJsHeapSize = await client.page.evaluate(
+						() => globalThis.performance?.memory?.usedJSHeapSize ?? null
+					);
+					report.memorySamples.push({
+						iteration: report.iterations,
+						client: client.index,
+						usedJsHeapSize
+					});
+					report.queueSamples.push({
+						iteration: report.iterations,
+						...(await sampleRuntimeQueue(client))
+					});
+				}
+			}
+			report.iterations += 1;
+			await author.page.waitForTimeout(intervalMs);
+		}
+		report.memoryPlateau = summarizeMemoryPlateau(report.memorySamples, clients);
+		if (
+			durationMs >= 5 * 60 * 1000 &&
+			report.memoryPlateau.some((summary) => summary.status !== 'passed')
+		) {
+			throw new Error('one or more browser clients did not reach a bounded heap plateau');
+		}
+
+		await invokeProjectMenuEndpoint(clients[0].page, 'Save', 'project-save', timeoutMs);
+		await invokeProjectMenuEndpoint(clients[0].page, 'Open Last', 'project-load', timeoutMs);
+		for (const client of clients) {
+			await waitForRuntimeReady(client.page, timeoutMs);
+			await waitForCondition(
+				async () => (await sampleRuntimeQueue(client)).currentDepth === 0,
+				timeoutMs,
+				`client ${client.index} runtime control queue did not drain`
+			);
+			const queueSamples = report.queueSamples.filter((sample) => sample.client === client.index);
+			const finalQueue = await sampleRuntimeQueue(client);
+			if (
+				durationMs >= 5 * 60 * 1000 &&
+				(queueSamples.length < 8 || queueSamples.some((sample) => sample.currentDepth === null))
+			) {
+				throw new Error(`client ${client.index} has incomplete runtime queue telemetry`);
+			}
+			report.queueSummary.push({
+				client: client.index,
+				sampleCount: queueSamples.length,
+				maximumObservedDepth: Math.max(
+					0,
+					...queueSamples.map((sample) => sample.currentDepth ?? 0)
+				),
+				maximumReportedPeak: Math.max(0, ...queueSamples.map((sample) => sample.peakDepth ?? 0)),
+				finalDepth: finalQueue.currentDepth,
+				status: finalQueue.currentDepth === 0 ? 'passed' : 'failed'
+			});
+			const filteredIssues = filterIssues(client.issues, [], [], []);
+			assertNoBrowserIssues(filteredIssues);
+			const totals = websocketTotals(client.telemetry);
+			if (totals.receivedFrames <= 0 || totals.sentFrames <= 0) {
+				throw new Error(`client ${client.index} had no bidirectional WebSocket traffic`);
+			}
+			report.clients.push({
+				index: client.index,
+				issues: filteredIssues,
+				websocketCount: client.telemetry.websockets.length,
+				websocketTotals: totals
+			});
+		}
+		await invokeProjectMenuEndpoint(clients[0].page, 'New', 'project-new', timeoutMs);
+		report.status = 'passed';
+	} catch (error) {
+		failure = error;
+		report.status = 'failed';
+		report.error = toSerializableError(error);
+		for (const client of clients) {
+			await client.page
+				.screenshot({
+					path: path.join(artifactDirectory, `phase9-soak-client-${client.index}-failure.png`),
+					fullPage: true
+				})
+				.catch(() => {});
+		}
+	} finally {
+		report.finishedAt = new Date().toISOString();
+		for (const client of clients) {
+			await client.context.close().catch(() => {});
+		}
+		await browser.close().catch(() => {});
+		await ensureParentDirectory(reportPath);
+		await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+		console.log(JSON.stringify(report, null, 2));
+	}
+	if (failure) {
+		process.exitCode = 1;
+	}
+};
+
 const main = async () => {
 	if (command === 'smoke') {
 		await runSmoke();
@@ -1001,6 +1329,10 @@ const main = async () => {
 	}
 	if (command === 'product-gate-lan') {
 		await runProductGate('lan-browser');
+		return;
+	}
+	if (command === 'product-gate-soak') {
+		await runMultiClientSoak();
 		return;
 	}
 	console.error(`Unknown command: ${command}`);

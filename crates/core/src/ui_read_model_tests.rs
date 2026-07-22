@@ -95,6 +95,55 @@ fn retained_ui_event_logs_keep_latest_only_for_coalescable_value_params() {
 }
 
 #[test]
+fn replay_before_the_first_new_event_does_not_require_resync_without_eviction() {
+    let mut root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    root.event_behaviour = ParameterEventBehaviour::Append;
+    let mut engine = Engine::new(root);
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let snapshot_time = read_model.current_snapshot().at;
+
+    engine.time.tick += 1;
+    apply_param_change(&mut engine, 1);
+    read_model.publish_engine_events_since(&engine, Some(snapshot_time));
+    let replay = read_model.replay(Some(snapshot_time), UiSubscriptionScope::WholeGraph);
+
+    assert_eq!(batch_param_values(&replay), vec![1]);
+    assert!(!replay.events.iter().any(|event| {
+        matches!(
+            &event.kind,
+            UiEventKind::Custom { topic, .. } if topic == "__transport.resync_required"
+        )
+    }));
+}
+
+#[test]
+fn replay_requires_resync_only_after_the_cursor_falls_behind_an_eviction() {
+    let mut root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    root.event_behaviour = ParameterEventBehaviour::Append;
+    let mut engine = Engine::new(root);
+    let mut read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    read_model.set_event_capacity_for_tests(2);
+    let snapshot_time = read_model.current_snapshot().at;
+
+    engine.time.tick += 1;
+    for value in 1..=3 {
+        apply_param_change(&mut engine, value);
+    }
+    read_model.publish_engine_events_since(&engine, Some(snapshot_time));
+    let replay = read_model.replay(Some(snapshot_time), UiSubscriptionScope::WholeGraph);
+
+    assert!(replay.events.iter().any(|event| {
+        matches!(
+            &event.kind,
+            UiEventKind::Custom { topic, payload, .. }
+                if topic == "__transport.resync_required"
+                    && payload.get("reason").and_then(serde_json::Value::as_str)
+                        == Some("cursor_out_of_retention_window")
+        )
+    }));
+}
+
+#[test]
 fn whole_graph_snapshot_survives_corrupt_sibling_cycle() {
     let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
     engine.add_node(

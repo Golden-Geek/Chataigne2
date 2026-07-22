@@ -617,8 +617,6 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<
                         work_units: metrics.work_units,
                         effects_committed: metrics.effects_committed,
                         effects_suppressed: metrics.effects_suppressed,
-                        shadow_comparisons: metrics.shadow_comparisons,
-                        shadow_mismatches: metrics.shadow_mismatches,
                     });
                 }
                 stats_window_start = Instant::now();
@@ -817,7 +815,15 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             request_id,
             scope,
         } => {
+            let started = Instant::now();
             let snapshot = context.read_model.snapshot_for_scope(scope);
+            let build = started.elapsed();
+            if build >= Duration::from_millis(100) {
+                eprintln!(
+                    "[ui-ws] snapshot request_id={request_id} build_ms={}",
+                    build.as_millis()
+                );
+            }
             send_to_client(
                 clients,
                 client_id,
@@ -984,17 +990,23 @@ fn dispatch_ws_batches(
     let mut events_count = 0;
     let mut subscriptions_count = 0;
     let collect_started = Instant::now();
+    let snapshot_time = read_model.current_snapshot().at;
     let server_time = read_model
         .current_event_time()
-        .unwrap_or_else(|| read_model.current_snapshot().at);
+        .map_or(snapshot_time, |event_time| event_time.max(snapshot_time));
     let first_retained = read_model.first_retained_event_time();
+    let last_evicted = read_model.last_evicted_event_time();
 
     for (client_id, client) in clients.iter_mut() {
         for (subscription_id, subscription) in client.subscriptions.iter_mut() {
             subscriptions_count += 1;
             if let Some(cursor) = subscription.cursor {
                 if cursor > server_time {
-                    subscription.cursor = None;
+                    // A full snapshot covers the complete read model through
+                    // `server_time`. Advance this subscription to that boundary
+                    // before requesting the resync so the replacement marker is
+                    // not replayed as a second resync on the next hub pass.
+                    subscription.cursor = Some(server_time);
                     subscription.clear_pending_value_events();
                     pending.push((
                         *client_id,
@@ -1007,10 +1019,12 @@ fn dispatch_ws_batches(
                     continue;
                 }
 
-                if let Some(first_time) = first_retained
-                    && cursor < first_time
+                if let Some(evicted_through) = last_evicted
+                    && cursor < evicted_through
                 {
-                    subscription.cursor = Some(first_time);
+                    // The client must take a full snapshot, so retained deltas
+                    // through the current server boundary are already covered.
+                    subscription.cursor = Some(server_time);
                     subscription.clear_pending_value_events();
                     pending.push((
                         *client_id,
@@ -1196,8 +1210,8 @@ fn dispatch_ws_batches(
     }
     let collect_ms = collect_started.elapsed().as_millis();
 
-    if let Some(first_time) = first_retained {
-        origins.retain(|time, _| *time >= first_time);
+    if let Some(first_retained) = first_retained {
+        origins.retain(|time, _| *time >= first_retained);
     } else {
         origins.clear();
     }
@@ -1800,12 +1814,24 @@ fn send_ws_outbound(
     let close_requested = matches!(outbound, WsOutbound::Close);
     let message = match outbound {
         WsOutbound::Message(message) => {
+            let snapshot_request_id = match &message {
+                WsServerMessage::Snapshot { request_id, .. } => Some(request_id.clone()),
+                _ => None,
+            };
+            let serialize_started = Instant::now();
             let text = serde_json::to_string(&message).map_err(|err| {
                 Error::new(
                     ErrorKind::InvalidData,
                     format!("failed to serialize websocket message: {err}"),
                 )
             })?;
+            if let Some(request_id) = snapshot_request_id {
+                eprintln!(
+                    "[ui-ws] snapshot request_id={request_id} serialize_ms={} bytes={}",
+                    serialize_started.elapsed().as_millis(),
+                    text.len()
+                );
+            }
             Message::text(text)
         }
         WsOutbound::Ping(payload) => Message::Ping(payload.into()),

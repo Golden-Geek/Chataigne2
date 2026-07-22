@@ -24,6 +24,37 @@ impl<T: Node> Engine<T> {
         self.apply_edits_internal(true, Some(NodeCreationContext::Fresh))
     }
 
+    /// Applies app-owned project-load augmentation before the engine becomes live.
+    ///
+    /// Loaded-node lifecycle callbacks run with project-load semantics. Undo history
+    /// and per-edit UI projections are omitted because the host publishes one
+    /// complete snapshot after cutover.
+    pub fn apply_project_load_edits(&mut self) -> Result<(), EngineEditError> {
+        self.apply_edits_internal(false, Some(NodeCreationContext::ProjectLoadAugmentation))
+    }
+
+    /// Attaches multiple app-owned trees as one pre-cutover lifecycle batch.
+    ///
+    /// This is the scalable project-load path for data-driven assets that share a
+    /// parent. Pending edits are settled first, the trees retain input order, and
+    /// the host is expected to publish one complete snapshot after cutover.
+    pub fn apply_project_load_node_trees(
+        &mut self,
+        trees: Vec<crate::edit::NodeTree>,
+        parent: crate::node::NodeId,
+        prev_sibling: Option<crate::node::NodeId>,
+    ) -> Result<(), EngineEditError> {
+        self.apply_project_load_edits()?;
+        if trees.is_empty() {
+            return Ok(());
+        }
+        self.apply_add_node_trees_for_project_load(trees, parent, prev_sibling)?;
+        self.sync_missing_reference_warnings_silent();
+        self.rebuild_user_context_registry_from_nodes();
+        self.mark_user_context_graph_changed();
+        Ok(())
+    }
+
     /// Applies pending edits without recording undo transactions.
     ///
     /// Runtime-driven edit flushes use this so periodic/internal graph activity
@@ -336,7 +367,11 @@ impl<T: Node> Engine<T> {
             self.push_undo_transaction(transaction);
         }
         if missing_reference_warning_dirty {
-            self.sync_missing_reference_warnings();
+            if creation_context.is_some_and(NodeCreationContext::is_project_load) {
+                self.sync_missing_reference_warnings_silent();
+            } else {
+                self.sync_missing_reference_warnings();
+            }
         }
         if user_context_graph_dirty {
             self.rebuild_user_context_registry_from_nodes();

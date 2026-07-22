@@ -1309,7 +1309,9 @@ Section 15.4.
 
 - randomized repeated performance runs;
 - ten-minute p99 distributions;
-- at least eight-hour engine/network/UI soak;
+- five-minute migration-stage engine/network/UI soak with heap, queue, synchronization, and
+  failure-marker checks; longer endurance runs belong to release qualification after the
+  architecture migration;
 - stable memory plateau and bounded queues;
 - atomic-save interruption tests;
 - every functionality-parity row signed off;

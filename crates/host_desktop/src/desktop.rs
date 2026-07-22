@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{Error, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
@@ -365,8 +366,9 @@ where
 }
 
 fn default_app_data_dir<T: ProjectLifecycle>() -> std::io::Result<PathBuf> {
-    let mut dir =
-        dirs::data_dir().ok_or_else(|| Error::new(ErrorKind::NotFound, "could not resolve the app data directory"))?;
+    let mut dir = environment_data_dir_override()
+        .or_else(dirs::data_dir)
+        .ok_or_else(|| Error::new(ErrorKind::NotFound, "could not resolve the app data directory"))?;
     let app_dir_name = T::app_data_directory_name().trim();
     if app_dir_name.is_empty() {
         dir.push(T::project_file_spec().normalized_display_name());
@@ -374,6 +376,17 @@ fn default_app_data_dir<T: ProjectLifecycle>() -> std::io::Result<PathBuf> {
         dir.push(app_dir_name);
     }
     Ok(dir)
+}
+
+fn environment_data_dir_override() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    let value = env::var_os("APPDATA");
+    #[cfg(not(target_os = "windows"))]
+    let value = env::var_os("XDG_DATA_HOME");
+
+    value
+        .filter(|value| !value.to_string_lossy().trim().is_empty())
+        .map(PathBuf::from)
 }
 
 fn print_usage() {

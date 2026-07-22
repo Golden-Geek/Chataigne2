@@ -21,6 +21,15 @@ fn metronomes_module_is_declared_under_generators_menu() {
 }
 
 #[test]
+fn metronomes_script_descriptor_advertises_reset_and_tick_methods() {
+    let descriptor = MetronomesModule::create().engine_script_descriptor();
+
+    for method in ["resetMetronomes", "resetMetronome", "tickMetronome"] {
+        assert!(descriptor.methods.iter().any(|candidate| candidate == method));
+    }
+}
+
+#[test]
 fn metronomes_create_default_item_and_direct_value_trigger() {
     let (engine, module_id) = create_metronomes_module();
 
@@ -92,6 +101,41 @@ fn metronome_value_trigger_uuid_is_derived_from_item_uuid() {
         .uuid;
 
     assert_eq!(value_uuid, super::metronome_value_uuid(item_uuid));
+}
+
+#[test]
+fn sparse_reload_preserves_default_metronome_and_derived_trigger_identity() {
+    let (engine, module_id) = create_metronomes_module();
+    let metronomes = find_path(&engine, module_id, "parameters/metronomes").expect("metronomes list");
+    let metronome = nth_child(&engine, metronomes, 0).expect("default metronome");
+    let metronome_uuid = engine.nodes.get(metronome).expect("metronome").node_data().meta.uuid;
+    let values = find_path(&engine, module_id, "values").expect("values folder");
+    let trigger = find_child_by_key(&engine, values, "Metronome").expect("metronome trigger");
+    let trigger_uuid = engine.nodes.get(trigger).expect("trigger").node_data().meta.uuid;
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
+        .expect("sparse project should decode");
+    stabilize(&mut loaded);
+    let loaded_module = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("Metronomes module should reload");
+    let loaded_metronomes =
+        find_path(&loaded, loaded_module, "parameters/metronomes").expect("metronomes list should reload");
+    let loaded_metronome = nth_child(&loaded, loaded_metronomes, 0).expect("metronome should reload");
+    assert_eq!(
+        loaded.nodes.get(loaded_metronome).expect("metronome").node_data().meta.uuid,
+        metronome_uuid
+    );
+    let loaded_values = find_path(&loaded, loaded_module, "values").expect("values should reload");
+    let loaded_trigger = find_child_by_key(&loaded, loaded_values, "Metronome").expect("trigger should reload");
+    assert_eq!(
+        loaded.nodes.get(loaded_trigger).expect("trigger").node_data().meta.uuid,
+        trigger_uuid
+    );
+    assert_eq!(count_children_by_key(&loaded, loaded_values, "Metronome"), 1);
 }
 
 #[test]
@@ -183,6 +227,34 @@ fn metronome_worker_fixture_preserves_tick_multiplicity_and_count() {
     assert_eq!(tick.total_ticks, 2);
     assert_eq!(tick.interval_seconds, 0.5);
     assert_eq!(tick.last_gap_seconds, 0.5);
+}
+
+#[test]
+fn metronome_tick_callback_payload_preserves_multiplicity_count_and_timing() {
+    let tick = super::runtime::MetronomeWorkerTick {
+        item_id: NodeId(9),
+        label: "Beat".to_string(),
+        fired: 4,
+        total_ticks: 21,
+        interval_seconds: 0.5,
+        last_gap_seconds: 0.45,
+    };
+
+    assert_eq!(
+        super::metronome_tick_callback_args(&tick),
+        vec![
+            serde_json::json!("Beat"),
+            serde_json::json!(4),
+            serde_json::json!(21),
+            serde_json::json!({
+                "name": "Beat",
+                "ticks": 4,
+                "totalTicks": 21,
+                "intervalSeconds": 0.5,
+                "lastGapSeconds": 0.45,
+            }),
+        ]
+    );
 }
 
 #[test]

@@ -633,13 +633,15 @@
 					node.size?.height ?? nodeAutomaticSize(node)?.height ?? minimumNodeHeight(node)
 				);
 
-	let routingGeometryKey = $derived(
-		`${remPx}:${effectiveNodes
-			.map(
-				(node) =>
-					`${node.id}:${node.position.x}:${node.position.y}:${nodeWidth(node)}:${nodeHeight(node)}:${nodeHeaderHeight(node)}:${node.collapsed === true}:${node.socketPlacement ?? 'body'}`
-			)
-			.join('|')}`
+	let routingGeometryKey = $derived.by(() =>
+		!routeEdgesAroundNodes || edges.length === 0
+			? `${remPx}:inactive`
+			: `${remPx}:${effectiveNodes
+					.map(
+						(node) =>
+							`${node.id}:${node.position.x}:${node.position.y}:${nodeWidth(node)}:${nodeHeight(node)}:${nodeHeaderHeight(node)}:${node.collapsed === true}:${node.socketPlacement ?? 'body'}`
+					)
+					.join('|')}`
 	);
 
 	$effect(() => {
@@ -709,6 +711,7 @@
 		)
 	);
 	let routingObstacles = $derived.by((): RoutingObstacle[] => {
+		if (!routeEdgesAroundNodes || edges.length === 0) return [];
 		const clearance = ROUTING_CLEARANCE_REM * remPx;
 		return effectiveNodes.map((node) => ({
 			left: node.position.x * remPx - clearance,
@@ -2266,6 +2269,8 @@
 	class="graph-canvas"
 	data-socket-labels={socketLabels}
 	data-local-context-menu={onBackgroundContextMenu ? '' : undefined}
+	data-node-count={effectiveNodes.length}
+	data-visible-node-count={visibleNodes.length}
 	role="application"
 	aria-label="Node graph"
 	tabindex="0"

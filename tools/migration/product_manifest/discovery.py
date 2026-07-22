@@ -80,6 +80,7 @@ class Discovery:
     line: int = 1
     certainty: str = "declared"
     facts: dict[str, Any] = field(default_factory=dict)
+    stable_name: str | None = None
 
 
 def _line_number(text: str, offset: int) -> int:
@@ -89,6 +90,35 @@ def _line_number(text: str, offset: int) -> int:
 def _slug(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
     return slug or "unnamed"
+
+
+def _stable_product_path(path: str) -> str:
+    """Return the Phase 0 logical path used for path-derived capability IDs."""
+    normalized = path.replace("\\", "/")
+    alchemist_icons = "apps/chataigne/ui/src/lib/assets/icons/"
+    if normalized.startswith(alchemist_icons) and Path(normalized).name in {
+        "formula.svg",
+        "formula_library.svg",
+        "lock.svg",
+    }:
+        return (
+            "src-ui/src/lib/golden_alchemist_ui/icons/"
+            + normalized.removeprefix(alchemist_icons)
+        )
+    replacements = (
+        ("apps/chataigne/ui/", "src-ui/"),
+        ("apps/chataigne/icons/", "icons/"),
+        ("packages/golden-ui/", "src-ui/src/lib/golden_ui/"),
+        ("apps/chataigne/", ""),
+        ("crates/core/", "submodules/golden-core/crates/core/"),
+    )
+    for current, baseline in replacements:
+        if normalized.startswith(current):
+            normalized = baseline + normalized.removeprefix(current)
+            break
+    if normalized == "src/module/script_templates/spatializer_module.js":
+        return "src/module/script_templates/spatializer.js"
+    return normalized
 
 
 def _canonical_bytes(path: Path) -> bytes:
@@ -129,7 +159,11 @@ def _iter_files(root: Path) -> Iterable[tuple[str, Path]]:
         for filename in sorted(filenames):
             path = base_path / filename
             relative = path.relative_to(root).as_posix()
-            if filename == ".git" or relative.startswith(IGNORED_PREFIXES):
+            if (
+                filename == ".git"
+                or filename.casefold().endswith(".backup")
+                or relative.startswith(IGNORED_PREFIXES)
+            ):
                 continue
             yield relative, path
 
@@ -255,8 +289,15 @@ class InventoryBuilder:
                 "discovery_methods": set(),
                 "certainty": discovery.certainty,
                 "facts": {},
+                "stable_name": discovery.stable_name or name,
             },
         )
+        stable_name = discovery.stable_name or name
+        if item["stable_name"] != stable_name:
+            raise ValueError(
+                f"conflicting stable names for {discovery.kind}/{name}: "
+                f"{item['stable_name']} != {stable_name}"
+            )
         item["sources"].add((discovery.path, max(1, discovery.line)))
         item["discovery_methods"].add(discovery.method)
         if discovery.certainty == "registered":
@@ -280,7 +321,7 @@ class InventoryBuilder:
             self._items.items(),
             key=lambda pair: (pair[0][0], pair[0][1].casefold(), pair[0][1]),
         ):
-            base_id = f"{kind}/{_slug(name)}"
+            base_id = f"{kind}/{_slug(item['stable_name'])}"
             entry_id = base_id
             if base_id in used_ids and used_ids[base_id] != name:
                 suffix = hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
@@ -671,6 +712,7 @@ def _scan_script_surfaces(path: str, text: str, builder: InventoryBuilder) -> No
                 1,
                 "file_discovered",
                 {"scope": scope},
+                stable_name=_stable_product_path(path),
             )
         )
     if script_template_source:
@@ -705,6 +747,7 @@ def _scan_script_surfaces(path: str, text: str, builder: InventoryBuilder) -> No
                 path,
                 1,
                 "file_discovered",
+                stable_name=_stable_product_path(path),
             )
         )
     for match in re.finditer(
@@ -765,7 +808,10 @@ def scan_product(root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]
         if is_fixture or is_asset:
             file_entries.append(
                 {
-                    "id": f"{'fixture' if is_fixture else 'asset'}/{relative}",
+                    "id": (
+                        f"{'fixture' if is_fixture else 'asset'}/"
+                        f"{_stable_product_path(relative)}"
+                    ),
                     "kind": "fixture" if is_fixture else "asset",
                     "name": path.name,
                     "path": relative,

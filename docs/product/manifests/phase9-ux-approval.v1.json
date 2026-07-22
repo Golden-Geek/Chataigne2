@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "evidence_id": "phase9.product.ux-approval",
+  "status": "PASS",
+  "approved_at": "2026-07-22T10:19:10.7010532+00:00",
+  "authority": "Product owner confirmation in the Phase 9 Codex session",
+  "approval_statement": "The product owner reviewed the mounted-product loaded, interacted, and reloaded captures and explicitly authorized recording UX approval and completing Phase 9 qualification.",
+  "scope": "Phase 9 Chataigne workbench UX represented by the complete mounted real-app workflow on the recorded Windows tree.",
+  "tested_tree_sha": "d37e43bde8b86ed96ade3cdc61e9a2e2b28c8f4b",
+  "product_report": {
+    "path": "target/phase9/product-parity/phase9-final/product-gate/product-gate-report.json",
+    "sha256": "7580a10bbbc2333c5d6653413a8890ff5e015cfbf294124948bb887e3bfa38e8"
+  },
+  "reviewed_artifacts": [
+    {
+      "path": "target/phase9/product-parity/phase9-final/product-gate/ui-workflow-artifacts/01-loaded.png",
+      "sha256": "f6a3d28868de406edb3f813c091735eaa24faaba7522b7a3139b2eacb6fc80a7"
+    },
+    {
+      "path": "target/phase9/product-parity/phase9-final/product-gate/ui-workflow-artifacts/02-interaction.png",
+      "sha256": "8d9d0ffc73366ac39e67d8277a477e7afa88b5e02d0665b04e0da64f460cb46b"
+    },
+    {
+      "path": "target/phase9/product-parity/phase9-final/product-gate/ui-workflow-artifacts/03-reloaded.png",
+      "sha256": "41076098d9fcbb00a1f501fda43d0b80770e6491287d038e72f40d3ce7d9acf1"
+    }
+  ]
+}

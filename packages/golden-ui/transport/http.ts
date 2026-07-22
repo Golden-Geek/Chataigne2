@@ -67,7 +67,7 @@ import { getUiClientInstanceId } from './client-instance';
 
 const DEFAULT_BASE_URL = 'http://localhost:7010/api/ui';
 const DEFAULT_POST_TIMEOUT_MS = 15000;
-const PROJECT_LOAD_TIMEOUT_MS = 60000;
+const PROJECT_LOAD_TIMEOUT_MS = 120000;
 
 interface HttpClientOptions {
 	baseUrl?: string;

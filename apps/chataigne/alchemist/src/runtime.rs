@@ -1132,10 +1132,17 @@ fn evaluate_operation(
         CompiledNodeOperation::Clamp => Ok(vec![clamp_values(evaluation.inputs)?]),
         CompiledNodeOperation::DelayOneTick => {
             let [value] = require_inputs::<1>(evaluation.inputs)?;
-            if let Some(state) = evaluation.state.first_mut() {
-                *state = value.clone();
-            }
-            Ok(vec![value.clone()])
+            let [initialized, previous] = evaluation.state else {
+                return Err("Delay One Tick requires two runtime state slots".into());
+            };
+            let output = if matches!(initialized, RuntimeValue::Bool(true)) {
+                previous.clone()
+            } else {
+                value.clone()
+            };
+            *initialized = RuntimeValue::Bool(true);
+            *previous = value.clone();
+            Ok(vec![output])
         }
         CompiledNodeOperation::DebugLog => {
             let [value] = require_inputs::<1>(evaluation.inputs)?;
@@ -1272,10 +1279,12 @@ fn clamp_values(inputs: &[RuntimeValue]) -> Result<RuntimeValue, String> {
     let values = require_inputs::<3>(inputs)?.map(Clone::clone);
     let (shape, values) = aligned_numeric_components(&values)?;
     let [value, minimum, maximum] = values.try_into().map_err(|_| "invalid Clamp input count".to_string())?;
-    let result = value
-        .iter()
-        .zip(minimum.iter().zip(maximum.iter()))
-        .map(|(value, (minimum, maximum))| value.clamp(*minimum, *maximum))
-        .collect::<Vec<_>>();
+    let mut result = Vec::with_capacity(value.len());
+    for (value, (minimum, maximum)) in value.iter().zip(minimum.iter().zip(maximum.iter())) {
+        if minimum > maximum {
+            return Err("Clamp minimum cannot exceed maximum".into());
+        }
+        result.push(value.clamp(*minimum, *maximum));
+    }
     Ok(numeric_from_components(shape, &result))
 }

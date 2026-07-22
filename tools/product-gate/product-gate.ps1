@@ -839,6 +839,18 @@ Invoke-GateCommand `
     -Executable "python" `
     -Arguments @("tools/migration/check_phase8_contracts.py") `
     -DependsOn @("architecture.phase7_contracts") | Out-Null
+Invoke-GateCommand `
+    -Id "architecture.phase9_deletion" `
+    -Name "Phase 9 governed deletion contracts" `
+    -Executable "python" `
+    -Arguments @("tools/migration/check_phase9_deletion.py") `
+    -DependsOn @("architecture.phase8_contracts") | Out-Null
+Invoke-GateCommand `
+    -Id "architecture.phase9_docs" `
+    -Name "Phase 9 final documentation contracts" `
+    -Executable "python" `
+    -Arguments @("tools/migration/check_phase9_docs.py") `
+    -DependsOn @("architecture.phase9_deletion") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `

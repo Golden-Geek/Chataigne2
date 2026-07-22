@@ -235,7 +235,7 @@ fn compiler_builds_dense_schedule_and_memory_layout() {
     assert_eq!(compiled.exec_nodes[0].exec_id.index(), 0);
     assert_eq!(compiled.exec_nodes[1].exec_id.index(), 1);
     assert_eq!(compiled.debug_map.exec_to_authored, vec![constant, delay, add]);
-    assert_eq!(compiled.state_layout.state_slot_count, 1);
+    assert_eq!(compiled.state_layout.state_slot_count, 2);
 }
 
 #[test]

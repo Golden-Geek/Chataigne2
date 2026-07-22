@@ -65,14 +65,6 @@ work_units: number,
  */
 effects_committed: number,
 /**
- * External effects suppressed by safe shadow execution.
+ * Non-authoritative external effects suppressed by the routing policy.
  */
-effects_suppressed: number,
-/**
- * Authoritative values compared with the side-effect-free runtime plan.
- */
-shadow_comparisons: number,
-/**
- * Semantic mismatches found by safe shadow comparison.
- */
-shadow_mismatches: number, };
+effects_suppressed: number, };

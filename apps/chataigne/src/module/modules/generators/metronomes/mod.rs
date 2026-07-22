@@ -227,18 +227,7 @@ impl MetronomesModule {
                 ctx,
                 module_id,
                 METRONOME_TICK_CALLBACK,
-                vec![
-                    serde_json::json!(tick.label),
-                    serde_json::json!(tick.fired),
-                    serde_json::json!(tick.total_ticks),
-                    serde_json::json!({
-                        "name": tick.label,
-                        "ticks": tick.fired,
-                        "totalTicks": tick.total_ticks,
-                        "intervalSeconds": tick.interval_seconds,
-                        "lastGapSeconds": tick.last_gap_seconds,
-                    }),
-                ],
+                metronome_tick_callback_args(&tick),
             );
         }
 
@@ -382,6 +371,21 @@ impl MetronomesModule {
         self.config_dirty = true;
         self.sync_configuration(ctx, snapshot);
     }
+}
+
+fn metronome_tick_callback_args(tick: &runtime::MetronomeWorkerTick) -> Vec<serde_json::Value> {
+    vec![
+        serde_json::json!(tick.label),
+        serde_json::json!(tick.fired),
+        serde_json::json!(tick.total_ticks),
+        serde_json::json!({
+            "name": tick.label,
+            "ticks": tick.fired,
+            "totalTicks": tick.total_ticks,
+            "intervalSeconds": tick.interval_seconds,
+            "lastGapSeconds": tick.last_gap_seconds,
+        }),
+    ]
 }
 
 #[golden_core::item(

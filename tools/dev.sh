@@ -55,14 +55,6 @@ step() {
   printf '\n==> %s\n' "$1"
 }
 
-run_sudo() {
-  if [[ "$(id -u)" -eq 0 ]]; then
-    "$@"
-  else
-    sudo "$@"
-  fi
-}
-
 load_cargo_env() {
   if [[ -f "${HOME}/.cargo/env" ]]; then
     # shellcheck disable=SC1091
@@ -97,8 +89,9 @@ ensure_linux_system_deps() {
       fi
     done
     if [[ "${#missing[@]}" -gt 0 ]]; then
-      run_sudo apt-get update
-      run_sudo apt-get install -y "${missing[@]}"
+      echo "Missing system packages: ${missing[*]}" >&2
+      echo "Install them with apt before rerunning tools/dev.sh." >&2
+      exit 1
     else
       echo "Linux desktop packages found."
     fi
@@ -125,29 +118,19 @@ ensure_linux_system_deps() {
       fi
     done
     if [[ "${#missing[@]}" -gt 0 ]]; then
-      run_sudo dnf install -y "${missing[@]}"
+      echo "Missing system packages: ${missing[*]}" >&2
+      echo "Install them with dnf before rerunning tools/dev.sh." >&2
+      exit 1
     else
       echo "Linux desktop packages found."
     fi
     if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
-      run_sudo dnf group install -y "c-development" || run_sudo dnf group install -y "Development Tools"
+      echo "A system C development toolchain is required." >&2
+      exit 1
     fi
   elif command -v pacman >/dev/null 2>&1; then
-    run_sudo pacman -Syu --needed \
-      webkit2gtk-4.1 \
-      alsa-lib \
-      libusb \
-      base-devel \
-      curl \
-      wget \
-      file \
-      openssl \
-      pkgconf \
-      systemd \
-      appmenu-gtk-module \
-      libappindicator-gtk3 \
-      librsvg \
-      xdotool
+    echo "Install the Arch desktop prerequisites listed in docs/workspace-hygiene.md before rerunning tools/dev.sh." >&2
+    exit 1
   elif command -v zypper >/dev/null 2>&1; then
     local packages=(
       webkit2gtk3-devel
@@ -170,28 +153,19 @@ ensure_linux_system_deps() {
       fi
     done
     if [[ "${#missing[@]}" -gt 0 ]]; then
-      run_sudo zypper --non-interactive refresh
-      run_sudo zypper --non-interactive install "${missing[@]}"
+      echo "Missing system packages: ${missing[*]}" >&2
+      echo "Install them with zypper before rerunning tools/dev.sh." >&2
+      exit 1
     else
       echo "Linux desktop packages found."
     fi
     if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
-      run_sudo zypper --non-interactive install -t pattern devel_basis
+      echo "The system devel_basis pattern is required." >&2
+      exit 1
     fi
   elif command -v apk >/dev/null 2>&1; then
-    run_sudo apk add \
-      build-base \
-      webkit2gtk-4.1-dev \
-      alsa-lib-dev \
-      libusb-dev \
-      curl \
-      wget \
-      file \
-      openssl \
-      pkgconf \
-      eudev-dev \
-      libayatana-appindicator-dev \
-      librsvg
+    echo "Install the Alpine desktop prerequisites listed in docs/workspace-hygiene.md before rerunning tools/dev.sh." >&2
+    exit 1
   else
     echo "Unsupported Linux package manager. Install the Tauri Linux prerequisites manually, then rerun this script." >&2
   fi
@@ -201,8 +175,7 @@ ensure_macos_system_deps() {
   step "macOS desktop build dependencies"
 
   if ! xcode-select -p >/dev/null 2>&1; then
-    xcode-select --install || true
-    echo "Finish the Xcode Command Line Tools installer, then rerun bash tools/dev.sh." >&2
+    echo "Xcode Command Line Tools are a system prerequisite. Install them, then rerun bash tools/dev.sh." >&2
     exit 1
   fi
 }
@@ -210,7 +183,7 @@ ensure_macos_system_deps() {
 ensure_system_deps() {
   if [[ "${skip_system_deps}" -eq 1 ]]; then
     step "Desktop build dependencies"
-    echo "Skipping system dependency install."
+    echo "Skipping system dependency verification."
     return
   fi
 
@@ -231,11 +204,7 @@ ensure_system_deps() {
 ensure_rustup() {
   load_cargo_env
   if ! command -v rustup >/dev/null 2>&1; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
-    load_cargo_env
-  fi
-  if ! command -v rustup >/dev/null 2>&1; then
-    echo "rustup was installed but is still not on PATH. Restart the shell, then rerun bash tools/dev.sh." >&2
+    echo "rustup is a system prerequisite. Install it and the pinned toolchain from docs/workspace-hygiene.md." >&2
     exit 1
   fi
 }
@@ -247,12 +216,10 @@ activate_canonical_toolchain() {
     exit 1
   fi
   ensure_rustup
-  sh "$repo_root/tools/bootstrap/install-rust-toolchain.sh"
-  local node_bin
-  node_bin="$(sh "$repo_root/tools/bootstrap/install-node.sh")"
-  PATH="$node_bin:$PATH"
-  export PATH
+  CARGO_TARGET_DIR="$repo_root/target"
+  export CARGO_TARGET_DIR
   sh "$repo_root/tools/bootstrap/verify-toolchain.sh" --check-installed
+  pwsh -NoProfile -File "$repo_root/tools/workspace-hygiene.ps1" -Action Audit
 }
 
 ensure_ui_dependencies() {

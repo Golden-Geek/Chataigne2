@@ -39,9 +39,9 @@ install is required.
 - `packages/golden-ui/`: reusable workbench, panels, stores, transport adapters, and generated Rust
   protocol bindings.
 - `packages/golden-graph-ui/`: domain-neutral graph canvas and graph interaction components.
-- `apps/chataigne/ui/src/lib/state_machine/`: current app-owned Alchemist editor, formula surface,
-  previews, and processor composition UI; Phase 4 groups these under the final Alchemist boundary
-  without creating another graph canvas.
+- `packages/golden-statechart-ui/`: app-agnostic statechart canvas projection.
+- `apps/chataigne/ui/src/lib/state_machine/`: app-owned Alchemist editor, formula surface,
+  previews, and processor composition UI over the public graph and statechart packages.
 
 App UI code consumes these packages through their public package exports. App-specific panels,
 registrations, branding, and policy stay under `apps/chataigne/ui/`.

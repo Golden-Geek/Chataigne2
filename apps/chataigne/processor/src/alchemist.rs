@@ -129,7 +129,14 @@ impl ChataigneNodeKind {
         Self::Routing,
     ];
 
-    fn type_id(self) -> &'static str {
+    #[must_use]
+    #[cfg(test)]
+    pub(crate) const fn all() -> &'static [Self] {
+        &Self::ALL
+    }
+
+    #[must_use]
+    pub(crate) const fn type_id(self) -> &'static str {
         match self {
             Self::ConditionsManager => CONDITIONS_MANAGER_TYPE,
             Self::FiltersManager => FILTERS_MANAGER_TYPE,

@@ -72,3 +72,20 @@ all-features = true
 [profile.release]
 opt-level = 3
 lto = true
+
+# Keep local Rust artifacts bounded. Full dependency debug info and incremental
+# caches multiply rapidly across the workspace and are not required for normal
+# development or test backtraces.
+[profile.dev]
+debug = "line-tables-only"
+incremental = false
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.test]
+debug = "line-tables-only"
+incremental = false
+
+[profile.test.package."*"]
+debug = false

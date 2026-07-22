@@ -16,6 +16,9 @@ Start here:
   and local versus cross-platform qualification requirements.
 - [Parity ledger schema](parity-ledger-schema.md) defines the fields and completion rules for every
   independently observable capability and temporary adapter.
+- [`functional-parity-evidence.v1.json`](manifests/functional-parity-evidence.v1.json) is the
+  authored side of the Phase 9 parity ledger. Generated discovery stays separate and no entry is
+  accepted as qualified without the complete executable-result contract.
 - [Phase 2 seam dashboard](manifests/phase2-seams.v1.json) records each application-facing seam and
   the governed production adapters that remain authoritative during later cutovers.
 - [Phase 4 cutover dashboard](manifests/phase4-cutovers.v1.json) records the Chataigne Alchemist
@@ -30,6 +33,12 @@ Start here:
   module families, shared IO cutovers, carried runtime adapter, and qualification state.
 - [Phase 8 controller/hardware evidence](manifests/phase8-hardware-evidence.v1.json) names the
   platform scope, deterministic adapter, executable fixtures, and physical-device status per family.
+- [Phase 9 qualification dashboard](manifests/phase9-qualification.v1.json) declares the current
+  construction interval, preserves the immutable Phase 8 checkpoint, and records every final
+  parity, scale, soak, packaging, documentation, and deletion gate. Run
+  `python tools/migration/phase9_readiness.py --json` for the machine-readable blocker report.
+- [Phase 9 UX approval](manifests/phase9-ux-approval.v1.json) records the product-owner decision and
+  immutable hashes of the reviewed mounted-app captures.
 - [Architecture decisions](../architecture/decisions/README.md) record the Phase 0 decisions that
   constrain implementation.
 - [Final architecture and migration plan](../Golden_Architecture_Final_Plan.md) remains the complete

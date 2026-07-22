@@ -7,13 +7,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-& (Join-Path $PSScriptRoot "install-rust-toolchain.ps1")
-$nodeDirectory = & (Join-Path $PSScriptRoot "install-node.ps1")
-if ([string]::IsNullOrWhiteSpace($nodeDirectory)) {
-    throw "Pinned Node installer did not return its local bin directory."
-}
-$env:PATH = "$nodeDirectory$([System.IO.Path]::PathSeparator)$env:PATH"
+$repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
+$env:CARGO_TARGET_DIR = Join-Path $repositoryRoot "target"
 & (Join-Path $PSScriptRoot "verify-toolchain.ps1") -CheckInstalled
+& (Join-Path $repositoryRoot "tools\workspace-hygiene.ps1") -Action Audit
 
 if ($null -ne $Command -and $Command.Length -gt 0) {
     $executable = $Command[0]

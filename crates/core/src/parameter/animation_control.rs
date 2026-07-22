@@ -359,6 +359,7 @@ impl Node for ParameterAnimationControlNode {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(self.update_rate_hz.max(1))
+            .with_compiled_kernel("golden.runtime.parameter-animation")
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {

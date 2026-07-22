@@ -11304,6 +11304,116 @@ fn duplicate_subtree_queues_root_structure_events_for_existing_observers() {
 }
 
 #[test]
+fn project_load_tree_augmentation_skips_discarded_ui_projection() {
+    let root = RoutingNode::with_policy("root", 2, 0, EventPropagation::Notify);
+    let mut engine = Engine::new(root);
+    let imported = RoutingNode::with_policy("imported", 1, 0, EventPropagation::Notify);
+    let nested = RoutingNode::with_policy("nested", 0, 0, EventPropagation::Notify);
+    let mut tree = crate::edit::NodeTree::new(imported);
+    tree.push_child(crate::edit::NodeTree::new(nested));
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+
+    engine
+        .apply_project_load_edits()
+        .expect("project-load augmentation should apply");
+
+    assert!(
+        engine
+            .nodes
+            .iter()
+            .any(|(_, node)| node.node_data().meta.label == "nested"),
+        "the complete detached subtree should be attached"
+    );
+    assert!(
+        engine.ui_event_log().is_empty(),
+        "the host sends one full snapshot after project cutover"
+    );
+    let root = engine.nodes.get(engine.root).expect("root should exist");
+    assert_eq!(
+        root.observed_node_created, 0,
+        "transient create events must not fan out"
+    );
+    assert_eq!(root.observed_child_added, 0, "transient child events must not fan out");
+    assert_eq!(engine.undo_len(), 0, "startup augmentation must not enter user history");
+}
+
+#[test]
+fn project_load_tree_augmentation_binds_declared_handles_locally() {
+    let root: MacroTestNode = Folder::new("root").into();
+    let mut engine = Engine::new(root);
+    let owner: MacroTestNode = AutoDeclaredNode::new().into();
+    let mut decay = Parameter::new("Decay", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
+    decay.node_data_mut().meta.decl_id = DeclId("decay".to_owned());
+    let mut tree = crate::edit::NodeTree::new(owner);
+    tree.push_child(crate::edit::NodeTree::new(decay));
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+
+    engine
+        .apply_project_load_edits()
+        .expect("project-load augmentation should apply");
+
+    let owner = engine
+        .nodes
+        .iter()
+        .find_map(|(node_id, node)| (node.get_type() == "auto_declared").then_some(node_id))
+        .expect("declared owner should exist");
+    let decay = find_child_by_decl_any(&engine, owner, "decay").expect("declared child should exist");
+    let MacroTestNode::AutoDeclaredNode(owner) = engine.nodes.get(owner).expect("declared owner should exist") else {
+        panic!("expected AutoDeclaredNode variant");
+    };
+    assert_eq!(
+        owner.decay.id(),
+        decay,
+        "direct-parent preprocessing should bind the handle"
+    );
+    assert!(engine.ui_event_log().is_empty(), "augmentation still omits UI deltas");
+}
+
+#[test]
+fn project_load_tree_batch_preserves_order_and_shares_lifecycle_snapshots() {
+    let root = RoutingNode::with_policy("root", 1, 0, EventPropagation::Notify);
+    let mut engine = Engine::new(root);
+    let trees = vec![
+        crate::edit::NodeTree::new(RoutingNode::with_policy("first", 0, 0, EventPropagation::Notify)),
+        crate::edit::NodeTree::new(RoutingNode::with_policy("second", 0, 0, EventPropagation::Notify)),
+    ];
+
+    engine
+        .apply_project_load_node_trees(trees, engine.root, None)
+        .expect("project-load tree batch should apply");
+
+    let mut labels = Vec::new();
+    let mut child = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child);
+    while let Some(node_id) = child {
+        let node = engine.nodes.get(node_id).expect("batched child should exist");
+        labels.push(node.node_data().meta.label.as_str());
+        child = node.node_data().next_sibling;
+    }
+    assert_eq!(labels, vec!["first", "second"]);
+    assert_eq!(
+        engine.tick_stats().snapshot_builds,
+        3,
+        "the whole batch should share one attached/init/ready snapshot set"
+    );
+    assert!(
+        engine.ui_event_log().is_empty(),
+        "pre-cutover insertion should omit UI deltas"
+    );
+    assert_eq!(engine.undo_len(), 0, "pre-cutover insertion must not enter history");
+}
+
+#[test]
 fn preprocess_precomputed_inbox_is_snapshot_free() {
     let root = RoutingNode::with_policy("root", 1, 0, EventPropagation::Notify);
     let mut engine = Engine::new(root);
@@ -11857,7 +11967,13 @@ fn reevaluate_graph_edit_marks_and_rebuilds_schedule() {
     let root = RuntimeNode::new("root", NodeExecutionRule::passive());
     let mut engine = Engine::new(root);
 
-    engine.add_node(RuntimeNode::new("runner", NodeExecutionRule::periodic(2)), None);
+    engine.add_node(
+        RuntimeNode::new(
+            "runner",
+            NodeExecutionRule::periodic(2).with_compiled_kernel("test.runtime.runner"),
+        ),
+        None,
+    );
     engine.apply_edits().expect("setup edits should succeed");
     engine.resolve().expect("initial resolve should succeed");
 
@@ -12105,7 +12221,13 @@ fn run_tick_respects_update_rate_buckets() {
 fn production_runtime_orders_due_callbacks_through_compiled_work_and_preserves_catch_up() {
     let root = RuntimeNode::new("root", NodeExecutionRule::passive());
     let mut engine = Engine::new(root);
-    engine.add_node(RuntimeNode::new("runner", NodeExecutionRule::periodic(2)), None);
+    engine.add_node(
+        RuntimeNode::new(
+            "runner",
+            NodeExecutionRule::periodic(2).with_compiled_kernel("test.runtime.runner"),
+        ),
+        None,
+    );
     engine.apply_edits().expect("setup edits should succeed");
     let runner = engine
         .nodes
@@ -12134,7 +12256,7 @@ fn production_runtime_orders_due_callbacks_through_compiled_work_and_preserves_c
 }
 
 #[test]
-fn production_runtime_compiles_named_domain_kernel_families() {
+fn production_runtime_requires_named_domain_kernel_families() {
     let root = RuntimeNode::new("root", NodeExecutionRule::passive());
     let mut engine = Engine::new(root);
     engine.add_node(
@@ -12151,7 +12273,6 @@ fn production_runtime_compiles_named_domain_kernel_families() {
         ),
         None,
     );
-    engine.add_node(RuntimeNode::new("adapter", NodeExecutionRule::periodic(60)), None);
     engine.add_node(
         RuntimeNode::new(
             "tcp-client",
@@ -12172,7 +12293,7 @@ fn production_runtime_compiles_named_domain_kernel_families() {
     let keys = crate::runtime_center::compiled_kernel_keys(&engine).expect("compiled kernel catalog should build");
     assert!(keys.iter().any(|key| key == "chataigne.runtime.signals"));
     assert!(keys.iter().any(|key| key == "chataigne.runtime.metronomes"));
-    assert!(keys.iter().any(|key| key == "golden.runtime.domain-node-adapter"));
+    assert!(!keys.iter().any(|key| key.contains("adapter")));
     assert_eq!(
         keys.iter()
             .filter(|key| key.as_str() == "chataigne.runtime.tcp")
@@ -12180,6 +12301,18 @@ fn production_runtime_compiles_named_domain_kernel_families() {
         1,
         "one compiled family kernel must serve both TCP client and server work units"
     );
+}
+
+#[test]
+fn production_runtime_rejects_scheduled_work_without_a_kernel_identity() {
+    let mut engine = Engine::new(RuntimeNode::new("root", NodeExecutionRule::passive()));
+    engine.add_node(RuntimeNode::new("unnamed", NodeExecutionRule::periodic(60)), None);
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("test schedule should resolve");
+
+    let error = crate::runtime_center::compiled_kernel_keys(&engine)
+        .expect_err("unnamed scheduled work must not enter a production generation");
+    assert!(error.contains("has no compiled kernel identity"));
 }
 
 // --- Phase 5: scheduler bucket collection tests ---

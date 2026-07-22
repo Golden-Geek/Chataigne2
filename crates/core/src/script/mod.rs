@@ -3966,7 +3966,8 @@ impl Node for ScriptNode {
         }
 
         if self.reload_requested || self.runtime.is_none() {
-            return NodeExecutionRule::periodic(SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ);
+            return NodeExecutionRule::periodic(SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ)
+                .with_compiled_kernel("golden.runtime.script");
         }
 
         let has_on_update = self
@@ -3975,14 +3976,18 @@ impl Node for ScriptNode {
             .is_some_and(|active| active.runtime.has_on_update());
         if !has_on_update {
             if self.config.source.is_file_backed() {
-                return NodeExecutionRule::periodic(SCRIPT_FILE_RELOAD_POLL_HZ);
+                return NodeExecutionRule::periodic(SCRIPT_FILE_RELOAD_POLL_HZ)
+                    .with_compiled_kernel("golden.runtime.script");
             }
             return NodeExecutionRule::passive();
         }
 
         match self.effective_update_rate_hz {
-            Some(rate_hz) if rate_hz > 0 => NodeExecutionRule::periodic(rate_hz),
-            None => NodeExecutionRule::periodic(SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ),
+            Some(rate_hz) if rate_hz > 0 => {
+                NodeExecutionRule::periodic(rate_hz).with_compiled_kernel("golden.runtime.script")
+            }
+            None => NodeExecutionRule::periodic(SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ)
+                .with_compiled_kernel("golden.runtime.script"),
             _ => NodeExecutionRule::passive(),
         }
     }

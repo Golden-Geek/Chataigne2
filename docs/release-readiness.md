@@ -27,3 +27,33 @@ preflight fail before compilation unless the platform credentials are present:
 Secrets never belong in repository configuration or generated artifacts. A release candidate is
 not qualified until its native bundle is installed on a clean environment, launched, connected to
 the engine, exercised through the canonical save/reload workflow, and removed cleanly.
+
+The native workflow performs that qualification with:
+
+```text
+python tools/migration/run_phase9_package_smoke.py \
+  --platform <windows|macos|linux> \
+  --output-dir target/phase9/package/<platform>
+```
+
+Windows installs the produced NSIS package into an isolated location and invokes its uninstaller.
+macOS runs the executable inside the produced app bundle. Linux runs the produced AppImage with
+extract-and-run isolation. Every platform launches the packaged binary in headless host mode, then
+uses a real browser to connect, load a fixture, mutate the outliner and inspector, exercise Formula
+and State Machine graphs, save/reopen, verify live feedback, create a new project, and clean its
+isolated app data.
+
+The Phase 9 migration soak is separate and defaults to the required five minutes:
+
+```text
+python tools/migration/run_phase9_soak.py \
+  --output-dir target/phase9/soak/release-candidate
+```
+
+It keeps at least three independent browser clients connected while rotating authoritative
+mutations and verifying observation fan-out, save/reload, WebSocket traffic, browser errors, and
+cleanup. It samples each browser heap, requires a stable plateau, records runtime queue depth and
+peak, requires queues to drain, rejects host failure markers, and repeats the full Chataigne
+hardware-simulator suite three times. The `--allow-short` option exists only for runner development
+and cannot supply Phase 9 evidence. Longer endurance runs remain available through
+`--duration-seconds` for actual release qualification without blocking the migration checkpoint.

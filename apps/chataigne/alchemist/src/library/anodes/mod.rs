@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::{
     ANodeConfigFieldDecl, ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature,
     ANodeTypeId, AutoWirePolicy, CompiledNodeOperation, Diagnostic, ExecutionKind, InputSocketDecl, ManagedUiMode,
-    OutputSocketDecl, PipelineCardinality, RegistryError, ResolvedANodeSignature, RuntimeValue, SignatureCtx,
-    StableRef, SurfaceItemKind, TriggerValue, TypeBindings, TypeConstraint, ValueTypeId,
+    NodeStateLayout, OutputSocketDecl, PipelineCardinality, RegistryError, ResolvedANodeSignature, RuntimeValue,
+    SignatureCtx, StableRef, SurfaceItemKind, TriggerValue, TypeBindings, TypeConstraint, ValueTypeId,
 };
 
 mod angle_conversion;
@@ -121,6 +121,12 @@ impl PrimitiveNodeKind {
         Self::DebugValue,
         Self::DebugLog,
     ];
+
+    #[must_use]
+    #[cfg(test)]
+    pub(crate) const fn all() -> &'static [Self] {
+        &Self::ALL
+    }
 
     #[must_use]
     pub const fn type_name(self) -> &'static str {
@@ -294,6 +300,14 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
 
     fn breaks_dependency_cycle(&self) -> bool {
         self.kind == PrimitiveNodeKind::DelayOneTick
+    }
+
+    fn state_layout(&self, _instance: &ANodeInstance, _resolved: &ResolvedANodeSignature) -> NodeStateLayout {
+        match self.kind {
+            PrimitiveNodeKind::DelayOneTick => NodeStateLayout::RuntimeValues(2),
+            _ if self.execution_kind() == ExecutionKind::Stateful => NodeStateLayout::RuntimeValues(1),
+            _ => NodeStateLayout::Stateless,
+        }
     }
 
     fn config_fields(&self) -> Vec<ANodeConfigFieldDecl> {

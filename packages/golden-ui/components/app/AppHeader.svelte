@@ -54,8 +54,7 @@
 			`Generation ${stats.generation_id}`,
 			`control queue ${stats.control_queue_depth} (peak ${stats.control_queue_peak}, avg wait ${averageQueueMs.toFixed(2)} ms)`,
 			`batches ${stats.sparse_batches} sparse / ${stats.dense_batches} dense`,
-			`effects ${stats.effects_committed} committed / ${stats.effects_suppressed} shadow-suppressed`,
-			`shadow ${stats.shadow_comparisons} compared / ${stats.shadow_mismatches} mismatched`
+			`effects ${stats.effects_committed} committed / ${stats.effects_suppressed} suppressed`
 		].join(' · ');
 	});
 

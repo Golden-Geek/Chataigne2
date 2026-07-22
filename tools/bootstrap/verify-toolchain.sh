@@ -55,7 +55,7 @@ if check_installed:
         "cargo": rf"^cargo {re.escape(manifest['rust']['cargo_version'])}(?:\s|$)",
         "node": rf"^v{re.escape(manifest['node']['version'])}$",
         "npm": rf"^{re.escape(manifest['node']['npm_version'])}$",
-        "python": rf"^Python {re.escape(manifest['python']['version'])}(?:\s|$)",
+        "python": rf"^Python {re.escape(manifest['python']['version'])}(?:\.\d+)?(?:\s|$)",
     }
     actual = {"rustc": rustc, "cargo": cargo, "node": node, "npm": npm, "python": python}
     for name, pattern in expected.items():

@@ -21,8 +21,6 @@ use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 const INPUT_LOSSLESS_CAPACITY: usize = 16_384;
-const DOMAIN_NODE_ADAPTER_KERNEL: &str = "golden.runtime.domain-node-adapter";
-
 #[derive(Clone)]
 struct CompiledParameter {
     node: NodeId,
@@ -42,7 +40,7 @@ struct CompiledScheduledNode {
 }
 
 impl EngineCompileSnapshot {
-    fn capture<T: Node>(engine: &Engine<T>) -> Self {
+    fn capture<T: Node>(engine: &Engine<T>) -> Result<Self, String> {
         let mut parameters = engine
             .nodes
             .iter()
@@ -57,23 +55,23 @@ impl EngineCompileSnapshot {
         let scheduled_nodes = engine
             .schedule_topology()
             .iter()
-            .map(|node| {
+            .map(|node| -> Result<CompiledScheduledNode, String> {
                 let kernel_key = engine
                     .nodes
                     .get(*node)
                     .and_then(|value| value.execution_rule().compiled_kernel_key)
-                    .unwrap_or(DOMAIN_NODE_ADAPTER_KERNEL)
+                    .ok_or_else(|| format!("scheduled node {} has no compiled kernel identity", node.0))?
                     .to_string();
-                CompiledScheduledNode {
+                Ok(CompiledScheduledNode {
                     node: *node,
                     kernel_key,
-                }
+                })
             })
-            .collect();
-        Self {
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
             parameters,
             scheduled_nodes,
-        }
+        })
     }
 
     fn node_to_slot(&self) -> HashMap<NodeId, InputSlot> {
@@ -205,7 +203,7 @@ fn compile_generation(
 
 #[cfg(test)]
 pub(crate) fn compiled_kernel_keys<T: Node>(engine: &Engine<T>) -> Result<Vec<String>, String> {
-    let snapshot = EngineCompileSnapshot::capture(engine);
+    let snapshot = EngineCompileSnapshot::capture(engine)?;
     let generation = compile_generation(RuntimeGenerationId(1), ProjectRevision(1), &snapshot)?;
     Ok(generation
         .processor_kernels
@@ -351,8 +349,6 @@ pub(crate) struct ProductionState<T: Node> {
     dirty: DirtySet,
     scheduler: PersistentBatchScheduler<InputIdentityExecutor>,
     scheduler_outputs: Vec<(WorkUnitId, WorkUnitId)>,
-    metrics: Arc<RuntimeMetrics>,
-    shadow_expected: Vec<(NodeId, ParamValue)>,
     last_runtime_plane_error: Option<String>,
 }
 
@@ -364,7 +360,7 @@ impl<T: Node> ProductionState<T> {
         engine
             .resolve()
             .map_err(|error| format!("failed to resolve initial runtime schedule: {error}"))?;
-        let snapshot = Arc::new(EngineCompileSnapshot::capture(&engine));
+        let snapshot = Arc::new(EngineCompileSnapshot::capture(&engine)?);
         let revision = ProjectRevision(1);
         let generation = Arc::new(compile_generation(RuntimeGenerationId(1), revision, &snapshot)?);
         let work_count = generation.schedule.work_count();
@@ -406,8 +402,6 @@ impl<T: Node> ProductionState<T> {
                 dirty: DirtySet::new(work_count),
                 scheduler,
                 scheduler_outputs: Vec::new(),
-                metrics,
-                shadow_expected: Vec::new(),
                 last_runtime_plane_error: None,
             },
             input_port,
@@ -470,10 +464,8 @@ impl<T: Node> ProductionState<T> {
                 dirty.clear();
             });
         if let Err(error) = tick_result {
-            self.shadow_expected.clear();
             return Err(error);
         }
-        self.compare_shadow_results();
         if has_structural_events_since(&self.engine, previous_event_time) {
             self.request_compilation("runtime.structure");
         }
@@ -505,7 +497,7 @@ impl<T: Node> ProductionState<T> {
                 .map_err(|error| format!("failed to resolve runtime schedule before compilation: {error}"))?;
         }
         self.project_revision.0 = self.project_revision.0.saturating_add(1);
-        let snapshot = Arc::new(EngineCompileSnapshot::capture(&self.engine));
+        let snapshot = Arc::new(EngineCompileSnapshot::capture(&self.engine)?);
         let mut changes = RuntimeChangeSet::new();
         changes.mark(affected);
         let ticket = self
@@ -627,7 +619,6 @@ impl<T: Node> ProductionState<T> {
                     continue;
                 }
             };
-            self.shadow_expected.push((node, value.clone()));
             self.engine.edits.push(Edit::SetParam {
                 node,
                 value,
@@ -638,22 +629,6 @@ impl<T: Node> ProductionState<T> {
             });
         }
         self.dirty.clear();
-    }
-
-    fn compare_shadow_results(&mut self) {
-        let comparisons = self.shadow_expected.len();
-        let mismatches = self
-            .shadow_expected
-            .drain(..)
-            .filter(|(node, expected)| {
-                self.engine
-                    .nodes
-                    .get(*node)
-                    .and_then(Node::engine_param_snapshot)
-                    .is_none_or(|snapshot| snapshot.value != *expected)
-            })
-            .count();
-        self.metrics.shadow_compared(comparisons, mismatches);
     }
 }
 

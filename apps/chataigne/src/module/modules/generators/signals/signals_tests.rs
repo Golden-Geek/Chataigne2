@@ -23,6 +23,15 @@ fn signals_module_is_declared_under_generators_menu() {
 }
 
 #[test]
+fn signals_script_descriptor_advertises_reset_methods() {
+    let descriptor = SignalsModule::create().engine_script_descriptor();
+
+    for method in ["resetSignals", "resetSignal"] {
+        assert!(descriptor.methods.iter().any(|candidate| candidate == method));
+    }
+}
+
+#[test]
 fn signals_create_default_sine_item_and_direct_ranged_value() {
     let (engine, module_id) = create_signals_module();
 
@@ -245,6 +254,31 @@ fn signal_worker_fixture_is_deterministic_across_cycles() {
     let second = second.samples.get(&NodeId(1)).expect("second signal sample");
     assert!((second.value - 1.0).abs() < 0.000_001);
     assert_eq!((second.cycle, second.cycles), (1, 1));
+}
+
+#[test]
+fn signal_cycle_callback_payload_preserves_cycle_multiplicity_and_details() {
+    let sample = super::runtime::SignalWorkerSample {
+        item_id: NodeId(7),
+        label: "Orbit".to_string(),
+        value: 0.75,
+        cycle: 12,
+        cycles: 3,
+    };
+
+    assert_eq!(
+        super::signal_cycle_callback_args(&sample),
+        vec![
+            serde_json::json!("Orbit"),
+            serde_json::json!(3),
+            serde_json::json!({
+                "name": "Orbit",
+                "cycles": 3,
+                "cycle": 12,
+                "value": 0.75,
+            }),
+        ]
+    );
 }
 
 #[test]

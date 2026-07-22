@@ -3,6 +3,7 @@ use golden_core::node::{Folder, Node};
 use super::initialize_default_project;
 use crate::app::{
     state_machine_nodes_formula::{FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_EXTERNAL_READ_ONLY_TAG},
+    state_machine_nodes_processor::FormulaCatalog,
     AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary, StateMachineManager,
 };
 
@@ -28,7 +29,7 @@ fn default_project_contains_one_top_level_state_machine_manager() {
 fn default_project_contains_builtin_external_formulas() {
     // Isolate from whatever the current machine's real Shared formulas
     // folder happens to contain (e.g. formulas saved there by a running
-    // app instance) so this only ever sees the two shipped built-ins.
+    // app instance) so this only ever sees the shipped built-ins.
     let _shared_dir_guard = shared_formula_dir_test_override();
 
     let root: AppNode = Folder::new("root").into();
@@ -63,9 +64,15 @@ fn default_project_contains_builtin_external_formulas() {
         })
         .collect::<Vec<_>>();
 
-    assert_eq!(formulas.len(), 2);
-    assert_eq!(formulas[0].0, "Action");
-    assert_eq!(formulas[1].0, "Mapping");
+    let expected_labels = FormulaCatalog::default_builtin_formula_trees()
+        .expect("built-in formulas should load")
+        .into_iter()
+        .map(|tree| tree.node.node_data().meta.label.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        formulas.iter().map(|(label, _, _)| label.clone()).collect::<Vec<_>>(),
+        expected_labels
+    );
     for (_, tags, permissions) in formulas {
         assert!(tags.iter().any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG));
         assert!(tags

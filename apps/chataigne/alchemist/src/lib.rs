@@ -86,7 +86,15 @@ mod library_tests;
 #[cfg(test)]
 mod pipeline_tests;
 #[cfg(test)]
+mod runtime_color_tests;
+#[cfg(test)]
+mod runtime_math_tests;
+#[cfg(test)]
+mod runtime_stateful_tests;
+#[cfg(test)]
 mod runtime_tests;
+#[cfg(test)]
+mod runtime_value_source_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

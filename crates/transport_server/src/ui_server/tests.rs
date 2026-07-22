@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+use golden_engine::node::Folder;
 use serde_json::json;
 
 use super::*;
@@ -168,6 +169,59 @@ fn canonical_subscribe_message_serializes_view_scope_and_planes() {
                 "planes": ["structure", "preview"]
             }
         })
+    );
+}
+
+#[test]
+fn cursor_resync_advances_past_the_replacement_marker() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.clear_ui_event_log();
+    engine.push_ui_custom_event(
+        "__transport.resync_required",
+        None,
+        json!({ "reason": "project_replaced" }),
+    );
+    let read_model = Arc::new(UiReadModel::from_engine(&engine, UiProjectFileSpec::default()));
+    read_model.publish_engine_events_since(&engine, None);
+    let replacement_marker_time = read_model.current_event_time().expect("replacement marker time");
+    let server_time = replacement_marker_time.max(read_model.current_snapshot().at);
+
+    let mut clients = HashMap::new();
+    clients.insert(1, client_with_subscription_count(1));
+    let subscription = clients
+        .get_mut(&1)
+        .unwrap()
+        .subscriptions
+        .get_mut("subscription-0")
+        .unwrap();
+    subscription.cursor = Some(EngineTime {
+        tick: server_time.tick + 1,
+        micro: server_time.micro,
+        seq: server_time.seq,
+    });
+    let outbound = clients.get(&1).unwrap().outbound.clone();
+    let mut origins = HashMap::new();
+
+    dispatch_ws_batches(&read_model, &mut clients, &mut origins, false);
+    dispatch_ws_batches(&read_model, &mut clients, &mut origins, false);
+
+    assert_eq!(
+        clients
+            .get(&1)
+            .unwrap()
+            .subscriptions
+            .get("subscription-0")
+            .unwrap()
+            .cursor,
+        Some(server_time)
+    );
+    let Some(WsOutbound::Message(WsServerMessage::ResyncRequired { reason, .. })) = outbound.pop() else {
+        panic!("expected one resync request");
+    };
+    assert_eq!(reason, "cursor_ahead_of_server_time");
+    assert!(
+        outbound.pop().is_none(),
+        "replacement marker must not request a second resync"
     );
 }
 

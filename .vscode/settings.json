@@ -6,8 +6,9 @@
     "**/apps/chataigne/ui/build/**": true,
     "**/.svelte-kit/**": true
   },
-  "rust-analyzer.cargo.allTargets": true,
-  "rust-analyzer.check.allTargets": true,
-  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.cargo.allTargets": false,
+  "rust-analyzer.cargo.targetDir": false,
+  "rust-analyzer.check.allTargets": false,
+  "rust-analyzer.check.command": "check",
   "task.allowAutomaticTasks": "on"
 }

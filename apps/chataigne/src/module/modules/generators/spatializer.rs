@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use delaunator::{Point, triangulate};
 use golden_core::{
     edit::NodeTree,
+    engine::NodeExecutionRule,
     events::{CustomEvent, Event, EventFrame, EventKind},
     node,
     node::{
@@ -44,6 +45,7 @@ const FREEZE_RADIUS_DECL_ID: &str = "freeze_radius";
 const VALUE_TARGET_DECL_PREFIX: &str = "spatializer_target";
 const VALUE_SOURCE_DECL_PREFIX: &str = "spatializer_source";
 const VORONOI_TIE_EPSILON: f64 = 1.0e-9;
+const SPATIALIZER_UPDATE_RATE_HZ: u32 = 60;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SpatializerDimension {
@@ -567,6 +569,11 @@ impl Node for SpatializerModule {
 
     fn needs_update(&self) -> bool {
         self.config_dirty
+    }
+
+    fn execution_rule(&self) -> NodeExecutionRule {
+        NodeExecutionRule::periodic(SPATIALIZER_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.spatializer")
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {

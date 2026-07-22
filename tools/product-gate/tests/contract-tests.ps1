@@ -7,9 +7,9 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
 $scripts = @(
     "tools/bootstrap/bootstrap.ps1",
-    "tools/bootstrap/install-node.ps1",
     "tools/bootstrap/install-rust-toolchain.ps1",
     "tools/bootstrap/verify-toolchain.ps1",
+    "tools/workspace-hygiene.ps1",
     "tools/product-gate/aggregate-reports.ps1",
     "tools/product-gate/hooks/browser-gate-common.ps1",
     "tools/product-gate/hooks/module-loopback-smoke.ps1",
@@ -28,6 +28,22 @@ foreach ($relativePath in $scripts) {
 }
 
 & (Join-Path $repositoryRoot "tools/bootstrap/verify-toolchain.ps1") | Out-Null
+
+$bootstrapSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/bootstrap/bootstrap.ps1"))
+if ($bootstrapSource -match 'install-node|install-rust-toolchain|target\\toolchains') {
+    throw "Developer bootstrap must verify system prerequisites without downloading repository-local toolchains."
+}
+$toolchainManifest = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/bootstrap/toolchain.json"))
+if ($toolchainManifest -match 'base_url|distributions|sha256') {
+    throw "The toolchain manifest must describe system prerequisites, not downloadable runtimes."
+}
+$editorSettings = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot ".vscode/settings.json")) | ConvertFrom-Json
+if ($editorSettings.'rust-analyzer.cargo.targetDir' -ne $false -or
+    $editorSettings.'rust-analyzer.cargo.allTargets' -ne $false -or
+    $editorSettings.'rust-analyzer.check.allTargets' -ne $false -or
+    $editorSettings.'rust-analyzer.check.command' -ne "check") {
+    throw "rust-analyzer must share the canonical target and reserve all-target Clippy for explicit gates."
+}
 
 $workflowSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot ".github/workflows/product-gate.yml"))
 if ($workflowSource -notmatch 'native_platform:' -or

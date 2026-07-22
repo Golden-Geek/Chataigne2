@@ -1,6 +1,7 @@
 # Architecture
 
-This repository is converging on a layered workspace with a thin shell, shared engine/runtime packages, and a UI stack that talks to the engine through explicit protocol boundaries.
+This repository is a layered workspace with a thin product shell, shared engine/runtime packages,
+and a UI stack that talks to the engine through generated protocol boundaries.
 
 ## Top-Level Layers
 
@@ -14,10 +15,11 @@ This repository is converging on a layered workspace with a thin shell, shared e
 
 ### Alchemist And Statecharts
 
-`crates/golden_alchemist` owns reusable typed graph compilation/runtime and
-`crates/golden_statechart` owns hierarchical statechart mechanics. Chataigne value types, Processor
-policy, command arbitration, built-in Processor models, and protocol DTOs live in the app-owned
-`apps/chataigne/state_machine` crate beside other product behavior.
+`crates/graph` owns the reusable graph document and `crates/golden_statechart` owns hierarchical
+statechart mechanics. Chataigne Formula types, the ANode catalog, compiler/runtime, and graph-domain
+adapter live in `apps/chataigne/alchemist`. Processor policy and lanes live in
+`apps/chataigne/processor`; state-machine composition and its generated protocol live in
+`apps/chataigne/state_machine`.
 
 ### Protocol Boundary
 
@@ -26,11 +28,10 @@ UI request, response, event, snapshot, and version types must have one source of
 ### UI Client And Stores
 
 `apps/chataigne/ui` contains the app UI shell and consumes `packages/golden-ui` as the reusable
-workbench boundary. `packages/golden-alchemist-ui` supplies app-agnostic infinite-canvas node
-rendering and interaction. The
-Chataigne State Machine panel, DTO adapters, and stores remain app-owned. Session state should be
-composed from focused stores behind a thin facade. Transport concerns should sit behind interfaces,
-not leak directly into state orchestration.
+workbench boundary. `packages/golden-graph-ui` supplies app-agnostic infinite-canvas rendering and
+interaction, while `packages/golden-statechart-ui` projects reusable statechart documents. The
+Chataigne Formula and State Machine panels, DTO adapters, and product registrations remain
+app-owned. Focused stores sit behind thin facades and depend on transport interfaces.
 
 ### Host Layers
 

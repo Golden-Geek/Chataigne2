@@ -2160,6 +2160,7 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
             input.items.push(parse_quote! {
                 fn execution_rule(&self) -> golden_core::engine::NodeExecutionRule {
                     golden_core::engine::NodeExecutionRule::periodic(#rate)
+                        .with_compiled_kernel("golden.runtime.declared-node")
                 }
             });
 

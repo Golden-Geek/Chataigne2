@@ -1008,6 +1008,7 @@ impl Node for StateMachineManager {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(STATE_MACHINE_RUNTIME_HZ)
+            .with_compiled_kernel("chataigne.runtime.state-machine")
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: golden_core::node::NodeId, child: golden_core::node::NodeId) {

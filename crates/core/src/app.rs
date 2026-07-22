@@ -5,7 +5,7 @@ use std::fs;
 use std::io::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::edit::{Edit, NodeTree};
 use crate::engine::{
@@ -501,20 +501,44 @@ where
 
 /// Applies startup edits, resolves scheduling, and clears bootstrap-only runtime state.
 pub fn prepare_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::Result<()> {
+    let trace_enabled = runtime_prepare_perf_trace_enabled();
+    let total_started = Instant::now();
+    let apply_started = Instant::now();
     engine
         .apply_edits()
         .map_err(|err| Error::other(format!("initial apply_edits failed: {err}")))?;
+    let apply = apply_started.elapsed();
+    let ready_started = Instant::now();
     engine
         .run_pending_node_ready_callbacks()
         .map_err(|err| Error::other(format!("initial node-ready callbacks failed: {err}")))?;
+    let ready = ready_started.elapsed();
+    let resolve_started = Instant::now();
     engine
         .resolve_if_needed()
         .map_err(|err| Error::other(format!("initial resolve failed: {err}")))?;
+    let resolve = resolve_started.elapsed();
     // Startup shape is already reflected by the in-memory graph and initial snapshot.
     // Dropping bootstrap inbox events avoids a very expensive first runtime tick for large graphs.
     engine.inbox.clear();
     engine.clear_history(); // keep runtime undo history strictly post-start
+    if trace_enabled {
+        eprintln!(
+            "[engine] runtime_prepare apply_ms={} ready_ms={} resolve_ms={} total_ms={}",
+            apply.as_millis(),
+            ready.as_millis(),
+            resolve.as_millis(),
+            total_started.elapsed().as_millis()
+        );
+    }
     Ok(())
+}
+
+fn runtime_prepare_perf_trace_enabled() -> bool {
+    std::env::var_os("GOLDEN_PERF_TRACE").is_some_and(|value| {
+        let value = value.to_string_lossy();
+        !matches!(value.trim().to_ascii_lowercase().as_str(), "" | "0" | "false" | "off")
+    })
 }
 
 /// Applies startup work for a best-effort project recovery load.

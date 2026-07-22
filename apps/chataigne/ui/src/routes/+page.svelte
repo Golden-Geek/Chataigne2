@@ -17,6 +17,7 @@
 	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
 	import ConditionManagerInspector from '$lib/state_machine/components/ConditionManagerInspector.svelte';
 	import FormulaLibraryPanel from '$lib/state_machine/components/FormulaLibraryPanel.svelte';
+	import FormulaNodeInspector from '$lib/state_machine/components/FormulaNodeInspector.svelte';
 	import InputSourceInspector from '$lib/state_machine/components/InputSourceInspector.svelte';
 	import InputValueConditionInspector from '$lib/state_machine/components/InputValueConditionInspector.svelte';
 	import ProcessorFormulaInspector from '$lib/state_machine/components/ProcessorFormulaInspector.svelte';
@@ -67,6 +68,10 @@
 
 	registerNodeInspector('sm_input_source', {
 		component: InputSourceInspector
+	});
+
+	registerNodeInspector('alchemist_formula', {
+		component: FormulaNodeInspector
 	});
 
 	// registerOutlinerRowSupplement('module', {

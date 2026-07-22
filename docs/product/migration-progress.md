@@ -1,6 +1,6 @@
 # Product-Preserving Migration Progress
 
-Updated: 2026-07-16
+Updated: 2026-07-22
 
 The canonical branch is `architecture/aaa-product-rewrite`, started from
 `fb0f3a58f3593df8994bf8bd46f88ddd7612f41d`. Every named phase ends at a
@@ -18,10 +18,134 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 ## Current Checkpoint
 
-- State: `CHECKPOINT_RUNNABLE`; Phase 8 is qualified at exact commit
-  `b45a9b0a7a01ebee386e24a91daa42f897054bc6`.
-- Current subphase: Phase 8 is complete. Phase 9 final qualification, approved UX improvements,
-  and governed deletion is next.
+- State: `CONSTRUCTION`; Phase 9 final qualification and governed deletion is underway. This state
+  does not claim complete-product parity beyond the immutable Phase 8 checkpoint.
+- Last runnable checkpoint — State: `CHECKPOINT_RUNNABLE`; Phase 8 remains qualified at exact
+  commit `b45a9b0a7a01ebee386e24a91daa42f897054bc6`.
+- Current subphase: Phase 9A, 9B, and 9D are runnable; the Phase 9B 100,000-value runtime, 10,000-node
+  full-workbench, and 622-row functional-parity gates pass locally on Win-x64. The Windows clean
+  package and five-minute three-client/hardware soak gates also pass, and product-owner UX review
+  is approved. macOS/Linux clean packages and exact-commit cross-platform qualification still
+  block the final checkpoint.
+- Construction objective: finish the product-owner, soak, clean-package, and cross-platform gates
+  recorded in
+  [`phase9-qualification.v1.json`](manifests/phase9-qualification.v1.json).
+- Affected layers: product evidence records, migration qualification tooling, performance and
+  full-workbench fixtures, release packaging, and final governed deletion.
+- Expected breakages: `python tools/migration/phase9_readiness.py --json` intentionally exits
+  non-zero until the remaining external and duration-bound qualification evidence is recorded. No
+  Phase 8 product workflow is expected to regress during the Phase 9 construction interval.
+- Focused checks: the 78 migration unit tests, Phase 2 through Phase 9 contract checkers, product
+  manifest drift/schema validation, the complete product gate, the short multi-client soak
+  rehearsal, and the Windows clean-package workflow all pass.
+- Phase 9A identity proof: all 583 capability IDs from the immutable Phase 0 inventory remain in
+  the current 622-row inventory. The 39 post-baseline IDs are locked by SHA-256
+  `e6183e50674c3d45045f9e503a33060509d1875d7b714f91c9b40d29a5ff33e4`; the focused identity
+  command and all 78 migration tests pass. The authored evidence manifest now qualifies all 622
+  rows through the current full-product report; identity preservation alone is not used as proof.
+- Phase 9B scalar-scale proof: local Win-x64 report
+  `target/phase9/scale/phase9-100k-local/phase9-scale-report.json` passed both mandated 100,000-lane
+  partitions with 1,000 samples. Worst dense p95/p99 was 3.336/3.433 ms, worst 1%-dirty sparse p95
+  was 0.032 ms, worst no-dirty p95 was 0.005 ms, and no 16.67 ms deadline was missed. Digests were
+  deterministic across 1/2/4/8 workers and output capacity stayed bounded.
+- Phase 9B graph-scale proof: release Win-x64 report
+  `target/phase9/graph-scale/phase9-graph-10k-local/phase9-graph-scale-report.json` passed the real
+  bundled full-workbench workflow on tested tree
+  `0221f9644a62869f92274c61a390d067991ae52f`. The formula editor retained exactly 10,000 graph
+  nodes while rendering the 414 visible nodes, below the 1,000-node DOM ceiling. Outliner and
+  inspector mutation, live feedback, formula and state-machine interaction, Save/Open Last,
+  persistence verification, New-project cleanup, WebSocket traffic, and all browser issue checks
+  passed. The browser artifact hash is
+  `b1580bd76869cc3baff88eb70ade94927623c22f763e82ee76d6b136238e2048`.
+- Current Phase 9 functional-parity proof:
+  `target/phase9/product-parity/phase9-final/phase9-product-parity-report.json` qualifies all 622
+  rows on tested tree `d37e43bde8b86ed96ade3cdc61e9a2e2b28c8f4b`. The complete product
+  report passed the Rust workspace and UI gates, all three root launch workflows, mounted real-app
+  mutation and Save/Open Last persistence, OSC loopback, and non-loopback LAN interaction. The
+  wrapper SHA-256 is `336e208c8dea9bce73ece98b0512bda4209d451359c4c183127d3ea59032d22e`.
+  This evidence does not claim the cross-platform, soak, or signed product-UX parity gates.
+- Windows clean-package proof:
+  `target/phase9/package/windows-final/phase9-clean-package-report.json` records tested tree
+  `d37e43bde8b86ed96ade3cdc61e9a2e2b28c8f4b`. NSIS and MSI bundles were produced; an
+  isolated NSIS install ran the canonical ten-step mounted UI workflow from the packaged binary,
+  including mutation and Save/Open Last, and the generated uninstaller removed the installation.
+  The report SHA-256 is `1c6bc908e081c3c167fe10acb8d98d7787ad4d4c69b8ccd3d0aeafba33a58b87`.
+- Phase 9 migration soak proof:
+  `target/phase9/soak/phase9-final/phase9-soak-report.json` records tested tree
+  `7108f5d91da56dfc07df364707bbcb9eb280b8df`. Three hardware-simulator cycles and a
+  five-minute mounted-product interval with three independent clients completed 263 synchronized
+  mutations. Each client supplied nine heap and queue samples; median heap growth was 1.0-4.3 MB
+  against the 64 MB ceiling, reported queue peak was at most two, every final queue depth was zero,
+  and the host logs contained no failure marker. The report SHA-256 is
+  `0927697d49add483426d3bcd10cadae635146b72d04337139ea893195e55c7a5`.
+- Product UX approval: the product owner reviewed the loaded, interacted, and reloaded captures from
+  the complete mounted-app workflow and explicitly approved Phase 9 UX parity. The signed decision
+  is recorded in `docs/product/manifests/phase9-ux-approval.v1.json` with SHA-256
+  `4a3b4f80250164e8401fb79dcd8894e760158fad57d82bc775fc67d747846ab8`.
+- Built-in formula parity proof: the directory-derived qualifier at
+  `target/phase9/builtin-formulas/phase9-builtin-formulas-local/phase9-builtin-formulas-report.json`
+  matched every bundled JSON to generated inventory and canonical hashes, then passed catalog,
+  default-project, palette, read-only, processor, warning, and sparse save/reload coverage with no
+  ignored tests. The two current formula rows are qualified; additions to the folder are discovered
+  by the build, runtime catalog tests, and qualifier without adding formula names to bundling policy.
+- ANode catalog proof: the declaration-driven qualifier at
+  `target/phase9/anode-catalog/phase9-anode-catalog-local/phase9-anode-catalog-report.json`
+  matched all 37 generated rows to the live registry, exposed every declaration through the real
+  formula creation menu, materialized each through the app intent path, computed each live
+  signature, and preserved the exact catalog through sparse save/reload on tested tree
+  `0933be2295394d507d95334e4b6fea990708b017`. The report SHA-256 is
+  `e30eaad67cb6028ace41c951b9406f25b5bfdd9547688be2139359e422f225c2`. The 146-test Alchemist
+  suite and 65 active processor tests pass. Two obsolete pre-manager processor fixtures are
+  explicitly recorded as ignored. All 37 ANode rows are now fully characterized. Routing covers menu exposure,
+  collapsed presentation, generic type inference, pure typed pass-through behavior, absence of
+  effects, and persistence. Condition Gate covers every declared mode, hold-last state, trigger
+  blocking, whole-ValueSet behavior, per-lane lowering, catalog exposure, and persistence. Math
+  covers all five operators, all supported numeric shapes, forced conversion, idle scheduling, and
+  zero-divisor diagnostics.
+  Constant and Property are fully characterized across every primitive runtime value shape;
+  Property additionally covers schema typing, processor overrides, dependency-scoped invalidation,
+  shared compile reuse, stable-reference authoring, undo, and reload.
+  Debug Value and Debug Log are characterized across every primitive payload shape: Debug Value is
+  a pure observable pass-through with no intents, while Debug Log is an effect-only typed intent
+  emitter with explicit disabled-node suppression and no fabricated graph output.
+  The transform-family matrix characterizes Remap interpolation, extrapolation, and zero-range
+  errors; Clamp across every numeric shape and invalid bounds; One Minus, Inverse, and Negate across
+  every numeric shape; Pack Vec3 component and ValueSet lane order; both angle-conversion modes; and
+  both Cartesian/polar coordinate directions including the origin. Clamp now reports inverted
+  bounds as a node diagnostic instead of panicking.
+  The pure-node matrix additionally covers all 15 Function modes and dynamic Atan2 arity; all four
+  Convert To String formats; Concatenate ordering and decoration; Split delimiter, Unicode, trim,
+  and empty-part policies; complete AND/OR/XOR truth tables; all 11 Compare modes with open-generic
+  primitive typing; and Gate open/closed behavior with trigger identity preserved.
+  The stateful matrix covers every Smooth Filter method with independent lane memory, Speed
+  derivatives, Counter reset precedence, all LFO shapes and update-rate holds, every deterministic
+  bounded Noise algorithm, all Metronome timing modes and phase outputs, Trigger On/Off edge and
+  toggle state machines, and Delay One Tick bootstrap and previous-value feedback semantics.
+  The color matrix covers default and authored gradients, stop normalization, every interpolation
+  policy, and all RGBA, HSVA, HSLA, and CMYKA conversion/extraction modes. The app-owned manager
+  matrix covers Conditions lane override and global fallback, Filters pass-through and empty
+  defaults, Inputs revision propagation, and Outputs signal-triggered and explicit-triggered command
+  emission without duplicate effects.
+- Generator-family parity proof: the source-and-kind-driven qualifier at
+  `target/phase9/generator-modules/phase9-generator-modules-local/phase9-generator-modules-report.json`
+  matched 26 non-visual rows across Signals (9), Metronomes (9), and Spatializer (8) on tested tree
+  `2fc7b23d165a957b44199ac9eb92148106063fcc`; its SHA-256 is
+  `31b0f294f5651252d135a813a375fcad878607901e95cefd6f521413b51ebb1b`.
+  All 36 focused generator tests passed with zero ignored tests, as did the shared script-template
+  API fixture and Phase 8 contract check. Coverage includes catalog and declared-tree creation,
+  recursive parameter enablement, deterministic signal cycles and metronome tick multiplicity,
+  exact callback payloads, direct-value identity, sparse persistence, script descriptors and
+  expansion, every Spatializer weighting mode, Voronoi continuity, rename/layout synchronization,
+  and the 512-source by 1,024-target sparse-Delaunay scale fixture. The mounted full-product report
+  supplies current functional evidence for the related visual surfaces; product-owner UX signoff
+  remains a separate Phase 9 gate.
+- Phase 9D finalization proof:
+  `target/phase9/finalization/phase9-final-local/phase9-finalization-report.json` passed governed
+  deletion, final documentation, manifest drift/schema, and every Phase 2 through Phase 8
+  architecture contract on tested tree `1eaf2d055efd46136fd509c86041e0e45c8d6021`. Its
+  SHA-256 is `ed072b82413272c3b65d3fd1f678f691bab323dfebce934a36bf5f53cd430806`;
+  the Phase 9D dashboard is now runnable with no carried temporary adapter.
+- Next named checkpoint: Phase 9 `CHECKPOINT_RUNNABLE` after every recorded gate passes.
 - 8B proof: deterministic worker fixtures prove fixed-delta values, cycles, tick multiplicity, and
   counts. Local Win-x64 report `target/product-gate/20260716T101347Z/product-gate-report.json`
   passed all 38 required checks; 7 non-required checks were `NOT_RUN`.
@@ -92,7 +216,7 @@ while preserving full cross-platform closure before affected cutovers and final 
 | Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)       |
 | Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`; local report `target/product-gate/20260716T070444Z/product-gate-report.json`; all 37 required checks passed |
 | Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `b45a9b0a7a01ebee386e24a91daa42f897054bc6`; [six-platform product gate run 29580856581](https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581)       |
-| Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | Pending             | `BLOCKED`              | Every parity row and release gate must pass                                                                                                                                     |
+| Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `BLOCKED`              | 622/622 parity, UX, all scale/soak gates, Windows package, documentation, and deletion pass; macOS/Linux packages and cross-platform qualification remain                         |
 
 ## Phase 0 Governance Slice
 

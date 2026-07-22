@@ -48,8 +48,10 @@ pub struct NodeExecutionRule {
     ///
     /// `None` means this node does not request periodic updates.
     pub update_rate: Option<NodeUpdateRate>,
-    /// Stable compiled-kernel identity for domain nodes that have completed a
-    /// family cutover. `None` keeps the node on the governed domain adapter.
+    /// Stable compiled-kernel identity for scheduled domain work.
+    ///
+    /// Production generation compilation rejects periodic work without a key.
+    /// Passive rules keep this empty because they do not create work units.
     pub compiled_kernel_key: Option<&'static str>,
 }
 

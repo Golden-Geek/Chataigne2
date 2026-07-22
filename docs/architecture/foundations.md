@@ -1,7 +1,7 @@
 # Foundation Ownership
 
-Phase 3 extracts shared identities, values, parameters, and contexts before graph transactions or UI
-state depend on them. The live product consumes these types; the new crates are not parallel models.
+Shared identities, values, parameters, and contexts are the live foundations consumed by graph,
+runtime, protocol, persistence, and UI layers. They are not parallel models.
 
 ## `golden_model`
 
@@ -17,9 +17,9 @@ triggers, scalar/vector/color values, durations, arrays, stable references, and 
 Color channels are `f64`, matching parameters, protocol DTOs, persistence, and UI numbers without
 the previous Alchemist-only precision narrowing.
 
-`chataigne_alchemist` and the rest of Chataigne now depend on `golden_values` directly; the former
-public Alchemist `RuntimeValue` compatibility name has been removed. Alchemist may use a private
-semantic name internally, but package consumers receive the canonical `golden_values::Value` API.
+`chataigne_alchemist` and the rest of Chataigne depend on `golden_values` directly. Alchemist may
+use a private semantic name internally, but package consumers receive the canonical
+`golden_values::Value` API.
 Parameter-specific concepts such as files, enum selections, CSS units, and node-reference hints
 cross the canonical boundary as typed extensions and round-trip through executable tests.
 
@@ -28,9 +28,7 @@ cross the canonical boundary as typed extensions and round-trip through executab
 `golden_parameters` owns parameter values, value types, constraints, control state, projections,
 snapshots, UI hints, canonical-value conversion, and `NodeReference`. It depends only on
 `golden_model`, `golden_values`, and serialization primitives. The engine continues to own the
-stateful `Parameter` node and animation-control node; its parameter module temporarily re-exports
-the extracted contracts so the production cutover remains source-compatible and independently
-reviewable.
+stateful `Parameter` node and animation-control node and consumes the public parameter contracts.
 
 The former engine `Color` is now an alias of the canonical `golden_values::ColorValue`, exposed
 through `golden_parameters` for parameter-facing callers. There is no second color declaration.
@@ -39,8 +37,7 @@ through `golden_parameters` for parameter-facing callers. There is no second col
 
 `golden_context` owns the app-agnostic context registry, snapshots, declarations, updates, and
 dynamic context contracts. It depends on stable model identities and parameter values/projections,
-not on the engine loop, host runtime, statechart policy, or Chataigne modules. The engine context
-path is a governed temporary re-export while those consumers migrate vertically.
+not on the engine loop, host runtime, statechart policy, or Chataigne modules.
 
 ## Dependency Direction
 
@@ -51,5 +48,5 @@ statecharts, Chataigne, host code, or UI policy. The executable contract in
 `tools/migration/check_phase3_contracts.py` enforces this direction and verifies that the old owners
 no longer declare the moved types.
 
-Cutover state and compatibility-export deletion criteria are recorded in
+Historical cutover evidence is recorded in
 [`phase3-cutovers.v1.json`](../product/manifests/phase3-cutovers.v1.json).

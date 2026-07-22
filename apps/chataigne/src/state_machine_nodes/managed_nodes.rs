@@ -793,6 +793,7 @@ impl Node for OutputsManager {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(OUTPUT_SCHEDULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.state-machine-outputs")
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -977,6 +978,7 @@ impl Node for OutputGroup {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(OUTPUT_SCHEDULE_UPDATE_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.state-machine-outputs")
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {

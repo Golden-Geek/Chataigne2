@@ -25,7 +25,7 @@
       "name": "angle_conversion",
       "sources": [
         {
-          "line": 144,
+          "line": 150,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -43,7 +43,7 @@
       "name": "boolean_operation",
       "sources": [
         {
-          "line": 152,
+          "line": 158,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -62,7 +62,7 @@
       "name": "chataigne.conditions_manager",
       "sources": [
         {
-          "line": 134,
+          "line": 141,
           "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
@@ -81,7 +81,7 @@
       "name": "chataigne.filters_manager",
       "sources": [
         {
-          "line": 135,
+          "line": 142,
           "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
@@ -100,7 +100,7 @@
       "name": "chataigne.inputs_manager",
       "sources": [
         {
-          "line": 136,
+          "line": 143,
           "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
@@ -119,7 +119,7 @@
       "name": "chataigne.outputs_manager",
       "sources": [
         {
-          "line": 137,
+          "line": 144,
           "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
@@ -138,7 +138,7 @@
       "name": "chataigne.routing",
       "sources": [
         {
-          "line": 138,
+          "line": 145,
           "path": "apps/chataigne/processor/src/alchemist.rs"
         }
       ]
@@ -156,7 +156,7 @@
       "name": "clamp",
       "sources": [
         {
-          "line": 133,
+          "line": 139,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -174,7 +174,7 @@
       "name": "compare",
       "sources": [
         {
-          "line": 153,
+          "line": 159,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -192,7 +192,7 @@
       "name": "concatenate",
       "sources": [
         {
-          "line": 149,
+          "line": 155,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -211,7 +211,7 @@
       "name": "condition_gate",
       "sources": [
         {
-          "line": 154,
+          "line": 160,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         },
         {
@@ -233,7 +233,7 @@
       "name": "constant",
       "sources": [
         {
-          "line": 128,
+          "line": 134,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -251,7 +251,7 @@
       "name": "convert_to_color",
       "sources": [
         {
-          "line": 146,
+          "line": 152,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -269,7 +269,7 @@
       "name": "convert_to_string",
       "sources": [
         {
-          "line": 150,
+          "line": 156,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -287,7 +287,7 @@
       "name": "coordinate_system",
       "sources": [
         {
-          "line": 143,
+          "line": 149,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -305,7 +305,7 @@
       "name": "counter",
       "sources": [
         {
-          "line": 139,
+          "line": 145,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -323,7 +323,7 @@
       "name": "debug_log",
       "sources": [
         {
-          "line": 159,
+          "line": 165,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -342,7 +342,7 @@
       "name": "debug_value",
       "sources": [
         {
-          "line": 158,
+          "line": 164,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         },
         {
@@ -364,7 +364,7 @@
       "name": "delay_one_tick",
       "sources": [
         {
-          "line": 157,
+          "line": 163,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -382,7 +382,7 @@
       "name": "extract_color",
       "sources": [
         {
-          "line": 147,
+          "line": 153,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -400,7 +400,7 @@
       "name": "function",
       "sources": [
         {
-          "line": 131,
+          "line": 137,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -418,7 +418,7 @@
       "name": "gate",
       "sources": [
         {
-          "line": 156,
+          "line": 162,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -436,7 +436,7 @@
       "name": "gradient_sampler",
       "sources": [
         {
-          "line": 145,
+          "line": 151,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -454,7 +454,7 @@
       "name": "inverse",
       "sources": [
         {
-          "line": 136,
+          "line": 142,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -472,7 +472,7 @@
       "name": "lfo",
       "sources": [
         {
-          "line": 140,
+          "line": 146,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -490,7 +490,7 @@
       "name": "math",
       "sources": [
         {
-          "line": 130,
+          "line": 136,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -508,7 +508,7 @@
       "name": "metronome",
       "sources": [
         {
-          "line": 142,
+          "line": 148,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -526,7 +526,7 @@
       "name": "negate",
       "sources": [
         {
-          "line": 137,
+          "line": 143,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -544,7 +544,7 @@
       "name": "noise_generator",
       "sources": [
         {
-          "line": 141,
+          "line": 147,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -562,7 +562,7 @@
       "name": "one_minus",
       "sources": [
         {
-          "line": 135,
+          "line": 141,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -580,7 +580,7 @@
       "name": "pack_vec3",
       "sources": [
         {
-          "line": 148,
+          "line": 154,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -599,7 +599,7 @@
       "name": "property",
       "sources": [
         {
-          "line": 129,
+          "line": 135,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         },
         {
@@ -625,7 +625,7 @@
       "name": "remap",
       "sources": [
         {
-          "line": 132,
+          "line": 138,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -643,7 +643,7 @@
       "name": "smooth_filter",
       "sources": [
         {
-          "line": 134,
+          "line": 140,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -661,7 +661,7 @@
       "name": "speed",
       "sources": [
         {
-          "line": 138,
+          "line": 144,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -679,7 +679,7 @@
       "name": "split",
       "sources": [
         {
-          "line": 151,
+          "line": 157,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -697,7 +697,7 @@
       "name": "trigger_on_off",
       "sources": [
         {
-          "line": 155,
+          "line": 161,
           "path": "apps/chataigne/alchemist/src/library/anodes/mod.rs"
         }
       ]
@@ -2182,7 +2182,7 @@
       "name": "spatializer_module",
       "sources": [
         {
-          "line": 201,
+          "line": 203,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -2400,11 +2400,11 @@
           "path": "apps/chataigne/builtin_formulas/Mapping.json"
         },
         {
-          "line": 1852,
+          "line": 1854,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 1870,
+          "line": 1872,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2453,18 +2453,19 @@
           "path": "apps/chataigne/builtin_formulas/Mapping.json"
         },
         {
-          "line": 3302,
+          "line": 3304,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 3321,
+          "line": 3323,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
     },
     {
-      "certainty": "declared",
+      "certainty": "registered",
       "discovery_methods": [
+        "node_inspector_registration",
         "node_macro_attribute",
         "serialized_node_type"
       ],
@@ -2490,8 +2491,12 @@
           "path": "apps/chataigne/builtin_formulas/Mapping.json"
         },
         {
-          "line": 3337,
+          "line": 3339,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
+        },
+        {
+          "line": 73,
+          "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
     },
@@ -2506,11 +2511,11 @@
       "name": "alchemist_formula_folder",
       "sources": [
         {
-          "line": 5041,
+          "line": 5048,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 5044,
+          "line": 5051,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2526,11 +2531,11 @@
       "name": "alchemist_formula_library",
       "sources": [
         {
-          "line": 4758,
+          "line": 4760,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 4835,
+          "line": 4837,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2603,11 +2608,11 @@
           "path": "apps/chataigne/builtin_formulas/Mapping.json"
         },
         {
-          "line": 1822,
+          "line": 1824,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 1825,
+          "line": 1827,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2664,11 +2669,11 @@
           "path": "apps/chataigne/builtin_formulas/Mapping.json"
         },
         {
-          "line": 1837,
+          "line": 1839,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 1840,
+          "line": 1842,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2701,11 +2706,11 @@
           "path": "apps/chataigne/builtin_formulas/Mapping.json"
         },
         {
-          "line": 2815,
+          "line": 2817,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 2818,
+          "line": 2820,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2721,11 +2726,11 @@
       "name": "alchemist_property",
       "sources": [
         {
-          "line": 3015,
+          "line": 3017,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 3028,
+          "line": 3030,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2741,11 +2746,11 @@
       "name": "alchemist_property_folder",
       "sources": [
         {
-          "line": 2851,
+          "line": 2853,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 2854,
+          "line": 2856,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -2810,11 +2815,11 @@
           "path": "apps/chataigne/builtin_formulas/Mapping.json"
         },
         {
-          "line": 2877,
+          "line": 2879,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         },
         {
-          "line": 2896,
+          "line": 2898,
           "path": "apps/chataigne/src/state_machine_nodes/formula.rs"
         }
       ]
@@ -4106,7 +4111,7 @@
       "name": "generic_command",
       "sources": [
         {
-          "line": 37,
+          "line": 38,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -4302,11 +4307,11 @@
       "name": "metronome",
       "sources": [
         {
-          "line": 557,
+          "line": 561,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         },
         {
-          "line": 599,
+          "line": 603,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         }
       ]
@@ -4322,11 +4327,11 @@
       "name": "metronome_list",
       "sources": [
         {
-          "line": 526,
+          "line": 530,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         },
         {
-          "line": 529,
+          "line": 533,
           "path": "apps/chataigne/src/module/modules/generators/metronomes/mod.rs"
         }
       ]
@@ -4610,7 +4615,7 @@
       "name": "module",
       "sources": [
         {
-          "line": 50,
+          "line": 51,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -4646,7 +4651,7 @@
       "name": "module_command",
       "sources": [
         {
-          "line": 31,
+          "line": 32,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -5482,11 +5487,11 @@
       "name": "signal",
       "sources": [
         {
-          "line": 569,
+          "line": 573,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         },
         {
-          "line": 596,
+          "line": 600,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         }
       ]
@@ -5502,11 +5507,11 @@
       "name": "signal_list",
       "sources": [
         {
-          "line": 532,
+          "line": 536,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         },
         {
-          "line": 535,
+          "line": 539,
           "path": "apps/chataigne/src/module/modules/generators/signals/mod.rs"
         }
       ]
@@ -5579,7 +5584,7 @@
           "path": "apps/chataigne/src/state_machine_nodes/managed_nodes.rs"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -5656,7 +5661,7 @@
           "path": "apps/chataigne/src/state_machine_nodes/managed_nodes.rs"
         },
         {
-          "line": 68,
+          "line": 69,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -5677,7 +5682,7 @@
           "path": "apps/chataigne/src/state_machine_nodes/conditions.rs"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -5730,11 +5735,11 @@
       "name": "sm_output_group",
       "sources": [
         {
-          "line": 810,
+          "line": 811,
           "path": "apps/chataigne/src/state_machine_nodes/managed_nodes.rs"
         },
         {
-          "line": 46,
+          "line": 47,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -5759,7 +5764,7 @@
           "path": "apps/chataigne/src/state_machine_nodes/managed_nodes.rs"
         },
         {
-          "line": 43,
+          "line": 44,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -5907,7 +5912,7 @@
       "name": "spatializer_module",
       "sources": [
         {
-          "line": 166,
+          "line": 168,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5923,11 +5928,11 @@
       "name": "spatializer_source",
       "sources": [
         {
-          "line": 744,
+          "line": 751,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 747,
+          "line": 754,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5943,11 +5948,11 @@
       "name": "spatializer_source_list",
       "sources": [
         {
-          "line": 666,
+          "line": 673,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 669,
+          "line": 676,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5963,11 +5968,11 @@
       "name": "spatializer_target",
       "sources": [
         {
-          "line": 770,
+          "line": 777,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 773,
+          "line": 780,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -5983,11 +5988,11 @@
       "name": "spatializer_target_list",
       "sources": [
         {
-          "line": 705,
+          "line": 712,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         },
         {
-          "line": 708,
+          "line": 715,
           "path": "apps/chataigne/src/module/modules/generators/spatializer.rs"
         }
       ]
@@ -6040,15 +6045,15 @@
       "name": "state_processor",
       "sources": [
         {
-          "line": 893,
+          "line": 929,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         },
         {
-          "line": 919,
+          "line": 955,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -6064,11 +6069,11 @@
       "name": "state_processor_folder",
       "sources": [
         {
-          "line": 794,
+          "line": 830,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         },
         {
-          "line": 800,
+          "line": 836,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         }
       ]
@@ -6084,11 +6089,11 @@
       "name": "state_processor_managed_region",
       "sources": [
         {
-          "line": 636,
+          "line": 672,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         },
         {
-          "line": 639,
+          "line": 675,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         }
       ]
@@ -6104,11 +6109,11 @@
       "name": "state_processor_managed_regions",
       "sources": [
         {
-          "line": 620,
+          "line": 656,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         },
         {
-          "line": 623,
+          "line": 659,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         }
       ]
@@ -6124,11 +6129,11 @@
       "name": "state_processor_manager",
       "sources": [
         {
-          "line": 674,
+          "line": 710,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         },
         {
-          "line": 687,
+          "line": 723,
           "path": "apps/chataigne/src/state_machine_nodes/processor.rs"
         }
       ]
@@ -6899,7 +6904,7 @@
       "name": "alchemistEditor",
       "sources": [
         {
-          "line": 87,
+          "line": 92,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -6937,7 +6942,7 @@
       "name": "formulaLibrary",
       "sources": [
         {
-          "line": 98,
+          "line": 103,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -7012,7 +7017,7 @@
       "name": "modules",
       "sources": [
         {
-          "line": 77,
+          "line": 82,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -7068,7 +7073,7 @@
       "name": "spatializerEditor",
       "sources": [
         {
-          "line": 92,
+          "line": 97,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -7087,7 +7092,7 @@
       "name": "stateMachine",
       "sources": [
         {
-          "line": 82,
+          "line": 87,
           "path": "apps/chataigne/ui/src/routes/+page.svelte"
         }
       ]
@@ -9159,7 +9164,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-app-control-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-app-control-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/app_control_callbacks.js",
       "sources": [
@@ -9175,7 +9180,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-app-control-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-app-control-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/app_control_functions.js",
       "sources": [
@@ -9191,7 +9196,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-base-js",
+      "id": "script_snippet/src-module-script-templates-snippets-base-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/base.js",
       "sources": [
@@ -9207,7 +9212,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-buttplug-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-buttplug-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/buttplug_callbacks.js",
       "sources": [
@@ -9223,7 +9228,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-buttplug-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-buttplug-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/buttplug_functions.js",
       "sources": [
@@ -9239,7 +9244,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-dmx-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/dmx_callbacks.js",
       "sources": [
@@ -9255,7 +9260,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-dmx-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-dmx-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/dmx_functions.js",
       "sources": [
@@ -9271,7 +9276,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-gamepad-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-gamepad-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/gamepad_callbacks.js",
       "sources": [
@@ -9287,7 +9292,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-http-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-http-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/http_callbacks.js",
       "sources": [
@@ -9303,7 +9308,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-http-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-http-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/http_functions.js",
       "sources": [
@@ -9319,7 +9324,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-joycon-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-joycon-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/joycon_callbacks.js",
       "sources": [
@@ -9335,7 +9340,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-joycon-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-joycon-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/joycon_functions.js",
       "sources": [
@@ -9351,7 +9356,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-keyboard-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-keyboard-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/keyboard_callbacks.js",
       "sources": [
@@ -9367,7 +9372,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-keyboard-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-keyboard-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/keyboard_functions.js",
       "sources": [
@@ -9383,7 +9388,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-metronomes-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-metronomes-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/metronomes_callbacks.js",
       "sources": [
@@ -9399,7 +9404,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-metronomes-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-metronomes-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/metronomes_functions.js",
       "sources": [
@@ -9415,7 +9420,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-midi-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-midi-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/midi_callbacks.js",
       "sources": [
@@ -9431,7 +9436,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-midi-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-midi-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/midi_functions.js",
       "sources": [
@@ -9447,7 +9452,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-module-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-module-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/module_callbacks.js",
       "sources": [
@@ -9463,7 +9468,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-module-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-module-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/module_functions.js",
       "sources": [
@@ -9479,7 +9484,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-mouse-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-mouse-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/mouse_callbacks.js",
       "sources": [
@@ -9495,7 +9500,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-mouse-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-mouse-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/mouse_functions.js",
       "sources": [
@@ -9511,7 +9516,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-mqtt-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-mqtt-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/mqtt_callbacks.js",
       "sources": [
@@ -9527,7 +9532,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-mqtt-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-mqtt-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/mqtt_functions.js",
       "sources": [
@@ -9543,7 +9548,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-node-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-node-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/node_callbacks.js",
       "sources": [
@@ -9559,7 +9564,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-node-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-node-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/node_functions.js",
       "sources": [
@@ -9575,7 +9580,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-os-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-os-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/os_callbacks.js",
       "sources": [
@@ -9591,7 +9596,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-os-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-os-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/os_functions.js",
       "sources": [
@@ -9607,7 +9612,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-osc-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-osc-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/osc_callbacks.js",
       "sources": [
@@ -9623,7 +9628,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-osc-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-osc-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/osc_functions.js",
       "sources": [
@@ -9639,7 +9644,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-signals-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-signals-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/signals_callbacks.js",
       "sources": [
@@ -9655,7 +9660,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-signals-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-signals-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/signals_functions.js",
       "sources": [
@@ -9671,7 +9676,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-spatializer-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-spatializer-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/spatializer_functions.js",
       "sources": [
@@ -9687,7 +9692,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-stream-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-stream-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/stream_callbacks.js",
       "sources": [
@@ -9703,7 +9708,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-stream-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-stream-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/stream_functions.js",
       "sources": [
@@ -9719,7 +9724,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-stream-server-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-stream-server-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/stream_server_callbacks.js",
       "sources": [
@@ -9735,7 +9740,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-stream-server-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-stream-server-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/stream_server_functions.js",
       "sources": [
@@ -9751,7 +9756,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-callbacks-js",
+      "id": "script_snippet/src-module-script-templates-snippets-streamdeck-callbacks-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/streamdeck_callbacks.js",
       "sources": [
@@ -9767,7 +9772,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/apps-chataigne-src-module-script-templates-snippets-streamdeck-functions-js",
+      "id": "script_snippet/src-module-script-templates-snippets-streamdeck-functions-js",
       "kind": "script_snippet",
       "name": "apps/chataigne/src/module/script_templates/snippets/streamdeck_functions.js",
       "sources": [
@@ -9783,7 +9788,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/crates-core-src-script-templates-snippets-callbacks-js",
+      "id": "script_snippet/submodules-golden-core-crates-core-src-script-templates-snippets-callbacks-js",
       "kind": "script_snippet",
       "name": "crates/core/src/script/templates/snippets/callbacks.js",
       "sources": [
@@ -9799,7 +9804,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/crates-core-src-script-templates-snippets-exports-ping-js",
+      "id": "script_snippet/submodules-golden-core-crates-core-src-script-templates-snippets-exports-ping-js",
       "kind": "script_snippet",
       "name": "crates/core/src/script/templates/snippets/exports/ping.js",
       "sources": [
@@ -9815,7 +9820,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/crates-core-src-script-templates-snippets-header-js",
+      "id": "script_snippet/submodules-golden-core-crates-core-src-script-templates-snippets-header-js",
       "kind": "script_snippet",
       "name": "crates/core/src/script/templates/snippets/header.js",
       "sources": [
@@ -9831,7 +9836,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/crates-core-src-script-templates-snippets-subscriptions-host-js",
+      "id": "script_snippet/submodules-golden-core-crates-core-src-script-templates-snippets-subscriptions-host-js",
       "kind": "script_snippet",
       "name": "crates/core/src/script/templates/snippets/subscriptions/host.js",
       "sources": [
@@ -9847,7 +9852,7 @@
         "snippet_file"
       ],
       "facts": {},
-      "id": "script_snippet/crates-core-src-script-templates-snippets-update-rate-js",
+      "id": "script_snippet/submodules-golden-core-crates-core-src-script-templates-snippets-update-rate-js",
       "kind": "script_snippet",
       "name": "crates/core/src/script/templates/snippets/update_rate.js",
       "sources": [
@@ -9865,7 +9870,7 @@
       "facts": {
         "scope": "app_control_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-app-control-module-js",
+      "id": "script_template/src-module-script-templates-app-control-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/app_control_module.js",
       "sources": [
@@ -9883,7 +9888,7 @@
       "facts": {
         "scope": "artnet_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-artnet-module-js",
+      "id": "script_template/src-module-script-templates-artnet-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/artnet_module.js",
       "sources": [
@@ -9901,7 +9906,7 @@
       "facts": {
         "scope": "buttplug_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-buttplug-module-js",
+      "id": "script_template/src-module-script-templates-buttplug-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/buttplug_module.js",
       "sources": [
@@ -9919,7 +9924,7 @@
       "facts": {
         "scope": "gamepad_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-gamepad-module-js",
+      "id": "script_template/src-module-script-templates-gamepad-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/gamepad_module.js",
       "sources": [
@@ -9937,7 +9942,7 @@
       "facts": {
         "scope": "http_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-http-module-js",
+      "id": "script_template/src-module-script-templates-http-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/http_module.js",
       "sources": [
@@ -9955,7 +9960,7 @@
       "facts": {
         "scope": "joycon_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-joycon-module-js",
+      "id": "script_template/src-module-script-templates-joycon-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/joycon_module.js",
       "sources": [
@@ -9973,7 +9978,7 @@
       "facts": {
         "scope": "keyboard_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-keyboard-module-js",
+      "id": "script_template/src-module-script-templates-keyboard-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/keyboard_module.js",
       "sources": [
@@ -9991,7 +9996,7 @@
       "facts": {
         "scope": "kinect2_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-kinect2-module-js",
+      "id": "script_template/src-module-script-templates-kinect2-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/kinect2_module.js",
       "sources": [
@@ -10009,7 +10014,7 @@
       "facts": {
         "scope": "metronomes_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-metronomes-module-js",
+      "id": "script_template/src-module-script-templates-metronomes-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/metronomes_module.js",
       "sources": [
@@ -10027,7 +10032,7 @@
       "facts": {
         "scope": "midi_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-midi-module-js",
+      "id": "script_template/src-module-script-templates-midi-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/midi_module.js",
       "sources": [
@@ -10045,7 +10050,7 @@
       "facts": {
         "scope": "module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-module-js",
+      "id": "script_template/src-module-script-templates-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/module.js",
       "sources": [
@@ -10063,7 +10068,7 @@
       "facts": {
         "scope": "mouse_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-mouse-module-js",
+      "id": "script_template/src-module-script-templates-mouse-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/mouse_module.js",
       "sources": [
@@ -10081,7 +10086,7 @@
       "facts": {
         "scope": "mqtt_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-mqtt-module-js",
+      "id": "script_template/src-module-script-templates-mqtt-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/mqtt_module.js",
       "sources": [
@@ -10099,7 +10104,7 @@
       "facts": {
         "scope": "node_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-node-module-js",
+      "id": "script_template/src-module-script-templates-node-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/node_module.js",
       "sources": [
@@ -10117,7 +10122,7 @@
       "facts": {
         "scope": "os_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-os-module-js",
+      "id": "script_template/src-module-script-templates-os-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/os_module.js",
       "sources": [
@@ -10135,7 +10140,7 @@
       "facts": {
         "scope": "osc_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-osc-module-js",
+      "id": "script_template/src-module-script-templates-osc-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/osc_module.js",
       "sources": [
@@ -10153,7 +10158,7 @@
       "facts": {
         "scope": "sacn_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-sacn-module-js",
+      "id": "script_template/src-module-script-templates-sacn-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/sacn_module.js",
       "sources": [
@@ -10171,7 +10176,7 @@
       "facts": {
         "scope": "serial_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-serial-module-js",
+      "id": "script_template/src-module-script-templates-serial-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/serial_module.js",
       "sources": [
@@ -10189,7 +10194,7 @@
       "facts": {
         "scope": "signals_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-signals-module-js",
+      "id": "script_template/src-module-script-templates-signals-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/signals_module.js",
       "sources": [
@@ -10207,7 +10212,7 @@
       "facts": {
         "scope": "spatializer_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-spatializer-module-js",
+      "id": "script_template/src-module-script-templates-spatializer-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/spatializer_module.js",
       "sources": [
@@ -10225,7 +10230,7 @@
       "facts": {
         "scope": "streamdeck_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-streamdeck-module-js",
+      "id": "script_template/src-module-script-templates-streamdeck-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/streamdeck_module.js",
       "sources": [
@@ -10243,7 +10248,7 @@
       "facts": {
         "scope": "tcp_client_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-tcp-client-module-js",
+      "id": "script_template/src-module-script-templates-tcp-client-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/tcp_client_module.js",
       "sources": [
@@ -10261,7 +10266,7 @@
       "facts": {
         "scope": "tcp_server_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-tcp-server-module-js",
+      "id": "script_template/src-module-script-templates-tcp-server-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/tcp_server_module.js",
       "sources": [
@@ -10279,7 +10284,7 @@
       "facts": {
         "scope": "udp_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-udp-module-js",
+      "id": "script_template/src-module-script-templates-udp-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/udp_module.js",
       "sources": [
@@ -10297,7 +10302,7 @@
       "facts": {
         "scope": "ultraleap_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-ultraleap-module-js",
+      "id": "script_template/src-module-script-templates-ultraleap-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/ultraleap_module.js",
       "sources": [
@@ -10315,7 +10320,7 @@
       "facts": {
         "scope": "websocket_client_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-websocket-client-module-js",
+      "id": "script_template/src-module-script-templates-websocket-client-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/websocket_client_module.js",
       "sources": [
@@ -10333,7 +10338,7 @@
       "facts": {
         "scope": "websocket_server_module"
       },
-      "id": "script_template/apps-chataigne-src-module-script-templates-websocket-server-module-js",
+      "id": "script_template/src-module-script-templates-websocket-server-module-js",
       "kind": "script_template",
       "name": "apps/chataigne/src/module/script_templates/websocket_server_module.js",
       "sources": [

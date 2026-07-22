@@ -73,6 +73,8 @@ pub struct UiReadModel {
     /// Retained event ring for WS replay.
     events: Mutex<VecDeque<UiEventDto>>,
     event_capacity: usize,
+    /// Highest event time discarded because the retained ring reached capacity.
+    last_evicted_event_time: Mutex<Option<EngineTime>>,
     /// Head of the event log, always advances even when snapshot rebuild is skipped.
     latest_event_time: Mutex<Option<EngineTime>>,
     /// Latest runtime timing metrics sampled by the host loop.
@@ -107,6 +109,7 @@ impl UiReadModel {
             current: RwLock::new(Arc::new(snapshot)),
             events: Mutex::new(VecDeque::new()),
             event_capacity: DEFAULT_UI_READ_MODEL_EVENT_CAPACITY,
+            last_evicted_event_time: Mutex::new(None),
             latest_event_time: Mutex::new(latest_event_time),
             runtime_stats: Mutex::new(None),
             node_store: RwLock::new(node_store),
@@ -172,6 +175,10 @@ impl UiReadModel {
             UiReadModelReplaceReason::ProjectReplaced | UiReadModelReplaceReason::Initial
         ) {
             self.events.lock().expect("ui read model event log poisoned").clear();
+            *self
+                .last_evicted_event_time
+                .lock()
+                .expect("ui read model eviction watermark poisoned") = None;
         }
     }
 
@@ -308,19 +315,21 @@ impl UiReadModel {
     pub fn replay(&self, from: Option<EngineTime>, scope: UiSubscriptionScope) -> UiEventBatch {
         // Copy time out first to avoid holding latest_event_time while acquiring current.
         let latest_time = *self.latest_event_time.lock().expect("ui read model poisoned");
-        let current_time = latest_time.unwrap_or_else(|| self.current_snapshot().at);
+        let snapshot_time = self.current_snapshot().at;
+        let current_time = latest_time.map_or(snapshot_time, |event_time| event_time.max(snapshot_time));
+        let last_evicted = *self
+            .last_evicted_event_time
+            .lock()
+            .expect("ui read model eviction watermark poisoned");
         let events_guard = self.events.lock().expect("ui read model event log poisoned");
-        let first_retained = events_guard.front().map(|event| event.time);
         let mut events = Vec::new();
 
         if let Some(from) = from {
             if from > current_time {
                 return make_resync_event_batch(Some(from), current_time, "cursor_ahead_of_server_time");
             }
-            if let Some(first_time) = first_retained {
-                if from < first_time {
-                    return make_resync_event_batch(Some(from), current_time, "cursor_out_of_retention_window");
-                }
+            if last_evicted.is_some_and(|evicted_through| from < evicted_through) {
+                return make_resync_event_batch(Some(from), current_time, "cursor_out_of_retention_window");
             }
         }
 
@@ -368,7 +377,15 @@ impl UiReadModel {
         param_changed_event_is_ui_coalescable(&store, event)
     }
 
-    /// First retained event time, if any.
+    /// Highest event time discarded because the replay ring reached capacity.
+    pub fn last_evicted_event_time(&self) -> Option<EngineTime> {
+        *self
+            .last_evicted_event_time
+            .lock()
+            .expect("ui read model eviction watermark poisoned")
+    }
+
+    /// Oldest event still represented in the replay ring.
     pub fn first_retained_event_time(&self) -> Option<EngineTime> {
         self.events
             .lock()
@@ -382,14 +399,32 @@ impl UiReadModel {
     // -----------------------------------------------------------------------
 
     fn append_events(&self, events: impl IntoIterator<Item = UiEventDto>) {
-        let store = self.node_store.read().expect("ui read model poisoned");
-        let mut guard = self.events.lock().expect("ui read model event log poisoned");
-        for event in events {
-            append_retained_ui_event(&mut guard, &store, event);
-            while guard.len() > self.event_capacity {
-                guard.pop_front();
+        let mut evicted_through: Option<EngineTime> = None;
+        {
+            let store = self.node_store.read().expect("ui read model poisoned");
+            let mut guard = self.events.lock().expect("ui read model event log poisoned");
+            for event in events {
+                append_retained_ui_event(&mut guard, &store, event);
+                while guard.len() > self.event_capacity {
+                    if let Some(evicted) = guard.pop_front() {
+                        evicted_through = Some(evicted_through.map_or(evicted.time, |time| time.max(evicted.time)));
+                    }
+                }
             }
         }
+        if let Some(evicted_through) = evicted_through {
+            let mut watermark = self
+                .last_evicted_event_time
+                .lock()
+                .expect("ui read model eviction watermark poisoned");
+            *watermark = Some(watermark.map_or(evicted_through, |time| time.max(evicted_through)));
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_event_capacity_for_tests(&mut self, capacity: usize) {
+        assert!(capacity > 0, "event capacity must be positive");
+        self.event_capacity = capacity;
     }
 
     /// Rebuilds `current` from `node_store` + `snapshot_header` + `snapshot_schema`.

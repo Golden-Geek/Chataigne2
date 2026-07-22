@@ -24,5 +24,21 @@ target
 # Added by cargo
 
 /target
+/target-*/
 /node_modules
+/.venv/
+/submodules/
 /apps/chataigne/gen/
+/apps/chataigne/ui/.svelte-kit/
+/apps/chataigne/ui/artifacts/
+/apps/chataigne/ui/build/
+
+# Reproducible language and test caches
+**/node_modules/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/coverage/
+**/playwright-report/
+**/test-results/

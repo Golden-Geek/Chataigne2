@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "phase": 9,
+  "revision": 75,
+  "validation_state": "CONSTRUCTION",
+  "last_runnable_checkpoint": {
+    "phase": 8,
+    "qualified_commit": "b45a9b0a7a01ebee386e24a91daa42f897054bc6",
+    "record_commit": "aabaccc5da1b5de4026aa219e16f0d4463c1e49b",
+    "cross_platform_run": "https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581"
+  },
+  "construction_interval": {
+    "objective": "Turn the frozen product inventory into executable, current parity evidence before final scale qualification and governed deletion.",
+    "affected_layers": [
+      "docs/product functional-parity records",
+      "tools/migration qualification tooling",
+      "performance and full-workbench fixtures",
+      "release packaging and clean-environment qualification",
+      "temporary-adapter and obsolete-path deletion"
+    ],
+    "expected_breakages": [
+      "Phase 9 readiness intentionally exits non-zero while required evidence is NOT_RUN or incomplete.",
+      "No Phase 8 product workflow is expected to regress during the evidence-foundation slice."
+    ],
+    "focused_checks": [
+      "python -m unittest tools.migration.tests.test_phase9_identity tools.migration.tests.test_phase9_readiness",
+      "python tools/migration/phase9_identity.py --json",
+      "python tools/migration/phase9_readiness.py --json",
+      "python tools/migration/run_phase9_scale.py --output-dir target/phase9/scale/phase9-100k-local",
+      "python -m unittest tools.migration.tests.test_generate_phase9_graph_fixture tools.migration.tests.test_run_phase9_graph_scale",
+      "python tools/migration/run_phase9_graph_scale.py --output-dir target/phase9/graph-scale/phase9-graph-10k-local --port 7037",
+      "python -m unittest tools.migration.tests.test_run_phase9_builtin_formulas",
+      "python tools/migration/run_phase9_builtin_formulas.py --output-dir target/phase9/builtin-formulas/phase9-builtin-formulas-local",
+      "python -m unittest tools.migration.tests.test_run_phase9_anode_catalog",
+      "python tools/migration/run_phase9_anode_catalog.py --output-dir target/phase9/anode-catalog/phase9-anode-catalog-local",
+      "python -m unittest tools.migration.tests.test_run_phase9_generator_modules",
+      "python tools/migration/run_phase9_generator_modules.py --output-dir target/phase9/generator-modules/phase9-generator-modules-local",
+      "powershell -NoProfile -ExecutionPolicy Bypass -File tools/product-gate/product-gate.ps1 -ReportPath target/product-gate/phase9-local-after-runtime-fix/product-gate-report.json -SkipUiInstall",
+      "python tools/migration/product_manifest.py check"
+    ],
+    "next_checkpoint": "Phase 9 CHECKPOINT_RUNNABLE",
+    "deletion_policy": "No old path or temporary adapter is deleted until its affected parity rows and replacement gates pass."
+  },
+  "parity_ledger": {
+    "manifest": "docs/product/manifests/functional-parity.v1.json",
+    "evidence_manifest": "docs/product/manifests/functional-parity-evidence.v1.json",
+    "expected_rows": 622,
+    "qualified_rows": 622,
+    "schema_state": "generated_discovery_with_authored_evidence",
+    "identity_state": "stable",
+    "identity_evidence": {
+      "command": "python tools/migration/phase9_identity.py --json",
+      "phase0_inventory_commit": "82a72b3ef517aefe32e4a6907e6cba66aab52022",
+      "baseline_rows": 583,
+      "current_rows": 622,
+      "preserved_baseline_rows": 583,
+      "new_rows": 39,
+      "new_capability_ids_sha256": "e6183e50674c3d45045f9e503a33060509d1875d7b714f91c9b40d29a5ff33e4"
+    },
+    "blocking_gaps": []
+  },
+  "subphases": [
+    {
+      "subphase_id": "9A",
+      "state": "runnable",
+      "owner": "docs/product and tools/migration",
+      "deliverables": [
+        "normative parity schema and stable capability identity",
+        "authored evidence input separated from generated discovery",
+        "machine-readable readiness report with stale and missing evidence"
+      ]
+    },
+    {
+      "subphase_id": "9B",
+      "state": "runnable",
+      "owner": "golden runtime, graph UI, and Chataigne workbench",
+      "deliverables": [
+        "100,000-value dense, sparse, and idle qualification",
+        "full-workbench graph editor scale fixtures",
+        "product UX and functional parity review"
+      ]
+    },
+    {
+      "subphase_id": "9C",
+      "state": "pending",
+      "owner": "module IO, hosts, networking, hardware, and release tooling",
+      "deliverables": [
+        "module, network, multi-client, and hardware soak",
+        "native and browser cross-platform release qualification",
+        "clean-environment install, launch, mutation, save/reload, and cleanup smoke"
+      ]
+    },
+    {
+      "subphase_id": "9D",
+      "state": "runnable",
+      "owner": "workspace architecture and contributor documentation",
+      "deliverables": [
+        "remove every governed adapter, old path, dual implementation, and obsolete document",
+        "final architecture, authoring, extension, performance, release, and troubleshooting documentation",
+        "one production path per responsibility"
+      ]
+    }
+  ],
+  "evidence_records": [
+    {
+      "evidence_id": "phase9.runtime.scalar-100k.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "3b6071e0ca144600f8d278305d4a0b31b1288935",
+      "command": "python tools/migration/run_phase9_scale.py --output-dir target/phase9/scale/phase9-100k-local",
+      "artifact_id": "target/phase9/scale/phase9-100k-local/phase9-scale-report.json",
+      "artifact_hash": "f3d4306b905bce8268ba9d114a8e61fd8f7cb033e2dbdb3c4e6b2d49831fdb74",
+      "summary": "PASS: both 100,000-lane partitions completed 1,000 samples; worst dense p95/p99 3.336/3.433 ms, worst sparse p95 0.032 ms, worst idle p95 0.005 ms, zero 16.67 ms deadline misses, deterministic digests across 1/2/4/8 workers, and bounded output reuse."
+    },
+    {
+      "evidence_id": "phase9.graph.full-workbench-10k.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "0221f9644a62869f92274c61a390d067991ae52f",
+      "command": "python tools/migration/run_phase9_graph_scale.py --output-dir target/phase9/graph-scale/phase9-graph-10k-local --port 7037",
+      "artifact_id": "target/phase9/graph-scale/phase9-graph-10k-local/product-gate/phase9-graph-scale-artifacts/phase9-graph-scale.browser-report.json",
+      "artifact_hash": "b1580bd76869cc3baff88eb70ade94927623c22f763e82ee76d6b136238e2048",
+      "summary": "PASS: the release full-workbench workflow loaded and retained exactly 10,000 formula graph nodes, rendered only the 414 visible nodes against a 1,000-node DOM ceiling, completed graph and state-machine interaction, Save/Open Last persistence verification, live-value verification, New-project cleanup, and all browser/network checks without issues."
+    },
+    {
+      "evidence_id": "phase9.product.win-x64.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "74894af82d67fae8f5ec2e67f4975b47e524c1e1",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/product-gate/product-gate.ps1 -ReportPath target/product-gate/phase9-local-after-runtime-fix/product-gate-report.json -SkipUiInstall",
+      "artifact_id": "target/product-gate/phase9-local-after-runtime-fix/product-gate-report.json",
+      "artifact_hash": "2402c7630a90cf9af3338c70dc142a71797907b9512f639d7312ac0188e037ea",
+      "summary": "PASS: all 37 required Win-x64 checks passed, including the complete Rust workspace, production UI build/check/lint/tests, the three root launch workflows, mounted real-app mutation and Save/Open Last persistence, OSC loopback, and non-loopback LAN interaction; eight non-required audit and non-Windows platform checks remained NOT_RUN. This is current executable-base evidence, not clean-package, cross-platform, or signed product-UX parity evidence."
+    },
+    {
+      "evidence_id": "phase9.product.functional-parity.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "d37e43bde8b86ed96ade3cdc61e9a2e2b28c8f4b",
+      "command": "python tools/migration/run_phase9_product_parity.py --output-dir target/phase9/product-parity/phase9-final --skip-ui-install",
+      "artifact_id": "target/phase9/product-parity/phase9-final/phase9-product-parity-report.json",
+      "artifact_hash": "336e208c8dea9bce73ece98b0512bda4209d451359c4c183127d3ea59032d22e",
+      "summary": "PASS: all 622 capability IDs have complete normative entries and current executable evidence. The complete Windows product gate passed every required build, test, runtime, mounted UI, persistence, module-loopback, and LAN check; the evidence does not stand in for product-owner UX approval or non-Windows qualification."
+    },
+    {
+      "evidence_id": "phase9.package.windows.clean",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "d37e43bde8b86ed96ade3cdc61e9a2e2b28c8f4b",
+      "command": "python tools/migration/run_phase9_package_smoke.py --platform windows --output-dir target/phase9/package/windows-final",
+      "artifact_id": "target/phase9/package/windows-final/phase9-clean-package-report.json",
+      "artifact_hash": "1c6bc908e081c3c167fe10acb8d98d7787ad4d4c69b8ccd3d0aeafba33a58b87",
+      "summary": "PASS: NSIS and MSI bundles were produced; the isolated NSIS install launched the packaged application, completed the canonical ten-step UI mutation and Save/Open Last workflow, and was removed by its generated uninstaller."
+    },
+    {
+      "evidence_id": "phase9.finalization.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "1eaf2d055efd46136fd509c86041e0e45c8d6021",
+      "command": "python tools/migration/run_phase9_finalization.py --output-dir target/phase9/finalization/phase9-final-local",
+      "artifact_id": "target/phase9/finalization/phase9-final-local/phase9-finalization-report.json",
+      "artifact_hash": "ed072b82413272c3b65d3fd1f678f691bab323dfebce934a36bf5f53cd430806",
+      "summary": "PASS: governed deletion, final documentation, generated manifest drift/schema, and every Phase 2 through Phase 8 architecture contract passed on the recorded tree."
+    },
+    {
+      "evidence_id": "phase9.soak.module-network-multiclient-hardware.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "7108f5d91da56dfc07df364707bbcb9eb280b8df",
+      "command": "python tools/migration/run_phase9_soak.py --output-dir target/phase9/soak/phase9-final --clients 3 --port 7041",
+      "artifact_id": "target/phase9/soak/phase9-final/phase9-soak-report.json",
+      "artifact_hash": "0927697d49add483426d3bcd10cadae635146b72d04337139ea893195e55c7a5",
+      "summary": "PASS: three complete hardware-simulator cycles and a five-minute mounted-product soak completed with three independent browser clients, 263 synchronized mutations, nine heap/queue samples per client, 1.0-4.3 MB measured median heap growth against a 64 MB ceiling, maximum reported queue peak 2, final queue depth zero, bidirectional WebSocket traffic, clean Save/Open Last/New, and no host failure markers."
+    },
+    {
+      "evidence_id": "phase9.product.ux-approval",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "d37e43bde8b86ed96ade3cdc61e9a2e2b28c8f4b",
+      "command": "Product-owner review of the loaded, interacted, and reloaded mounted-app captures",
+      "artifact_id": "docs/product/manifests/phase9-ux-approval.v1.json",
+      "artifact_hash": "4a3b4f80250164e8401fb79dcd8894e760158fad57d82bc775fc67d747846ab8",
+      "summary": "PASS: the product owner reviewed the complete mounted-product captures and explicitly approved recording Phase 9 UX parity and proceeding with final qualification."
+    },
+    {
+      "evidence_id": "phase9.formula.builtin-catalog.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "171b5b9647464529867be8930c22633d11366a7f",
+      "command": "python tools/migration/run_phase9_builtin_formulas.py --output-dir target/phase9/builtin-formulas/phase9-builtin-formulas-local",
+      "artifact_id": "target/phase9/builtin-formulas/phase9-builtin-formulas-local/phase9-builtin-formulas-report.json",
+      "artifact_hash": "29ba6e8554e3e1df47e5ca1362cb84f695bc85f2fdd23edf59782a0495327901",
+      "summary": "PASS: every JSON discovered in apps/chataigne/builtin_formulas matched generated capability inventory and canonical content hashes; the directory-derived catalog/processor suite passed bundling, default-project insertion, palette exposure, read-only policy, stable identity, processor materialization, warning state, and sparse save/reload with zero ignored tests."
+    },
+    {
+      "evidence_id": "phase9.formula.anode-catalog.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "0933be2295394d507d95334e4b6fea990708b017",
+      "command": "python tools/migration/run_phase9_anode_catalog.py --output-dir target/phase9/anode-catalog/phase9-anode-catalog-local",
+      "artifact_id": "target/phase9/anode-catalog/phase9-anode-catalog-local/phase9-anode-catalog-report.json",
+      "artifact_hash": "e30eaad67cb6028ace41c951b9406f25b5bfdd9547688be2139359e422f225c2",
+      "summary": "PASS: the declaration-driven runtime catalog matched all 37 generated ANode rows; every registered type was exposed through the real formula creation menu, materialized through the app intent path, produced a live signature, and survived sparse save/reload. The complete 146-test Alchemist suite and 65 active processor tests passed; two explicitly named obsolete pre-manager processor fixtures remain ignored and do not supply parity evidence. Authored behavior matrices now fully qualify all 37 ANode rows, including every pure, stateful, color, and app-owned manager contract."
+    },
+    {
+      "evidence_id": "phase9.module.generator-families.local",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "2fc7b23d165a957b44199ac9eb92148106063fcc",
+      "command": "python tools/migration/run_phase9_generator_modules.py --output-dir target/phase9/generator-modules/phase9-generator-modules-local",
+      "artifact_id": "target/phase9/generator-modules/phase9-generator-modules-local/phase9-generator-modules-report.json",
+      "artifact_hash": "31b0f294f5651252d135a813a375fcad878607901e95cefd6f521413b51ebb1b",
+      "summary": "PASS: source-and-kind-driven inventory matched 26 non-visual capabilities across Signals (9), Metronomes (9), and Spatializer (8). All 36 generator catalog, declaration, runtime, callback, identity, sparse-persistence, geometry, and scale tests passed with zero ignored tests; the shared module-script template/API test and Phase 8 contract check also passed. Spatializer exercised all four weighting modes and a sparse Delaunay topology at 512 sources by 1,024 targets. The three SVG assets, SpatializerEditor panel, and View Home/View Frame commands remain explicitly pending separate visual/interaction evidence."
+    }
+  ],
+  "qualification_gates": [
+    {
+      "gate_id": "functional-parity-ledger",
+      "state": "PASS",
+      "evidence": "phase9.product.functional-parity.local"
+    },
+    {
+      "gate_id": "runtime-100k-dense",
+      "state": "PASS",
+      "evidence": "phase9.runtime.scalar-100k.local"
+    },
+    {
+      "gate_id": "runtime-100k-sparse",
+      "state": "PASS",
+      "evidence": "phase9.runtime.scalar-100k.local"
+    },
+    {
+      "gate_id": "runtime-100k-idle",
+      "state": "PASS",
+      "evidence": "phase9.runtime.scalar-100k.local"
+    },
+    {
+      "gate_id": "graph-full-workbench-scale",
+      "state": "PASS",
+      "evidence": "phase9.graph.full-workbench-10k.local"
+    },
+    {
+      "gate_id": "product-ux-parity",
+      "state": "PASS",
+      "evidence": "phase9.product.ux-approval"
+    },
+    {
+      "gate_id": "module-network-multiclient-soak",
+      "state": "PASS",
+      "evidence": "phase9.soak.module-network-multiclient-hardware.local"
+    },
+    {
+      "gate_id": "hardware-soak",
+      "state": "PASS",
+      "evidence": "phase9.soak.module-network-multiclient-hardware.local"
+    },
+    {
+      "gate_id": "windows-clean-package",
+      "state": "PASS",
+      "evidence": "phase9.package.windows.clean"
+    },
+    {
+      "gate_id": "macos-clean-package",
+      "state": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "gate_id": "linux-clean-package",
+      "state": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "gate_id": "cross-platform-product",
+      "state": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "gate_id": "final-documentation",
+      "state": "PASS",
+      "evidence": "phase9.finalization.local"
+    },
+    {
+      "gate_id": "governed-deletion",
+      "state": "PASS",
+      "evidence": "phase9.finalization.local"
+    }
+  ],
+  "carried_temporary_adapters": []
+}

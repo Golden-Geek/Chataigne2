@@ -100,6 +100,25 @@ const NODE_CALLBACK_DOCS: &[&str] = &[
     "nodeTriggered(target)",
 ];
 
+const SIGNALS_FUNCTION_DOCS: &[&str] = &[
+    "Signals module functions",
+    "local.resetSignals()",
+    "local.resetSignal(nameOrIndex)",
+];
+
+const SIGNALS_CALLBACK_DOCS: &[&str] = &["signalCycle(name, cycles, details)"];
+
+const METRONOMES_FUNCTION_DOCS: &[&str] = &[
+    "Metronomes module functions",
+    "local.resetMetronomes()",
+    "local.resetMetronome(nameOrIndex)",
+    "local.tickMetronome(nameOrIndex)",
+];
+
+const METRONOMES_CALLBACK_DOCS: &[&str] = &["metronomeTick(name, ticks, totalTicks, details)"];
+
+const SPATIALIZER_FUNCTION_DOCS: &[&str] = &["Spatializer module values", "local.values"];
+
 #[test]
 fn module_script_templates_document_available_functions_for_each_module() {
     let osc_module_type = <crate::app::GenericOscModule as DeclaredUserItemNode>::ITEM_NODE_TYPE;
@@ -136,6 +155,21 @@ fn module_script_templates_document_available_functions_for_each_module() {
             crate::app::NodeModule::NODE_TYPE,
             NODE_FUNCTION_DOCS,
             NODE_CALLBACK_DOCS,
+        ),
+        (
+            crate::app::SignalsModule::NODE_TYPE,
+            SIGNALS_FUNCTION_DOCS,
+            SIGNALS_CALLBACK_DOCS,
+        ),
+        (
+            crate::app::MetronomesModule::NODE_TYPE,
+            METRONOMES_FUNCTION_DOCS,
+            METRONOMES_CALLBACK_DOCS,
+        ),
+        (
+            crate::app::SpatializerModule::NODE_TYPE,
+            SPATIALIZER_FUNCTION_DOCS,
+            &[],
         ),
         (osc_module_type, OSC_FUNCTION_DOCS, &[]),
         (crate::app::SerialModule::NODE_TYPE, STREAM_FUNCTION_DOCS, &[]),

@@ -237,16 +237,7 @@ impl SignalsModule {
                     ctx,
                     module_id,
                     SIGNAL_CYCLE_CALLBACK,
-                    vec![
-                        serde_json::json!(sample.label),
-                        serde_json::json!(sample.cycles),
-                        serde_json::json!({
-                            "name": sample.label,
-                            "cycles": sample.cycles,
-                            "cycle": sample.cycle,
-                            "value": sample.value,
-                        }),
-                    ],
+                    signal_cycle_callback_args(&sample),
                 );
             }
         }
@@ -376,6 +367,19 @@ impl SignalsModule {
         self.config_dirty = true;
         self.sync_configuration(ctx, snapshot);
     }
+}
+
+fn signal_cycle_callback_args(sample: &runtime::SignalWorkerSample) -> Vec<serde_json::Value> {
+    vec![
+        serde_json::json!(sample.label),
+        serde_json::json!(sample.cycles),
+        serde_json::json!({
+            "name": sample.label,
+            "cycles": sample.cycles,
+            "cycle": sample.cycle,
+            "value": sample.value,
+        }),
+    ]
 }
 
 #[golden_core::item(

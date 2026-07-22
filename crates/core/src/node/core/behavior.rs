@@ -26,6 +26,11 @@ pub enum NodeCreationContext {
     Fresh,
     /// Node recreated while loading a persisted project.
     ProjectLoad,
+    /// App-owned structure added after persisted project reconstruction but before cutover.
+    ///
+    /// This retains loaded-data lifecycle semantics while allowing the engine to omit
+    /// transient event and UI projections that the host replaces with a full snapshot.
+    ProjectLoadAugmentation,
     /// Node recreated while duplicating/copy-pasting a persisted subtree.
     Duplicate,
 }
@@ -34,6 +39,11 @@ impl NodeCreationContext {
     /// Returns `true` when this creation path restored persisted data.
     pub const fn has_loaded_data(self) -> bool {
         !matches!(self, Self::Fresh)
+    }
+
+    /// Returns `true` for persisted reconstruction and pre-cutover augmentation.
+    pub const fn is_project_load(self) -> bool {
+        matches!(self, Self::ProjectLoad | Self::ProjectLoadAugmentation)
     }
 }
 

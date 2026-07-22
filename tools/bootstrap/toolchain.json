@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "baseline": "phase1b-supported-toolchain",
-  "captured_at": "2026-07-13",
+  "captured_at": "2026-07-18",
   "rust": {
     "channel": "1.97.0",
     "cargo_version": "1.97.0",
@@ -22,37 +22,10 @@
   },
   "node": {
     "version": "26.5.0",
-    "npm_version": "11.17.0",
-    "base_url": "https://nodejs.org/dist",
-    "distributions": {
-      "windows_x64": {
-        "file": "node-v26.5.0-win-x64.zip",
-        "sha256": "d3b2277dbcccfdf24ef6302928f64f484cff1d77a6d3caa3a28f4d20ce9158f6"
-      },
-      "windows_arm64": {
-        "file": "node-v26.5.0-win-arm64.zip",
-        "sha256": "c0cfa5877b6de743301e622f5abc4d26fb0ff8798adffc8fffd2885f426008ba"
-      },
-      "macos_x64": {
-        "file": "node-v26.5.0-darwin-x64.tar.xz",
-        "sha256": "8cf6704df7d8bfbfb2e290b23de0e7da9569e6741391035eaa0ddcb50fd8d3d0"
-      },
-      "macos_arm64": {
-        "file": "node-v26.5.0-darwin-arm64.tar.xz",
-        "sha256": "48231d6204eca6be13e6c5184dfdffa1d64ad88880364cc2cfb198f872cb2b13"
-      },
-      "linux_x64": {
-        "file": "node-v26.5.0-linux-x64.tar.xz",
-        "sha256": "9f619528f1db5ddc41dccf54211066fb42228d69a156733c69cb9d6cc92e358c"
-      },
-      "linux_arm64": {
-        "file": "node-v26.5.0-linux-arm64.tar.xz",
-        "sha256": "036df0b49662ebb350eb56f1cac603699b1e9ed1e2603ee129fefda473479030"
-      }
-    }
+    "npm_version": "11.17.0"
   },
   "python": {
-    "version": "3.14.4"
+    "version": "3.14"
   },
   "qualification_tools": {
     "cargo_deny": "0.20.2",

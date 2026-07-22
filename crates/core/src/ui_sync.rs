@@ -1482,12 +1482,8 @@ pub struct UiRuntimeStatsDto {
     pub work_units: u64,
     /// Authoritative external effects committed.
     pub effects_committed: u64,
-    /// External effects suppressed by safe shadow execution.
+    /// Non-authoritative external effects suppressed by the routing policy.
     pub effects_suppressed: u64,
-    /// Authoritative values compared with the side-effect-free runtime plan.
-    pub shadow_comparisons: u64,
-    /// Semantic mismatches found by safe shadow comparison.
-    pub shadow_mismatches: u64,
 }
 
 /// UI-originated edit intent.

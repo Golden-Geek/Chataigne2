@@ -23,6 +23,7 @@
 	import type { ContextMenuAnchor, ContextMenuItem } from '../../common/context-menu';
 	import { resolveParameterEditor } from './inspector.svelte';
 	import { resolveParameterContextPreview } from './parameter-preview-registry';
+	import { shouldFetchParameterControlInfo } from './parameter-control-info';
 	import { projectionLabel } from '../../../projection-labels';
 	import type { NodePickerModalView } from '../../../store/node-picker-modal.svelte';
 	import resetIcon from '../../../style/icons/reset.svg';
@@ -620,7 +621,13 @@
 			currentControlMode === 'contextLink' && previousMode !== 'contextLink';
 		const openedMenu = controlMenuOpen && !previousMenuOpen;
 		const finishedLoading = previousLoading && !loading;
-		const shouldFetch = nodeChanged || enteredContextLink || openedMenu || finishedLoading;
+		const shouldFetch = shouldFetchParameterControlInfo({
+			mode: currentControlMode,
+			nodeChanged,
+			enteredContextLink,
+			openedMenu,
+			finishedLoading
+		});
 		if (!shouldFetch) {
 			return;
 		}

@@ -31,15 +31,8 @@ if (@($requiredValues | Where-Object { [string]::IsNullOrWhiteSpace([string]$_) 
 $platformKeys = @("windows_x64", "windows_arm64", "macos_x64", "macos_arm64", "linux_x64", "linux_arm64")
 foreach ($platformKey in $platformKeys) {
     $hostTriple = [string]$manifest.rust.hosts.$platformKey
-    $distribution = $manifest.node.distributions.$platformKey
     if ([string]::IsNullOrWhiteSpace($hostTriple)) {
         throw "Missing Rust host triple '$platformKey'."
-    }
-    if ([string]::IsNullOrWhiteSpace([string]$distribution.file)) {
-        throw "Missing Node distribution filename '$platformKey'."
-    }
-    if ([string]$distribution.sha256 -notmatch '^[0-9a-f]{64}$') {
-        throw "Invalid Node distribution SHA-256 '$platformKey'."
     }
 }
 if ([string]::IsNullOrWhiteSpace([string]$manifest.rust.hosts.linux_armv7)) {
@@ -73,7 +66,7 @@ function Get-CommandVersion {
 
     $command = Get-Command $Executable -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $command) {
-        throw "Required tool '$Executable' was not found on PATH."
+        throw "Required system tool '$Executable' was not found on PATH. Install the pinned version documented in docs/workspace-hygiene.md; repository-local toolchains are not supported."
     }
     $output = @(& $command.Source @Arguments 2>&1 | ForEach-Object { [string]$_ }) -join "`n"
     if ($LASTEXITCODE -ne 0) {
@@ -102,8 +95,8 @@ if ($CheckInstalled) {
     if ($npm -ne [string]$manifest.node.npm_version) {
         throw "Installed npm does not match pinned $($manifest.node.npm_version): $npm"
     }
-    if ($python -notmatch ("^Python {0}(?:\s|$)" -f [regex]::Escape([string]$manifest.python.version))) {
-        throw "Installed Python does not match pinned $($manifest.python.version): $python"
+    if ($python -notmatch ("^Python {0}(?:\.\d+)?(?:\s|$)" -f [regex]::Escape([string]$manifest.python.version))) {
+        throw "Installed Python does not match supported $($manifest.python.version).x: $python"
     }
     $verboseRustc = Get-CommandVersion -Executable "rustc" -Arguments @("-vV")
     $hostMatch = [regex]::Match($verboseRustc, '(?m)^host:\s*(\S+)\s*$')

@@ -10,9 +10,9 @@ This repository is being refactored toward a clean long-term architecture. Optim
 - `crates/core_facade/`: stable `golden_core` facade used by apps.
 - `crates/protocol/`, `crates/persistence/`, `crates/script/`: public reusable boundaries.
 - `crates/transport_server/`, `crates/host_desktop/`: built-in transport and host runtimes.
-- `crates/golden_alchemist/`, `crates/golden_statechart/`: reusable graph and statechart engines.
+- `crates/graph/`, `crates/golden_statechart/`: reusable graph and statechart engines.
 - `crates/core_macros/`, `crates/codegen_support/`: macros and public build/codegen support.
-- `packages/golden-ui/`, `packages/golden-alchemist-ui/`: reusable Svelte packages.
+- `packages/golden-ui/`, `packages/golden-graph-ui/`, `packages/golden-statechart-ui/`: reusable Svelte packages.
 
 ## Local Bootstrap
 

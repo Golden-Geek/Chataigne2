@@ -47,3 +47,11 @@ assets, and `GC_UI_ASSUME_BUILT=1` embeds the existing `apps/chataigne/ui/build`
 
 Run `tools/check.ps1` for the local guardrail pass. Chataigne project files intentionally use the
 `noisette` extension; do not rename it without an explicit migration.
+
+## Deeper guides
+
+- [Module authoring](module-authoring.md)
+- [UI extension points](ui-extension.md)
+- [Performance contracts](performance.md)
+- [Troubleshooting](troubleshooting.md)
+- [Release readiness](release-readiness.md)

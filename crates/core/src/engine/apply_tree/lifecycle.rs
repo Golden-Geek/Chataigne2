@@ -1,6 +1,27 @@
 use super::*;
 
 impl<T: Node> Engine<T> {
+    pub(crate) fn build_lifecycle_tree_snapshot(
+        &mut self,
+        stage: &'static str,
+        callback_nodes: usize,
+    ) -> Arc<crate::process_ctx::ProcessTreeSnapshot> {
+        let started = std::time::Instant::now();
+        let snapshot_node_count = self.nodes.len();
+        let snapshot = self.build_process_tree_snapshot();
+        let elapsed = started.elapsed();
+        self.tick_scratch.stats.snapshot_builds += 1;
+        self.tick_scratch.stats.snapshot_nodes_cloned += snapshot_node_count;
+        self.tick_scratch.stats.snapshot_build_ns += elapsed.as_nanos();
+        if *crate::engine::runtime::PERF_TRACE_ENABLED {
+            eprintln!(
+                "[engine] lifecycle_snapshot stage={stage} callback_nodes={callback_nodes} snapshot_nodes={snapshot_node_count} elapsed_ms={}",
+                elapsed.as_millis()
+            );
+        }
+        snapshot
+    }
+
     pub(crate) fn run_node_attached_for_batch(
         &mut self,
         node_ids: &[NodeId],
@@ -11,7 +32,7 @@ impl<T: Node> Engine<T> {
         }
 
         let event_cursor = self.inbox.events.len();
-        let tree_snapshot = self.build_process_tree_snapshot();
+        let tree_snapshot = self.build_lifecycle_tree_snapshot("attached-batch", node_ids.len());
         for node_id in node_ids.iter().copied() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
@@ -41,7 +62,7 @@ impl<T: Node> Engine<T> {
         }
 
         let event_cursor = self.inbox.events.len();
-        let tree_snapshot = self.build_process_tree_snapshot();
+        let tree_snapshot = self.build_lifecycle_tree_snapshot("init-batch", node_ids.len());
         for node_id in node_ids.iter().copied() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
@@ -71,7 +92,7 @@ impl<T: Node> Engine<T> {
         }
 
         let mut event_cursor = self.inbox.events.len();
-        let mut tree_snapshot = self.build_process_tree_snapshot();
+        let mut tree_snapshot = self.build_lifecycle_tree_snapshot("ready-batch", node_ids.len());
         for node_id in node_ids.iter().copied() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
@@ -86,7 +107,7 @@ impl<T: Node> Engine<T> {
             if self.stabilization_scope_depth == 0 && self.pending_lifecycle_edits_include_structural() {
                 self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
                 event_cursor = self.inbox.events.len();
-                tree_snapshot = self.build_process_tree_snapshot();
+                tree_snapshot = self.build_lifecycle_tree_snapshot("ready-batch-rebuild", node_ids.len());
             }
         }
         if self.stabilization_scope_depth == 0 {
@@ -110,7 +131,11 @@ impl<T: Node> Engine<T> {
                     self.apply_edits_internal(false, creation_context)?;
                 }
 
-                let precomputed = self.precompute_inbox_dispatch_since(event_cursor);
+                let precomputed = if creation_context == Some(NodeCreationContext::ProjectLoadAugmentation) {
+                    self.precompute_project_load_augmentation_since(event_cursor)
+                } else {
+                    self.precompute_inbox_dispatch_since(event_cursor)
+                };
                 event_cursor = self.inbox.events.len();
 
                 if precomputed.is_empty() {
@@ -142,7 +167,7 @@ impl<T: Node> Engine<T> {
             .nodes
             .get(node_id)
             .is_some_and(|node| node.lifecycle_requires_tree_snapshot());
-        let init_tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
+        let init_tree_snapshot = needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("init-single", 1));
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         init_ctx.runtime_elapsed = self.runtime_elapsed;
         if let Some(init_tree_snapshot) = &init_tree_snapshot {
@@ -170,7 +195,7 @@ impl<T: Node> Engine<T> {
             .nodes
             .get(node_id)
             .is_some_and(|node| node.lifecycle_requires_tree_snapshot());
-        let created_tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
+        let created_tree_snapshot = needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("ready-single", 1));
         let mut created_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         created_ctx.runtime_elapsed = self.runtime_elapsed;
         if let Some(created_tree_snapshot) = &created_tree_snapshot {
@@ -219,7 +244,8 @@ impl<T: Node> Engine<T> {
                 .get(*node_id)
                 .is_some_and(|node| node.lifecycle_requires_tree_snapshot())
         });
-        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
+        let tree_snapshot =
+            needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("destroy-batch", node_ids.len()));
         for node_id in node_ids.iter().rev().copied() {
             self.run_node_destroy(node_id, tree_snapshot.as_ref());
         }

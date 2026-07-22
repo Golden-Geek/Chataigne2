@@ -52,40 +52,10 @@ function Invoke-External {
     }
 }
 
-function Install-WingetPackage {
-    param(
-        [string] $Id,
-        [string] $DisplayName,
-        [string] $Override = ""
-    )
-
-    if (-not (Get-CommandExists "winget")) {
-        throw "Cannot install $DisplayName automatically because winget was not found. Install it manually, restart PowerShell, then rerun tools/dev.ps1."
-    }
-
-    $arguments = @(
-        "install",
-        "--id", $Id,
-        "--exact",
-        "--source", "winget",
-        "--accept-package-agreements",
-        "--accept-source-agreements"
-    )
-    if (-not [string]::IsNullOrWhiteSpace($Override)) {
-        $arguments += @("--override", $Override)
-    }
-    Invoke-External "winget" $arguments
-    Refresh-Path
-}
-
 function Ensure-Rustup {
     Refresh-Path
     if (-not (Get-CommandExists "rustup")) {
-        Install-WingetPackage "Rustlang.Rustup" "rustup"
-    }
-    Refresh-Path
-    if (-not (Get-CommandExists "rustup")) {
-        throw "rustup was installed but is still not on PATH. Restart PowerShell, then rerun tools/dev.ps1."
+        throw "rustup is a system prerequisite. Install it and the pinned toolchain from docs/workspace-hygiene.md, then rerun tools/dev.ps1."
     }
 }
 
@@ -119,28 +89,18 @@ function Ensure-WindowsBuildTools {
         return
     }
 
-    Install-WingetPackage `
-        "Microsoft.VisualStudio.2022.BuildTools" `
-        "Visual Studio 2022 Build Tools" `
-        "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-    if (-not (Test-VcBuildToolsInstalled)) {
-        throw "Visual Studio C++ Build Tools could not be verified. Restart Windows if requested, then rerun tools/dev.ps1."
-    }
+    throw "Visual Studio C++ Build Tools with the VCTools workload are a system prerequisite. Install them, then rerun tools/dev.ps1."
 }
 
 function Activate-CanonicalToolchain {
     Write-Step "Canonical Rust, Node, npm, and Python contract"
     Ensure-Rustup
-    & (Join-Path $Root "tools\bootstrap\install-rust-toolchain.ps1")
+    $env:CARGO_TARGET_DIR = Join-Path $Root "target"
+    & (Join-Path $Root "tools\bootstrap\verify-toolchain.ps1") -CheckInstalled
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
-    $nodeDirectory = & (Join-Path $Root "tools\bootstrap\install-node.ps1")
-    if ([string]::IsNullOrWhiteSpace($nodeDirectory)) {
-        throw "Pinned Node installer did not return its local bin directory."
-    }
-    $env:PATH = "$nodeDirectory$([System.IO.Path]::PathSeparator)$env:PATH"
-    & (Join-Path $Root "tools\bootstrap\verify-toolchain.ps1") -CheckInstalled
+    & (Join-Path $Root "tools\workspace-hygiene.ps1") -Action Audit
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

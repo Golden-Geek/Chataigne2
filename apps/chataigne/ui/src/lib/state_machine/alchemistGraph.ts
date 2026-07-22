@@ -492,11 +492,11 @@ export const canConnectGraphConnection = (
 };
 
 const formulaSocketsByRef = (
-	formula: UiNodeDto | null | undefined,
+	anodes: readonly UiNodeDto[],
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>
 ): Map<string, GraphSocket> => {
 	const result = new Map<string, GraphSocket>();
-	for (const anode of formulaANodes(formula, nodesById)) {
+	for (const anode of anodes) {
 		const nodeId = String(anode.node_id);
 		collectSockets(
 			nodeId,
@@ -606,17 +606,18 @@ export const toGraphEdges = (
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
 	activeSocketRefs: ReadonlySet<string> = new Set()
 ): GraphEdge[] => {
-	const socketsByRef = formulaSocketsByRef(formula, nodesById);
+	const connections = formulaConnections(formula, nodesById);
+	if (connections.length === 0) return [];
+	const anodes = formulaANodes(formula, nodesById);
+	const socketsByRef = formulaSocketsByRef(anodes, nodesById);
 	const activeNodeIds = new Set(
 		Array.from(activeSocketRefs).flatMap((ref) => {
 			const separator = ref.indexOf(':');
 			return separator > 0 ? [ref.slice(0, separator)] : [];
 		})
 	);
-	const nodeIdByUuid = new Map(
-		formulaANodes(formula, nodesById).map((node) => [node.uuid, node.node_id])
-	);
-	return formulaConnections(formula, nodesById).flatMap((connection) => {
+	const nodeIdByUuid = new Map(anodes.map((node) => [node.uuid, node.node_id]));
+	return connections.flatMap((connection) => {
 		const source = referencedNodeId(
 			parameterValue(connection, nodesById, 'source_node'),
 			nodeIdByUuid

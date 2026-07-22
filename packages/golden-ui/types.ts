@@ -559,8 +559,6 @@ export interface UiRuntimeStats {
 	work_units: number;
 	effects_committed: number;
 	effects_suppressed: number;
-	shadow_comparisons: number;
-	shadow_mismatches: number;
 }
 
 export interface UiAnimationCurveFitPoint {

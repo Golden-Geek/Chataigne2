@@ -188,22 +188,50 @@ function Start-IsolatedBundledProduct {
 function Invoke-BundledBrowserGate {
     param(
         [string]$Id,
-        [ValidateSet("product-gate-workflow", "product-gate-lan")]
+        [ValidateSet("product-gate-workflow", "product-gate-lan", "product-gate-soak")]
         [string]$BrowserCommand,
         [string]$BindAddress,
         [string]$BrowserHost,
         [int]$Port,
         [string]$FixtureFileName,
-        [string]$ExpectedHost = ""
+        [string]$SourceFixturePath = "",
+        [string]$ExpectedHost = "",
+        [string]$ExpectedBrowserContract = "chataigne-product-browser-gate-v1",
+        [string]$ProductBinary = "",
+        [int]$BrowserTimeoutSeconds = 120,
+        [string[]]$BrowserExtraArguments = @(),
+        [switch]$DisableBrowserTrace
     )
 
     $repositoryRoot = Get-ProductGateRepositoryRoot
     $runDirectory = Get-ProductGateRunDirectory -RepositoryRoot $repositoryRoot
     $timeoutSeconds = Get-SmokeTimeoutSeconds
-    $binary = Get-BundledProductBinary -RepositoryRoot $repositoryRoot
+    if ($BrowserTimeoutSeconds -le 0) {
+        throw "BrowserTimeoutSeconds must be a positive integer."
+    }
+    $binary = if ([string]::IsNullOrWhiteSpace($ProductBinary)) {
+        Get-BundledProductBinary -RepositoryRoot $repositoryRoot
+    }
+    elseif ([System.IO.Path]::IsPathRooted($ProductBinary)) {
+        [System.IO.Path]::GetFullPath($ProductBinary)
+    }
+    else {
+        [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $ProductBinary))
+    }
+    if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+        throw "The bundled Chataigne2 binary '$binary' is missing."
+    }
     $node = Get-CommandSource -Name "node"
     $browserScript = Join-Path $repositoryRoot "apps/chataigne/ui/scripts/ui-browser-tools.mjs"
-    $sourceFixture = Join-Path $repositoryRoot "apps/chataigne/test-samples/test_simple_load.noisette"
+    $sourceFixture = if ([string]::IsNullOrWhiteSpace($SourceFixturePath)) {
+        Join-Path $repositoryRoot "apps/chataigne/test-samples/test_simple_load.noisette"
+    }
+    elseif ([System.IO.Path]::IsPathRooted($SourceFixturePath)) {
+        [System.IO.Path]::GetFullPath($SourceFixturePath)
+    }
+    else {
+        [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $SourceFixturePath))
+    }
     if (-not (Test-Path -LiteralPath $sourceFixture -PathType Leaf)) {
         throw "Representative product fixture '$sourceFixture' is missing."
     }
@@ -256,10 +284,14 @@ function Invoke-BundledBrowserGate {
             "--fixture", $fixturePath,
             "--artifact-directory", $artifactDirectory,
             "--report", $reportPath,
-            "--timeout", ([Math]::Min($timeoutSeconds, 120) * 1000)
+            "--timeout", ([Math]::Min($timeoutSeconds, $BrowserTimeoutSeconds) * 1000)
         )
         if (-not [string]::IsNullOrWhiteSpace($ExpectedHost)) {
             $browserArguments += @("--expected-host", $ExpectedHost)
+        }
+        $browserArguments += $BrowserExtraArguments
+        if ($DisableBrowserTrace) {
+            $browserArguments += @("--trace", "false")
         }
         & $node @browserArguments
         if ($LASTEXITCODE -ne 0) {
@@ -269,9 +301,9 @@ function Invoke-BundledBrowserGate {
             throw "The $Id Playwright workflow produced no browser report."
         }
         $browserReport = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
-        if ($browserReport.contract -ne "chataigne-product-browser-gate-v1" -or
+        if ($browserReport.contract -ne $ExpectedBrowserContract -or
             $browserReport.status -ne "passed") {
-            throw "The $Id browser report did not satisfy the schema-v1 pass contract."
+            throw "The $Id browser report did not satisfy the '$ExpectedBrowserContract' pass contract."
         }
         $reportedProjectPath = [string]$browserReport.loadedProjectPath
 
@@ -287,6 +319,12 @@ function Invoke-BundledBrowserGate {
             -ReportedPath $reportedProjectPath `
             -ExpectedFileName $FixtureFileName
 
+        $browserTrace = if ($browserReport.PSObject.Properties.Name -contains "artifacts") {
+            $browserReport.artifacts.trace
+        }
+        else {
+            $null
+        }
         [pscustomobject]@{
             contract                  = "chataigne-bundled-browser-hook-v1"
             id                        = $Id
@@ -296,7 +334,7 @@ function Invoke-BundledBrowserGate {
             browser_url               = $frontendUri
             expected_non_loopback_host = if ([string]::IsNullOrWhiteSpace($ExpectedHost)) { $null } else { $ExpectedHost }
             browser_report            = $reportPath
-            trace                     = Join-Path $artifactDirectory "$($browserReport.mode).trace.zip"
+            trace                     = $browserTrace
             uploaded_project_cleanup  = $uploadedProjectCleanup
             owned_process_cleanup     = "verified"
             released_port             = $Port
@@ -330,6 +368,16 @@ function Invoke-BundledBrowserGate {
             }
             catch {
                 Write-Warning $_
+            }
+        }
+        if ([string]::IsNullOrWhiteSpace($reportedProjectPath) -and
+            (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+            try {
+                $failedBrowserReport = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+                $reportedProjectPath = [string]$failedBrowserReport.loadedProjectPath
+            }
+            catch {
+                Write-Warning "Failed to recover the uploaded project path from the $Id browser report: $_"
             }
         }
         if (-not [string]::IsNullOrWhiteSpace($reportedProjectPath)) {

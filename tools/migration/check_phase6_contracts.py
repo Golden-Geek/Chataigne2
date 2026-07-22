@@ -90,9 +90,8 @@ def implementation_violations(root: Path) -> list[Violation]:
         "scheduled_node_to_work",
         "run_tick_with_compiled_schedule",
         "scheduler_outputs",
-        "golden.runtime.domain-node-adapter",
+        "has no compiled kernel identity",
         "apply_dense_inputs",
-        "compare_shadow_results",
         "recompile_blocking",
     ):
         if contract not in runtime_center_source:
@@ -117,8 +116,6 @@ def implementation_violations(root: Path) -> list[Violation]:
         "control_queue_depth",
         "sparse_batches",
         "effects_suppressed",
-        "shadow_comparisons",
-        "shadow_mismatches",
     ):
         if metric not in ui_stats_source:
             violations.append(Violation(ui_stats, f"UI runtime metrics lack {metric}"))
@@ -129,12 +126,13 @@ def implementation_violations(root: Path) -> list[Violation]:
 
     generated = root / "packages/golden-ui/generated/rust_protocol/UiRuntimeStatsDto.ts"
     generated_source = generated.read_text(encoding="utf-8")
-    if (
-        "effects_suppressed" not in generated_source
-        or "control_queue_depth" not in generated_source
-        or "shadow_mismatches" not in generated_source
-    ):
+    if "effects_suppressed" not in generated_source or "control_queue_depth" not in generated_source:
         violations.append(Violation(generated, "generated UI protocol lacks Phase 6 runtime metrics"))
+    for removed_metric in ("shadow_comparisons", "shadow_mismatches"):
+        if removed_metric in generated_source or removed_metric in ui_stats_source:
+            violations.append(Violation(generated, f"retired runtime metric remains: {removed_metric}"))
+    if "golden.runtime.domain-node-adapter" in runtime_center_source or "compare_shadow_results" in runtime_center_source:
+        violations.append(Violation(runtime_center, "retired Phase 6 domain adapter or shadow comparison remains"))
     return violations
 
 

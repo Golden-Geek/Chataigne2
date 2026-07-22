@@ -2,50 +2,6 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "jCodeMunch: watch workspace",
-      "type": "process",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\tools\\watch-jcodemunch.ps1"
-      ],
-      "options": { "cwd": "${workspaceFolder}" },
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "jcodemunch",
-        "pattern": { "regexp": "^(.*)$", "message": 1 },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^jCodeMunch watcher starting$",
-          "endsPattern": "^jCodeMunch watcher ready$"
-        }
-      },
-      "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 },
-      "presentation": {
-        "reveal": "never",
-        "panel": "dedicated",
-        "showReuseMessage": false
-      }
-    },
-    {
-      "label": "jCodeMunch: status",
-      "type": "process",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\tools\\watch-jcodemunch.ps1",
-        "--status"
-      ],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
       "label": "Workspace: bootstrap and diagnose",
       "type": "process",
       "command": "bash",
@@ -321,7 +277,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "'${workspaceFolder}/tools/bootstrap/install-qualification-tools.sh' && '${workspaceFolder}/tools/bootstrap/bootstrap.sh' pwsh -NoProfile -File '${workspaceFolder}/tools/product-gate/product-gate.ps1' -DependencyAudit"
+        "'${workspaceFolder}/tools/bootstrap/bootstrap.sh' && '${workspaceFolder}/tools/bootstrap/verify-toolchain.sh' --check-qualification-tools && pwsh -NoProfile -File '${workspaceFolder}/tools/product-gate/product-gate.ps1' -DependencyAudit"
       ],
       "windows": {
         "command": "powershell",
@@ -330,7 +286,7 @@
           "-ExecutionPolicy",
           "Bypass",
           "-Command",
-          "& '${workspaceFolder}\\tools\\bootstrap\\install-qualification-tools.ps1'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1' powershell.exe -NoProfile -ExecutionPolicy Bypass -File '${workspaceFolder}\\tools\\product-gate\\product-gate.ps1' -DependencyAudit"
+          "& '${workspaceFolder}\\tools\\bootstrap\\bootstrap.ps1'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\tools\\bootstrap\\verify-toolchain.ps1' -CheckQualificationTools; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & powershell.exe -NoProfile -ExecutionPolicy Bypass -File '${workspaceFolder}\\tools\\product-gate\\product-gate.ps1' -DependencyAudit"
         ]
       },
       "options": { "cwd": "${workspaceFolder}" },

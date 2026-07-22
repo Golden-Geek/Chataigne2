@@ -3,6 +3,7 @@ use std::{
     error::Error,
     fmt, fs,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use chataigne_alchemist::AlchemistFormula;
@@ -10,7 +11,7 @@ use golden_core::{
     app::{preferences_data_folder_from_snapshot, ProjectNode, PREFERENCES_APP_DATA_TAG},
     edit::NodeTree,
     node::{
-        DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
+        DeclId, Folder, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
         PresentationHint, UserCreatableItem,
     },
     parameter::{CssValue, ParamValue},
@@ -29,7 +30,7 @@ use crate::app::{
         FORMULA_EXTERNAL_READ_ONLY_TAG, FORMULA_EXTERNAL_SOURCE_DECL_ID,
         FORMULA_COPY_SOURCE_DECL_ID,
     },
-    AppNode,
+    AppEngine, AppNode,
 };
 
 use super::{find_formula_library, FORMULA_NODE_TYPE, PROCESSOR_ITEM_KIND};
@@ -37,12 +38,22 @@ use super::{find_formula_library, FORMULA_NODE_TYPE, PROCESSOR_ITEM_KIND};
 pub(super) const PROCESSOR_CREATE_PREFIX: &str = "state_processor:";
 const PROCESSOR_PROJECT_CREATE_PREFIX: &str = "state_processor:project:";
 const BUILTIN_FORMULA_DIR_ENV: &str = "CHATAIGNE_BUILTIN_FORMULAS_DIR";
-const BUILTIN_FORMULA_DIR: &str = "builtin_formulas";
 const SHARED_FORMULA_DIR_ENV: &str = "CHATAIGNE_SHARED_FORMULAS_DIR";
 const SHARED_FORMULA_APP_DATA_DIR: &str = "Chataigne";
 const SHARED_FORMULA_SUBDIR: &str = "formulas";
 const EXPORTED_NODE_TREE_KIND: &str = "golden-ui.node-tree";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
+pub(super) const BUILTIN_FORMULA_CONTENT_TAG_PREFIX: &str =
+    "chataigne.formula.external.builtin.content:";
+
+struct BundledBuiltinFormula {
+    file_name: &'static str,
+    source: &'static str,
+    icon: Option<(&'static str, &'static [u8])>,
+}
+
+// The build script enumerates every JSON formula and optional sibling SVG/PNG.
+include!(concat!(env!("OUT_DIR"), "/builtin_formulas.rs"));
 
 #[derive(Clone, Debug)]
 pub(crate) enum FormulaSourceRef {
@@ -236,28 +247,6 @@ impl FormulaCatalog {
             catalog.add_project_formulas(snapshot, library);
         }
         catalog
-    }
-
-    /// Filters `candidates` (freshly loaded from the builtin formula
-    /// directory) down to the ones not already present as a child of
-    /// `library`, matched by stable node UUID. Called every time a project
-    /// is opened so formulas added to that directory in a newer app version
-    /// show up in projects saved by an older one, without duplicating
-    /// formulas the project already has.
-    pub(crate) fn missing_external_formula_trees(
-        snapshot: &ProcessTreeSnapshot,
-        library: NodeId,
-        candidates: Vec<NodeTree>,
-    ) -> Vec<NodeTree> {
-        let existing_uuids: HashSet<NodeUuid> = snapshot
-            .child_ids(library)
-            .into_iter()
-            .filter_map(|child_id| snapshot.node(child_id).map(|node| node.uuid))
-            .collect();
-        candidates
-            .into_iter()
-            .filter(|tree| !existing_uuids.contains(&tree.node.node_data().meta.uuid))
-            .collect()
     }
 
     /// Shared formulas are modeled as ordinary external-file-linked formula
@@ -533,7 +522,7 @@ impl FormulaCatalog {
         }
         paths.sort();
 
-        paths
+        let assets = paths
             .into_iter()
             .map(|formula_path| {
                 let file_source = fs::read_to_string(&formula_path).map_err(|error| {
@@ -542,14 +531,28 @@ impl FormulaCatalog {
                         source: error,
                     }
                 })?;
-                BuiltinFormulaFile::decode(&formula_path, &file_source)?.into_node_tree()
+                let icon = sibling_icon_data_uri(&formula_path)?;
+                Ok(BuiltinFormulaAsset {
+                    file_name: formula_path,
+                    source: file_source,
+                    icon,
+                })
             })
-            .collect()
+            .collect::<Result<Vec<_>, BuiltinFormulaLoadError>>()?;
+        materialize_builtin_assets(assets)?.into_node_trees()
     }
 
     pub(crate) fn default_builtin_formula_trees() -> Result<Vec<NodeTree>, BuiltinFormulaLoadError>
     {
-        Self::builtin_formula_trees(builtin_formula_dir())
+        match std::env::var_os(BUILTIN_FORMULA_DIR_ENV) {
+            Some(path) => Self::builtin_formula_trees(PathBuf::from(path)),
+            None => match &*MATERIALIZED_BUNDLED_BUILTIN_FORMULAS {
+                Ok(formulas) => formulas.clone().into_node_trees(),
+                Err(reason) => Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                    reason: reason.clone(),
+                }),
+            },
+        }
     }
 
     pub(crate) fn external_formula_tree_from_file(
@@ -669,12 +672,6 @@ fn export_child_decl_id(decl_id: &str) -> bool {
             | FORMULA_EXTERNAL_DELETE_FILE_DECL_ID
             | FORMULA_COPY_SOURCE_DECL_ID
     )
-}
-
-fn builtin_formula_dir() -> PathBuf {
-    std::env::var_os(BUILTIN_FORMULA_DIR_ENV)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(BUILTIN_FORMULA_DIR))
 }
 
 pub(crate) fn shared_formula_dir_for_data_folder(data_folder: impl AsRef<Path>) -> PathBuf {
@@ -829,10 +826,7 @@ fn sibling_icon_data_uri(formula_path: &Path) -> Result<Option<String>, BuiltinF
     for (extension, mime) in [("svg", "image/svg+xml"), ("png", "image/png")] {
         let icon_path = formula_path.with_extension(extension);
         match fs::read(&icon_path) {
-            Ok(bytes) => {
-                let encoded = BASE64_STANDARD.encode(bytes);
-                return Ok(Some(format!("data:{mime};base64,{encoded}")));
-            }
+            Ok(bytes) => return Ok(Some(icon_data_uri(mime, &bytes))),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
             Err(error) => {
                 return Err(BuiltinFormulaLoadError::Io {
@@ -845,9 +839,135 @@ fn sibling_icon_data_uri(formula_path: &Path) -> Result<Option<String>, BuiltinF
     Ok(None)
 }
 
+fn icon_data_uri(mime: &str, bytes: &[u8]) -> String {
+    let encoded = BASE64_STANDARD.encode(bytes);
+    format!("data:{mime};base64,{encoded}")
+}
+
 /// Fixed namespace for deterministically deriving a built-in formula's node
 /// UUID from its filename (see `stable_node_uuid`).
 const BUILTIN_FORMULA_UUID_NAMESPACE: &str = "8f27f490-9d0a-4d0f-8b3e-000000000b01";
+const BUILTIN_FORMULA_CONTENT_UUID_NAMESPACE: &str = "8f27f490-9d0a-4d0f-8b3e-000000000b02";
+
+#[derive(Clone, Debug)]
+struct BuiltinFormulaAsset {
+    file_name: PathBuf,
+    source: String,
+    icon: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct MaterializedBuiltinFormula {
+    file_name: PathBuf,
+    source: String,
+    icon: Option<String>,
+    content_tag: String,
+}
+
+#[derive(Clone, Debug)]
+struct MaterializedBuiltinFormulas(Vec<MaterializedBuiltinFormula>);
+
+impl MaterializedBuiltinFormulas {
+    fn into_node_trees(self) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
+        self.0
+            .into_iter()
+            .map(|materialized| {
+                let mut formula = BuiltinFormulaFile::decode_with_icon(
+                    &materialized.file_name,
+                    &materialized.source,
+                    materialized.icon,
+                )?;
+                formula.content_tag = materialized.content_tag;
+                formula.into_node_tree()
+            })
+            .collect()
+    }
+}
+
+static MATERIALIZED_BUNDLED_BUILTIN_FORMULAS: LazyLock<Result<MaterializedBuiltinFormulas, String>> =
+    LazyLock::new(|| {
+        let assets = BUNDLED_BUILTIN_FORMULAS
+            .iter()
+            .map(|bundled| BuiltinFormulaAsset {
+                file_name: PathBuf::from(bundled.file_name),
+                source: bundled.source.to_owned(),
+                icon: bundled
+                    .icon
+                    .map(|(mime, bytes)| icon_data_uri(mime, bytes)),
+            })
+            .collect();
+        materialize_builtin_assets(assets).map_err(|error| error.to_string())
+    });
+
+fn materialize_builtin_assets(
+    assets: Vec<BuiltinFormulaAsset>,
+) -> Result<MaterializedBuiltinFormulas, BuiltinFormulaLoadError> {
+    struct StagedFormula {
+        file_name: PathBuf,
+        uuid: NodeUuid,
+        icon: Option<String>,
+        content_tag: String,
+    }
+
+    let root: AppNode = Folder::new("Built-in Formula Staging").into();
+    let mut engine = AppEngine::new(root);
+    let mut staged = Vec::with_capacity(assets.len());
+    for asset in assets {
+        let formula = BuiltinFormulaFile::decode_with_icon(
+            &asset.file_name,
+            &asset.source,
+            asset.icon.clone(),
+        )?;
+        let uuid = formula.identity.stable_node_uuid();
+        let content_tag = formula.content_tag.clone();
+        let tree = formula.into_node_tree()?;
+        staged.push(StagedFormula {
+            file_name: asset.file_name,
+            uuid,
+            icon: asset.icon,
+            content_tag,
+        });
+        engine.edits.push(golden_core::edit::Edit::AddNodeTree {
+            tree,
+            parent: engine.root,
+            prev_sibling: None,
+        });
+    }
+    engine.apply_edits().map_err(|error| {
+        BuiltinFormulaLoadError::InvalidExportedFormula {
+            reason: format!("failed to materialize built-in formula declarations: {error}"),
+        }
+    })?;
+
+    let snapshot = engine.process_tree_snapshot();
+    let mut materialized = Vec::with_capacity(staged.len());
+    for staged in staged {
+        let formula_node = snapshot.node_id_by_uuid(staged.uuid).ok_or_else(|| {
+            BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!(
+                    "materialized built-in formula '{}' is missing its stable root",
+                    staged.file_name.display()
+                ),
+            }
+        })?;
+        let source = FormulaCatalog::export_formula_json(&snapshot, formula_node).ok_or_else(|| {
+            BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!(
+                    "materialized built-in formula '{}' could not be exported",
+                    staged.file_name.display()
+                ),
+            }
+        })?;
+        materialized.push(MaterializedBuiltinFormula {
+            file_name: staged.file_name,
+            source,
+            icon: staged.icon,
+            content_tag: staged.content_tag,
+        });
+    }
+
+    Ok(MaterializedBuiltinFormulas(materialized))
+}
 
 #[derive(Clone, Debug)]
 struct BuiltinFormulaIdentity {
@@ -891,10 +1011,15 @@ struct BuiltinFormulaFile {
     identity: BuiltinFormulaIdentity,
     tree: ExportedNodeTree,
     icon: Option<String>,
+    content_tag: String,
 }
 
 impl BuiltinFormulaFile {
-    fn decode(path: &Path, file_source: &str) -> Result<Self, BuiltinFormulaLoadError> {
+    fn decode_with_icon(
+        path: &Path,
+        file_source: &str,
+        icon: Option<String>,
+    ) -> Result<Self, BuiltinFormulaLoadError> {
         let file_name = path
             .file_name()
             .and_then(|file_name| file_name.to_str())
@@ -907,13 +1032,40 @@ impl BuiltinFormulaFile {
             }
         })?;
         let tree = decode_exported_formula_tree(path, file_source)?;
-        let icon = sibling_icon_data_uri(path)?;
-        Ok(Self { identity, tree, icon })
+        let content_tag = builtin_formula_content_tag(file_source, icon.as_deref());
+        Ok(Self {
+            identity,
+            tree,
+            icon,
+            content_tag,
+        })
     }
 
     fn into_node_tree(self) -> Result<NodeTree, BuiltinFormulaLoadError> {
-        self.tree.into_node_tree(self.identity, self.icon)
+        let mut tree = self.tree.into_node_tree(self.identity, self.icon)?;
+        let tags = &mut tree.node.node_data_mut().meta.tags;
+        if !tags.iter().any(|tag| tag == &self.content_tag) {
+            tags.push(self.content_tag);
+        }
+        Ok(tree)
     }
+}
+
+fn builtin_formula_content_tag(file_source: &str, icon: Option<&str>) -> String {
+    let namespace = Uuid::parse_str(BUILTIN_FORMULA_CONTENT_UUID_NAMESPACE)
+        .expect("built-in formula content uuid namespace should be valid");
+    let mut content = String::with_capacity(
+        file_source.len() + icon.map_or(0, str::len) + 1,
+    );
+    content.push_str(file_source);
+    content.push('\0');
+    if let Some(icon) = icon {
+        content.push_str(icon);
+    }
+    format!(
+        "{BUILTIN_FORMULA_CONTENT_TAG_PREFIX}{}",
+        Uuid::new_v5(&namespace, content.as_bytes())
+    )
 }
 
 #[derive(Debug, Deserialize)]

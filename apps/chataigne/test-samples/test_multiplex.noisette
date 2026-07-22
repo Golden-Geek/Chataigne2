@@ -4,7 +4,7 @@
     "dock_layout": {
       "activeGroup": "2",
       "grid": {
-        "height": 1077.59375,
+        "height": 1002,
         "orientation": "HORIZONTAL",
         "root": {
           "data": [
@@ -18,7 +18,7 @@
                       "modules-1"
                     ]
                   },
-                  "size": 537,
+                  "size": 499,
                   "type": "leaf"
                 },
                 {
@@ -29,11 +29,11 @@
                       "outliner"
                     ]
                   },
-                  "size": 534.59375,
+                  "size": 497,
                   "type": "leaf"
                 }
               ],
-              "size": 378,
+              "size": 342,
               "type": "branch"
             },
             {
@@ -46,7 +46,7 @@
                   "warnings"
                 ]
               },
-              "size": 919,
+              "size": 838,
               "type": "leaf"
             },
             {
@@ -59,7 +59,7 @@
                       "inspector"
                     ]
                   },
-                  "size": 706,
+                  "size": 657,
                   "type": "leaf"
                 },
                 {
@@ -70,18 +70,18 @@
                       "logger"
                     ]
                   },
-                  "size": 365.59375,
+                  "size": 339,
                   "type": "leaf"
                 }
               ],
-              "size": 434.1875,
+              "size": 394,
               "type": "branch"
             }
           ],
-          "size": 1077.59375,
+          "size": 1002,
           "type": "branch"
         },
-        "width": 1743.1875
+        "width": 1586
       },
       "panels": {
         "dashboard": {
@@ -219,7 +219,7 @@
             }
           },
           "tabComponent": "golden-tab",
-          "title": "Inspector: State 2"
+          "title": "Inspector"
         },
         "logger": {
           "contentComponent": "logger",
@@ -240,8 +240,10 @@
             "__gc_panel_state": {
               "opennessByNodeId": {
                 "4294967297": true,
-                "4294967587": true,
-                "4294967606": true
+                "4294967606": true,
+                "4294967609": true,
+                "4294967610": true,
+                "4294967614": true
               }
             }
           },
@@ -276,24 +278,43 @@
         }
       }
     },
-    "selected_node_ids": [
-      4294967964
-    ]
+    "selected_node_ids": []
   },
   "root": {
     "uuid": "7a4dcadc-14ff-44b0-8224-daa727975f34",
     "type": "folder",
     "meta": {
-      "decl_id": "root"
+      "decl_id": "root",
+      "short_name": "folder",
+      "enabled": true,
+      "can_be_disabled": false,
+      "label": "Folder"
     },
     "children": [
       {
         "uuid": "58d9d46e-e904-40ce-a02b-cedd4e0f92bb",
-        "type": "dashboard"
+        "type": "dashboard",
+        "meta": {
+          "user_permissions": {
+            "can_edit_name": true,
+            "can_remove_and_duplicate": true,
+            "can_edit_constraints": true,
+            "can_edit_tags": true,
+            "can_edit_color": true
+          }
+        }
       },
       {
         "uuid": "b70dddb7-b36f-411d-9613-558cbcb1717c",
         "type": "alchemist_formula_library",
+        "meta": {
+          "user_permissions": {
+            "can_edit_name": true,
+            "can_edit_constraints": true,
+            "can_edit_tags": true,
+            "can_edit_color": true
+          }
+        },
         "children": [
           {
             "uuid": "a1cee87c-f538-4ac1-aaea-91e68f4ccb58",
@@ -315,10 +336,18 @@
             "uuid": "36f09235-c586-4ce8-b565-9e933b062b0b",
             "type": "alchemist_formula",
             "meta": {
+              "can_be_disabled": false,
               "label": "ActionTest",
               "tags": [
                 "chataigne.formula.external.file"
-              ]
+              ],
+              "user_permissions": {
+                "can_edit_name": true,
+                "can_remove_and_duplicate": true,
+                "can_edit_constraints": true,
+                "can_edit_tags": true,
+                "can_edit_color": true
+              }
             },
             "children": [
               {
@@ -366,14 +395,30 @@
                 "uuid": "b79a7ea9-9fe2-4b94-9b48-a3cbc6957100",
                 "type": "alchemist_properties",
                 "meta": {
-                  "decl_id": "properties"
+                  "can_be_disabled": false,
+                  "user_permissions": {
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
                 },
                 "children": [
                   {
                     "uuid": "0f594e98-1b9a-4360-b639-16c8d6e45f82",
                     "type": "alchemist_property_manager",
                     "meta": {
+                      "can_be_disabled": false,
                       "label": "Conditions",
+                      "tags": [
+                        "alchemist.manager.role:condition"
+                      ],
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      },
                       "presentation": {
                         "default_color": {
                           "r": 0.6051733333333333,
@@ -394,6 +439,7 @@
                           "default_value": {
                             "Enum": ""
                           },
+                          "persist_read_only_value": true,
                           "read_only": false
                         }
                       },
@@ -415,10 +461,18 @@
                     "uuid": "22848e74-1519-4fbd-8001-0d3df40ae80a",
                     "type": "alchemist_property_manager",
                     "meta": {
+                      "can_be_disabled": false,
                       "label": "Outputs",
                       "tags": [
                         "alchemist.manager.role:output"
                       ],
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      },
                       "presentation": {
                         "default_color": {
                           "r": 0.5138466666666668,
@@ -439,7 +493,11 @@
                           "default_value": {
                             "Enum": ""
                           },
-                          "read_only": false
+                          "persist_read_only_value": true,
+                          "read_only": false,
+                          "value": {
+                            "Enum": "output"
+                          }
                         }
                       },
                       {
@@ -460,10 +518,18 @@
                     "uuid": "d00e4f35-2744-400a-bd5c-2ea1b19d4561",
                     "type": "alchemist_property_manager",
                     "meta": {
+                      "can_be_disabled": false,
                       "label": "Outputs 2",
                       "tags": [
                         "alchemist.manager.role:output"
                       ],
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      },
                       "presentation": {
                         "default_color": {
                           "r": 0.5138466666666668,
@@ -484,7 +550,11 @@
                           "default_value": {
                             "Enum": ""
                           },
-                          "read_only": false
+                          "persist_read_only_value": true,
+                          "read_only": false,
+                          "value": {
+                            "Enum": "output"
+                          }
                         }
                       },
                       {
@@ -511,6 +581,13 @@
                   "tags": [
                     "alchemist.anode.type:chataigne.conditions_manager"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.6051733333333333,
@@ -705,6 +782,7 @@
                         "meta": {
                           "decl_id": "outputs/valid",
                           "short_name": "valid",
+                          "can_be_disabled": false,
                           "label": "Valid",
                           "presentation": {
                             "default_color": {
@@ -758,6 +836,7 @@
                         "meta": {
                           "decl_id": "outputs/on_true",
                           "short_name": "on_true",
+                          "can_be_disabled": false,
                           "label": "On True",
                           "presentation": {
                             "default_color": {
@@ -811,6 +890,7 @@
                         "meta": {
                           "decl_id": "outputs/on_false",
                           "short_name": "on_false",
+                          "can_be_disabled": false,
                           "label": "On False",
                           "presentation": {
                             "default_color": {
@@ -870,6 +950,13 @@
                   "tags": [
                     "alchemist.anode.type:chataigne.outputs_manager"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.5138466666666668,
@@ -1075,6 +1162,7 @@
                         "meta": {
                           "decl_id": "inputs/values",
                           "short_name": "values",
+                          "can_be_disabled": false,
                           "label": "Values",
                           "presentation": {
                             "default_color": {
@@ -1128,6 +1216,7 @@
                         "meta": {
                           "decl_id": "inputs/trigger",
                           "short_name": "trigger",
+                          "can_be_disabled": false,
                           "label": "Trigger",
                           "presentation": {
                             "default_color": {
@@ -1218,6 +1307,13 @@
                   "tags": [
                     "alchemist.anode.type:chataigne.outputs_manager"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.5138466666666668,
@@ -1423,6 +1519,7 @@
                         "meta": {
                           "decl_id": "inputs/values",
                           "short_name": "values",
+                          "can_be_disabled": false,
                           "label": "Values",
                           "presentation": {
                             "default_color": {
@@ -1476,6 +1573,7 @@
                         "meta": {
                           "decl_id": "inputs/trigger",
                           "short_name": "trigger",
+                          "can_be_disabled": false,
                           "label": "Trigger",
                           "presentation": {
                             "default_color": {
@@ -1561,6 +1659,16 @@
               {
                 "uuid": "5f99b998-9d90-4889-be61-fbfee2cba6c4",
                 "type": "alchemist_connection",
+                "meta": {
+                  "can_be_disabled": false,
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                },
                 "children": [
                   {
                     "uuid": "0d961677-8324-4a57-a109-812c39662831",
@@ -1636,7 +1744,15 @@
                 "uuid": "dae0791b-7ca2-4058-a389-cc9e07174260",
                 "type": "alchemist_connection",
                 "meta": {
-                  "label": "Connection 2"
+                  "can_be_disabled": false,
+                  "label": "Connection 2",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
                 },
                 "children": [
                   {
@@ -1716,6 +1832,7 @@
             "type": "alchemist_formula",
             "user_role": "itemRoot",
             "meta": {
+              "can_be_disabled": false,
               "label": "Action 2"
             },
             "children": [
@@ -1745,6 +1862,18 @@
                     "show_in_inspector_content": false
                   }
                 }
+              },
+              {
+                "uuid": "8f9548dc-1b67-4c3e-a758-8e49e495d413",
+                "type": "alchemist_properties",
+                "meta": {
+                  "can_be_disabled": false,
+                  "user_permissions": {
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                }
               }
             ]
           },
@@ -1752,14 +1881,22 @@
             "uuid": "9752d4ca-340b-463a-b149-f3c298b72a5e",
             "type": "alchemist_formula",
             "meta": {
+              "can_be_disabled": false,
               "label": "bb",
               "tags": [
                 "chataigne.formula.external.file"
-              ]
+              ],
+              "user_permissions": {
+                "can_edit_name": true,
+                "can_remove_and_duplicate": true,
+                "can_edit_constraints": true,
+                "can_edit_tags": true,
+                "can_edit_color": true
+              }
             },
             "children": [
               {
-                "uuid": "01deb48e-fe04-4481-a301-c8b9e6f651e5",
+                "uuid": "bc985d46-8fd3-4ff6-acc8-d3b86255eaaf",
                 "type": "file",
                 "meta": {
                   "decl_id": "external_formula_file",
@@ -1776,7 +1913,7 @@
                 }
               },
               {
-                "uuid": "b409ce04-eff2-4715-b9f7-8a1f40719b10",
+                "uuid": "17573611-99a4-4334-a4c9-52b9b8d33a8e",
                 "type": "reference",
                 "meta": {
                   "decl_id": "external_formula_source",
@@ -1788,7 +1925,7 @@
                 }
               },
               {
-                "uuid": "e95b2635-44b0-4890-bbca-53a86853714a",
+                "uuid": "8120cdd0-fa78-4c09-99e0-68365400c836",
                 "type": "bool",
                 "meta": {
                   "decl_id": "external_formula_delete_file",
@@ -1803,7 +1940,12 @@
                 "uuid": "93e4c980-aa8d-43ac-af69-fb7880e6e3e3",
                 "type": "alchemist_properties",
                 "meta": {
-                  "decl_id": "properties",
+                  "can_be_disabled": false,
+                  "user_permissions": {
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "collapsed": true
                   }
@@ -1813,10 +1955,26 @@
                     "uuid": "8ab08d22-83f1-4db0-a91b-0e6e9361bc64",
                     "type": "alchemist_property",
                     "meta": {
+                      "can_be_disabled": false,
                       "label": "Float",
                       "tags": [
                         "alchemist.property.type:float"
-                      ]
+                      ],
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      },
+                      "presentation": {
+                        "default_color": {
+                          "r": 0.28,
+                          "g": 0.74,
+                          "b": 0.52,
+                          "a": 1.0
+                        }
+                      }
                     },
                     "children": [
                       {
@@ -1851,7 +2009,15 @@
                         "meta": {
                           "decl_id": "value",
                           "short_name": "value",
-                          "user_permissions": {}
+                          "label": "Default value",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.28,
+                              "g": 0.74,
+                              "b": 0.52,
+                              "a": 1.0
+                            }
+                          }
                         }
                       }
                     ]
@@ -1866,6 +2032,13 @@
                   "tags": [
                     "alchemist.anode.type:function"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.24560000000000004,
@@ -2047,6 +2220,7 @@
                         "meta": {
                           "decl_id": "inputs/value",
                           "short_name": "value",
+                          "can_be_disabled": false,
                           "label": "Value",
                           "presentation": {
                             "default_color": {
@@ -2133,6 +2307,7 @@
                         "meta": {
                           "decl_id": "outputs/result",
                           "short_name": "result",
+                          "can_be_disabled": false,
                           "label": "Result",
                           "presentation": {
                             "default_color": {
@@ -2192,6 +2367,13 @@
                   "tags": [
                     "alchemist.anode.type:math"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.2476000000000001,
@@ -2419,6 +2601,7 @@
                         "meta": {
                           "decl_id": "inputs/value1",
                           "short_name": "value1",
+                          "can_be_disabled": false,
                           "label": "Value 1",
                           "presentation": {
                             "default_color": {
@@ -2489,6 +2672,7 @@
                         "meta": {
                           "decl_id": "inputs/value2",
                           "short_name": "value2",
+                          "can_be_disabled": false,
                           "label": "Value 2",
                           "presentation": {
                             "default_color": {
@@ -2575,6 +2759,7 @@
                         "meta": {
                           "decl_id": "outputs/result",
                           "short_name": "result",
+                          "can_be_disabled": false,
                           "label": "Result",
                           "presentation": {
                             "default_color": {
@@ -2629,6 +2814,16 @@
               {
                 "uuid": "ce785cb4-b66b-4790-8b5b-3df0895b6a51",
                 "type": "alchemist_connection",
+                "meta": {
+                  "can_be_disabled": false,
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                },
                 "children": [
                   {
                     "uuid": "0afbe00f-af95-439d-8bec-6abd97cbcfed",
@@ -2708,6 +2903,13 @@
                   "tags": [
                     "alchemist.anode.type:constant"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.8428,
@@ -2905,6 +3107,7 @@
                         "meta": {
                           "decl_id": "outputs/value",
                           "short_name": "value",
+                          "can_be_disabled": false,
                           "label": "Value",
                           "presentation": {
                             "default_color": {
@@ -2964,6 +3167,13 @@
                   "tags": [
                     "alchemist.anode.type:condition_gate"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.23390000000000005,
@@ -3163,6 +3373,7 @@
                         "meta": {
                           "decl_id": "inputs/value",
                           "short_name": "value",
+                          "can_be_disabled": false,
                           "label": "Value",
                           "presentation": {
                             "default_color": {
@@ -3233,6 +3444,7 @@
                         "meta": {
                           "decl_id": "inputs/condition",
                           "short_name": "condition",
+                          "can_be_disabled": false,
                           "label": "Condition",
                           "presentation": {
                             "default_color": {
@@ -3303,6 +3515,7 @@
                         "meta": {
                           "decl_id": "inputs/default_value",
                           "short_name": "default_value",
+                          "can_be_disabled": false,
                           "label": "Default",
                           "presentation": {
                             "default_color": {
@@ -3389,6 +3602,7 @@
                         "meta": {
                           "decl_id": "outputs/value",
                           "short_name": "value",
+                          "can_be_disabled": false,
                           "label": "Value",
                           "presentation": {
                             "default_color": {
@@ -3442,6 +3656,7 @@
                         "meta": {
                           "decl_id": "outputs/passed",
                           "short_name": "passed",
+                          "can_be_disabled": false,
                           "label": "Passed",
                           "presentation": {
                             "default_color": {
@@ -3495,6 +3710,7 @@
                         "meta": {
                           "decl_id": "outputs/blocked",
                           "short_name": "blocked",
+                          "can_be_disabled": false,
                           "label": "Blocked",
                           "presentation": {
                             "default_color": {
@@ -3554,6 +3770,13 @@
                   "tags": [
                     "alchemist.anode.type:coordinate_system"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.19160000000000005,
@@ -3728,6 +3951,7 @@
                         "meta": {
                           "decl_id": "inputs/value",
                           "short_name": "value",
+                          "can_be_disabled": false,
                           "label": "Value",
                           "presentation": {
                             "default_color": {
@@ -3814,6 +4038,7 @@
                         "meta": {
                           "decl_id": "outputs/result",
                           "short_name": "result",
+                          "can_be_disabled": false,
                           "label": "Result",
                           "presentation": {
                             "default_color": {
@@ -3873,6 +4098,13 @@
                   "tags": [
                     "alchemist.anode.type:debug_log"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.8752,
@@ -4017,10 +4249,11 @@
                     },
                     "children": [
                       {
-                        "uuid": "70f01561-8a86-4bd8-8399-92fa95e90dc9",
+                        "uuid": "907fa9ce-2060-4b87-90d1-ab91a561101a",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
+                          "can_be_disabled": false,
                           "label": "Value",
                           "presentation": {
                             "default_color": {
@@ -4033,7 +4266,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "5ea76811-65b0-44c8-91d2-ba5e9c2b37bb",
+                            "uuid": "ef07942b-7f82-40a2-8e9a-baef5bc8a13f",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4052,7 +4285,7 @@
                             }
                           },
                           {
-                            "uuid": "7f1bf9c6-e597-4b13-84f4-dd66b946cbd2",
+                            "uuid": "8b1196a8-f055-48f8-96e6-798e7daab386",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4071,7 +4304,7 @@
                             }
                           },
                           {
-                            "uuid": "333a08f3-b106-4e12-bafb-b71c7ea3332b",
+                            "uuid": "53583e2f-3426-426a-964a-e4d0f54ad805",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -4090,10 +4323,11 @@
                         ]
                       },
                       {
-                        "uuid": "4fca0640-146f-4bf3-a2a9-010af8aebd1d",
+                        "uuid": "cbad823c-3a69-498b-bb53-24f9ffdb8f25",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
+                          "can_be_disabled": false,
                           "label": "Value",
                           "presentation": {
                             "default_color": {
@@ -4106,7 +4340,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "3fd4716c-f36b-4be6-bbb5-13afea004e4b",
+                            "uuid": "0714c93c-d3b5-4d03-b643-3592f84fe283",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4125,7 +4359,7 @@
                             }
                           },
                           {
-                            "uuid": "6eecd668-16a4-4866-b5c0-ab89f962b48e",
+                            "uuid": "bf03f5d0-989d-4a2d-a852-c35c0c327336",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4144,7 +4378,7 @@
                             }
                           },
                           {
-                            "uuid": "ff418a14-f3ba-4f5f-9752-f4591608385f",
+                            "uuid": "e83a5b87-5520-43a0-ab58-5873f7a866a4",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -4184,7 +4418,15 @@
                 "uuid": "0fa51db5-4152-4949-bb96-f1a13798ebb2",
                 "type": "alchemist_connection",
                 "meta": {
-                  "label": "Connection 2"
+                  "can_be_disabled": false,
+                  "label": "Connection 2",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
                 },
                 "children": [
                   {
@@ -4261,7 +4503,15 @@
                 "uuid": "5051ab2e-5b33-405d-b43b-a01c3ae18c64",
                 "type": "alchemist_connection",
                 "meta": {
-                  "label": "Connection 3"
+                  "can_be_disabled": false,
+                  "label": "Connection 3",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
                 },
                 "children": [
                   {
@@ -4342,6 +4592,13 @@
                   "tags": [
                     "alchemist.anode.type:concatenate"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.8684000000000001,
@@ -4569,6 +4826,7 @@
                         "meta": {
                           "decl_id": "inputs/part1",
                           "short_name": "part1",
+                          "can_be_disabled": false,
                           "label": "Part 1",
                           "presentation": {
                             "default_color": {
@@ -4639,6 +4897,7 @@
                         "meta": {
                           "decl_id": "inputs/part2",
                           "short_name": "part2",
+                          "can_be_disabled": false,
                           "label": "Part 2",
                           "presentation": {
                             "default_color": {
@@ -4725,6 +4984,7 @@
                         "meta": {
                           "decl_id": "outputs/result",
                           "short_name": "result",
+                          "can_be_disabled": false,
                           "label": "Result",
                           "presentation": {
                             "default_color": {
@@ -4784,6 +5044,13 @@
                   "tags": [
                     "alchemist.anode.type:gradient_sampler"
                   ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "color": {
                       "r": 0.8934,
@@ -4855,7 +5122,14 @@
                             "uuid": "f104d213-9b53-42a9-abeb-df922e7a2a19",
                             "type": "gradient_stop",
                             "meta": {
-                              "decl_id": "stop"
+                              "decl_id": "stop",
+                              "short_name": "stop",
+                              "enabled": true,
+                              "can_be_disabled": false,
+                              "label": "Stop",
+                              "presentation": {
+                                "collapsed": true
+                              }
                             },
                             "children": [
                               {
@@ -4893,7 +5167,14 @@
                             "uuid": "8e8ee3b0-cf4b-4060-b2b3-f16906641d5d",
                             "type": "gradient_stop",
                             "meta": {
-                              "decl_id": "stop"
+                              "decl_id": "stop",
+                              "short_name": "stop",
+                              "enabled": true,
+                              "can_be_disabled": false,
+                              "label": "Stop",
+                              "presentation": {
+                                "collapsed": true
+                              }
                             },
                             "children": [
                               {
@@ -5038,6 +5319,7 @@
                         "meta": {
                           "decl_id": "inputs/position",
                           "short_name": "position",
+                          "can_be_disabled": false,
                           "label": "Position",
                           "presentation": {
                             "default_color": {
@@ -5124,6 +5406,7 @@
                         "meta": {
                           "decl_id": "outputs/color",
                           "short_name": "color",
+                          "can_be_disabled": false,
                           "label": "Color",
                           "presentation": {
                             "default_color": {
@@ -5179,7 +5462,15 @@
                 "uuid": "ea5a467b-56cb-4a36-a018-72736b6cbd50",
                 "type": "alchemist_connection",
                 "meta": {
-                  "label": "Connection 4"
+                  "can_be_disabled": false,
+                  "label": "Connection 4",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
                 },
                 "children": [
                   {
@@ -5259,11 +5550,23 @@
       {
         "uuid": "71e03135-1954-4f69-94ad-558d3c91e38f",
         "type": "module_manager",
+        "meta": {
+          "user_permissions": {
+            "can_edit_constraints": true,
+            "can_edit_tags": true,
+            "can_edit_color": true
+          }
+        },
         "children": [
           {
             "uuid": "10e8c931-59e4-42ba-bea8-feeb34c47480",
             "type": "signals_module",
             "user_role": "itemRoot",
+            "meta": {
+              "presentation": {
+                "show_child_warnings_max_depth": 4
+              }
+            },
             "children": [
               {
                 "uuid": "b19e5afb-5ea3-4baf-8994-88f54f1a490d",
@@ -5276,16 +5579,21 @@
                     "uuid": "3f5291a7-e75f-44d3-aade-ec07b3cf84c8",
                     "type": "signal_list",
                     "meta": {
-                      "decl_id": "parameters/signals"
+                      "decl_id": "parameters/signals",
+                      "can_be_disabled": false,
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
                     },
                     "children": [
                       {
                         "uuid": "6f5dbf06-f111-4686-8c08-bdfbe6a2c9db",
                         "type": "signal",
                         "user_role": "itemRoot",
-                        "meta": {
-                          "decl_id": "signal"
-                        },
                         "children": [
                           {
                             "uuid": "02d169b8-08ef-4f8d-b5c7-5d00276f6d01",
@@ -5348,11 +5656,29 @@
       {
         "uuid": "8bf7059f-70af-4e23-b608-93d799d1712d",
         "type": "state_machine_manager",
+        "meta": {
+          "user_permissions": {
+            "can_edit_name": true,
+            "can_edit_constraints": true,
+            "can_edit_tags": true,
+            "can_edit_color": true
+          }
+        },
         "children": [
           {
             "uuid": "2db8a832-85e1-4d74-950e-5ada2b713923",
             "type": "state",
             "user_role": "itemRoot",
+            "meta": {
+              "presentation": {
+                "default_color": {
+                  "r": 0.28,
+                  "g": 0.56,
+                  "b": 0.92,
+                  "a": 1.0
+                }
+              }
+            },
             "children": [
               {
                 "uuid": "a9a0f893-bbcd-42b8-84b0-fce2b1412994",
@@ -5390,6 +5716,12 @@
                 "type": "state_processor_manager",
                 "meta": {
                   "decl_id": "processors",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "show_in_nested_inspector": false
                   }
@@ -5401,6 +5733,9 @@
                     "user_role": "itemRoot",
                     "meta": {
                       "label": "MAction",
+                      "tags": [
+                        "context_link_lane_deferred"
+                      ],
                       "presentation": {
                         "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
                       }
@@ -5450,10 +5785,29 @@
                         }
                       },
                       {
+                        "uuid": "4de0046a-a671-4dfc-a175-512548998161",
+                        "type": "state_processor_managed_regions",
+                        "meta": {
+                          "decl_id": "managed_regions",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        }
+                      },
+                      {
                         "uuid": "9090fa1d-77f8-4682-9e65-f12ad32b08b8",
                         "type": "sm_condition_manager",
                         "meta": {
                           "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.186,
@@ -5543,7 +5897,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "can_be_disabled": false,
                           "label": "On True",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.3785,
@@ -5664,7 +6024,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "can_be_disabled": false,
                           "label": "On False",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.8471,
@@ -5790,6 +6156,9 @@
                       "decl_id": "maction2",
                       "short_name": "maction2",
                       "label": "MAction 2",
+                      "tags": [
+                        "context_link_lane_deferred"
+                      ],
                       "presentation": {
                         "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
                       }
@@ -5839,10 +6208,29 @@
                         }
                       },
                       {
+                        "uuid": "6407a248-6faa-4a8a-9a32-27e224f5848c",
+                        "type": "state_processor_managed_regions",
+                        "meta": {
+                          "decl_id": "managed_regions",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        }
+                      },
+                      {
                         "uuid": "c9db0e68-10f0-42de-9627-28b63166829a",
                         "type": "sm_condition_manager",
                         "meta": {
                           "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.186,
@@ -5932,7 +6320,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "can_be_disabled": false,
                           "label": "On True",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.3785,
@@ -6053,7 +6447,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "can_be_disabled": false,
                           "label": "On False",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.8471,
@@ -6179,6 +6579,9 @@
                       "decl_id": "maction4",
                       "short_name": "maction4",
                       "label": "MAction 4",
+                      "tags": [
+                        "context_link_lane_deferred"
+                      ],
                       "presentation": {
                         "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
                       }
@@ -6228,10 +6631,29 @@
                         }
                       },
                       {
+                        "uuid": "b3191aa8-5b6b-4efa-abd7-3277915bc9f6",
+                        "type": "state_processor_managed_regions",
+                        "meta": {
+                          "decl_id": "managed_regions",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        }
+                      },
+                      {
                         "uuid": "736fc441-a7f4-4b61-86fe-395c2d1563f2",
                         "type": "sm_condition_manager",
                         "meta": {
                           "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.186,
@@ -6321,7 +6743,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "can_be_disabled": false,
                           "label": "On True",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.3785,
@@ -6442,7 +6870,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "can_be_disabled": false,
                           "label": "On False",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.8471,
@@ -6568,6 +7002,9 @@
                       "decl_id": "maction3",
                       "short_name": "maction3",
                       "label": "MAction 3",
+                      "tags": [
+                        "context_link_lane_deferred"
+                      ],
                       "presentation": {
                         "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
                       }
@@ -6617,10 +7054,29 @@
                         }
                       },
                       {
+                        "uuid": "652db4c8-e83f-4cf3-be1d-93840b4811da",
+                        "type": "state_processor_managed_regions",
+                        "meta": {
+                          "decl_id": "managed_regions",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        }
+                      },
+                      {
                         "uuid": "b08bafc6-efd0-4858-9d73-c84266d7c033",
                         "type": "sm_condition_manager",
                         "meta": {
                           "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.186,
@@ -6710,7 +7166,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "can_be_disabled": false,
                           "label": "On True",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.3785,
@@ -6831,7 +7293,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "can_be_disabled": false,
                           "label": "On False",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.8471,
@@ -6957,6 +7425,9 @@
                       "decl_id": "maction5",
                       "short_name": "maction5",
                       "label": "MAction 5",
+                      "tags": [
+                        "context_link_lane_deferred"
+                      ],
                       "presentation": {
                         "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
                       }
@@ -7006,10 +7477,29 @@
                         }
                       },
                       {
+                        "uuid": "806e8c05-88a8-41cd-91ed-4f94ecae5a31",
+                        "type": "state_processor_managed_regions",
+                        "meta": {
+                          "decl_id": "managed_regions",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        }
+                      },
+                      {
                         "uuid": "bbf1b8a7-6bcb-48c6-8fc5-f7b8e63fdef5",
                         "type": "sm_condition_manager",
                         "meta": {
                           "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "can_be_disabled": false,
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.186,
@@ -7099,7 +7589,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "can_be_disabled": false,
                           "label": "On True",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.3785,
@@ -7220,7 +7716,13 @@
                         "type": "sm_outputs_manager",
                         "meta": {
                           "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "can_be_disabled": false,
                           "label": "On False",
+                          "user_permissions": {
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          },
                           "presentation": {
                             "default_color": {
                               "r": 0.8471,
@@ -7345,6 +7847,12 @@
                 "type": "state_transition_manager",
                 "meta": {
                   "decl_id": "transitions",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "show_in_nested_inspector": false
                   }
@@ -8767,7 +9275,15 @@
             "type": "state",
             "user_role": "itemRoot",
             "meta": {
-              "label": "State 2"
+              "label": "State 2",
+              "presentation": {
+                "default_color": {
+                  "r": 0.28,
+                  "g": 0.56,
+                  "b": 0.92,
+                  "a": 1.0
+                }
+              }
             },
             "children": [
               {
@@ -8790,8 +9306,27 @@
                 "type": "state_processor_manager",
                 "meta": {
                   "decl_id": "processors",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
                   "presentation": {
                     "show_in_nested_inspector": false
+                  }
+                }
+              },
+              {
+                "uuid": "bd03d8af-4ab8-4913-9378-71edb842c3af",
+                "type": "state_transition_manager",
+                "meta": {
+                  "decl_id": "transitions",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
                   }
                 }
               }

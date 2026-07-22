@@ -24,6 +24,7 @@ use golden_values::Value as RuntimeValue;
 use golden_core::{
     color::Color,
     edit::{Edit, NodeTree},
+    engine::NodeExecutionRule,
     events::{Event, EventKind},
     item, node,
     node::{
@@ -53,6 +54,7 @@ pub(crate) const FORMULA_FOLDER_NODE_TYPE: &str =
     "alchemist_formula_folder";
 pub(crate) const FORMULA_EXTERNAL_FILE_CREATE_TYPE: &str =
     "alchemist_formula:external_file";
+const FORMULA_LIBRARY_FILE_WATCH_RATE_HZ: u32 = 4;
 pub(crate) const FORMULA_EXTERNAL_FILE_DECL_ID: &str =
     "external_formula_file";
 pub(crate) const FORMULA_EXTERNAL_FILE_TAG: &str =
@@ -4883,6 +4885,11 @@ impl Node for FormulaLibrary {
 
     fn needs_update(&self) -> bool {
         shared_formula_watcher_has_pending()
+    }
+
+    fn execution_rule(&self) -> NodeExecutionRule {
+        NodeExecutionRule::periodic(FORMULA_LIBRARY_FILE_WATCH_RATE_HZ)
+            .with_compiled_kernel("chataigne.runtime.formula-library")
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {

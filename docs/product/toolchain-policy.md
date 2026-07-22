@@ -11,7 +11,7 @@ from that contract instead of maintaining independent pins.
 | Rust and Cargo | `1.97.0` | Current stable release on 2026-07-13; selected for the Rust/native Phase 1B slice |
 | Node.js | `26.5.0` | Latest Current release on 2026-07-13; selected for the JavaScript/UI tooling slice |
 | npm | `11.17.0` | Version bundled by the selected Node.js release |
-| Python | `3.14.4` | Existing bootstrap/codegen pin; review belongs to the developer-orchestration slice |
+| Python | `3.14.x` | Compatible system interpreter range; patch/security updates do not require parallel installs |
 | cargo-deny | `0.20.2` | Pinned phase/release advisory, license, source, and bans qualification |
 | cargo-machete | `0.9.2` | Pinned phase/release unused-dependency qualification |
 | Windows Rust host | `x86_64-pc-windows-msvc` | Primary local development and iteration target |
@@ -24,10 +24,11 @@ is the modernization window and the UI toolchain supports it. Phase qualificatio
 the pin if product validation exposes ecosystem incompatibility.
 
 The developer bootstrap now consumes this manifest directly; the former floating `stable`,
-`stable-msvc`, Node LTS, and broad minimum-version checks were removed. Python 3.14.4 remains the
-supported codegen/bootstrap interpreter after the developer-orchestration review. Dependency
-qualification tools are intentionally installed only for phase/release closure so the online
-advisory refresh does not slow ordinary Win-x64 iteration.
+`stable-msvc`, Node LTS, and broad minimum-version checks were removed. It verifies system-installed
+tools and never provisions a repository-local runtime. Python accepts compatible `3.14.x` patch
+updates so security maintenance does not create parallel installations. Dependency qualification
+tools are required system-wide only for phase/release closure so the online advisory refresh does
+not slow ordinary Win-x64 iteration.
 
 TypeScript is pinned to `6.0.3` even though npm publishes `7.0.2`: SvelteKit 2.69.2 declares
 support for TypeScript 5 and 6, not 7. This is a supported-version ceiling rather than a
@@ -52,6 +53,7 @@ desktop and remote-browser hosts require the generated static artifact.
 - Prefer supported LTS/stable toolchains and cross-platform dependencies. A newer release is not
   adopted solely because it exists; its migration notes, native compatibility, and product gate
   must justify the update.
-- Cache identity must include `toolchain.json` and the relevant Rust or npm lock. Local portable
-  SDKs, build outputs, dependency installs, and gate evidence live only under ignored cache/output
-  directories described in [`docs/development.md`](../development.md).
+- Cache identity must include `toolchain.json` and the relevant Rust or npm lock. Build outputs,
+  dependency installs, and gate evidence live only under the bounded ignored paths described in
+  [`docs/workspace-hygiene.md`](../workspace-hygiene.md); portable SDKs are not stored in the
+  checkout.

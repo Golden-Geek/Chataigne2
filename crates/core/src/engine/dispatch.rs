@@ -107,6 +107,60 @@ impl<T: Node> Engine<T> {
         per_node_events
     }
 
+    /// Builds the internal preprocessing batches needed by pre-cutover project
+    /// augmentation without routing startup-only events through the live graph.
+    ///
+    /// The event origin and its direct parent are sufficient for generated child
+    /// binding and parameter-handle cache synchronization. App inbox callbacks are
+    /// not run, and the host replaces these transient events with one full snapshot.
+    pub(crate) fn precompute_project_load_augmentation_since(&mut self, start: usize) -> Vec<(NodeId, EventFrame)> {
+        let mut index_by_node = HashMap::<NodeId, usize>::new();
+        let mut per_node_events = Vec::<(NodeId, EventFrame)>::new();
+        let event_count = self.inbox.events.len();
+        let start = start.min(event_count);
+
+        for index in start..event_count {
+            let event = &self.inbox.events[index];
+            let mut recipients = Vec::<NodeId>::with_capacity(4);
+            if let Some(origin) = event.kind.propagation_origin() {
+                recipients.push(origin);
+                if let Some(parent) = self.nodes.get(origin).and_then(|node| node.node_data().parent) {
+                    recipients.push(parent);
+                }
+            }
+            if let EventKind::ChildMoved {
+                old_parent, new_parent, ..
+            } = &event.kind
+            {
+                recipients.push(*old_parent);
+                recipients.push(*new_parent);
+            }
+            recipients.sort_unstable_by_key(|node_id| node_id.0);
+            recipients.dedup();
+            recipients.retain(|node_id| self.nodes.contains(*node_id));
+
+            let event = Arc::new(event.clone());
+            self.tick_scratch.stats.dispatch_events_routed += 1;
+            self.tick_scratch.stats.dispatch_recipient_deliveries += recipients.len();
+            self.tick_scratch.stats.dispatch_max_fanout =
+                self.tick_scratch.stats.dispatch_max_fanout.max(recipients.len());
+            for recipient in recipients {
+                let slot = match index_by_node.get(&recipient).copied() {
+                    Some(slot) => slot,
+                    None => {
+                        let slot = per_node_events.len();
+                        per_node_events.push((recipient, EventFrame::new()));
+                        index_by_node.insert(recipient, slot);
+                        slot
+                    }
+                };
+                per_node_events[slot].1.push_shared(Arc::clone(&event));
+            }
+        }
+
+        per_node_events
+    }
+
     /// Runs only internal inbox preprocessing (no app-level `on_inbox`) for a precomputed batch.
     pub(crate) fn preprocess_precomputed_inbox(
         &mut self,

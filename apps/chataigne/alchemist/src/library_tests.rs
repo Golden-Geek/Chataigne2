@@ -1,7 +1,7 @@
 use crate::{
-    ANodeDeclaration, ANodeInstance, ANodeRoleCapability, ANodeTypeId, AutoWirePolicy, ExecutionKind,
-    PipelineCardinality, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue, SignatureCtx, SurfaceItemKind,
-    TypeConstraint, TypeVar, ValueTypeRegistry, primitive_node_registry,
+    ANodeDeclaration, ANodeInstance, ANodeRoleCapability, AutoWirePolicy, ExecutionKind, PipelineCardinality,
+    PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue, SignatureCtx, SurfaceItemKind, TypeConstraint, TypeVar,
+    ValueTypeRegistry, primitive_node_registry,
 };
 
 fn signature(kind: PrimitiveNodeKind) -> crate::ANodeSignature {
@@ -21,42 +21,16 @@ fn signature(kind: PrimitiveNodeKind) -> crate::ANodeSignature {
 #[test]
 fn primitive_catalog_contains_every_declaration() {
     let registry = primitive_node_registry();
-    for id in [
-        "constant",
-        "property",
-        "math",
-        "function",
-        "remap",
-        "clamp",
-        "smooth_filter",
-        "one_minus",
-        "inverse",
-        "negate",
-        "speed",
-        "counter",
-        "lfo",
-        "noise_generator",
-        "metronome",
-        "coordinate_system",
-        "angle_conversion",
-        "gradient_sampler",
-        "convert_to_color",
-        "extract_color",
-        "pack_vec3",
-        "concatenate",
-        "convert_to_string",
-        "split",
-        "boolean_operation",
-        "compare",
-        "condition_gate",
-        "trigger_on_off",
-        "gate",
-        "delay_one_tick",
-        "debug_value",
-        "debug_log",
-    ] {
-        assert!(registry.get(&ANodeTypeId::new(id)).is_some(), "{id}");
-    }
+    let expected = PrimitiveNodeKind::all()
+        .iter()
+        .map(|kind| kind.type_name())
+        .collect::<Vec<_>>();
+    let actual = registry
+        .iter()
+        .map(|declaration| declaration.type_id().to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(actual, expected);
 }
 
 #[test]

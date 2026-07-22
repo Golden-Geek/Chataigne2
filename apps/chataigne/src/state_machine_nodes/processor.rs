@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use chataigne_alchemist::{ManagedRegionDefinition, SurfaceItemKind};
 use golden_core::{
@@ -27,6 +27,8 @@ use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager,
 
 mod catalog;
 
+use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
+
 pub(crate) use self::catalog::{
     shared_formula_dir_from_snapshot, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
 };
@@ -38,7 +40,9 @@ pub(crate) use self::catalog::{
 /// saved by an older one, instead of only ever being baked in at creation
 /// time.
 pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), String> {
+    let started = std::time::Instant::now();
     apply_formula_sync_edits(engine, "startup formula prerequisites")?;
+    let prerequisites_elapsed = started.elapsed();
 
     let snapshot = engine.process_tree_snapshot();
     let Some(library) = find_formula_library(&snapshot) else {
@@ -48,11 +52,31 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
     let builtin_candidates = FormulaCatalog::default_builtin_formula_trees()
         .map_err(|error| error.to_string())?;
     let existing_builtins = builtin_formula_nodes(&snapshot, library);
-    let builtin_trees = if existing_builtins.is_empty() {
-        FormulaCatalog::missing_external_formula_trees(&snapshot, library, builtin_candidates)
-    } else {
-        builtin_candidates
-    };
+    let existing_by_uuid = existing_builtins
+        .iter()
+        .filter_map(|node_id| {
+            snapshot
+                .node(*node_id)
+                .map(|node| (node.uuid, *node_id))
+        })
+        .collect::<HashMap<_, _>>();
+    let mut stale_builtins = existing_builtins.iter().copied().collect::<HashSet<_>>();
+    let mut builtin_trees = Vec::new();
+    for tree in builtin_candidates {
+        let candidate = tree.node.node_data();
+        let candidate_content_tag = builtin_formula_content_tag(&candidate.meta.tags);
+        let current = existing_by_uuid.get(&candidate.meta.uuid).copied();
+        let current_content_tag = current
+            .and_then(|node_id| snapshot.node(node_id))
+            .and_then(|node| builtin_formula_content_tag(&node.tags));
+        if candidate_content_tag.is_some() && candidate_content_tag == current_content_tag {
+            if let Some(node_id) = current {
+                stale_builtins.remove(&node_id);
+            }
+        } else {
+            builtin_trees.push(tree);
+        }
+    }
 
     let shared_sync = if let Some(shared_dir) = shared_formula_dir_from_snapshot(&snapshot) {
         let stale_nodes =
@@ -65,48 +89,54 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
     } else {
         None
     };
+    let discovery_elapsed = started.elapsed();
 
     let mut queued_formula_edits = false;
+    let mut queued_removals = false;
+    let mut formula_trees = builtin_trees;
 
-    for node in &existing_builtins {
+    for node in stale_builtins {
         queued_formula_edits = true;
-        engine.edits.push(Edit::RemoveNode { node: *node });
-    }
-    for tree in builtin_trees {
-        queued_formula_edits = true;
-        engine.edits.push(Edit::AddNodeTree {
-            tree,
-            parent: library,
-            prev_sibling: None,
-        });
+        queued_removals = true;
+        engine.edits.push(Edit::RemoveNode { node });
     }
 
     if let Some((stale_nodes, missing_trees)) = shared_sync {
         for node in stale_nodes {
             queued_formula_edits = true;
+            queued_removals = true;
             engine.edits.push(Edit::RemoveNode { node });
         }
-        for tree in missing_trees {
-            queued_formula_edits = true;
-            engine.edits.push(Edit::AddNodeTree {
-                tree,
-                parent: library,
-                prev_sibling: None,
-            });
-        }
+        formula_trees.extend(missing_trees);
     }
 
-    if queued_formula_edits {
-        apply_formula_sync_edits(engine, "external formula sync")?;
+    if queued_removals {
+        apply_formula_sync_edits(engine, "external formula removal")?;
     }
+    if !formula_trees.is_empty() {
+        queued_formula_edits = true;
+        engine
+            .apply_project_load_node_trees(formula_trees, library, None)
+            .map_err(|error| format!("external formula batch insertion failed: {error}"))?;
+    }
+    let edits_elapsed = started.elapsed();
     move_builtin_formulas_to_front(engine, library)?;
+    eprintln!(
+        "[formula-sync] prerequisites_ms={} discovery_ms={} edits_ms={} ordering_ms={} total_ms={} queued_edits={}",
+        prerequisites_elapsed.as_millis(),
+        discovery_elapsed.saturating_sub(prerequisites_elapsed).as_millis(),
+        edits_elapsed.saturating_sub(discovery_elapsed).as_millis(),
+        started.elapsed().saturating_sub(edits_elapsed).as_millis(),
+        started.elapsed().as_millis(),
+        queued_formula_edits
+    );
 
     Ok(())
 }
 
 fn apply_formula_sync_edits(engine: &mut AppEngine, context: &str) -> Result<(), String> {
     engine
-        .apply_edits()
+        .apply_project_load_edits()
         .map_err(|error| format!("{context} failed: {error}"))
 }
 
@@ -156,6 +186,12 @@ fn is_builtin_formula_node(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> b
                 .iter()
                 .any(|tag| tag.starts_with(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX))
     })
+}
+
+fn builtin_formula_content_tag(tags: &[String]) -> Option<&str> {
+    tags.iter()
+        .find(|tag| tag.starts_with(BUILTIN_FORMULA_CONTENT_TAG_PREFIX))
+        .map(String::as_str)
 }
 
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";

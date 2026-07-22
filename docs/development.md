@@ -6,9 +6,9 @@ must not introduce competing bootstrap paths.
 
 ## First Setup
 
-Install Git and the Python version recorded in the canonical toolchain manifest. Windows setup
-also needs `winget` or preinstalled Visual Studio C++ Build Tools. Linux needs a supported package
-manager with `sudo`; macOS needs Xcode Command Line Tools. Then run:
+Install Git and every system prerequisite recorded in the canonical toolchain manifest: Rust/Cargo,
+Node/npm, and Python. Windows also needs Visual Studio C++ Build Tools, Linux needs the Tauri
+desktop development packages, and macOS needs Xcode Command Line Tools. Then run:
 
 ```powershell
 .\tools\dev.ps1 -SetupOnly
@@ -18,9 +18,9 @@ manager with `sudo`; macOS needs Xcode Command Line Tools. Then run:
 bash ./tools/dev.sh --setup-only
 ```
 
-The setup installs the exact Rust host and checksum-verified portable Node distribution selected
-for the current platform, verifies Rust/Cargo/Node/npm/Python, installs desktop prerequisites, and
-runs root `npm ci` when the lock changed. It never selects floating Rust `stable` or Node LTS.
+The setup verifies Rust/Cargo/Node/npm/Python and desktop prerequisites, audits generated workspace
+data, and runs root `npm ci` when the lock changed. It never installs a language runtime, mutates a
+system package manager, or downloads a portable SDK into the checkout.
 
 ## Root Commands
 
@@ -35,10 +35,10 @@ runs root `npm ci` when the lock changed. It never selects floating Rust `stable
 | Engine benchmarks                                | `cargo bench -p golden_engine`                               |
 | Release binary                                   | `cargo build --release`                                      |
 
-Run commands through `tools/bootstrap/bootstrap.ps1` or `tools/bootstrap/bootstrap.sh` when the
-pinned Node directory is not already on the current shell's `PATH`. The editor tasks do this
-automatically. Debug launchers build the UI first and set `GC_UI_ASSUME_BUILT=1`, so the Rust debug
-build consumes the verified artifact rather than finding an arbitrary global Node installation.
+Run commands through `tools/bootstrap/bootstrap.ps1` or `tools/bootstrap/bootstrap.sh` to verify the
+system toolchain, enforce the single root Cargo target, and run the size audit. The editor tasks do
+this automatically. Debug launchers build the UI first and set `GC_UI_ASSUME_BUILT=1`, so the Rust
+debug build consumes the verified artifact after the system Node installation passes the contract.
 
 ## Diagnostics And Qualification
 
@@ -49,10 +49,11 @@ build consumes the verified artifact rather than finding an arbitrary global Nod
 ```
 
 Ordinary development uses the local current-platform product gate. At a named phase or release
-qualification, install the pinned qualification tools and include the dependency profile:
+qualification, install the pinned qualification tools system-wide, verify them, and include the
+dependency profile:
 
 ```powershell
-.\tools\bootstrap\install-qualification-tools.ps1
+.\tools\bootstrap\verify-toolchain.ps1 -CheckQualificationTools
 .\tools\bootstrap\bootstrap.ps1 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\tools\product-gate\product-gate.ps1 -DependencyAudit
 ```
@@ -76,14 +77,15 @@ pull-request or push events.
 
 ## Cache Policy
 
-- `target/toolchains/` caches checksum-verified portable Node archives and installations.
-- `target/` holds Rust outputs and local product-gate evidence.
+- The root `target/` is the only Cargo output tree and also holds disposable local product-gate
+  evidence. Alternate `target-*` directories are rejected.
 - `node_modules/` is reused only while its internal lock is at least as new as `package-lock.json`.
 - CI uses the setup-node npm cache, a stable Cargo registry cache, and sccache's content-addressed
   compiler cache. Cache identity includes the canonical toolchain manifest, target, compiler, and
   applicable lockfile; changing application source should not force every dependency to rebuild.
-- Generated UI builds, toolchains, dependency installs, reports, and screenshots are never source
-  inputs and remain untracked.
+- Generated UI builds, dependency installs, reports, and screenshots are never source inputs and
+  remain untracked. Language runtimes and developer tools are installed outside the checkout.
 
-Delete only the affected ignored cache when diagnosing corruption. Do not add machine-local paths,
-downloaded SDKs, or generated evidence to version control.
+The generated-data budget, audit, and safe cleanup commands are documented in
+[`workspace-hygiene.md`](workspace-hygiene.md). Do not add machine-local paths, downloaded SDKs, or
+generated evidence to version control.

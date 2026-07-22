@@ -6,6 +6,31 @@ The parity ledger is a versioned, machine-readable inventory of independently ob
 capabilities. A broad row such as “UI” or “modules” is invalid. The generated ledger is not created
 by this document; its owning implementation slice must validate it against this contract.
 
+## Discovery And Evidence Ownership
+
+The effective Phase 9 ledger is a validated join of two records with deliberately different
+ownership:
+
+- `manifests/functional-parity.v1.json` is deterministic generated discovery. It inventories every
+  current capability ID and never turns source presence into behavioral proof.
+- `manifests/functional-parity-evidence.v1.json` is authored qualification evidence. An entry is
+  accepted only when it implements the complete capability-row contract below and its executable
+  and manual results are current.
+
+`python tools/migration/phase9_readiness.py --json` rejects duplicate or stale evidence IDs,
+incomplete evidence entries, missing inventory coverage, active temporary adapters, and any final
+gate without linked passing evidence. Generated discovery is therefore never overwritten by manual
+claims, while authored results cannot silently drift away from the inventory.
+
+Path-derived discovery IDs use their Phase 0 logical paths even after monorepo relocation. Run
+`python tools/migration/phase9_identity.py --json` to compare the generated inventory with the
+immutable Phase 0 checkpoint. The audit fails if any baseline capability disappears and locks the
+exact set of post-baseline capability IDs with a digest recorded in the Phase 9 dashboard.
+
+Phase 9 performance evidence is recorded by dedicated runners rather than copied from console
+output. `python tools/migration/run_phase9_scale.py` captures the working-tree identity, toolchain,
+exact command, structured metrics, raw log hash, and pass/fail state for the 100,000-scalar gate.
+
 ## Capability Row
 
 | Field | Required | Contract |

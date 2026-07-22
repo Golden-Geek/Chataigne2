@@ -41,7 +41,7 @@ impl<T: Node> Engine<T> {
         self.emit_inbox_event(EventKind::ChildRemoved { parent, child: node });
         // Project load discards UI graph transactions before the engine goes live,
         // so skip building removal ops (see the matching gate in apply_add_node).
-        if creation_context != Some(NodeCreationContext::ProjectLoad) {
+        if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
             self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeRemoved {
                 root: node,
                 removed_ids,

@@ -299,7 +299,7 @@ def collect_violations(root: Path) -> list[str]:
     for required_runtime_contract in (
         "CompiledScheduledNode",
         "domain_kernels",
-        "DOMAIN_NODE_ADAPTER_KERNEL",
+        "has no compiled kernel identity",
     ):
         if required_runtime_contract not in runtime_center:
             violations.append(
@@ -692,7 +692,7 @@ def collect_violations(root: Path) -> list[str]:
         violations.append("Phase 8I Tauri CLI is not pinned in the root package")
     if '"node_modules/@tauri-apps/cli"' not in package_lock:
         violations.append("Phase 8I package lock does not contain the pinned Tauri CLI")
-    for contract in ("windows-latest", "macos-latest", "ubuntu-24.04", "actions/upload-artifact@v4"):
+    for contract in ("windows-latest", "macos-15", "ubuntu-24.04", "actions/upload-artifact@v7"):
         if contract not in release_workflow:
             violations.append(f"Phase 8I native release matrix is missing `{contract}`")
     for contract in ("GC_REQUIRE_SIGNING", "APPLE_CERTIFICATE", "SIGN_KEY"):

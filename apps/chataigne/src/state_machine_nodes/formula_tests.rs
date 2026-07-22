@@ -14,8 +14,8 @@ use golden_core::{
     },
 };
 use chataigne_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistGraphDomain, CompileCtx, SocketId,
-    StableRef, TriggerValue, ValueTypeId, compile_graph,
+    ANodeInstance, ANodeTypeId, AlchemistGraphDomain, CompileCtx, SignatureCtx,
+    SocketId, StableRef, TriggerValue, ValueTypeId, compile_graph,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -28,7 +28,7 @@ use super::{
     FORMULA_FOLDER_ITEM_KIND, FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
     FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FormulaLibrary, PROPERTIES_DECL_ID,
     PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX, formula_from_snapshot,
-    param_to_runtime_value,
+    anode_from_snapshot, param_to_runtime_value,
 };
 use crate::app::{AppEngine, AppNode};
 
@@ -204,14 +204,119 @@ fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
 fn formula_exposes_anode_catalog_as_real_user_items() {
     let formula = AlchemistFormulaDefinition::new();
     let items = formula.user_creatable_items();
+    let actual = items
+        .iter()
+        .filter(|item| item.item_kind == ANODE_ITEM_KIND)
+        .map(|item| (item.node_type.clone(), item.label.clone(), item.menu_path.clone()))
+        .collect::<Vec<_>>();
+    let expected = chataigne_state_machine::alchemist::node_registry()
+        .iter()
+        .map(|declaration| {
+            (
+                format!("{ANODE_CREATE_PREFIX}{}", declaration.type_id()),
+                declaration.label().to_owned(),
+                vec![declaration.category().to_owned()],
+            )
+        })
+        .collect::<Vec<_>>();
 
-    assert!(items.iter().any(|item| {
-        item.node_type == format!("{ANODE_CREATE_PREFIX}constant")
-            && item.item_kind == ANODE_ITEM_KIND
-    }));
+    assert_eq!(actual, expected);
     assert!(items.iter().any(|item| {
         item.node_type == AlchemistConnection::NODE_TYPE
     }));
+}
+
+#[test]
+fn phase9_anode_catalog_materializes_and_roundtrips_every_registered_type() {
+    let registry = chataigne_state_machine::alchemist::node_registry();
+    let declarations = registry
+        .iter()
+        .map(|declaration| {
+            (
+                declaration.type_id().to_string(),
+                declaration.label().to_owned(),
+                declaration.category().to_owned(),
+                format!("{:?}", declaration.execution_kind()),
+            )
+        })
+        .collect::<Vec<_>>();
+    let (mut engine, formula) = engine_with_formula();
+    let formula_uuid = engine
+        .nodes
+        .get(formula)
+        .expect("formula should exist")
+        .node_data()
+        .meta
+        .uuid;
+
+    let mut materialized = Vec::new();
+    for (index, (type_id, ..)) in declarations.iter().enumerate() {
+        let node = create_anode(
+            &mut engine,
+            formula,
+            type_id,
+            (index % 8) as f64 * 4.0,
+            (index / 8) as f64 * 3.0,
+        );
+        materialized.push((type_id.clone(), node));
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let value_types = chataigne_state_machine::alchemist::value_type_registry();
+    let signature_ctx = SignatureCtx {
+        value_types: &value_types,
+        properties: None,
+    };
+    let mut report_entries = Vec::new();
+    for ((type_id, label, category, execution_kind), (_, node)) in
+        declarations.iter().zip(&materialized)
+    {
+        let instance = anode_from_snapshot(&snapshot, *node)
+            .unwrap_or_else(|error| panic!("{type_id} should materialize: {error}"));
+        assert_eq!(instance.type_id.as_str(), type_id);
+        let declaration = registry
+            .get(&instance.type_id)
+            .unwrap_or_else(|| panic!("{type_id} should remain registered"));
+        let signature = declaration.signature(
+            &signature_ctx,
+            &instance,
+            &instance.type_bindings,
+        );
+        report_entries.push(serde_json::json!({
+            "type_id": type_id,
+            "label": label,
+            "category": category,
+            "execution_kind": execution_kind,
+            "config_fields": declaration.config_fields_for(&instance).len(),
+            "inputs": signature.inputs.len(),
+            "outputs": signature.outputs.len(),
+        }));
+    }
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("ANode catalog project should encode");
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("ANode catalog project should decode");
+    let loaded_formula = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.uuid == formula_uuid)
+        .map(|(id, _)| id)
+        .expect("formula should retain its stable identity");
+    let loaded_types = direct_children(&loaded, loaded_formula)
+        .into_iter()
+        .filter_map(|node| anode_type(&loaded, node))
+        .collect::<Vec<_>>();
+    let expected_types = declarations
+        .iter()
+        .map(|(type_id, ..)| type_id.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(loaded_types, expected_types);
+
+    println!(
+        "PHASE9_ANODE_CATALOG_RESULT={}",
+        serde_json::json!({ "anodes": report_entries })
+    );
 }
 
 #[test]
