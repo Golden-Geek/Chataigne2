@@ -1,0 +1,19 @@
+# Set the default behavior: strictly enforce LF for all text files
+* text=auto eol=lf
+
+# Optional but recommended: explicitly define file types
+# This prevents Git from accidentally messing with binary files (like images)
+*.js text eol=lf
+*.ts text eol=lf
+*.svelte text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# Explicitly mark binary files so Git never touches their line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary

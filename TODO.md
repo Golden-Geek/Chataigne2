@@ -1,2 +1,0 @@
-# Architecture / Performance
-- Collapse state of nodes are not persisted during runtime and in save file. they should : if i click on a node, change open some folders in the inspector for this node, select something else and select this node again, it won't show the last state but the initial one. 

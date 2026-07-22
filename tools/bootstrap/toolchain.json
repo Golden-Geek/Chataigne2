@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "baseline": "supported-toolchain",
+  "captured_at": "2026-07-18",
+  "rust": {
+    "channel": "1.97.0",
+    "cargo_version": "1.97.0",
+    "profile": "minimal",
+    "components": [
+      "rustfmt",
+      "clippy"
+    ],
+    "hosts": {
+      "windows_x64": "x86_64-pc-windows-msvc",
+      "windows_arm64": "aarch64-pc-windows-msvc",
+      "macos_x64": "x86_64-apple-darwin",
+      "macos_arm64": "aarch64-apple-darwin",
+      "linux_x64": "x86_64-unknown-linux-gnu",
+      "linux_arm64": "aarch64-unknown-linux-gnu",
+      "linux_armv7": "armv7-unknown-linux-gnueabihf"
+    }
+  },
+  "node": {
+    "version": "26.5.0",
+    "npm_version": "11.17.0"
+  },
+  "python": {
+    "version": "3.14"
+  },
+  "qualification_tools": {
+    "cargo_deny": "0.20.2",
+    "cargo_machete": "0.9.2"
+  },
+  "consumers": {
+    "rust_version": "tools/bootstrap/rust-version",
+    "node_version": ".nvmrc"
+  }
+}

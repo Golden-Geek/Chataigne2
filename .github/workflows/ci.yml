@@ -2,7 +2,12 @@ name: CI
 
 on:
   push:
-  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   LINUX_BUILD_PACKAGES: >-
@@ -26,64 +31,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Activate repository-pinned Rust toolchain
+        shell: bash
+        run: sh ./tools/bootstrap/install-rust-toolchain.sh
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: submodules/golden_core -> submodules/golden_core/target
+          key: engine-tests-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
       - name: Run tests (single-threaded to avoid flaky logger test)
-        run: cargo test -p golden_engine --manifest-path submodules/golden_core/Cargo.toml -- --test-threads=1
+        run: cargo test -p golden_engine -- --test-threads=1
 
   buildui:
     name: Build UI
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: recursive
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: src-ui/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            . -> target
-            submodules/golden_core -> submodules/golden_core/target
+          cache-dependency-path: package-lock.json
       - name: Install UI deps
-        working-directory: src-ui
         run: npm ci
-      # - name: Root fmt
-      #   run: cargo fmt --all --check
-      # - name: golden_core fmt
-      #   run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
       - name: UI lint
-        working-directory: src-ui
+        working-directory: apps/chataigne/ui
         run: npm run lint
       - name: UI check
-        working-directory: src-ui
+        working-directory: apps/chataigne/ui
         run: npm run check
       - name: UI build
-        working-directory: src-ui
+        working-directory: apps/chataigne/ui
         run: npm run build
-      # - name: Root check
-      #   env:
-      #     GC_UI_ASSUME_BUILT: 1
-      #   run: cargo check
-      # - name: golden_core check
-      #   run: cargo check --manifest-path submodules/golden_core/Cargo.toml
-      # - name: golden_core build
-      #   run: cargo build --manifest-path submodules/golden_core/Cargo.toml
       - name: Upload UI build
         uses: actions/upload-artifact@v7
         with:
           name: ui-build
-          path: src-ui/build
+          path: apps/chataigne/ui/build
           if-no-files-found: error
 
   build:
@@ -119,8 +101,6 @@ jobs:
             label: RPI 32-bit (Linux armhf)
             runs_on: ubuntu-24.04
             target: armv7-unknown-linux-gnueabihf
-            emulated_arch: armv7
-            emulated_distro: ubuntu24.04
           - id: rpi-aarch64
             label: RPI 64-bit (Linux aarch64)
             runs_on: ubuntu-24.04-arm
@@ -128,73 +108,58 @@ jobs:
             install_linux_deps: true
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: recursive
       - name: Clear UI build directory
         shell: pwsh
         run: |
-          if (Test-Path 'src-ui/build') {
-            Remove-Item 'src-ui/build' -Recurse -Force
+          if (Test-Path 'apps/chataigne/ui/build') {
+            Remove-Item 'apps/chataigne/ui/build' -Recurse -Force
           }
       - name: Download UI build
         uses: actions/download-artifact@v8
         with:
           name: ui-build
-          path: src-ui/build
-      - uses: dtolnay/rust-toolchain@stable
-        if: ${{ matrix.id != 'rpi-armhf' }}
-        with:
-          targets: ${{ matrix.target }}
+          path: apps/chataigne/ui/build
+      - name: Install target for repository-pinned Rust toolchain (Windows)
+        if: ${{ matrix.id != 'rpi-armhf' && runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          ./tools/bootstrap/install-rust-toolchain.ps1
+          rustup target add ${{ matrix.target }}
+      - name: Install target for repository-pinned Rust toolchain (macOS/Linux)
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
+        run: |
+          sh ./tools/bootstrap/install-rust-toolchain.sh
+          rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-        if: ${{ matrix.id != 'rpi-armhf' }}
         with:
-          key: ${{ matrix.target }}
+          key: build-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
           workspaces: |
             . -> target
-            submodules/golden_core -> submodules/golden_core/target
       - name: Install Linux desktop deps
         if: ${{ matrix.install_linux_deps }}
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y $LINUX_BUILD_PACKAGES
+      - name: Install Linux ARMHF cross-compile deps
+        if: ${{ matrix.id == 'rpi-armhf' }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang gcc-arm-linux-gnueabihf libclang-dev llvm-dev
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> "$GITHUB_ENV"
       - name: App build
         if: ${{ matrix.id != 'rpi-armhf' }}
         env:
           GC_UI_ASSUME_BUILT: 1
         run: cargo build --target ${{ matrix.target }}
-      - name: App build (emulated armhf)
+      - name: Portable headless compatibility check (Linux armhf)
         if: ${{ matrix.id == 'rpi-armhf' }}
-        uses: uraimo/run-on-arch-action@v3
-        with:
-          arch: ${{ matrix.emulated_arch }}
-          distro: ${{ matrix.emulated_distro }}
-          githubToken: ${{ github.token }}
-          install: |
-            apt-get update -q -y
-            apt-get install -q -y \
-              build-essential \
-              clang \
-              curl \
-              file \
-              git \
-              libasound2-dev \
-              libclang-dev \
-              libusb-1.0-0-dev \
-              libayatana-appindicator3-dev \
-              librsvg2-dev \
-              libssl-dev \
-              libudev-dev \
-              libwebkit2gtk-4.1-dev \
-              libxdo-dev \
-              llvm-dev \
-              pkg-config \
-              wget
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
-          env: |
-            GC_UI_ASSUME_BUILT: 1
-          run: |
-            . "$HOME/.cargo/env"
-            rustup target add ${{ matrix.target }}
-            export LIBCLANG_PATH="$(llvm-config --libdir)"
-            cargo build --target ${{ matrix.target }}
+        shell: bash
+        run: |
+          python3 tools/product-gate/compatibility_gate.py \
+            --platform linux-armhf \
+            --target ${{ matrix.target }} \
+            --scope headless-core \
+            --report target/product-gate-compat/linux-armhf/product-gate-report.json

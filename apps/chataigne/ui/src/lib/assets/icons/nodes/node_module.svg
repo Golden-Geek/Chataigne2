@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Node module">
+  <rect width="64" height="64" rx="12" fill="#292d3e"/>
+  <path d="M18 19h28v10H18zm0 16h28v10H18z" fill="#98c379"/>
+  <circle cx="23" cy="24" r="2.5" fill="#171923"/>
+  <circle cx="23" cy="40" r="2.5" fill="#171923"/>
+  <path d="M30 24h11M30 40h11" stroke="#171923" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 13v6m0 26v6" stroke="#c5cadb" stroke-width="4" stroke-linecap="round"/>
+</svg>

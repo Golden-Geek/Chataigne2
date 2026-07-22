@@ -24,6 +24,9 @@ function Run-Step {
     Write-Host ""
     Write-Host "==> $Name"
     & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Name failed with exit code $LASTEXITCODE."
+    }
 }
 
 function Assert-NoMatches {
@@ -31,12 +34,12 @@ function Assert-NoMatches {
         [string]$Name,
         [string]$Pattern,
         [string[]]$Paths,
-        [string[]]$Args = @()
+        [string[]]$RgArgs = @()
     )
 
     Write-Host ""
     Write-Host "==> $Name"
-    $rgOutput = & rg -n @Args $Pattern @Paths
+    $rgOutput = & rg -n @RgArgs $Pattern @Paths
     if ($LASTEXITCODE -eq 0) {
         $rgOutput
         throw "$Name failed."
@@ -56,25 +59,29 @@ Run-Step "cargo fmt --check" {
 }
 
 Run-Step "cargo clippy" {
-    cargo clippy --all-targets -- -D warnings
+    cargo clippy -p Chataigne2 --all-targets --no-deps -- -D warnings
 }
 
 Run-Step "cargo test" {
-    cargo test
+    cargo test --workspace
 }
 
 Run-Step "cargo check" {
-    cargo check
+    cargo check --workspace
 }
 
-Push-Location src-ui
-try {
-    if (-not $SkipUiInstall) {
-        Run-Step "npm ci" {
-            npm ci
-        }
-    }
+Run-Step "qualification tooling tests" {
+    python -m unittest discover -s tools/qualification/tests -v
+}
 
+if (-not $SkipUiInstall) {
+    Run-Step "npm ci" {
+        npm ci
+    }
+}
+
+Push-Location apps/chataigne/ui
+try {
     Run-Step "npm run check" {
         npm run check
     }
@@ -92,25 +99,25 @@ finally {
 }
 
 Run-Step "generated protocol diff" {
-    git diff --exit-code -- src-ui/src/lib/golden_ui/generated/rust_protocol
+    git diff --exit-code -- packages/golden-ui/generated/rust_protocol
 }
 
 Assert-NoMatches `
     -Name "no hand-written #[path] imports in app/build source" `
     -Pattern "#\[\s*path\s*=" `
-    -Paths @("src", "build.rs")
+    -Paths @("apps/chataigne/src", "apps/chataigne/build.rs")
 
 Assert-NoMatches `
     -Name "no legacy Svelte on: event syntax" `
     -Pattern "<[^>]*\son:[A-Za-z]" `
-    -Paths @("src-ui/src") `
-    -Args @("--glob", "*.svelte")
+    -Paths @("apps/chataigne/ui/src", "packages") `
+    -RgArgs @("--glob", "*.svelte")
 
 Assert-NoMatches `
     -Name "no direct Tauri globals outside host bridge" `
     -Pattern "__TAURI__|__TAURI_INTERNALS__|@tauri-apps/api" `
-    -Paths @("src-ui/src") `
-    -Args @(
+    -Paths @("apps/chataigne/ui/src", "packages") `
+    -RgArgs @(
         "--glob", "!**/app.d.ts",
         "--glob", "!**/host/desktop.ts"
     )

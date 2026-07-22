@@ -1,4 +1,14 @@
 {
-    "editor.wordWrapColumn": 150,
-    "task.allowAutomaticTasks": "on"
+  "editor.wordWrapColumn": 100,
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/target/**": true,
+    "**/apps/chataigne/ui/build/**": true,
+    "**/.svelte-kit/**": true
+  },
+  "rust-analyzer.cargo.allTargets": false,
+  "rust-analyzer.cargo.targetDir": false,
+  "rust-analyzer.check.allTargets": false,
+  "rust-analyzer.check.command": "check",
+  "task.allowAutomaticTasks": "on"
 }

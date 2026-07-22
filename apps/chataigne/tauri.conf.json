@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Chataigne2",
+  "version": "0.1.0",
+  "identifier": "com.goldengeek.chataigne2",
+  "build": {
+    "devUrl": "http://localhost:7010",
+    "frontendDist": "ui/build"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "Modular event and control orchestration",
+    "longDescription": "Chataigne is a modular application for routing, transforming, and authoring event-driven control workflows.",
+    "licenseFile": "../../LICENSE",
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "signCommand": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ../../tools/release/sign-windows.ps1 %1",
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
+  }
+}

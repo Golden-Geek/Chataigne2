@@ -1,0 +1,25 @@
+{
+  "note": "Run `cargo bench -p golden_engine -- --warm-up-time 1 --measurement-time 3` to refresh. Commit updated numbers when an intentional perf change shifts them.",
+  "recorded_at": "2026-06-04",
+  "host": "Windows 11 x86_64 (windows-latest runner approximate)",
+  "scenarios": {
+    "tick_20k_passive": {
+      "description": "20k passive nodes, no due buckets — tick-loop overhead floor",
+      "p50_ns": 541.53,
+      "p95_ns": 547.99,
+      "thresholds": { "regression_pct": 10 }
+    },
+    "tick_20k_sparse_active/200": {
+      "description": "20k nodes, 200 active at 200 Hz — sparse 1% active rate",
+      "p50_ns": 23901,
+      "p95_ns": 24762,
+      "thresholds": { "regression_pct": 10 }
+    },
+    "dispatch_10k_with_1k_listeners": {
+      "description": "10k nodes, 1k listeners, 100 custom events/tick",
+      "p50_ns": 200940000,
+      "p95_ns": 208840000,
+      "thresholds": { "regression_pct": 15 }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+[package]
+name = "chataigne_alchemist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Chataigne-owned Alchemist formula domain"
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "dep:serde_json"]
+rhai = []
+debug_trace = []
+golden_core_integration = []
+
+[dependencies]
+golden_graph.workspace = true
+golden_values.workspace = true
+indexmap.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+smallvec.workspace = true
+smol_str.workspace = true
+thiserror.workspace = true
+uuid = { workspace = true, features = ["v5"] }

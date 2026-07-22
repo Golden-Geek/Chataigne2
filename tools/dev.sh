@@ -55,30 +55,11 @@ step() {
   printf '\n==> %s\n' "$1"
 }
 
-run_sudo() {
-  if [[ "$(id -u)" -eq 0 ]]; then
-    "$@"
-  else
-    sudo "$@"
-  fi
-}
-
 load_cargo_env() {
   if [[ -f "${HOME}/.cargo/env" ]]; then
     # shellcheck disable=SC1091
     . "${HOME}/.cargo/env"
   fi
-}
-
-ensure_git_submodules() {
-  step "Git submodules"
-
-  if ! command -v git >/dev/null 2>&1; then
-    echo "git was not found on PATH. Install Git, then rerun bash tools/dev.sh." >&2
-    exit 1
-  fi
-
-  git submodule update --init --recursive
 }
 
 ensure_linux_system_deps() {
@@ -108,8 +89,9 @@ ensure_linux_system_deps() {
       fi
     done
     if [[ "${#missing[@]}" -gt 0 ]]; then
-      run_sudo apt-get update
-      run_sudo apt-get install -y "${missing[@]}"
+      echo "Missing system packages: ${missing[*]}" >&2
+      echo "Install them with apt before rerunning tools/dev.sh." >&2
+      exit 1
     else
       echo "Linux desktop packages found."
     fi
@@ -136,29 +118,19 @@ ensure_linux_system_deps() {
       fi
     done
     if [[ "${#missing[@]}" -gt 0 ]]; then
-      run_sudo dnf install -y "${missing[@]}"
+      echo "Missing system packages: ${missing[*]}" >&2
+      echo "Install them with dnf before rerunning tools/dev.sh." >&2
+      exit 1
     else
       echo "Linux desktop packages found."
     fi
     if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
-      run_sudo dnf group install -y "c-development" || run_sudo dnf group install -y "Development Tools"
+      echo "A system C development toolchain is required." >&2
+      exit 1
     fi
   elif command -v pacman >/dev/null 2>&1; then
-    run_sudo pacman -Syu --needed \
-      webkit2gtk-4.1 \
-      alsa-lib \
-      libusb \
-      base-devel \
-      curl \
-      wget \
-      file \
-      openssl \
-      pkgconf \
-      systemd \
-      appmenu-gtk-module \
-      libappindicator-gtk3 \
-      librsvg \
-      xdotool
+    echo "Install the Arch desktop prerequisites listed in docs/operations/workspace-hygiene.md before rerunning tools/dev.sh." >&2
+    exit 1
   elif command -v zypper >/dev/null 2>&1; then
     local packages=(
       webkit2gtk3-devel
@@ -181,28 +153,19 @@ ensure_linux_system_deps() {
       fi
     done
     if [[ "${#missing[@]}" -gt 0 ]]; then
-      run_sudo zypper --non-interactive refresh
-      run_sudo zypper --non-interactive install "${missing[@]}"
+      echo "Missing system packages: ${missing[*]}" >&2
+      echo "Install them with zypper before rerunning tools/dev.sh." >&2
+      exit 1
     else
       echo "Linux desktop packages found."
     fi
     if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
-      run_sudo zypper --non-interactive install -t pattern devel_basis
+      echo "The system devel_basis pattern is required." >&2
+      exit 1
     fi
   elif command -v apk >/dev/null 2>&1; then
-    run_sudo apk add \
-      build-base \
-      webkit2gtk-4.1-dev \
-      alsa-lib-dev \
-      libusb-dev \
-      curl \
-      wget \
-      file \
-      openssl \
-      pkgconf \
-      eudev-dev \
-      libayatana-appindicator-dev \
-      librsvg
+    echo "Install the Alpine desktop prerequisites listed in docs/operations/workspace-hygiene.md before rerunning tools/dev.sh." >&2
+    exit 1
   else
     echo "Unsupported Linux package manager. Install the Tauri Linux prerequisites manually, then rerun this script." >&2
   fi
@@ -212,8 +175,7 @@ ensure_macos_system_deps() {
   step "macOS desktop build dependencies"
 
   if ! xcode-select -p >/dev/null 2>&1; then
-    xcode-select --install || true
-    echo "Finish the Xcode Command Line Tools installer, then rerun bash tools/dev.sh." >&2
+    echo "Xcode Command Line Tools are a system prerequisite. Install them, then rerun bash tools/dev.sh." >&2
     exit 1
   fi
 }
@@ -221,7 +183,7 @@ ensure_macos_system_deps() {
 ensure_system_deps() {
   if [[ "${skip_system_deps}" -eq 1 ]]; then
     step "Desktop build dependencies"
-    echo "Skipping system dependency install."
+    echo "Skipping system dependency verification."
     return
   fi
 
@@ -239,110 +201,25 @@ ensure_system_deps() {
   esac
 }
 
-ensure_rust() {
-  step "Rust toolchain"
+ensure_rustup() {
   load_cargo_env
-
   if ! command -v rustup >/dev/null 2>&1; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    load_cargo_env
-  fi
-
-  if ! command -v rustup >/dev/null 2>&1; then
-    echo "rustup was installed but is still not on PATH. Restart the shell, then rerun bash tools/dev.sh." >&2
-    exit 1
-  fi
-
-  rustup toolchain install stable
-  rustup default stable
-  load_cargo_env
-
-  if ! command -v cargo >/dev/null 2>&1; then
-    echo "cargo was not found after installing rustup. Restart the shell, then rerun bash tools/dev.sh." >&2
-    exit 1
-  fi
-
-  cargo --version
-}
-
-node_supported() {
-  if ! command -v node >/dev/null 2>&1; then
-    return 1
-  fi
-
-  local version major minor patch
-  version="$(node -p 'process.versions.node' 2>/dev/null || true)"
-  IFS=. read -r major minor patch <<< "${version}"
-
-  if [[ ! "${major}" =~ ^[0-9]+$ || ! "${minor}" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
-
-  if (( major == 20 && minor >= 19 )); then
-    return 0
-  fi
-
-  if (( major == 22 && minor >= 12 )); then
-    return 0
-  fi
-
-  if (( major >= 23 )); then
-    return 0
-  fi
-
-  return 1
-}
-
-load_nvm() {
-  export NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
-  if [[ -s "${NVM_DIR}/nvm.sh" ]]; then
-    # shellcheck disable=SC1091
-    . "${NVM_DIR}/nvm.sh"
-  fi
-}
-
-ensure_nvm() {
-  load_nvm
-
-  if command -v nvm >/dev/null 2>&1; then
-    return
-  fi
-
-  local nvm_version
-  nvm_version="${NVM_INSTALL_VERSION:-v0.40.4}"
-  curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" | bash
-  load_nvm
-
-  if ! command -v nvm >/dev/null 2>&1; then
-    echo "nvm was installed but could not be loaded. Restart the shell, then rerun bash tools/dev.sh." >&2
+    echo "rustup is a system prerequisite. Install it and the pinned toolchain from docs/operations/workspace-hygiene.md." >&2
     exit 1
   fi
 }
 
-ensure_node() {
-  step "Node.js and npm"
-  load_nvm
-
-  if ! node_supported || ! command -v npm >/dev/null 2>&1; then
-    ensure_nvm
-    nvm install --lts
-    nvm use --lts
-  fi
-
-  if ! node_supported; then
-    local found
-    found="$(command -v node >/dev/null 2>&1 && node --version || echo "not found")"
-    echo "Node.js 20.19+ or 22.12+ is required by the Svelte/Vite frontend. Found: ${found}." >&2
+activate_canonical_toolchain() {
+  step "Canonical Rust, Node, npm, and Python contract"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "Python 3 is required before bootstrap; install the version recorded in tools/bootstrap/toolchain.json." >&2
     exit 1
   fi
-
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "npm was not found after installing Node.js. Restart the shell, then rerun bash tools/dev.sh." >&2
-    exit 1
-  fi
-
-  node --version
-  npm --version
+  ensure_rustup
+  CARGO_TARGET_DIR="$repo_root/target"
+  export CARGO_TARGET_DIR
+  sh "$repo_root/tools/bootstrap/verify-toolchain.sh" --check-installed
+  pwsh -NoProfile -File "$repo_root/tools/workspace-hygiene.ps1" -Action Audit
 }
 
 ensure_ui_dependencies() {
@@ -353,12 +230,12 @@ ensure_ui_dependencies() {
     return
   fi
 
-  if [[ -f src-ui/node_modules/.package-lock.json && ! src-ui/package-lock.json -nt src-ui/node_modules/.package-lock.json ]]; then
-    echo "src-ui/node_modules is current."
+  if [[ -f node_modules/.package-lock.json && ! package-lock.json -nt node_modules/.package-lock.json ]]; then
+    echo "node_modules is current."
     return
   fi
 
-  (cd src-ui && npm ci)
+  npm ci
 }
 
 run_app() {
@@ -366,10 +243,8 @@ run_app() {
   cargo run "${cargo_args[@]}"
 }
 
-ensure_git_submodules
 ensure_system_deps
-ensure_rust
-ensure_node
+activate_canonical_toolchain
 ensure_ui_dependencies
 
 if [[ "${setup_only}" -eq 0 ]]; then

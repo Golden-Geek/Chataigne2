@@ -1,0 +1,350 @@
+name: Cross-platform Product Qualification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      native_platform:
+        description: Native product gate to run
+        required: true
+        default: windows
+        type: choice
+        options:
+          - windows
+          - linux
+          - macos
+          - all
+          - none
+      run_compatibility:
+        description: Run all ARM compatibility builds
+        required: true
+        default: false
+        type: boolean
+      windows_debug_session:
+        description: Open an actor-restricted live shell on the Windows runner
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  product-gate:
+    name: Product gate (${{ matrix.platform }})
+    if: github.event_name == 'push' || inputs.native_platform != 'none'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(
+          (github.event_name == 'push' || inputs.native_platform == 'all') &&
+          '[{"platform":"windows","runner":"windows-latest"},{"platform":"macos","runner":"macos-15"},{"platform":"linux","runner":"ubuntu-24.04"}]' ||
+          inputs.native_platform == 'linux' &&
+          '[{"platform":"linux","runner":"ubuntu-24.04"}]' ||
+          inputs.native_platform == 'macos' &&
+          '[{"platform":"macos","runner":"macos-15"}]' ||
+          '[{"platform":"windows","runner":"windows-latest"}]'
+          ) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Read canonical toolchain manifest
+        id: pins
+        shell: pwsh
+        run: |
+          $pins = Get-Content tools/bootstrap/toolchain.json -Raw | ConvertFrom-Json
+          "rust=$($pins.rust.channel)" >> $env:GITHUB_OUTPUT
+          "node=$($pins.node.version)" >> $env:GITHUB_OUTPUT
+          "npm=$($pins.node.npm_version)" >> $env:GITHUB_OUTPUT
+          "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.pins.outputs.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
+
+      - name: Install pinned Rust toolchain (Windows MSVC)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tools/bootstrap/install-rust-toolchain.ps1
+
+      - name: Install pinned Rust toolchain (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: sh ./tools/bootstrap/install-rust-toolchain.sh
+
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: product-gate-${{ matrix.platform }}
+          cache-on-failure: true
+          cache-targets: false
+          workspaces: |
+            . -> target
+
+      - name: Enable MSVC build environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Verify Windows Tauri prerequisites
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw 'MSVC cl.exe is unavailable.' }
+          $webView = Join-Path ${env:ProgramFiles(x86)} 'Microsoft\EdgeWebView\Application'
+          if (-not (Test-Path $webView)) {
+            throw 'The GitHub Windows image does not contain the WebView2 runtime required by Tauri.'
+          }
+
+      - name: Verify macOS Tauri prerequisites
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          xcode-select -p
+          xcrun --find clang
+
+      - name: Install Linux Tauri prerequisites
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libasound2-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libudev-dev \
+            libusb-1.0-0-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            pkg-config \
+            wget \
+            xvfb
+
+      - name: Install pinned dependency qualification tools
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sh ./tools/bootstrap/install-qualification-tools.sh
+
+      - name: Verify canonical installed toolchain (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tools/bootstrap/verify-toolchain.ps1 -CheckInstalled
+
+      - name: Verify canonical installed toolchain (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: sh ./tools/bootstrap/verify-toolchain.sh --check-installed
+
+      - name: Open actor-restricted Windows debug session
+        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch' && inputs.windows_debug_session == true
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
+        timeout-minutes: 45
+        with:
+          detached: true
+          limit-access-to-actor: true
+
+      - name: Run product gate
+        if: runner.os != 'Linux'
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:RUNNER_TEMP 'product-gate/${{ matrix.platform }}/product-gate-report.json'
+          ./tools/product-gate/product-gate.ps1 -ReportPath $report -RequiredPlatforms '${{ matrix.platform }}'
+
+      - name: Run product gate under virtual display
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          report="$RUNNER_TEMP/product-gate/${{ matrix.platform }}/product-gate-report.json"
+          xvfb-run -a pwsh -NoLogo -NoProfile -NonInteractive -File ./tools/product-gate/product-gate.ps1 \
+            -ReportPath "$report" \
+            -DependencyAudit \
+            -RequiredPlatforms '${{ matrix.platform }}'
+
+      - name: Upload platform report, logs, and screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: product-gate-${{ matrix.platform }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/product-gate/${{ matrix.platform }}
+            apps/chataigne/ui/artifacts
+          if-no-files-found: warn
+
+  compatibility-build:
+    name: Compatibility build (${{ matrix.platform }})
+    if: github.event_name == 'push' || inputs.run_compatibility == true
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-armhf
+            runner: ubuntu-24.04
+            target: armv7-unknown-linux-gnueabihf
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            install_linux_deps: true
+          - platform: windows-arm64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read canonical toolchain manifest
+        id: pins
+        shell: pwsh
+        run: |
+          $pins = Get-Content tools/bootstrap/toolchain.json -Raw | ConvertFrom-Json
+          "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
+
+      - name: Install pinned Rust toolchain and target (Windows ARM64)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./tools/bootstrap/install-rust-toolchain.ps1
+          rustup target add '${{ matrix.target }}'
+
+      - name: Install pinned Rust toolchain and target (Linux AArch64)
+        if: matrix.platform == 'linux-aarch64'
+        shell: bash
+        run: |
+          sh ./tools/bootstrap/install-rust-toolchain.sh
+          rustup target add '${{ matrix.target }}'
+
+      - name: Install pinned Rust toolchain and target (Linux ARMHF)
+        if: matrix.platform == 'linux-armhf'
+        shell: bash
+        run: |
+          sh ./tools/bootstrap/install-rust-toolchain.sh
+          rustup target add '${{ matrix.target }}'
+
+      - name: Install Linux ARMHF cross-compile deps
+        if: matrix.platform == 'linux-armhf'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang gcc-arm-linux-gnueabihf libclang-dev llvm-dev
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> "$GITHUB_ENV"
+
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: compatibility-${{ matrix.target }}
+          cache-on-failure: true
+          cache-targets: false
+          workspaces: |
+            . -> target
+
+      - name: Enable ARM64 MSVC build environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - name: Install Linux ARM64 desktop prerequisites
+        if: matrix.install_linux_deps
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libasound2-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libudev-dev \
+            libusb-1.0-0-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            pkg-config \
+            wget
+
+      - name: Build native ARM64 compatibility target
+        if: matrix.platform != 'linux-armhf'
+        shell: pwsh
+        run: |
+          python tools/product-gate/compatibility_gate.py `
+            --platform '${{ matrix.platform }}' `
+            --target '${{ matrix.target }}' `
+            --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
+
+      - name: Check Linux ARM hard-float headless core
+        if: matrix.platform == 'linux-armhf'
+        shell: bash
+        run: |
+          python3 tools/product-gate/compatibility_gate.py \
+            --platform '${{ matrix.platform }}' \
+            --target '${{ matrix.target }}' \
+            --scope headless-core \
+            --report 'target/product-gate-compat/${{ matrix.platform }}/product-gate-report.json'
+
+      - name: Upload compatibility report and log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: product-gate-${{ matrix.platform }}-${{ github.sha }}
+          path: target/product-gate-compat/${{ matrix.platform }}
+          if-no-files-found: error
+
+  aggregate:
+    name: Aggregate exact-commit reports
+    if: ${{ always() && (github.event_name == 'push' || (inputs.native_platform == 'all' && inputs.run_compatibility == true)) }}
+    needs: [product-gate, compatibility-build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: product-gate-*-${{ github.sha }}
+          path: reports
+      - name: Aggregate schema-v1 reports
+        shell: pwsh
+        run: ./tools/product-gate/aggregate-reports.ps1 -ReportDirectory ./reports -ExpectedCommit '${{ github.sha }}' -OutputPath ./reports/product-gate-aggregate.json
+      - name: Upload aggregate and source evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: product-gate-aggregate-${{ github.sha }}
+          path: reports
+          if-no-files-found: error

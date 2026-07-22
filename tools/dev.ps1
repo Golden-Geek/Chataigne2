@@ -1,3 +1,4 @@
+[CmdletBinding()]
 param(
     [switch] $SetupOnly,
     [switch] $SkipUiInstall,
@@ -7,16 +8,17 @@ param(
     [string[]] $CargoArgs
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$Root = Split-Path -Parent $PSScriptRoot
+$Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 Set-Location $Root
 
-if ($env:OS -ne "Windows_NT") {
+if (-not [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+        [System.Runtime.InteropServices.OSPlatform]::Windows
+    )) {
     throw "tools/dev.ps1 is the Windows bootstrap. Use bash tools/dev.sh on macOS/Linux."
 }
-
-$RequiredNodeRange = "Node.js 20.19+ or 22.12+"
 
 function Write-Step {
     param([string] $Name)
@@ -25,25 +27,17 @@ function Write-Step {
     Write-Host "==> $Name"
 }
 
-function Command-Exists {
+function Get-CommandExists {
     param([string] $Name)
 
-    return [bool] (Get-Command $Name -ErrorAction SilentlyContinue)
-}
-
-function Get-NpmCommand {
-    if (Command-Exists "npm.cmd") {
-        return "npm.cmd"
-    }
-
-    return "npm"
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
 function Refresh-Path {
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     $cargoPath = Join-Path $HOME ".cargo\bin"
-    $env:Path = @($machinePath, $userPath, $cargoPath, $env:Path) -join ";"
+    $env:PATH = @($machinePath, $userPath, $cargoPath, $env:PATH) -join ";"
 }
 
 function Invoke-External {
@@ -58,77 +52,20 @@ function Invoke-External {
     }
 }
 
-function Install-WingetPackage {
-    param(
-        [string] $Id,
-        [string] $DisplayName,
-        [string] $Override = ""
-    )
-
-    if (-not (Command-Exists winget)) {
-        throw "Cannot install $DisplayName automatically because winget was not found. Install it manually, restart PowerShell, then rerun tools/dev.ps1."
-    }
-
-    $arguments = @(
-        "install",
-        "--id", $Id,
-        "--exact",
-        "--source", "winget",
-        "--accept-package-agreements",
-        "--accept-source-agreements"
-    )
-
-    if (-not [string]::IsNullOrWhiteSpace($Override)) {
-        $arguments += @("--override", $Override)
-    }
-
-    Invoke-External "winget" $arguments
+function Ensure-Rustup {
     Refresh-Path
-}
-
-function Ensure-GitSubmodules {
-    Write-Step "Git submodules"
-
-    if (-not (Command-Exists git)) {
-        throw "git was not found on PATH. Install Git, then rerun tools/dev.ps1."
+    if (-not (Get-CommandExists "rustup")) {
+        throw "rustup is a system prerequisite. Install it and the pinned toolchain from docs/operations/workspace-hygiene.md, then rerun tools/dev.ps1."
     }
-
-    Invoke-External "git" @("submodule", "update", "--init", "--recursive")
-}
-
-function Ensure-Rust {
-    Write-Step "Rust toolchain"
-    Refresh-Path
-
-    if (-not (Command-Exists rustup)) {
-        Install-WingetPackage "Rustlang.Rustup" "rustup"
-    }
-
-    Refresh-Path
-
-    if (-not (Command-Exists rustup)) {
-        throw "rustup was installed but is still not on PATH. Restart PowerShell, then rerun tools/dev.ps1."
-    }
-
-    Invoke-External "rustup" @("toolchain", "install", "stable-msvc")
-    Invoke-External "rustup" @("default", "stable-msvc")
-
-    Refresh-Path
-
-    if (-not (Command-Exists cargo)) {
-        throw "cargo was not found after installing rustup. Restart PowerShell, then rerun tools/dev.ps1."
-    }
-
-    cargo --version
 }
 
 function Test-VcBuildToolsInstalled {
-    if (Command-Exists cl.exe) {
+    if (Get-CommandExists "cl.exe") {
         return $true
     }
 
     $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
-    if (-not (Test-Path $vswhere)) {
+    if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) {
         return $false
     }
 
@@ -138,129 +75,65 @@ function Test-VcBuildToolsInstalled {
         -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
         -property installationPath `
         2>$null
-
     return ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($installationPath))
 }
 
 function Ensure-WindowsBuildTools {
     Write-Step "Windows desktop build tools"
-
     if ($SkipWindowsBuildTools) {
         Write-Host "Skipping Visual Studio C++ Build Tools check."
         return
     }
-
     if (Test-VcBuildToolsInstalled) {
         Write-Host "Visual Studio C++ Build Tools found."
         return
     }
 
-    Install-WingetPackage `
-        "Microsoft.VisualStudio.2022.BuildTools" `
-        "Visual Studio 2022 Build Tools" `
-        "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-
-    if (-not (Test-VcBuildToolsInstalled)) {
-        throw "Visual Studio C++ Build Tools could not be verified. Restart Windows if the installer requested it, then rerun tools/dev.ps1."
-    }
+    throw "Visual Studio C++ Build Tools with the VCTools workload are a system prerequisite. Install them, then rerun tools/dev.ps1."
 }
 
-function Test-NodeVersionSupported {
-    if (-not (Command-Exists node)) {
-        return $false
+function Activate-CanonicalToolchain {
+    Write-Step "Canonical Rust, Node, npm, and Python contract"
+    Ensure-Rustup
+    $env:CARGO_TARGET_DIR = Join-Path $Root "target"
+    & (Join-Path $Root "tools\bootstrap\verify-toolchain.ps1") -CheckInstalled
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
     }
-
-    $version = (& node -p "process.versions.node" 2>$null)
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($version)) {
-        return $false
+    & (Join-Path $Root "tools\workspace-hygiene.ps1") -Action Audit
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
     }
-
-    $parts = $version.Trim().Split(".")
-    if ($parts.Count -lt 2) {
-        return $false
-    }
-
-    $major = 0
-    $minor = 0
-    if (-not [int]::TryParse($parts[0], [ref] $major)) {
-        return $false
-    }
-    if (-not [int]::TryParse($parts[1], [ref] $minor)) {
-        return $false
-    }
-
-    return (($major -eq 20 -and $minor -ge 19) -or ($major -eq 22 -and $minor -ge 12) -or ($major -ge 23))
-}
-
-function Ensure-Node {
-    Write-Step "Node.js and npm"
-    Refresh-Path
-
-    if (-not (Test-NodeVersionSupported) -or -not (Command-Exists (Get-NpmCommand))) {
-        Install-WingetPackage "OpenJS.NodeJS.LTS" "Node.js LTS"
-        Refresh-Path
-    }
-
-    if (-not (Test-NodeVersionSupported)) {
-        $found = if (Command-Exists node) { (& node --version) } else { "not found" }
-        throw "$RequiredNodeRange is required by the Svelte/Vite frontend. Found: $found. Install Node.js LTS or fix PATH, then rerun tools/dev.ps1."
-    }
-
-    $npm = Get-NpmCommand
-    if (-not (Command-Exists $npm)) {
-        throw "npm was not found after installing Node.js. Restart PowerShell, then rerun tools/dev.ps1."
-    }
-
-    node --version
-    Invoke-External $npm @("--version")
 }
 
 function Test-UiInstallNeeded {
-    $packageLock = Join-Path $Root "src-ui\package-lock.json"
-    $nodeModulesLock = Join-Path $Root "src-ui\node_modules\.package-lock.json"
-
-    if (-not (Test-Path $nodeModulesLock)) {
+    $packageLock = Join-Path $Root "package-lock.json"
+    $installedLock = Join-Path $Root "node_modules\.package-lock.json"
+    if (-not (Test-Path -LiteralPath $installedLock -PathType Leaf)) {
         return $true
     }
-
-    return ((Get-Item $nodeModulesLock).LastWriteTimeUtc -lt (Get-Item $packageLock).LastWriteTimeUtc)
+    return ((Get-Item -LiteralPath $installedLock).LastWriteTimeUtc -lt
+        (Get-Item -LiteralPath $packageLock).LastWriteTimeUtc)
 }
 
 function Ensure-UiDependencies {
+    Write-Step "Root JavaScript workspace"
     if ($SkipUiInstall) {
-        Write-Host ""
-        Write-Host "==> Svelte dependencies"
         Write-Host "Skipping npm ci."
         return
     }
-
-    Write-Step "Svelte dependencies"
     if (-not (Test-UiInstallNeeded)) {
-        Write-Host "src-ui/node_modules is current."
+        Write-Host "node_modules is current."
         return
     }
-
-    $npm = Get-NpmCommand
-    Push-Location "src-ui"
-    try {
-        Invoke-External $npm @("ci")
-    }
-    finally {
-        Pop-Location
-    }
+    Invoke-External "npm.cmd" @("ci")
 }
 
-function Run-App {
-    Write-Step "Run Chataigne2"
-    Invoke-External "cargo" (@("run") + $CargoArgs)
-}
-
-Ensure-GitSubmodules
-Ensure-Rust
 Ensure-WindowsBuildTools
-Ensure-Node
+Activate-CanonicalToolchain
 Ensure-UiDependencies
 
 if (-not $SetupOnly) {
-    Run-App
+    Write-Step "Run Chataigne2"
+    Invoke-External "cargo" (@("run") + $CargoArgs)
 }

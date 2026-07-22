@@ -1,0 +1,632 @@
+use std::collections::HashSet;
+use std::collections::{HashMap, VecDeque};
+
+use crate::events::EventKind;
+use crate::node::{Node, NodeId, NodeUuid, PARAMETER_CONTROL_REFERENCE_DECL_ID};
+use crate::parameter::{
+    ParamValue, ParamValueCompatibility, ParameterControlMode, ReferenceConstraints, ReferenceRoot,
+    ReferenceTargetKind, compatibility_for_binding_values, compatibility_for_values, default_param_value_for_type_id,
+};
+
+use super::Engine;
+
+pub(crate) const MISSING_REFERENCE_WARNING_ID: &str = "missing-reference";
+
+impl<T: Node> Engine<T> {
+    /// Builds a runtime lookup map from persistent UUID to current node id.
+    pub fn uuid_to_node_id_map(&self) -> HashMap<NodeUuid, NodeId> {
+        self.uuid_index.clone()
+    }
+
+    /// Returns the current runtime node id for a persistent UUID, when present.
+    pub fn node_id_by_uuid(&self, uuid: NodeUuid) -> Option<NodeId> {
+        self.uuid_index.get(&uuid).copied()
+    }
+
+    pub(crate) fn register_node_uuid(&mut self, node_id: NodeId) {
+        if let Some(node) = self.nodes.get(node_id) {
+            self.uuid_index.insert(node.node_data().meta.uuid, node_id);
+        }
+    }
+
+    pub(crate) fn unregister_node_uuid(&mut self, node_id: NodeId) {
+        if let Some(node) = self.nodes.get(node_id) {
+            self.unregister_node_uuid_value(node_id, node.node_data().meta.uuid);
+        }
+    }
+
+    pub(crate) fn unregister_node_uuid_value(&mut self, node_id: NodeId, uuid: NodeUuid) {
+        if self.uuid_index.get(&uuid).copied() == Some(node_id) {
+            self.uuid_index.remove(&uuid);
+        }
+    }
+
+    /// Rebuilds cached runtime ids inside all reference parameter values.
+    ///
+    /// Returns how many cached entries were updated.
+    pub fn resolve_reference_caches(&mut self) -> usize {
+        let node_ids: Vec<NodeId> = self.nodes.keys().collect();
+        self.resolve_reference_caches_for_nodes(node_ids.as_slice())
+    }
+
+    pub(crate) fn resolve_reference_caches_for_nodes(&mut self, node_ids: &[NodeId]) -> usize {
+        let mut updated = 0usize;
+
+        for node_id in node_ids.iter().copied() {
+            let normalized_reference = self
+                .nodes
+                .get(node_id)
+                .and_then(|node| node.engine_param_snapshot())
+                .and_then(|snapshot| match snapshot.value {
+                    ParamValue::Reference(reference) => {
+                        self.normalize_reference_value_for_param(node_id, reference).ok()
+                    }
+                    _ => None,
+                });
+
+            if let Some(normalized_reference) = normalized_reference {
+                if let Some(node) = self.nodes.get_mut(node_id) {
+                    node.engine_visit_references_mut(&mut |reference| {
+                        if reference.uuid() != normalized_reference.uuid()
+                            || reference.projection() != normalized_reference.projection()
+                            || reference.cached_id() != normalized_reference.cached_id()
+                            || reference.cached_name() != normalized_reference.cached_name()
+                            || reference.relative_path_from_root() != normalized_reference.relative_path_from_root()
+                        {
+                            updated += 1;
+                            *reference = normalized_reference.clone();
+                        }
+                    });
+                }
+                continue;
+            }
+
+            let mut resolutions = VecDeque::new();
+            if let Some(node) = self.nodes.get(node_id) {
+                node.engine_visit_references(&mut |reference| {
+                    let resolved = self.uuid_index.get(&reference.uuid()).copied();
+                    let cached_name = resolved
+                        .and_then(|id| self.nodes.get(id))
+                        .map(|node| node.node_data().meta.label.clone());
+                    resolutions.push_back((resolved, cached_name));
+                });
+            }
+
+            if let Some(node) = self.nodes.get_mut(node_id) {
+                node.engine_visit_references_mut(&mut |reference| {
+                    let Some((resolved, cached_name)) = resolutions.pop_front() else {
+                        return;
+                    };
+                    if reference.cached_id() != resolved {
+                        updated += 1;
+                        reference.set_cached_id(resolved);
+                    }
+                    if let Some(cached_name) = cached_name
+                        && reference.cached_name() != Some(cached_name.as_str())
+                    {
+                        updated += 1;
+                        reference.set_cached_name(Some(cached_name));
+                    }
+                });
+            }
+        }
+
+        updated
+    }
+
+    /// Clears cached runtime ids inside all reference parameter values.
+    ///
+    /// Returns how many cached entries were cleared.
+    pub fn clear_reference_caches(&mut self) -> usize {
+        let node_ids: Vec<NodeId> = self.nodes.keys().collect();
+        let mut cleared = 0usize;
+
+        for node_id in node_ids {
+            if let Some(node) = self.nodes.get_mut(node_id) {
+                node.engine_visit_references_mut(&mut |reference| {
+                    if reference.cached_id().is_some() {
+                        reference.clear_cached_id();
+                        cleared += 1;
+                    }
+                });
+            }
+        }
+
+        cleared
+    }
+
+    pub(crate) fn sync_missing_reference_warnings(&mut self) -> usize {
+        self.sync_missing_reference_warnings_impl(true)
+    }
+
+    pub(crate) fn sync_missing_reference_warnings_silent(&mut self) -> usize {
+        self.sync_missing_reference_warnings_impl(false)
+    }
+
+    fn sync_missing_reference_warnings_impl(&mut self, emit_events: bool) -> usize {
+        let node_ids: Vec<NodeId> = self.nodes.keys().collect();
+        self.sync_missing_reference_warnings_for_nodes_impl(node_ids.as_slice(), emit_events)
+    }
+
+    pub(crate) fn sync_missing_reference_warnings_for_nodes_silent(&mut self, node_ids: &[NodeId]) -> usize {
+        self.sync_missing_reference_warnings_for_nodes_impl(node_ids, false)
+    }
+
+    fn sync_missing_reference_warnings_for_nodes_impl(&mut self, node_ids: &[NodeId], emit_events: bool) -> usize {
+        self.resolve_reference_caches_for_nodes(node_ids);
+        let mut pending: Vec<(NodeId, crate::node::PresentationHint)> = Vec::new();
+
+        for node_id in node_ids.iter().copied() {
+            let Some(node) = self.nodes.get(node_id) else {
+                continue;
+            };
+            let Some(snapshot) = node.engine_param_snapshot() else {
+                continue;
+            };
+
+            let mut next_presentation = node.node_data().meta.presentation.clone();
+            match snapshot.value {
+                ParamValue::Reference(reference)
+                    if !reference.uuid().is_nil() && !self.uuid_index.contains_key(&reference.uuid()) =>
+                {
+                    let detail = reference
+                        .cached_name()
+                        .map(|name| format!("Target '{name}' is missing"))
+                        .unwrap_or_else(|| format!("Target UUID {} is missing", reference.uuid().0));
+                    next_presentation.set_warning(crate::node::NodeWarning {
+                        id: MISSING_REFERENCE_WARNING_ID.to_string(),
+                        message: "Missing reference".to_string(),
+                        detail: Some(detail),
+                    });
+                }
+                _ => {
+                    next_presentation.clear_warning(Some(MISSING_REFERENCE_WARNING_ID));
+                }
+            }
+
+            if next_presentation != node.node_data().meta.presentation {
+                pending.push((node_id, next_presentation));
+            }
+        }
+
+        for (node_id, presentation) in pending.iter() {
+            if let Some(node) = self.nodes.get_mut(*node_id) {
+                node.node_data_mut().meta.presentation = presentation.clone();
+            }
+
+            if emit_events {
+                self.emit_event(EventKind::MetaChanged {
+                    node: *node_id,
+                    patch: crate::node::NodeMetaPatch {
+                        presentation: Some(presentation.clone()),
+                        ..Default::default()
+                    },
+                });
+            }
+        }
+
+        pending.len()
+    }
+
+    pub(crate) fn normalize_reference_value_for_param(
+        &self,
+        param_node: NodeId,
+        mut reference: crate::node::NodeReference,
+    ) -> Result<crate::node::NodeReference, String> {
+        if reference.uuid().is_nil() && reference.relative_path_from_root().is_empty() {
+            reference.clear_cached_id();
+            reference.clear_relative_path_from_root();
+            reference.clear_cached_name();
+            reference.clear_projection();
+            return Ok(reference);
+        }
+
+        let constraints = self.reference_constraints_for_param(param_node);
+        let root = self
+            .resolve_reference_root(param_node, &constraints)
+            .ok_or_else(|| "reference root could not be resolved".to_string())?;
+
+        let mut resolved = None;
+        let mut resolved_but_rejected = false;
+
+        if let Some(candidate) = reference.cached_id() {
+            if self.nodes.contains(candidate) {
+                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                    resolved = Some(candidate);
+                } else {
+                    resolved_but_rejected = true;
+                }
+            }
+        }
+
+        if resolved.is_none() && !reference.uuid().is_nil() {
+            if let Some(candidate) = self.node_id_by_uuid(reference.uuid()) {
+                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                    resolved = Some(candidate);
+                } else {
+                    resolved_but_rejected = true;
+                }
+            }
+        }
+
+        if resolved.is_none() && reference.uuid().is_nil() && !reference.relative_path_from_root().is_empty() {
+            if let Some(candidate) = self.resolve_relative_decl_path(root, reference.relative_path_from_root()) {
+                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                    resolved = Some(candidate);
+                } else {
+                    resolved_but_rejected = true;
+                }
+            }
+        }
+
+        let Some(target) = resolved else {
+            if resolved_but_rejected {
+                return Err("reference target violates constraints".to_string());
+            }
+            reference.clear_cached_id();
+            return Ok(reference);
+        };
+
+        if reference.projection().is_some() && !constraints.allow_projections {
+            return Err("reference projections are disabled by constraints".to_string());
+        }
+
+        if let Some(compatibility) = self.reference_candidate_compatibility_for_param(param_node, target, &constraints)
+        {
+            if let Some(projection) = reference.projection() {
+                if !compatibility.projections.contains(&projection) {
+                    return Err(format!(
+                        "reference projection '{}' is not compatible with selected target",
+                        projection.variant_id()
+                    ));
+                }
+            } else if !compatibility.direct && !compatibility.projections.is_empty() {
+                return Err("reference target requires selecting a projection".to_string());
+            }
+        } else if reference.projection().is_some() {
+            return Err(
+                "reference projection is only valid for parameter targets with a typed expectation".to_string(),
+            );
+        }
+
+        reference.set_cached_id(Some(target));
+        if let Some(target_node) = self.nodes.get(target) {
+            reference.uuid = target_node.node_data().meta.uuid;
+            reference.set_cached_name(Some(target_node.node_data().meta.label.clone()));
+        }
+        if let Some(path) = self.relative_decl_path_from_root(root, target) {
+            reference.set_relative_path_from_root(path);
+        }
+
+        Ok(reference)
+    }
+
+    pub(crate) fn reference_constraints_for_param(&self, param_node: NodeId) -> ReferenceConstraints {
+        self.nodes
+            .get(param_node)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.constraints.reference)
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn resolve_reference_root(
+        &self,
+        param_node: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Option<NodeId> {
+        match &constraints.root {
+            ReferenceRoot::EngineRoot => Some(self.root),
+            ReferenceRoot::Uuid(uuid) => self.node_id_by_uuid(*uuid),
+            ReferenceRoot::RelativeToOwner { path } => {
+                let owner = self.nodes.get(param_node).and_then(|node| node.node_data().parent)?;
+                self.resolve_relative_decl_path(owner, path)
+            }
+        }
+    }
+
+    fn resolve_relative_decl_path(&self, root: NodeId, path: &[String]) -> Option<NodeId> {
+        let mut current = root;
+        for segment in path {
+            let mut child = self.nodes.get(current).and_then(|node| node.node_data().first_child);
+            let mut found = None;
+
+            while let Some(child_id) = child {
+                let matches = self
+                    .nodes
+                    .get(child_id)
+                    .is_some_and(|node| node.node_data().meta.decl_id.0 == *segment);
+                if matches {
+                    found = Some(child_id);
+                    break;
+                }
+                child = self.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
+            }
+
+            current = found?;
+        }
+
+        Some(current)
+    }
+
+    fn relative_decl_path_from_root(&self, root: NodeId, target: NodeId) -> Option<Vec<String>> {
+        if root == target {
+            return Some(Vec::new());
+        }
+
+        let mut current = target;
+        let mut reversed = Vec::new();
+
+        loop {
+            if current == root {
+                reversed.reverse();
+                return Some(reversed);
+            }
+
+            let node = self.nodes.get(current)?;
+            let parent = node.node_data().parent?;
+            reversed.push(node.node_data().meta.decl_id.0.clone());
+            current = parent;
+        }
+    }
+
+    fn node_within_root(&self, node: NodeId, root: NodeId) -> bool {
+        let mut current = Some(node);
+        while let Some(id) = current {
+            if id == root {
+                return true;
+            }
+            current = self.nodes.get(id).and_then(|entry| entry.node_data().parent);
+        }
+        false
+    }
+
+    fn control_reference_context(&self, param_node: NodeId) -> Option<(ParameterControlMode, ParamValue)> {
+        let param_entry = self.nodes.get(param_node)?;
+        if param_entry.node_data().meta.decl_id.0 != PARAMETER_CONTROL_REFERENCE_DECL_ID {
+            return None;
+        }
+        let controlled_param = param_entry.node_data().parent?;
+        let Some(control_state) = self
+            .nodes
+            .get(controlled_param)
+            .and_then(|node| node.engine_param_control_state())
+        else {
+            return None;
+        };
+        if !matches!(
+            control_state.mode,
+            ParameterControlMode::Proxy | ParameterControlMode::Binding
+        ) {
+            return None;
+        }
+
+        self.nodes
+            .get(controlled_param)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| (control_state.mode, snapshot.value))
+    }
+
+    fn control_reference_expected_value(&self, param_node: NodeId) -> Option<ParamValue> {
+        self.control_reference_context(param_node).map(|(_, value)| value)
+    }
+
+    fn control_reference_uses_binding_compatibility(&self, param_node: NodeId) -> bool {
+        self.control_reference_context(param_node)
+            .is_some_and(|(mode, _)| mode == ParameterControlMode::Binding)
+    }
+
+    pub(crate) fn expected_reference_parameter_values(
+        &self,
+        param_node: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Vec<ParamValue> {
+        let mut expected_values = constraints
+            .allowed_parameter_types
+            .iter()
+            .filter_map(|allowed| default_param_value_for_type_id(allowed))
+            .collect::<Vec<_>>();
+
+        if expected_values.is_empty() {
+            if let Some(control_reference_value) = self.control_reference_expected_value(param_node) {
+                expected_values.push(control_reference_value);
+            }
+        }
+
+        expected_values
+    }
+
+    fn compatibility_for_expected_values(
+        &self,
+        candidate_value: &ParamValue,
+        expected_values: &[ParamValue],
+        binding_semantics: bool,
+    ) -> ParamValueCompatibility {
+        let mut combined = ParamValueCompatibility::default();
+        for expected in expected_values {
+            let compatibility = if binding_semantics {
+                compatibility_for_binding_values(candidate_value, expected)
+            } else {
+                compatibility_for_values(candidate_value, expected)
+            };
+            combined.direct |= compatibility.direct;
+            combined.projections.extend(compatibility.projections);
+        }
+        combined.projections.sort_by_key(|projection| projection.variant_id());
+        combined.projections.dedup();
+        combined
+    }
+
+    fn apply_projection_policy(
+        &self,
+        mut compatibility: ParamValueCompatibility,
+        constraints: &ReferenceConstraints,
+    ) -> ParamValueCompatibility {
+        if !constraints.allow_projections {
+            compatibility.projections.clear();
+        }
+        compatibility
+    }
+
+    pub(crate) fn reference_candidate_compatibility_for_expected_values(
+        &self,
+        param_node: NodeId,
+        candidate: NodeId,
+        expected_parameter_values: &[ParamValue],
+        constraints: &ReferenceConstraints,
+    ) -> Option<ParamValueCompatibility> {
+        if expected_parameter_values.is_empty() {
+            return None;
+        }
+        let candidate_snapshot = self.nodes.get(candidate)?.engine_param_snapshot()?;
+        let binding_semantics = self.control_reference_uses_binding_compatibility(param_node);
+        Some(self.apply_projection_policy(
+            self.compatibility_for_expected_values(
+                &candidate_snapshot.value,
+                expected_parameter_values,
+                binding_semantics,
+            ),
+            constraints,
+        ))
+    }
+
+    pub(crate) fn reference_candidate_compatibility_for_param(
+        &self,
+        param_node: NodeId,
+        candidate: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Option<ParamValueCompatibility> {
+        let expected_parameter_values = self.expected_reference_parameter_values(param_node, constraints);
+        self.reference_candidate_compatibility_for_expected_values(
+            param_node,
+            candidate,
+            expected_parameter_values.as_slice(),
+            constraints,
+        )
+    }
+
+    pub(crate) fn reference_candidate_allowed(
+        &self,
+        param_node: NodeId,
+        root: NodeId,
+        candidate: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Result<bool, String> {
+        if !self.nodes.contains(candidate) {
+            return Ok(false);
+        }
+
+        if !self.node_within_root(candidate, root) {
+            return Ok(false);
+        }
+
+        let Some(candidate_node) = self.nodes.get(candidate) else {
+            return Ok(false);
+        };
+        let candidate_type = candidate_node.get_type();
+        let is_parameter = candidate_node.engine_param_snapshot().is_some();
+
+        if matches!(constraints.target_kind, ReferenceTargetKind::ParameterOnly) && !is_parameter {
+            return Ok(false);
+        }
+
+        if !constraints.allowed_node_types.is_empty()
+            && !constraints
+                .allowed_node_types
+                .iter()
+                .any(|allowed| allowed == candidate_type)
+        {
+            return Ok(false);
+        }
+
+        let expected_parameter_values = self.expected_reference_parameter_values(param_node, constraints);
+        if !expected_parameter_values.is_empty() {
+            if !is_parameter {
+                return Ok(false);
+            }
+            let Some(candidate_snapshot) = candidate_node.engine_param_snapshot() else {
+                return Ok(false);
+            };
+            let binding_semantics = self.control_reference_uses_binding_compatibility(param_node);
+            let compatibility = self.apply_projection_policy(
+                self.compatibility_for_expected_values(
+                    &candidate_snapshot.value,
+                    expected_parameter_values.as_slice(),
+                    binding_semantics,
+                ),
+                constraints,
+            );
+            if !compatibility.is_compatible() {
+                return Ok(false);
+            }
+        } else if !constraints.allowed_parameter_types.is_empty() {
+            if !is_parameter {
+                return Ok(false);
+            }
+            if !constraints
+                .allowed_parameter_types
+                .iter()
+                .any(|allowed| allowed == candidate_type)
+            {
+                return Ok(false);
+            }
+        }
+
+        if let Some(filter_key) = &constraints.custom_filter_key {
+            let Some(filter) = self.reference_filters.get(filter_key) else {
+                return Err(format!("custom reference filter '{filter_key}' is not registered"));
+            };
+            if !filter(self, param_node, root, candidate) {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    pub(crate) fn reference_allowed_targets_for_param(&self, param_node: NodeId) -> Vec<NodeId> {
+        let constraints = self.reference_constraints_for_param(param_node);
+        let Some(root) = self.resolve_reference_root(param_node, &constraints) else {
+            return Vec::new();
+        };
+
+        let mut targets = Vec::new();
+        for candidate in self.nodes.keys() {
+            match self.reference_candidate_allowed(param_node, root, candidate, &constraints) {
+                Ok(true) => targets.push(candidate),
+                Ok(false) => {}
+                Err(_) => return Vec::new(),
+            }
+        }
+        targets.sort_by_key(|node_id| node_id.0);
+        targets
+    }
+
+    pub(crate) fn reference_visible_nodes_for_param(&self, param_node: NodeId) -> Vec<NodeId> {
+        let constraints = self.reference_constraints_for_param(param_node);
+        if constraints.custom_filter_key.is_none() {
+            return Vec::new();
+        }
+
+        let Some(root) = self.resolve_reference_root(param_node, &constraints) else {
+            return Vec::new();
+        };
+        let targets = self.reference_allowed_targets_for_param(param_node);
+        let mut visible: HashSet<NodeId> = HashSet::new();
+        visible.insert(root);
+
+        for target in targets {
+            let mut current = Some(target);
+            while let Some(node_id) = current {
+                visible.insert(node_id);
+                if node_id == root {
+                    break;
+                }
+                current = self.nodes.get(node_id).and_then(|entry| entry.node_data().parent);
+            }
+        }
+
+        let mut result: Vec<NodeId> = visible.into_iter().collect();
+        result.sort_by_key(|node_id| node_id.0);
+        result
+    }
+}

@@ -42,6 +42,17 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - When app-specific UI needs inspector, outliner, context-menu, dashboard, or similar customization points, add a public hook or registry in `golden_*` and register the app behavior from the app layer.
 - No app-layer code inside `golden_*`.
 
+### Alchemist Ownership
+
+- `golden_graph` and the final `golden_graph_ui` are the complete app-agnostic graph document,
+  editing, presentation, and canvas system. They must never import Alchemist or Chataigne types.
+- Alchemist is Chataigne-specific. Its formula model, ANode registry, compiler/runtime, assets,
+  catalog policy, graph-domain adapter, and formula UI belong under `apps/chataigne` and consume
+  only public Golden contracts.
+- The Rust implementation lives at `apps/chataigne/systems/alchemist` as `chataigne_alchemist`.
+- Reusable Golden runtime, protocol, persistence, processor, condition, and UI layers must use
+  domain-neutral contracts and must not depend on the app-owned Alchemist implementation.
+
 ### Public Boundaries Only
 
 - App crates must not import private submodule files by filesystem path.
@@ -96,7 +107,8 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Use standard formatters with sane line widths.
 - Reformat touched code consistently with the repository formatter instead of preserving unreadable layout.
 - Keep runtime and tests in separate files. Do not leave inline `mod tests { ... }` blocks in implementation files.
-- When tests belong to a module, place them in a sibling test module file (for example `tests.rs` or `*_tests.rs`).
+- Every test source belongs under a `tests/` directory. Keep that directory directly beside the module or feature it tests; use `tests/mod.rs` as the Rust unit-test module and split larger suites into focused files below it.
+- Keep crate-level integration tests and their fixtures under the crate's top-level `tests/` directory. Do not scatter `tests.rs`, `*_tests.rs`, `*.test.ts`, or `*.spec.ts` beside runtime sources.
 - Keep comments for intent and tradeoffs, not narration.
 - New top-level docs should explain where responsibilities live before pointing people into implementation details.
 
@@ -138,13 +150,18 @@ When a task spans multiple architectural areas, prefer this order:
 
 ## Working Rules For Agents
 
+- Never invoke or spawn `run-visible-command`, computer-use, desktop-control, SendKeys,
+  AutoHotkey, or any mechanism that synthesizes keyboard or mouse input or takes control of the
+  user's desktop. A request to show output in a terminal does not authorize GUI automation; use
+  ordinary non-interactive processes or provide a command for the user to run.
 - Start by identifying the layer that should own the change.
 - Prefer moving responsibility to the right layer over adding glue.
 - Move parsing, timestamping, and transport-side preprocessing out of the engine loop whenever an IO/runtime boundary can do that work first; keep the engine loop focused on applying state and graph mutations.
 - Treat recurring millisecond-range compute or polling on the main thread as a hard no for node implementations. App Control idle polling already pushed `scheduled_ms` above 15ms, and the OS adds its own recurring ~20ms tick, so node work at that cadence must move to an IO/runtime boundary, a background worker, or a coarser event-driven path.
 - For large or data-driven structure creation, design the edit shape before coding: batch detached subtrees, avoid repeated full-tree snapshot rebuilds, and add timing or tests when the expected graph size can grow significantly.
 - Do not preserve broken boundaries for convenience.
-- Do not introduce compatibility shims unless the task explicitly requires them.
+- Do not introduce compatibility shims unless a task explicitly requires a persisted-data
+  migration. Keep any such migration narrow, typed, tested, and removable.
 - Do not duplicate protocol, persistence, or host declarations across languages or layers.
 - When asked to create a new module, treat the module as incomplete unless its command nodes, script-callable functions, script callbacks, and app-owned script template snippets are designed and wired in at the same module boundary.
 - Any implementation involving connection to an endpoint (hardware or software) needs to have an autoreconnect / device recovery strategy
@@ -155,99 +172,24 @@ When a task spans multiple architectural areas, prefer this order:
 
 ## Code Exploration Policy
 
-Always use jCodemunch-MCP tools for code navigation. Never fall back to Read, Grep, Glob, or Bash for code exploration.
-**Exception:** Use `Read` when you need to edit a file — the agent harness requires a `Read` before `Edit`/`Write` will succeed. Use jCodemunch tools to *find and understand* code, then `Read` only the specific file you're about to modify.
+Use native repository and language tools. Prefer `rg` for text search and `rg --files` for file
+discovery, then read only the relevant files or ranges. Use Cargo metadata, compiler output, and
+language-server features when they answer dependency or symbol questions more accurately than text
+search.
 
-**Start any session:**
+Choose the owning source path before exploring and scope searches accordingly:
 
-1. Choose the owning layer from **Workspace repo routing** below.
-2. `resolve_repo { "path": "<layer path>" }` — confirm that layer is indexed. If not: `index_folder { "path": "<layer path>" }`
-3. `suggest_queries` — when that indexed repo is unfamiliar
-
-**Workspace repo routing:**
-
-This workspace is intentionally indexed as multiple jCodemunch repos. Pick the owning layer before `plan_turn`; do not use the root `Chataigne2` index for `golden_core`, `golden_ui`, or alchemist package work.
-
-| Layer | Resolve path |
+| Layer | Source path |
 | --- | --- |
-| App shell, app-owned modules, app-owned UI, workspace tooling | `.` |
-| `golden_core` | `submodules/golden_core` |
-| `golden_alchemist_core` | `submodules/golden_alchemist_core` |
-| `golden_ui` | `src-ui/src/lib/golden_ui` |
-| `golden_alchemist_ui` | `src-ui/src/lib/golden_alchemist_ui` |
+| App shell and app-owned modules | `apps/chataigne` |
+| Golden Core | `crates/golden_core` |
+| Generic graph system | `crates/golden_graph` |
+| Chataigne Alchemist | `apps/chataigne/systems/alchemist` |
+| Chataigne state machine | `apps/chataigne/systems/state_machine` |
+| App-owned UI | `apps/chataigne/ui` |
+| `golden_ui` | `packages/golden-ui` |
+| Generic graph UI | `packages/golden-graph-ui` |
 
-Call `resolve_repo` with the concrete path above and use the returned repo id for `plan_turn`, `search_symbols`, `search_text`, `get_file_outline`, and reads. For cross-layer changes, resolve and plan each layer separately. Run `.\tools\watch-jcodemunch.ps1 --status` when the repo map looks stale, missing, or ambiguous.
-
-**Finding code:**
-
-- symbol by name → `search_symbols` (add `kind=`, `language=`, `file_pattern=`, `decorator=` to narrow)
-- decorator-aware queries → `search_symbols(decorator="X")` to find symbols with a specific decorator (e.g. `@property`, `@route`); combine with set-difference to find symbols *lacking* a decorator (e.g. "which endpoints lack CSRF protection?")
-- string, comment, config value → `search_text` (supports regex, `context_lines`)
-- database columns (dbt/SQLMesh) → `search_columns`
-
-**Reading code:**
-
-- before opening any file → `get_file_outline` first
-- one or more symbols → `get_symbol_source` (single ID → flat object; array → batch)
-- symbol + its imports → `get_context_bundle`
-- specific line range only → `get_file_content` (last resort)
-
-**Repo structure:**
-
-- `get_repo_outline` → dirs, languages, symbol counts
-- `get_file_tree` → file layout, filter with `path_prefix`
-
-**Relationships & impact:**
-
-- what imports this file → `find_importers`
-- where is this name used → `find_references`
-- is this identifier used anywhere → `check_references`
-- file dependency graph → `get_dependency_graph`
-- what breaks if I change X → `get_blast_radius`
-- what symbols actually changed since last commit → `get_changed_symbols`
-- find unreachable/dead code → `find_dead_code`
-- class hierarchy → `get_class_hierarchy`
-
-## Session-Aware Routing
-
-**Opening move for any task:**
-
-1. `plan_turn { "repo": "...", "query": "your task description", "model": "<your-model-id>" }` — get confidence + recommended files; the `model` parameter narrows the exposed tool list to match your capabilities at zero extra requests.
-2. Obey the confidence level:
-   - `high` → go directly to recommended symbols, max 2 supplementary reads
-   - `medium` → explore recommended files, max 5 supplementary reads
-   - `low` → the feature likely doesn't exist. Report the gap to the user. Do NOT search further hoping to find it.
-
-**Interpreting search results:**
-
-- If `search_symbols` returns `negative_evidence` with `verdict: "no_implementation_found"`:
-  - Do NOT re-search with different terms hoping to find it
-  - Do NOT assume a related file (e.g. auth middleware) implements the missing feature (e.g. CSRF)
-  - DO report: "No existing implementation found for X. This would need to be created."
-  - DO check `related_existing` files — they show what's nearby, not what exists
-- If `verdict: "low_confidence_matches"`: examine the matches critically before assuming they implement the feature
-
-**After editing files:**
-
-- If PostToolUse hooks are installed (Claude Code only), edited files are auto-reindexed
-- Otherwise, call `register_edit` with edited file paths to invalidate caches and keep the index fresh
-- For bulk edits (5+ files), always use `register_edit` with all paths to batch-invalidate
-
-**Token efficiency:**
-
-- If `_meta` contains `budget_warning`: stop exploring and work with what you have
-- If `auto_compacted: true` appears: results were automatically compressed due to turn budget
-- Use `get_session_context` to check what you've already read — avoid re-reading the same files
-
-## Model-Driven Tool Tiering
-
-Your jcodemunch-mcp server narrows the exposed tool list based on the model you are running as. To avoid wasting requests on primitives when a composite would do, always include `model="<your-model-id>"` in your opening `plan_turn` call.
-
-Replace `<your-model-id>` with your active model:
-
-- Claude Opus variants → `claude-opus-4-7` (or any `claude-opus-*`)
-- Claude Sonnet variants → `claude-sonnet-4-6`
-- Claude Haiku variants → `claude-haiku-4-5`
-- GPT-4o / GPT-5 / o1 / Llama → use the model id as printed by your runner
-
-The `model=` parameter rides on the existing `plan_turn` call — it does **not** add a separate tool invocation. If `plan_turn` is not appropriate for a non-code task, call `announce_model(model="...")` once instead.
+Avoid reading generated output, dependency trees, or entire large files when a focused search or
+line range is sufficient. For cross-layer changes, search each owning path separately and verify
+the public boundary between them.
