@@ -111,6 +111,7 @@
 		socketLabels = 'hover',
 		initialCamera,
 		onCameraChange,
+		onVisibleNodeIdsChange,
 		viewportInset = {},
 		minZoom = DEFAULT_MIN_ZOOM,
 		maxZoom = DEFAULT_MAX_ZOOM,
@@ -144,6 +145,7 @@
 		socketLabels?: 'always' | 'hover' | 'never';
 		initialCamera?: GraphCamera;
 		onCameraChange?: (camera: GraphCamera) => void;
+		onVisibleNodeIdsChange?: (nodeIds: string[]) => void;
 		viewportInset?: GraphViewportInset;
 		minZoom?: number;
 		maxZoom?: number;
@@ -673,6 +675,21 @@
 		const right = (viewportWidth - camera.x) / camera.zoom / remPx + margin;
 		const bottom = (viewportHeight - camera.y) / camera.zoom / remPx + margin;
 		return nodeSpatialIndex.query({ left, top, right, bottom });
+	});
+	let viewportVisibleNodes = $derived.by(() => {
+		const left = -camera.x / camera.zoom / remPx;
+		const top = -camera.y / camera.zoom / remPx;
+		const right = (viewportWidth - camera.x) / camera.zoom / remPx;
+		const bottom = (viewportHeight - camera.y) / camera.zoom / remPx;
+		return nodeSpatialIndex.query({ left, top, right, bottom });
+	});
+	let publishedVisibleNodeKey = '';
+	$effect(() => {
+		const nodeIds = viewportVisibleNodes.map((node) => node.id).sort();
+		const key = nodeIds.join('\u0000');
+		if (key === publishedVisibleNodeKey) return;
+		publishedVisibleNodeKey = key;
+		onVisibleNodeIdsChange?.(nodeIds);
 	});
 	let visibleNodeIds = $derived(new Set(visibleNodes.map((node) => node.id)));
 	let edgeIndexesByNodeId = $derived.by(() => {

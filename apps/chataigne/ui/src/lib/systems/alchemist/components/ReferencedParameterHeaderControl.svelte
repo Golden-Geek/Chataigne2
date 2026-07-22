@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { NodeId, ParamValue, UiNodeDto } from 'golden_ui';
+	import type { ParamValue, UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
 
@@ -7,34 +7,34 @@
 		$props();
 
 	let session = $derived(appState.session);
-	let graphNodesById = $derived(session?.graph.state.nodesById ?? null);
-	let liveOwner: UiNodeDto = $derived(graphNodesById?.get(owner.node_id) ?? owner);
-	let graphNodesByUuid = $derived.by((): ReadonlyMap<string, NodeId> => {
-		if (!graphNodesById) return new Map();
-		return new Map(
-			Array.from(graphNodesById.values()).map((candidate) => [candidate.uuid, candidate.node_id])
-		);
-	});
+	let graphState = $derived(session?.graph.state ?? null);
+	let liveOwner: UiNodeDto = $derived(graphState?.nodesById.get(owner.node_id) ?? owner);
 
 	const childByDeclId = (parent: UiNodeDto, declId: string): UiNodeDto | null => {
-		if (!graphNodesById) return null;
+		if (!graphState) return null;
 		for (const childId of parent.children) {
-			const child = graphNodesById.get(childId);
+			const child = graphState.nodesById.get(childId);
 			if (child?.decl_id === declId) return child;
 		}
 		return null;
 	};
 
-	const referencedNodeId = (value: ParamValue | null): NodeId | null => {
-		if (!graphNodesById || value?.kind !== 'reference') return null;
-		return value.cached_id ?? graphNodesByUuid.get(value.uuid) ?? null;
+	const referencedNode = (value: ParamValue | null): UiNodeDto | null => {
+		if (!graphState || value?.kind !== 'reference') return null;
+		if (value.cached_id !== undefined) {
+			const byId = graphState.nodesById.get(value.cached_id);
+			if (byId) return byId;
+		}
+		for (const candidate of graphState.nodesById.values()) {
+			if (candidate.uuid === value.uuid) return candidate;
+		}
+		return null;
 	};
 
 	let referenceNode = $derived(childByDeclId(liveOwner, referenceDeclId));
 	let referencedParameter = $derived.by((): UiNodeDto | null => {
-		if (!graphNodesById || referenceNode?.data.kind !== 'parameter') return null;
-		const nodeId = referencedNodeId(referenceNode.data.param.value);
-		const candidate = nodeId === null ? null : (graphNodesById.get(nodeId) ?? null);
+		if (referenceNode?.data.kind !== 'parameter') return null;
+		const candidate = referencedNode(referenceNode.data.param.value);
 		return candidate?.data.kind === 'parameter' ? candidate : null;
 	});
 </script>

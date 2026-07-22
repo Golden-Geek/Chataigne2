@@ -2,6 +2,7 @@
 	import type { UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import type { StateMachinePreviewCatalogDto } from '../../state_machine/generated';
+	import { publishProcessorOverviewLaneSelection } from '../../state_machine/processorOverview.svelte';
 	import { STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
 	import {
 		formulaPreviewSessionStore,
@@ -29,6 +30,14 @@
 		)
 	);
 	let selectedLane = $derived(formulaPreviewSessionStore.processorLane(node.node_id, lanes));
+
+	const selectLane = (laneId: string): void => {
+		formulaPreviewSessionStore.selectProcessorLane(node.node_id, laneId);
+		const lane = lanes.find((candidate) => candidate.id === laneId);
+		if (lane) {
+			publishProcessorOverviewLaneSelection(node, lane.contextKey);
+		}
+	};
 </script>
 
 <span
@@ -39,7 +48,7 @@
 	<ProcessorLaneSelector
 		{lanes}
 		selectedLaneId={selectedLane?.id ?? null}
-		onSelect={(laneId) => formulaPreviewSessionStore.selectProcessorLane(node.node_id, laneId)} />
+		onSelect={selectLane} />
 </span>
 
 <style>

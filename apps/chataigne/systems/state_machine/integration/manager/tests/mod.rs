@@ -5,18 +5,21 @@ use std::{
 };
 
 use chataigne_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, CompileCtx, ContextAxisId,
-    ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId, FormulaPropertySchema,
-    FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot, RuntimeIntent,
-    RuntimeOutput, RuntimeRegistries, SocketId, TriggerValue, ValueTypeRegistry, primitive_node_registry,
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, AxisSet, CompileCtx,
+    ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId,
+    FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
+    RuntimeIntent, RuntimeOutput, RuntimeRegistries, SocketId, TriggerValue, ValueTypeRegistry,
+    primitive_node_registry,
 };
 use chataigne_state_machine::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorContextProvider,
     ProcessorDebugCapture, ProcessorId, ProcessorLaneInspectionDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
-    ProcessorRuntime,
+    ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
+    StateMachineProcessorOverviewDto,
 };
 use golden_core::{
     app::ProjectNode,
+    edit::Edit,
     engine::{DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, EngineTime},
     node::{
         DashboardWidgetTargetDescriptor, DeclId, Folder, Node, NodeId, NodeUuid, PresentationHint,
@@ -33,16 +36,18 @@ use golden_values::Value as RuntimeValue;
 use super::{
     ActivePreviewSelection, FormulaPreviewDemandLease, LaneParamResolver, PROCESSOR_MANAGER_DECL_ID,
     ProcessorContextAxisRuntime, ProcessorContextListRuntime, ProcessorContextRuntime, ProcessorContextScopeCache,
-    ProcessorLanePreviewKey, RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor,
-    STATE_ITEM_KIND, SnapshotProcessorContextProvider, StateMachineManager,
+    ProcessorLanePreviewKey, ProcessorOverviewDemandLease, RuntimeFormulaPreviewMode, RuntimeInvalidation,
+    RuntimeLogKey, RuntimeProcessor, STATE_ITEM_KIND, STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
+    SnapshotProcessorContextProvider, StateMachineManager,
     collect_processor_lane_parameter_inspection, compile_processor_runtime_for_cache_rebuild,
     condition_manager_edge_previous, condition_manager_value, formula_default_output_preview_samples,
     intern_runtime_command_invocation, latest_param_value, merge_output_preview_snapshot, output_preview_signature,
-    processor_formula_from_snapshot, processor_formula_source_ref, processor_override_value,
+    processor_formula_from_snapshot, processor_formula_source_ref, processor_overview_publish_due,
+    processor_overview_shard, processor_overview_topic, processor_override_value,
     processor_preview_needs_hydration, processor_preview_plan, processor_requires_forced_recompute,
     processor_should_evaluate, resolve_multiplex_template_value, resolved_output_param_overrides,
-    retain_requested_preview_snapshots, runtime_invalidation_for_node, set_output_target_param,
-    should_emit_runtime_log,
+    retain_requested_preview_snapshots, runtime_invalidation_for_node, selected_context_includes_lane,
+    set_output_target_param, should_emit_runtime_log,
 };
 
 fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
@@ -275,6 +280,146 @@ fn preview_demand_expires_even_when_no_tree_snapshot_is_needed() {
 
     assert!(manager.runtime_cache.preview_demands.is_empty());
     assert!(manager.runtime_cache.preview_demand_dirty);
+}
+
+#[test]
+fn processor_overview_demand_expires_without_enabling_debug_preview() {
+    let mut manager = StateMachineManager::new();
+    manager.runtime_cache.processor_overview_demands.insert(
+        "stale-overview".to_owned(),
+        ProcessorOverviewDemandLease {
+            expires_at: Duration::from_secs(1),
+        },
+    );
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 2,
+            micro: 0,
+            seq: 0,
+        },
+    );
+    ctx.runtime_elapsed = Duration::from_secs(2);
+
+    manager.run_processors(&mut ctx);
+
+    assert!(manager.runtime_cache.processor_overview_demands.is_empty());
+    assert!(manager.runtime_cache.processor_overview_demand_dirty);
+    assert!(manager.runtime_cache.preview_demands.is_empty());
+}
+
+#[test]
+fn processor_overview_publication_is_capped_to_ui_rate() {
+    let first = Duration::from_secs(4);
+    assert!(processor_overview_publish_due(None, first));
+    assert!(!processor_overview_publish_due(
+        Some(first),
+        first + Duration::from_millis(32)
+    ));
+    assert!(processor_overview_publish_due(
+        Some(first),
+        first + Duration::from_millis(33)
+    ));
+}
+
+#[test]
+fn processor_overview_topics_are_stably_sharded_by_uuid_prefix() {
+    let processor_id = ProcessorId::from_uuid(
+        "ab000000-0000-0000-0000-000000000000"
+            .parse()
+            .expect("fixed processor UUID should parse"),
+    );
+
+    assert_eq!(processor_overview_shard(processor_id), 0xab);
+    assert_eq!(
+        processor_overview_topic(0xab),
+        "chataigne.state_machine.processor_overview.ab"
+    );
+}
+
+#[test]
+fn processor_overview_publication_emits_only_the_changed_shard() {
+    let processor_id = ProcessorId::from_uuid(
+        "ab000000-0000-0000-0000-000000000000"
+            .parse()
+            .expect("fixed processor UUID should parse"),
+    );
+    let shard = processor_overview_shard(processor_id);
+    let overview = ProcessorRuntimeOverviewDto {
+        processor_id: processor_id.to_string(),
+        multiplex_lane_count: 2,
+        preview_context_key: None,
+        preview_lane_label: "Device #1".to_owned(),
+        condition_states: Vec::new(),
+    };
+    let mut manager = StateMachineManager::new();
+    manager
+        .runtime_cache
+        .processor_overview_snapshot
+        .insert(processor_id, overview.clone());
+    manager
+        .runtime_cache
+        .dirty_processor_overview_shards
+        .insert(shard);
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+
+    manager.publish_processor_overview(&mut ctx);
+
+    let Edit::EmitCustomEvent { event } = &ctx
+        .edits
+        .pending
+        .last()
+        .expect("changed overview shard should emit one event")
+        .edit
+    else {
+        panic!("overview publication should emit a custom event");
+    };
+    assert_eq!(event.topic, processor_overview_topic(shard));
+    let payload = event
+        .payload_as::<StateMachineProcessorOverviewDto>()
+        .expect("overview shard payload should decode");
+    assert_eq!(payload.processors, vec![overview]);
+}
+
+#[test]
+fn processor_overview_lane_selection_is_independent_from_formula_debug_demand() {
+    let processor_id = ProcessorId::new();
+    let context_key = ContextKey::single("device", "right");
+    let payload = ProcessorOverviewLaneSelectionDto {
+        processor_id: processor_id.to_string(),
+        context_key: Some((&context_key).into()),
+    };
+    let event = golden_core::events::CustomEvent::from_payload(
+        STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
+        None,
+        &payload,
+    )
+    .expect("overview lane selection should serialize");
+    let mut manager = StateMachineManager::new();
+
+    manager.apply_processor_overview_lane_selection(event);
+
+    assert_eq!(
+        manager
+            .runtime_cache
+            .processor_overview_lane_selections
+            .get(&processor_id),
+        Some(&context_key)
+    );
+    assert!(
+        manager
+            .runtime_cache
+            .dirty_processor_overview_lanes
+            .contains(&processor_id)
+    );
+    assert!(manager.runtime_cache.preview_demands.is_empty());
 }
 
 #[test]
@@ -635,6 +780,71 @@ fn multiplex_template_tokens_resolve_indexes_and_lists_across_named_axes() {
         provider.context_key_label(processor_id, &key),
         "Primary #2 × Secondary #1"
     );
+}
+
+#[test]
+fn multiplex_lane_count_uses_axis_cardinality_without_materializing_keys() {
+    let processor_id = ProcessorId::new();
+    let primary_axis = ContextAxisId::new("primary");
+    let secondary_axis = ContextAxisId::new("secondary");
+    let provider = context_provider(
+        processor_id,
+        context_runtime(
+            vec![
+                context_axis(
+                    primary_axis.clone(),
+                    "Primary",
+                    (0..1000)
+                        .map(|index| ContextItemId::new(format!("p{index}")))
+                        .collect(),
+                ),
+                context_axis(
+                    secondary_axis.clone(),
+                    "Secondary",
+                    (0..1000)
+                        .map(|index| ContextItemId::new(format!("s{index}")))
+                        .collect(),
+                ),
+            ],
+            Vec::new(),
+        ),
+    );
+    let axes = AxisSet::from_iter([primary_axis.clone(), secondary_axis.clone()]);
+    let valid = ContextKey::new([
+        chataigne_alchemist::ContextKeyPart::new(primary_axis, ContextItemId::new("p999")),
+        chataigne_alchemist::ContextKeyPart::new(secondary_axis, ContextItemId::new("s999")),
+    ]);
+
+    assert_eq!(provider.lane_count_for_axes(processor_id, &axes), 1_000_000);
+    assert!(provider.context_key_matches_axes(processor_id, &axes, &valid));
+    assert!(!provider.context_key_matches_axes(
+        processor_id,
+        &axes,
+        &ContextKey::single("primary", "missing")
+    ));
+}
+
+#[test]
+fn processor_preview_lane_observes_conditions_on_axis_subsets() {
+    let selected = ContextKey::new([
+        chataigne_alchemist::ContextKeyPart::new("device", "right"),
+        chataigne_alchemist::ContextKeyPart::new("channel", "blue"),
+    ]);
+    let device_condition_lane = ContextKey::single("device", "right");
+    let other_device_lane = ContextKey::single("device", "left");
+
+    assert!(selected_context_includes_lane(
+        &selected,
+        &device_condition_lane
+    ));
+    assert!(selected_context_includes_lane(
+        &selected,
+        &ContextKey::default_lane()
+    ));
+    assert!(!selected_context_includes_lane(
+        &selected,
+        &other_device_lane
+    ));
 }
 
 #[test]

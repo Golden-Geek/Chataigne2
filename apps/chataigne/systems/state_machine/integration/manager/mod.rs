@@ -16,9 +16,10 @@ use chataigne_state_machine::{
     DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorContextPropertyBinding,
     ProcessorContextProvider, ProcessorDebugCapture, ProcessorFormulaUiState, ProcessorId,
     ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto,
-    ProcessorLaneParameterPreviewDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
-    ProcessorUiDto, StateMachinePreviewCatalogDto, StateMachineRuntimePreviewDto, ValueLaneKey, ValueSet,
-    ValueSetEntry,
+    ProcessorLaneParameterPreviewDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
+    ProcessorOverviewDemandDto, ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
+    ProcessorUiDto, StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto,
+    StateMachineRuntimePreviewDto, ValueLaneKey, ValueSet, ValueSetEntry,
     alchemist::{
         CONDITIONS_MANAGER_TYPE, ConditionManagerValue, INPUTS_MANAGER_TYPE, node_registry, value_type_registry,
     },
@@ -72,11 +73,16 @@ const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
 const STATE_MACHINE_RUNTIME_PREVIEW_TOPIC: &str = "chataigne.state_machine.runtime_preview";
 const STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC: &str = "chataigne.state_machine.runtime_preview_catalog";
 const STATE_MACHINE_RUNTIME_PREVIEW_DEMAND_TOPIC: &str = "chataigne.state_machine.runtime_preview_demand";
+const STATE_MACHINE_PROCESSOR_OVERVIEW_TOPIC_PREFIX: &str = "chataigne.state_machine.processor_overview";
+const STATE_MACHINE_PROCESSOR_OVERVIEW_DEMAND_TOPIC: &str = "chataigne.state_machine.processor_overview_demand";
+const STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC: &str = "chataigne.state_machine.processor_overview_lane";
 const CONDITION_PULSE_HOLD_TICKS: u64 = 6;
 const STATE_MACHINE_LOG_MIN_TICKS: u64 = 30;
 const RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN: usize = 64;
 const PREVIEW_DEMAND_LEASE_DURATION: Duration = Duration::from_secs(6);
 const MAX_PREVIEW_DEMANDS: usize = 64;
+const MAX_PROCESSOR_OVERVIEW_IDS_PER_DEMAND: usize = 100_000;
+const PROCESSOR_OVERVIEW_MIN_PUBLISH_INTERVAL: Duration = Duration::from_millis(33);
 const STATE_MACHINE_RUNTIME_WARNING_ID: &str = "state_machine_runtime";
 const CONDITION_MANAGER_NODE_TYPE: &str = "sm_condition_manager";
 const INPUT_VALUE_CONDITION_NODE_TYPE: &str = "sm_input_value_condition";
@@ -168,6 +174,20 @@ struct FormulaPreviewDemandLease {
     expires_at: Duration,
 }
 
+#[derive(Clone, Debug)]
+struct ProcessorOverviewDemandLease {
+    processor_ids: HashSet<ProcessorId>,
+    expires_at: Duration,
+}
+
+#[derive(Clone, Debug)]
+struct ProcessorOverviewLane {
+    context_key: ContextKey,
+    context_key_dto: Option<ContextKeyDto>,
+    label: String,
+    multiplex_lane_count: usize,
+}
+
 #[derive(Default)]
 struct ActivePreviewSelection {
     formula_defaults: HashSet<chataigne_alchemist::FormulaId>,
@@ -208,6 +228,15 @@ impl ActivePreviewSelection {
     fn processor_ids(&self) -> HashSet<ProcessorId> {
         self.processor_lanes.keys().copied().collect()
     }
+}
+
+fn requested_processor_overviews(
+    leases: &HashMap<String, ProcessorOverviewDemandLease>,
+) -> HashSet<ProcessorId> {
+    leases
+        .values()
+        .flat_map(|lease| lease.processor_ids.iter().copied())
+        .collect()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -288,6 +317,7 @@ struct ProcessorRuntimeInputContext<'a> {
     settled_condition_runtimes: &'a mut HashMap<ConditionLaneKey, ConditionRuntime>,
     condition_observations: &'a mut HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
     observed_condition_lanes: Option<&'a HashSet<ContextKey>>,
+    overview_condition_lane: Option<&'a ContextKey>,
     transient_condition_valid_resets: &'a mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &'a mut u64,
     ctx: &'a mut ProcessCtx,
@@ -475,7 +505,32 @@ impl SnapshotProcessorContextProvider {
         if axes.is_empty() {
             return 0;
         }
-        self.iter_context_keys(processor_id, axes).count()
+        let Some(runtime) = self.processors.get(&processor_id) else {
+            return 0;
+        };
+        axes.iter().try_fold(1usize, |count, axis| {
+            runtime
+                .axis(axis)
+                .map(|runtime_axis| count.saturating_mul(runtime_axis.items.len()))
+        }).unwrap_or(0)
+    }
+
+    fn context_key_matches_axes(&self, processor_id: ProcessorId, axes: &AxisSet, key: &ContextKey) -> bool {
+        if axes.is_empty() {
+            return key.iter().next().is_none();
+        }
+        let Some(runtime) = self.processors.get(&processor_id) else {
+            return false;
+        };
+        key.iter().count() == axes.len()
+            && axes.iter().all(|axis| {
+                let Some(runtime_axis) = runtime.axis(axis) else {
+                    return false;
+                };
+                key.iter()
+                    .find(|part| &part.axis == axis)
+                    .is_some_and(|part| runtime_axis.item_indexes.contains_key(&part.item))
+            })
     }
 }
 
@@ -1126,6 +1181,16 @@ struct StateMachineRuntimeCache {
     last_preview_inspection_signature: Option<ProcessorLaneInspectionSignature>,
     preview_demands: HashMap<String, FormulaPreviewDemandLease>,
     preview_demand_dirty: bool,
+    processor_overview_demands: HashMap<String, ProcessorOverviewDemandLease>,
+    processor_overview_demand_dirty: bool,
+    processor_overview_lane_selections: HashMap<ProcessorId, ContextKey>,
+    dirty_processor_overview_lanes: HashSet<ProcessorId>,
+    processor_overview_snapshot: HashMap<ProcessorId, ProcessorRuntimeOverviewDto>,
+    dirty_processor_overview_samples: HashSet<ProcessorId>,
+    dirty_processor_overview_shards: HashSet<u8>,
+    last_processor_overviews: HashMap<u8, StateMachineProcessorOverviewDto>,
+    last_processor_overview_sample_at: Option<Duration>,
+    last_processor_overview_emit_at: Option<Duration>,
     last_log_values: HashMap<RuntimeLogKey, RuntimeLogRecord>,
     command_invocation_streams: HashMap<NodeId, HashMap<RuntimeCommandInvocationKey, u64>>,
     next_command_invocation_stream: u64,
@@ -1210,6 +1275,10 @@ impl Node for StateMachineManager {
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
         if event.topic == STATE_MACHINE_RUNTIME_PREVIEW_DEMAND_TOPIC {
             self.apply_preview_demand(event, ctx.runtime_elapsed);
+        } else if event.topic == STATE_MACHINE_PROCESSOR_OVERVIEW_DEMAND_TOPIC {
+            self.apply_processor_overview_demand(event, ctx.runtime_elapsed);
+        } else if event.topic == STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC {
+            self.apply_processor_overview_lane_selection(event);
         }
     }
 
@@ -1353,6 +1422,89 @@ impl StateMachineManager {
             FormulaPreviewDemandLease { mode, expires_at },
         );
         self.runtime_cache.preview_demand_dirty = true;
+    }
+
+    fn apply_processor_overview_demand(&mut self, event: CustomEvent, runtime_elapsed: Duration) {
+        let Ok(demand) = event.payload_as::<ProcessorOverviewDemandDto>() else {
+            return;
+        };
+        let subscription_id = demand.subscription_id.trim();
+        if subscription_id.is_empty() || subscription_id.len() > 256 {
+            return;
+        }
+        if demand.processor_ids.len() > MAX_PROCESSOR_OVERVIEW_IDS_PER_DEMAND {
+            return;
+        }
+        let processor_ids = demand
+            .processor_ids
+            .into_iter()
+            .filter_map(|processor_id| processor_id.parse::<uuid::Uuid>().ok())
+            .map(ProcessorId::from_uuid)
+            .collect::<HashSet<_>>();
+        if processor_ids.is_empty() {
+            if self
+                .runtime_cache
+                .processor_overview_demands
+                .remove(subscription_id)
+                .is_some()
+            {
+                self.runtime_cache.processor_overview_demand_dirty = true;
+            }
+            return;
+        }
+        let expires_at = runtime_elapsed.saturating_add(PREVIEW_DEMAND_LEASE_DURATION);
+        if let Some(lease) = self
+            .runtime_cache
+            .processor_overview_demands
+            .get_mut(subscription_id)
+        {
+            if lease.processor_ids != processor_ids {
+                lease.processor_ids = processor_ids;
+                self.runtime_cache.processor_overview_demand_dirty = true;
+            }
+            lease.expires_at = expires_at;
+            return;
+        }
+        if self.runtime_cache.processor_overview_demands.len() >= MAX_PREVIEW_DEMANDS {
+            return;
+        }
+        self.runtime_cache.processor_overview_demands.insert(
+            subscription_id.to_owned(),
+            ProcessorOverviewDemandLease {
+                processor_ids,
+                expires_at,
+            },
+        );
+        self.runtime_cache.processor_overview_demand_dirty = true;
+    }
+
+    fn apply_processor_overview_lane_selection(&mut self, event: CustomEvent) {
+        let Ok(selection) = event.payload_as::<ProcessorOverviewLaneSelectionDto>() else {
+            return;
+        };
+        let Ok(processor_uuid) = selection.processor_id.parse::<uuid::Uuid>() else {
+            return;
+        };
+        let processor_id = ProcessorId::from_uuid(processor_uuid);
+        let context_key = selection.context_key.map_or_else(ContextKey::default_lane, |key| {
+            ContextKey::new(
+                key.parts
+                    .into_iter()
+                    .map(|part| ContextKeyPart::new(part.axis_id, part.item_id)),
+            )
+        });
+        if self
+            .runtime_cache
+            .processor_overview_lane_selections
+            .get(&processor_id)
+            == Some(&context_key)
+        {
+            return;
+        }
+        self.runtime_cache
+            .processor_overview_lane_selections
+            .insert(processor_id, context_key);
+        self.runtime_cache.dirty_processor_overview_lanes.insert(processor_id);
     }
 
     fn mark_runtime_structure_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
@@ -1501,6 +1653,13 @@ impl StateMachineManager {
         if demand_count != self.runtime_cache.preview_demands.len() {
             self.runtime_cache.preview_demand_dirty = true;
         }
+        let overview_demand_count = self.runtime_cache.processor_overview_demands.len();
+        self.runtime_cache
+            .processor_overview_demands
+            .retain(|_, lease| lease.expires_at >= ctx.runtime_elapsed);
+        if overview_demand_count != self.runtime_cache.processor_overview_demands.len() {
+            self.runtime_cache.processor_overview_demand_dirty = true;
+        }
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.runtime_cache.runtime_snapshot = Some(snapshot);
         }
@@ -1508,14 +1667,54 @@ impl StateMachineManager {
             return;
         };
         let preview_demand_dirty = std::mem::take(&mut self.runtime_cache.preview_demand_dirty);
+        let processor_overview_demand_dirty =
+            std::mem::take(&mut self.runtime_cache.processor_overview_demand_dirty);
+        let dirty_processor_overview_lanes =
+            std::mem::take(&mut self.runtime_cache.dirty_processor_overview_lanes);
         let preview_selection = ActivePreviewSelection::from_leases(&self.runtime_cache.preview_demands);
+        let processor_overview_ids =
+            requested_processor_overviews(&self.runtime_cache.processor_overview_demands);
         let capture_output_previews = !preview_selection.is_empty();
         if preview_demand_dirty || !capture_output_previews {
             self.runtime_cache.output_preview_snapshot.clear();
             self.runtime_cache.processor_lane_inspection_snapshot.clear();
-            self.runtime_cache.condition_observations.clear();
             self.runtime_cache.last_preview_signature = None;
             self.runtime_cache.last_preview_inspection_signature = None;
+        }
+        let processor_overview_active = !processor_overview_ids.is_empty();
+        if preview_demand_dirty
+            || processor_overview_demand_dirty
+            || (!capture_output_previews && !processor_overview_active)
+        {
+            self.runtime_cache.condition_observations.clear();
+        }
+        if processor_overview_demand_dirty {
+            self.runtime_cache
+                .dirty_processor_overview_shards
+                .extend(self.runtime_cache.last_processor_overviews.keys().copied());
+            self.runtime_cache
+                .dirty_processor_overview_samples
+                .retain(|processor_id| processor_overview_ids.contains(processor_id));
+            let removed_shards = self
+                .runtime_cache
+                .processor_overview_snapshot
+                .keys()
+                .filter(|processor_id| !processor_overview_ids.contains(processor_id))
+                .map(|processor_id| processor_overview_shard(*processor_id))
+                .collect::<Vec<_>>();
+            self.runtime_cache
+                .processor_overview_snapshot
+                .retain(|processor_id, _| processor_overview_ids.contains(processor_id));
+            self.runtime_cache
+                .dirty_processor_overview_shards
+                .extend(removed_shards);
+            self.runtime_cache.last_processor_overview_sample_at = None;
+            self.runtime_cache.last_processor_overview_emit_at = None;
+        }
+        if !processor_overview_active {
+            self.runtime_cache.processor_overview_snapshot.clear();
+            self.runtime_cache.dirty_processor_overview_samples.clear();
+            self.runtime_cache.dirty_processor_overview_shards.clear();
         }
         if preview_demand_dirty {
             self.runtime_cache
@@ -1594,6 +1793,7 @@ impl StateMachineManager {
         let mut output_preview = Vec::new();
         let mut processor_lanes = Vec::new();
         let mut processor_lane_inspections = Vec::new();
+        let mut processor_overview_updates = Vec::new();
         let mut evaluated_preview_lanes = HashMap::<ProcessorId, HashSet<ContextKey>>::new();
         let mut runtime_logs = Vec::new();
         let command_invocation_emitter = self.id();
@@ -1603,6 +1803,14 @@ impl StateMachineManager {
             snapshot,
             &mut self.runtime_cache.transient_condition_valid_resets,
         );
+        let processor_overview_sample_due = processor_overview_active
+            && processor_overview_publish_due(
+                self.runtime_cache.last_processor_overview_sample_at,
+                ctx.runtime_elapsed,
+            );
+        if processor_overview_sample_due {
+            self.runtime_cache.last_processor_overview_sample_at = Some(ctx.runtime_elapsed);
+        }
 
         for processor_node in active_processor_nodes.iter().copied() {
             let source_signal_dirty = self.runtime_cache.dirty_source_processors.contains(&processor_node);
@@ -1610,6 +1818,17 @@ impl StateMachineManager {
                 continue;
             };
             let processor_id = runtime_processor.processor.id;
+            let processor_overview_requested = processor_overview_ids.contains(&processor_id);
+            let processor_overview_needs_hydration = processor_overview_requested
+                && (processor_overview_demand_dirty
+                    || cache_rebuilt
+                    || overrides_dirty
+                    || context_provider_changed
+                    || dirty_processor_overview_lanes.contains(&processor_id)
+                    || !self
+                        .runtime_cache
+                        .processor_overview_snapshot
+                        .contains_key(&processor_id));
             let requested_processor_lanes = preview_selection.processor_lanes(processor_id);
             let preview_needs_hydration = processor_preview_needs_hydration(
                 &self.runtime_cache.processor_lane_inspection_snapshot,
@@ -1625,15 +1844,41 @@ impl StateMachineManager {
                 processor_node,
                 &dirty_processor_overrides,
             );
-            let should_evaluate = processor_should_evaluate(
+            let normally_should_evaluate = processor_should_evaluate(
                 processor_needs_continuous_evaluation(&runtime_processor.runtime),
                 force_processor_recompute,
                 source_signal_dirty,
                 false,
                 formula_value_dirty,
-            ) || preview_plan.force_evaluation;
+            );
+            let evaluates_without_overview = normally_should_evaluate || preview_plan.force_evaluation;
+            let capture_processor_overview = processor_overview_requested
+                && (processor_overview_needs_hydration
+                    || (processor_overview_sample_due
+                        && (evaluates_without_overview
+                            || self
+                                .runtime_cache
+                                .dirty_processor_overview_samples
+                                .contains(&processor_id))));
+            let processor_overview_lane = capture_processor_overview.then(|| {
+                processor_overview_lane(
+                    runtime_processor,
+                    provider.as_ref(),
+                    self.runtime_cache
+                        .processor_overview_lane_selections
+                        .get(&processor_id),
+                )
+            });
+            let should_evaluate = evaluates_without_overview || capture_processor_overview;
             if !should_evaluate {
                 continue;
+            }
+            if dirty_processor_overview_lanes.contains(&processor_id) {
+                remove_processor_condition_observations(
+                    snapshot,
+                    processor_node,
+                    &mut self.runtime_cache.condition_observations,
+                );
             }
             let mut input_context = ProcessorRuntimeInputContext {
                 snapshot,
@@ -1654,11 +1899,34 @@ impl StateMachineManager {
                 settled_condition_runtimes: &mut self.runtime_cache.settled_condition_runtimes,
                 condition_observations: &mut self.runtime_cache.condition_observations,
                 observed_condition_lanes: preview_selection.processor_lanes(processor_id),
+                overview_condition_lane: processor_overview_lane
+                    .as_ref()
+                    .map(|lane| &lane.context_key),
                 transient_condition_valid_resets: &mut self.runtime_cache.transient_condition_valid_resets,
                 next_trigger_edge_id: &mut self.runtime_cache.next_trigger_edge_id,
                 ctx,
             };
             let inputs = processor_runtime_inputs(&mut input_context);
+            if !evaluates_without_overview {
+                let Some(overview_lane) = processor_overview_lane else {
+                    continue;
+                };
+                self.runtime_cache
+                    .dirty_processor_overview_samples
+                    .remove(&processor_id);
+                processor_overview_updates.push((
+                    processor_id,
+                    processor_runtime_overview(
+                        snapshot,
+                        processor_node,
+                        processor_id,
+                        overview_lane,
+                        &self.runtime_cache.condition_observations,
+                        &self.runtime_cache.condition_manager_axes,
+                    ),
+                ));
+                continue;
+            }
             let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node) else {
                 continue;
             };
@@ -1756,6 +2024,7 @@ impl StateMachineManager {
                             lane,
                             provider.as_ref(),
                             &self.runtime_cache.condition_observations,
+                            &self.runtime_cache.condition_manager_axes,
                         ),
                     ));
                 }
@@ -1841,6 +2110,26 @@ impl StateMachineManager {
                     ));
                 }
             }
+            if let Some(overview_lane) = processor_overview_lane {
+                self.runtime_cache
+                    .dirty_processor_overview_samples
+                    .remove(&processor_id);
+                processor_overview_updates.push((
+                    processor_id,
+                    processor_runtime_overview(
+                        snapshot,
+                        processor_node,
+                        processor_id,
+                        overview_lane,
+                        &self.runtime_cache.condition_observations,
+                        &self.runtime_cache.condition_manager_axes,
+                    ),
+                ));
+            } else if processor_overview_requested {
+                self.runtime_cache
+                    .dirty_processor_overview_samples
+                    .insert(processor_id);
+            }
         }
 
         if capture_output_previews {
@@ -1855,6 +2144,67 @@ impl StateMachineManager {
         }
         if !runtime_logs.is_empty() {
             let _ = log_messages(runtime_logs);
+        }
+        if processor_overview_active {
+            for (processor_id, overview) in processor_overview_updates {
+                let changed = self
+                    .runtime_cache
+                    .processor_overview_snapshot
+                    .get(&processor_id)
+                    != Some(&overview);
+                if changed {
+                    self.runtime_cache
+                        .processor_overview_snapshot
+                        .insert(processor_id, overview);
+                    self.runtime_cache
+                        .dirty_processor_overview_shards
+                        .insert(processor_overview_shard(processor_id));
+                }
+            }
+            if processor_overview_demand_dirty || cache_rebuilt || overrides_dirty || context_provider_changed {
+                let active_processor_ids = self
+                    .runtime_cache
+                    .processors
+                    .values()
+                    .map(|processor| processor.processor.id)
+                    .collect::<HashSet<_>>();
+                let removed_shards = self
+                    .runtime_cache
+                    .processor_overview_snapshot
+                    .keys()
+                    .filter(|processor_id| {
+                        !active_processor_ids.contains(processor_id)
+                            || !processor_overview_ids.contains(processor_id)
+                    })
+                    .map(|processor_id| processor_overview_shard(*processor_id))
+                    .collect::<Vec<_>>();
+                self.runtime_cache
+                    .processor_overview_snapshot
+                    .retain(|processor_id, _| {
+                        active_processor_ids.contains(processor_id)
+                            && processor_overview_ids.contains(processor_id)
+                    });
+                self.runtime_cache
+                    .dirty_processor_overview_samples
+                    .retain(|processor_id| {
+                        active_processor_ids.contains(processor_id)
+                            && processor_overview_ids.contains(processor_id)
+                    });
+                self.runtime_cache
+                    .processor_overview_lane_selections
+                    .retain(|processor_id, _| active_processor_ids.contains(processor_id));
+                self.runtime_cache
+                    .dirty_processor_overview_shards
+                    .extend(removed_shards);
+            }
+            if !self.runtime_cache.dirty_processor_overview_shards.is_empty()
+                && processor_overview_publish_due(
+                    self.runtime_cache.last_processor_overview_emit_at,
+                    ctx.runtime_elapsed,
+                )
+            {
+                self.publish_processor_overview(ctx);
+            }
         }
         self.runtime_cache.dirty_input_source_params.clear();
         self.runtime_cache.dirty_source_processors.clear();
@@ -1936,6 +2286,31 @@ impl StateMachineManager {
         let _ = ctx.emit_latest_custom_payload(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC, None, &preview);
         self.runtime_cache.last_preview_signature = Some(signature);
         self.runtime_cache.last_preview_inspection_signature = Some(inspection_signature);
+    }
+
+    fn publish_processor_overview(&mut self, ctx: &mut ProcessCtx) {
+        let mut shards = std::mem::take(&mut self.runtime_cache.dirty_processor_overview_shards)
+            .into_iter()
+            .collect::<Vec<_>>();
+        shards.sort_unstable();
+        self.runtime_cache.last_processor_overview_emit_at = Some(ctx.runtime_elapsed);
+        for shard in shards {
+            let mut processors = self
+                .runtime_cache
+                .processor_overview_snapshot
+                .iter()
+                .filter(|(processor_id, _)| processor_overview_shard(**processor_id) == shard)
+                .map(|(_, overview)| overview.clone())
+                .collect::<Vec<_>>();
+            processors.sort_by(|left, right| left.processor_id.cmp(&right.processor_id));
+            let overview = StateMachineProcessorOverviewDto { processors };
+            if self.runtime_cache.last_processor_overviews.get(&shard) == Some(&overview) {
+                continue;
+            }
+            let topic = processor_overview_topic(shard);
+            let _ = ctx.emit_latest_custom_payload(&topic, None, &overview);
+            self.runtime_cache.last_processor_overviews.insert(shard, overview);
+        }
     }
 
     fn publish_preview_catalog(
@@ -2119,6 +2494,16 @@ impl StateMachineManager {
         self.runtime_cache.dirty_formula_values.clear();
         self.runtime_cache.clear_formula_default_previews();
         self.runtime_cache.output_preview_snapshot.clear();
+        self.runtime_cache.dirty_processor_overview_shards.extend(
+            self.runtime_cache
+                .processor_overview_snapshot
+                .keys()
+                .map(|processor_id| processor_overview_shard(*processor_id)),
+        );
+        self.runtime_cache.processor_overview_snapshot.clear();
+        self.runtime_cache.dirty_processor_overview_samples.clear();
+        self.runtime_cache.last_processor_overview_sample_at = None;
+        self.runtime_cache.last_processor_overview_emit_at = None;
         self.runtime_cache.condition_manager_axes.clear();
         self.runtime_cache.compiled_conditions.clear();
         self.runtime_cache.condition_observations.clear();
@@ -2707,6 +3092,70 @@ fn processor_ui_dtos(
     dtos
 }
 
+fn processor_overview_lane(
+    runtime_processor: &RuntimeProcessor,
+    context_provider: &SnapshotProcessorContextProvider,
+    selected_context_key: Option<&ContextKey>,
+) -> ProcessorOverviewLane {
+    let processor_id = runtime_processor.processor.id;
+    let required_axes = runtime_processor
+        .runtime
+        .plan
+        .as_ref()
+        .map(|plan| &plan.required_eval_axes);
+    let Some(required_axes) = required_axes else {
+        return ProcessorOverviewLane {
+            context_key: ContextKey::default_lane(),
+            context_key_dto: None,
+            label: "Default lane".to_owned(),
+            multiplex_lane_count: 0,
+        };
+    };
+    let multiplex_lane_count = context_provider.lane_count_for_axes(processor_id, required_axes);
+    let context_key = selected_context_key
+        .filter(|key| context_provider.context_key_matches_axes(processor_id, required_axes, key))
+        .cloned()
+        .or_else(|| context_provider.iter_context_keys(processor_id, required_axes).next())
+        .unwrap_or_else(ContextKey::default_lane);
+    if required_axes.is_empty() {
+        return ProcessorOverviewLane {
+            context_key,
+            context_key_dto: None,
+            label: "Default lane".to_owned(),
+            multiplex_lane_count,
+        };
+    }
+    ProcessorOverviewLane {
+        context_key_dto: Some(context_provider.context_key_dto(processor_id, &context_key)),
+        label: context_provider.context_key_label(processor_id, &context_key),
+        context_key,
+        multiplex_lane_count,
+    }
+}
+
+fn processor_runtime_overview(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    processor_id: ProcessorId,
+    lane: ProcessorOverviewLane,
+    observations: &HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
+    condition_manager_axes: &HashMap<NodeId, AxisSet>,
+) -> ProcessorRuntimeOverviewDto {
+    ProcessorRuntimeOverviewDto {
+        processor_id: processor_id.to_string(),
+        multiplex_lane_count: lane.multiplex_lane_count,
+        preview_context_key: lane.context_key_dto,
+        preview_lane_label: lane.label,
+        condition_states: processor_lane_condition_observations(
+            snapshot,
+            processor_node,
+            Some(&lane.context_key),
+            observations,
+            condition_manager_axes,
+        ),
+    }
+}
+
 fn processor_lane_catalog_entry(
     processor_id: chataigne_state_machine::ProcessorId,
     context_key: Option<&ContextKey>,
@@ -2746,6 +3195,7 @@ fn processor_lane_inspection(
     lane: &chataigne_state_machine::ProcessorLaneOutput,
     context_provider: &SnapshotProcessorContextProvider,
     observations: &HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
+    condition_manager_axes: &HashMap<NodeId, AxisSet>,
 ) -> ProcessorLaneInspectionDto {
     let resolver = lane.context_key.as_ref().map(|context_key| LaneParamResolver {
         processor_id,
@@ -2754,8 +3204,13 @@ fn processor_lane_inspection(
     });
     let mut parameter_values = Vec::new();
     collect_processor_lane_parameter_inspection(snapshot, processor_node, resolver.as_ref(), &mut parameter_values);
-    let condition_states =
-        processor_lane_condition_observations(snapshot, processor_node, lane.context_key.as_ref(), observations);
+    let condition_states = processor_lane_condition_observations(
+        snapshot,
+        processor_node,
+        lane.context_key.as_ref(),
+        observations,
+        condition_manager_axes,
+    );
     ProcessorLaneInspectionDto {
         processor_id: processor_id.to_string(),
         context_key: lane
@@ -2839,18 +3294,73 @@ fn processor_lane_condition_observations(
     processor_node: NodeId,
     context_key: Option<&ContextKey>,
     observations: &HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
+    condition_manager_axes: &HashMap<NodeId, AxisSet>,
 ) -> Vec<ProcessorLaneConditionPreviewDto> {
     let mut managers = Vec::new();
     collect_condition_manager_nodes(snapshot, processor_node, &mut managers);
     let mut result = managers
         .into_iter()
-        .filter_map(|manager| observations.get(&ConditionLaneKey::new(manager, context_key)))
+        .filter_map(|manager| {
+            let projected_context = condition_manager_axes
+                .get(&manager)
+                .map(|axes| project_context_key(context_key, axes));
+            observations.get(&ConditionLaneKey::new(
+                manager,
+                projected_context.as_ref().or(context_key),
+            ))
+        })
         .flatten()
         .cloned()
         .collect::<Vec<_>>();
     result.sort_by(|left, right| left.node_id.cmp(&right.node_id));
     result.dedup_by(|left, right| left.node_id == right.node_id);
     result
+}
+
+fn project_context_key(context_key: Option<&ContextKey>, axes: &AxisSet) -> ContextKey {
+    let Some(context_key) = context_key else {
+        return ContextKey::default_lane();
+    };
+    ContextKey::new(
+        context_key
+            .iter()
+            .filter(|part| axes.contains(&part.axis))
+            .cloned(),
+    )
+}
+
+fn selected_context_includes_lane(selected: &ContextKey, lane: &ContextKey) -> bool {
+    lane.iter().all(|lane_part| {
+        selected
+            .iter()
+            .any(|part| part.axis == lane_part.axis && part.item == lane_part.item)
+    })
+}
+
+fn remove_processor_condition_observations(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    observations: &mut HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
+) {
+    let mut managers = Vec::new();
+    collect_condition_manager_nodes(snapshot, processor_node, &mut managers);
+    if managers.is_empty() {
+        return;
+    }
+    let managers = managers.into_iter().collect::<HashSet<_>>();
+    observations.retain(|key, _| !managers.contains(&key.manager));
+}
+
+fn processor_overview_publish_due(last_emit_at: Option<Duration>, now: Duration) -> bool {
+    last_emit_at.is_none_or(|last| now.saturating_sub(last) >= PROCESSOR_OVERVIEW_MIN_PUBLISH_INTERVAL)
+}
+
+fn processor_overview_shard(processor_id: ProcessorId) -> u8 {
+    processor_id.as_uuid().as_bytes()[0]
+}
+
+fn processor_overview_topic(shard: u8) -> String {
+    format!("{STATE_MACHINE_PROCESSOR_OVERVIEW_TOPIC_PREFIX}.{shard:02x}")
 }
 
 fn collect_condition_manager_nodes(snapshot: &ProcessTreeSnapshot, parent: NodeId, managers: &mut Vec<NodeId>) {
@@ -3731,7 +4241,14 @@ fn evaluate_compiled_condition(
     };
     let observed = context
         .observed_condition_lanes
-        .is_some_and(|lanes| lanes.contains(&runtime_key.context));
+        .is_some_and(|lanes| {
+            lanes
+                .iter()
+                .any(|selected| selected_context_includes_lane(selected, &runtime_key.context))
+        })
+        || context
+            .overview_condition_lane
+            .is_some_and(|selected| selected_context_includes_lane(selected, &runtime_key.context));
     let current_runtime = context
         .condition_runtimes
         .entry(runtime_key.clone())

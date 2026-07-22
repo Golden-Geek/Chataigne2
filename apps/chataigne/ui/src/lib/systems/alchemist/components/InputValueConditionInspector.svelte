@@ -203,20 +203,13 @@
 	];
 
 	let session = $derived(appState.session);
-	let graphNodesById = $derived(session?.graph.state.nodesById ?? null);
-	let graphParentById = $derived(session?.graph.state.parentById ?? null);
-	let liveNode: UiNodeDto = $derived(graphNodesById?.get(node.node_id) ?? node);
-	let graphNodesByUuid = $derived.by((): ReadonlyMap<string, NodeId> => {
-		if (!graphNodesById) return new Map();
-		return new Map(
-			Array.from(graphNodesById.values()).map((candidate) => [candidate.uuid, candidate.node_id])
-		);
-	});
+	let graphState = $derived(session?.graph.state ?? null);
+	let liveNode: UiNodeDto = $derived(graphState?.nodesById.get(node.node_id) ?? node);
 
 	const childByDeclId = (parent: UiNodeDto, declId: string): UiNodeDto | null => {
-		if (!graphNodesById) return null;
+		if (!graphState) return null;
 		for (const childId of parent.children) {
-			const child = graphNodesById.get(childId);
+			const child = graphState.nodesById.get(childId);
 			if (child?.decl_id === declId) return child;
 		}
 		return null;
@@ -242,13 +235,14 @@
 		(candidate.user_item_kind === 'module' || childByDeclId(candidate, 'values') !== null);
 
 	const isModuleValuesBranch = (candidate: UiNodeDto): boolean => {
-		if (!graphNodesById || !graphParentById) return false;
+		if (!graphState) return false;
 		let current: NodeId | undefined = candidate.node_id;
 		while (current !== undefined) {
-			const currentNode = graphNodesById.get(current);
+			const currentNode = graphState.nodesById.get(current);
 			if (!currentNode) return false;
-			const parentId = graphParentById.get(current);
-			const parentNode = parentId === undefined ? null : (graphNodesById.get(parentId) ?? null);
+			const parentId = graphState.parentById.get(current);
+			const parentNode =
+				parentId === undefined ? null : (graphState.nodesById.get(parentId) ?? null);
 			if (currentNode.decl_id === 'values' && isModuleNode(parentNode)) {
 				return true;
 			}
@@ -258,11 +252,11 @@
 	};
 
 	const isModuleValuesFolder = (candidate: UiNodeDto | null): boolean => {
-		if (!candidate || !graphNodesById || !graphParentById || candidate.decl_id !== 'values') {
+		if (!candidate || !graphState || candidate.decl_id !== 'values') {
 			return false;
 		}
-		const parentId = graphParentById.get(candidate.node_id);
-		const parentNode = parentId === undefined ? null : (graphNodesById.get(parentId) ?? null);
+		const parentId = graphState.parentById.get(candidate.node_id);
+		const parentNode = parentId === undefined ? null : (graphState.nodesById.get(parentId) ?? null);
 		return isModuleNode(parentNode);
 	};
 
@@ -273,9 +267,16 @@
 		isModuleNode(candidate) ||
 		(isModuleValuesBranch(candidate) && !isModuleValuesFolder(candidate));
 
-	const referencedNodeId = (value: ParamValue | null): NodeId | null => {
-		if (!graphNodesById || value?.kind !== 'reference') return null;
-		return value.cached_id ?? graphNodesByUuid.get(value.uuid) ?? null;
+	const referencedNode = (value: ParamValue | null): UiNodeDto | null => {
+		if (!graphState || value?.kind !== 'reference') return null;
+		if (value.cached_id !== undefined) {
+			const byId = graphState.nodesById.get(value.cached_id);
+			if (byId) return byId;
+		}
+		for (const candidate of graphState.nodesById.values()) {
+			if (candidate.uuid === value.uuid) return candidate;
+		}
+		return null;
 	};
 
 	const projectionComponent = (projection: string | null): string | null => {
@@ -399,8 +400,7 @@
 	let sourceReferenceNode = $derived(childByDeclId(liveNode, 'source'));
 	let sourceParameter = $derived.by((): UiNodeDto | null => {
 		const value = parameterValue(sourceReferenceNode);
-		const sourceId = referencedNodeId(value);
-		const candidate = sourceId === null ? null : (graphNodesById?.get(sourceId) ?? null);
+		const candidate = referencedNode(value);
 		return candidate?.data.kind === 'parameter' ? candidate : null;
 	});
 	let sourceProjectionNode = $derived(childByDeclId(liveNode, 'source_projection'));

@@ -44,6 +44,8 @@
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import GraphToolbarActions from '../../alchemist/components/GraphToolbarActions.svelte';
 	import StateProcessorManager from '../../alchemist/components/StateProcessorManager.svelte';
+	import type { ProcessorOverviewDemandDto } from '../generated';
+	import { STATE_MACHINE_PROCESSOR_OVERVIEW_DEMAND_TOPIC } from '../processorOverview.svelte';
 
 	const MANAGER_NODE_TYPE = 'state_machine_manager';
 	const STATE_NODE_TYPE = 'state';
@@ -69,6 +71,8 @@
 	const STATE_PLACEMENT_INDEX_CELL_REM = 8;
 	const STATE_PLACEMENT_MAX_RING = 128;
 	const CAMERA_PERSIST_DELAY_MS = 150;
+	const PROCESSOR_OVERVIEW_HEARTBEAT_MS = 2000;
+	const processorOverviewSubscriptionId = `state-machine-overview:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
 
 	interface StateMachinePanelPersistedState {
 		camera?: GraphCamera;
@@ -158,6 +162,28 @@
 				.map((nodeId) => graph.nodesById.get(nodeId))
 				.find((node) => node?.node_type === MANAGER_NODE_TYPE) ?? null
 		);
+	});
+
+	const publishProcessorOverviewDemand = (active: boolean): void => {
+		const activeSession = session;
+		const stateMachineManager = manager;
+		if (!activeSession || activeSession.status !== 'connected' || !stateMachineManager) return;
+		const payload: ProcessorOverviewDemandDto = {
+			subscription_id: processorOverviewSubscriptionId,
+			active
+		};
+		void activeSession
+			.sendIntent({
+				kind: 'sendNodeEvent',
+				node: stateMachineManager.node_id,
+				topic: STATE_MACHINE_PROCESSOR_OVERVIEW_DEMAND_TOPIC,
+				payload
+			})
+			.catch(() => undefined);
+	};
+
+	$effect(() => {
+		publishProcessorOverviewDemand(true);
 	});
 
 	let stateNodes = $derived.by(() => {
@@ -903,6 +929,10 @@
 	};
 
 	onMount(() => {
+		const processorOverviewHeartbeat = setInterval(
+			() => publishProcessorOverviewDemand(true),
+			PROCESSOR_OVERVIEW_HEARTBEAT_MS
+		);
 		const unregisterFrame = registerCommandHandler(
 			'view.frame',
 			() => (panelOwnsFocus() ? (graphCanvas?.frameSelection() ?? false) : false),
@@ -914,6 +944,8 @@
 			{ priority: 100 }
 		);
 		return () => {
+			clearInterval(processorOverviewHeartbeat);
+			publishProcessorOverviewDemand(false);
 			unregisterFrame();
 			unregisterHome();
 			flushCameraPersistence();

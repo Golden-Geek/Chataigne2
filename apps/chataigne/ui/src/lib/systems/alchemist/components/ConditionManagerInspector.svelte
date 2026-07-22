@@ -7,13 +7,13 @@
 	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
 		$props();
 
-	let graphNodesById = $derived(appState.session?.graph.state.nodesById ?? null);
-	let liveNode: UiNodeDto = $derived(graphNodesById?.get(node.node_id) ?? node);
+	let graphState = $derived(appState.session?.graph.state ?? null);
+	let liveNode: UiNodeDto = $derived(graphState?.nodesById.get(node.node_id) ?? node);
 
 	const childByDeclId = (parent: UiNodeDto, declId: string): UiNodeDto | null => {
-		if (!graphNodesById) return null;
+		if (!graphState) return null;
 		for (const childId of parent.children) {
-			const child = graphNodesById.get(childId);
+			const child = graphState.nodesById.get(childId);
 			if (child?.decl_id === declId) return child;
 		}
 		return null;

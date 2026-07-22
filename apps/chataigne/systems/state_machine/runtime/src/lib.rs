@@ -14,8 +14,9 @@ pub use protocol::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, ManagedItemDto, ManagedItemUiStateDto,
     ManagedRegionDefinitionDto, ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto,
     ProcessorFormulaSourceKindDto, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
-    ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorUiDto, StateMachinePreviewCatalogDto,
-    StateMachineRuntimePreviewDto, export_typescript,
+    ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorOverviewDemandDto,
+    ProcessorOverviewLaneSelectionDto, ProcessorRuntimeOverviewDto, ProcessorUiDto, StateMachinePreviewCatalogDto,
+    StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto, export_typescript,
 };
 pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,

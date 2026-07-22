@@ -1,4 +1,5 @@
 use std::time::{Duration, Instant};
+use std::sync::{Mutex, MutexGuard};
 
 use golden_core::{
     app::{
@@ -7,10 +8,20 @@ use golden_core::{
     },
     node::{Folder, Node, NodeId},
     ui_read_model::UiReadModel,
-    ui_sync::UiSubscriptionScope,
+    ui_sync::{UiEditIntent, UiSubscriptionScope},
 };
 
+use chataigne_state_machine::ProcessorOverviewDemandDto;
+
 use crate::app::{AppNode, GamepadModule, MidiModule};
+
+static PERFORMANCE_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn lock_performance_test() -> MutexGuard<'static, ()> {
+    PERFORMANCE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
 
 fn create_engine(n_gamepad: usize, n_midi: usize) -> crate::app::AppEngine {
     let root: AppNode = Folder::new("root").into();
@@ -67,6 +78,25 @@ fn context_provider_rebuilds(engine: &crate::app::AppEngine) -> u64 {
         .iter()
         .find_map(|(_, node)| match node {
             AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats().context_provider_rebuilds),
+            _ => None,
+        })
+        .expect("app should contain a state-machine manager")
+}
+
+fn state_machine_manager_id(engine: &crate::app::AppEngine) -> NodeId {
+    engine
+        .nodes
+        .iter()
+        .find_map(|(node_id, node)| matches!(node, AppNode::StateMachineManager(_)).then_some(node_id))
+        .expect("app should contain a state-machine manager")
+}
+
+fn state_machine_debug_samples_captured(engine: &crate::app::AppEngine) -> u64 {
+    engine
+        .nodes
+        .iter()
+        .find_map(|(_, node)| match node {
+            AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats().debug_samples_captured),
             _ => None,
         })
         .expect("app should contain a state-machine manager")
@@ -189,6 +219,7 @@ fn multiplex_sample_project_loads_and_round_trips() {
 
 #[test]
 fn multiplex_sample_active_runtime_stays_realtime() {
+    let _performance_guard = lock_performance_test();
     const SAMPLE: &str = "test_multiplex.noisette";
     const WARMUP: usize = 10;
     // Cover initial bounded log-stream draining and the 200-tick keepalive window.
@@ -207,6 +238,17 @@ fn multiplex_sample_active_runtime_stays_realtime() {
     );
     configure_loaded_engine(&mut engine).expect("multiplex sample should configure");
     prepare_engine_for_runtime(&mut engine).expect("multiplex sample should prepare");
+    let overview_demand = ProcessorOverviewDemandDto {
+        subscription_id: "multiplex-performance-overview".to_owned(),
+        active: true,
+    };
+    let manager_id = state_machine_manager_id(&engine);
+    let overview_ack = engine.apply_ui_intent(UiEditIntent::SendNodeEvent {
+        node: manager_id,
+        topic: "chataigne.state_machine.processor_overview_demand".to_owned(),
+        payload: serde_json::to_value(overview_demand).expect("overview demand should serialize"),
+    });
+    assert!(overview_ack.success, "processor overview demand should apply");
 
     for _ in 0..WARMUP {
         engine
@@ -215,8 +257,10 @@ fn multiplex_sample_active_runtime_stays_realtime() {
     }
 
     let provider_rebuilds_before = context_provider_rebuilds(&engine);
+    let debug_samples_before = state_machine_debug_samples_captured(&engine);
     let (min_us, max_us, total_us) = measure_ticks(&mut engine, MEASURED);
     let provider_rebuilds_after = context_provider_rebuilds(&engine);
+    let debug_samples_after = state_machine_debug_samples_captured(&engine);
     let avg_us = total_us / MEASURED as u64;
     let stats = engine.tick_stats();
     eprintln!(
@@ -232,6 +276,10 @@ fn multiplex_sample_active_runtime_stays_realtime() {
         stats.snapshot_builds, 0,
         "steady multiplex ticks must reuse the state runtime snapshot"
     );
+    assert_eq!(
+        debug_samples_after, debug_samples_before,
+        "the all-processor overview must not enable Alchemist debug capture"
+    );
     assert!(
         avg_us < 10_000,
         "multiplex runtime averaged {avg_us}us per tick; 100 Hz requires less than 10000us"
@@ -240,6 +288,7 @@ fn multiplex_sample_active_runtime_stays_realtime() {
 
 #[test]
 fn sample_project_structure_operations_stay_interactive() {
+    let _performance_guard = lock_performance_test();
     const SAMPLE: &str = "test_perf.noisette";
 
     let path = sample_project_path(SAMPLE);
@@ -305,6 +354,7 @@ fn sample_project_structure_operations_stay_interactive() {
 
 #[test]
 fn sample_project_active_runtime_stays_responsive() {
+    let _performance_guard = lock_performance_test();
     const SAMPLE: &str = "test_perf.noisette";
     const WARMUP: usize = 20;
     const MEASURED: usize = 80;
@@ -348,6 +398,7 @@ fn sample_project_active_runtime_stays_responsive() {
 
 #[test]
 fn idle_gamepad_modules_tick_time_does_not_scale_with_count() {
+    let _performance_guard = lock_performance_test();
     const WARMUP: usize = 20;
     const MEASURED: usize = 100;
 
@@ -379,6 +430,7 @@ fn idle_gamepad_modules_tick_time_does_not_scale_with_count() {
 
 #[test]
 fn idle_midi_modules_tick_time_does_not_scale_with_count() {
+    let _performance_guard = lock_performance_test();
     const WARMUP: usize = 20;
     const MEASURED: usize = 100;
 
@@ -407,6 +459,7 @@ fn idle_midi_modules_tick_time_does_not_scale_with_count() {
 
 #[test]
 fn steady_state_tick_budget_1000_nodes() {
+    let _performance_guard = lock_performance_test();
     const WARMUP: usize = 20;
     const MEASURED: usize = 100;
     // 10 gamepad modules ≈ 10 × ~100 nodes = ~1000 total nodes

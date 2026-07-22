@@ -328,7 +328,7 @@ pub struct RuntimeDebugDeltaDto {
     pub execution_count: u64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ContextKeyPartDto {
     pub axis_id: String,
     pub axis_label: String,
@@ -337,7 +337,7 @@ pub struct ContextKeyPartDto {
     pub index: Option<u32>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ContextKeyDto {
     pub parts: Vec<ContextKeyPartDto>,
 }
@@ -373,10 +373,45 @@ pub struct ProcessorLaneParameterPreviewDto {
     pub value: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ProcessorLaneConditionPreviewDto {
     pub node_id: String,
     pub valid: bool,
+}
+
+/// One processor's inexpensive state-machine canvas preview.
+///
+/// Unlike `ProcessorLaneInspectionDto`, this never carries resolved parameters or formula output
+/// samples. The runtime keeps exactly one lane per processor so a state-machine surface can show
+/// multiplexing and condition validity without enabling Alchemist debug capture.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ProcessorRuntimeOverviewDto {
+    pub processor_id: String,
+    pub multiplex_lane_count: usize,
+    pub preview_context_key: Option<ContextKeyDto>,
+    pub preview_lane_label: String,
+    pub condition_states: Vec<ProcessorLaneConditionPreviewDto>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorOverviewDemandDto {
+    pub subscription_id: String,
+    /// Processors whose expanded state cards intersect the settled state-machine viewport.
+    /// An empty list releases this subscription immediately.
+    pub processor_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorOverviewLaneSelectionDto {
+    pub processor_id: String,
+    pub context_key: Option<ContextKeyDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct StateMachineProcessorOverviewDto {
+    /// The processors in one UUID-prefix shard. Sharding keeps a changing processor from
+    /// retransmitting every processor's overview in very large state machines.
+    pub processors: Vec<ProcessorRuntimeOverviewDto>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -597,15 +632,19 @@ export type { ManagedRegionInstanceDto } from './ManagedRegionInstanceDto';\n\
 export type { ManagedRegionKindDto } from './ManagedRegionKindDto';\n\
 export type { ManagedSocketRefDto } from './ManagedSocketRefDto';\n\
 export type { OutputPreviewStatusDto } from './OutputPreviewStatusDto';\n\
+export type { ProcessorOverviewDemandDto } from './ProcessorOverviewDemandDto';\n\
+export type { ProcessorOverviewLaneSelectionDto } from './ProcessorOverviewLaneSelectionDto';\n\
 export type { ProcessorLaneCatalogEntryDto } from './ProcessorLaneCatalogEntryDto';\n\
 export type { ProcessorLaneInspectionDto } from './ProcessorLaneInspectionDto';\n\
 export type { ProcessorLaneParameterPreviewDto } from './ProcessorLaneParameterPreviewDto';\n\
 export type { ProcessorLaneConditionPreviewDto } from './ProcessorLaneConditionPreviewDto';\n\
+export type { ProcessorRuntimeOverviewDto } from './ProcessorRuntimeOverviewDto';\n\
 export type { ProcessorUiDto } from './ProcessorUiDto';\n\
 export type { RuntimeDebugDeltaDto } from './RuntimeDebugDeltaDto';\n\
 export type { RuntimeValueDto } from './RuntimeValueDto';\n\
 export type { StatechartDeltaDto } from './StatechartDeltaDto';\n\
 export type { StateMachinePreviewCatalogDto } from './StateMachinePreviewCatalogDto';\n\
+export type { StateMachineProcessorOverviewDto } from './StateMachineProcessorOverviewDto';\n\
 export type { StateMachineRuntimePreviewDto } from './StateMachineRuntimePreviewDto';\n\
 export type { StateUiKind } from './StateUiKind';\n\
 export type { StateUiLayoutDto } from './StateUiLayoutDto';\n\
@@ -613,7 +652,10 @@ export type { StateUiNodeDto } from './StateUiNodeDto';\n";
     let output_dir = output_dir.as_ref();
     let config = Config::new().with_out_dir(output_dir.to_path_buf());
     StateMachinePreviewCatalogDto::export_all(&config)?;
+    StateMachineProcessorOverviewDto::export_all(&config)?;
     StateMachineRuntimePreviewDto::export_all(&config)?;
+    ProcessorOverviewDemandDto::export_all(&config)?;
+    ProcessorOverviewLaneSelectionDto::export_all(&config)?;
     FormulaPreviewDemandDto::export_all(&config)?;
     StatechartDeltaDto::export_all(&config)?;
     DiagnosticDto::export_all(&config)?;

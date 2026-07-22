@@ -1,13 +1,7 @@
 <script lang="ts">
 	import type { UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
-	import type { StateMachinePreviewCatalogDto } from '../../state_machine/generated';
-	import { STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
-	import {
-		formulaPreviewSessionStore,
-		processorPreviewLaneOptions
-	} from '../preview/formulaPreviewSessionStore.svelte';
-	import { selectedLaneConditionValid } from '../preview/processorLaneInspection.svelte';
+	import { processorRuntimeOverview } from '../../state_machine/processorOverview.svelte';
 	import ValidationChip from './ValidationChip.svelte';
 
 	const PROCESSOR_ITEM_KIND = 'state_processor';
@@ -20,18 +14,6 @@
 	}>();
 
 	let session = $derived(appState.session);
-	let runtimePreviewCatalogSequence = $derived(
-		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC) ?? 0
-	);
-	let runtimePreviewCatalog = $derived.by((): StateMachinePreviewCatalogDto | null => {
-		runtimePreviewCatalogSequence;
-		if (!session) return null;
-		return (
-			session.getCustomEventPayload<StateMachinePreviewCatalogDto>(
-				STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC
-			) ?? null
-		);
-	});
 	let graph = $derived(session?.graph.state ?? null);
 	let liveNode = $derived(graph?.nodesById.get(node.node_id) ?? node);
 	let isProcessorNode = $derived(
@@ -71,8 +53,10 @@
 	};
 
 	const conditionManagerValid = (manager: UiNodeDto): boolean => {
-		const laneValid = selectedLaneConditionValid(manager);
-		if (laneValid !== null) return laneValid;
+		const laneValid = overview?.condition_states.find(
+			(state) => state.node_id === manager.uuid
+		)?.valid;
+		if (laneValid !== undefined) return laneValid;
 		const valid = directChild(manager, CONDITION_MANAGER_VALID_DECL_ID);
 		return valid?.data.kind === 'parameter' && valid.data.param.value.kind === 'bool'
 			? valid.data.param.value.value
@@ -80,27 +64,12 @@
 	};
 
 	let conditionManagers = $derived(isProcessorNode ? processorConditionManagers(liveNode) : []);
-	let multiplexLaneCount = $derived.by((): number => {
-		if (!isProcessorNode || !runtimePreviewCatalog) return 0;
-		return (
-			runtimePreviewCatalog.processors.find((processor) => processor.id === liveNode.uuid)
-				?.multiplex_lane_count ?? 0
-		);
-	});
-	let previewLanes = $derived(
-		processorPreviewLaneOptions(
-			runtimePreviewCatalog?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ??
-				[]
-		)
-	);
-	let previewLane = $derived(
-		isProcessorNode
-			? formulaPreviewSessionStore.processorLane(liveNode.node_id, previewLanes)
-			: null
-	);
+	let overview = $derived(isProcessorNode ? processorRuntimeOverview(liveNode.uuid) : null);
+	let multiplexLaneCount = $derived(overview?.multiplex_lane_count ?? 0);
+	let previewLaneLabel = $derived(overview?.preview_lane_label ?? null);
 </script>
 
-{#if conditionManagers.length > 0 || multiplexLaneCount > 0 || previewLane}
+{#if conditionManagers.length > 0 || multiplexLaneCount > 0 || previewLaneLabel}
 	<span class="processor-row-supplements">
 		{#if multiplexLaneCount > 0}
 			<span class="processor-multiplex-badge" title={`${multiplexLaneCount} multiplex lanes`}>
@@ -108,9 +77,9 @@
 			</span>
 		{/if}
 
-		{#if multiplexLaneCount > 1 && previewLane}
-			<span class="processor-preview-lane" title={`Preview lane: ${previewLane.label}`}>
-				{previewLane.label}
+		{#if multiplexLaneCount > 0 && previewLaneLabel}
+			<span class="processor-preview-lane" title={`Preview lane: ${previewLaneLabel}`}>
+				{previewLaneLabel}
 			</span>
 		{/if}
 		{#each conditionManagers as manager (manager.node_id)}

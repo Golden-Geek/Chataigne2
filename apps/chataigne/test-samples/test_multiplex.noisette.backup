@@ -4,7 +4,7 @@
     "dock_layout": {
       "activeGroup": "2",
       "grid": {
-        "height": 1042,
+        "height": 1074,
         "orientation": "HORIZONTAL",
         "root": {
           "data": [
@@ -18,7 +18,7 @@
                       "modules-1"
                     ]
                   },
-                  "size": 519,
+                  "size": 535,
                   "type": "leaf"
                 },
                 {
@@ -29,11 +29,11 @@
                       "outliner"
                     ]
                   },
-                  "size": 517,
+                  "size": 533,
                   "type": "leaf"
                 }
               ],
-              "size": 351,
+              "size": 361,
               "type": "branch"
             },
             {
@@ -48,7 +48,7 @@
                       "warnings"
                     ]
                   },
-                  "size": 518,
+                  "size": 534,
                   "type": "leaf"
                 },
                 {
@@ -59,11 +59,11 @@
                       "alchemist-editor"
                     ]
                   },
-                  "size": 518,
+                  "size": 534,
                   "type": "leaf"
                 }
               ],
-              "size": 746,
+              "size": 775,
               "type": "branch"
             },
             {
@@ -74,14 +74,14 @@
                   "inspector"
                 ]
               },
-              "size": 549,
+              "size": 567,
               "type": "leaf"
             }
           ],
-          "size": 1042,
+          "size": 1074,
           "type": "branch"
         },
-        "width": 1658
+        "width": 1715
       },
       "panels": {
         "alchemist-editor": {
@@ -108,8 +108,6 @@
           "id": "inspector",
           "params": {
             "__gc_panel_state": {
-              "inspectorLocked": false,
-              "inspectorLockedNodeId": null,
               "watcherSettingsByParam": {
                 "0686c628-972c-4c8b-9d52-eb1a2addc98e": {
                   "decimationMode": "off"
@@ -118,6 +116,9 @@
                   "decimationMode": "off"
                 },
                 "0b90e549-deca-4dbc-a4ce-7c09eabb0716": {
+                  "decimationMode": "off"
+                },
+                "0f1b7737-e6b4-432a-a5b3-e89bdf1a2b85": {
                   "decimationMode": "off"
                 },
                 "12aaf0af-4140-4d59-8f4c-707fb2b8a80b": {
@@ -244,6 +245,7 @@
             "__gc_panel_state": {
               "opennessByNodeId": {
                 "4294967297": true,
+                "4294967299": true,
                 "4294967591": true,
                 "4294967610": true,
                 "4294967611": true,
@@ -260,8 +262,8 @@
           "params": {
             "__gc_panel_state": {
               "camera": {
-                "x": -859.7818948517056,
-                "y": 92.77086120702548,
+                "x": -862.1819192657681,
+                "y": 94.3708673105411,
                 "zoom": 1.1591543514287397
               }
             }
@@ -1900,7 +1902,7 @@
             },
             "children": [
               {
-                "uuid": "a7e09f2f-bc86-4786-9076-3716fe4611c0",
+                "uuid": "5559b2ec-14d4-4fee-855f-aeea3a382eb5",
                 "type": "file",
                 "meta": {
                   "decl_id": "external_formula_file",
@@ -1917,7 +1919,7 @@
                 }
               },
               {
-                "uuid": "22570765-d15b-4a3a-bfc4-9dd8ca086b9a",
+                "uuid": "6e029046-0471-4e10-9b0e-48baa4199eaa",
                 "type": "reference",
                 "meta": {
                   "decl_id": "external_formula_source",
@@ -1929,7 +1931,7 @@
                 }
               },
               {
-                "uuid": "3a5db63c-9cba-49cd-ab69-259931214887",
+                "uuid": "64259d4d-8415-45f6-a04e-d359be7ace64",
                 "type": "bool",
                 "meta": {
                   "decl_id": "external_formula_delete_file",
@@ -4253,7 +4255,7 @@
                     },
                     "children": [
                       {
-                        "uuid": "9635d241-3e1f-448f-b169-b387ab810ea6",
+                        "uuid": "15ce9d27-09df-41d6-b9e5-16229ffffed3",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4270,7 +4272,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "6e50d144-04e8-4347-afaa-03e09789b7cf",
+                            "uuid": "f5beb484-4994-4e2b-9414-ca0d33801dcf",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4289,7 +4291,7 @@
                             }
                           },
                           {
-                            "uuid": "e76619a8-f9bb-43a7-877a-c9432178496c",
+                            "uuid": "d1a5893d-723d-4b08-9c65-c7ffcf717d14",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4308,7 +4310,7 @@
                             }
                           },
                           {
-                            "uuid": "7c182708-8544-4053-a991-76b5dbcd0e58",
+                            "uuid": "a81cbc25-1a60-4de9-b40a-0de2c9a17905",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -4327,7 +4329,7 @@
                         ]
                       },
                       {
-                        "uuid": "be117149-17fd-4e2f-be23-43c7cfe31424",
+                        "uuid": "465525f3-3acb-4ce4-b906-230b3a330027",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4344,7 +4346,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "f30ea8d6-41da-491a-b02c-b875ba997b42",
+                            "uuid": "221857c3-7282-4497-8764-ff00e8c9fda3",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4363,7 +4365,7 @@
                             }
                           },
                           {
-                            "uuid": "bdcd138b-8fd4-47a7-a0b8-87a7b7ab9548",
+                            "uuid": "751b1680-2c73-4fa5-8ef9-505f6b2e717f",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4382,7 +4384,7 @@
                             }
                           },
                           {
-                            "uuid": "91128756-e377-41fb-8545-857f9a0a15c5",
+                            "uuid": "25a4054b-cc34-48d6-aaf8-eeef5e4df73a",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -5579,6 +5581,18 @@
                   "decl_id": "parameters"
                 },
                 "children": [
+                  {
+                    "uuid": "f5fa6483-3b13-49ab-a28f-9b201ffe0208",
+                    "type": "int",
+                    "meta": {
+                      "decl_id": "parameters/update_rate_hz"
+                    },
+                    "data": {
+                      "value": {
+                        "Int": 100
+                      }
+                    }
+                  },
                   {
                     "uuid": "3f5291a7-e75f-44d3-aade-ec07b3cf84c8",
                     "type": "signal_list",
