@@ -18,30 +18,22 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 
 ## Current Checkpoint
 
-- State: `CONSTRUCTION`; Phase 9 final qualification and governed deletion is underway. This state
-  does not claim complete-product parity beyond the immutable Phase 8 checkpoint.
-- Last runnable checkpoint — State: `CHECKPOINT_RUNNABLE`; Phase 8 remains qualified at exact
-  commit `b45a9b0a7a01ebee386e24a91daa42f897054bc6`.
-- Current subphase: Phase 9A, 9B, and 9D are runnable; the Phase 9B 100,000-value runtime, 10,000-node
-  full-workbench, and 622-row functional-parity gates pass locally on Win-x64. The Windows clean
-  package and five-minute three-client/hardware soak gates also pass, and product-owner UX review
-  is approved. macOS/Linux clean packages and exact-commit cross-platform qualification still
-  block the final checkpoint.
-- Construction objective: finish the product-owner, soak, clean-package, and cross-platform gates
-  recorded in
-  [`phase9-qualification.v1.json`](manifests/phase9-qualification.v1.json).
-- Affected layers: product evidence records, migration qualification tooling, performance and
-  full-workbench fixtures, release packaging, and final governed deletion.
-- Expected breakages: `python tools/migration/phase9_readiness.py --json` intentionally exits
-  non-zero until the remaining external and duration-bound qualification evidence is recorded. No
-  Phase 8 product workflow is expected to regress during the Phase 9 construction interval.
-- Focused checks: the 78 migration unit tests, Phase 2 through Phase 9 contract checkers, product
-  manifest drift/schema validation, the complete product gate, the short multi-client soak
-  rehearsal, and the Windows clean-package workflow all pass.
+- State: `CHECKPOINT_RUNNABLE`; Phase 9 final qualification and governed deletion are complete.
+- Last runnable checkpoint: Phase 9 is qualified at exact commit
+  `6762952a239f8890db8b1df0756de883ef868d94`, with the durable evidence record committed at
+  `efd6a03efacada193c1c8e43155beaf334e422a5`.
+- Current subphase: Phase 9A, 9B, 9C, and 9D are runnable. All 14 qualification gates pass, all 622
+  functional-parity rows are qualified, and no temporary migration adapter remains.
+- Cross-platform closure: the exact candidate passed the native Windows, macOS, and Linux product
+  matrix in [run 29912946430](https://github.com/Golden-Geek/Chataigne2/actions/runs/29912946430)
+  and the corresponding clean-package matrix in
+  [run 29912947050](https://github.com/Golden-Geek/Chataigne2/actions/runs/29912947050).
+- Final acceptance command: `python tools/migration/phase9_readiness.py --json` exits zero with
+  `CHECKPOINT_RUNNABLE`, 14/14 gates, 622/622 parity rows, and zero carried adapters.
 - Phase 9A identity proof: all 583 capability IDs from the immutable Phase 0 inventory remain in
   the current 622-row inventory. The 39 post-baseline IDs are locked by SHA-256
   `e6183e50674c3d45045f9e503a33060509d1875d7b714f91c9b40d29a5ff33e4`; the focused identity
-  command and all 78 migration tests pass. The authored evidence manifest now qualifies all 622
+  command and all 82 migration tests pass. The authored evidence manifest now qualifies all 622
   rows through the current full-product report; identity preservation alone is not used as proof.
 - Phase 9B scalar-scale proof: local Win-x64 report
   `target/phase9/scale/phase9-100k-local/phase9-scale-report.json` passed both mandated 100,000-lane
@@ -63,13 +55,26 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
   report passed the Rust workspace and UI gates, all three root launch workflows, mounted real-app
   mutation and Save/Open Last persistence, OSC loopback, and non-loopback LAN interaction. The
   wrapper SHA-256 is `336e208c8dea9bce73ece98b0512bda4209d451359c4c183127d3ea59032d22e`.
-  This evidence does not claim the cross-platform, soak, or signed product-UX parity gates.
+  This local record remains Windows-scoped; the independent soak, UX, and cross-platform records
+  below close their respective gates.
 - Windows clean-package proof:
   `target/phase9/package/windows-final/phase9-clean-package-report.json` records tested tree
   `d37e43bde8b86ed96ade3cdc61e9a2e2b28c8f4b`. NSIS and MSI bundles were produced; an
   isolated NSIS install ran the canonical ten-step mounted UI workflow from the packaged binary,
   including mutation and Save/Open Last, and the generated uninstaller removed the installation.
   The report SHA-256 is `1c6bc908e081c3c167fe10acb8d98d7787ad4d4c69b8ccd3d0aeafba33a58b87`.
+- Exact-commit cross-platform product proof: commit
+  `6762952a239f8890db8b1df0756de883ef868d94` passed 40/40 required Windows checks, 40/40 required
+  macOS checks, and 45/45 required Linux checks in
+  [run 29912946430](https://github.com/Golden-Geek/Chataigne2/actions/runs/29912946430). Every report
+  records `RUNNABLE`, `PASS`, the exact commit, and a clean working tree.
+- Exact-commit native-package proof: tree `bc0da2a87c6e6e9a9f33603008d7bde6de8c8d64`
+  produced Windows NSIS/MSI, macOS app/DMG, and Linux AppImage/Debian bundles in
+  [run 29912947050](https://github.com/Golden-Geek/Chataigne2/actions/runs/29912947050). Every packaged
+  app passed the canonical mounted UI mutation and save/reload workflow; Windows additionally
+  passed generated-uninstaller cleanup. Report and uploaded-artifact hashes are recorded in
+  [`phase9-ci-qualification.v1.json`](manifests/phase9-ci-qualification.v1.json), whose SHA-256 is
+  `0a3f7a560e000bc29960b68f34caae8acbe26d9f4b648e54e464e1917dec4469`.
 - Phase 9 migration soak proof:
   `target/phase9/soak/phase9-final/phase9-soak-report.json` records tested tree
   `7108f5d91da56dfc07df364707bbcb9eb280b8df`. Three hardware-simulator cycles and a
@@ -137,15 +142,15 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
   exact callback payloads, direct-value identity, sparse persistence, script descriptors and
   expansion, every Spatializer weighting mode, Voronoi continuity, rename/layout synchronization,
   and the 512-source by 1,024-target sparse-Delaunay scale fixture. The mounted full-product report
-  supplies current functional evidence for the related visual surfaces; product-owner UX signoff
-  remains a separate Phase 9 gate.
+  supplies current functional evidence for the related visual surfaces; the separately recorded
+  product-owner UX signoff also passes.
 - Phase 9D finalization proof:
-  `target/phase9/finalization/phase9-final-local/phase9-finalization-report.json` passed governed
+  `target/phase9/finalization/phase9-checkpoint-final/phase9-finalization-report.json` passed governed
   deletion, final documentation, manifest drift/schema, and every Phase 2 through Phase 8
-  architecture contract on tested tree `1eaf2d055efd46136fd509c86041e0e45c8d6021`. Its
-  SHA-256 is `ed072b82413272c3b65d3fd1f678f691bab323dfebce934a36bf5f53cd430806`;
-  the Phase 9D dashboard is now runnable with no carried temporary adapter.
-- Next named checkpoint: Phase 9 `CHECKPOINT_RUNNABLE` after every recorded gate passes.
+  architecture contract on tested tree `1f2980d3c3ca252f8305f0ef3ac63f09b6665fce`. Its
+  SHA-256 is `a87d0ec998ba130f95faca30be016e71a5f8ffdec5a822dc55de0682eac86671`;
+  the Phase 9D dashboard is runnable with no carried temporary adapter.
+- Phase 9 checkpoint: `CHECKPOINT_RUNNABLE`; all planned migration phases are complete.
 - 8B proof: deterministic worker fixtures prove fixed-delta values, cycles, tick multiplicity, and
   counts. Local Win-x64 report `target/product-gate/20260716T101347Z/product-gate-report.json`
   passed all 38 required checks; 7 non-required checks were `NOT_RUN`.
@@ -194,9 +199,9 @@ remain `NOT_RUN`; a Windows pass is never recorded as evidence for another platf
 - Focused proof: local Win-x64 report
   `target/product-gate/20260716T095204Z/product-gate-report.json` passed all 38 required checks for
   the 8A tree; 7 non-required dependency/platform checks were `NOT_RUN`.
-- Last runnable checkpoint: Phase 8 at exact commit
-  `b45a9b0a7a01ebee386e24a91daa42f897054bc6`.
-- Remaining Phase 8 work: none.
+- Last runnable checkpoint: Phase 9 at qualified commit
+  `6762952a239f8890db8b1df0756de883ef868d94`.
+- Remaining Phase 9 migration work: none.
 
 The long-lived migration branch does not require a permanently open pull request. Focused PRs are
 opened when a review, named qualification, or merge point is ready. This keeps routine pushes local
@@ -204,19 +209,19 @@ while preserving full cross-platform closure before affected cutovers and final 
 
 ## Phase Status
 
-| Phase                                                                          | Required validation | Implementation status | Product gate           | Dependency or next proof                                                                                                                                                        |
-| ------------------------------------------------------------------------------ | ------------------- | --------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase 0 — Branch from `main`, prove the product, and freeze the contract       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `82a72b3ef517aefe32e4a6907e6cba66aab52022`; [six-platform product gate run 29195670582](https://github.com/Golden-Geek/Chataigne2/actions/runs/29195670582)        |
-| Phase 1A — Form the monorepo by importing the complete working product         | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Cross-platform import qualification is deliberately combined with the Phase 1B toolchain qualification instead of validating a toolchain that Phase 1B immediately replaces     |
-| Phase 1B — Modernize and unify the toolchain without changing the product      | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `0e780f9025be2b86eed3f5474ed257e0da898e2a`; [six-platform product gate run 29323403758](https://github.com/Golden-Geek/Chataigne2/actions/runs/29323403758)        |
-| Phase 2 — Establish stable product seams and shadow infrastructure             | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `2ce92015c60a9958402c0517417c5e8988b358a4`; local report `target/product-gate/20260714T115625Z/product-gate-report.json`                                   |
-| Phase 3 — Extract foundations and `golden-graph` through the live product      | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `1f23dbef04e544f215611771b5003489f67752f3`; [Windows/macOS/Linux product gate run 29366201894](https://github.com/Golden-Geek/Chataigne2/actions/runs/29366201894) |
-| Phase 4 — Migrate Alchemist as a complete authoring-to-runtime slice           | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T130619Z/product-gate-report.json`; all 32 required checks passed                                                                       |
-| Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                       |
-| Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)       |
-| Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Complete            | `PASS` (Win-x64 local) | Tested tree based on `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`; local report `target/product-gate/20260716T070444Z/product-gate-report.json`; all 37 required checks passed |
-| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | Complete            | `PASS`                 | Exact commit `b45a9b0a7a01ebee386e24a91daa42f897054bc6`; [six-platform product gate run 29580856581](https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581)       |
-| Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | `CONSTRUCTION`      | `BLOCKED`              | 622/622 parity, UX, all scale/soak gates, Windows package, documentation, and deletion pass; macOS/Linux packages and cross-platform qualification remain                         |
+| Phase                                                                          | Required validation   | Implementation status | Product gate           | Dependency or next proof                                                                                                                                                        |
+| ------------------------------------------------------------------------------ | --------------------- | --------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 0 — Branch from `main`, prove the product, and freeze the contract       | `CHECKPOINT_RUNNABLE` | Complete              | `PASS`                 | Exact commit `82a72b3ef517aefe32e4a6907e6cba66aab52022`; [six-platform product gate run 29195670582](https://github.com/Golden-Geek/Chataigne2/actions/runs/29195670582)        |
+| Phase 1A — Form the monorepo by importing the complete working product         | `CHECKPOINT_RUNNABLE` | Complete              | `PASS` (Win-x64 local) | Cross-platform import qualification is deliberately combined with the Phase 1B toolchain qualification instead of validating a toolchain that Phase 1B immediately replaces     |
+| Phase 1B — Modernize and unify the toolchain without changing the product      | `CHECKPOINT_RUNNABLE` | Complete              | `PASS`                 | Exact commit `0e780f9025be2b86eed3f5474ed257e0da898e2a`; [six-platform product gate run 29323403758](https://github.com/Golden-Geek/Chataigne2/actions/runs/29323403758)        |
+| Phase 2 — Establish stable product seams and shadow infrastructure             | `CHECKPOINT_RUNNABLE` | Complete              | `PASS` (Win-x64 local) | Tested tree based on `2ce92015c60a9958402c0517417c5e8988b358a4`; local report `target/product-gate/20260714T115625Z/product-gate-report.json`                                   |
+| Phase 3 — Extract foundations and `golden-graph` through the live product      | `CHECKPOINT_RUNNABLE` | Complete              | `PASS`                 | Exact commit `1f23dbef04e544f215611771b5003489f67752f3`; [Windows/macOS/Linux product gate run 29366201894](https://github.com/Golden-Geek/Chataigne2/actions/runs/29366201894) |
+| Phase 4 — Migrate Alchemist as a complete authoring-to-runtime slice           | `CHECKPOINT_RUNNABLE` | Complete              | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T130619Z/product-gate-report.json`; all 32 required checks passed                                                                     |
+| Phase 5 — Migrate statecharts, conditions, contexts, and processors vertically | `CHECKPOINT_RUNNABLE` | Complete              | `PASS` (Win-x64 local) | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed                                                                     |
+| Phase 6 — Replace the runtime center behind the continuously working app       | `CHECKPOINT_RUNNABLE` | Complete              | `PASS`                 | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; [six-platform product gate run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686)        |
+| Phase 7 — Migrate protocol, observation, and UI stores panel by panel          | `CHECKPOINT_RUNNABLE` | Complete              | `PASS` (Win-x64 local) | Tested tree based on `6e02f0f6300e550e18b64aec324c5a15f2be4ebe`; local report `target/product-gate/20260716T070444Z/product-gate-report.json`; all 37 required checks passed    |
+| Phase 8 — Migrate every module and specialized product subsystem               | `CHECKPOINT_RUNNABLE` | Complete              | `PASS`                 | Exact commit `b45a9b0a7a01ebee386e24a91daa42f897054bc6`; [six-platform product gate run 29580856581](https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581)        |
+| Phase 9 — Final qualification, approved UX improvements, and deletion          | `CHECKPOINT_RUNNABLE` | Complete              | `PASS`                 | Exact commit `6762952a239f8890db8b1df0756de883ef868d94`; [cross-platform CI evidence](manifests/phase9-ci-qualification.v1.json)                                                |
 
 ## Phase 0 Governance Slice
 
@@ -274,84 +279,84 @@ while preserving full cross-platform closure before affected cutovers and final 
 
 ## Phase 4 Alchemist Vertical Migration
 
-| Slice                              | Status      | Evidence or next proof                                                                                                  |
-| ---------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Product ownership decision         | Complete    | [ADR 0008](../architecture/decisions/0008-chataigne-owned-alchemist.md) makes Alchemist and its processor composition app-owned |
-| Rust ownership relocation          | Implemented | The complete crate moved to `apps/chataigne/alchemist` as `chataigne_alchemist`; targeted all-target compilation passed |
-| UI ownership relocation            | Implemented | Real Alchemist UI and its formula/lock assets are app-owned; the imported `golden_alchemist_ui` package was removed    |
-| Former Golden package names        | Removed     | Rust consumers use `chataigne_alchemist`; the old UI package, imports, and workspace paths are gone                    |
-| Generic graph dependency direction | Verified    | Phase 3 foundation and graph UI ownership contracts pass at the relocated path                                         |
-| Typed formula authoring document   | Cut over    | `AlchemistFormula::graph` is an app-owned `AlchemistGraphDocument`; overrides commit through one revisioned transaction |
-| Formula persistence                | Cut over    | Reads and writes use the versioned typed graph envelope; no shipped legacy Formula graph payload was found             |
-| Compiler and type-solver boundary  | Cut over    | Compiler and solver consume typed document semantics directly; no public or internal whole-graph legacy lowering remains |
-| Managed pipeline graph builders    | Cut over    | Formula filter lowering and state-machine `ValueSet` builders commit typed documents atomically without the legacy adapter |
-| Production graph construction      | Cut over    | Live Formula snapshots and transition guard/effect runtimes preserve identity and compile typed documents without conversion |
-| Former graph model and adapters    | Removed     | Legacy graph storage, serializer, conversion adapter, and compatibility reads are absent from Rust source and shipped assets |
-| Revisioned cutover evidence        | Complete    | [`manifests/phase4-cutovers.v1.json`](manifests/phase4-cutovers.v1.json) revision 7 and `tools/migration/check_phase4_contracts.py` |
+| Slice                              | Status      | Evidence or next proof                                                                                                                               |
+| ---------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product ownership decision         | Complete    | [ADR 0008](../architecture/decisions/0008-chataigne-owned-alchemist.md) makes Alchemist and its processor composition app-owned                      |
+| Rust ownership relocation          | Implemented | The complete crate moved to `apps/chataigne/alchemist` as `chataigne_alchemist`; targeted all-target compilation passed                              |
+| UI ownership relocation            | Implemented | Real Alchemist UI and its formula/lock assets are app-owned; the imported `golden_alchemist_ui` package was removed                                  |
+| Former Golden package names        | Removed     | Rust consumers use `chataigne_alchemist`; the old UI package, imports, and workspace paths are gone                                                  |
+| Generic graph dependency direction | Verified    | Phase 3 foundation and graph UI ownership contracts pass at the relocated path                                                                       |
+| Typed formula authoring document   | Cut over    | `AlchemistFormula::graph` is an app-owned `AlchemistGraphDocument`; overrides commit through one revisioned transaction                              |
+| Formula persistence                | Cut over    | Reads and writes use the versioned typed graph envelope; no shipped legacy Formula graph payload was found                                           |
+| Compiler and type-solver boundary  | Cut over    | Compiler and solver consume typed document semantics directly; no public or internal whole-graph legacy lowering remains                             |
+| Managed pipeline graph builders    | Cut over    | Formula filter lowering and state-machine `ValueSet` builders commit typed documents atomically without the legacy adapter                           |
+| Production graph construction      | Cut over    | Live Formula snapshots and transition guard/effect runtimes preserve identity and compile typed documents without conversion                         |
+| Former graph model and adapters    | Removed     | Legacy graph storage, serializer, conversion adapter, and compatibility reads are absent from Rust source and shipped assets                         |
+| Revisioned cutover evidence        | Complete    | [`manifests/phase4-cutovers.v1.json`](manifests/phase4-cutovers.v1.json) revision 7 and `tools/migration/check_phase4_contracts.py`                  |
 | Win-x64 product qualification      | `PASS`      | Local report `target/product-gate/20260715T130619Z/product-gate-report.json`; all 32 required checks passed and 7 non-required checks were `NOT_RUN` |
 
 ## Phase 5 Statechart, Condition, Context, And Processor Vertical
 
-| Slice                                    | Status   | Evidence or next proof                                                                                         |
-| ---------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
-| Canonical statechart graph document      | Cut over | `Statechart` owns `StatechartGraphDocument`; mutations use graph transactions and the former adapter is gone  |
-| Statechart UI document                   | Cut over | `StateMachinePanel` uses `golden_statechart_ui::StatechartDocumentView` with the existing Golden graph canvas |
-| Compiled condition IR                    | Cut over | Input Value, Input Node, Group, and Script compile to flat instructions, bindings, observations, and dense state |
-| Steady-state condition execution         | Cut over | Runtime and inspector paths consume compiled programs/observations without walking authored condition nodes   |
-| Processor ownership                      | Relocated | Processor, context/lane, `ValueSet`, and managed pipelines live in `apps/chataigne/processor`                |
-| Context lane compilation and migration   | Verified | Stable lane keys preserve retained state; P50-L1 and P5-L127 backend fixtures pass                           |
-| Live lane UI                             | Verified | UI projection fixtures cover P50-L1 and P5-L127, and the mounted real-app workflow passes                    |
-| Action and Mapping composition           | Cut over | The two shipped formulas use the single Processor, condition, `ValueSet`, and output-intent path              |
-| Pure semantic shadow comparison          | Verified | Compiled comparator results match reference outcomes without any effect host                                 |
-| Revisioned cutover evidence              | Complete | [`manifests/phase5-cutovers.v1.json`](manifests/phase5-cutovers.v1.json) and `tools/migration/check_phase5_contracts.py` |
-| Win-x64 product qualification            | `PASS`   | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed and 7 non-required checks were `NOT_RUN` |
+| Slice                                  | Status    | Evidence or next proof                                                                                                                               |
+| -------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canonical statechart graph document    | Cut over  | `Statechart` owns `StatechartGraphDocument`; mutations use graph transactions and the former adapter is gone                                         |
+| Statechart UI document                 | Cut over  | `StateMachinePanel` uses `golden_statechart_ui::StatechartDocumentView` with the existing Golden graph canvas                                        |
+| Compiled condition IR                  | Cut over  | Input Value, Input Node, Group, and Script compile to flat instructions, bindings, observations, and dense state                                     |
+| Steady-state condition execution       | Cut over  | Runtime and inspector paths consume compiled programs/observations without walking authored condition nodes                                          |
+| Processor ownership                    | Relocated | Processor, context/lane, `ValueSet`, and managed pipelines live in `apps/chataigne/processor`                                                        |
+| Context lane compilation and migration | Verified  | Stable lane keys preserve retained state; P50-L1 and P5-L127 backend fixtures pass                                                                   |
+| Live lane UI                           | Verified  | UI projection fixtures cover P50-L1 and P5-L127, and the mounted real-app workflow passes                                                            |
+| Action and Mapping composition         | Cut over  | The two shipped formulas use the single Processor, condition, `ValueSet`, and output-intent path                                                     |
+| Pure semantic shadow comparison        | Verified  | Compiled comparator results match reference outcomes without any effect host                                                                         |
+| Revisioned cutover evidence            | Complete  | [`manifests/phase5-cutovers.v1.json`](manifests/phase5-cutovers.v1.json) and `tools/migration/check_phase5_contracts.py`                             |
+| Win-x64 product qualification          | `PASS`    | Local report `target/product-gate/20260715T163517Z/product-gate-report.json`; all 33 required checks passed and 7 non-required checks were `NOT_RUN` |
 
 ## Phase 6 Runtime-Center Cutover And Qualification
 
-| Slice                                  | Status       | Evidence or remaining work                                                                                              |
-| -------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Actor-owned control plane              | Cut over     | `ProductionRuntime` owns `ProductionState` through `golden_runtime::ControlActor`; hosts and transports cannot lock it |
-| Immutable generation/compiler plane    | Cut over     | Async compilation, atomic publication, compatible state migration, and old-generation continuity run in production   |
-| Dense input/data plane                 | Cut over     | `RuntimeValues` publishes through compiled slots with latest/lossless delivery and race-safe generation handoff       |
-| Persistent scheduler and effect commit | Cut over     | Dense inputs and due domain callbacks use compile-assigned work IDs; stable actor commit and the production OSC loopback prove external order |
-| Runtime diagnostics UI                 | Cut over     | Generated protocol metrics surface through the existing engine-rate performance indicator                              |
-| App-domain semantic runtime cutover    | Cut over     | Production uses `run_tick_with_compiled_schedule`; `Engine::run_tick` is rollback-only and mutable app-node kernels are governed through Phase 8 |
-| Win-x64 product qualification          | `PASS`       | Report `target/product-gate/20260715T201806Z/product-gate-report.json`: all 35 required checks passed; 8 non-required dependency/platform checks were `NOT_RUN` |
-| Cross-platform qualification           | `PASS`       | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; native Windows/macOS/Linux, three compatibility targets, and aggregate exact-commit reporting passed in [run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686) |
+| Slice                                  | Status   | Evidence or remaining work                                                                                                                                                                                                                             |
+| -------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Actor-owned control plane              | Cut over | `ProductionRuntime` owns `ProductionState` through `golden_runtime::ControlActor`; hosts and transports cannot lock it                                                                                                                                 |
+| Immutable generation/compiler plane    | Cut over | Async compilation, atomic publication, compatible state migration, and old-generation continuity run in production                                                                                                                                     |
+| Dense input/data plane                 | Cut over | `RuntimeValues` publishes through compiled slots with latest/lossless delivery and race-safe generation handoff                                                                                                                                        |
+| Persistent scheduler and effect commit | Cut over | Dense inputs and due domain callbacks use compile-assigned work IDs; stable actor commit and the production OSC loopback prove external order                                                                                                          |
+| Runtime diagnostics UI                 | Cut over | Generated protocol metrics surface through the existing engine-rate performance indicator                                                                                                                                                              |
+| App-domain semantic runtime cutover    | Cut over | Production uses `run_tick_with_compiled_schedule`; `Engine::run_tick` is rollback-only and mutable app-node kernels are governed through Phase 8                                                                                                       |
+| Win-x64 product qualification          | `PASS`   | Report `target/product-gate/20260715T201806Z/product-gate-report.json`: all 35 required checks passed; 8 non-required dependency/platform checks were `NOT_RUN`                                                                                        |
+| Cross-platform qualification           | `PASS`   | Exact commit `c1e604f95cd11e7d17e4db31686b0caadd2bae10`; native Windows/macOS/Linux, three compatibility targets, and aggregate exact-commit reporting passed in [run 29450944686](https://github.com/Golden-Geek/Chataigne2/actions/runs/29450944686) |
 
 ## Phase 7 Generated Protocol, Observation, And Panel Migration
 
-| Slice                                  | Status   | Evidence or remaining work                                                                                              |
-| -------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Generated multi-plane protocol         | Cut over | Rust owns the versioned client/server messages and codegen emits every TypeScript protocol declaration                 |
-| Control lifecycle                      | Cut over | Intents report received, accepted, applied, or rejected without exposing an engine lock to transport clients           |
-| Interests, replay, and scoped resync   | Cut over | View-scoped plane interests filter deltas; snapshots and replay use the read model over the same WebSocket protocol    |
-| Observation backpressure               | Cut over | Bounded queues coalesce values/observations/previews, preserve structure/triggers, and isolate reliable-queue overflow |
-| Coherent UI frame commit               | Cut over | Golden UI stages merged EventTime-ordered plane deltas and advances cursors only on `requestAnimationFrame` commit     |
-| Panel-area migrations 7A through 7F    | Cut over | Existing workbench, authoring, graph, Alchemist, state-machine, module, specialized, packaged, and LAN surfaces use the final client/store path |
-| Old protocol/runtime HTTP adapter      | Removed  | Hand-maintained WebSocket declarations, runtime HTTP polling/fallback, and `createHttpUiClient` are absent             |
-| Revisioned cutover evidence            | Complete | [`manifests/phase7-cutovers.v1.json`](manifests/phase7-cutovers.v1.json) and `tools/migration/check_phase7_contracts.py` |
-| Win-x64 product qualification          | `PASS`   | Report `target/product-gate/20260716T070444Z/product-gate-report.json`: all 37 required checks passed; 7 non-required checks were `NOT_RUN` |
+| Slice                                | Status   | Evidence or remaining work                                                                                                                      |
+| ------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Generated multi-plane protocol       | Cut over | Rust owns the versioned client/server messages and codegen emits every TypeScript protocol declaration                                          |
+| Control lifecycle                    | Cut over | Intents report received, accepted, applied, or rejected without exposing an engine lock to transport clients                                    |
+| Interests, replay, and scoped resync | Cut over | View-scoped plane interests filter deltas; snapshots and replay use the read model over the same WebSocket protocol                             |
+| Observation backpressure             | Cut over | Bounded queues coalesce values/observations/previews, preserve structure/triggers, and isolate reliable-queue overflow                          |
+| Coherent UI frame commit             | Cut over | Golden UI stages merged EventTime-ordered plane deltas and advances cursors only on `requestAnimationFrame` commit                              |
+| Panel-area migrations 7A through 7F  | Cut over | Existing workbench, authoring, graph, Alchemist, state-machine, module, specialized, packaged, and LAN surfaces use the final client/store path |
+| Old protocol/runtime HTTP adapter    | Removed  | Hand-maintained WebSocket declarations, runtime HTTP polling/fallback, and `createHttpUiClient` are absent                                      |
+| Revisioned cutover evidence          | Complete | [`manifests/phase7-cutovers.v1.json`](manifests/phase7-cutovers.v1.json) and `tools/migration/check_phase7_contracts.py`                        |
+| Win-x64 product qualification        | `PASS`   | Report `target/product-gate/20260716T070444Z/product-gate-report.json`: all 37 required checks passed; 7 non-required checks were `NOT_RUN`     |
 
 ## Phase 8 Module And Specialized-Subsystem Checkpoint
 
-| Subphase | Status         | Current evidence or next proof                                                                                         |
-| -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 8A       | `RUNNABLE`     | `golden_io` owns pending signaling, reconnect backoff, bounded queues, worker tasks, and deterministic test transports; all 38 required product-gate checks pass |
-| 8B       | `RUNNABLE`     | Signal and Metronome have compile-assigned family kernels and deterministic worker fixtures; all 38 required product-gate checks pass |
-| 8C       | `RUNNABLE`     | OSC and MIDI have compile-assigned family kernels and enforced parity/recovery fixtures; all 38 required product-gate checks pass |
-| 8D       | `RUNNABLE`     | Transport families have compile-assigned kernels, bounded queues, and enforced recovery/loopback fixtures; all 38 required product-gate checks pass |
-| 8E       | `RUNNABLE`     | All controller/hardware entries have family kernels and named deterministic adapter evidence; all 38 required product-gate checks pass |
-| 8F       | `RUNNABLE`     | App Control and OS have family kernels, named workers, lifecycle, and enforced platform fixtures; all 38 required product-gate checks pass |
-| 8G       | `RUNNABLE`     | Spatializer uses sparse Delaunay topology at the declared scale; dashboard/editor workflows are enforced; all 38 required product-gate checks pass |
-| 8H       | `RUNNABLE`     | Public runtime/cache/budget contracts and the complete generated script/asset/registration inventory are enforced; all 38 required product-gate checks pass |
-| 8I       | `RUNNABLE`     | Durable project recovery, desktop/headless/LAN discovery, active native bundles, signing/notarization hooks, and release assets are enforced; all 38 required product-gate checks pass |
-| 8J       | `RUNNABLE`     | Art-Net/sACN/DMX and Node implementation, focused contracts, and all 38 required local product-gate checks pass       |
+| Subphase | Status     | Current evidence or next proof                                                                                                                                                         |
+| -------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8A       | `RUNNABLE` | `golden_io` owns pending signaling, reconnect backoff, bounded queues, worker tasks, and deterministic test transports; all 38 required product-gate checks pass                       |
+| 8B       | `RUNNABLE` | Signal and Metronome have compile-assigned family kernels and deterministic worker fixtures; all 38 required product-gate checks pass                                                  |
+| 8C       | `RUNNABLE` | OSC and MIDI have compile-assigned family kernels and enforced parity/recovery fixtures; all 38 required product-gate checks pass                                                      |
+| 8D       | `RUNNABLE` | Transport families have compile-assigned kernels, bounded queues, and enforced recovery/loopback fixtures; all 38 required product-gate checks pass                                    |
+| 8E       | `RUNNABLE` | All controller/hardware entries have family kernels and named deterministic adapter evidence; all 38 required product-gate checks pass                                                 |
+| 8F       | `RUNNABLE` | App Control and OS have family kernels, named workers, lifecycle, and enforced platform fixtures; all 38 required product-gate checks pass                                             |
+| 8G       | `RUNNABLE` | Spatializer uses sparse Delaunay topology at the declared scale; dashboard/editor workflows are enforced; all 38 required product-gate checks pass                                     |
+| 8H       | `RUNNABLE` | Public runtime/cache/budget contracts and the complete generated script/asset/registration inventory are enforced; all 38 required product-gate checks pass                            |
+| 8I       | `RUNNABLE` | Durable project recovery, desktop/headless/LAN discovery, active native bundles, signing/notarization hooks, and release assets are enforced; all 38 required product-gate checks pass |
+| 8J       | `RUNNABLE` | Art-Net/sACN/DMX and Node implementation, focused contracts, and all 38 required local product-gate checks pass                                                                        |
 
 ## Required Root Workflow Status
 
-| Command or workflow  | Status                         | Required result                                                                            |
-| -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
+| Command or workflow  | Status                            | Required result                                                                            |
+| -------------------- | --------------------------------- | ------------------------------------------------------------------------------------------ |
 | `cargo run`          | `PASS` on Phase 8 checkpoint tree | Complete Chataigne app, real backend, bundled/default UI, connected engine                 |
 | `watch`              | `PASS` on Phase 8 checkpoint tree | One orchestrator, explicit readiness, correct restart/shutdown, and released product ports |
 | `cargo run -- --dev` | `PASS` on Phase 8 checkpoint tree | Complete app with live frontend/dev server and connected engine                            |

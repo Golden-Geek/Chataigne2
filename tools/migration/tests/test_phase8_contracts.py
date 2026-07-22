@@ -200,6 +200,25 @@ class Phase8ContractTests(unittest.TestCase):
             self.assertTrue(any("qualified exact commit" in item for item in violations))
             self.assertTrue(any("cross-platform qualification" in item for item in violations))
 
+    def test_phase8_checkpoint_history_cannot_be_rewritten(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory)
+            copy_contract_tree(root, copy)
+            path = copy / "docs/product/migration-progress.md"
+            progress = path.read_text(encoding="utf-8")
+            progress = progress.replace(
+                "b45a9b0a7a01ebee386e24a91daa42f897054bc6",
+                "0000000000000000000000000000000000000000",
+            )
+            path.write_text(progress, encoding="utf-8")
+
+            violations = MODULE.collect_violations(copy)
+
+            self.assertTrue(
+                any("preserve the Phase 8 runnable checkpoint" in item for item in violations)
+            )
+
     def test_signal_without_compiled_kernel_is_rejected(self) -> None:
         root = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as directory:

@@ -888,8 +888,18 @@ def collect_violations(root: Path) -> list[str]:
         "phase6.app-domain-node-kernels"
     ]:
         violations.append("Phase 8 does not carry the governed Phase 6 domain adapter")
-    if "State: `CHECKPOINT_RUNNABLE`; Phase 8" not in progress:
-        violations.append("migration progress does not declare the Phase 8 runnable checkpoint")
+    phase8_rows = [
+        line for line in progress.splitlines() if line.startswith("| Phase 8 ")
+    ]
+    if (
+        len(phase8_rows) != 1
+        or "`CHECKPOINT_RUNNABLE`" not in phase8_rows[0]
+        or "Complete" not in phase8_rows[0]
+        or "`PASS`" not in phase8_rows[0]
+        or expected_commit not in phase8_rows[0]
+        or expected_run not in phase8_rows[0]
+    ):
+        violations.append("migration progress does not preserve the Phase 8 runnable checkpoint")
 
     return violations
 

@@ -33,10 +33,12 @@ Start here:
   module families, shared IO cutovers, carried runtime adapter, and qualification state.
 - [Phase 8 controller/hardware evidence](manifests/phase8-hardware-evidence.v1.json) names the
   platform scope, deterministic adapter, executable fixtures, and physical-device status per family.
-- [Phase 9 qualification dashboard](manifests/phase9-qualification.v1.json) declares the current
-  construction interval, preserves the immutable Phase 8 checkpoint, and records every final
-  parity, scale, soak, packaging, documentation, and deletion gate. Run
-  `python tools/migration/phase9_readiness.py --json` for the machine-readable blocker report.
+- [Phase 9 qualification dashboard](manifests/phase9-qualification.v1.json) records the final
+  `CHECKPOINT_RUNNABLE` state, exact qualified commit, and every passing parity, scale, soak,
+  packaging, documentation, and deletion gate. The machine-readable acceptance report is produced
+  by `python tools/migration/phase9_readiness.py --json`.
+- [Phase 9 cross-platform CI evidence](manifests/phase9-ci-qualification.v1.json) records the exact
+  Windows/macOS/Linux product and clean-package runs, report hashes, and uploaded-artifact digests.
 - [Phase 9 UX approval](manifests/phase9-ux-approval.v1.json) records the product-owner decision and
   immutable hashes of the reviewed mounted-app captures.
 - [Architecture decisions](../architecture/decisions/README.md) record the Phase 0 decisions that

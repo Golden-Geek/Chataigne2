@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
   "phase": 9,
-  "revision": 75,
-  "validation_state": "CONSTRUCTION",
+  "revision": 76,
+  "validation_state": "CHECKPOINT_RUNNABLE",
   "last_runnable_checkpoint": {
-    "phase": 8,
-    "qualified_commit": "b45a9b0a7a01ebee386e24a91daa42f897054bc6",
-    "record_commit": "aabaccc5da1b5de4026aa219e16f0d4463c1e49b",
-    "cross_platform_run": "https://github.com/Golden-Geek/Chataigne2/actions/runs/29580856581"
+    "phase": 9,
+    "qualified_commit": "6762952a239f8890db8b1df0756de883ef868d94",
+    "record_commit": "efd6a03efacada193c1c8e43155beaf334e422a5",
+    "cross_platform_run": "https://github.com/Golden-Geek/Chataigne2/actions/runs/29912946430",
+    "package_run": "https://github.com/Golden-Geek/Chataigne2/actions/runs/29912947050"
   },
   "construction_interval": {
     "objective": "Turn the frozen product inventory into executable, current parity evidence before final scale qualification and governed deletion.",
@@ -82,7 +83,7 @@
     },
     {
       "subphase_id": "9C",
-      "state": "pending",
+      "state": "runnable",
       "owner": "module IO, hosts, networking, hardware, and release tooling",
       "deliverables": [
         "module, network, multi-client, and hardware soak",
@@ -153,14 +154,54 @@
       "summary": "PASS: NSIS and MSI bundles were produced; the isolated NSIS install launched the packaged application, completed the canonical ten-step UI mutation and Save/Open Last workflow, and was removed by its generated uninstaller."
     },
     {
+      "evidence_id": "phase9.product.cross-platform.ci",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc, aarch64-apple-darwin, x86_64-unknown-linux-gnu",
+      "tested_tree_sha": "bc0da2a87c6e6e9a9f33603008d7bde6de8c8d64",
+      "command": "GitHub Actions product run 29912946430",
+      "artifact_id": "docs/product/manifests/phase9-ci-qualification.v1.json#product_run",
+      "artifact_hash": "0a3f7a560e000bc29960b68f34caae8acbe26d9f4b648e54e464e1917dec4469",
+      "summary": "PASS: the exact candidate commit completed native Windows, macOS, and Linux product qualification with clean working trees and all 125 required checks passing across the three reports. Each platform built and launched the real product, connected the mounted UI, mutated and persisted the canonical fixture, and passed its applicable networking and platform checks."
+    },
+    {
+      "evidence_id": "phase9.package.windows.clean.ci",
+      "status": "PASS",
+      "platform": "x86_64-pc-windows-msvc",
+      "tested_tree_sha": "bc0da2a87c6e6e9a9f33603008d7bde6de8c8d64",
+      "command": "GitHub Actions package run 29912947050, Windows job 88899964024",
+      "artifact_id": "docs/product/manifests/phase9-ci-qualification.v1.json#package_run/platforms/windows",
+      "artifact_hash": "0a3f7a560e000bc29960b68f34caae8acbe26d9f4b648e54e464e1917dec4469",
+      "summary": "PASS: the exact candidate produced NSIS and MSI bundles; an isolated NSIS install passed the complete mounted-app mutation and save/reload workflow, and the generated uninstaller removed it."
+    },
+    {
+      "evidence_id": "phase9.package.macos.clean.ci",
+      "status": "PASS",
+      "platform": "aarch64-apple-darwin",
+      "tested_tree_sha": "bc0da2a87c6e6e9a9f33603008d7bde6de8c8d64",
+      "command": "GitHub Actions package run 29912947050, macOS job 88899964030",
+      "artifact_id": "docs/product/manifests/phase9-ci-qualification.v1.json#package_run/platforms/macos",
+      "artifact_hash": "0a3f7a560e000bc29960b68f34caae8acbe26d9f4b648e54e464e1917dec4469",
+      "summary": "PASS: the exact candidate produced the macOS app and DMG bundles, launched the packaged app, and passed the complete mounted-app mutation and save/reload workflow on macOS 15."
+    },
+    {
+      "evidence_id": "phase9.package.linux.clean.ci",
+      "status": "PASS",
+      "platform": "x86_64-unknown-linux-gnu",
+      "tested_tree_sha": "bc0da2a87c6e6e9a9f33603008d7bde6de8c8d64",
+      "command": "GitHub Actions package run 29912947050, Linux job 88899964019",
+      "artifact_id": "docs/product/manifests/phase9-ci-qualification.v1.json#package_run/platforms/linux",
+      "artifact_hash": "0a3f7a560e000bc29960b68f34caae8acbe26d9f4b648e54e464e1917dec4469",
+      "summary": "PASS: the exact candidate produced AppImage and Debian bundles; the AppImage launched under a virtual display and passed the complete mounted-app mutation and save/reload workflow on Ubuntu 24.04."
+    },
+    {
       "evidence_id": "phase9.finalization.local",
       "status": "PASS",
       "platform": "x86_64-pc-windows-msvc",
-      "tested_tree_sha": "1eaf2d055efd46136fd509c86041e0e45c8d6021",
-      "command": "python tools/migration/run_phase9_finalization.py --output-dir target/phase9/finalization/phase9-final-local",
-      "artifact_id": "target/phase9/finalization/phase9-final-local/phase9-finalization-report.json",
-      "artifact_hash": "ed072b82413272c3b65d3fd1f678f691bab323dfebce934a36bf5f53cd430806",
-      "summary": "PASS: governed deletion, final documentation, generated manifest drift/schema, and every Phase 2 through Phase 8 architecture contract passed on the recorded tree."
+      "tested_tree_sha": "1f2980d3c3ca252f8305f0ef3ac63f09b6665fce",
+      "command": "python tools/migration/run_phase9_finalization.py --output-dir target/phase9/finalization/phase9-checkpoint-final",
+      "artifact_id": "target/phase9/finalization/phase9-checkpoint-final/phase9-finalization-report.json",
+      "artifact_hash": "a87d0ec998ba130f95faca30be016e71a5f8ffdec5a822dc55de0682eac86671",
+      "summary": "PASS: governed deletion, final documentation, generated manifest drift/schema, and every Phase 2 through Phase 8 architecture contract passed after the Phase 9 checkpoint and immutable-history records were finalized."
     },
     {
       "evidence_id": "phase9.soak.module-network-multiclient-hardware.local",
@@ -257,22 +298,22 @@
     {
       "gate_id": "windows-clean-package",
       "state": "PASS",
-      "evidence": "phase9.package.windows.clean"
+      "evidence": "phase9.package.windows.clean.ci"
     },
     {
       "gate_id": "macos-clean-package",
-      "state": "NOT_RUN",
-      "evidence": null
+      "state": "PASS",
+      "evidence": "phase9.package.macos.clean.ci"
     },
     {
       "gate_id": "linux-clean-package",
-      "state": "NOT_RUN",
-      "evidence": null
+      "state": "PASS",
+      "evidence": "phase9.package.linux.clean.ci"
     },
     {
       "gate_id": "cross-platform-product",
-      "state": "NOT_RUN",
-      "evidence": null
+      "state": "PASS",
+      "evidence": "phase9.product.cross-platform.ci"
     },
     {
       "gate_id": "final-documentation",

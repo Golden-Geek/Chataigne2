@@ -124,20 +124,16 @@ def ready_dashboard() -> dict[str, object]:
 
 
 class Phase9ReadinessTests(unittest.TestCase):
-    def test_current_tree_reports_truthful_construction_blockers(self) -> None:
+    def test_current_tree_is_a_runnable_phase9_checkpoint(self) -> None:
         root = Path(__file__).resolve().parents[3]
         report = MODULE.build_report(root)
 
-        self.assertFalse(report["ready"])
-        self.assertEqual(report["validation_state"], "CONSTRUCTION")
+        self.assertTrue(report["ready"])
+        self.assertEqual(report["validation_state"], "CHECKPOINT_RUNNABLE")
         self.assertEqual(report["metrics"]["parity_rows"], 622)
         self.assertEqual(report["metrics"]["qualified_parity_rows"], 622)
-        self.assertTrue(
-            any("subphases are not runnable" in blocker for blocker in report["blockers"])
-        )
-        self.assertTrue(
-            any("qualification gates are incomplete" in blocker for blocker in report["blockers"])
-        )
+        self.assertEqual(report["metrics"]["passing_phase9_gates"], 14)
+        self.assertEqual(report["blockers"], [])
 
     def test_complete_evidence_matrix_is_ready(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
