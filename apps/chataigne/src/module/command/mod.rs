@@ -228,11 +228,44 @@ pub(crate) fn decode_module_command_request(event: &CustomEvent) -> Option<Modul
         .flatten()
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub(crate) struct ModuleCommandInvocationId {
+    /// Node that owns the stream interner.
+    pub emitter: NodeId,
+    /// Collision-free stream allocated monotonically by that emitter.
+    pub stream: u64,
+}
+
+impl ModuleCommandInvocationId {
+    pub(crate) const fn new(emitter: NodeId, stream: u64) -> Self {
+        Self { emitter, stream }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ModuleCommandDeliveryPolicy {
+    #[default]
+    Standard,
+    ChangeAwareLogAdmitted,
+}
+
+impl ModuleCommandDeliveryPolicy {
+    fn is_standard(value: &Self) -> bool {
+        *value == Self::Standard
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct ModuleCommandExecuteEvent {
     pub command_id: NodeId,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub param_overrides: ModuleCommandParamOverrides,
+    /// Runtime producer identity used by idempotent sinks. Manual/UI invocations omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invocation_id: Option<ModuleCommandInvocationId>,
+    #[serde(default, skip_serializing_if = "ModuleCommandDeliveryPolicy::is_standard")]
+    pub delivery_policy: ModuleCommandDeliveryPolicy,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -243,51 +276,50 @@ pub(crate) struct ModuleCommandParamOverride {
 
 pub(crate) type ModuleCommandParamOverrides = Vec<ModuleCommandParamOverride>;
 
-pub(crate) fn emit_command_execute_with_overrides(
+pub(crate) fn emit_command_execute_with_invocation(
     ctx: &mut ProcessCtx,
     command_id: NodeId,
     param_overrides: ModuleCommandParamOverrides,
+    invocation_id: Option<ModuleCommandInvocationId>,
+    delivery_policy: ModuleCommandDeliveryPolicy,
 ) -> Result<(), String> {
     let event = ModuleCommandExecuteEvent {
         command_id,
         param_overrides,
+        invocation_id,
+        delivery_policy,
     };
-    ctx.emit_custom_payload(MODULE_COMMAND_EXECUTE_TOPIC, Some(command_id), &event)
+    ctx.emit_transient_custom_payload(MODULE_COMMAND_EXECUTE_TOPIC, Some(command_id), &event)
         .map_err(|error| format!("failed to emit module command execute: {error}"))
 }
 
 /// Returns `true` when `event` asks `command_id` to run.
 pub(crate) fn is_command_execute_request(event: &CustomEvent, command_id: NodeId) -> bool {
-    decode_command_execute(event, command_id).is_some()
+    command_execute_request(event, command_id).is_some()
 }
 
-pub(crate) fn command_execute_param_value(
+pub(crate) fn command_execute_request(
     event: &CustomEvent,
-    snapshot: &ProcessTreeSnapshot,
     command_id: NodeId,
-    path: &str,
-) -> Option<ParamValue> {
-    let decoded = decode_command_execute(event, command_id)?;
-    let param_id = resolve_module_command_child(snapshot, command_id, path)?;
-    decoded
-        .param_overrides
-        .iter()
-        .find(|entry| entry.param_id == param_id)
-        .map(|entry| entry.value.clone())
+) -> Option<ModuleCommandExecuteEvent> {
+    (event.topic == MODULE_COMMAND_EXECUTE_TOPIC)
+        .then(|| event.payload_as::<ModuleCommandExecuteEvent>().ok())
+        .flatten()
+        .filter(|decoded| decoded.command_id == command_id)
 }
 
 pub(crate) fn command_execute_param_overrides(
     event: &CustomEvent,
     command_id: NodeId,
 ) -> Option<ModuleCommandParamOverrides> {
-    decode_command_execute(event, command_id).map(|decoded| decoded.param_overrides)
+    command_execute_request(event, command_id).map(|decoded| decoded.param_overrides)
 }
 
 pub(crate) fn command_execute_has_param_overrides(
     event: &CustomEvent,
     command_id: NodeId,
 ) -> bool {
-    decode_command_execute(event, command_id)
+    command_execute_request(event, command_id)
         .is_some_and(|decoded| !decoded.param_overrides.is_empty())
 }
 
@@ -309,16 +341,6 @@ pub(crate) fn command_execute_snapshot<'a>(
                 .map(|override_value| (override_value.param_id, override_value.value)),
         ),
     )
-}
-
-fn decode_command_execute(
-    event: &CustomEvent,
-    command_id: NodeId,
-) -> Option<ModuleCommandExecuteEvent> {
-    (event.topic == MODULE_COMMAND_EXECUTE_TOPIC)
-        .then(|| event.payload_as::<ModuleCommandExecuteEvent>().ok())
-        .flatten()
-        .filter(|decoded| decoded.command_id == command_id)
 }
 
 #[node("module_command_manager_base", label = "Commands")]

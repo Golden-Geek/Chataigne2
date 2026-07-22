@@ -29,7 +29,7 @@
 			{/if}
 			{#each lanes as lane}
 				<option value={lane.id}>
-					{lane.label}{lane.diagnosticsCount > 0 ? ` (${lane.diagnosticsCount})` : ''}
+					{lane.label}
 				</option>
 			{/each}
 		</select>

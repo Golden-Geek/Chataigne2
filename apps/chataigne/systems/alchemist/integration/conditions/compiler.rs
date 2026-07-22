@@ -39,17 +39,21 @@ pub(crate) fn compile_manager_condition(
     root: NodeId,
 ) -> Result<CompiledManagerCondition, Vec<String>> {
     let mut bindings = HashMap::new();
-    let current = definition(snapshot, root, false, &mut bindings).ok_or_else(|| {
+    let current_definition = definition(snapshot, root, false, &mut bindings).ok_or_else(|| {
         vec![format!("condition manager `{root:?}` has no compilable condition tree")]
     })?;
-    let settled = definition(snapshot, root, true, &mut bindings).ok_or_else(|| {
+    let settled_definition = definition(snapshot, root, true, &mut bindings).ok_or_else(|| {
         vec![format!("condition manager `{root:?}` has no settled condition tree")]
     })?;
-    let current = compile_condition(&current).map_err(diagnostic_messages)?;
-    let settled = compile_condition(&settled).map_err(diagnostic_messages)?;
+    let current = Arc::new(compile_condition(&current_definition).map_err(diagnostic_messages)?);
+    let settled = if current_definition == settled_definition {
+        Arc::clone(&current)
+    } else {
+        Arc::new(compile_condition(&settled_definition).map_err(diagnostic_messages)?)
+    };
     Ok(CompiledManagerCondition {
-        current: Arc::new(current),
-        settled: Arc::new(settled),
+        current,
+        settled,
         bindings: Arc::new(bindings),
     })
 }

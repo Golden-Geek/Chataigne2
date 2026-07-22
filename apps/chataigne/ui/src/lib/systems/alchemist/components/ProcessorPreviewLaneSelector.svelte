@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
-	import type { StateMachineProtocolBundle } from '../../state_machine/generated';
-	import { STATE_MACHINE_RUNTIME_PREVIEW_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
+	import type { StateMachinePreviewCatalogDto } from '../../state_machine/generated';
+	import { STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
 	import {
 		formulaPreviewSessionStore,
 		processorPreviewLaneOptions
@@ -12,20 +12,20 @@
 	let { node }: { node: UiNodeDto } = $props();
 
 	let session = $derived(appState.session);
-	let runtimePreviewSequence = $derived(
-		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
+	let runtimePreviewCatalogSequence = $derived(
+		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC) ?? 0
 	);
-	let runtimePreviewBundle = $derived.by((): StateMachineProtocolBundle | null => {
-		runtimePreviewSequence;
+	let runtimePreviewCatalog = $derived.by((): StateMachinePreviewCatalogDto | null => {
+		runtimePreviewCatalogSequence;
 		return (
-			session?.getCustomEventPayload<StateMachineProtocolBundle>(
-				STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
+			session?.getCustomEventPayload<StateMachinePreviewCatalogDto>(
+				STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC
 			) ?? null
 		);
 	});
 	let lanes = $derived(
 		processorPreviewLaneOptions(
-			runtimePreviewBundle?.processor_lanes.filter((lane) => lane.processor_id === node.uuid) ?? []
+			runtimePreviewCatalog?.processor_lanes.filter((lane) => lane.processor_id === node.uuid) ?? []
 		)
 	);
 	let selectedLane = $derived(formulaPreviewSessionStore.processorLane(node.node_id, lanes));

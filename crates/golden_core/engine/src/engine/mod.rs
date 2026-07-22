@@ -77,6 +77,8 @@ pub use runtime::DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ;
 pub use runtime::EngineRuntimeError;
 /// Fixed-step accumulator configuration for `run_for` / `run_loop`.
 pub use runtime::FixedStepConfig;
+/// Behavior for periodic work when engine ticks miss one or more scheduled periods.
+pub use runtime::MissedPeriodPolicy;
 /// Per-node execution rule returned to the runtime scheduler.
 pub use runtime::NodeExecutionRule;
 /// Per-node update frequency in hertz.
@@ -707,11 +709,13 @@ impl<T: Node> Engine<T> {
 
     pub(crate) fn build_process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {
         let mut nodes = HashMap::with_capacity(self.nodes.len());
+        let mut node_ids_by_uuid = HashMap::with_capacity(self.nodes.len());
         for (node_id, node) in self.nodes.iter() {
             let node_data = node.node_data();
             let descriptor = node.engine_script_descriptor();
             let parameter_snapshot = node.engine_param_snapshot();
             let dashboard_widget_target = node.engine_dashboard_widget_target_descriptor();
+            node_ids_by_uuid.entry(node_data.meta.uuid).or_insert(node_id);
             nodes.insert(
                 node_id,
                 ProcessTreeNodeSnapshot {
@@ -778,7 +782,11 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        Arc::new(ProcessTreeSnapshot::new(self.root, nodes))
+        Arc::new(ProcessTreeSnapshot::from_indexed_nodes(
+            self.root,
+            nodes,
+            node_ids_by_uuid,
+        ))
     }
 
     /// Builds a read-only snapshot of the current node tree.

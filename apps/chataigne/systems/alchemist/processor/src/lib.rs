@@ -27,8 +27,9 @@ pub use processor::{
     ProcessorDirtyFlags, ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorFormulaSourceKind,
     ProcessorFormulaUiState, ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel, processor_output_preview_samples,
+    processor_output_preview_samples_from_lanes,
 };
-pub use value_set::{ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError, lane_scoped_stable_ref};
+pub use value_set::{ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError};
 pub use value_set_pipeline::{ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime};
 
 #[cfg(test)]

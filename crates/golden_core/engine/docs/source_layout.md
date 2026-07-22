@@ -30,7 +30,7 @@ areas under the same Golden Core parent; see the root
 - Filenames should match the primary exported concept or a tight concept family.
 - Folder context should remove redundant prefixes. Inside `src/engine/`, use `runtime.rs`, not `engine_runtime.rs`.
 - `mod.rs` should stay thin: declare children, re-export the public surface, and keep only parent-level orchestration that genuinely belongs there.
-- Normalized folders keep tests in sibling `tests.rs` or `*_tests.rs` files.
+- Normalized folders keep tests under a local `tests/` directory, using `tests/mod.rs` as the unit-test module and focused concern names for larger suites.
 - Runtime files inside normalized folders do not keep inline `mod tests { ... }` blocks.
 - If a module needs sibling runtime files or sibling tests, promote it to a folder instead of keeping a large leaf file.
 

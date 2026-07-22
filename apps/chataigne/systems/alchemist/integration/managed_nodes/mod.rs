@@ -1,3 +1,5 @@
+use std::collections::{HashMap, VecDeque};
+
 use golden_core::{
     engine::NodeExecutionRule,
     events::{Event, EventFrame, EventKind},
@@ -11,8 +13,16 @@ use golden_core::{
 };
 
 const INPUT_ITEM_KIND: &str = "sm_input";
-use crate::app::module_command::{self, ModuleCommandParamOverrides};
-use crate::app::systems_alchemist_generic_commands::GENERIC_COMMAND_ITEM_KIND;
+use crate::app::module_command::{
+    self, ModuleCommandDeliveryPolicy, ModuleCommandInvocationId,
+    ModuleCommandParamOverrides,
+};
+use crate::app::systems_alchemist_generic_commands::{
+    GENERIC_COMMAND_ITEM_KIND, GENERIC_LOG_COMMAND_NODE_TYPE,
+    LOG_INVOCATION_CHANGE_MIN_TICKS, LOG_INVOCATION_KEEPALIVE_TICKS,
+    LOG_INVOCATION_RECENCY_TOUCH_TICKS, LOG_INVOCATION_STALE_TICKS,
+    MAX_LOG_INVOCATIONS, MAX_LOG_PRUNE_STEPS_PER_EVENT,
+};
 const GENERIC_OUTPUT_MENU_PATH: &str = "Generic";
 
 // ─── Output scheduling (shared by OutputsManager and OutputGroup) ────────────
@@ -35,6 +45,7 @@ const OUTPUT_SCHEDULE_UPDATE_RATE_HZ: u32 = 60;
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct OutputSchedule {
     pending: Vec<PendingOutput>,
+    log_admission: OutputLogAdmissionCache,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -42,6 +53,166 @@ struct PendingOutput {
     target: NodeId,
     remaining: f64,
     param_overrides: ModuleCommandParamOverrides,
+    invocation_id: Option<ModuleCommandInvocationId>,
+    delivery_policy: ModuleCommandDeliveryPolicy,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct OutputRuntimeTarget {
+    node: NodeId,
+    change_aware_log: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+struct OutputLogInvocationKey {
+    target: NodeId,
+    invocation_id: ModuleCommandInvocationId,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+struct OutputLogAdmissionCache {
+    records: HashMap<OutputLogInvocationKey, OutputLogAdmissionRecord>,
+    recency: VecDeque<(OutputLogInvocationKey, u64)>,
+    next_generation: u64,
+    budget_tick: Option<u64>,
+    emissions_this_tick: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+struct OutputLogAdmissionRecord {
+    param_overrides: ModuleCommandParamOverrides,
+    emitted_tick: u64,
+    last_seen_tick: u64,
+    recency_tick: u64,
+    generation: u64,
+}
+
+impl OutputLogAdmissionCache {
+    fn should_emit(
+        &mut self,
+        key: OutputLogInvocationKey,
+        param_overrides: &ModuleCommandParamOverrides,
+        tick: u64,
+    ) -> bool {
+        if self.budget_tick != Some(tick) {
+            self.budget_tick = Some(tick);
+            self.emissions_this_tick = 0;
+        }
+        self.prune_stale(tick);
+
+        let mut touch_recency = false;
+        if let Some(previous) = self.records.get_mut(&key) {
+            previous.last_seen_tick = tick;
+            touch_recency = tick.saturating_sub(previous.recency_tick)
+                >= LOG_INVOCATION_RECENCY_TOUCH_TICKS;
+            let minimum_ticks = if previous.param_overrides == *param_overrides {
+                LOG_INVOCATION_KEEPALIVE_TICKS
+            } else {
+                LOG_INVOCATION_CHANGE_MIN_TICKS
+            };
+            if tick.saturating_sub(previous.emitted_tick) < minimum_ticks {
+                if touch_recency {
+                    self.touch(key, tick);
+                }
+                return false;
+            }
+        }
+
+        if self.emissions_this_tick >= 1 {
+            if touch_recency {
+                self.touch(key, tick);
+            }
+            return false;
+        }
+
+        self.emissions_this_tick += 1;
+        self.record_emission(key, param_overrides, tick);
+        true
+    }
+
+    fn record_emission(
+        &mut self,
+        key: OutputLogInvocationKey,
+        param_overrides: &ModuleCommandParamOverrides,
+        tick: u64,
+    ) {
+        if !self.records.contains_key(&key) {
+            self.make_room();
+        }
+        let generation = self.allocate_generation();
+        let record = self
+            .records
+            .entry(key)
+            .or_insert_with(|| OutputLogAdmissionRecord {
+                param_overrides: Vec::new(),
+                emitted_tick: tick,
+                last_seen_tick: tick,
+                recency_tick: tick,
+                generation,
+            });
+        record.param_overrides.clone_from(param_overrides);
+        record.emitted_tick = tick;
+        record.last_seen_tick = tick;
+        record.recency_tick = tick;
+        record.generation = generation;
+        self.recency.push_back((key, generation));
+    }
+
+    fn touch(&mut self, key: OutputLogInvocationKey, tick: u64) {
+        let generation = self.allocate_generation();
+        let Some(record) = self.records.get_mut(&key) else {
+            return;
+        };
+        record.recency_tick = tick;
+        record.generation = generation;
+        self.recency.push_back((key, generation));
+    }
+
+    fn allocate_generation(&mut self) -> u64 {
+        let generation = self.next_generation;
+        self.next_generation = self
+            .next_generation
+            .checked_add(1)
+            .expect("output log admission generation exhausted");
+        generation
+    }
+
+    fn prune_stale(&mut self, tick: u64) {
+        for _ in 0..MAX_LOG_PRUNE_STEPS_PER_EVENT {
+            let Some((key, generation)) = self.recency.front().copied() else {
+                break;
+            };
+            let Some(record) = self.records.get(&key) else {
+                self.recency.pop_front();
+                continue;
+            };
+            if record.generation != generation {
+                self.recency.pop_front();
+                continue;
+            }
+            if tick.saturating_sub(record.last_seen_tick) < LOG_INVOCATION_STALE_TICKS {
+                break;
+            }
+            self.recency.pop_front();
+            self.records.remove(&key);
+        }
+    }
+
+    fn make_room(&mut self) {
+        while self.records.len() >= MAX_LOG_INVOCATIONS {
+            let Some((key, generation)) = self.recency.pop_front() else {
+                self.records.clear();
+                return;
+            };
+            if self
+                .records
+                .get(&key)
+                .is_some_and(|record| record.generation == generation)
+            {
+                self.records.remove(&key);
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -54,7 +225,7 @@ struct OutputRuntimeCache {
     delay: f64,
     stagger: f64,
     cancel_on_trigger: bool,
-    outputs: Vec<NodeId>,
+    outputs: Vec<OutputRuntimeTarget>,
 }
 
 impl Default for OutputRuntimeCache {
@@ -83,24 +254,47 @@ impl OutputSchedule {
         ctx: &mut ProcessCtx,
         cache: &OutputRuntimeCache,
         param_overrides: ModuleCommandParamOverrides,
+        invocation_id: Option<module_command::ModuleCommandInvocationId>,
     ) {
         if cache.cancel_on_trigger {
             self.pending.clear();
         }
 
-        for (index, child) in cache.outputs.iter().copied().enumerate() {
+        for (index, target) in cache.outputs.iter().copied().enumerate() {
+            let child = target.node;
+            let delivery_policy = if let (true, Some(invocation_id)) =
+                (target.change_aware_log, invocation_id)
+            {
+                let key = OutputLogInvocationKey {
+                    target: child,
+                    invocation_id,
+                };
+                if !self
+                    .log_admission
+                    .should_emit(key, &param_overrides, ctx.time.tick)
+                {
+                    continue;
+                }
+                ModuleCommandDeliveryPolicy::ChangeAwareLogAdmitted
+            } else {
+                ModuleCommandDeliveryPolicy::Standard
+            };
             let remaining = cache.delay + (index as f64) * cache.stagger;
             if remaining <= f64::EPSILON {
-                let _ = module_command::emit_command_execute_with_overrides(
+                let _ = module_command::emit_command_execute_with_invocation(
                     ctx,
                     child,
                     param_overrides.clone(),
+                    invocation_id,
+                    delivery_policy,
                 );
             } else {
                 self.pending.push(PendingOutput {
                     target: child,
                     remaining,
                     param_overrides: param_overrides.clone(),
+                    invocation_id,
+                    delivery_policy,
                 });
             }
         }
@@ -122,10 +316,12 @@ impl OutputSchedule {
             }
         });
         for pending in due {
-            let _ = module_command::emit_command_execute_with_overrides(
+            let _ = module_command::emit_command_execute_with_invocation(
                 ctx,
                 pending.target,
                 pending.param_overrides,
+                pending.invocation_id,
+                pending.delivery_policy,
             );
         }
     }
@@ -153,6 +349,12 @@ fn refresh_output_runtime_cache(
         .into_iter()
         .filter(|child| is_output_node(snapshot, *child))
         .filter(|child| snapshot.node(*child).is_some_and(|node| node.enabled))
+        .map(|node| OutputRuntimeTarget {
+            node,
+            change_aware_log: snapshot
+                .node(node)
+                .is_some_and(|node| node.node_type == GENERIC_LOG_COMMAND_NODE_TYPE),
+        })
         .collect();
     cache.dirty = false;
 }
@@ -750,7 +952,7 @@ impl Node for OutputsManager {
         }
         if Some(param) == self.output_cache.trigger_param {
             self.schedule
-                .on_trigger_cached(ctx, &self.output_cache, Vec::new());
+                .on_trigger_cached(ctx, &self.output_cache, Vec::new(), None);
         }
         if Some(param) == self.output_cache.delay_param
             || Some(param) == self.output_cache.stagger_param
@@ -767,14 +969,18 @@ impl Node for OutputsManager {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
-        if let Some(param_overrides) = module_command::command_execute_param_overrides(&event, id) {
+        if let Some(execute) = module_command::command_execute_request(&event, id) {
             if self.output_cache.dirty {
                 if let Some(snapshot) = ctx.tree_snapshot() {
                     refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
                 }
             }
-            self.schedule
-                .on_trigger_cached(ctx, &self.output_cache, param_overrides);
+            self.schedule.on_trigger_cached(
+                ctx,
+                &self.output_cache,
+                execute.param_overrides,
+                execute.invocation_id,
+            );
         }
     }
 
@@ -935,7 +1141,7 @@ impl Node for OutputGroup {
         }
         if Some(param) == self.output_cache.trigger_param {
             self.schedule
-                .on_trigger_cached(ctx, &self.output_cache, Vec::new());
+                .on_trigger_cached(ctx, &self.output_cache, Vec::new(), None);
         }
         if Some(param) == self.output_cache.delay_param
             || Some(param) == self.output_cache.stagger_param
@@ -952,14 +1158,18 @@ impl Node for OutputGroup {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
-        if let Some(param_overrides) = module_command::command_execute_param_overrides(&event, id) {
+        if let Some(execute) = module_command::command_execute_request(&event, id) {
             if self.output_cache.dirty {
                 if let Some(snapshot) = ctx.tree_snapshot() {
                     refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
                 }
             }
-            self.schedule
-                .on_trigger_cached(ctx, &self.output_cache, param_overrides);
+            self.schedule.on_trigger_cached(
+                ctx,
+                &self.output_cache,
+                execute.param_overrides,
+                execute.invocation_id,
+            );
         }
     }
 

@@ -19,7 +19,7 @@ use chataigne_state_machine_model::StateId;
 use golden_values::{StableRef, Value as RuntimeValue};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::{ManagedFormulaRuntime, lane_scoped_stable_ref};
+use crate::ManagedFormulaRuntime;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -130,7 +130,7 @@ struct LaneConditionInputs<'a> {
 impl ConditionInputProvider for LaneConditionInputs<'_> {
     fn input_value(&self, input: &StableRef) -> Option<RuntimeValue> {
         self.snapshot
-            .get(&lane_scoped_stable_ref(input, self.context_key))
+            .get_context(input, self.context_key)
             .or_else(|| self.snapshot.get(input))
             .cloned()
     }
@@ -358,6 +358,10 @@ pub enum ProcessorDebugCapture {
         context_key: Option<ContextKey>,
         history_len: usize,
     },
+    ProcessorLanes {
+        context_keys: IndexSet<ContextKey>,
+        history_len: usize,
+    },
     SelectedNodes {
         context_key: Option<ContextKey>,
         nodes: IndexSet<ANodeId>,
@@ -366,30 +370,51 @@ pub enum ProcessorDebugCapture {
 }
 
 impl ProcessorDebugCapture {
-    fn debug_capture_mode(&self, formula_id: &FormulaId) -> DebugCaptureMode {
+    fn debug_capture_mode(&self, formula_id: &FormulaId, context_key: &ContextKey) -> DebugCaptureMode {
         match self {
             Self::Off => DebugCaptureMode::Off,
             Self::All { history_len } => DebugCaptureMode::All {
                 history_len: *history_len,
             },
             Self::ProcessorLane {
-                context_key,
+                context_key: requested,
                 history_len,
-            } => DebugCaptureMode::ProcessorLane {
+            } if requested
+                .as_ref()
+                .map_or_else(|| context_key.is_default_lane(), |requested| requested == context_key) =>
+            {
+                DebugCaptureMode::ProcessorLane {
+                    formula_id: formula_id.clone(),
+                    context_key: (!context_key.is_default_lane()).then(|| context_key.clone()),
+                    history_len: *history_len,
+                }
+            }
+            Self::ProcessorLanes {
+                context_keys,
+                history_len,
+            } if context_keys.contains(context_key) => DebugCaptureMode::ProcessorLane {
                 formula_id: formula_id.clone(),
-                context_key: context_key.clone(),
+                context_key: (!context_key.is_default_lane()).then(|| context_key.clone()),
                 history_len: *history_len,
             },
             Self::SelectedNodes {
-                context_key,
+                context_key: requested,
                 nodes,
                 history_len,
-            } => DebugCaptureMode::SelectedNodes {
-                formula_id: Some(formula_id.clone()),
-                context_key: context_key.clone(),
-                nodes: nodes.clone(),
-                history_len: *history_len,
-            },
+            } if requested
+                .as_ref()
+                .map_or_else(|| context_key.is_default_lane(), |requested| requested == context_key) =>
+            {
+                DebugCaptureMode::SelectedNodes {
+                    formula_id: Some(formula_id.clone()),
+                    context_key: (!context_key.is_default_lane()).then(|| context_key.clone()),
+                    nodes: nodes.clone(),
+                    history_len: *history_len,
+                }
+            }
+            Self::ProcessorLane { .. } | Self::ProcessorLanes { .. } | Self::SelectedNodes { .. } => {
+                DebugCaptureMode::Off
+            }
         }
     }
 }
@@ -724,6 +749,27 @@ impl ProcessorRuntime {
         )
     }
 
+    /// Evaluates normal runtime work while capturing only outputs whose values changed.
+    ///
+    /// This is intended for retained live-preview streams: the caller keeps the last sample for
+    /// each output, so recapturing unchanged values would only allocate duplicate debug data.
+    pub fn evaluate_processor_with_context_provider_and_runtime_delta_capture(
+        &mut self,
+        processor: &Processor,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+        capture: &ProcessorDebugCapture,
+    ) -> Vec<ProcessorLaneOutput> {
+        self.evaluate_processor_with_context_provider_and_capture_mode(
+            processor,
+            ctx,
+            context_provider,
+            capture,
+            false,
+            false,
+        )
+    }
+
     fn evaluate_processor_with_context_provider_and_capture_mode(
         &mut self,
         processor: &Processor,
@@ -752,7 +798,7 @@ impl ProcessorRuntime {
                     output,
                 }];
             };
-            let capture_mode = capture.debug_capture_mode(&compiled.formula_ref.id);
+            let capture_mode = capture.debug_capture_mode(&compiled.formula_ref.id, &context_key);
             if !matches!(capture_mode, DebugCaptureMode::Off) {
                 let context_key = ContextKey::default_lane();
                 let context = RuntimeContextFrame::new(context_key.clone());
@@ -827,7 +873,8 @@ impl ProcessorRuntime {
         context_keys
             .into_iter()
             .map(|context_key| {
-                let mut debug = DebugCaptureSink::new(capture.debug_capture_mode(&compiled.formula_ref.id));
+                let mut debug =
+                    DebugCaptureSink::new(capture.debug_capture_mode(&compiled.formula_ref.id, &context_key));
                 let context = RuntimeContextFrame::new(context_key.clone());
                 let properties = match self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
                 {
@@ -891,7 +938,7 @@ impl ProcessorRuntime {
             .condition_runtimes
             .entry(context_key.clone())
             .or_insert_with(|| ConditionRuntime::new(&program));
-        match runtime.evaluate(
+        match runtime.evaluate_value(
             &program,
             &ConditionEvaluationFrame {
                 logical_tick: ctx.logical_tick,
@@ -899,7 +946,7 @@ impl ProcessorRuntime {
                 inputs: &inputs,
             },
         ) {
-            Ok(result) => result.value,
+            Ok(value) => value,
             Err(error) => {
                 let message = error.to_string();
                 if !self.diagnostics.iter().any(|diagnostic| diagnostic.message == message) {
@@ -1011,6 +1058,23 @@ pub fn processor_output_preview_samples(
             lane.output
                 .debug_samples
                 .into_iter()
+                .map(move |sample| ANodeOutputPreviewSample::from_debug_sample(Some(processor_id), formula_id, sample))
+        })
+        .collect()
+}
+
+pub fn processor_output_preview_samples_from_lanes(
+    processor_id: ProcessorId,
+    formula_id: &FormulaId,
+    lanes: &[ProcessorLaneOutput],
+) -> Vec<ANodeOutputPreviewSample> {
+    lanes
+        .iter()
+        .flat_map(|lane| {
+            lane.output
+                .debug_samples
+                .iter()
+                .cloned()
                 .map(move |sample| ANodeOutputPreviewSample::from_debug_sample(Some(processor_id), formula_id, sample))
         })
         .collect()

@@ -8,6 +8,22 @@ pub type NodeUpdateRate = u32;
 /// Default cap used by raw engine runtime loops when no app preference overrides it.
 pub const DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ: NodeUpdateRate = 1_000;
 
+/// Policy for periodic work when more than one scheduled period elapsed between engine ticks.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MissedPeriodPolicy {
+    /// Runs the node once with the full elapsed time since its previous callback.
+    ///
+    /// This is the default for real-time work: a slow callback cannot create an ever-growing
+    /// backlog of additional callbacks on the same engine thread.
+    #[default]
+    Coalesce,
+    /// Replays one callback per elapsed period, subject to the runtime catch-up limit.
+    ///
+    /// Use this only for work whose semantics require fixed-period replay. Remaining backlog is
+    /// retained for later engine ticks when the catch-up limit is reached.
+    Replay,
+}
+
 /// Converts a frequency cap in hertz to the minimum interval between runtime loop iterations.
 pub fn runtime_loop_interval_for_frequency_hz(frequency_hz: NodeUpdateRate) -> Duration {
     let frequency_hz = frequency_hz.max(1);
@@ -48,6 +64,8 @@ pub struct NodeExecutionRule {
     ///
     /// `None` means this node does not request periodic updates.
     pub update_rate: Option<NodeUpdateRate>,
+    /// Behavior when multiple update periods elapsed before the next engine tick.
+    pub missed_period_policy: MissedPeriodPolicy,
     /// Stable compiled-kernel identity for scheduled domain work.
     ///
     /// Production generation compilation rejects periodic work without a key.
@@ -66,8 +84,15 @@ impl NodeExecutionRule {
         Self {
             dependencies: Vec::new(),
             update_rate: Some(rate_hz),
+            missed_period_policy: MissedPeriodPolicy::Coalesce,
             compiled_kernel_key: None,
         }
+    }
+
+    /// Replaces the missed-period behavior for this scheduled node.
+    pub fn with_missed_period_policy(mut self, policy: MissedPeriodPolicy) -> Self {
+        self.missed_period_policy = policy;
+        self
     }
 
     /// Replaces dependencies on this rule.
@@ -92,6 +117,7 @@ impl Default for NodeExecutionRule {
         Self {
             dependencies: Vec::new(),
             update_rate: None,
+            missed_period_policy: MissedPeriodPolicy::Coalesce,
             compiled_kernel_key: None,
         }
     }
@@ -104,7 +130,7 @@ pub struct RuntimeLimits {
     pub max_stabilization_passes_per_tick: usize,
     /// Maximum number of update callbacks allowed in one tick.
     pub max_update_callbacks_per_tick: usize,
-    /// Maximum catch-up firings processed per bucket in one tick.
+    /// Maximum replay firings processed per replay-policy bucket in one tick.
     pub max_bucket_catch_up_per_tick: u32,
     /// Maximum raw runtime loop frequency in hertz.
     pub max_loop_frequency_hz: NodeUpdateRate,

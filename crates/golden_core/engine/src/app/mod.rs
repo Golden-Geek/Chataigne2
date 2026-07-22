@@ -232,6 +232,26 @@ fn child_by_decl(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) 
     snapshot.find_child_by_decl_id(parent, decl_id)
 }
 
+fn live_child_by_decl<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
+    let mut child = engine.nodes.get(parent)?.node_data().first_child;
+    let mut remaining = engine.nodes.len();
+    while let Some(child_id) = child {
+        if remaining == 0 {
+            return None;
+        }
+        remaining -= 1;
+
+        let child_node = engine.nodes.get(child_id)?;
+        let child_data = child_node.node_data();
+        let child_decl_id = child_data.meta.decl_id.0.as_str();
+        if child_decl_id == decl_id || child_decl_id.rsplit('/').next() == Some(decl_id) {
+            return Some(child_id);
+        }
+        child = child_data.next_sibling;
+    }
+    None
+}
+
 /// Returns the Preferences root id from a tree snapshot.
 pub fn preferences_root_from_snapshot(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
     child_by_decl(snapshot, snapshot.root(), PREFERENCES_DECL_ID)
@@ -290,6 +310,31 @@ fn preferences_engine_frequency_hz_from_snapshot(
     frequency_from_param_value(value).unwrap_or(default_hz)
 }
 
+fn preferences_engine_frequency_hz<T: Node>(
+    engine: &Engine<T>,
+    decl_id: &str,
+    default_hz: NodeUpdateRate,
+) -> NodeUpdateRate {
+    let Some(preferences) = live_child_by_decl(engine, engine.root, PREFERENCES_DECL_ID) else {
+        return default_hz;
+    };
+    let Some(engine_preferences) = live_child_by_decl(engine, preferences, PREFERENCES_ENGINE_DECL_ID) else {
+        return default_hz;
+    };
+    let Some(frequency) = live_child_by_decl(engine, engine_preferences, decl_id) else {
+        return default_hz;
+    };
+    let Some(value) = engine
+        .nodes
+        .get(frequency)
+        .and_then(Node::engine_param_snapshot)
+        .map(|snapshot| snapshot.value)
+    else {
+        return default_hz;
+    };
+    frequency_from_param_value(&value).unwrap_or(default_hz)
+}
+
 /// Returns the Engine Max Frequency preference from a tree snapshot.
 pub fn preferences_engine_max_frequency_hz_from_snapshot(snapshot: &ProcessTreeSnapshot) -> NodeUpdateRate {
     preferences_engine_frequency_hz_from_snapshot(
@@ -310,14 +355,20 @@ pub fn preferences_engine_low_frequency_hz_from_snapshot(snapshot: &ProcessTreeS
 
 /// Returns the Engine Max Frequency preference from a live engine.
 pub fn preferences_engine_max_frequency_hz<T: Node>(engine: &Engine<T>) -> NodeUpdateRate {
-    let snapshot = engine.process_tree_snapshot();
-    preferences_engine_max_frequency_hz_from_snapshot(snapshot.as_ref())
+    preferences_engine_frequency_hz(
+        engine,
+        PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID,
+        DEFAULT_ENGINE_MAX_FREQUENCY_HZ,
+    )
 }
 
 /// Returns the Engine Low Frequency preference from a live engine.
 pub fn preferences_engine_low_frequency_hz<T: Node>(engine: &Engine<T>) -> NodeUpdateRate {
-    let snapshot = engine.process_tree_snapshot();
-    preferences_engine_low_frequency_hz_from_snapshot(snapshot.as_ref())
+    preferences_engine_frequency_hz(
+        engine,
+        PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
+        DEFAULT_ENGINE_LOW_FREQUENCY_HZ,
+    )
 }
 
 /// Returns the runtime loop cap interval implied by the Engine Max Frequency preference.

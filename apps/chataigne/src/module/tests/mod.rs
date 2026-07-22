@@ -2,8 +2,8 @@ use std::time::{Duration, Instant};
 
 use golden_core::{
     app::{
-        from_sparse_project_json, load_sparse_project_file, to_sparse_project_json_pretty,
-        ProjectFileSpec, ProjectNode,
+        configure_loaded_engine, from_sparse_project_json, load_sparse_project_file,
+        prepare_engine_for_runtime, to_sparse_project_json_pretty, ProjectFileSpec, ProjectNode,
     },
     node::{Folder, Node, NodeId},
     ui_read_model::UiReadModel,
@@ -54,6 +54,12 @@ fn sample_project_path(name: &str) -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("samples")
+        .join(name)
+}
+
+fn targeted_performance_sample_path(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("test-samples")
         .join(name)
 }
 
@@ -168,6 +174,50 @@ fn multiplex_sample_project_loads_and_round_trips() {
 
     let saved_json = to_sparse_project_json_pretty(&engine).expect("multiplex sample should save");
     from_sparse_project_json::<AppNode>(&saved_json).expect("saved multiplex sample should reload");
+}
+
+#[test]
+fn multiplex_sample_active_runtime_stays_realtime() {
+    const SAMPLE: &str = "test_multiplex.noisette";
+    const WARMUP: usize = 10;
+    // Cover initial bounded log-stream draining and the 200-tick keepalive window.
+    const MEASURED: usize = 240;
+
+    let path = targeted_performance_sample_path(SAMPLE);
+    let mut engine = load_sparse_project_file::<AppNode, _>(&path).expect("multiplex sample should load");
+    assert_eq!(
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "state_processor")
+            .count(),
+        5,
+        "the performance regression must exercise all five sample processors"
+    );
+    configure_loaded_engine(&mut engine).expect("multiplex sample should configure");
+    prepare_engine_for_runtime(&mut engine).expect("multiplex sample should prepare");
+
+    for _ in 0..WARMUP {
+        engine
+            .run_tick(Duration::from_millis(8))
+            .expect("multiplex warmup tick should run");
+    }
+
+    let (min_us, max_us, total_us) = measure_ticks(&mut engine, MEASURED);
+    let avg_us = total_us / MEASURED as u64;
+    let stats = engine.tick_stats();
+    eprintln!(
+        "multiplex runtime: avg={avg_us}us min={min_us}us max={max_us}us stats={stats:?}"
+    );
+
+    assert!(
+        stats.callbacks_fired > 0,
+        "the measured tick must execute scheduled runtime work"
+    );
+    assert!(
+        avg_us < 10_000,
+        "multiplex runtime averaged {avg_us}us per tick; 100 Hz requires less than 10000us"
+    );
 }
 
 #[test]

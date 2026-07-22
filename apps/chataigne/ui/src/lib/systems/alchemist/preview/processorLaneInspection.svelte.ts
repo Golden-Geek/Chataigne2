@@ -2,9 +2,13 @@ import { registerParameterContextPreviewResolver, type UiNodeDto } from 'golden_
 import { appState } from 'golden_ui/store/workbench.svelte';
 import type {
 	ProcessorLaneInspectionDto,
-	StateMachineProtocolBundle
+	StateMachinePreviewCatalogDto,
+	StateMachineRuntimePreviewDto
 } from '../../state_machine/generated';
-import { STATE_MACHINE_RUNTIME_PREVIEW_TOPIC } from './formulaOutputPreviewStore.svelte';
+import {
+	STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC,
+	STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
+} from './formulaOutputPreviewStore.svelte';
 import {
 	contextKeyId,
 	formulaPreviewSessionStore,
@@ -16,12 +20,21 @@ interface SelectedProcessorLaneInspection {
 	laneLabel: string;
 }
 
-const runtimePreviewBundle = (): StateMachineProtocolBundle | null => {
+const runtimePreview = (): StateMachineRuntimePreviewDto | null => {
 	const session = appState.session;
 	if (!session) return null;
 	session.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC);
-	return session.getCustomEventPayload<StateMachineProtocolBundle>(
+	return session.getCustomEventPayload<StateMachineRuntimePreviewDto>(
 		STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
+	);
+};
+
+const runtimePreviewCatalog = (): StateMachinePreviewCatalogDto | null => {
+	const session = appState.session;
+	if (!session) return null;
+	session.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC);
+	return session.getCustomEventPayload<StateMachinePreviewCatalogDto>(
+		STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC
 	);
 };
 
@@ -43,15 +56,16 @@ export const selectedProcessorLaneInspection = (
 	node: UiNodeDto
 ): SelectedProcessorLaneInspection | null => {
 	const processor = processorAncestor(node);
-	const bundle = runtimePreviewBundle();
-	if (!processor || !bundle) return null;
+	const preview = runtimePreview();
+	const catalog = runtimePreviewCatalog();
+	if (!processor || !preview || !catalog) return null;
 	const lanes = processorPreviewLaneOptions(
-		bundle.processor_lanes.filter((lane) => lane.processor_id === processor.uuid)
+		catalog.processor_lanes.filter((lane) => lane.processor_id === processor.uuid)
 	);
 	const selectedLane = formulaPreviewSessionStore.processorLane(processor.node_id, lanes);
 	if (!selectedLane) return null;
 	const selectedContextId = contextKeyId(selectedLane.contextKey);
-	const inspection = bundle.processor_lane_inspections.find(
+	const inspection = preview.processor_lane_inspections.find(
 		(candidate) =>
 			candidate.processor_id === processor.uuid &&
 			contextKeyId(candidate.context_key) === selectedContextId

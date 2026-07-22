@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chataigne_alchemist::{ContextKey, ExtensionValue, StableRef, ValueTypeId};
+use chataigne_alchemist::{ExtensionValue, StableRef, ValueTypeId};
 use golden_values::Value as RuntimeValue;
 
 pub const VALUE_SET_TYPE: &str = "chataigne.value_set";
@@ -21,19 +21,6 @@ impl ValueLaneKey {
     pub fn as_str(&self) -> &str {
         &self.0
     }
-}
-
-#[must_use]
-pub fn lane_scoped_stable_ref(reference: &StableRef, context_key: &ContextKey) -> StableRef {
-    let lane_id = context_key
-        .iter()
-        .map(|part| format!("{}={}", part.axis.as_str(), part.item.as_str()))
-        .collect::<Vec<_>>()
-        .join(";");
-    StableRef::new(
-        reference.value_type.clone(),
-        format!("{}::lane::{lane_id}", reference.stable_id),
-    )
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]

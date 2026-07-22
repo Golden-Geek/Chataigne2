@@ -13,14 +13,15 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 
-use crate::contexts::UiUserContextsDto;
+use crate::contexts::{UiUserContextsDto, UserContextValueType};
 use crate::engine::{Engine, EngineTime};
+use crate::events::CustomEventRetention;
 use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 use crate::ui_sync::{
-    UI_PROTOCOL_VERSION, UiChildrenOrderPatch, UiEventBatch, UiEventDto, UiEventKind, UiGraphOp, UiHistoryState,
-    UiLoggerState, UiNodeDataDto, UiNodeDto, UiNodeMetaPatch, UiProjectFileSpec, UiRuntimeStatsDto, UiSchemaView,
-    UiSnapshot, UiSubscriptionScope,
+    UI_PROTOCOL_VERSION, UI_USER_CONTEXT_ENTRY_TOPIC, UI_USER_CONTEXT_SCOPE_TOPIC, UiChildrenOrderPatch, UiEventBatch,
+    UiEventDto, UiEventKind, UiGraphOp, UiHistoryState, UiLoggerState, UiNodeDataDto, UiNodeDto, UiNodeMetaPatch,
+    UiProjectFileSpec, UiRuntimeStatsDto, UiSchemaView, UiSnapshot, UiSubscriptionScope,
 };
 
 const DEFAULT_UI_READ_MODEL_EVENT_CAPACITY: usize = 8192;
@@ -56,7 +57,7 @@ pub enum UiReadModelReplaceReason {
 pub struct UiEventCapture {
     batch: UiEventBatch,
     history: UiHistoryState,
-    user_contexts: UiUserContextsDto,
+    user_contexts: Option<UiUserContextsDto>,
 }
 
 impl UiEventCapture {
@@ -209,7 +210,11 @@ impl UiReadModel {
     ) -> UiEventCapture {
         let batch = engine.ui_event_batch(previous_event_time, UiSubscriptionScope::WholeGraph);
         let history = engine.ui_history_state();
-        let user_contexts = engine.ui_user_contexts();
+        let user_contexts = batch
+            .events
+            .iter()
+            .any(event_requires_user_context_refresh)
+            .then(|| engine.ui_user_contexts());
         UiEventCapture {
             batch,
             history,
@@ -228,11 +233,14 @@ impl UiReadModel {
             history,
             user_contexts,
         } = capture;
+        let user_contexts_changed = user_contexts.is_some();
         batch.runtime = self.runtime_stats();
         {
             let mut header = self.snapshot_header.lock().expect("ui read model poisoned");
             header.history = history;
-            header.user_contexts = user_contexts;
+            if let Some(user_contexts) = user_contexts {
+                header.user_contexts = user_contexts;
+            }
         }
         if batch.events.is_empty() {
             return batch;
@@ -247,7 +255,7 @@ impl UiReadModel {
             &batch.events,
         );
 
-        if has_structural {
+        if has_structural || user_contexts_changed {
             let at = batch.events.iter().map(|e| e.time).max().unwrap_or_else(|| {
                 self.latest_event_time
                     .lock()
@@ -680,6 +688,7 @@ fn make_resync_event_batch(from: Option<EngineTime>, time: EngineTime, reason: &
                 topic: "__transport.resync_required".to_string(),
                 origin: None,
                 payload: serde_json::json!({ "reason": reason }),
+                retention: crate::events::CustomEventRetention::Replay,
             },
         }],
     }
@@ -739,6 +748,17 @@ impl UiFeedbackCoalescer {
 }
 
 fn append_retained_ui_event(events: &mut VecDeque<UiEventDto>, store: &HashMap<NodeId, UiNodeDto>, event: UiEventDto) {
+    if let Some((topic, origin)) = latest_custom_event_key(&event) {
+        if let Some(index) = (0..events.len())
+            .rev()
+            .find(|index| latest_custom_event_key(&events[*index]).is_some_and(|key| key == (topic, origin)))
+        {
+            events.remove(index);
+        }
+        events.push_back(event);
+        return;
+    }
+
     let Some(param) = coalescable_param_changed_event_param(store, &event) else {
         events.push_back(event);
         return;
@@ -762,6 +782,19 @@ fn append_retained_ui_event(events: &mut VecDeque<UiEventDto>, store: &HashMap<N
         }
     }
     events.push_back(event);
+}
+
+fn latest_custom_event_key(event: &UiEventDto) -> Option<(&str, Option<NodeId>)> {
+    let UiEventKind::Custom {
+        topic,
+        origin,
+        retention: CustomEventRetention::Latest,
+        ..
+    } = &event.kind
+    else {
+        return None;
+    };
+    Some((topic.as_str(), *origin))
 }
 
 fn coalescable_param_changed_event_param(store: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> Option<NodeId> {
@@ -970,5 +1003,24 @@ fn event_requires_snapshot_rebuild(event: &UiEventDto) -> bool {
             | UiEventKind::ChildMoved { .. }
             | UiEventKind::ChildReordered { .. }
             | UiEventKind::MetaChanged { .. }
+    )
+}
+
+fn event_requires_user_context_refresh(event: &UiEventDto) -> bool {
+    if event_requires_snapshot_rebuild(event) {
+        return true;
+    }
+    matches!(
+        &event.kind,
+        UiEventKind::ParamChanged {
+            old_value,
+            new_value,
+            ..
+        } if UserContextValueType::from_param_value(old_value)
+            != UserContextValueType::from_param_value(new_value)
+    ) || matches!(
+        &event.kind,
+        UiEventKind::Custom { topic, .. }
+            if topic == UI_USER_CONTEXT_SCOPE_TOPIC || topic == UI_USER_CONTEXT_ENTRY_TOPIC
     )
 }

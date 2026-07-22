@@ -13,9 +13,9 @@ pub use chataigne_state_machine_model as statechart;
 pub use protocol::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, ManagedItemDto, ManagedItemUiStateDto,
     ManagedRegionDefinitionDto, ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto,
-    ProcessorFormulaSourceKindDto, ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto,
-    ProcessorLaneParameterPreviewDto, ProcessorLaneSummaryDto, ProcessorUiDto, StateMachineProtocolBundle,
-    export_typescript,
+    ProcessorFormulaSourceKindDto, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
+    ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorUiDto, StateMachinePreviewCatalogDto,
+    StateMachineRuntimePreviewDto, export_typescript,
 };
 pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,

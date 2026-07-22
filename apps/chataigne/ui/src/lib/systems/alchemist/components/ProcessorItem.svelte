@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
-	import type { StateMachineProtocolBundle } from '../../state_machine/generated';
-	import { STATE_MACHINE_RUNTIME_PREVIEW_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
+	import type { StateMachinePreviewCatalogDto } from '../../state_machine/generated';
+	import { STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
 	import {
 		formulaPreviewSessionStore,
 		processorPreviewLaneOptions
@@ -20,15 +20,15 @@
 	}>();
 
 	let session = $derived(appState.session);
-	let runtimePreviewSequence = $derived(
-		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
+	let runtimePreviewCatalogSequence = $derived(
+		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC) ?? 0
 	);
-	let runtimePreviewBundle = $derived.by((): StateMachineProtocolBundle | null => {
-		runtimePreviewSequence;
+	let runtimePreviewCatalog = $derived.by((): StateMachinePreviewCatalogDto | null => {
+		runtimePreviewCatalogSequence;
 		if (!session) return null;
 		return (
-			session.getCustomEventPayload<StateMachineProtocolBundle>(
-				STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
+			session.getCustomEventPayload<StateMachinePreviewCatalogDto>(
+				STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC
 			) ?? null
 		);
 	});
@@ -81,15 +81,15 @@
 
 	let conditionManagers = $derived(isProcessorNode ? processorConditionManagers(liveNode) : []);
 	let multiplexLaneCount = $derived.by((): number => {
-		if (!isProcessorNode || !runtimePreviewBundle) return 0;
+		if (!isProcessorNode || !runtimePreviewCatalog) return 0;
 		return (
-			runtimePreviewBundle.processors.find((processor) => processor.id === liveNode.uuid)
+			runtimePreviewCatalog.processors.find((processor) => processor.id === liveNode.uuid)
 				?.multiplex_lane_count ?? 0
 		);
 	});
 	let previewLanes = $derived(
 		processorPreviewLaneOptions(
-			runtimePreviewBundle?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ??
+			runtimePreviewCatalog?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ??
 				[]
 		)
 	);

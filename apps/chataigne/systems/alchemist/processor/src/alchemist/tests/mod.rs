@@ -3,17 +3,18 @@ use crate::testkit::TestGraph;
 use std::time::Duration;
 
 use chataigne_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistRuntime, CompileCtx, ContextKey, DebugCaptureMode, DebugCaptureSink,
-    EvaluationCtx, EvaluationFrame, InputSocketRef, OutputSocketRef, RuntimeContextFrame, RuntimeInputSnapshot,
-    RuntimeRegistries, SignatureCtx, SocketId, StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueStorageKind,
-    ValueTypeId, ValueTypeRegistry, compile_graph, evaluate_compiled_graph, primitive_node_registry,
+    ANodeInstance, ANodeTypeId, AlchemistRuntime, AxisSet, CompileCtx, ContextAxisId, ContextKey, ContextKeyPart,
+    DebugCaptureMode, DebugCaptureSink, EvaluationCtx, EvaluationFrame, InputSocketRef, OutputSocketRef,
+    RuntimeContextFrame, RuntimeInputSnapshot, RuntimeRegistries, SignatureCtx, SocketId, StableRef, TriggerValue,
+    TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId, ValueTypeRegistry, compile_graph,
+    evaluate_compiled_graph, primitive_node_registry,
 };
 use golden_values::Value as RuntimeValue;
 
 use crate::alchemist::{
-    CONDITIONS_MANAGER_TYPE, ChataigneNodeKind, FILTERS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, MANAGER_PROPERTY_FIELD,
-    MODULE_TYPE, OUTPUTS_MANAGER_TYPE, ROUTING_TYPE, TRIGGER_ON_VALUES_SIGNAL_FIELD, VALUE_SET_TYPE, node_registry,
-    register_nodes, register_value_types,
+    CONDITIONS_MANAGER_TYPE, ChataigneNodeKind, ConditionManagerValue, FILTERS_MANAGER_TYPE, INPUTS_MANAGER_TYPE,
+    MANAGER_PROPERTY_FIELD, MODULE_TYPE, OUTPUTS_MANAGER_TYPE, ROUTING_TYPE, TRIGGER_ON_VALUES_SIGNAL_FIELD,
+    VALUE_SET_TYPE, node_registry, register_nodes, register_value_types,
 };
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry};
 
@@ -137,7 +138,7 @@ fn manager_anode_sockets_use_explicit_manager_value_shapes() {
 }
 
 #[test]
-fn conditions_manager_selects_lane_values_and_falls_back_to_global_values() {
+fn conditions_manager_projects_a_full_execution_lane_to_its_source_axes() {
     let manager_id = "conditions";
     let mut manager = node(CONDITIONS_MANAGER_TYPE);
     manager.config.set(
@@ -162,7 +163,13 @@ fn conditions_manager_selects_lane_values_and_falls_back_to_global_values() {
     assert!(!compiled.has_errors(), "{:?}", compiled.diagnostics);
     let compiled = compiled.compiled.unwrap();
     let source = StableRef::new(ValueTypeId::new(CONDITIONS_MANAGER_TYPE), manager_id);
-    let lane = ContextKey::single("device", "left");
+    let device_axis = ContextAxisId::new("device");
+    let source_lane = ContextKey::single(device_axis.clone(), "left");
+    let execution_lane = ContextKey::new([
+        ContextKeyPart::new("bank", "front"),
+        ContextKeyPart::new(device_axis.clone(), "left"),
+    ]);
+    let source_axes = AxisSet::from_iter([device_axis]);
     let global_values = ValueSet::with_entries(
         4,
         vec![
@@ -174,27 +181,13 @@ fn conditions_manager_selects_lane_values_and_falls_back_to_global_values() {
             ),
         ],
     );
-    let lane_values = ValueSet::with_entries(
-        5,
-        vec![
-            ValueSetEntry::new(ValueLaneKey::new("valid").unwrap(), "Valid", RuntimeValue::Bool(true)),
-            ValueSetEntry::new(
-                ValueLaneKey::new("on_true").unwrap(),
-                "On True",
-                RuntimeValue::Trigger(TriggerValue::fired(5, 2)),
-            ),
-            ValueSetEntry::new(
-                ValueLaneKey::new("ignored").unwrap(),
-                "Ignored",
-                RuntimeValue::String("ignored".into()),
-            ),
-        ],
-    );
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(source.clone(), global_values.to_runtime_value().unwrap());
-    inputs.insert(
-        crate::lane_scoped_stable_ref(&source, &lane),
-        lane_values.to_runtime_value().unwrap(),
+    inputs.insert_context(
+        source.clone(),
+        &source_axes,
+        source_lane,
+        ConditionManagerValue::new(true, TriggerValue::fired(5, 2), TriggerValue::default()).into_runtime_value(),
     );
     let registries = RuntimeRegistries {
         value_types: &value_types,
@@ -206,7 +199,7 @@ fn conditions_manager_selects_lane_values_and_falls_back_to_global_values() {
         inputs: &inputs,
         registries: &registries,
     };
-    let context = RuntimeContextFrame::new(lane.clone());
+    let context = RuntimeContextFrame::new(execution_lane.clone());
     let mut runtime = AlchemistRuntime::new(compiled.clone());
     let mut debug = DebugCaptureSink::new(DebugCaptureMode::All { history_len: 16 });
     let lane_result = evaluate_compiled_graph(
@@ -238,7 +231,7 @@ fn conditions_manager_selects_lane_values_and_falls_back_to_global_values() {
         lane_result
             .debug_samples
             .iter()
-            .all(|sample| sample.context_key.as_ref() == Some(&lane))
+            .all(|sample| sample.context_key.as_ref() == Some(&execution_lane))
     );
 
     let mut global_only_inputs = RuntimeInputSnapshot::default();

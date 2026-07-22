@@ -1,6 +1,6 @@
 use crate::contexts::UserContextValueType;
 use crate::edit::Edit;
-use crate::events::{Event, EventKind};
+use crate::events::{CustomEventRetention, Event, EventKind};
 use crate::node::{Node, NodeCreationContext};
 use crate::parameter::ParamValue;
 use std::{any::type_name, collections::BTreeMap};
@@ -316,8 +316,13 @@ impl<T: Node> Engine<T> {
                     (Ok(effect.map(Into::into)), should_clear_redo)
                 }
                 Edit::EmitCustomEvent { event } => {
-                    self.emit_event(EventKind::Custom(event));
-                    (Ok(None), true)
+                    if event.retention == CustomEventRetention::Transient {
+                        self.emit_inbox_event(EventKind::Custom(event));
+                        (Ok(None), false)
+                    } else {
+                        self.emit_event(EventKind::Custom(event));
+                        (Ok(None), true)
+                    }
                 }
                 Edit::ReevaluateGraph => {
                     self.mark_schedule_dirty();

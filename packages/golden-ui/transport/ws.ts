@@ -24,7 +24,7 @@ import {
 import { getUiClientInstanceId } from "./client-instance";
 
 const DEFAULT_WS_URL = "ws://localhost:7010/api/ui/ws";
-const UI_PROTOCOL_VERSION = "0.2.0";
+const UI_PROTOCOL_VERSION = "0.3.0";
 const INTENT_TIMEOUT_MS = 4000;
 const SNAPSHOT_TIMEOUT_MS = 120000;
 const RECONNECT_BASE_MS = 250;

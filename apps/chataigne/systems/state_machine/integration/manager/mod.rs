@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
-    ffi::OsStr,
-    sync::{Arc, LazyLock},
+    sync::Arc,
+    time::Duration,
 };
 
 use chataigne_state_machine::{
@@ -9,10 +9,15 @@ use chataigne_state_machine::{
     DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorDebugCapture,
     ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorFormulaUiState, ProcessorId,
     ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto,
-    ProcessorLaneSummaryDto, ProcessorUiDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
-    ProcessorRuntime, StateMachineProtocolBundle, processor_output_preview_samples,
-    ValueLaneKey, ValueSet, ValueSetEntry, lane_scoped_stable_ref,
-    alchemist::{CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, node_registry, value_type_registry},
+    ProcessorLaneCatalogEntryDto, ProcessorUiDto, ProcessorLifecycleEvent,
+    ProcessorLifecyclePolicy,
+    ProcessorRuntime, StateMachinePreviewCatalogDto, StateMachineRuntimePreviewDto, ValueLaneKey,
+    ValueSet, ValueSetEntry,
+    alchemist::{
+        CONDITIONS_MANAGER_TYPE, ConditionManagerValue, INPUTS_MANAGER_TYPE, node_registry,
+        value_type_registry,
+    },
+    processor_output_preview_samples, processor_output_preview_samples_from_lanes,
 };
 use chataigne_alchemist::{
     ANodeId, AlchemistFormula, AlchemistGraphDomain, AxisSet, CompiledAlchemistFormula, ContextAxisId, ContextItemId,
@@ -28,15 +33,17 @@ use crate::app::systems_alchemist_conditions::compiler::{
     param_to_condition_value,
 };
 use chataigne_condition::{ConditionEvaluationFrame, ConditionInputProvider, ConditionRuntime};
+use chataigne_state_machine::protocol::{FormulaPreviewDemandDto, FormulaPreviewModeDto};
 use golden_core::{
     contexts::{
         MultiplexContextLinkTarget, MultiplexTemplateToken, MultiplexTokenSelector,
         UserContextValueType, parse_multiplex_context_link_symbol,
         parse_multiplex_template_token,
     },
-    engine::NodeExecutionRule,
-    events::{Event, EventFrame, EventKind},
+    engine::{DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, NodeExecutionRule},
+    events::{CustomEvent, Event, EventFrame, EventKind},
     log,
+    logger::{LogLevel, LogMessage, log_messages},
     node,
     node::{
         Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUserPermissions,
@@ -70,13 +77,16 @@ const FORMULA_NODE_TYPE: &str = "alchemist_formula";
 const PROCESSOR_MANAGER_DECL_ID: &str = "processors";
 const PROCESSOR_NODE_TYPE: &str = "state_processor";
 const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
-const STATE_MACHINE_RUNTIME_HZ: u32 = 60;
 const STATE_MACHINE_RUNTIME_PREVIEW_TOPIC: &str = "chataigne.state_machine.runtime_preview";
-const STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS: u64 = 1;
+const STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC: &str =
+    "chataigne.state_machine.runtime_preview_catalog";
+const STATE_MACHINE_RUNTIME_PREVIEW_DEMAND_TOPIC: &str =
+    "chataigne.state_machine.runtime_preview_demand";
 const CONDITION_PULSE_HOLD_TICKS: u64 = 6;
-const STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS: u64 = 60;
 const STATE_MACHINE_LOG_MIN_TICKS: u64 = 30;
 const RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN: usize = 64;
+const PREVIEW_DEMAND_LEASE_DURATION: Duration = Duration::from_secs(6);
+const MAX_PREVIEW_DEMANDS: usize = 64;
 const STATE_MACHINE_RUNTIME_WARNING_ID: &str = "state_machine_runtime";
 const CONDITION_MANAGER_NODE_TYPE: &str = "sm_condition_manager";
 const INPUT_VALUE_CONDITION_NODE_TYPE: &str = "sm_input_value_condition";
@@ -96,6 +106,14 @@ struct RuntimeProcessor {
 struct RuntimeLogRecord {
     value: String,
     tick: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct RuntimeCommandInvocationKey {
+    context_key: ContextKey,
+    source_node: Option<ANodeId>,
+    source_socket: Option<SocketId>,
+    target: Option<StableRef>,
 }
 
 struct RuntimeFormulaDefaultPreview {
@@ -145,23 +163,140 @@ struct ConditionValidity {
     settled: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum RuntimeFormulaPreviewMode {
+    FormulaDefaults(chataigne_alchemist::FormulaId),
+    ProcessorLane {
+        processor_id: ProcessorId,
+        context_key: ContextKey,
+    },
+}
+
+#[derive(Clone, Debug)]
+struct FormulaPreviewDemandLease {
+    mode: RuntimeFormulaPreviewMode,
+    expires_at: Duration,
+}
+
+#[derive(Default)]
+struct ActivePreviewSelection {
+    formula_defaults: HashSet<chataigne_alchemist::FormulaId>,
+    processor_lanes: HashMap<ProcessorId, HashSet<ContextKey>>,
+}
+
+impl ActivePreviewSelection {
+    fn from_leases(leases: &HashMap<String, FormulaPreviewDemandLease>) -> Self {
+        let mut selection = Self::default();
+        for lease in leases.values() {
+            match &lease.mode {
+                RuntimeFormulaPreviewMode::FormulaDefaults(formula_id) => {
+                    selection.formula_defaults.insert(formula_id.clone());
+                }
+                RuntimeFormulaPreviewMode::ProcessorLane {
+                    processor_id,
+                    context_key,
+                } => {
+                    selection
+                        .processor_lanes
+                        .entry(*processor_id)
+                        .or_default()
+                        .insert(context_key.clone());
+                }
+            }
+        }
+        selection
+    }
+
+    fn is_empty(&self) -> bool {
+        self.formula_defaults.is_empty() && self.processor_lanes.is_empty()
+    }
+
+    fn processor_lanes(&self, processor_id: ProcessorId) -> Option<&HashSet<ContextKey>> {
+        self.processor_lanes.get(&processor_id)
+    }
+
+    fn processor_ids(&self) -> HashSet<ProcessorId> {
+        self.processor_lanes.keys().copied().collect()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ProcessorPreviewPlan {
+    capture: ProcessorDebugCapture,
+    force_evaluation: bool,
+    refresh_lane_catalog: bool,
+}
+
+fn processor_preview_plan(
+    selection: &ActivePreviewSelection,
+    processor_id: ProcessorId,
+    catalog_dirty: bool,
+) -> ProcessorPreviewPlan {
+    let Some(context_keys) = selection.processor_lanes(processor_id) else {
+        return ProcessorPreviewPlan {
+            capture: ProcessorDebugCapture::Off,
+            force_evaluation: false,
+            refresh_lane_catalog: false,
+        };
+    };
+    ProcessorPreviewPlan {
+        capture: ProcessorDebugCapture::ProcessorLanes {
+            context_keys: context_keys.iter().cloned().collect(),
+            history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
+        },
+        force_evaluation: catalog_dirty,
+        refresh_lane_catalog: catalog_dirty,
+    }
+}
+
+fn processor_preview_needs_hydration(
+    inspection_snapshot: &HashMap<ProcessorLanePreviewKey, ProcessorLaneInspectionDto>,
+    processor_id: ProcessorId,
+    requested_lanes: Option<&HashSet<ContextKey>>,
+) -> bool {
+    requested_lanes.is_some_and(|requested| {
+        requested.iter().any(|context_key| {
+            !inspection_snapshot.contains_key(&ProcessorLanePreviewKey {
+                processor_id,
+                context_key: context_key.clone(),
+            })
+        })
+    })
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct ConditionLaneKey {
+    manager: NodeId,
+    context: ContextKey,
+}
+
+impl ConditionLaneKey {
+    fn new(manager: NodeId, context: Option<&ContextKey>) -> Self {
+        Self {
+            manager,
+            context: context.cloned().unwrap_or_else(ContextKey::default_lane),
+        }
+    }
+}
+
 struct ProcessorRuntimeInputContext<'a> {
     snapshot: &'a ProcessTreeSnapshot,
     processor_node: NodeId,
     processor_id: ProcessorId,
     logical_tick: u64,
     dirty_input_source_params: &'a HashSet<NodeUuid>,
-    formula_input_values: &'a HashMap<StableRef, RuntimeValue>,
+    formula_input_values: &'a Arc<HashMap<StableRef, RuntimeValue>>,
     context_provider: &'a SnapshotProcessorContextProvider,
     force_processor_recompute: bool,
-    input_manager_signal_ticks: &'a mut HashMap<String, u64>,
-    condition_manager_values: &'a mut HashMap<String, RuntimeValue>,
-    condition_manager_valid_states: &'a mut HashMap<String, bool>,
+    input_manager_signal_ticks: &'a mut HashMap<NodeId, u64>,
+    condition_manager_values: &'a mut HashMap<ConditionLaneKey, ConditionManagerValue>,
+    condition_manager_valid_states: &'a mut HashMap<ConditionLaneKey, bool>,
     condition_manager_axes: &'a mut HashMap<NodeId, AxisSet>,
     compiled_conditions: &'a mut HashMap<NodeId, CompiledManagerCondition>,
-    condition_runtimes: &'a mut HashMap<String, ConditionRuntime>,
-    settled_condition_runtimes: &'a mut HashMap<String, ConditionRuntime>,
-    condition_observations: &'a mut HashMap<String, Vec<ProcessorLaneConditionPreviewDto>>,
+    condition_runtimes: &'a mut HashMap<ConditionLaneKey, ConditionRuntime>,
+    settled_condition_runtimes: &'a mut HashMap<ConditionLaneKey, ConditionRuntime>,
+    condition_observations: &'a mut HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
+    observed_condition_lanes: Option<&'a HashSet<ContextKey>>,
     transient_condition_valid_resets: &'a mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &'a mut u64,
     ctx: &'a mut ProcessCtx,
@@ -169,13 +304,22 @@ struct ProcessorRuntimeInputContext<'a> {
 
 #[derive(Clone, Debug, Default)]
 struct SnapshotProcessorContextProvider {
-    processors: HashMap<ProcessorId, ProcessorContextRuntime>,
+    processors: HashMap<ProcessorId, Arc<ProcessorContextRuntime>>,
+    runtimes_by_axis: HashMap<ContextAxisId, Arc<ProcessorContextRuntime>>,
 }
 
 #[derive(Clone, Debug, Default)]
 struct ProcessorContextRuntime {
     axes: Vec<ProcessorContextAxisRuntime>,
+    axis_indexes: HashMap<ContextAxisId, usize>,
     lists: Vec<ProcessorContextListRuntime>,
+    list_indexes: HashMap<ContextAxisId, ProcessorContextListIndexes>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct ProcessorContextListIndexes {
+    first: Option<usize>,
+    by_selector: HashMap<String, usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -183,6 +327,7 @@ struct ProcessorContextAxisRuntime {
     axis: ContextAxisId,
     name: String,
     items: Vec<ContextItemId>,
+    item_indexes: HashMap<ContextItemId, usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -190,13 +335,7 @@ struct ProcessorContextListRuntime {
     axis: ContextAxisId,
     symbol: String,
     list_id: String,
-    entries: Vec<ProcessorContextEntryRuntime>,
-}
-
-#[derive(Clone, Debug)]
-struct ProcessorContextEntryRuntime {
-    item: ContextItemId,
-    value: RuntimeValue,
+    entries: HashMap<ContextItemId, RuntimeValue>,
 }
 
 impl SnapshotProcessorContextProvider {
@@ -205,15 +344,38 @@ impl SnapshotProcessorContextProvider {
         processor_nodes: impl IntoIterator<Item = NodeId>,
     ) -> Self {
         let mut provider = Self::default();
+        let mut scope_cache = ProcessorContextScopeCache::new(snapshot);
+        let mut runtimes_by_scopes =
+            HashMap::<Arc<[NodeId]>, Arc<ProcessorContextRuntime>>::new();
         for processor_node in processor_nodes {
             let Some(processor_snapshot) = snapshot.node(processor_node) else {
                 continue;
             };
             let processor_id = ProcessorId::from_uuid(processor_snapshot.uuid.0);
-            let runtime = collect_processor_context_runtime(snapshot, processor_node);
-            provider.processors.insert(processor_id, runtime);
+            let scopes = scope_cache.scopes_for(processor_node);
+            let runtime = Arc::clone(
+                runtimes_by_scopes
+                    .entry(Arc::clone(&scopes))
+                    .or_insert_with(|| {
+                        Arc::new(collect_processor_context_runtime(snapshot, scopes.as_ref()))
+                    }),
+            );
+            provider.insert_processor_runtime(processor_id, runtime);
         }
         provider
+    }
+
+    fn insert_processor_runtime(
+        &mut self,
+        processor_id: ProcessorId,
+        runtime: Arc<ProcessorContextRuntime>,
+    ) {
+        for axis in &runtime.axes {
+            self.runtimes_by_axis
+                .entry(axis.axis.clone())
+                .or_insert_with(|| Arc::clone(&runtime));
+        }
+        self.processors.insert(processor_id, runtime);
     }
 
     fn multiplex_link_for_symbol(
@@ -276,12 +438,8 @@ impl SnapshotProcessorContextProvider {
             parts: key
                 .iter()
                 .map(|part| {
-                    let axis = runtime.and_then(|runtime| {
-                        runtime.axes.iter().find(|axis| axis.axis == part.axis)
-                    });
-                    let index = axis.and_then(|axis| {
-                        axis.items.iter().position(|item| item == &part.item)
-                    });
+                    let axis = runtime.and_then(|runtime| runtime.axis(&part.axis));
+                    let index = axis.and_then(|axis| axis.item_indexes.get(&part.item).copied());
                     let axis_label = axis
                         .map(|axis| axis.name.trim())
                         .filter(|label| !label.is_empty())
@@ -324,18 +482,14 @@ impl SnapshotProcessorContextProvider {
             .map(|part| &part.item)?;
         match token {
             MultiplexTemplateToken::Index { zero_based, .. } => {
-                let index = axis.items.iter().position(|candidate| candidate == item)?;
+                let index = axis.item_indexes.get(item).copied()?;
                 Some((index + usize::from(!zero_based)).to_string())
             }
             MultiplexTemplateToken::List { list, .. } => {
                 let value = runtime
-                    .lists
-                    .iter()
-                    .find(|candidate| candidate.axis == axis.axis && candidate.symbol == *list)?
+                    .list(&axis.axis, Some(list.as_str()))?
                     .entries
-                    .iter()
-                    .find(|entry| entry.item == *item)?
-                    .value
+                    .get(item)?
                     .clone();
                 let value = runtime_value_to_param(&value).ok()?;
                 Some(value.as_str().unwrap_or_else(|| value.to_string()))
@@ -374,8 +528,7 @@ impl ProcessorContextProvider for SnapshotProcessorContextProvider {
 
         let mut required_axes = Vec::<(&ContextAxisId, Vec<ContextItemId>)>::new();
         for axis in axes {
-            let Some(runtime_axis) = runtime.axes.iter().find(|candidate| &candidate.axis == axis)
-            else {
+            let Some(runtime_axis) = runtime.axis(axis) else {
                 return Box::new(std::iter::empty());
             };
             if runtime_axis.items.is_empty() {
@@ -411,34 +564,66 @@ impl ProcessorContextProvider for SnapshotProcessorContextProvider {
             .find(|part| &part.axis == axis)
             .map(|part| &part.item)?;
         let selector = path.segments.first().map(|segment| segment.as_str());
+        let runtime = self.runtimes_by_axis.get(axis)?;
 
         if matches!(selector, Some("@index" | "@index0")) {
-            let runtime = self.processors.values().find(|runtime| {
-                runtime.axes.iter().any(|candidate| &candidate.axis == axis)
-            })?;
-            let runtime_axis = runtime.axes.iter().find(|candidate| &candidate.axis == axis)?;
-            let index = runtime_axis.items.iter().position(|candidate| candidate == item)?;
+            let runtime_axis = runtime.axis(axis)?;
+            let index = runtime_axis.item_indexes.get(item).copied()?;
             let offset = usize::from(selector == Some("@index"));
             return Some(RuntimeValue::Int((index + offset) as i64));
         }
 
-        self.processors
-            .values()
-            .flat_map(|runtime| runtime.lists.iter())
-            .filter(|list| &list.axis == axis)
-            .find(|list| {
-                selector.is_none_or(|selector| {
-                    list.symbol == selector || list.list_id == selector
-                })
-            })?
+        runtime
+            .list(axis, selector)?
             .entries
-            .iter()
-            .find(|entry| &entry.item == item)
-            .map(|entry| entry.value.clone())
+            .get(item)
+            .cloned()
     }
 }
 
 impl ProcessorContextRuntime {
+    fn rebuild_indexes(&mut self) {
+        self.axis_indexes.clear();
+        for (index, axis) in self.axes.iter().enumerate() {
+            self.axis_indexes
+                .entry(axis.axis.clone())
+                .or_insert(index);
+        }
+
+        self.list_indexes.clear();
+        for (index, list) in self.lists.iter().enumerate() {
+            let indexes = self.list_indexes.entry(list.axis.clone()).or_default();
+            indexes.first.get_or_insert(index);
+            indexes
+                .by_selector
+                .entry(list.symbol.clone())
+                .or_insert(index);
+            indexes
+                .by_selector
+                .entry(list.list_id.clone())
+                .or_insert(index);
+        }
+    }
+
+    fn axis(&self, axis: &ContextAxisId) -> Option<&ProcessorContextAxisRuntime> {
+        self.axis_indexes
+            .get(axis)
+            .and_then(|index| self.axes.get(*index))
+    }
+
+    fn list(
+        &self,
+        axis: &ContextAxisId,
+        selector: Option<&str>,
+    ) -> Option<&ProcessorContextListRuntime> {
+        let indexes = self.list_indexes.get(axis)?;
+        let index = match selector {
+            Some(selector) => indexes.by_selector.get(selector).copied(),
+            None => indexes.first,
+        }?;
+        self.lists.get(index)
+    }
+
     fn axis_for_template_token(
         &self,
         token: &MultiplexTemplateToken,
@@ -468,22 +653,71 @@ fn multiplex_template_tokens(template: &str) -> impl Iterator<Item = MultiplexTe
 
 fn collect_processor_context_runtime(
     snapshot: &ProcessTreeSnapshot,
-    processor_node: NodeId,
+    scopes: &[NodeId],
 ) -> ProcessorContextRuntime {
     let mut runtime = ProcessorContextRuntime::default();
-    let mut cursor = Some(processor_node);
-    while let Some(owner) = cursor {
-        for child in snapshot.child_ids(owner) {
-            let Some(child_snapshot) = snapshot.node(child) else {
-                continue;
-            };
-            if child_snapshot.node_type == USER_CONTEXT_NODE_TYPE {
-                collect_context_scope_multiplexes(snapshot, child, &mut runtime);
-            }
-        }
-        cursor = snapshot.node(owner).and_then(|node| node.parent);
+    for scope in scopes {
+        collect_context_scope_multiplexes(snapshot, *scope, &mut runtime);
     }
+    runtime.rebuild_indexes();
     runtime
+}
+
+struct ProcessorContextScopeCache<'a> {
+    snapshot: &'a ProcessTreeSnapshot,
+    scopes_by_owner: HashMap<NodeId, Arc<[NodeId]>>,
+    visiting: HashSet<NodeId>,
+}
+
+impl<'a> ProcessorContextScopeCache<'a> {
+    fn new(snapshot: &'a ProcessTreeSnapshot) -> Self {
+        Self {
+            snapshot,
+            scopes_by_owner: HashMap::new(),
+            visiting: HashSet::new(),
+        }
+    }
+
+    fn scopes_for(&mut self, owner: NodeId) -> Arc<[NodeId]> {
+        if let Some(scopes) = self.scopes_by_owner.get(&owner) {
+            return Arc::clone(scopes);
+        }
+        if !self.visiting.insert(owner) {
+            return Arc::from([]);
+        }
+
+        let direct_scopes = self
+            .snapshot
+            .child_ids_slice(owner)
+            .iter()
+            .copied()
+            .filter(|child| {
+                self.snapshot
+                    .node(*child)
+                    .is_some_and(|node| node.node_type == USER_CONTEXT_NODE_TYPE)
+            })
+            .collect::<Vec<_>>();
+        let parent = self.snapshot.node(owner).and_then(|node| node.parent);
+        let inherited_scopes = parent.map(|parent| self.scopes_for(parent));
+
+        let scopes = if direct_scopes.is_empty() {
+            inherited_scopes.unwrap_or_else(|| Arc::from([]))
+        } else {
+            let inherited_len = inherited_scopes
+                .as_ref()
+                .map_or(0, |scopes| scopes.len());
+            let mut scopes = Vec::with_capacity(direct_scopes.len() + inherited_len);
+            scopes.extend(direct_scopes);
+            if let Some(inherited_scopes) = inherited_scopes {
+                scopes.extend(inherited_scopes.iter().copied());
+            }
+            Arc::from(scopes)
+        };
+
+        self.visiting.remove(&owner);
+        self.scopes_by_owner.insert(owner, Arc::clone(&scopes));
+        scopes
+    }
 }
 
 fn collect_context_scope_multiplexes(
@@ -522,7 +756,7 @@ fn collect_multiplex_lists(
     let mut pending_lists = Vec::<PendingProcessorContextList>::new();
     let mut canonical_items = Vec::<ContextItemId>::new();
 
-    for list_node in snapshot.child_ids(multiplex_node) {
+    for list_node in snapshot.child_ids_slice(multiplex_node).iter().copied() {
         let Some(list_snapshot) = snapshot.node(list_node) else {
             continue;
         };
@@ -567,6 +801,12 @@ fn collect_multiplex_lists(
         runtime.axes.push(ProcessorContextAxisRuntime {
             axis: axis.clone(),
             name: multiplex_snapshot.label.trim().to_owned(),
+            item_indexes: canonical_items
+                .iter()
+                .cloned()
+                .enumerate()
+                .map(|(index, item)| (item, index))
+                .collect(),
             items: canonical_items.clone(),
         });
     }
@@ -582,9 +822,9 @@ fn collect_multiplex_lists(
                     .get(index)
                     .cloned()
                     .unwrap_or_else(|| ContextItemId::new(pending_entry.item_id));
-                Some(ProcessorContextEntryRuntime { item, value })
+                Some((item, value))
             })
-            .collect::<Vec<_>>();
+            .collect::<HashMap<_, _>>();
         runtime.lists.push(ProcessorContextListRuntime {
             axis: axis.clone(),
             symbol: pending.symbol,
@@ -612,7 +852,7 @@ fn collect_multiplex_list_entry_values(
     value_type: UserContextValueType,
 ) -> Vec<PendingProcessorContextEntry> {
     let mut entries = Vec::new();
-    for entry_node in snapshot.child_ids(list_node) {
+    for entry_node in snapshot.child_ids_slice(list_node).iter().copied() {
         let Some(entry_snapshot) = snapshot.node(entry_node) else {
             continue;
         };
@@ -702,7 +942,7 @@ fn collect_processor_context_link_axes(
     provider: &SnapshotProcessorContextProvider,
     axes: &mut AxisSet,
 ) {
-    for child in snapshot.child_ids(parent) {
+    for child in snapshot.child_ids_slice(parent).iter().copied() {
         let Some(node) = snapshot.node(child) else {
             continue;
         };
@@ -789,15 +1029,34 @@ impl OutputPreviewSampleKey {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct ProcessorLanePreviewKey {
+    processor_id: ProcessorId,
+    context_key: ContextKey,
+}
+
+impl ProcessorLanePreviewKey {
+    fn new(processor_id: ProcessorId, context_key: Option<&ContextKey>) -> Self {
+        Self {
+            processor_id,
+            context_key: context_key
+                .cloned()
+                .unwrap_or_else(ContextKey::default_lane),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct OutputPreviewSignature(Vec<OutputPreviewSignaturePart>);
+
+type ProcessorLaneInspectionSignature =
+    Vec<(String, String, Vec<(String, String)>, Vec<(String, bool)>)>;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct OutputPreviewSignaturePart {
     key: OutputPreviewSampleKey,
     status: OutputPreviewStatusKey,
     value: RuntimeValueSignature,
-    logical_tick: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -895,43 +1154,71 @@ struct StateMachineRuntimeCache {
     dirty_processor_overrides: HashSet<NodeId>,
     dirty_input_source_params: HashSet<NodeUuid>,
     formulas: HashMap<NodeUuid, AlchemistFormula>,
-    formula_input_values: HashMap<StableRef, RuntimeValue>,
+    formula_input_values: Arc<HashMap<StableRef, RuntimeValue>>,
     compiled_formulas: HashMap<FormulaCompileKey, Arc<CompiledAlchemistFormula>>,
     source_listener_params: HashSet<NodeId>,
     source_listener_param_uuids: HashMap<NodeId, NodeUuid>,
-    input_manager_signal_ticks: HashMap<String, u64>,
-    condition_manager_values: HashMap<String, RuntimeValue>,
-    condition_manager_valid_states: HashMap<String, bool>,
+    source_listener_processors: HashMap<NodeId, HashSet<NodeId>>,
+    dirty_source_processors: HashSet<NodeId>,
+    input_manager_signal_ticks: HashMap<NodeId, u64>,
+    condition_manager_values: HashMap<ConditionLaneKey, ConditionManagerValue>,
+    condition_manager_valid_states: HashMap<ConditionLaneKey, bool>,
     condition_manager_axes: HashMap<NodeId, AxisSet>,
     compiled_conditions: HashMap<NodeId, CompiledManagerCondition>,
-    condition_runtimes: HashMap<String, ConditionRuntime>,
-    settled_condition_runtimes: HashMap<String, ConditionRuntime>,
-    condition_observations: HashMap<String, Vec<ProcessorLaneConditionPreviewDto>>,
+    condition_runtimes: HashMap<ConditionLaneKey, ConditionRuntime>,
+    settled_condition_runtimes: HashMap<ConditionLaneKey, ConditionRuntime>,
+    condition_observations: HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
     transient_condition_valid_resets: HashMap<NodeId, u64>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
+    continuous_processor_count: usize,
     formula_default_previews: HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
+    continuous_formula_default_preview_count: usize,
     output_preview_snapshot: HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
-    processor_lane_snapshot: HashMap<String, ProcessorLaneSummaryDto>,
-    processor_lane_inspection_snapshot: HashMap<String, ProcessorLaneInspectionDto>,
+    processor_lane_inspection_snapshot:
+        HashMap<ProcessorLanePreviewKey, ProcessorLaneInspectionDto>,
     last_preview_signature: Option<OutputPreviewSignature>,
-    last_preview_tick: Option<u64>,
+    last_preview_inspection_signature: Option<ProcessorLaneInspectionSignature>,
+    preview_demands: HashMap<String, FormulaPreviewDemandLease>,
+    preview_demand_dirty: bool,
     last_log_values: HashMap<RuntimeLogKey, RuntimeLogRecord>,
+    command_invocation_streams: HashMap<NodeId, HashMap<RuntimeCommandInvocationKey, u64>>,
+    next_command_invocation_stream: u64,
     perf_stats: StateMachineRuntimePerfStats,
 }
 
-fn runtime_output_previews_enabled(value: Option<&OsStr>) -> bool {
-    value.is_none_or(|value| {
-        let value = value.to_string_lossy();
-        !matches!(value.trim().to_ascii_lowercase().as_str(), "" | "0" | "false" | "off")
-    })
-}
+impl StateMachineRuntimeCache {
+    fn has_continuous_work(&self) -> bool {
+        self.continuous_processor_count != 0
+            || self.continuous_formula_default_preview_count != 0
+    }
 
-// Runtime graph feedback is product functionality. Headless/performance runs
-// may explicitly opt out, but a normal app launch must feed the editor.
-static RUNTIME_OUTPUT_PREVIEWS_ENABLED: LazyLock<bool> = LazyLock::new(|| {
-    runtime_output_previews_enabled(std::env::var_os("CHATAIGNE_RUNTIME_OUTPUT_PREVIEWS").as_deref())
-});
+    fn replace_processors(&mut self, processors: HashMap<NodeId, RuntimeProcessor>) {
+        self.continuous_processor_count = processors
+            .values()
+            .filter(|processor| processor_needs_continuous_evaluation(&processor.runtime))
+            .count();
+        self.processors = processors;
+    }
+
+    fn clear_formula_default_previews(&mut self) {
+        self.formula_default_previews.clear();
+        self.continuous_formula_default_preview_count = 0;
+    }
+
+    fn retain_formula_default_previews(
+        &mut self,
+        requested: &HashSet<chataigne_alchemist::FormulaId>,
+    ) {
+        self.formula_default_previews
+            .retain(|formula_id, _| requested.contains(formula_id));
+        self.continuous_formula_default_preview_count = self
+            .formula_default_previews
+            .values()
+            .filter(|preview| processor_needs_continuous_evaluation(&preview.runtime))
+            .count();
+    }
+}
 
 #[node("state_machine_manager", label = "State Machine")]
 pub struct StateMachineManager {
@@ -980,6 +1267,12 @@ impl Node for StateMachineManager {
         self.run_processors(ctx);
     }
 
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
+        if event.topic == STATE_MACHINE_RUNTIME_PREVIEW_DEMAND_TOPIC {
+            self.apply_preview_demand(event, ctx.runtime_elapsed);
+        }
+    }
+
     fn update_requires_tree_snapshot(&self) -> bool {
         self.runtime_cache.topology_dirty
             || !self.runtime_cache.structure_dirty.is_empty()
@@ -987,11 +1280,8 @@ impl Node for StateMachineManager {
             || !self.runtime_cache.dirty_input_source_params.is_empty()
             || !self.runtime_cache.dirty_formula_values.is_empty()
             || !self.runtime_cache.transient_condition_valid_resets.is_empty()
-            || self
-                .runtime_cache
-                .processors
-                .values()
-                .any(|processor| processor_needs_continuous_evaluation(&processor.runtime))
+            || self.runtime_cache.preview_demand_dirty
+            || self.runtime_cache.has_continuous_work()
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
@@ -1005,7 +1295,9 @@ impl Node for StateMachineManager {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(STATE_MACHINE_RUNTIME_HZ)
+        // The engine loop preference owns the real processing rate. Requesting the raw runtime
+        // ceiling here prevents the state-machine layer from imposing a lower independent cap.
+        NodeExecutionRule::periodic(DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ)
             .with_compiled_kernel("chataigne.runtime.state-machine")
     }
 
@@ -1081,6 +1373,46 @@ impl StateMachineManager {
         self.runtime_cache.topology_dirty
     }
 
+    fn apply_preview_demand(&mut self, event: CustomEvent, runtime_elapsed: Duration) {
+        let Ok(demand) = event.payload_as::<FormulaPreviewDemandDto>() else {
+            return;
+        };
+        let subscription_id = demand.subscription_id.trim();
+        if subscription_id.is_empty() || subscription_id.len() > 256 {
+            return;
+        }
+
+        let Some(mode) = demand.mode else {
+            if self.runtime_cache.preview_demands.remove(subscription_id).is_some() {
+                self.runtime_cache.preview_demand_dirty = true;
+            }
+            return;
+        };
+        let Some(mode) = runtime_formula_preview_mode(mode) else {
+            return;
+        };
+        let expires_at = runtime_elapsed.saturating_add(PREVIEW_DEMAND_LEASE_DURATION);
+        if let Some(lease) = self.runtime_cache.preview_demands.get_mut(subscription_id) {
+            if lease.mode != mode {
+                lease.mode = mode;
+                self.runtime_cache.preview_demand_dirty = true;
+            }
+            lease.expires_at = expires_at;
+            return;
+        }
+        if self.runtime_cache.preview_demands.len() >= MAX_PREVIEW_DEMANDS {
+            return;
+        }
+        self.runtime_cache.preview_demands.insert(
+            subscription_id.to_owned(),
+            FormulaPreviewDemandLease {
+                mode,
+                expires_at,
+            },
+        );
+        self.runtime_cache.preview_demand_dirty = true;
+    }
+
     fn mark_runtime_structure_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             self.runtime_cache.topology_dirty = true;
@@ -1104,6 +1436,7 @@ impl StateMachineManager {
     fn mark_input_source_param_dirty(&mut self, ctx: &mut ProcessCtx, param: NodeId) -> bool {
         if let Some(uuid) = self.runtime_cache.source_listener_param_uuids.get(&param).copied() {
             self.runtime_cache.dirty_input_source_params.insert(uuid);
+            self.mark_source_processors_dirty(param);
             return true;
         }
         if !self.runtime_cache.source_listener_params.contains(&param) {
@@ -1115,7 +1448,23 @@ impl StateMachineManager {
         if let Some(node) = snapshot.node(param) {
             self.runtime_cache.dirty_input_source_params.insert(node.uuid);
         }
+        self.mark_source_processors_dirty(param);
         true
+    }
+
+    fn mark_source_processors_dirty(&mut self, param: NodeId) {
+        if let Some(processors) = self.runtime_cache.source_listener_processors.get(&param) {
+            self.runtime_cache
+                .dirty_source_processors
+                .extend(processors.iter().copied());
+            return;
+        }
+
+        // The listener index is rebuilt atomically with the listener set. Falling back to all
+        // active processors preserves correctness if a source event races that rebuild.
+        self.runtime_cache
+            .dirty_source_processors
+            .extend(self.runtime_cache.processors.keys().copied());
     }
 
     fn mark_processor_override_dirty(&mut self, ctx: &mut ProcessCtx, param: NodeId) -> bool {
@@ -1148,7 +1497,7 @@ impl StateMachineManager {
             let edge_id = self.runtime_cache.next_trigger_edge_id;
             self.runtime_cache.next_trigger_edge_id =
                 self.runtime_cache.next_trigger_edge_id.wrapping_add(1);
-            self.runtime_cache.formula_input_values.insert(
+            Arc::make_mut(&mut self.runtime_cache.formula_input_values).insert(
                 reference,
                 RuntimeValue::Trigger(TriggerValue::fired(edge_id, ctx.time.tick)),
             );
@@ -1163,7 +1512,7 @@ impl StateMachineManager {
             self.runtime_cache.structure_dirty.insert(input.formula);
             return true;
         };
-        self.runtime_cache.formula_input_values.insert(reference, value);
+        Arc::make_mut(&mut self.runtime_cache.formula_input_values).insert(reference, value);
         true
     }
 
@@ -1205,9 +1554,33 @@ impl StateMachineManager {
     }
 
     fn run_processors(&mut self, ctx: &mut ProcessCtx) {
+        let demand_count = self.runtime_cache.preview_demands.len();
+        self.runtime_cache
+            .preview_demands
+            .retain(|_, lease| lease.expires_at >= ctx.runtime_elapsed);
+        if demand_count != self.runtime_cache.preview_demands.len() {
+            self.runtime_cache.preview_demand_dirty = true;
+        }
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
+        let preview_demand_dirty = std::mem::take(&mut self.runtime_cache.preview_demand_dirty);
+        let preview_selection =
+            ActivePreviewSelection::from_leases(&self.runtime_cache.preview_demands);
+        let capture_output_previews = !preview_selection.is_empty();
+        if preview_demand_dirty || !capture_output_previews {
+            self.runtime_cache.output_preview_snapshot.clear();
+            self.runtime_cache.processor_lane_inspection_snapshot.clear();
+            self.runtime_cache.condition_observations.clear();
+            self.runtime_cache.last_preview_signature = None;
+            self.runtime_cache.last_preview_inspection_signature = None;
+        }
+        if preview_demand_dirty {
+            self.runtime_cache
+                .retain_formula_default_previews(&preview_selection.formula_defaults);
+        } else if !capture_output_previews {
+            self.runtime_cache.clear_formula_default_previews();
+        }
         let snapshot = snapshot.as_ref();
         let active_states = active_state_nodes(snapshot, self.id());
         let active_processor_nodes = active_states
@@ -1225,37 +1598,35 @@ impl StateMachineManager {
             active_processor_nodes.iter().copied(),
         );
 
-        if cache_rebuilt {
+        let dirty_processor_overrides = if cache_rebuilt {
             self.refresh_formula_cache(snapshot);
             let formulas = self.runtime_cache.formulas.clone();
             let catalog = FormulaCatalog::from_snapshot(snapshot);
             self.rebuild_runtime_cache(ctx, snapshot, &formulas, &catalog, &provider);
+            HashSet::new()
         } else if overrides_dirty {
             let formulas = self.runtime_cache.formulas.clone();
             let catalog = FormulaCatalog::from_snapshot(snapshot);
-            self.refresh_dirty_processor_overrides(snapshot, &formulas, &catalog, &provider);
-        }
+            self.refresh_dirty_processor_overrides(snapshot, &formulas, &catalog, &provider)
+        } else {
+            HashSet::new()
+        };
         if cache_rebuilt || overrides_dirty {
             self.refresh_source_event_listeners(ctx, snapshot, &active_states);
         }
+        let preview_catalog_dirty = preview_demand_dirty || cache_rebuilt || overrides_dirty;
 
         let value_types = value_type_registry();
         let registries = RuntimeRegistries {
             value_types: &value_types,
         };
         let default_provider = DefaultProcessorContextProvider;
-        let capture_output_previews = *RUNTIME_OUTPUT_PREVIEWS_ENABLED;
-        let capture = if capture_output_previews {
-            ProcessorDebugCapture::All {
-                history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
-            }
-        } else {
-            ProcessorDebugCapture::Off
-        };
         let mut output_preview = Vec::new();
-        let mut previewed_formula_defaults = HashSet::new();
         let mut processor_lanes = Vec::new();
         let mut processor_lane_inspections = Vec::new();
+        let mut evaluated_preview_lanes = HashMap::<ProcessorId, HashSet<ContextKey>>::new();
+        let mut runtime_logs = Vec::new();
+        let command_invocation_emitter = self.id();
         let mut evaluated_any = false;
         reset_due_transient_condition_valid_params(
             ctx,
@@ -1270,22 +1641,38 @@ impl StateMachineManager {
                 continue;
             };
             for processor_node in processor_nodes(snapshot, processor_manager) {
-                let input_signal_dirty =
-                    processor_has_dirty_input_source(snapshot, processor_node, &dirty_input_source_params);
-                let condition_signal_dirty = !dirty_input_source_params.is_empty();
+                let source_signal_dirty = self
+                    .runtime_cache
+                    .dirty_source_processors
+                    .contains(&processor_node);
                 let Some(runtime_processor) = self.runtime_cache.processors.get(&processor_node) else {
                     continue;
                 };
+                let processor_id = runtime_processor.processor.id;
+                let requested_processor_lanes = preview_selection.processor_lanes(processor_id);
+                let preview_needs_hydration = processor_preview_needs_hydration(
+                    &self.runtime_cache.processor_lane_inspection_snapshot,
+                    processor_id,
+                    requested_processor_lanes,
+                );
+                let preview_plan =
+                    processor_preview_plan(&preview_selection, processor_id, preview_catalog_dirty);
+                let preview_requested = !matches!(preview_plan.capture, ProcessorDebugCapture::Off);
                 let formula_value_dirty =
                     processor_formula_node_uuid(snapshot, runtime_processor)
                         .is_some_and(|uuid| dirty_formula_values.contains(&uuid));
+                let force_processor_recompute = processor_requires_forced_recompute(
+                    cache_rebuilt,
+                    processor_node,
+                    &dirty_processor_overrides,
+                );
                 let should_evaluate = processor_should_evaluate(
                     processor_needs_continuous_evaluation(&runtime_processor.runtime),
-                    cache_rebuilt || overrides_dirty,
-                    input_signal_dirty,
-                    condition_signal_dirty,
+                    force_processor_recompute,
+                    source_signal_dirty,
+                    false,
                     formula_value_dirty,
-                );
+                ) || preview_plan.force_evaluation;
                 if !should_evaluate {
                     continue;
                 }
@@ -1297,7 +1684,7 @@ impl StateMachineManager {
                     dirty_input_source_params: &dirty_input_source_params,
                     formula_input_values: &self.runtime_cache.formula_input_values,
                     context_provider: &provider,
-                    force_processor_recompute: cache_rebuilt || overrides_dirty,
+                    force_processor_recompute,
                     input_manager_signal_ticks: &mut self
                         .runtime_cache
                         .input_manager_signal_ticks,
@@ -1312,6 +1699,7 @@ impl StateMachineManager {
                         .runtime_cache
                         .settled_condition_runtimes,
                     condition_observations: &mut self.runtime_cache.condition_observations,
+                    observed_condition_lanes: preview_selection.processor_lanes(processor_id),
                     transient_condition_valid_resets: &mut self
                         .runtime_cache
                         .transient_condition_valid_resets,
@@ -1323,7 +1711,8 @@ impl StateMachineManager {
                 else {
                     continue;
                 };
-                let compiled_formula = capture_output_previews
+                let capture = preview_plan.capture;
+                let compiled_formula = preview_requested
                     .then(|| runtime_processor.runtime.compiled.as_ref().map(Arc::clone))
                     .flatten();
                 let formula_id = compiled_formula
@@ -1340,24 +1729,43 @@ impl StateMachineManager {
                     inputs: &inputs,
                     registries: &registries,
                 };
-                let lanes = runtime_processor
-                    .runtime
-                    .evaluate_processor_with_context_provider_and_runtime_capture(
+                let lanes = if preview_plan.refresh_lane_catalog || preview_needs_hydration {
+                    runtime_processor
+                        .runtime
+                        .evaluate_processor_with_context_provider_and_runtime_capture(
                         &runtime_processor.processor,
                         &eval_ctx,
                         &provider,
                         &capture,
-                    );
+                    )
+                } else {
+                    runtime_processor
+                        .runtime
+                        .evaluate_processor_with_context_provider_and_runtime_delta_capture(
+                            &runtime_processor.processor,
+                            &eval_ctx,
+                            &provider,
+                            &capture,
+                        )
+                };
+                if let Some(requested) = requested_processor_lanes {
+                    let returned = lanes
+                        .iter()
+                        .map(|lane| {
+                            lane.context_key
+                                .clone()
+                                .unwrap_or_else(ContextKey::default_lane)
+                        })
+                        .filter(|context_key| requested.contains(context_key))
+                        .collect();
+                    evaluated_preview_lanes.insert(runtime_processor.processor.id, returned);
+                }
                 self.runtime_cache.perf_stats.debug_samples_captured += lanes
                     .iter()
                     .map(|lane| lane.output.debug_samples.len() as u64)
                     .sum::<u64>();
                 evaluated_any = true;
-                let anode_nodes = processor_anode_node_ids(
-                    snapshot,
-                    runtime_processor.formula_node,
-                    processor_node,
-                );
+                let mut anode_nodes = None;
                 for diagnostic in &runtime_processor.runtime.diagnostics {
                     if should_emit_runtime_log(
                         &mut self.runtime_cache.last_log_values,
@@ -1365,49 +1773,54 @@ impl StateMachineManager {
                         RuntimeLogKey::processor_compile(processor_node),
                         diagnostic.message.as_str(),
                     ) {
-                        log!(
-                            origin = processor_node;
-                            format!("Processor diagnostic: {}", diagnostic.message)
-                        );
+                        runtime_logs.push(LogMessage::new(
+                            LogLevel::Info,
+                            "general".to_owned(),
+                            Some(processor_node),
+                            format!("Processor diagnostic: {}", diagnostic.message),
+                        ));
                     }
                 }
-                if let (true, Some(formula_id)) = (capture_output_previews, formula_id.as_ref()) {
-                    output_preview.extend(processor_output_preview_samples(
-                        runtime_processor.processor.id,
-                        formula_id,
-                        lanes.clone(),
-                    ));
-                    if previewed_formula_defaults.insert(formula_id.clone()) {
-                        if let Some(compiled_formula) =
-                            compiled_formula.as_ref().map(Arc::clone)
-                        {
-                            output_preview.extend(formula_default_output_preview_samples(
-                                &mut self.runtime_cache.formula_default_previews,
-                                compiled_formula,
-                                &runtime_processor.formula,
-                                &eval_ctx,
-                                &default_provider,
-                                &capture,
-                            ));
-                        }
+                if let Some(formula_id) = formula_id.as_ref() {
+                    if requested_processor_lanes.is_some() {
+                        output_preview.extend(processor_output_preview_samples_from_lanes(
+                            runtime_processor.processor.id,
+                            formula_id,
+                            &lanes,
+                        ));
                     }
                 }
                 for lane in &lanes {
-                    processor_lanes.push(processor_lane_summary(
-                        runtime_processor.processor.id,
-                        lane,
-                        ctx.time.tick,
-                        processor_needs_continuous_evaluation(&runtime_processor.runtime),
-                        &provider,
-                    ));
-                    processor_lane_inspections.push(processor_lane_inspection(
-                        snapshot,
-                        processor_node,
-                        runtime_processor.processor.id,
-                        lane,
-                        &provider,
-                        &self.runtime_cache.condition_observations,
-                    ));
+                    if preview_plan.refresh_lane_catalog {
+                        processor_lanes.push(processor_lane_catalog_entry(
+                            runtime_processor.processor.id,
+                            lane.context_key.as_ref(),
+                            processor_needs_continuous_evaluation(&runtime_processor.runtime),
+                            &provider,
+                        ));
+                    }
+                    let lane_context_key = lane
+                        .context_key
+                        .clone()
+                        .unwrap_or_else(ContextKey::default_lane);
+                    if requested_processor_lanes
+                        .is_some_and(|requested| requested.contains(&lane_context_key))
+                    {
+                        processor_lane_inspections.push((
+                            ProcessorLanePreviewKey::new(
+                                runtime_processor.processor.id,
+                                lane.context_key.as_ref(),
+                            ),
+                            processor_lane_inspection(
+                                snapshot,
+                                processor_node,
+                                runtime_processor.processor.id,
+                                lane,
+                                &provider,
+                                &self.runtime_cache.condition_observations,
+                            ),
+                        ));
+                    }
                     for diagnostic in &lane.output.diagnostics {
                         if should_emit_runtime_log(
                             &mut self.runtime_cache.last_log_values,
@@ -1415,15 +1828,24 @@ impl StateMachineManager {
                             RuntimeLogKey::processor_runtime(processor_node),
                             diagnostic.message.as_str(),
                         ) {
-                            log!(
-                                origin = processor_node;
-                                format!("Processor runtime diagnostic: {}", diagnostic.message)
-                            );
+                            runtime_logs.push(LogMessage::new(
+                                LogLevel::Info,
+                                "general".to_owned(),
+                                Some(processor_node),
+                                format!("Processor runtime diagnostic: {}", diagnostic.message),
+                            ));
                         }
                     }
                     for intent in &lane.output.intents {
                         let kind = intent.kind.as_ref();
                         if kind == "debug.log" {
+                            let anode_nodes = anode_nodes.get_or_insert_with(|| {
+                                processor_anode_node_ids(
+                                    snapshot,
+                                    runtime_processor.formula_node,
+                                    processor_node,
+                                )
+                            });
                             let (origin, message) = format_debug_log_intent(
                                 snapshot,
                                 &runtime_processor.formula.label,
@@ -1432,11 +1854,21 @@ impl StateMachineManager {
                                 &anode_nodes,
                                 intent,
                             );
-                            log!(
-                                origin = origin;
-                                format!("{}", message)
-                            );
+                            runtime_logs.push(LogMessage::new(
+                                LogLevel::Info,
+                                "general".to_owned(),
+                                Some(origin),
+                                message,
+                            ));
                         } else if kind == chataigne_state_machine::COMMAND_INTENT_KIND {
+                            let invocation_id = intern_runtime_command_invocation(
+                                &mut self.runtime_cache.command_invocation_streams,
+                                &mut self.runtime_cache.next_command_invocation_stream,
+                                command_invocation_emitter,
+                                processor_node,
+                                lane.context_key.as_ref(),
+                                intent,
+                            );
                             dispatch_command_intent(
                                 ctx,
                                 snapshot,
@@ -1444,11 +1876,19 @@ impl StateMachineManager {
                                 runtime_processor.processor.id,
                                 lane.context_key.as_ref(),
                                 &provider,
+                                invocation_id,
                                 intent,
                             );
                         }
                     }
                     for sample in &lane.output.debug_samples {
+                        let anode_nodes = anode_nodes.get_or_insert_with(|| {
+                            processor_anode_node_ids(
+                                snapshot,
+                                runtime_processor.formula_node,
+                                processor_node,
+                            )
+                        });
                         let Some(anode_node) = anode_nodes.get(&sample.author_node_id).copied()
                         else {
                             continue;
@@ -1464,62 +1904,65 @@ impl StateMachineManager {
                             anode_node,
                             sample,
                         );
-                        log!(
-                            origin = anode_node;
-                            format!("{}", message)
-                        );
+                        runtime_logs.push(LogMessage::new(
+                            LogLevel::Info,
+                            "general".to_owned(),
+                            Some(anode_node),
+                            message,
+                        ));
                     }
                 }
             }
         }
+
+        if capture_output_previews {
+            evaluated_any |= self.evaluate_formula_default_previews(
+                ctx,
+                &preview_selection,
+                &registries,
+                &default_provider,
+                &mut output_preview,
+                preview_demand_dirty || cache_rebuilt || !dirty_formula_values.is_empty(),
+            );
+        }
+        if !runtime_logs.is_empty() {
+            let _ = log_messages(runtime_logs);
+        }
         self.runtime_cache.dirty_input_source_params.clear();
+        self.runtime_cache.dirty_source_processors.clear();
         self.runtime_cache.dirty_formula_values.clear();
-        let processors = processor_ui_dtos(&self.runtime_cache.processors, &provider);
-        if evaluated_any || cache_rebuilt {
-            let output_preview = if capture_output_previews {
-                merge_output_preview_snapshot(
-                    &mut self.runtime_cache.output_preview_snapshot,
-                    output_preview,
-                )
-            } else {
-                self.runtime_cache.output_preview_snapshot.clear();
-                Vec::new()
-            };
-            if cache_rebuilt {
-                self.runtime_cache.processor_lane_snapshot.clear();
-                self.runtime_cache.processor_lane_inspection_snapshot.clear();
-            }
-            let active_processor_ids = processors
-                .iter()
-                .map(|processor| processor.id.as_str())
-                .collect::<HashSet<_>>();
-            self.runtime_cache
-                .processor_lane_snapshot
-                .retain(|_, lane| active_processor_ids.contains(lane.processor_id.as_str()));
-            for lane in processor_lanes {
-                self.runtime_cache
-                    .processor_lane_snapshot
-                    .insert(processor_lane_summary_key(&lane), lane);
-            }
-            let mut processor_lanes = self
-                .runtime_cache
-                .processor_lane_snapshot
-                .values()
-                .cloned()
-                .collect::<Vec<_>>();
+        if preview_catalog_dirty {
+            let selected_processor_ids = preview_selection.processor_ids();
+            let processors = processor_ui_dtos(
+                &self.runtime_cache.processors,
+                &provider,
+                Some(&selected_processor_ids),
+            );
             processor_lanes.sort_by(|left, right| {
                 left.processor_id
                     .cmp(&right.processor_id)
                     .then_with(|| left.label.cmp(&right.label))
             });
-            self.runtime_cache
-                .processor_lane_inspection_snapshot
-                .retain(|_, inspection| active_processor_ids.contains(inspection.processor_id.as_str()));
-            for inspection in processor_lane_inspections {
-                self.runtime_cache.processor_lane_inspection_snapshot.insert(
-                    processor_lane_inspection_key(&inspection),
-                    inspection,
-                );
+            self.publish_preview_catalog(ctx, processors, processor_lanes);
+        }
+        if capture_output_previews && (evaluated_any || cache_rebuilt || preview_demand_dirty) {
+            if cache_rebuilt || preview_demand_dirty {
+                self.runtime_cache.processor_lane_inspection_snapshot.clear();
+            }
+            retain_requested_preview_snapshots(
+                &mut self.runtime_cache.output_preview_snapshot,
+                &mut self.runtime_cache.processor_lane_inspection_snapshot,
+                &preview_selection,
+                &evaluated_preview_lanes,
+            );
+            let output_preview = merge_output_preview_snapshot(
+                &mut self.runtime_cache.output_preview_snapshot,
+                output_preview,
+            );
+            for (key, inspection) in processor_lane_inspections {
+                self.runtime_cache
+                    .processor_lane_inspection_snapshot
+                    .insert(key, inspection);
             }
             let processor_lane_inspections = self
                 .runtime_cache
@@ -1529,53 +1972,154 @@ impl StateMachineManager {
                 .collect::<Vec<_>>();
             self.publish_output_preview(
                 ctx,
-                processors,
                 output_preview,
-                processor_lanes,
                 processor_lane_inspections,
             );
+        } else if preview_demand_dirty {
+            self.publish_output_preview(ctx, Vec::new(), Vec::new());
         }
     }
 
     fn publish_output_preview(
         &mut self,
         ctx: &mut ProcessCtx,
-        processors: Vec<ProcessorUiDto>,
         samples: Vec<chataigne_state_machine::ANodeOutputPreviewSample>,
-        processor_lanes: Vec<ProcessorLaneSummaryDto>,
         processor_lane_inspections: Vec<ProcessorLaneInspectionDto>,
     ) {
         let signature = output_preview_signature(&samples);
+        let inspection_signature =
+            processor_lane_inspection_signature(&processor_lane_inspections);
         let changed = self
             .runtime_cache
             .last_preview_signature
             .as_ref()
-            .is_none_or(|previous| previous != &signature);
-        let elapsed = self
-            .runtime_cache
-            .last_preview_tick
-            .map(|tick| ctx.time.tick.saturating_sub(tick));
-        let should_publish = match elapsed {
-            None => true,
-            Some(elapsed) if changed => elapsed >= STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS,
-            Some(elapsed) => elapsed >= STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS,
-        };
-        if !should_publish {
+            .is_none_or(|previous| previous != &signature)
+            || self
+                .runtime_cache
+                .last_preview_inspection_signature
+                .as_ref()
+                .is_none_or(|previous| previous != &inspection_signature);
+        if !changed {
             return;
         }
-        let bundle = StateMachineProtocolBundle {
-            statechart_deltas: Vec::new(),
-            processors,
-            diagnostics: Vec::new(),
-            runtime_debug: Vec::new(),
-            processor_lanes,
+        let preview = StateMachineRuntimePreviewDto {
             processor_lane_inspections,
-            preview_mode: None,
             output_preview: samples.iter().map(ANodeOutputPreviewSampleDto::from).collect(),
         };
-        let _ = ctx.emit_custom_payload(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC, None, &bundle);
+        let _ = ctx.emit_latest_custom_payload(
+            STATE_MACHINE_RUNTIME_PREVIEW_TOPIC,
+            None,
+            &preview,
+        );
         self.runtime_cache.last_preview_signature = Some(signature);
-        self.runtime_cache.last_preview_tick = Some(ctx.time.tick);
+        self.runtime_cache.last_preview_inspection_signature = Some(inspection_signature);
+    }
+
+    fn publish_preview_catalog(
+        &self,
+        ctx: &mut ProcessCtx,
+        processors: Vec<ProcessorUiDto>,
+        processor_lanes: Vec<ProcessorLaneCatalogEntryDto>,
+    ) {
+        let catalog = StateMachinePreviewCatalogDto {
+            processors,
+            processor_lanes,
+        };
+        let _ = ctx.emit_latest_custom_payload(
+            STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC,
+            None,
+            &catalog,
+        );
+    }
+
+    fn evaluate_formula_default_previews(
+        &mut self,
+        ctx: &ProcessCtx,
+        selection: &ActivePreviewSelection,
+        registries: &RuntimeRegistries<'_>,
+        provider: &DefaultProcessorContextProvider,
+        output_preview: &mut Vec<ANodeOutputPreviewSample>,
+        force: bool,
+    ) -> bool {
+        let requested_formula_ids = selection
+            .formula_defaults
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        let should_evaluate = requested_formula_ids.iter().any(|formula_id| {
+            force
+                || self
+                    .runtime_cache
+                    .formula_default_previews
+                    .get(formula_id)
+                    .is_some_and(|preview| {
+                        processor_needs_continuous_evaluation(&preview.runtime)
+                    })
+        });
+        if !should_evaluate {
+            return false;
+        }
+
+        let nodes = node_registry();
+        let compile_ctx = chataigne_alchemist::CompileCtx {
+            value_types: registries.value_types,
+            nodes: &nodes,
+            properties: None,
+        };
+        let mut evaluated = false;
+        for formula_id in requested_formula_ids {
+            let should_evaluate = force
+                || self
+                    .runtime_cache
+                    .formula_default_previews
+                    .get(&formula_id)
+                    .is_some_and(|preview| {
+                        processor_needs_continuous_evaluation(&preview.runtime)
+                    });
+            if !should_evaluate {
+                continue;
+            }
+            let Some(formula) = self
+                .runtime_cache
+                .formulas
+                .values()
+                .find(|formula| formula.id == formula_id)
+                .cloned()
+            else {
+                continue;
+            };
+            let Ok(compiled) = self.shared_compiled_formula(&formula, &compile_ctx) else {
+                continue;
+            };
+            let inputs = RuntimeInputSnapshot::with_shared_values(Arc::clone(
+                &self.runtime_cache.formula_input_values,
+            ));
+            let eval_ctx = EvaluationCtx {
+                logical_tick: ctx.time.tick,
+                delta_time: ctx.delta_time,
+                events: &[],
+                inputs: &inputs,
+                registries,
+            };
+            let capture = ProcessorDebugCapture::ProcessorLane {
+                context_key: None,
+                history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
+            };
+            output_preview.extend(formula_default_output_preview_samples(
+                &mut self.runtime_cache.formula_default_previews,
+                &mut self
+                    .runtime_cache
+                    .continuous_formula_default_preview_count,
+                compiled,
+                &formula,
+                &eval_ctx,
+                provider,
+                &capture,
+                force,
+            ));
+            evaluated = true;
+        }
+        evaluated
     }
 
     fn rebuild_runtime_cache(
@@ -1666,15 +2210,20 @@ impl StateMachineManager {
                 },
             );
         }
-        self.runtime_cache.processors = next_processors;
+        let live_processor_nodes = next_processors.keys().copied().collect::<HashSet<_>>();
+        self.runtime_cache.replace_processors(next_processors);
+        self.runtime_cache
+            .command_invocation_streams
+            .retain(|processor, _| live_processor_nodes.contains(processor));
         self.runtime_cache.dirty_processor_overrides.clear();
         self.runtime_cache.dirty_formula_values.clear();
-        self.runtime_cache.formula_default_previews.clear();
+        self.runtime_cache.clear_formula_default_previews();
         self.runtime_cache.output_preview_snapshot.clear();
         self.runtime_cache.condition_manager_axes.clear();
         self.runtime_cache.compiled_conditions.clear();
         self.runtime_cache.condition_observations.clear();
         self.runtime_cache.last_preview_signature = None;
+        self.runtime_cache.last_preview_inspection_signature = None;
         self.runtime_cache.topology_dirty = false;
         self.runtime_cache.structure_dirty.clear();
         self.runtime_cache.perf_stats.runtime_cache_rebuilds += 1;
@@ -1720,16 +2269,18 @@ impl StateMachineManager {
         formulas: &HashMap<NodeUuid, AlchemistFormula>,
         catalog: &FormulaCatalog,
         context_provider: &SnapshotProcessorContextProvider,
-    ) {
+    ) -> HashSet<NodeId> {
         let dirty_processors = std::mem::take(&mut self.runtime_cache.dirty_processor_overrides);
         self.runtime_cache.compiled_conditions.clear();
         self.runtime_cache.condition_manager_axes.clear();
         self.runtime_cache.condition_observations.clear();
-        for processor_node in dirty_processors {
+        for processor_node in dirty_processors.iter().copied() {
             let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node)
             else {
                 continue;
             };
+            let was_continuous =
+                processor_needs_continuous_evaluation(&runtime_processor.runtime);
             let Some((formula_node, formula, formula_ui, formula_source_key)) =
                 processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
@@ -1758,7 +2309,15 @@ impl StateMachineManager {
             runtime_processor.formula_node = formula_node;
             runtime_processor.formula_ui = formula_ui;
             runtime_processor.formula_source_key = formula_source_key;
+            let is_continuous =
+                processor_needs_continuous_evaluation(&runtime_processor.runtime);
+            update_continuous_runtime_count(
+                &mut self.runtime_cache.continuous_processor_count,
+                was_continuous,
+                is_continuous,
+            );
         }
+        dirty_processors
     }
 
     fn refresh_source_event_listeners(
@@ -1767,7 +2326,8 @@ impl StateMachineManager {
         snapshot: &ProcessTreeSnapshot,
         active_states: &[NodeId],
     ) {
-        let next_listeners = collect_source_listener_params(snapshot, active_states);
+        let source_listener_processors = collect_source_listener_processors(snapshot, active_states);
+        let next_listeners = source_listener_processors.keys().copied().collect::<HashSet<_>>();
         let current_listeners = self.runtime_cache.source_listener_params.clone();
 
         for target in current_listeners.difference(&next_listeners).copied() {
@@ -1781,6 +2341,7 @@ impl StateMachineManager {
             .iter()
             .filter_map(|param| snapshot.node(*param).map(|node| (*param, node.uuid)))
             .collect();
+        self.runtime_cache.source_listener_processors = source_listener_processors;
         self.runtime_cache.source_listener_params = next_listeners;
     }
 }
@@ -1809,6 +2370,38 @@ fn merge_output_preview_snapshot(
         .into_iter()
         .map(|(_, sample)| sample.clone())
         .collect()
+}
+
+fn retain_requested_preview_snapshots(
+    output_snapshot: &mut HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
+    inspection_snapshot: &mut HashMap<ProcessorLanePreviewKey, ProcessorLaneInspectionDto>,
+    selection: &ActivePreviewSelection,
+    evaluated_lanes: &HashMap<ProcessorId, HashSet<ContextKey>>,
+) {
+    output_snapshot.retain(|key, _| {
+        let Some(processor_id) = key.processor_id else {
+            return selection.formula_defaults.contains(&key.formula_id);
+        };
+        let context_key = key
+            .context_key
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(ContextKey::default_lane);
+        selection
+            .processor_lanes(processor_id)
+            .is_some_and(|requested| requested.contains(&context_key))
+            && evaluated_lanes
+                .get(&processor_id)
+                .is_none_or(|returned| returned.contains(&context_key))
+    });
+    inspection_snapshot.retain(|key, _| {
+        selection
+            .processor_lanes(key.processor_id)
+            .is_some_and(|requested| requested.contains(&key.context_key))
+            && evaluated_lanes
+                .get(&key.processor_id)
+                .is_none_or(|returned| returned.contains(&key.context_key))
+    });
 }
 
 fn formula_input_value_param(
@@ -1963,8 +2556,9 @@ fn collect_formulas_in_subtree(
 
 fn active_state_nodes(snapshot: &ProcessTreeSnapshot, manager: NodeId) -> Vec<NodeId> {
     snapshot
-        .child_ids(manager)
-        .into_iter()
+        .child_ids_slice(manager)
+        .iter()
+        .copied()
         .filter(|state| {
             snapshot
                 .node(*state)
@@ -1983,7 +2577,7 @@ fn active_processor_nodes(snapshot: &ProcessTreeSnapshot, manager: NodeId) -> Ha
 
 fn processor_nodes(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> Vec<NodeId> {
     let mut processors = Vec::new();
-    for child in snapshot.child_ids(parent) {
+    for child in snapshot.child_ids_slice(parent).iter().copied() {
         let Some(node) = snapshot.node(child) else {
             continue;
         };
@@ -1999,11 +2593,11 @@ fn processor_nodes(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> Vec<NodeId
     processors
 }
 
-fn collect_source_listener_params(
+fn collect_source_listener_processors(
     snapshot: &ProcessTreeSnapshot,
     active_states: &[NodeId],
-) -> HashSet<NodeId> {
-    let mut listeners = HashSet::new();
+) -> HashMap<NodeId, HashSet<NodeId>> {
+    let mut listeners = HashMap::new();
     for state in active_states {
         let Some(processor_manager) =
             snapshot.find_child_by_decl_id(*state, PROCESSOR_MANAGER_DECL_ID)
@@ -2012,18 +2606,24 @@ fn collect_source_listener_params(
         };
         for processor in processor_nodes(snapshot, processor_manager) {
             // Property surfaces are mirrored flat at the processor's top level.
-            collect_property_source_listener_params(snapshot, processor, &mut listeners);
+            collect_property_source_listener_processors(
+                snapshot,
+                processor,
+                processor,
+                &mut listeners,
+            );
         }
     }
     listeners
 }
 
-fn collect_property_source_listener_params(
+fn collect_property_source_listener_processors(
     snapshot: &ProcessTreeSnapshot,
     parent: NodeId,
-    listeners: &mut HashSet<NodeId>,
+    processor: NodeId,
+    listeners: &mut HashMap<NodeId, HashSet<NodeId>>,
 ) {
-    for child in snapshot.child_ids(parent) {
+    for child in snapshot.child_ids_slice(parent).iter().copied() {
         let Some(node) = snapshot.node(child) else {
             continue;
         };
@@ -2035,13 +2635,18 @@ fn collect_property_source_listener_params(
             | INPUTS_MANAGER_NODE_TYPE
             | CONDITION_MANAGER_NODE_TYPE
             | CONDITION_GROUP_NODE_TYPE => {
-                collect_property_source_listener_params(snapshot, child, listeners);
+                collect_property_source_listener_processors(
+                    snapshot,
+                    child,
+                    processor,
+                    listeners,
+                );
             }
             INPUT_SOURCE_NODE_TYPE | INPUT_VALUE_CONDITION_NODE_TYPE => {
                 if let Some(source) = child_reference_uuid(snapshot, child, "source")
                     .and_then(|uuid| snapshot.node_id_by_uuid(uuid))
                 {
-                    listeners.insert(source);
+                    listeners.entry(source).or_default().insert(processor);
                 }
             }
             _ => {}
@@ -2101,13 +2706,18 @@ fn compile_processor_runtime_for_cache_rebuild(
 
 fn formula_default_output_preview_samples(
     cache: &mut HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
+    continuous_count: &mut usize,
     compiled: Arc<CompiledAlchemistFormula>,
     formula: &AlchemistFormula,
     ctx: &EvaluationCtx<'_>,
     provider: &DefaultProcessorContextProvider,
     capture: &ProcessorDebugCapture,
+    capture_unchanged_outputs: bool,
 ) -> Vec<chataigne_state_machine::ANodeOutputPreviewSample> {
     let key = formula.id.clone();
+    let was_continuous = cache
+        .get(&key)
+        .is_some_and(|preview| processor_needs_continuous_evaluation(&preview.runtime));
     let entry = cache.entry(key).or_insert_with(|| {
         let mut processor =
             Processor::from_formula(format!("{} defaults", formula.label), formula);
@@ -2130,17 +2740,40 @@ fn formula_default_output_preview_samples(
                 compiled,
             )
     {
+        update_continuous_runtime_count(
+            continuous_count,
+            was_continuous,
+            processor_needs_continuous_evaluation(&entry.runtime),
+        );
         return Vec::new();
     }
+    update_continuous_runtime_count(
+        continuous_count,
+        was_continuous,
+        processor_needs_continuous_evaluation(&entry.runtime),
+    );
     entry
         .runtime
         .apply_lifecycle(&entry.processor, ProcessorLifecycleEvent::ProjectStart);
-    let lanes = entry.runtime.evaluate_processor_with_context_provider_and_runtime_capture(
-        &entry.processor,
-        ctx,
-        provider,
-        capture,
-    );
+    let lanes = if capture_unchanged_outputs {
+        entry
+            .runtime
+            .evaluate_processor_with_context_provider_and_runtime_capture(
+                &entry.processor,
+                ctx,
+                provider,
+                capture,
+            )
+    } else {
+        entry
+            .runtime
+            .evaluate_processor_with_context_provider_and_runtime_delta_capture(
+                &entry.processor,
+                ctx,
+                provider,
+                capture,
+            )
+    };
     let mut samples = processor_output_preview_samples(entry.processor.id, &formula.id, lanes);
     for sample in &mut samples {
         sample.processor_id = None;
@@ -2156,12 +2789,29 @@ fn processor_needs_continuous_evaluation(runtime: &ProcessorRuntime) -> bool {
         .is_some_and(|compiled| compiled.analysis.has_always_process_nodes)
 }
 
+fn update_continuous_runtime_count(count: &mut usize, was_continuous: bool, is_continuous: bool) {
+    match (was_continuous, is_continuous) {
+        (false, true) => *count += 1,
+        (true, false) => {
+            debug_assert!(*count > 0, "continuous runtime count must not underflow");
+            *count = count.saturating_sub(1);
+        }
+        _ => {}
+    }
+}
+
 fn processor_ui_dtos(
     processors: &HashMap<NodeId, RuntimeProcessor>,
     context_provider: &SnapshotProcessorContextProvider,
+    selected_processor_ids: Option<&HashSet<ProcessorId>>,
 ) -> Vec<ProcessorUiDto> {
     let mut dtos: Vec<_> = processors
         .values()
+        .filter(|runtime_processor| {
+            selected_processor_ids.is_none_or(|selected| {
+                selected.contains(&runtime_processor.processor.id)
+            })
+        })
         .map(|runtime_processor| {
             let mut dto = ProcessorUiDto::from(
                 &runtime_processor.processor.ui_model_with_formula_source(
@@ -2187,45 +2837,24 @@ fn processor_ui_dtos(
     dtos
 }
 
-fn processor_lane_summary(
+fn processor_lane_catalog_entry(
     processor_id: chataigne_state_machine::ProcessorId,
-    lane: &chataigne_state_machine::ProcessorLaneOutput,
-    tick: u64,
+    context_key: Option<&ContextKey>,
     has_memory: bool,
     context_provider: &SnapshotProcessorContextProvider,
-) -> ProcessorLaneSummaryDto {
-    let context_key = lane
-        .context_key
-        .as_ref()
-        .map(|key| context_provider.context_key_dto(processor_id, key));
-    let label = lane.context_key.as_ref().map_or_else(
+) -> ProcessorLaneCatalogEntryDto {
+    let context_key_dto =
+        context_key.map(|key| context_provider.context_key_dto(processor_id, key));
+    let label = context_key.map_or_else(
         || "Default lane".to_owned(),
         |key| context_provider.context_key_label(processor_id, key),
     );
-    ProcessorLaneSummaryDto {
+    ProcessorLaneCatalogEntryDto {
         processor_id: processor_id.to_string(),
-        context_key,
+        context_key: context_key_dto,
         label,
         has_memory,
-        last_tick: Some(tick),
-        diagnostics_count: lane.output.diagnostics.len(),
     }
-}
-
-fn processor_lane_summary_key(summary: &ProcessorLaneSummaryDto) -> String {
-    format!(
-        "{}:{}",
-        summary.processor_id,
-        context_key_dto_cache_id(summary.context_key.as_ref())
-    )
-}
-
-fn processor_lane_inspection_key(inspection: &ProcessorLaneInspectionDto) -> String {
-    format!(
-        "{}:{}",
-        inspection.processor_id,
-        context_key_dto_cache_id(inspection.context_key.as_ref())
-    )
 }
 
 fn context_key_dto_cache_id(context_key: Option<&ContextKeyDto>) -> String {
@@ -2247,7 +2876,7 @@ fn processor_lane_inspection(
     processor_id: ProcessorId,
     lane: &chataigne_state_machine::ProcessorLaneOutput,
     context_provider: &SnapshotProcessorContextProvider,
-    observations: &HashMap<String, Vec<ProcessorLaneConditionPreviewDto>>,
+    observations: &HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
 ) -> ProcessorLaneInspectionDto {
     let resolver = lane.context_key.as_ref().map(|context_key| LaneParamResolver {
         processor_id,
@@ -2275,6 +2904,38 @@ fn processor_lane_inspection(
             .map(|key| context_provider.context_key_dto(processor_id, key)),
         parameter_values,
         condition_states,
+    }
+}
+
+fn runtime_formula_preview_mode(mode: FormulaPreviewModeDto) -> Option<RuntimeFormulaPreviewMode> {
+    match mode {
+        FormulaPreviewModeDto::FormulaDefaults { formula_id } => {
+            let formula_id = formula_id.trim();
+            (!formula_id.is_empty()).then(|| {
+                RuntimeFormulaPreviewMode::FormulaDefaults(chataigne_alchemist::FormulaId::new(
+                    formula_id,
+                ))
+            })
+        }
+        FormulaPreviewModeDto::ProcessorDefaultLane { processor_id } => {
+            let processor_id = processor_id.parse::<uuid::Uuid>().ok()?;
+            Some(RuntimeFormulaPreviewMode::ProcessorLane {
+                processor_id: ProcessorId::from_uuid(processor_id),
+                context_key: ContextKey::default_lane(),
+            })
+        }
+        FormulaPreviewModeDto::ProcessorLane {
+            processor_id,
+            context_key,
+        } => {
+            let processor_id = processor_id.parse::<uuid::Uuid>().ok()?;
+            Some(RuntimeFormulaPreviewMode::ProcessorLane {
+                processor_id: ProcessorId::from_uuid(processor_id),
+                context_key: ContextKey::new(context_key.parts.into_iter().map(|part| {
+                    ContextKeyPart::new(part.axis_id, part.item_id)
+                })),
+            })
+        }
     }
 }
 
@@ -2322,29 +2983,39 @@ fn processor_lane_condition_observations(
     snapshot: &ProcessTreeSnapshot,
     processor_node: NodeId,
     context_key: Option<&ContextKey>,
-    observations: &HashMap<String, Vec<ProcessorLaneConditionPreviewDto>>,
+    observations: &HashMap<ConditionLaneKey, Vec<ProcessorLaneConditionPreviewDto>>,
 ) -> Vec<ProcessorLaneConditionPreviewDto> {
-    let Some(processor) = snapshot.node(processor_node) else {
-        return Vec::new();
-    };
-    let prefix = format!("{}:", processor.uuid.0);
-    let suffix = context_key.map(|key| format!(":{}", context_key_cache_id(key)));
-    let mut result = observations
-        .iter()
-        .filter(|(key, _)| {
-            let Some(manager_and_lane) = key.strip_prefix(&prefix) else {
-                return false;
-            };
-            suffix.as_ref().map_or_else(
-                || !manager_and_lane.contains(':'),
-                |suffix| key.ends_with(suffix),
-            )
-        })
-        .flat_map(|(_, values)| values.iter().cloned())
+    let mut managers = Vec::new();
+    collect_condition_manager_nodes(snapshot, processor_node, &mut managers);
+    let mut result = managers
+        .into_iter()
+        .filter_map(|manager| observations.get(&ConditionLaneKey::new(manager, context_key)))
+        .flatten()
+        .cloned()
         .collect::<Vec<_>>();
     result.sort_by(|left, right| left.node_id.cmp(&right.node_id));
     result.dedup_by(|left, right| left.node_id == right.node_id);
     result
+}
+
+fn collect_condition_manager_nodes(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    managers: &mut Vec<NodeId>,
+) {
+    for child in snapshot.child_ids_slice(parent).iter().copied() {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if !node.enabled {
+            continue;
+        }
+        match node.node_type.as_str() {
+            CONDITION_MANAGER_NODE_TYPE => managers.push(child),
+            PROCESSOR_FOLDER_NODE_TYPE => collect_condition_manager_nodes(snapshot, child, managers),
+            _ => {}
+        }
+    }
 }
 
 fn context_key_label(context_key: Option<&ContextKey>) -> String {
@@ -2368,11 +3039,40 @@ fn output_preview_signature(
             key: OutputPreviewSampleKey::from_sample(sample),
             status: OutputPreviewStatusKey::from(sample.status),
             value: RuntimeValueSignature::from_value(&sample.value),
-            logical_tick: sample.logical_tick,
         })
         .collect::<Vec<_>>();
     parts.sort();
     OutputPreviewSignature(parts)
+}
+
+fn processor_lane_inspection_signature(
+    inspections: &[ProcessorLaneInspectionDto],
+) -> ProcessorLaneInspectionSignature {
+    let mut signature = inspections
+        .iter()
+        .map(|inspection| {
+            let mut parameter_values = inspection
+                .parameter_values
+                .iter()
+                .map(|value| (value.node_id.clone(), value.value.clone()))
+                .collect::<Vec<_>>();
+            parameter_values.sort();
+            let mut condition_states = inspection
+                .condition_states
+                .iter()
+                .map(|state| (state.node_id.clone(), state.valid))
+                .collect::<Vec<_>>();
+            condition_states.sort();
+            (
+                inspection.processor_id.clone(),
+                context_key_dto_cache_id(inspection.context_key.as_ref()),
+                parameter_values,
+                condition_states,
+            )
+        })
+        .collect::<Vec<_>>();
+    signature.sort();
+    signature
 }
 
 fn should_emit_runtime_log(
@@ -2449,6 +3149,37 @@ fn anode_logs_runtime_value(snapshot: &ProcessTreeSnapshot, anode_node: NodeId) 
     matches!(anode_type, "debug_value")
 }
 
+fn intern_runtime_command_invocation(
+    streams_by_processor: &mut HashMap<
+        NodeId,
+        HashMap<RuntimeCommandInvocationKey, u64>,
+    >,
+    next_stream: &mut u64,
+    emitter: NodeId,
+    processor_node: NodeId,
+    context_key: Option<&ContextKey>,
+    intent: &RuntimeIntent,
+) -> crate::app::module_command::ModuleCommandInvocationId {
+    let key = RuntimeCommandInvocationKey {
+        context_key: context_key.cloned().unwrap_or_default(),
+        source_node: intent.source_node,
+        source_socket: intent.source_socket.clone(),
+        target: intent.target.clone(),
+    };
+    let stream = streams_by_processor
+        .entry(processor_node)
+        .or_default()
+        .entry(key)
+        .or_insert_with(|| {
+            let stream = *next_stream;
+            *next_stream = next_stream
+                .checked_add(1)
+                .expect("state-machine command invocation stream exhausted");
+            stream
+        });
+    crate::app::module_command::ModuleCommandInvocationId::new(emitter, *stream)
+}
+
 /// Dispatches a `chataigne.command` runtime intent emitted by a triggered
 /// output. The intent loop runs once per lane, so this is invoked once per lane
 /// — each call emits its own execute event(s), which is what keeps multiplexed
@@ -2467,6 +3198,7 @@ fn dispatch_command_intent(
     processor_id: ProcessorId,
     context_key: Option<&ContextKey>,
     context_provider: &SnapshotProcessorContextProvider,
+    invocation_id: crate::app::module_command::ModuleCommandInvocationId,
     intent: &RuntimeIntent,
 ) {
     let Some(target) = intent.target.as_ref() else {
@@ -2505,6 +3237,7 @@ fn dispatch_command_intent(
             *node,
             &intent.payload,
             lane_resolver.as_ref(),
+            invocation_id,
             &mut fired,
         );
     }
@@ -2528,6 +3261,7 @@ fn execute_output_target(
     node: NodeId,
     payload: &RuntimeValue,
     lane_resolver: Option<&LaneParamResolver<'_>>,
+    invocation_id: crate::app::module_command::ModuleCommandInvocationId,
     fired: &mut HashSet<NodeId>,
 ) -> usize {
     if !fired.insert(node) {
@@ -2540,10 +3274,12 @@ fn execute_output_target(
         || crate::app::systems_alchemist_managed_nodes::is_output_container(snapshot, node)
     {
         let param_overrides = resolved_output_param_overrides(snapshot, node, lane_resolver);
-        let _ = crate::app::module_command::emit_command_execute_with_overrides(
+        let _ = crate::app::module_command::emit_command_execute_with_invocation(
             ctx,
             node,
             param_overrides,
+            Some(invocation_id),
+            crate::app::module_command::ModuleCommandDeliveryPolicy::Standard,
         );
         return 1;
     }
@@ -2553,10 +3289,12 @@ fn execute_output_target(
         if snapshot.node(child).is_some_and(|child| child.enabled) && node_is_command(snapshot, child) {
             if fired.insert(child) {
                 let param_overrides = resolved_output_param_overrides(snapshot, child, lane_resolver);
-                let _ = crate::app::module_command::emit_command_execute_with_overrides(
+                let _ = crate::app::module_command::emit_command_execute_with_invocation(
                     ctx,
                     child,
                     param_overrides,
+                    Some(invocation_id),
+                    crate::app::module_command::ModuleCommandDeliveryPolicy::Standard,
                 );
             }
             command_count += 1;
@@ -2970,19 +3708,9 @@ fn collect_processor_context_property_bindings(
 fn processor_runtime_inputs(
     context: &mut ProcessorRuntimeInputContext<'_>,
 ) -> RuntimeInputSnapshot {
-    let mut inputs = RuntimeInputSnapshot::default();
-    for (reference, value) in context.formula_input_values {
-        inputs.insert(reference.clone(), value.clone());
-    }
-    let processor_node = context.processor_node;
-    if let Some(processor_uuid) = context.snapshot.node(processor_node).map(|node| node.uuid) {
-        collect_processor_runtime_inputs(
-            context,
-            processor_uuid,
-            processor_node,
-            &mut inputs,
-        );
-    }
+    let mut inputs =
+        RuntimeInputSnapshot::with_shared_values(Arc::clone(context.formula_input_values));
+    collect_processor_runtime_inputs(context, context.processor_node, &mut inputs);
     inputs
 }
 
@@ -2995,6 +3723,14 @@ fn processor_formula_node_uuid(
         .and_then(|node| snapshot.node(node).map(|node| node.uuid))
 }
 
+fn processor_requires_forced_recompute(
+    cache_rebuilt: bool,
+    processor_node: NodeId,
+    dirty_processor_overrides: &HashSet<NodeId>,
+) -> bool {
+    cache_rebuilt || dirty_processor_overrides.contains(&processor_node)
+}
+
 fn processor_should_evaluate(
     continuous: bool,
     processor_dirty: bool,
@@ -3005,48 +3741,12 @@ fn processor_should_evaluate(
     continuous || processor_dirty || input_signal_dirty || condition_signal_dirty || formula_value_dirty
 }
 
-fn processor_has_dirty_input_source(
-    snapshot: &ProcessTreeSnapshot,
-    processor_node: NodeId,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-) -> bool {
-    if dirty_input_source_params.is_empty() {
-        return false;
-    }
-    property_tree_has_dirty_input_source(snapshot, processor_node, dirty_input_source_params)
-}
-
-fn property_tree_has_dirty_input_source(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    dirty_input_source_params: &HashSet<NodeUuid>,
-) -> bool {
-    snapshot.child_ids(parent).into_iter().any(|child| {
-        let Some(node) = snapshot.node(child) else {
-            return false;
-        };
-        if !node.enabled {
-            return false;
-        }
-        match node.node_type.as_str() {
-            PROCESSOR_FOLDER_NODE_TYPE => {
-                property_tree_has_dirty_input_source(snapshot, child, dirty_input_source_params)
-            }
-            INPUTS_MANAGER_NODE_TYPE => {
-                input_manager_has_dirty_source(snapshot, child, dirty_input_source_params)
-            }
-            _ => false,
-        }
-    })
-}
-
 fn collect_processor_runtime_inputs(
     context: &mut ProcessorRuntimeInputContext<'_>,
-    processor_uuid: NodeUuid,
     parent: NodeId,
     inputs: &mut RuntimeInputSnapshot,
 ) {
-    for child in context.snapshot.child_ids(parent) {
+    for child in context.snapshot.child_ids_slice(parent).iter().copied() {
         let Some(node) = context.snapshot.node(child) else {
             continue;
         };
@@ -3056,7 +3756,6 @@ fn collect_processor_runtime_inputs(
         if node.node_type == PROCESSOR_FOLDER_NODE_TYPE {
             collect_processor_runtime_inputs(
                 context,
-                processor_uuid,
                 child,
                 inputs,
             );
@@ -3065,14 +3764,12 @@ fn collect_processor_runtime_inputs(
         match node.node_type.as_str() {
             INPUTS_MANAGER_NODE_TYPE => collect_input_manager_runtime_input(
                 context,
-                processor_uuid,
                 child,
                 node.decl_id.as_str(),
                 inputs,
             ),
             CONDITION_MANAGER_NODE_TYPE => collect_condition_manager_runtime_input(
                 context,
-                processor_uuid,
                 child,
                 node.decl_id.as_str(),
                 inputs,
@@ -3084,7 +3781,6 @@ fn collect_processor_runtime_inputs(
 
 fn collect_input_manager_runtime_input(
     context: &mut ProcessorRuntimeInputContext<'_>,
-    processor_uuid: NodeUuid,
     manager: NodeId,
     decl_id: &str,
     inputs: &mut RuntimeInputSnapshot,
@@ -3095,7 +3791,6 @@ fn collect_input_manager_runtime_input(
     else {
         return;
     };
-    let signal_key = format!("{}:{manager_uuid}", processor_uuid.0);
     if input_manager_has_dirty_source(
         context.snapshot,
         manager,
@@ -3103,18 +3798,18 @@ fn collect_input_manager_runtime_input(
     ) {
         context
             .input_manager_signal_ticks
-            .insert(signal_key.clone(), context.logical_tick);
+            .insert(manager, context.logical_tick);
     }
     let Some(signal_tick) = context
         .input_manager_signal_ticks
-        .get(&signal_key)
+        .get(&manager)
         .copied()
     else {
         return;
     };
     let value_set = processor_input_manager_value_set(context.snapshot, manager, signal_tick);
     if value_set.entries.is_empty() {
-        context.input_manager_signal_ticks.remove(&signal_key);
+        context.input_manager_signal_ticks.remove(&manager);
         return;
     }
     let Ok(value) = value_set.to_runtime_value() else {
@@ -3128,7 +3823,6 @@ fn collect_input_manager_runtime_input(
 
 fn collect_condition_manager_runtime_input(
     context: &mut ProcessorRuntimeInputContext<'_>,
-    processor_uuid: NodeUuid,
     manager: NodeId,
     decl_id: &str,
     inputs: &mut RuntimeInputSnapshot,
@@ -3143,7 +3837,7 @@ fn collect_condition_manager_runtime_input(
         ValueTypeId::new(CONDITIONS_MANAGER_TYPE),
         manager_uuid.to_owned(),
     );
-    let signal_key = format!("{}:{manager_uuid}", processor_uuid.0);
+    let default_lane_key = ConditionLaneKey::new(manager, None);
     let manager_axes = context
         .condition_manager_axes
         .entry(manager)
@@ -3158,12 +3852,11 @@ fn collect_condition_manager_runtime_input(
         .clone();
     if !manager_axes.is_empty() {
         let source_dirty = !context.dirty_input_source_params.is_empty();
-        let mut aggregate_values = Vec::new();
         for context_key in context
             .context_provider
             .iter_context_keys(context.processor_id, &manager_axes)
         {
-            let lane_key = format!("{}:{}", signal_key, context_key_cache_id(&context_key));
+            let lane_key = ConditionLaneKey::new(manager, Some(&context_key));
             let previous = context
                 .condition_manager_valid_states
                 .get(&lane_key)
@@ -3179,7 +3872,7 @@ fn collect_condition_manager_runtime_input(
                 .condition_manager_valid_states
                 .insert(lane_key.clone(), validity.settled);
 
-            let value_set = if previous != Some(validity.current) {
+            let value = if previous != Some(validity.current) {
                 let edge_source_dirty =
                     source_dirty || (context.force_processor_recompute && previous.is_some());
                 let previous = condition_manager_edge_previous(
@@ -3187,38 +3880,37 @@ fn collect_condition_manager_runtime_input(
                     validity.current,
                     edge_source_dirty,
                 );
-                condition_manager_value_set(
+                condition_manager_value(
                     context.logical_tick,
                     validity.current,
                     previous,
                     context.next_trigger_edge_id,
                 )
             } else {
-                condition_manager_value_set(
+                condition_manager_value(
                     context.logical_tick,
                     validity.settled,
                     Some(validity.settled),
                     context.next_trigger_edge_id,
                 )
             };
-            let Ok(value) = value_set.to_runtime_value() else {
-                continue;
-            };
-            inputs.insert(lane_scoped_stable_ref(&input_ref, &context_key), value.clone());
-            context.condition_manager_values.insert(lane_key, value.clone());
-            aggregate_values.push(value);
+            inputs.insert_context(
+                input_ref.clone(),
+                &manager_axes,
+                context_key,
+                value.into_runtime_value(),
+            );
         }
-        inputs.insert(input_ref, RuntimeValue::Array(aggregate_values));
         return;
     }
     let previous = context
         .condition_manager_valid_states
-        .get(&signal_key)
+        .get(&default_lane_key)
         .copied();
     let mut current_value = None;
     let source_dirty = !context.dirty_input_source_params.is_empty();
     if previous.is_none() || source_dirty || context.force_processor_recompute {
-        let validity = evaluate_compiled_condition(context, manager, None, &signal_key)
+        let validity = evaluate_compiled_condition(context, manager, None, &default_lane_key)
         .unwrap_or_else(|| ConditionValidity::steady(false));
         set_condition_validity_param(
             context.ctx,
@@ -3229,20 +3921,17 @@ fn collect_condition_manager_runtime_input(
         );
         let previous = context
             .condition_manager_valid_states
-            .insert(signal_key.clone(), validity.settled);
+            .insert(default_lane_key.clone(), validity.settled);
 
-        if let Ok(value) = condition_manager_value_set(
+        let value = condition_manager_value(
             context.logical_tick,
             validity.settled,
             Some(validity.settled),
             context.next_trigger_edge_id,
-        )
-        .to_runtime_value()
-        {
-            context
-                .condition_manager_values
-                .insert(signal_key.clone(), value);
-        }
+        );
+        context
+            .condition_manager_values
+            .insert(default_lane_key.clone(), value);
 
         if previous != Some(validity.current) {
             let edge_source_dirty =
@@ -3252,30 +3941,27 @@ fn collect_condition_manager_runtime_input(
                 validity.current,
                 edge_source_dirty,
             );
-            let value_set = condition_manager_value_set(
+            current_value = Some(condition_manager_value(
                 context.logical_tick,
                 validity.current,
                 previous,
                 context.next_trigger_edge_id,
-            );
-            if let Ok(value) = value_set.to_runtime_value() {
-                current_value = Some(value);
-            }
+            ));
         }
     }
     let Some(value) = current_value
-        .or_else(|| context.condition_manager_values.get(&signal_key).cloned())
+        .or_else(|| context.condition_manager_values.get(&default_lane_key).copied())
     else {
         return;
     };
-    inputs.insert(input_ref, value);
+    inputs.insert(input_ref, value.into_runtime_value());
 }
 
 fn evaluate_compiled_condition(
     context: &mut ProcessorRuntimeInputContext<'_>,
     manager: NodeId,
     lane_resolver: Option<&LaneParamResolver<'_>>,
-    runtime_key: &str,
+    runtime_key: &ConditionLaneKey,
 ) -> Option<ConditionValidity> {
     let compiled = match context.compiled_conditions.get(&manager) {
         Some(compiled) => compiled.clone(),
@@ -3297,31 +3983,41 @@ fn evaluate_compiled_condition(
         delta_time: context.ctx.delta_time,
         inputs: &inputs,
     };
-    let current_result = context
+    let observed = context
+        .observed_condition_lanes
+        .is_some_and(|lanes| lanes.contains(&runtime_key.context));
+    let current_runtime = context
         .condition_runtimes
-        .entry(runtime_key.to_owned())
-        .or_insert_with(|| ConditionRuntime::new(&compiled.current))
-        .evaluate(&compiled.current, &frame)
-        .ok()?;
-    context.condition_observations.insert(
-        runtime_key.to_owned(),
-        current_result
-            .observations
-            .iter()
-            .map(|(condition, valid)| ProcessorLaneConditionPreviewDto {
-                node_id: condition.as_uuid().to_string(),
-                valid: *valid,
-            })
-            .collect(),
-    );
-    let current = current_result.value;
-    let settled = context
-        .settled_condition_runtimes
-        .entry(runtime_key.to_owned())
-        .or_insert_with(|| ConditionRuntime::new(&compiled.settled))
-        .evaluate(&compiled.settled, &frame)
-        .ok()?
-        .value;
+        .entry(runtime_key.clone())
+        .or_insert_with(|| ConditionRuntime::new(&compiled.current));
+    let current = if observed {
+        let result = current_runtime.evaluate(&compiled.current, &frame).ok()?;
+        context.condition_observations.insert(
+            runtime_key.clone(),
+            result
+                .observations
+                .iter()
+                .map(|(condition, valid)| ProcessorLaneConditionPreviewDto {
+                    node_id: condition.as_uuid().to_string(),
+                    valid: *valid,
+                })
+                .collect(),
+        );
+        result.value
+    } else {
+        context.condition_observations.remove(runtime_key);
+        current_runtime.evaluate_value(&compiled.current, &frame).ok()?
+    };
+    let settled = if Arc::ptr_eq(&compiled.current, &compiled.settled) {
+        current
+    } else {
+        context
+            .settled_condition_runtimes
+            .entry(runtime_key.clone())
+            .or_insert_with(|| ConditionRuntime::new(&compiled.settled))
+            .evaluate_value(&compiled.settled, &frame)
+            .ok()?
+    };
     Some(ConditionValidity { current, settled })
 }
 
@@ -3402,14 +4098,6 @@ fn context_link_axes_in_subtree(
     axes
 }
 
-fn context_key_cache_id(context_key: &ContextKey) -> String {
-    context_key
-        .iter()
-        .map(|part| format!("{}={}", part.axis.as_str(), part.item.as_str()))
-        .collect::<Vec<_>>()
-        .join(";")
-}
-
 fn condition_manager_edge_previous(
     previous: Option<bool>,
     current: bool,
@@ -3422,39 +4110,23 @@ fn condition_manager_edge_previous(
     }
 }
 
-fn condition_manager_value_set(
+fn condition_manager_value(
     logical_tick: u64,
     valid: bool,
     previous: Option<bool>,
     next_trigger_edge_id: &mut u64,
-) -> ValueSet {
-    let mut value_set = ValueSet::new(logical_tick);
-    value_set.push(ValueSetEntry::new(
-        ValueLaneKey::new("valid").expect("static ValueSet key must be valid"),
-        "Valid",
-        RuntimeValue::Bool(valid),
-    ));
+) -> ConditionManagerValue {
     let on_true = if previous != Some(valid) && valid {
-        RuntimeValue::Trigger(next_trigger(next_trigger_edge_id, logical_tick))
+        next_trigger(next_trigger_edge_id, logical_tick)
     } else {
-        RuntimeValue::Trigger(TriggerValue::default())
+        TriggerValue::default()
     };
-    value_set.push(ValueSetEntry::new(
-        ValueLaneKey::new("on_true").expect("static ValueSet key must be valid"),
-        "On True",
-        on_true,
-    ));
     let on_false = if previous != Some(valid) && !valid {
-        RuntimeValue::Trigger(next_trigger(next_trigger_edge_id, logical_tick))
+        next_trigger(next_trigger_edge_id, logical_tick)
     } else {
-        RuntimeValue::Trigger(TriggerValue::default())
+        TriggerValue::default()
     };
-    value_set.push(ValueSetEntry::new(
-        ValueLaneKey::new("on_false").expect("static ValueSet key must be valid"),
-        "On False",
-        on_false,
-    ));
-    value_set
+    ConditionManagerValue::new(valid, on_true, on_false)
 }
 
 fn next_trigger(next_trigger_edge_id: &mut u64, logical_tick: u64) -> TriggerValue {
@@ -3617,7 +4289,11 @@ fn input_manager_has_dirty_source(
     manager: NodeId,
     dirty_input_source_params: &HashSet<NodeUuid>,
 ) -> bool {
-    snapshot.child_ids(manager).into_iter().any(|input| {
+    snapshot
+        .child_ids_slice(manager)
+        .iter()
+        .copied()
+        .any(|input| {
         snapshot.node(input).is_some_and(|node| node.enabled)
             && child_reference_uuid(snapshot, input, "source")
                 .is_some_and(|source| dirty_input_source_params.contains(&source))
@@ -3630,7 +4306,7 @@ fn processor_input_manager_value_set(
     logical_tick: u64,
 ) -> ValueSet {
     let mut value_set = ValueSet::new(logical_tick);
-    for input in snapshot.child_ids(manager) {
+    for input in snapshot.child_ids_slice(manager).iter().copied() {
         let Some(input_node) = snapshot.node(input) else {
             continue;
         };

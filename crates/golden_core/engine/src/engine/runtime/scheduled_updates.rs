@@ -96,6 +96,10 @@ impl<T: Node> Engine<T> {
                 continue;
             }
 
+            let Some(schedule_timing) = self.runtime_schedule.timing_for_node(node_id) else {
+                continue;
+            };
+
             let seen = seen_by_node.entry(node_id).or_default();
             *seen += 1;
 
@@ -103,14 +107,18 @@ impl<T: Node> Engine<T> {
             let remaining_occurrences = total_occurrences.saturating_sub(*seen - 1).max(1);
             let remaining_delta = remaining_delta_by_node.entry(node_id).or_insert(Duration::ZERO);
 
-            let delta_time = if remaining_occurrences == 1 {
-                let dt = *remaining_delta;
-                *remaining_delta = Duration::ZERO;
-                dt
-            } else {
-                let dt = *remaining_delta / remaining_occurrences as u32;
-                *remaining_delta = remaining_delta.saturating_sub(dt);
-                dt
+            let delta_time = match schedule_timing.missed_period_policy {
+                MissedPeriodPolicy::Replay => schedule_timing.interval,
+                MissedPeriodPolicy::Coalesce if remaining_occurrences == 1 => {
+                    let dt = *remaining_delta;
+                    *remaining_delta = Duration::ZERO;
+                    dt
+                }
+                MissedPeriodPolicy::Coalesce => {
+                    let dt = *remaining_delta / remaining_occurrences as u32;
+                    *remaining_delta = remaining_delta.saturating_sub(dt);
+                    dt
+                }
             };
 
             // Skip expensive context setup when the node has nothing to do this tick.

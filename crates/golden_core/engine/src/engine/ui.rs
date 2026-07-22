@@ -1,4 +1,4 @@
-use crate::events::{CustomEvent, Event, EventKind};
+use crate::events::{CustomEvent, CustomEventRetention, Event, EventKind};
 use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 use crate::ui_sync::{UiChildrenOrderPatch, UiGraphOp, UiGraphTransaction};
@@ -121,6 +121,17 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn push_ui_event_log(&mut self, event: Event) {
+        if let Some((topic, origin)) = ui_latest_custom_event_key(&event) {
+            if let Some(index) = (self.ui_event_log_start..self.ui_event_log.len()).rev().find(|index| {
+                ui_latest_custom_event_key(&self.ui_event_log[*index]).is_some_and(|key| key == (topic, origin))
+            }) {
+                self.ui_event_log.remove(index);
+            }
+            self.ui_event_log.push(event);
+            self.trim_ui_event_log();
+            return;
+        }
+
         if let Some(param) = self.ui_coalescable_param_value_event(&event) {
             let mut previous_index = None;
             for index in (self.ui_event_log_start..self.ui_event_log.len()).rev() {
@@ -177,6 +188,13 @@ impl<T: Node> Engine<T> {
             self.ui_event_log_start = 0;
         }
     }
+}
+
+fn ui_latest_custom_event_key(event: &Event) -> Option<(&str, Option<NodeId>)> {
+    let EventKind::Custom(event) = &event.kind else {
+        return None;
+    };
+    (event.retention == CustomEventRetention::Latest).then_some((event.topic.as_str(), event.origin))
 }
 
 fn preserve_param_changed_old_value(new_kind: &mut EventKind, previous_kind: EventKind) {

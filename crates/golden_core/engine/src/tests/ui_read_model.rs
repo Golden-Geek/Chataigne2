@@ -1,5 +1,6 @@
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::Engine;
+use crate::events::CustomEvent;
 use crate::node::{Node, NodeMetaPatch};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
@@ -92,6 +93,55 @@ fn retained_ui_event_logs_keep_latest_only_for_coalescable_value_params() {
 
     let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
     assert_eq!(batch_param_values(&replay), vec![200]);
+}
+
+#[test]
+fn read_model_retains_only_latest_explicit_latest_custom_event() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let root = engine.root;
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::latest("test.runtime_frame", Some(root), serde_json::json!({ "generation": 1 })),
+    });
+    engine.apply_edits().expect("first latest event should apply");
+    let first = read_model.publish_engine_events_since(&engine, None);
+
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::latest("test.runtime_frame", Some(root), serde_json::json!({ "generation": 2 })),
+    });
+    engine.apply_edits().expect("second latest event should apply");
+    read_model.publish_engine_events_since(&engine, first.to);
+
+    let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
+    assert_eq!(replay.events.len(), 1);
+    assert!(matches!(
+        &replay.events[0].kind,
+        UiEventKind::Custom { topic, payload, .. }
+            if topic == "test.runtime_frame" && payload["generation"] == 2
+    ));
+
+    // Ordinary custom events remain lossless even when their topic contains "preview".
+    for sequence in 1..=2 {
+        engine.edits.push(Edit::EmitCustomEvent {
+            event: CustomEvent::new(
+                "test.runtime_preview",
+                Some(root),
+                serde_json::json!({ "sequence": sequence }),
+            ),
+        });
+        engine.apply_edits().expect("replayed custom event should apply");
+    }
+    read_model.publish_engine_events_since(&engine, replay.to);
+    let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
+    assert_eq!(
+        replay
+            .events
+            .iter()
+            .filter(|event| matches!(&event.kind, UiEventKind::Custom { topic, .. } if topic == "test.runtime_preview"))
+            .count(),
+        2,
+    );
 }
 
 #[test]
@@ -405,4 +455,29 @@ fn eventless_end_edit_updates_snapshot_history_after_structural_edit() {
             .active_edit_session,
         "eventless end edit capture should clear snapshot history"
     );
+}
+
+#[test]
+fn user_context_custom_events_refresh_the_read_model_snapshot() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let cursor = read_model.current_event_time();
+
+    let ack = engine.apply_ui_intent(UiEditIntent::EnsureUserContextScope { owner: engine.root });
+    assert!(ack.success, "scope creation should apply: {:?}", ack.error_message);
+
+    let batch = read_model.publish_engine_events_since(&engine, cursor);
+    assert!(matches!(
+        batch.events.as_slice(),
+        [event]
+            if matches!(
+                &event.kind,
+                UiEventKind::Custom { topic, .. }
+                    if topic == "__user_context.scope_changed"
+            )
+    ));
+
+    let snapshot = read_model.current_snapshot();
+    assert_eq!(snapshot.user_contexts.scopes.len(), 1);
+    assert_eq!(snapshot.user_contexts.scopes[0].owner, engine.root);
 }

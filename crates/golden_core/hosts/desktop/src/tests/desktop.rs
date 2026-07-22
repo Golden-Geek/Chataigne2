@@ -10,7 +10,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::desktop::DevFrontendProcess;
 
-const HELPER_TEST_NAME: &str = "tests::desktop_tests::dev_frontend_process_tree_helper";
+const HELPER_TEST_NAME: &str = "tests::desktop::dev_frontend_process_tree_helper";
 const ROLE_ENV: &str = "GOLDEN_HOST_PROCESS_TREE_TEST_ROLE";
 const READY_PATH_ENV: &str = "GOLDEN_HOST_PROCESS_TREE_TEST_READY_PATH";
 const EXIT_ACK_PATH_ENV: &str = "GOLDEN_HOST_PROCESS_TREE_TEST_EXIT_ACK_PATH";

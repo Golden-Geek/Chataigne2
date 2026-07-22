@@ -5,6 +5,8 @@ pub(crate) struct ScheduleMgr {
     topo_order: Vec<NodeId>,
     buckets: Vec<ScheduleBucket>,
     pub(super) bucket_by_node: HashMap<NodeId, usize>,
+    /// Topologically ordered nodes grouped only by rate for public schedule introspection.
+    nodes_by_rate: BTreeMap<NodeUpdateRate, Vec<NodeId>>,
     /// Maps each scheduled NodeId → its position in the global topo_order.
     /// Used for k-way merge order comparison in collect_due_nodes_into.
     /// INVALIDATED BY: rebuild()
@@ -14,18 +16,24 @@ pub(crate) struct ScheduleMgr {
 }
 
 struct ScheduleBucket {
-    rate_hz: NodeUpdateRate,
+    missed_period_policy: MissedPeriodPolicy,
     interval: Duration,
     accumulator: Duration,
     nodes: Vec<NodeId>,
     due_count: u32,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct ScheduleTiming {
+    pub(super) interval: Duration,
+    pub(super) missed_period_policy: MissedPeriodPolicy,
+}
+
 impl ScheduleBucket {
-    fn new(rate_hz: NodeUpdateRate, nodes: Vec<NodeId>) -> Self {
+    fn new(rate_hz: NodeUpdateRate, missed_period_policy: MissedPeriodPolicy, nodes: Vec<NodeId>) -> Self {
         let nanos = (1_000_000_000u64 / rate_hz as u64).max(1);
         Self {
-            rate_hz,
+            missed_period_policy,
             interval: Duration::from_nanos(nanos),
             accumulator: Duration::ZERO,
             nodes,
@@ -42,8 +50,9 @@ impl ScheduleMgr {
     ) -> Result<(), EngineRuntimeError> {
         self.bucket_by_node.clear();
         self.buckets.clear();
+        self.nodes_by_rate.clear();
 
-        let mut buckets_by_rate: BTreeMap<NodeUpdateRate, Vec<NodeId>> = BTreeMap::new();
+        let mut buckets_by_rule: BTreeMap<(NodeUpdateRate, MissedPeriodPolicy), Vec<NodeId>> = BTreeMap::new();
         for node_id in &topo_order {
             let Some(rule) = rules.get(node_id) else {
                 continue;
@@ -60,15 +69,20 @@ impl ScheduleMgr {
                 });
             }
 
-            buckets_by_rate.entry(rate_hz).or_default().push(*node_id);
+            self.nodes_by_rate.entry(rate_hz).or_default().push(*node_id);
+            buckets_by_rule
+                .entry((rate_hz, rule.missed_period_policy))
+                .or_default()
+                .push(*node_id);
         }
 
-        for (rate_hz, nodes) in buckets_by_rate {
+        for ((rate_hz, missed_period_policy), nodes) in buckets_by_rule {
             let bucket_index = self.buckets.len();
             for node in &nodes {
                 self.bucket_by_node.insert(*node, bucket_index);
             }
-            self.buckets.push(ScheduleBucket::new(rate_hz, nodes));
+            self.buckets
+                .push(ScheduleBucket::new(rate_hz, missed_period_policy, nodes));
         }
 
         // Build topo_index_by_node for k-way merge order comparison in collect_due_nodes_into.
@@ -111,11 +125,24 @@ impl ScheduleMgr {
         let mut max_due = 0u32;
         for (idx, bucket) in self.buckets.iter_mut().enumerate() {
             bucket.accumulator = bucket.accumulator.saturating_add(elapsed);
-            bucket.due_count = 0;
-            while bucket.due_count < catch_up_limit && bucket.accumulator >= bucket.interval {
-                bucket.accumulator = bucket.accumulator.saturating_sub(bucket.interval);
-                bucket.due_count += 1;
-            }
+            bucket.due_count = match bucket.missed_period_policy {
+                MissedPeriodPolicy::Coalesce if bucket.accumulator >= bucket.interval => {
+                    let remainder_nanos = bucket.accumulator.as_nanos() % bucket.interval.as_nanos();
+                    let remainder_nanos = u64::try_from(remainder_nanos)
+                        .expect("scheduler interval remainder always fits in u64 nanoseconds");
+                    bucket.accumulator = Duration::from_nanos(remainder_nanos);
+                    1
+                }
+                MissedPeriodPolicy::Coalesce => 0,
+                MissedPeriodPolicy::Replay => {
+                    let mut due_count = 0;
+                    while due_count < catch_up_limit && bucket.accumulator >= bucket.interval {
+                        bucket.accumulator = bucket.accumulator.saturating_sub(bucket.interval);
+                        due_count += 1;
+                    }
+                    due_count
+                }
+            };
             if bucket.due_count > 0 {
                 self.due_bucket_scratch.push(idx);
                 max_due = max_due.max(bucket.due_count);
@@ -179,10 +206,15 @@ impl ScheduleMgr {
     }
 
     pub(super) fn bucket_nodes(&self, rate_hz: NodeUpdateRate) -> Option<&[NodeId]> {
-        self.buckets
-            .iter()
-            .find(|bucket| bucket.rate_hz == rate_hz)
-            .map(|bucket| bucket.nodes.as_slice())
+        self.nodes_by_rate.get(&rate_hz).map(Vec::as_slice)
+    }
+
+    pub(super) fn timing_for_node(&self, node: NodeId) -> Option<ScheduleTiming> {
+        let bucket = self.buckets.get(*self.bucket_by_node.get(&node)?)?;
+        Some(ScheduleTiming {
+            interval: bucket.interval,
+            missed_period_policy: bucket.missed_period_policy,
+        })
     }
 
     pub(super) fn topo_order(&self) -> &[NodeId] {

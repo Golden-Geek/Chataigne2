@@ -1,4 +1,4 @@
-use super::model::*;
+use super::super::model::*;
 
 fn assert_close(actual: f64, expected: f64) {
     assert!(

@@ -40,8 +40,8 @@ mod trace;
 
 pub use errors::EngineRuntimeError;
 pub use limits::{
-    DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, FixedStepConfig, NodeExecutionRule, NodeUpdateRate, RuntimeLimits,
-    runtime_loop_interval_for_frequency_hz,
+    DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, FixedStepConfig, MissedPeriodPolicy, NodeExecutionRule, NodeUpdateRate,
+    RuntimeLimits, runtime_loop_interval_for_frequency_hz,
 };
 pub(crate) use scheduler::ScheduleMgr;
 

@@ -1,10 +1,17 @@
+use golden_core::edit::Edit;
+use golden_core::engine::EngineTime;
 use golden_core::node::{Folder, Node, NodeId};
 use golden_core::parameter::{ParamValue, ParameterEventBehaviour};
+use golden_core::process_ctx::{ExecutionPhase, ProcessCtx};
 use golden_core::ui_sync::UiEditIntent;
 
 use super::{
     ConditionManager, ConsequencesManager, FilterChainManager, InputsManager, OutputGroup,
-    OutputsManager,
+    OutputRuntimeCache, OutputRuntimeTarget, OutputSchedule, OutputsManager,
+};
+use crate::app::module_command::{
+    self, ModuleCommandDeliveryPolicy, ModuleCommandInvocationId,
+    ModuleCommandParamOverride,
 };
 
 #[test]
@@ -149,6 +156,173 @@ fn output_cancel_visibility_tracks_active_timing() {
     let stagger = output_control(&engine, manager, "stagger");
     set_param(&mut engine, stagger, ParamValue::Float(0.25));
     assert_output_control_visibility(&engine, manager, "cancel_on_trigger", true);
+}
+
+#[test]
+fn output_schedule_preserves_invocation_through_delay_and_stagger() {
+    let invocation_id = ModuleCommandInvocationId::new(NodeId(40), 7);
+    let first = NodeId(101);
+    let second = NodeId(102);
+    let mut cache = OutputRuntimeCache::default();
+    cache.delay = 0.5;
+    cache.stagger = 0.5;
+    cache.outputs = vec![output_target(first, false), output_target(second, false)];
+    let mut schedule = OutputSchedule::default();
+    let mut ctx = process_ctx(1);
+
+    schedule.on_trigger_cached(&mut ctx, &cache, Vec::new(), Some(invocation_id));
+    assert_eq!(schedule.pending.len(), 2);
+    assert!(ctx.edits.pending.is_empty());
+
+    schedule.tick(&mut ctx, 0.5);
+    assert_eq!(execute_invocation(&ctx, first), Some(invocation_id));
+    ctx.edits.pending.clear();
+
+    schedule.tick(&mut ctx, 0.5);
+    assert_eq!(execute_invocation(&ctx, second), Some(invocation_id));
+    assert!(schedule.pending.is_empty());
+}
+
+#[test]
+fn immediate_log_output_rejects_unchanged_streams_before_emitting_events() {
+    let emitter = NodeId(40);
+    let first = ModuleCommandInvocationId::new(emitter, 1);
+    let deferred = ModuleCommandInvocationId::new(emitter, 2);
+    let command = NodeId(101);
+    let mut cache = OutputRuntimeCache::default();
+    cache.outputs = vec![output_target(command, true)];
+    let mut schedule = OutputSchedule::default();
+    let mut ctx = process_ctx(1);
+    let original = vec![ModuleCommandParamOverride {
+        param_id: NodeId(201),
+        value: ParamValue::Str("original".to_owned()),
+    }];
+
+    schedule.on_trigger_cached(&mut ctx, &cache, original.clone(), Some(first));
+    let execute = execute_request(&ctx, command);
+    assert_eq!(execute.invocation_id, Some(first));
+    assert_eq!(
+        execute.delivery_policy,
+        ModuleCommandDeliveryPolicy::ChangeAwareLogAdmitted
+    );
+    ctx.edits.pending.clear();
+
+    schedule.on_trigger_cached(&mut ctx, &cache, original.clone(), Some(first));
+    assert!(ctx.edits.pending.is_empty());
+    schedule.on_trigger_cached(&mut ctx, &cache, original.clone(), Some(deferred));
+    assert!(ctx.edits.pending.is_empty());
+
+    ctx.time.tick = 2;
+    schedule.on_trigger_cached(&mut ctx, &cache, original.clone(), Some(deferred));
+    assert_eq!(execute_invocation(&ctx, command), Some(deferred));
+    ctx.edits.pending.clear();
+
+    ctx.time.tick = 31;
+    let changed = vec![ModuleCommandParamOverride {
+        param_id: NodeId(201),
+        value: ParamValue::Str("changed".to_owned()),
+    }];
+    schedule.on_trigger_cached(&mut ctx, &cache, changed, Some(first));
+    assert_eq!(execute_invocation(&ctx, command), Some(first));
+}
+
+#[test]
+fn delayed_log_output_dedupes_before_queueing_and_keeps_admission() {
+    let invocation_id = ModuleCommandInvocationId::new(NodeId(40), 1);
+    let command = NodeId(101);
+    let mut cache = OutputRuntimeCache::default();
+    cache.delay = 0.5;
+    cache.outputs = vec![output_target(command, true)];
+    let mut schedule = OutputSchedule::default();
+    let mut ctx = process_ctx(1);
+
+    schedule.on_trigger_cached(&mut ctx, &cache, Vec::new(), Some(invocation_id));
+    schedule.on_trigger_cached(&mut ctx, &cache, Vec::new(), Some(invocation_id));
+    assert_eq!(schedule.pending.len(), 1);
+
+    schedule.tick(&mut ctx, 0.5);
+    let execute = execute_request(&ctx, command);
+    assert_eq!(execute.invocation_id, Some(invocation_id));
+    assert_eq!(
+        execute.delivery_policy,
+        ModuleCommandDeliveryPolicy::ChangeAwareLogAdmitted
+    );
+}
+
+#[test]
+fn nested_output_schedule_forwards_the_same_invocation() {
+    let invocation_id = ModuleCommandInvocationId::new(NodeId(40), 9);
+    let group = NodeId(101);
+    let command = NodeId(102);
+    let mut parent_cache = OutputRuntimeCache::default();
+    parent_cache.outputs = vec![output_target(group, false)];
+    let mut parent = OutputSchedule::default();
+    let mut parent_ctx = process_ctx(1);
+
+    parent.on_trigger_cached(
+        &mut parent_ctx,
+        &parent_cache,
+        Vec::new(),
+        Some(invocation_id),
+    );
+    let execute = execute_request(&parent_ctx, group);
+
+    let mut child_cache = OutputRuntimeCache::default();
+    child_cache.outputs = vec![output_target(command, true)];
+    let mut child = OutputSchedule::default();
+    let mut child_ctx = process_ctx(2);
+    child.on_trigger_cached(
+        &mut child_ctx,
+        &child_cache,
+        execute.param_overrides,
+        execute.invocation_id,
+    );
+
+    let child_execute = execute_request(&child_ctx, command);
+    assert_eq!(child_execute.invocation_id, Some(invocation_id));
+    assert_eq!(
+        child_execute.delivery_policy,
+        ModuleCommandDeliveryPolicy::ChangeAwareLogAdmitted
+    );
+}
+
+fn output_target(node: NodeId, change_aware_log: bool) -> OutputRuntimeTarget {
+    OutputRuntimeTarget {
+        node,
+        change_aware_log,
+    }
+}
+
+fn process_ctx(tick: u64) -> ProcessCtx {
+    ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick,
+            micro: 0,
+            seq: 0,
+        },
+    )
+}
+
+fn execute_request(
+    ctx: &ProcessCtx,
+    command: NodeId,
+) -> module_command::ModuleCommandExecuteEvent {
+    let Edit::EmitCustomEvent { event } = &ctx
+        .edits
+        .pending
+        .last()
+        .expect("schedule should emit a command execute event")
+        .edit
+    else {
+        panic!("schedule should emit a custom event");
+    };
+    module_command::command_execute_request(event, command)
+        .expect("custom event should target the scheduled command")
+}
+
+fn execute_invocation(ctx: &ProcessCtx, command: NodeId) -> Option<ModuleCommandInvocationId> {
+    execute_request(ctx, command).invocation_id
 }
 
 fn create_input_value_condition(engine: &mut crate::app::AppEngine, parent: NodeId) {

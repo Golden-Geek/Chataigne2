@@ -184,20 +184,95 @@ pub struct RuntimeEvent {
     pub value: RuntimeValue,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct RuntimeInputSnapshot {
+    shared_values: Arc<HashMap<StableRef, RuntimeValue>>,
     values: HashMap<StableRef, RuntimeValue>,
+    context_values: HashMap<StableRef, ContextualRuntimeInputValues>,
+}
+
+#[derive(Clone, Debug)]
+struct ContextualRuntimeInputValues {
+    axes: AxisSet,
+    values: HashMap<ContextKey, RuntimeValue>,
+}
+
+impl Default for RuntimeInputSnapshot {
+    fn default() -> Self {
+        Self {
+            shared_values: Arc::new(HashMap::new()),
+            values: HashMap::new(),
+            context_values: HashMap::new(),
+        }
+    }
 }
 
 impl RuntimeInputSnapshot {
+    /// Creates a snapshot with a shared immutable value base and an empty local overlay.
+    ///
+    /// Per-evaluation inputs added through [`Self::insert`] stay local to this snapshot, so many
+    /// processor lanes can reuse a large common input set without cloning it.
+    #[must_use]
+    pub fn with_shared_values(shared_values: Arc<HashMap<StableRef, RuntimeValue>>) -> Self {
+        Self {
+            shared_values,
+            values: HashMap::new(),
+            context_values: HashMap::new(),
+        }
+    }
+
     pub fn insert(&mut self, reference: StableRef, value: RuntimeValue) -> Option<RuntimeValue> {
-        self.values.insert(reference, value)
+        let shared_value = self.shared_values.get(&reference).cloned();
+        self.values.insert(reference, value).or(shared_value)
     }
 
     #[must_use]
     pub fn get(&self, reference: &StableRef) -> Option<&RuntimeValue> {
-        self.values.get(reference)
+        self.values.get(reference).or_else(|| self.shared_values.get(reference))
     }
+
+    pub fn insert_context(
+        &mut self,
+        reference: StableRef,
+        axes: &AxisSet,
+        context_key: ContextKey,
+        value: RuntimeValue,
+    ) -> Option<RuntimeValue> {
+        let contextual_values = self
+            .context_values
+            .entry(reference)
+            .or_insert_with(|| ContextualRuntimeInputValues {
+                axes: axes.clone(),
+                values: HashMap::new(),
+            });
+        if contextual_values.axes != *axes {
+            debug_assert!(
+                contextual_values.values.is_empty(),
+                "one runtime input source must use one stable context-axis projection"
+            );
+            contextual_values.axes.clone_from(axes);
+            contextual_values.values.clear();
+        }
+        let context_key = context_key_projected_in_axis_order(&context_key, axes);
+        contextual_values.values.insert(context_key, value)
+    }
+
+    #[must_use]
+    pub fn get_context(&self, reference: &StableRef, context_key: &ContextKey) -> Option<&RuntimeValue> {
+        let contextual_values = self.context_values.get(reference)?;
+        if let Some(value) = contextual_values.values.get(context_key) {
+            return Some(value);
+        }
+        let projected = context_key_projected_in_axis_order(context_key, &contextual_values.axes);
+        contextual_values.values.get(&projected)
+    }
+}
+
+fn context_key_projected_in_axis_order(context_key: &ContextKey, axes: &AxisSet) -> ContextKey {
+    ContextKey::new(
+        axes.iter()
+            .filter_map(|axis| context_key.iter().find(|part| &part.axis == axis).cloned()),
+    )
 }
 
 pub struct RuntimeRegistries<'a> {
@@ -666,7 +741,11 @@ impl<'a, 'ctx> NodeEvaluation<'a, 'ctx> {
 }
 
 pub trait CompiledNodeEvaluator: Send + Sync + Debug {
-    fn change_detection_inputs(&self, _ctx: &EvaluationCtx<'_>) -> Result<Vec<RuntimeValue>, String> {
+    fn change_detection_inputs(
+        &self,
+        _ctx: &EvaluationCtx<'_>,
+        _context: &RuntimeContextFrame,
+    ) -> Result<Vec<RuntimeValue>, String> {
         Ok(Vec::new())
     }
 
@@ -783,16 +862,17 @@ pub fn evaluate_compiled_graph(
                 continue;
             }
         };
-        let change_inputs = match change_detection_inputs(&node.operation, &inputs, frame.properties, frame.ctx) {
-            Ok(change_inputs) => change_inputs,
-            Err(message) => {
-                output.diagnostics.push(RuntimeDiagnostic {
-                    exec_node: *exec_id,
-                    message,
-                });
-                continue;
-            }
-        };
+        let change_inputs =
+            match change_detection_inputs(&node.operation, &inputs, frame.properties, frame.ctx, frame.context) {
+                Ok(change_inputs) => change_inputs,
+                Err(message) => {
+                    output.diagnostics.push(RuntimeDiagnostic {
+                        exec_node: *exec_id,
+                        message,
+                    });
+                    continue;
+                }
+            };
         if node.process_on_input_change_only && !frame.force_process_unchanged_inputs {
             let previous_inputs = memory.node_inputs.get(exec_id.index()).and_then(Option::as_ref);
             if memory.node_initialized[exec_id.index()]
@@ -823,20 +903,24 @@ pub fn evaluate_compiled_graph(
         );
         match result {
             Ok(values) if values.len() == node.outputs.len() => {
-                let output_values = values.clone();
+                let logged_output_values = node.log_enabled.then(|| values.clone());
+                let capture_debug_outputs = !frame.debug.mode().is_off();
                 for (output_index, (slot, value)) in node.outputs.iter().zip(values).enumerate() {
                     let previous_value = memory.values.get(slot.index());
                     let output_changed = !memory.value_initialized[slot.index()]
                         || previous_value.is_none_or(|previous| !runtime_value_equivalent(previous, &value));
-                    memory.values[slot.index()] = value.clone();
+                    let captured_value = (capture_debug_outputs
+                        && (!node.send_on_output_change_only || output_changed || frame.capture_unchanged_outputs))
+                        .then(|| value.clone());
+                    memory.values[slot.index()] = value;
                     memory.value_initialized[slot.index()] = true;
                     if output_changed {
                         memory.value_revisions[slot.index()] = memory.value_revisions[slot.index()].saturating_add(1);
                         mark_slot_dependents_dirty(compiled, memory, *slot);
                     }
-                    if node.send_on_output_change_only && !output_changed && !frame.capture_unchanged_outputs {
+                    let Some(value) = captured_value else {
                         continue;
-                    }
+                    };
                     let output_socket = node
                         .output_sockets
                         .get(output_index)
@@ -862,7 +946,7 @@ pub fn evaluate_compiled_graph(
                     };
                     frame.debug.capture(sample);
                 }
-                if node.log_enabled {
+                if let Some(output_values) = logged_output_values {
                     for (output_index, value) in output_values.into_iter().enumerate() {
                         output.intents.push(RuntimeIntent {
                             kind: Arc::from("debug.log"),
@@ -889,8 +973,80 @@ pub fn evaluate_compiled_graph(
             }),
         }
     }
+    if frame.capture_unchanged_outputs && !frame.debug.mode().is_off() {
+        capture_initialized_outputs(compiled, memory, frame.context, frame.ctx.logical_tick, frame.debug);
+    }
     output.debug_samples = frame.debug.samples().to_vec();
     output
+}
+
+fn capture_initialized_outputs(
+    compiled: &CompiledAlchemistGraph,
+    memory: &AlchemistMemory,
+    context: &RuntimeContextFrame,
+    logical_tick: u64,
+    debug: &mut DebugCaptureSink,
+) {
+    let capture_mode = debug.mode().clone();
+    let synthetic_samples = debug
+        .samples()
+        .iter()
+        .filter(|sample| sample.output_slot.index() >= memory.values.len())
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut current_output_samples = debug
+        .samples()
+        .iter()
+        .filter(|sample| sample.output_slot.index() < memory.values.len())
+        .cloned()
+        .map(|sample| ((sample.exec_node, sample.output_slot), sample))
+        .collect::<HashMap<_, _>>();
+    let mut current = DebugCaptureSink::new(capture_mode);
+    for sample in synthetic_samples {
+        current.capture(sample);
+    }
+    for exec_id in &compiled.topo_order {
+        let node = &compiled.exec_nodes[exec_id.index()];
+        for (output_index, slot) in node.outputs.iter().enumerate() {
+            if !memory.value_initialized[slot.index()] {
+                continue;
+            }
+            if let Some(sample) = current_output_samples.remove(&(*exec_id, *slot)) {
+                current.capture(sample);
+                continue;
+            }
+            let value = match &memory.values[slot.index()] {
+                RuntimeValue::Trigger(trigger) if trigger.fired => RuntimeValue::Trigger(TriggerValue {
+                    fired: false,
+                    ..*trigger
+                }),
+                value => value.clone(),
+            };
+            let output_socket = node
+                .output_sockets
+                .get(output_index)
+                .cloned()
+                .unwrap_or_else(|| SocketId::new(format!("slot_{}", slot.index())));
+            let value_type = node
+                .output_types
+                .get(output_index)
+                .and_then(Clone::clone)
+                .unwrap_or_else(|| value.value_type());
+            current.capture(DebugValueSample {
+                formula_id: None,
+                context_key: (!context.context_key().is_default_lane()).then(|| context.context_key().clone()),
+                author_node_id: node.authored_id,
+                exec_node: *exec_id,
+                output_socket,
+                output_slot: *slot,
+                value_type,
+                value,
+                logical_tick,
+                status: OutputPreviewStatus::Unavailable,
+            });
+        }
+    }
+    *debug = current;
 }
 
 fn seed_dirty_nodes(
@@ -946,7 +1102,7 @@ fn node_change_inputs_changed(
     }
     let node = &compiled.exec_nodes[exec_id.index()];
     let inputs = runtime_node_inputs(node, memory, frame.ctx)?;
-    let change_inputs = change_detection_inputs(&node.operation, &inputs, frame.properties, frame.ctx)?;
+    let change_inputs = change_detection_inputs(&node.operation, &inputs, frame.properties, frame.ctx, frame.context)?;
     let previous_inputs = memory.node_inputs.get(exec_id.index()).and_then(Option::as_ref);
     Ok(!previous_inputs.is_some_and(|previous| runtime_values_equivalent(previous, &change_inputs)))
 }
@@ -981,6 +1137,7 @@ fn change_detection_inputs(
     inputs: &[RuntimeValue],
     properties: &RuntimePropertyFrame,
     ctx: &EvaluationCtx<'_>,
+    context: &RuntimeContextFrame,
 ) -> Result<Vec<RuntimeValue>, String> {
     let mut change_inputs = inputs.to_vec();
     if let CompiledNodeOperation::ReadProperty(slot) = operation {
@@ -992,7 +1149,7 @@ fn change_detection_inputs(
         );
     }
     if let CompiledNodeOperation::Custom(evaluator) = operation {
-        change_inputs.extend(evaluator.change_detection_inputs(ctx)?);
+        change_inputs.extend(evaluator.change_detection_inputs(ctx, context)?);
     }
     Ok(change_inputs)
 }

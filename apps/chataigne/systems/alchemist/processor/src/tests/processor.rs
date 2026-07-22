@@ -565,6 +565,147 @@ fn multiplexed_processor_preview_filters_to_selected_lane() {
 }
 
 #[test]
+fn multiplexed_processor_preview_captures_only_requested_lanes() {
+    let formula = formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let ctx = evaluation_ctx(1, &inputs, &registries);
+    let first = ContextKey::single("device", "a");
+    let ignored = ContextKey::single("device", "b");
+    let last = ContextKey::single("device", "c");
+    let provider = TestContextProvider::new(vec![first.clone(), ignored, last.clone()]);
+    let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            output_axes: axes,
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
+
+    let samples = runtime.evaluate_processor_preview_with_context_provider(
+        &processor,
+        &ctx,
+        &provider,
+        &ProcessorDebugCapture::ProcessorLanes {
+            context_keys: [first.clone(), last.clone()].into_iter().collect(),
+            history_len: 8,
+        },
+    );
+
+    assert_eq!(samples.len(), 2);
+    assert_eq!(samples[0].context_key.as_ref(), Some(&first));
+    assert_eq!(samples[1].context_key.as_ref(), Some(&last));
+
+    let next_ctx = evaluation_ctx(2, &inputs, &registries);
+    let lanes = runtime.evaluate_processor_with_context_provider_and_runtime_delta_capture(
+        &processor,
+        &next_ctx,
+        &provider,
+        &ProcessorDebugCapture::ProcessorLanes {
+            context_keys: [first, last].into_iter().collect(),
+            history_len: 8,
+        },
+    );
+    assert!(
+        lanes.iter().all(|lane| lane.output.debug_samples.is_empty()),
+        "a retained preview must not recapture unchanged selected-lane outputs"
+    );
+}
+
+#[test]
+fn opening_runtime_preview_hydrates_initialized_outputs_without_replaying_intents() {
+    let mut graph = TestGraph::new();
+    let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Logged constant");
+    constant.config.set("value", RuntimeValue::Float(4.25));
+    constant.config.set("log", RuntimeValue::Bool(true));
+    graph.add_node(constant).unwrap();
+    let formula = formula_with_graph(graph);
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let provider = DefaultProcessorContextProvider;
+
+    let initialized = runtime.evaluate_processor_with_context_provider_and_runtime_delta_capture(
+        &processor,
+        &evaluation_ctx(1, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::Off,
+    );
+    assert_eq!(initialized.len(), 1);
+    assert!(initialized[0].output.debug_samples.is_empty());
+    assert_eq!(initialized[0].output.intents.len(), 1);
+
+    let preview = runtime.evaluate_processor_with_context_provider_and_runtime_capture(
+        &processor,
+        &evaluation_ctx(2, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::ProcessorLane {
+            context_key: None,
+            history_len: 8,
+        },
+    );
+    assert_eq!(preview.len(), 1);
+    assert!(
+        preview[0].output.intents.is_empty(),
+        "hydrating current preview values must not replay runtime effects"
+    );
+    assert_eq!(preview[0].output.debug_samples.len(), 1);
+    assert_eq!(preview[0].output.debug_samples[0].value, RuntimeValue::Float(4.25));
+    assert_eq!(preview[0].output.debug_samples[0].logical_tick, 2);
+}
+
+#[test]
+fn opening_runtime_preview_does_not_replay_a_stored_trigger_edge() {
+    let formula = stateful_formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let provider = DefaultProcessorContextProvider;
+
+    let initialized = runtime.evaluate_processor_with_context_provider_and_runtime_delta_capture(
+        &processor,
+        &evaluation_ctx(1, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::Off,
+    );
+    assert_eq!(initialized.len(), 1);
+    assert!(initialized[0].output.debug_samples.is_empty());
+
+    let preview = runtime.evaluate_processor_with_context_provider_and_runtime_capture(
+        &processor,
+        &evaluation_ctx(2, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::ProcessorLane {
+            context_key: None,
+            history_len: 8,
+        },
+    );
+    let trigger = preview[0]
+        .output
+        .debug_samples
+        .iter()
+        .find_map(|sample| match sample.value {
+            RuntimeValue::Trigger(trigger) => Some((trigger, sample.logical_tick)),
+            _ => None,
+        })
+        .expect("the trigger output should be present in the hydrated preview");
+    assert!(!trigger.0.fired);
+    assert_eq!(trigger.0.logical_tick, 1);
+    assert_eq!(trigger.1, 2);
+}
+
+#[test]
 fn changing_selected_lane_changes_preview_samples_only() {
     let formula = formula();
     let (processor, mut runtime) = compile_active_runtime(&formula);

@@ -1,9 +1,53 @@
 use golden_core::{
     app::ProjectNode,
-    node::{Node, NodeMeta},
+    edit::Edit,
+    engine::EngineTime,
+    events::CustomEventRetention,
+    node::{Node, NodeId, NodeMeta},
+    process_ctx::{ExecutionPhase, ProcessCtx},
 };
 
-use super::{ModuleCommandTester, MODULE_COMMAND_ITEM_KIND};
+use super::{
+    emit_command_execute_with_invocation, ModuleCommandDeliveryPolicy,
+    ModuleCommandInvocationId, ModuleCommandTester, MODULE_COMMAND_ITEM_KIND,
+};
+
+#[test]
+fn internal_command_execute_events_are_transient_and_keep_invocation_identity() {
+    let command = NodeId(20);
+    let invocation_id = ModuleCommandInvocationId::new(NodeId(10), 7);
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+
+    emit_command_execute_with_invocation(
+        &mut ctx,
+        command,
+        Vec::new(),
+        Some(invocation_id),
+        ModuleCommandDeliveryPolicy::Standard,
+    )
+    .expect("command execute should serialize");
+
+    let Edit::EmitCustomEvent { event } = &ctx
+        .edits
+        .pending
+        .last()
+        .expect("command execute should enqueue one custom event")
+        .edit
+    else {
+        panic!("command execute should enqueue a custom event");
+    };
+    assert_eq!(event.retention, CustomEventRetention::Transient);
+    let decoded = super::command_execute_request(event, command)
+        .expect("transient event should retain its typed command payload");
+    assert_eq!(decoded.invocation_id, Some(invocation_id));
+}
 
 #[test]
 fn module_command_tester_uses_advertised_command_catalog() {

@@ -12,6 +12,7 @@ import type { UiDuplicateCreateUserItemSpec } from "./UiDuplicateCreateUserItemS
 import type { UiDuplicateDependentUserItem } from "./UiDuplicateDependentUserItem";
 import type { UiDuplicateNodeSpec } from "./UiDuplicateNodeSpec";
 import type { UiParameterControlStateDto } from "./UiParameterControlStateDto";
+import type { JsonValue } from "./serde_json/JsonValue";
 
 /**
  * UI-originated edit intent.
@@ -260,7 +261,19 @@ owner: NodeId,
 /**
  * Symbol to remove.
  */
-symbol: string, } | { "kind": "reevaluateGraph" } | { "kind": "clearLogs" } | { "kind": "setLogMaxEntries",
+symbol: string, } | { "kind": "sendNodeEvent",
+/**
+ * Runtime node receiving the event.
+ */
+node: NodeId,
+/**
+ * App-owned event topic interpreted by the target node.
+ */
+topic: string,
+/**
+ * App-owned event payload.
+ */
+payload: JsonValue, } | { "kind": "reevaluateGraph" } | { "kind": "clearLogs" } | { "kind": "setLogMaxEntries",
 /**
  * Requested maximum number of retained records.
  */

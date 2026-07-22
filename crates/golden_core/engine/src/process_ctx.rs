@@ -67,10 +67,6 @@ impl ProcessTreeNodeSnapshot {
         self.param_value.is_some()
     }
 
-    fn matches_decl_id(&self, decl_id: &str) -> bool {
-        self.decl_id == decl_id || self.decl_id.rsplit('/').next() == Some(decl_id)
-    }
-
     fn matches_child_key(&self, key: &str) -> bool {
         self.decl_id == key || self.short_name == key || self.label == key
     }
@@ -140,17 +136,95 @@ impl fmt::Display for ProcessTreeNodeSnapshot {
     }
 }
 
+#[derive(Debug)]
+struct ProcessTreeChildIndexes {
+    ids_by_parent: HashMap<NodeId, Box<[NodeId]>>,
+    ids_by_decl_id: HashMap<NodeId, HashMap<Box<str>, NodeId>>,
+}
+
 /// Shared read-only tree snapshot for one processing pass.
 #[derive(Clone, Debug)]
 pub struct ProcessTreeSnapshot {
     root: NodeId,
     nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>,
+    node_ids_by_uuid: HashMap<NodeUuid, NodeId>,
+    child_indexes: Arc<ProcessTreeChildIndexes>,
 }
 
 impl ProcessTreeSnapshot {
     /// Creates a new immutable tree snapshot.
     pub fn new(root: NodeId, nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>) -> Self {
-        Self { root, nodes }
+        let mut node_ids_by_uuid = HashMap::with_capacity(nodes.len());
+        for (node_id, node) in &nodes {
+            node_ids_by_uuid.entry(node.uuid).or_insert(*node_id);
+        }
+        let child_indexes = Self::build_child_indexes(&nodes);
+        Self {
+            root,
+            nodes,
+            node_ids_by_uuid,
+            child_indexes,
+        }
+    }
+
+    pub(crate) fn from_indexed_nodes(
+        root: NodeId,
+        nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>,
+        node_ids_by_uuid: HashMap<NodeUuid, NodeId>,
+    ) -> Self {
+        let child_indexes = Self::build_child_indexes(&nodes);
+        Self {
+            root,
+            nodes,
+            node_ids_by_uuid,
+            child_indexes,
+        }
+    }
+
+    fn build_child_indexes(nodes: &HashMap<NodeId, ProcessTreeNodeSnapshot>) -> Arc<ProcessTreeChildIndexes> {
+        let parent_ids = nodes
+            .iter()
+            .filter_map(|(node_id, node)| node.first_child.map(|_| *node_id));
+        let mut child_ids_by_parent = HashMap::new();
+        let mut child_ids_by_decl_id = HashMap::new();
+
+        for parent in parent_ids {
+            let mut child_ids = Vec::new();
+            let mut child = nodes.get(&parent).and_then(|node| node.first_child);
+            let mut visited = HashSet::new();
+            while let Some(child_id) = child {
+                if !visited.insert(child_id) {
+                    break;
+                }
+                child_ids.push(child_id);
+                child = nodes.get(&child_id).and_then(|node| node.next_sibling);
+            }
+
+            let mut decl_ids = HashMap::new();
+            for child_id in &child_ids {
+                let Some(child) = nodes.get(child_id) else {
+                    break;
+                };
+                decl_ids
+                    .entry(child.decl_id.clone().into_boxed_str())
+                    .or_insert(*child_id);
+                if let Some(short_decl_id) = child.decl_id.rsplit('/').next() {
+                    if short_decl_id != child.decl_id {
+                        decl_ids.entry(short_decl_id.into()).or_insert(*child_id);
+                    }
+                }
+            }
+
+            child_ids_by_parent.insert(parent, child_ids.into_boxed_slice());
+            if !decl_ids.is_empty() {
+                child_ids_by_decl_id.insert(parent, decl_ids);
+            }
+        }
+
+        Arc::new(ProcessTreeChildIndexes {
+            ids_by_parent: child_ids_by_parent,
+            ids_by_decl_id: child_ids_by_decl_id,
+        })
     }
 
     /// Returns the snapshot root node id.
@@ -180,17 +254,11 @@ impl ProcessTreeSnapshot {
     ///
     /// Child keys are matched against `decl_id`, `short_name`, then `label`.
     pub fn find_child(&self, parent: NodeId, key: &str) -> Option<NodeId> {
-        let mut child = self.node(parent)?.first_child;
-        let mut visited = HashSet::<NodeId>::new();
-        while let Some(child_id) = child {
-            if !visited.insert(child_id) {
-                return None;
-            }
+        for child_id in self.child_ids_slice(parent).iter().copied() {
             let child_snapshot = self.node(child_id)?;
             if child_snapshot.matches_child_key(key) {
                 return Some(child_id);
             }
-            child = child_snapshot.next_sibling;
         }
         None
     }
@@ -200,78 +268,43 @@ impl ProcessTreeSnapshot {
     /// Declared child ids can be stored as full paths such as `parameters/receiver`;
     /// callers may pass either the full declaration id or its final path segment.
     pub fn find_child_by_decl_id(&self, parent: NodeId, decl_id: &str) -> Option<NodeId> {
-        let mut child = self.node(parent)?.first_child;
-        let mut visited = HashSet::<NodeId>::new();
-        while let Some(child_id) = child {
-            if !visited.insert(child_id) {
-                return None;
-            }
-            let child_snapshot = self.node(child_id)?;
-            if child_snapshot.matches_decl_id(decl_id) {
-                return Some(child_id);
-            }
-            child = child_snapshot.next_sibling;
-        }
-        None
+        self.child_indexes
+            .ids_by_decl_id
+            .get(&parent)
+            .and_then(|children| children.get(decl_id))
+            .copied()
+    }
+
+    /// Borrows all direct child node ids for `parent` in sibling order.
+    ///
+    /// The returned slice is owned by this immutable snapshot and performs no
+    /// allocation. Prefer it in traversal-heavy code that does not need to
+    /// mutate the list.
+    pub fn child_ids_slice(&self, parent: NodeId) -> &[NodeId] {
+        self.child_indexes.ids_by_parent.get(&parent).map_or(&[], Box::as_ref)
     }
 
     /// Returns all direct child node ids for `parent` in sibling order.
     pub fn child_ids(&self, parent: NodeId) -> Vec<NodeId> {
-        let mut children = Vec::new();
-        let mut child = self.node(parent).and_then(|node| node.first_child);
-        let mut visited = HashSet::<NodeId>::new();
-        while let Some(child_id) = child {
-            if !visited.insert(child_id) {
-                break;
-            }
-            children.push(child_id);
-            child = self.node(child_id).and_then(|snapshot| snapshot.next_sibling);
-        }
-        children
+        self.child_ids_slice(parent).to_vec()
     }
 
     /// Returns one direct child by zero-based sibling index.
     pub fn child_at(&self, parent: NodeId, index: usize) -> Option<NodeId> {
-        let mut current = 0usize;
-        let mut child = self.node(parent)?.first_child;
-        let mut visited = HashSet::<NodeId>::new();
-        while let Some(child_id) = child {
-            if !visited.insert(child_id) {
-                return None;
-            }
-            if current == index {
-                return Some(child_id);
-            }
-            current = current.saturating_add(1);
-            child = self.node(child_id).and_then(|snapshot| snapshot.next_sibling);
-        }
-        None
+        self.child_ids_slice(parent).get(index).copied()
     }
 
     /// Returns the previous sibling of `node` under `parent`, when present.
     pub fn previous_sibling(&self, parent: NodeId, node: NodeId) -> Option<NodeId> {
-        let mut previous = None;
-        let mut child = self.node(parent)?.first_child;
-        let mut visited = HashSet::<NodeId>::new();
-        while let Some(child_id) = child {
-            if !visited.insert(child_id) {
-                return None;
-            }
-            if child_id == node {
-                return previous;
-            }
-            previous = Some(child_id);
-            child = self.node(child_id).and_then(|snapshot| snapshot.next_sibling);
-        }
-
-        None
+        let position = self.child_ids_slice(parent).iter().position(|child| *child == node)?;
+        position
+            .checked_sub(1)
+            .and_then(|previous| self.child_at(parent, previous))
     }
 
     /// Returns the current runtime node id for `uuid`, when present in this snapshot.
     pub fn node_id_by_uuid(&self, uuid: NodeUuid) -> Option<NodeId> {
-        self.nodes
-            .iter()
-            .find_map(|(node_id, node)| (node.uuid == uuid).then_some(*node_id))
+        self.node_ids_by_uuid.get(&uuid).copied()
     }
 
     /// Resolves a slash-separated child path from `start`.
@@ -632,6 +665,33 @@ impl ProcessCtx {
         payload: &U,
     ) -> serde_json::Result<()> {
         let event = CustomEvent::from_payload(topic, origin, payload)?;
+        self.emit_custom_event(event);
+        Ok(())
+    }
+
+    /// Serializes and queues a latest-wins custom event payload.
+    pub fn emit_latest_custom_payload<U: Serialize>(
+        &mut self,
+        topic: impl Into<String>,
+        origin: Option<NodeId>,
+        payload: &U,
+    ) -> serde_json::Result<()> {
+        let event = CustomEvent::from_latest_payload(topic, origin, payload)?;
+        self.emit_custom_event(event);
+        Ok(())
+    }
+
+    /// Serializes and queues an engine-internal custom event payload.
+    ///
+    /// Transient events are delivered to node inboxes but are excluded from UI
+    /// replay and transport publication.
+    pub fn emit_transient_custom_payload<U: Serialize>(
+        &mut self,
+        topic: impl Into<String>,
+        origin: Option<NodeId>,
+        payload: &U,
+    ) -> serde_json::Result<()> {
+        let event = CustomEvent::from_transient_payload(topic, origin, payload)?;
         self.emit_custom_event(event);
         Ok(())
     }

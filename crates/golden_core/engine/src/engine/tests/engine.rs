@@ -352,6 +352,32 @@ fn absorb_edits_accepts_matching_node_type() {
 }
 
 #[test]
+fn process_ctx_queues_transient_custom_payload() {
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 4,
+            micro: 0,
+            seq: 0,
+        },
+    );
+    let origin = NodeId(17);
+
+    ctx.emit_transient_custom_payload("runtime.command", Some(origin), &serde_json::json!({ "lane": 3 }))
+        .expect("transient payload should serialize");
+
+    assert_eq!(ctx.edits.pending.len(), 1);
+    let Edit::EmitCustomEvent { event } = &ctx.edits.pending[0].edit else {
+        panic!("transient payload should queue a custom-event edit");
+    };
+    assert_eq!(event.topic, "runtime.command");
+    assert_eq!(event.origin, Some(origin));
+    let decoded: serde_json::Value = event.payload_as().expect("queued payload should deserialize");
+    assert_eq!(decoded, serde_json::json!({ "lane": 3 }));
+    assert_eq!(event.retention, crate::events::CustomEventRetention::Transient);
+}
+
+#[test]
 fn absorb_edits_skips_noop_warning_edits() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
     let root = engine.root;
@@ -6482,6 +6508,38 @@ fn emit_custom_event_uses_edit_pipeline() {
 }
 
 #[test]
+fn ui_send_node_event_is_ephemeral_and_bypasses_edit_history() {
+    let root = RoutingNode::with_policy("root", 0, 0, EventPropagation::Notify);
+    let mut engine = Engine::new(root);
+    let root = engine.root;
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SendNodeEvent {
+        node: root,
+        topic: "test.observation_demand".to_string(),
+        payload: serde_json::json!({ "enabled": true }),
+    });
+
+    assert!(ack.success, "node event should be delivered: {ack:?}");
+    assert_eq!(
+        engine
+            .nodes
+            .get(root)
+            .expect("root should exist")
+            .observed_custom_events,
+        1,
+    );
+    assert!(
+        engine.inbox.events.is_empty(),
+        "node event should be dispatched immediately"
+    );
+    assert!(
+        engine.ui_event_log().is_empty(),
+        "ephemeral UI/runtime coordination must not enter replay retention",
+    );
+    assert_eq!(engine.undo_len(), 0, "node event must not create edit history");
+}
+
+#[test]
 fn undo_redo_set_param_restores_value() {
     let root = Parameter::new("root_param", ParamValue::Int(10), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);
@@ -7001,6 +7059,86 @@ fn ui_event_log_retains_events_after_inbox_dispatch() {
         engine.ui_event_log().len(),
         1,
         "ui event log should remain available for replay"
+    );
+}
+
+#[test]
+fn ui_event_log_retains_only_explicit_latest_custom_event_per_topic_and_origin() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    let root = engine.root;
+
+    engine.push_ui_event_kind(EventKind::Custom(CustomEvent::latest(
+        "test.runtime_frame",
+        Some(root),
+        serde_json::json!({ "generation": 1, "payload": "old" }),
+    )));
+    engine.push_ui_custom_event("test.runtime_preview", Some(root), serde_json::json!({ "sequence": 1 }));
+    engine.push_ui_event_kind(EventKind::Custom(CustomEvent::latest(
+        "test.runtime_frame",
+        Some(root),
+        serde_json::json!({ "generation": 2, "payload": "latest" }),
+    )));
+
+    assert_eq!(engine.ui_event_log().len(), 2);
+    assert!(matches!(
+        &engine.ui_event_log()[0].kind,
+        EventKind::Custom(event) if event.topic == "test.runtime_preview"
+    ));
+    assert!(matches!(
+        &engine.ui_event_log()[1].kind,
+        EventKind::Custom(event)
+            if event.topic == "test.runtime_frame" && event.payload["generation"] == 2
+    ));
+
+    engine.push_ui_custom_event("test.runtime_preview", Some(root), serde_json::json!({ "sequence": 2 }));
+    assert_eq!(
+        engine.ui_event_log().len(),
+        3,
+        "reliable custom events must remain lossless",
+    );
+}
+
+#[test]
+fn transient_custom_event_is_inbox_only_and_preserves_redo_history() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let root = engine.root;
+    engine.edits.push(Edit::SetParam {
+        node: root,
+        value: ParamValue::Int(1),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("initial parameter edit should apply");
+    assert!(engine.undo().expect("initial parameter edit should undo"));
+    assert_eq!(engine.redo_len(), 1);
+
+    engine.inbox.clear();
+    let ui_event_count = engine.ui_event_log().len();
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::transient("runtime.command", Some(root), serde_json::json!({ "value": 7 })),
+    });
+    engine.apply_edits().expect("transient custom event should apply");
+
+    assert_eq!(
+        engine.ui_event_log().len(),
+        ui_event_count,
+        "transient custom events must not enter UI replay",
+    );
+    assert_eq!(engine.inbox.events.len(), 1);
+    assert!(matches!(
+        &engine.inbox.events[0].kind,
+        EventKind::Custom(event)
+            if event.topic == "runtime.command"
+                && event.retention == crate::events::CustomEventRetention::Transient
+    ));
+    assert_eq!(
+        engine.redo_len(),
+        1,
+        "an internal runtime signal must not invalidate user redo history",
+    );
+    assert!(engine.redo().expect("redo should remain available"));
+    assert_eq!(
+        engine.nodes.get(root).expect("root should exist").value,
+        ParamValue::Int(1)
     );
 }
 
@@ -12177,7 +12315,7 @@ fn disabling_parent_removes_child_from_updates_until_reenabled() {
 }
 
 #[test]
-fn run_tick_respects_update_rate_buckets() {
+fn run_tick_coalesces_missed_periods_by_default() {
     let root = RuntimeNode::new("root", NodeExecutionRule::passive());
     let mut engine = Engine::new(root);
 
@@ -12205,26 +12343,134 @@ fn run_tick_respects_update_rate_buckets() {
         .run_tick(Duration::from_millis(1000))
         .expect("tick should succeed");
     let runner = engine.nodes.get(runner).expect("runner should exist");
-    assert_eq!(runner.updates, 3);
+    assert_eq!(runner.updates, 2);
     assert_eq!(
         runner.delta_times,
-        vec![
-            Duration::from_millis(500),
-            Duration::from_millis(500),
-            Duration::from_millis(500),
-        ],
-        "runner should receive real elapsed deltas between update callbacks",
+        vec![Duration::from_millis(500), Duration::from_millis(1000)],
+        "coalesced callbacks should receive all elapsed time without replaying backlog",
     );
 }
 
 #[test]
-fn production_runtime_orders_due_callbacks_through_compiled_work_and_preserves_catch_up() {
+fn run_tick_replays_missed_periods_only_when_opted_in() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        RuntimeNode::new(
+            "runner",
+            NodeExecutionRule::periodic(2).with_missed_period_policy(MissedPeriodPolicy::Replay),
+        ),
+        None,
+    );
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("resolve should succeed");
+
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+
+    engine
+        .run_tick(Duration::from_millis(1000))
+        .expect("tick should succeed");
+
+    let runner = engine.nodes.get(runner).expect("runner should exist");
+    assert_eq!(runner.updates, 2);
+    assert_eq!(runner.delta_times, vec![Duration::from_millis(500); 2]);
+}
+
+#[test]
+fn replay_policy_retains_limited_backlog_with_fixed_period_deltas() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.set_runtime_limits(RuntimeLimits {
+        max_bucket_catch_up_per_tick: 2,
+        ..RuntimeLimits::default()
+    });
+    engine.add_node(
+        RuntimeNode::new(
+            "runner",
+            NodeExecutionRule::periodic(10).with_missed_period_policy(MissedPeriodPolicy::Replay),
+        ),
+        None,
+    );
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("resolve should succeed");
+
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+
+    engine
+        .run_tick(Duration::from_millis(500))
+        .expect("first replay tick should succeed");
+    engine
+        .run_tick(Duration::ZERO)
+        .expect("second replay tick should drain retained backlog");
+    engine
+        .run_tick(Duration::ZERO)
+        .expect("third replay tick should drain final retained period");
+
+    let runner = engine.nodes.get(runner).expect("runner should exist");
+    assert_eq!(runner.updates, 5);
+    assert_eq!(runner.delta_times, vec![Duration::from_millis(100); 5]);
+}
+
+#[test]
+fn same_rate_nodes_can_mix_coalesced_and_replay_policies() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("coalesced", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("replay", NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("setup edits should succeed");
+
+    let coalesced = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("coalesced node should exist");
+    let replay = engine
+        .nodes
+        .get(coalesced)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("replay node should exist");
+
+    engine
+        .nodes
+        .get_mut(coalesced)
+        .expect("coalesced node should exist")
+        .rule = NodeExecutionRule::periodic(10);
+    engine.nodes.get_mut(replay).expect("replay node should exist").rule = NodeExecutionRule::periodic(10)
+        .with_missed_period_policy(MissedPeriodPolicy::Replay)
+        .with_dependencies([coalesced]);
+    engine.resolve().expect("resolve should succeed");
+
+    engine
+        .run_tick(Duration::from_millis(300))
+        .expect("mixed-policy tick should succeed");
+
+    let coalesced = engine.nodes.get(coalesced).expect("coalesced node should exist");
+    assert_eq!(coalesced.updates, 1);
+    assert_eq!(coalesced.delta_times, vec![Duration::from_millis(300)]);
+    let replay = engine.nodes.get(replay).expect("replay node should exist");
+    assert_eq!(replay.updates, 3);
+    assert_eq!(replay.delta_times, vec![Duration::from_millis(100); 3]);
+}
+
+#[test]
+fn production_runtime_orders_explicit_replay_through_compiled_work() {
     let root = RuntimeNode::new("root", NodeExecutionRule::passive());
     let mut engine = Engine::new(root);
     engine.add_node(
         RuntimeNode::new(
             "runner",
-            NodeExecutionRule::periodic(2).with_compiled_kernel("test.runtime.runner"),
+            NodeExecutionRule::periodic(2)
+                .with_missed_period_policy(MissedPeriodPolicy::Replay)
+                .with_compiled_kernel("test.runtime.runner"),
         ),
         None,
     );
@@ -12245,13 +12491,13 @@ fn production_runtime_orders_due_callbacks_through_compiled_work_and_preserves_c
     let runner = runtime.engine.nodes.get(runner).expect("runner should exist");
     assert_eq!(
         runner.updates, 2,
-        "the domain arena must preserve bucket catch-up multiplicity"
+        "the domain arena must preserve explicit replay multiplicity"
     );
     assert_eq!(runner.delta_times, vec![Duration::from_millis(500); 2]);
     assert_eq!(
         metrics.snapshot().work_units,
         1,
-        "one compile-assigned work unit should order both catch-up callbacks",
+        "one compile-assigned work unit should order both replay callbacks",
     );
 }
 
@@ -12376,8 +12622,8 @@ fn single_due_bucket_emits_nodes_in_topo_order() {
 #[test]
 fn multiple_due_buckets_k_way_merge_preserves_topo_order() {
     // Dependency chain: a(100Hz) → b(200Hz) → c(100Hz) → d(200Hz)
-    // 100Hz bucket contains [a, c]; 200Hz bucket contains [b, d].
-    // With a 10ms tick: 100Hz fires once, 200Hz fires twice (max_due=2).
+    // The 100Hz nodes use the default coalescing policy; the 200Hz nodes explicitly replay.
+    // With a 10ms tick: 100Hz fires once, 200Hz replay fires twice (max_due=2).
     //   round 0: k-way merge of both buckets must be [a,b,c,d] (global topo), not [a,c,b,d]
     //   round 1: only 200Hz fires → [b,d]
     let root = RuntimeNode::new("root", NodeExecutionRule::passive());
@@ -12398,12 +12644,16 @@ fn multiple_due_buckets_k_way_merge_preserves_topo_order() {
     let d = engine.nodes.get(c).and_then(|n| n.node_data().next_sibling).unwrap();
 
     engine.nodes.get_mut(a).unwrap().rule = NodeExecutionRule::periodic(100);
-    engine.nodes.get_mut(b).unwrap().rule = NodeExecutionRule::periodic(200).with_dependencies([a]);
+    engine.nodes.get_mut(b).unwrap().rule = NodeExecutionRule::periodic(200)
+        .with_missed_period_policy(MissedPeriodPolicy::Replay)
+        .with_dependencies([a]);
     engine.nodes.get_mut(c).unwrap().rule = NodeExecutionRule::periodic(100).with_dependencies([b]);
-    engine.nodes.get_mut(d).unwrap().rule = NodeExecutionRule::periodic(200).with_dependencies([c]);
+    engine.nodes.get_mut(d).unwrap().rule = NodeExecutionRule::periodic(200)
+        .with_missed_period_policy(MissedPeriodPolicy::Replay)
+        .with_dependencies([c]);
     engine.resolve().expect("resolve should succeed");
 
-    // 10ms: 100Hz (interval=10ms) fires 1x, 200Hz (interval=5ms) fires 2x.
+    // 10ms: 100Hz (interval=10ms) fires 1x, 200Hz replay (interval=5ms) fires 2x.
     let mut out = Vec::new();
     engine
         .runtime_schedule

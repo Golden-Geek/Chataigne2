@@ -67,6 +67,7 @@ pub enum ConditionEvaluationError {
 pub struct ConditionRuntime {
     keys: Vec<ConditionStateKey>,
     states: Vec<ConditionState>,
+    instruction_values: Vec<bool>,
 }
 
 impl ConditionRuntime {
@@ -75,6 +76,7 @@ impl ConditionRuntime {
         Self {
             keys: program.state_layout.keys.clone(),
             states: vec![ConditionState::default(); program.state_layout.keys.len()],
+            instruction_values: Vec::with_capacity(program.instructions.len()),
         }
     }
 
@@ -86,7 +88,11 @@ impl ConditionRuntime {
             .iter()
             .map(|key| previous.get(key).cloned().unwrap_or_default())
             .collect();
-        Self { keys, states }
+        Self {
+            keys,
+            states,
+            instruction_values: Vec::with_capacity(program.instructions.len()),
+        }
     }
 
     #[must_use]
@@ -99,11 +105,42 @@ impl ConditionRuntime {
         program: &CompiledConditionProgram,
         frame: &ConditionEvaluationFrame<'_>,
     ) -> Result<ConditionEvaluationResult, ConditionEvaluationError> {
+        self.evaluate_instructions(program, frame)?;
+        let mut observations = IndexMap::with_capacity(program.observation.len());
+        for descriptor in &program.observation {
+            observations.insert(descriptor.condition, self.instruction_values[descriptor.instruction]);
+        }
+        Ok(ConditionEvaluationResult {
+            value: self.instruction_values[program.root],
+            observations,
+        })
+    }
+
+    /// Evaluates the condition without materializing per-condition observations.
+    ///
+    /// Use this on the runtime hot path when only the root result is needed. The
+    /// instruction buffer is retained by the runtime and reused across calls.
+    pub fn evaluate_value(
+        &mut self,
+        program: &CompiledConditionProgram,
+        frame: &ConditionEvaluationFrame<'_>,
+    ) -> Result<bool, ConditionEvaluationError> {
+        self.evaluate_instructions(program, frame)?;
+        Ok(self.instruction_values[program.root])
+    }
+
+    fn evaluate_instructions(
+        &mut self,
+        program: &CompiledConditionProgram,
+        frame: &ConditionEvaluationFrame<'_>,
+    ) -> Result<(), ConditionEvaluationError> {
         if self.keys != program.state_layout.keys {
             *self = self.migrate(program);
         }
-        let mut values = Vec::with_capacity(program.instructions.len());
-        let mut observations = IndexMap::new();
+        self.instruction_values.clear();
+        self.instruction_values.reserve(program.instructions.len());
+        let states = &mut self.states;
+        let values = &mut self.instruction_values;
         for instruction in &program.instructions {
             let value =
                 match instruction {
@@ -133,7 +170,7 @@ impl ConditionRuntime {
                             &expected,
                             expected_max.as_ref(),
                             *behavior,
-                            &mut self.states[*state_slot],
+                            &mut states[*state_slot],
                             frame,
                         )?
                     }
@@ -165,7 +202,7 @@ impl ConditionRuntime {
                             &expected,
                             expected_max.as_ref(),
                             *behavior,
-                            &mut self.states[*state_slot],
+                            &mut states[*state_slot],
                             frame,
                         )?
                     }
@@ -194,7 +231,7 @@ impl ConditionRuntime {
                         apply_behavior(
                             level,
                             *behavior,
-                            &mut self.states[*state_slot],
+                            &mut states[*state_slot],
                             frame.logical_tick,
                             frame.delta_time,
                         )
@@ -202,13 +239,7 @@ impl ConditionRuntime {
                 };
             values.push(value);
         }
-        for descriptor in &program.observation {
-            observations.insert(descriptor.condition, values[descriptor.instruction]);
-        }
-        Ok(ConditionEvaluationResult {
-            value: values[program.root],
-            observations,
-        })
+        Ok(())
     }
 }
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ProcessorLaneSummaryDto } from '../../../state_machine/generated/ProcessorLaneSummaryDto';
+import type { ProcessorLaneCatalogEntryDto } from '../../../state_machine/generated/ProcessorLaneCatalogEntryDto';
 import { processorPreviewLaneOptions } from '../formulaPreviewSessionStore.svelte';
 
-const lane = (processorId: string, index: number): ProcessorLaneSummaryDto => ({
+const lane = (processorId: string, index: number): ProcessorLaneCatalogEntryDto => ({
 	processor_id: processorId,
 	context_key: {
 		parts: [
@@ -17,9 +17,7 @@ const lane = (processorId: string, index: number): ProcessorLaneSummaryDto => ({
 		]
 	},
 	label: `Device ${index + 1}`,
-	has_memory: true,
-	last_tick: 1n,
-	diagnostics_count: 0
+	has_memory: true
 });
 
 describe('processor preview checkpoints', () => {

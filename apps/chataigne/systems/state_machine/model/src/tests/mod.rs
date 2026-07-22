@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
 use super::*;
 
-mod domain_tests;
-mod general;
+mod domain;
+mod execution;

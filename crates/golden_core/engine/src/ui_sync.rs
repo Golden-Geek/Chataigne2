@@ -6,7 +6,7 @@ use ts_rs::TS;
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime, ProjectLoadRecoveryReport, ProjectPersistenceError};
-use crate::events::{Event, EventKind};
+use crate::events::{CustomEventRetention, Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
     CurveBezierFitOptions, CurveFitPoint, CurveNode, DASHBOARD_GENERIC_WIDGET_NODE_TYPE,
@@ -23,9 +23,9 @@ use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.2.0";
-const UI_USER_CONTEXT_SCOPE_TOPIC: &str = "__user_context.scope_changed";
-const UI_USER_CONTEXT_ENTRY_TOPIC: &str = "__user_context.entry_changed";
+pub const UI_PROTOCOL_VERSION: &str = "0.3.0";
+pub(crate) const UI_USER_CONTEXT_SCOPE_TOPIC: &str = "__user_context.scope_changed";
+pub(crate) const UI_USER_CONTEXT_ENTRY_TOPIC: &str = "__user_context.entry_changed";
 
 fn is_default_presentation_hint(value: &PresentationHint) -> bool {
     *value == PresentationHint::default()
@@ -1341,6 +1341,8 @@ pub enum UiEventKind {
         origin: Option<NodeId>,
         /// Raw JSON payload.
         payload: serde_json::Value,
+        /// Replay and transport retention policy.
+        retention: CustomEventRetention,
     },
 }
 
@@ -1426,6 +1428,7 @@ impl From<Event> for UiEventDto {
                 topic: custom.topic,
                 origin: custom.origin,
                 payload: custom.payload,
+                retention: custom.retention,
             },
         };
 
@@ -1704,6 +1707,19 @@ pub enum UiEditIntent {
         owner: NodeId,
         /// Symbol to remove.
         symbol: String,
+    },
+    /// Sends an ephemeral typed-by-topic event directly to one runtime node.
+    ///
+    /// This is the public extension point for app-owned UI/runtime coordination. The event is
+    /// delivered through the node inbox, but is not persisted, added to undo history, or echoed
+    /// into the UI replay log.
+    SendNodeEvent {
+        /// Runtime node receiving the event.
+        node: NodeId,
+        /// App-owned event topic interpreted by the target node.
+        topic: String,
+        /// App-owned event payload.
+        payload: serde_json::Value,
     },
     /// Request graph reevaluation.
     ReevaluateGraph,
@@ -3271,6 +3287,23 @@ impl<T: Node> Engine<T> {
                     history: self.ui_history_state(),
                 }
             }
+            UiEditIntent::SendNodeEvent { node, topic, payload } => {
+                let result = if !self.nodes.contains(node) {
+                    Err(crate::engine::EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: "SendNodeEvent",
+                        node,
+                    })
+                } else {
+                    self.emit_inbox_event(EventKind::Custom(crate::events::CustomEvent::new(
+                        topic,
+                        Some(node),
+                        payload,
+                    )));
+                    self.apply_ui_stabilization_to_fixed_point(16)
+                };
+                self.finish_ui_apply_now(before_len, result)
+            }
             UiEditIntent::ReevaluateGraph => {
                 self.edits.push(Edit::ReevaluateGraph);
                 let result = self.apply_edits();
@@ -3707,6 +3740,7 @@ impl<T: Node> Engine<T> {
                 topic: custom.topic.clone(),
                 origin: custom.origin,
                 payload: custom.payload.clone(),
+                retention: custom.retention,
             },
         };
 

@@ -65,6 +65,44 @@ fn compiled_groups_evaluate_without_authoring_tree_access() {
 }
 
 #[test]
+fn value_only_evaluation_preserves_runtime_state_and_later_observations() {
+    let source = input("value-only");
+    let mut definition =
+        ConditionDefinition::input_value("changed", source.clone(), Value::String(Arc::from("ignored")));
+    if let crate::ConditionKind::InputValue(condition) = &mut definition.kind {
+        condition.comparator = TypedComparator::Changed;
+    }
+    let program = compile_condition(&definition).unwrap();
+    let mut full_runtime = ConditionRuntime::new(&program);
+    let mut value_runtime = ConditionRuntime::new(&program);
+    let mut inputs = Inputs::default();
+
+    for (tick, value) in [(1, "first"), (2, "second"), (3, "second")] {
+        inputs.0.insert(source.clone(), Value::String(Arc::from(value)));
+        let frame = ConditionEvaluationFrame {
+            logical_tick: tick,
+            delta_time: Duration::from_millis(100),
+            inputs: &inputs,
+        };
+
+        let full = full_runtime.evaluate(&program, &frame).unwrap();
+        let value_only = value_runtime.evaluate_value(&program, &frame).unwrap();
+        assert_eq!(value_only, full.value);
+    }
+
+    let frame = ConditionEvaluationFrame {
+        logical_tick: 4,
+        delta_time: Duration::from_millis(100),
+        inputs: &inputs,
+    };
+    let expected = full_runtime.evaluate(&program, &frame).unwrap();
+    let actual = value_runtime.evaluate(&program, &frame).unwrap();
+
+    assert_eq!(actual, expected);
+    assert_eq!(actual.observations.len(), program.observation.len());
+}
+
+#[test]
 fn vector_projection_speed_toggle_and_transient_state_are_dense_and_migratable() {
     let source = input("source");
     let mut definition = ConditionDefinition::input_value("speed", source.clone(), Value::Float(5.0));

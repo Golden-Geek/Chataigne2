@@ -898,6 +898,8 @@ fn execute_event_runs_osc_command_through_module_output() {
         serde_json::to_value(crate::app::module_command::ModuleCommandExecuteEvent {
             command_id,
             param_overrides: Vec::new(),
+            invocation_id: None,
+            delivery_policy: crate::app::module_command::ModuleCommandDeliveryPolicy::Standard,
         })
         .expect("execute event payload should serialize"),
     );

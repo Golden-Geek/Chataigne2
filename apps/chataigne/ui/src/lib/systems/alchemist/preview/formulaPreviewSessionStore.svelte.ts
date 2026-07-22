@@ -1,7 +1,7 @@
 import type {
 	ContextKeyDto,
 	FormulaPreviewModeDto,
-	ProcessorLaneSummaryDto
+	ProcessorLaneCatalogEntryDto
 } from '../../state_machine/generated';
 import type { UiNodeDto } from 'golden_ui';
 
@@ -14,7 +14,6 @@ export interface FormulaPreviewLaneOption {
 	label: string;
 	contextKey: ContextKeyDto | null;
 	hasMemory: boolean;
-	diagnosticsCount: number;
 }
 
 export interface FormulaPreviewSessionModel {
@@ -42,17 +41,16 @@ const contextKeyLabel = (contextKey: ContextKeyDto | null): string =>
 		? contextKey.parts.map((part) => part.item_label || part.item_id).join(' / ')
 		: 'Default lane';
 
-const laneOption = (lane: ProcessorLaneSummaryDto): FormulaPreviewLaneOption => ({
+const laneOption = (lane: ProcessorLaneCatalogEntryDto): FormulaPreviewLaneOption => ({
 	id: contextKeyId(lane.context_key),
 	label: lane.label || contextKeyLabel(lane.context_key),
 	contextKey: lane.context_key,
-	hasMemory: lane.has_memory,
-	diagnosticsCount: lane.diagnostics_count
+	hasMemory: lane.has_memory
 });
 
 export const processorPreviewLaneOptions = (
-	laneSummaries: readonly ProcessorLaneSummaryDto[]
-): FormulaPreviewLaneOption[] => laneSummaries.map(laneOption);
+	laneCatalog: readonly ProcessorLaneCatalogEntryDto[]
+): FormulaPreviewLaneOption[] => laneCatalog.map(laneOption);
 
 const previewSubtitle = (
 	processor: UiNodeDto | null,
@@ -95,20 +93,19 @@ class FormulaPreviewSessionStore {
 	model(
 		formula: UiNodeDto | null,
 		processor: UiNodeDto | null,
-		laneSummaries: readonly ProcessorLaneSummaryDto[]
+		laneCatalog: readonly ProcessorLaneCatalogEntryDto[]
 	): FormulaPreviewSessionModel {
 		const lanes =
 			processor === null
 				? []
-				: laneSummaries.length > 0
-					? processorPreviewLaneOptions(laneSummaries)
+				: laneCatalog.length > 0
+					? processorPreviewLaneOptions(laneCatalog)
 					: [
 							{
 								id: DEFAULT_LANE_ID,
 								label: 'Default lane',
 								contextKey: null,
 								hasMemory: false,
-								diagnosticsCount: 0
 							}
 						];
 		const processorLane = this.processorLane(processor?.node_id ?? null, lanes);

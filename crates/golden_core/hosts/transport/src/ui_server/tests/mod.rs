@@ -5,7 +5,79 @@ use std::sync::atomic::Ordering;
 use golden_engine::node::Folder;
 use serde_json::json;
 
+use super::runtime_pacer::DeadlineSchedule;
 use super::*;
+
+#[test]
+fn runtime_pacer_keeps_an_absolute_deadline_across_ordinary_wake_lateness() {
+    let origin = Instant::now();
+    let interval = Duration::from_millis(5);
+    let mut schedule = DeadlineSchedule::default();
+
+    let first = schedule.next_deadline(origin, origin + Duration::from_millis(1), interval);
+    let second_tick_started = origin + Duration::from_millis(9);
+    let second = schedule.next_deadline(
+        second_tick_started,
+        second_tick_started + Duration::from_micros(100),
+        interval,
+    );
+
+    assert_eq!(first, origin + Duration::from_millis(5));
+    assert_eq!(second, origin + Duration::from_millis(10));
+}
+
+#[test]
+fn runtime_pacer_allows_one_bounded_catch_up_tick() {
+    let origin = Instant::now();
+    let interval = Duration::from_millis(5);
+    let mut schedule = DeadlineSchedule::default();
+
+    schedule.next_deadline(origin, origin, interval);
+    let overdue = schedule.next_deadline(
+        origin + Duration::from_millis(9),
+        origin + Duration::from_millis(11),
+        interval,
+    );
+    let recovered = schedule.next_deadline(
+        origin + Duration::from_millis(11),
+        origin + Duration::from_millis(11),
+        interval,
+    );
+
+    assert_eq!(overdue, origin + Duration::from_millis(10));
+    assert_eq!(recovered, origin + Duration::from_millis(15));
+}
+
+#[test]
+fn runtime_pacer_drops_a_long_stale_backlog() {
+    let origin = Instant::now();
+    let interval = Duration::from_millis(5);
+    let mut schedule = DeadlineSchedule::default();
+
+    schedule.next_deadline(origin, origin, interval);
+    let resumed_at = origin + Duration::from_secs(1);
+    let resumed = schedule.next_deadline(resumed_at, resumed_at, interval);
+    let following = schedule.next_deadline(resumed_at, resumed_at, interval);
+
+    assert_eq!(resumed, resumed_at);
+    assert_eq!(following, resumed_at + interval);
+}
+
+#[test]
+fn runtime_pacer_reanchors_when_the_requested_frequency_changes() {
+    let origin = Instant::now();
+    let mut schedule = DeadlineSchedule::default();
+
+    schedule.next_deadline(origin, origin, Duration::from_millis(5));
+    let changed_tick = origin + Duration::from_millis(5);
+    let changed = schedule.next_deadline(
+        changed_tick,
+        changed_tick + Duration::from_millis(1),
+        Duration::from_millis(10),
+    );
+
+    assert_eq!(changed, origin + Duration::from_millis(15));
+}
 
 #[test]
 fn default_ui_server_config_uses_explicit_ipv4_loopback() {
@@ -223,6 +295,38 @@ fn cursor_resync_advances_past_the_replacement_marker() {
         outbound.pop().is_none(),
         "replacement marker must not request a second resync"
     );
+}
+
+#[test]
+fn custom_event_data_plane_uses_explicit_retention_not_topic_text() {
+    let engine = Engine::new(Folder::new("root".to_string()));
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let time = EngineTime {
+        tick: 1,
+        micro: 0,
+        seq: 0,
+    };
+    let replay_event = UiEventDto {
+        time,
+        kind: UiEventKind::Custom {
+            topic: "test.named_preview_but_reliable".to_string(),
+            origin: None,
+            payload: serde_json::Value::Null,
+            retention: CustomEventRetention::Replay,
+        },
+    };
+    let latest_event = UiEventDto {
+        time,
+        kind: UiEventKind::Custom {
+            topic: "test.runtime_frame".to_string(),
+            origin: None,
+            payload: serde_json::Value::Null,
+            retention: CustomEventRetention::Latest,
+        },
+    };
+
+    assert_eq!(ui_data_plane(&read_model, &replay_event), UiDataPlane::Trigger);
+    assert_eq!(ui_data_plane(&read_model, &latest_event), UiDataPlane::Preview);
 }
 
 fn observation_message(tick: u64) -> WsOutbound {

@@ -5,10 +5,14 @@ import type {
 	ContextKeyDto,
 	FormulaPreviewModeDto,
 	RuntimeValueDto,
-	StateMachineProtocolBundle
+	StateMachineRuntimePreviewDto
 } from '../../state_machine/generated';
 
 export const STATE_MACHINE_RUNTIME_PREVIEW_TOPIC = 'chataigne.state_machine.runtime_preview';
+export const STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC =
+	'chataigne.state_machine.runtime_preview_catalog';
+export const STATE_MACHINE_RUNTIME_PREVIEW_DEMAND_TOPIC =
+	'chataigne.state_machine.runtime_preview_demand';
 
 export interface FormulaOutputPreviewChip {
 	label: string;
@@ -104,15 +108,15 @@ const sampleMatchesPreviewMode = (
 export const formulaOutputPreviewMap = (
 	formula: UiNodeDto | null,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
-	bundle: StateMachineProtocolBundle | null,
+	preview: StateMachineRuntimePreviewDto | null,
 	mode: FormulaPreviewModeDto | null
 ): ReadonlyMap<string, FormulaOutputPreviewChip> => {
-	if (!formula || !bundle || !mode) return new Map();
+	if (!formula || !preview || !mode) return new Map();
 	const anodeNodeIdByUuid = new Map(
 		formulaANodes(formula, nodesById).map((anode) => [anode.uuid, anode.node_id])
 	);
 	const result = new Map<string, FormulaOutputPreviewChip>();
-	for (const sample of bundle.output_preview) {
+	for (const sample of preview.output_preview) {
 		if (sample.formula_id !== formula.uuid) continue;
 		if (!sampleMatchesPreviewMode(sample, mode)) continue;
 		const nodeId = anodeNodeIdByUuid.get(sample.node_id);

@@ -1,8 +1,10 @@
 use golden_core::node::{Folder, Node, NodeId};
 use golden_core::parameter::ParamValue;
 use golden_core::ui_sync::UiEditIntent;
+use std::sync::Arc;
 
 use super::{ConditionGroup, InputNodeCondition, InputValueCondition, ScriptCondition};
+use super::compiler::compile_manager_condition;
 
 // ─── InputValueCondition ─────────────────────────────────────────────────────
 
@@ -237,6 +239,29 @@ fn condition_manager_accepts_all_condition_types() {
     assert!(cm.user_container_accepts_item("sm_input_node_condition", "sm_condition"));
     assert!(cm.user_container_accepts_item("sm_script_condition", "sm_condition"));
     assert!(cm.user_container_accepts_item("sm_condition_group", "sm_condition"));
+}
+
+#[test]
+fn condition_manager_reuses_identical_current_and_settled_programs() {
+    use crate::app::ConditionManager;
+
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(ConditionManager::new().into(), None);
+    engine.apply_edits().expect("condition manager should attach");
+    let manager = node_by_type(&engine, ConditionManager::NODE_TYPE);
+
+    let mut condition = ScriptCondition::new();
+    condition
+        .script
+        .apply_runtime_value(&ParamValue::Str("true".to_owned()));
+    engine.add_node(condition.into(), Some(manager));
+    engine.apply_edits().expect("script condition should attach");
+
+    let snapshot = engine.process_tree_snapshot();
+    let compiled = compile_manager_condition(snapshot.as_ref(), manager)
+        .expect("condition manager should compile");
+    assert!(Arc::ptr_eq(&compiled.current, &compiled.settled));
 }
 
 fn node_by_type(engine: &crate::app::AppEngine, node_type: &str) -> NodeId {

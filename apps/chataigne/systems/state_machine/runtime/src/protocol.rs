@@ -360,13 +360,11 @@ impl From<&ContextKey> for ContextKeyDto {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ProcessorLaneSummaryDto {
+pub struct ProcessorLaneCatalogEntryDto {
     pub processor_id: String,
     pub context_key: Option<ContextKeyDto>,
     pub label: String,
     pub has_memory: bool,
-    pub last_tick: Option<u64>,
-    pub diagnostics_count: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -403,6 +401,16 @@ pub enum FormulaPreviewModeDto {
         processor_id: String,
         context_key: ContextKeyDto,
     },
+}
+
+/// One leased formula-preview observation requested by a UI surface.
+///
+/// Sending the same `subscription_id` refreshes or replaces the request. A `None` mode releases
+/// it immediately; runtimes also expire requests that stop receiving heartbeats.
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaPreviewDemandDto {
+    pub subscription_id: String,
+    pub mode: Option<FormulaPreviewModeDto>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
@@ -552,15 +560,21 @@ impl From<&ANodeOutputPreviewSample> for ANodeOutputPreviewSampleDto {
     }
 }
 
+/// Stable discovery data for the processors currently observed by preview clients.
+///
+/// This payload is retained independently from live samples so a high-frequency preview never
+/// needs to resend every multiplex lane. A new value is published only when demand or the
+/// processor/context topology changes.
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct StateMachineProtocolBundle {
-    pub statechart_deltas: Vec<StatechartDeltaDto>,
+pub struct StateMachinePreviewCatalogDto {
     pub processors: Vec<ProcessorUiDto>,
-    pub diagnostics: Vec<DiagnosticDto>,
-    pub runtime_debug: Vec<RuntimeDebugDeltaDto>,
-    pub processor_lanes: Vec<ProcessorLaneSummaryDto>,
+    pub processor_lanes: Vec<ProcessorLaneCatalogEntryDto>,
+}
+
+/// High-frequency data for the explicitly observed processor lanes or formula defaults.
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct StateMachineRuntimePreviewDto {
     pub processor_lane_inspections: Vec<ProcessorLaneInspectionDto>,
-    pub preview_mode: Option<FormulaPreviewModeDto>,
     pub output_preview: Vec<ANodeOutputPreviewSampleDto>,
 }
 
@@ -571,6 +585,7 @@ export type { ContextKeyDto } from './ContextKeyDto';\n\
 export type { ContextKeyPartDto } from './ContextKeyPartDto';\n\
 export type { DiagnosticDto } from './DiagnosticDto';\n\
 export type { DiagnosticSeverityDto } from './DiagnosticSeverityDto';\n\
+export type { FormulaPreviewDemandDto } from './FormulaPreviewDemandDto';\n\
 export type { FormulaPreviewModeDto } from './FormulaPreviewModeDto';\n\
 export type { FormulaSurfaceItemDto } from './FormulaSurfaceItemDto';\n\
 export type { FormulaSurfaceItemKindDto } from './FormulaSurfaceItemKindDto';\n\
@@ -582,7 +597,7 @@ export type { ManagedRegionInstanceDto } from './ManagedRegionInstanceDto';\n\
 export type { ManagedRegionKindDto } from './ManagedRegionKindDto';\n\
 export type { ManagedSocketRefDto } from './ManagedSocketRefDto';\n\
 export type { OutputPreviewStatusDto } from './OutputPreviewStatusDto';\n\
-export type { ProcessorLaneSummaryDto } from './ProcessorLaneSummaryDto';\n\
+export type { ProcessorLaneCatalogEntryDto } from './ProcessorLaneCatalogEntryDto';\n\
 export type { ProcessorLaneInspectionDto } from './ProcessorLaneInspectionDto';\n\
 export type { ProcessorLaneParameterPreviewDto } from './ProcessorLaneParameterPreviewDto';\n\
 export type { ProcessorLaneConditionPreviewDto } from './ProcessorLaneConditionPreviewDto';\n\
@@ -590,13 +605,19 @@ export type { ProcessorUiDto } from './ProcessorUiDto';\n\
 export type { RuntimeDebugDeltaDto } from './RuntimeDebugDeltaDto';\n\
 export type { RuntimeValueDto } from './RuntimeValueDto';\n\
 export type { StatechartDeltaDto } from './StatechartDeltaDto';\n\
-export type { StateMachineProtocolBundle } from './StateMachineProtocolBundle';\n\
+export type { StateMachinePreviewCatalogDto } from './StateMachinePreviewCatalogDto';\n\
+export type { StateMachineRuntimePreviewDto } from './StateMachineRuntimePreviewDto';\n\
 export type { StateUiKind } from './StateUiKind';\n\
 export type { StateUiLayoutDto } from './StateUiLayoutDto';\n\
 export type { StateUiNodeDto } from './StateUiNodeDto';\n";
     let output_dir = output_dir.as_ref();
     let config = Config::new().with_out_dir(output_dir.to_path_buf());
-    StateMachineProtocolBundle::export_all(&config)?;
+    StateMachinePreviewCatalogDto::export_all(&config)?;
+    StateMachineRuntimePreviewDto::export_all(&config)?;
+    FormulaPreviewDemandDto::export_all(&config)?;
+    StatechartDeltaDto::export_all(&config)?;
+    DiagnosticDto::export_all(&config)?;
+    RuntimeDebugDeltaDto::export_all(&config)?;
     std::fs::write(output_dir.join("index.ts"), INDEX)?;
     Ok(())
 }

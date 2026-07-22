@@ -5,9 +5,9 @@ use std::{fmt::Debug, sync::Arc};
 use chataigne_alchemist::{
     ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature, ANodeTypeId,
     CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, EvaluationCtx, ExecutionKind, ExtensionValue, FacetId,
-    InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent,
-    SignatureCtx, StableRef, TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
-    ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
+    InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeContextFrame,
+    RuntimeIntent, SignatureCtx, StableRef, TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar,
+    ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -15,7 +15,6 @@ pub use chataigne_alchemist as alchemist;
 
 pub use crate::value_set::VALUE_SET_TYPE;
 use crate::value_set::ValueSet;
-use crate::value_set::lane_scoped_stable_ref;
 
 pub const MODULE_TYPE: &str = "chataigne.module";
 pub const MODULE_ENDPOINT_TYPE: &str = "chataigne.module_endpoint";
@@ -33,6 +32,58 @@ pub const PROCESSOR_TYPE: &str = "chataigne.processor";
 pub const DASHBOARD_TARGET_TYPE: &str = "chataigne.dashboard_target";
 pub const MANAGER_PROPERTY_FIELD: &str = "manager_id";
 pub const TRIGGER_ON_VALUES_SIGNAL_FIELD: &str = "trigger_on_values_signal";
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ConditionManagerValue {
+    pub valid: bool,
+    pub on_true: TriggerValue,
+    pub on_false: TriggerValue,
+}
+
+impl ConditionManagerValue {
+    #[must_use]
+    pub const fn new(valid: bool, on_true: TriggerValue, on_false: TriggerValue) -> Self {
+        Self {
+            valid,
+            on_true,
+            on_false,
+        }
+    }
+
+    #[must_use]
+    pub fn into_runtime_value(self) -> RuntimeValue {
+        RuntimeValue::Array(vec![
+            RuntimeValue::Bool(self.valid),
+            RuntimeValue::Trigger(self.on_true),
+            RuntimeValue::Trigger(self.on_false),
+        ])
+    }
+
+    #[must_use]
+    pub fn from_runtime_value(value: &RuntimeValue) -> Option<Self> {
+        if let RuntimeValue::Array(values) = value
+            && let [
+                RuntimeValue::Bool(valid),
+                RuntimeValue::Trigger(on_true),
+                RuntimeValue::Trigger(on_false),
+            ] = values.as_slice()
+        {
+            return Some(Self::new(*valid, *on_true, *on_false));
+        }
+
+        let values = ValueSet::from_runtime_value(value).ok()?;
+        let mut result = Self::default();
+        for entry in values.entries {
+            match (entry.key.as_str(), entry.value) {
+                ("valid", RuntimeValue::Bool(value)) => result.valid = value,
+                ("on_true", RuntimeValue::Trigger(trigger)) => result.on_true = trigger,
+                ("on_false", RuntimeValue::Trigger(trigger)) => result.on_false = trigger,
+                _ => {}
+            }
+        }
+        Some(result)
+    }
+}
 
 pub fn register_value_types(registry: &mut ValueTypeRegistry) -> Result<(), RegistryError> {
     registry.register(ValueTypeDescriptor::new(
@@ -349,7 +400,11 @@ struct ManagerSourceEval {
 }
 
 impl CompiledNodeEvaluator for ManagerSourceEval {
-    fn change_detection_inputs(&self, ctx: &EvaluationCtx<'_>) -> Result<Vec<RuntimeValue>, String> {
+    fn change_detection_inputs(
+        &self,
+        ctx: &EvaluationCtx<'_>,
+        _context: &RuntimeContextFrame,
+    ) -> Result<Vec<RuntimeValue>, String> {
         Ok(vec![manager_source_change_value(&self.source, ctx)])
     }
 
@@ -374,47 +429,43 @@ struct ConditionManagerEval {
 }
 
 impl CompiledNodeEvaluator for ConditionManagerEval {
-    fn change_detection_inputs(&self, ctx: &EvaluationCtx<'_>) -> Result<Vec<RuntimeValue>, String> {
-        Ok(vec![manager_source_change_value(&self.source, ctx)])
+    fn change_detection_inputs(
+        &self,
+        ctx: &EvaluationCtx<'_>,
+        context: &RuntimeContextFrame,
+    ) -> Result<Vec<RuntimeValue>, String> {
+        Ok(vec![
+            condition_manager_source_value(&self.source, ctx, context)
+                .cloned()
+                .unwrap_or(RuntimeValue::Unit),
+        ])
     }
 
     fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        let values = self
-            .source
-            .as_ref()
-            .and_then(|source| {
-                if evaluation.context.context_key().is_default_lane() {
-                    return evaluation.ctx.inputs.get(source);
-                }
-                let lane_source = lane_scoped_stable_ref(source, evaluation.context.context_key());
-                evaluation
-                    .ctx
-                    .inputs
-                    .get(&lane_source)
-                    .or_else(|| evaluation.ctx.inputs.get(source))
-            })
-            .and_then(|value| ValueSet::from_runtime_value(value).ok());
-        let mut valid = false;
-        let mut on_true = TriggerValue::default();
-        let mut on_false = TriggerValue::default();
-
-        if let Some(values) = values {
-            for entry in values.entries {
-                match (entry.key.as_str(), entry.value) {
-                    ("valid", RuntimeValue::Bool(value)) => valid = value,
-                    ("on_true", RuntimeValue::Trigger(trigger)) => on_true = trigger,
-                    ("on_false", RuntimeValue::Trigger(trigger)) => on_false = trigger,
-                    _ => {}
-                }
-            }
-        }
+        let value = condition_manager_source_value(&self.source, evaluation.ctx, evaluation.context)
+            .and_then(ConditionManagerValue::from_runtime_value)
+            .unwrap_or_default();
 
         Ok(vec![
-            RuntimeValue::Bool(valid),
-            RuntimeValue::Trigger(on_true),
-            RuntimeValue::Trigger(on_false),
+            RuntimeValue::Bool(value.valid),
+            RuntimeValue::Trigger(value.on_true),
+            RuntimeValue::Trigger(value.on_false),
         ])
     }
+}
+
+fn condition_manager_source_value<'a>(
+    source: &Option<StableRef>,
+    ctx: &'a EvaluationCtx<'_>,
+    context: &RuntimeContextFrame,
+) -> Option<&'a RuntimeValue> {
+    let source = source.as_ref()?;
+    if context.context_key().is_default_lane() {
+        return ctx.inputs.get(source);
+    }
+    ctx.inputs
+        .get_context(source, context.context_key())
+        .or_else(|| ctx.inputs.get(source))
 }
 
 fn manager_source_change_value(source: &Option<StableRef>, ctx: &EvaluationCtx<'_>) -> RuntimeValue {

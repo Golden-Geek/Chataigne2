@@ -1,6 +1,10 @@
 use std::cell::Cell;
 use std::collections::VecDeque;
-use std::sync::{LazyLock, Mutex};
+use std::io::{self, Write};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{Receiver, SyncSender, TryRecvError, TrySendError, sync_channel};
+use std::sync::{Arc, LazyLock, Mutex};
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::node::NodeId;
@@ -15,6 +19,8 @@ pub const UI_LOG_CLEARED_TOPIC: &str = "__logger.cleared";
 pub const UI_LOG_MAX_ENTRIES_TOPIC: &str = "__logger.max_entries";
 
 const DEFAULT_LOG_MAX_ENTRIES: usize = 1024;
+const PROCESS_OUTPUT_QUEUE_CAPACITY: usize = 4_096;
+const PROCESS_OUTPUT_WRITE_BATCH_SIZE: usize = 256;
 
 fn is_default_repeat_count(value: &u32) -> bool {
     *value <= 1
@@ -64,6 +70,31 @@ pub struct LogRecord {
     /// Optional node origin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<NodeId>,
+}
+
+/// One already-rendered message to append through [`log_messages`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LogMessage {
+    /// Severity level.
+    pub level: LogLevel,
+    /// Free-form log tag.
+    pub tag: String,
+    /// Optional node origin.
+    pub origin: Option<NodeId>,
+    /// Final rendered message.
+    pub message: String,
+}
+
+impl LogMessage {
+    /// Creates one message for a batched logger append.
+    pub fn new(level: LogLevel, tag: String, origin: Option<NodeId>, message: String) -> Self {
+        Self {
+            level,
+            tag,
+            origin,
+            message,
+        }
+    }
 }
 
 fn default_repeat_count() -> u32 {
@@ -147,6 +178,7 @@ impl LoggerState {
 }
 
 static LOGGER_STATE: LazyLock<Mutex<LoggerState>> = LazyLock::new(|| Mutex::new(LoggerState::with_defaults()));
+static PROCESS_OUTPUT_SINK: LazyLock<ProcessOutputSink> = LazyLock::new(ProcessOutputSink::spawn);
 
 #[cfg(test)]
 static LOGGER_TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -242,15 +274,145 @@ pub fn log_parts(level: LogLevel, tag: String, origin: Option<NodeId>, parts: Ve
 }
 
 /// Pushes one logger message.
+///
+/// Retained state and pending UI delivery are updated synchronously. Process
+/// stdout is best-effort through a bounded background queue so a slow output
+/// consumer cannot stall the caller or grow memory without bound.
 pub fn log_message(level: LogLevel, tag: String, origin: Option<NodeId>, message: String) -> LogRecord {
     let resolved_origin = origin.or_else(current_node_origin);
-    print_process_output(level, &tag, resolved_origin, &message);
-    let timestamp_ms = SystemTime::now()
+    let timestamp_ms = unix_timestamp_ms();
+
+    let record = lock_logger_state().push_message(timestamp_ms, level, tag, resolved_origin, message);
+    PROCESS_OUTPUT_SINK.enqueue(ProcessOutputMessage::from_record(&record));
+    record
+}
+
+/// Pushes a batch of already-rendered messages.
+///
+/// The logger resolves the implicit node origin and timestamp once for the
+/// complete batch, while preserving input order, duplicate collapsing, pending
+/// UI updates, and retained-log capacity semantics. As with [`log_message`],
+/// process stdout is best-effort and never blocks the caller.
+pub fn log_messages(messages: impl IntoIterator<Item = LogMessage>) -> Vec<LogRecord> {
+    let messages = messages.into_iter().collect::<Vec<_>>();
+    if messages.is_empty() {
+        return Vec::new();
+    }
+
+    let resolved_origin = current_node_origin();
+    let timestamp_ms = unix_timestamp_ms();
+    let mut state = lock_logger_state();
+    let records = messages
+        .into_iter()
+        .map(|message| {
+            state.push_message(
+                timestamp_ms,
+                message.level,
+                message.tag,
+                message.origin.or(resolved_origin),
+                message.message,
+            )
+        })
+        .collect::<Vec<_>>();
+    drop(state);
+
+    for record in &records {
+        PROCESS_OUTPUT_SINK.enqueue(ProcessOutputMessage::from_record(record));
+    }
+    records
+}
+
+fn unix_timestamp_ms() -> u64 {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0);
+        .unwrap_or(0)
+}
 
-    lock_logger_state().push_message(timestamp_ms, level, tag, resolved_origin, message)
+#[derive(Debug)]
+struct ProcessOutputMessage {
+    level: LogLevel,
+    tag: String,
+    origin: Option<NodeId>,
+    message: String,
+}
+
+impl ProcessOutputMessage {
+    fn from_record(record: &LogRecord) -> Self {
+        Self {
+            level: record.level,
+            tag: record.tag.clone(),
+            origin: record.origin,
+            message: record.message.clone(),
+        }
+    }
+}
+
+struct ProcessOutputSink {
+    sender: Option<SyncSender<ProcessOutputMessage>>,
+    dropped: Arc<AtomicU64>,
+}
+
+impl ProcessOutputSink {
+    fn spawn() -> Self {
+        let (sender, receiver) = sync_channel(PROCESS_OUTPUT_QUEUE_CAPACITY);
+        let dropped = Arc::new(AtomicU64::new(0));
+        let worker_dropped = Arc::clone(&dropped);
+        let sender = thread::Builder::new()
+            .name("golden-log-output".to_string())
+            .spawn(move || process_output_worker(receiver, worker_dropped))
+            .ok()
+            .map(|_| sender);
+
+        Self { sender, dropped }
+    }
+
+    fn enqueue(&self, message: ProcessOutputMessage) {
+        let Some(sender) = self.sender.as_ref() else {
+            return;
+        };
+
+        match sender.try_send(message) {
+            Ok(()) => {}
+            Err(TrySendError::Full(_)) => {
+                self.dropped.fetch_add(1, Ordering::Relaxed);
+            }
+            Err(TrySendError::Disconnected(_)) => {}
+        }
+    }
+}
+
+fn process_output_worker(receiver: Receiver<ProcessOutputMessage>, dropped: Arc<AtomicU64>) {
+    while let Ok(first) = receiver.recv() {
+        let mut batch = Vec::with_capacity(PROCESS_OUTPUT_WRITE_BATCH_SIZE);
+        batch.push(first);
+        while batch.len() < PROCESS_OUTPUT_WRITE_BATCH_SIZE {
+            match receiver.try_recv() {
+                Ok(message) => batch.push(message),
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+            }
+        }
+
+        let stdout = io::stdout();
+        let mut output = stdout.lock();
+        for message in batch {
+            let _ = write_process_output(
+                &mut output,
+                message.level,
+                &message.tag,
+                message.origin,
+                &message.message,
+            );
+        }
+        let dropped_count = dropped.swap(0, Ordering::Relaxed);
+        if dropped_count > 0 {
+            let _ = writeln!(
+                output,
+                "[golden][warning][logger] omitted {dropped_count} process-output messages because stdout could not keep up"
+            );
+        }
+        let _ = output.flush();
+    }
 }
 
 fn process_output_prefix(level: LogLevel, tag: &str, origin: Option<NodeId>) -> String {
@@ -260,17 +422,25 @@ fn process_output_prefix(level: LogLevel, tag: &str, origin: Option<NodeId>) -> 
     }
 }
 
-fn print_process_output(level: LogLevel, tag: &str, origin: Option<NodeId>, message: &str) {
+fn write_process_output(
+    output: &mut impl Write,
+    level: LogLevel,
+    tag: &str,
+    origin: Option<NodeId>,
+    message: &str,
+) -> io::Result<()> {
     let prefix = process_output_prefix(level, tag, origin);
     let mut emitted = false;
     for line in message.lines() {
-        println!("{prefix} {line}");
+        writeln!(output, "{prefix} {line}")?;
         emitted = true;
     }
 
     if !emitted {
-        println!("{prefix}");
+        writeln!(output, "{prefix}")?;
     }
+
+    Ok(())
 }
 
 fn lock_logger_state() -> std::sync::MutexGuard<'static, LoggerState> {

@@ -1,3 +1,4 @@
+import type { CustomEventRetention } from './generated/rust_protocol/CustomEventRetention';
 import type { UiControlPhase } from './generated/rust_protocol/UiControlPhase';
 import type { UiDataPlane } from './generated/rust_protocol/UiDataPlane';
 
@@ -528,7 +529,13 @@ export type UiEventKind =
 	| { kind: 'nodeCreated'; node: NodeId; snapshot?: UiNodeDto | null }
 	| { kind: 'nodeDeleted'; node: NodeId }
 	| { kind: 'metaChanged'; node: NodeId; patch: Partial<UiNodeMetaDto> }
-	| { kind: 'custom'; topic: string; origin?: NodeId; payload: unknown };
+	| {
+			kind: 'custom';
+			topic: string;
+			origin?: NodeId;
+			payload: unknown;
+			retention: CustomEventRetention;
+	  };
 
 export interface UiEventDto {
 	time: EventTime;
@@ -715,6 +722,7 @@ export type UiEditIntent =
 			options: UiAnimationCurveBezierFitOptions;
 	  }
 	| { kind: 'patchMeta'; node: NodeId; patch: Partial<UiNodeMetaDto> }
+	| { kind: 'sendNodeEvent'; node: NodeId; topic: string; payload: unknown }
 	| { kind: 'reevaluateGraph' }
 	| { kind: 'clearLogs' }
 	| { kind: 'setLogMaxEntries'; max_entries: number }

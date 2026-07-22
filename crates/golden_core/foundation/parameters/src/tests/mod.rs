@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
 use super::*;
 
-mod canonical_tests;
-mod general;
+mod canonical;
+mod constraints_and_projection;

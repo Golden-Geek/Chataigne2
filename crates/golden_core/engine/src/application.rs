@@ -628,6 +628,7 @@ fn ui_intent_requires_runtime_compile(intent: &UiEditIntent) -> bool {
             | UiEditIntent::EndEdit { .. }
             | UiEditIntent::SetParam { .. }
             | UiEditIntent::SetTextParamSmart { .. }
+            | UiEditIntent::SendNodeEvent { .. }
             | UiEditIntent::ReevaluateGraph
             | UiEditIntent::ClearLogs
             | UiEditIntent::SetLogMaxEntries { .. }

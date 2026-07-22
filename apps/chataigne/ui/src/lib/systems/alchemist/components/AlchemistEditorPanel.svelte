@@ -57,14 +57,16 @@
 		toGraphNodes
 	} from '../alchemistGraph';
 	import type {
+		FormulaPreviewDemandDto,
 		FormulaPreviewModeDto,
 		ManagedItemDto,
 		ManagedRegionDefinitionDto,
 		ManagedRegionInstanceDto,
-		ProcessorLaneSummaryDto,
+		ProcessorLaneCatalogEntryDto,
 		ProcessorUiDto,
 		RuntimeValueDto,
-		StateMachineProtocolBundle
+		StateMachinePreviewCatalogDto,
+		StateMachineRuntimePreviewDto
 	} from '../../state_machine/generated';
 	import {
 		alchemistClipboardFromJson,
@@ -77,6 +79,8 @@
 		type AlchemistClipboardTreeNode
 	} from '../alchemistClipboard';
 	import {
+		STATE_MACHINE_RUNTIME_PREVIEW_DEMAND_TOPIC,
+		STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC,
 		STATE_MACHINE_RUNTIME_PREVIEW_TOPIC,
 		formulaOutputPreviewMap,
 		type FormulaOutputPreviewChip
@@ -159,6 +163,8 @@
 	const FORMULA_COPY_SOURCE_DECL_ID = 'formula_copy_source';
 	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
 	const PREVIEW_ACTIVITY_HOLD_MS = 160;
+	const PREVIEW_DEMAND_HEARTBEAT_MS = 2000;
+	const STATE_MACHINE_MANAGER_NODE_TYPE = 'state_machine_manager';
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -200,6 +206,7 @@
 	let persistenceTail = Promise.resolve();
 	let previewActivityTimeout: ReturnType<typeof setTimeout> | null = null;
 	let previewActivityDeadlines = new Map<string, number>();
+	const previewDemandSubscriptionId = `alchemist-preview:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
 
 	const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -373,11 +380,6 @@
 		const parsed = typeof value === 'number' ? value : Number(value);
 		return Number.isInteger(parsed) ? parsed : null;
 	});
-	let requestedProcessorLaneSummaries = $derived.by((): ProcessorLaneSummaryDto[] => {
-		const value = panelState.params.processorLanes;
-		return Array.isArray(value) ? (value as ProcessorLaneSummaryDto[]) : [];
-	});
-
 	let formulaNodes = $derived.by((): UiNodeDto[] => {
 		if (!graphState) return [];
 		return [...graphState.nodesById.values()]
@@ -390,6 +392,16 @@
 			[...graphState.nodesById.values()].find(
 				(node) => node.node_type === FORMULA_LIBRARY_NODE_TYPE
 			) ?? null
+		);
+	});
+	let stateMachineManager = $derived.by((): UiNodeDto | null => {
+		if (!graphState) return null;
+		const root = graphState.rootId === null ? null : graphState.nodesById.get(graphState.rootId);
+		if (!root) return null;
+		return (
+			root.children
+				.map((nodeId) => graphState.nodesById.get(nodeId))
+				.find((node) => node?.node_type === STATE_MACHINE_MANAGER_NODE_TYPE) ?? null
 		);
 	});
 
@@ -512,24 +524,35 @@
 	let runtimePreviewSequence = $derived(
 		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
 	);
-	let runtimePreviewBundle = $derived.by((): StateMachineProtocolBundle | null => {
+	let runtimePreview = $derived.by((): StateMachineRuntimePreviewDto | null => {
 		runtimePreviewSequence;
 		return (
-			session?.getCustomEventPayload<StateMachineProtocolBundle>(
+			session?.getCustomEventPayload<StateMachineRuntimePreviewDto>(
 				STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
 			) ?? null
 		);
 	});
-	let runtimeProcessorLaneSummaries = $derived.by((): ProcessorLaneSummaryDto[] => {
-		if (!processorNode || !runtimePreviewBundle) return [];
-		return runtimePreviewBundle.processor_lanes.filter(
+	let runtimePreviewCatalogSequence = $derived(
+		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC) ?? 0
+	);
+	let runtimePreviewCatalog = $derived.by((): StateMachinePreviewCatalogDto | null => {
+		runtimePreviewCatalogSequence;
+		return (
+			session?.getCustomEventPayload<StateMachinePreviewCatalogDto>(
+				STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC
+			) ?? null
+		);
+	});
+	let runtimeProcessorLaneCatalog = $derived.by((): ProcessorLaneCatalogEntryDto[] => {
+		if (!processorNode || !runtimePreviewCatalog) return [];
+		return runtimePreviewCatalog.processor_lanes.filter(
 			(lane) => lane.processor_id === processorNode.uuid
 		);
 	});
 	let processorUi = $derived.by((): ProcessorUiDto | null => {
-		if (!processorNode || !runtimePreviewBundle) return null;
+		if (!processorNode || !runtimePreviewCatalog) return null;
 		return (
-			runtimePreviewBundle.processors.find((processor) => processor.id === processorNode.uuid) ??
+			runtimePreviewCatalog.processors.find((processor) => processor.id === processorNode.uuid) ??
 			null
 		);
 	});
@@ -552,20 +575,37 @@
 		}
 		return nodes;
 	});
-	let processorLaneSummaries = $derived(
-		requestedProcessor?.node_id === processorNode?.node_id &&
-			requestedProcessorLaneSummaries.length > 0
-			? requestedProcessorLaneSummaries
-			: runtimeProcessorLaneSummaries
-	);
+	let processorLaneCatalog = $derived(runtimeProcessorLaneCatalog);
 	let previewSessionModel = $derived(
-		formulaPreviewSessionStore.model(formula, processorNode, processorLaneSummaries)
+		formulaPreviewSessionStore.model(formula, processorNode, processorLaneCatalog)
 	);
+
+	const publishPreviewDemand = (mode: FormulaPreviewModeDto | null): void => {
+		const activeSession = session;
+		const manager = stateMachineManager;
+		if (!activeSession || activeSession.status !== 'connected' || !manager) return;
+		const payload: FormulaPreviewDemandDto = {
+			subscription_id: previewDemandSubscriptionId,
+			mode
+		};
+		void activeSession
+			.sendIntent({
+				kind: 'sendNodeEvent',
+				node: manager.node_id,
+				topic: STATE_MACHINE_RUNTIME_PREVIEW_DEMAND_TOPIC,
+				payload
+			})
+			.catch(() => undefined);
+	};
+
+	$effect(() => {
+		publishPreviewDemand(previewSessionModel.mode);
+	});
 	let incomingOutputPreviews = $derived.by(() =>
 		formulaOutputPreviewMap(
 			formula,
 			graphState?.nodesById ?? new Map(),
-			runtimePreviewBundle,
+			runtimePreview,
 			previewSessionModel.mode
 		)
 	);
@@ -1834,6 +1874,10 @@
 	};
 
 	onMount(() => {
+		const previewDemandHeartbeat = setInterval(
+			() => publishPreviewDemand(previewSessionModel.mode),
+			PREVIEW_DEMAND_HEARTBEAT_MS
+		);
 		const panelOwnsFocus = (): boolean =>
 			panelRoot !== null &&
 			document.activeElement !== null &&
@@ -1885,6 +1929,8 @@
 			{ priority: 100 }
 		);
 		return () => {
+			clearInterval(previewDemandHeartbeat);
+			publishPreviewDemand(null);
 			unregisterFrame();
 			unregisterHome();
 			unregisterSelectAll();

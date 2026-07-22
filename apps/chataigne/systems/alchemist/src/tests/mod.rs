@@ -3,15 +3,15 @@ use super::*;
 
 pub(crate) mod support;
 
-mod compile_tests;
-mod domain_tests;
-mod formula_tests;
-mod general;
-mod library_tests;
-mod pipeline_tests;
-mod runtime_color_tests;
-mod runtime_math_tests;
-mod runtime_stateful_tests;
-mod runtime_tests;
-mod runtime_value_source_tests;
-mod typing_tests;
+mod compile;
+mod domain;
+mod formula;
+mod library;
+mod pipeline;
+mod runtime;
+mod runtime_color;
+mod runtime_math;
+mod runtime_stateful;
+mod runtime_value_source;
+mod typing;
+mod value_types;

@@ -6,6 +6,21 @@ use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+/// Delivery and UI replay retention policy for one custom event.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum CustomEventRetention {
+    /// Preserve every event in order.
+    #[default]
+    Replay,
+    /// Keep only the latest event for the same topic and origin.
+    Latest,
+    /// Deliver only through the engine inbox, without UI replay or transport exposure.
+    Transient,
+}
 
 /// Timestamped engine event emitted while applying edits.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -26,6 +41,9 @@ pub struct CustomEvent {
     /// Arbitrary JSON payload for custom data.
     #[serde(default)]
     pub payload: serde_json::Value,
+    /// UI replay retention policy.
+    #[serde(default)]
+    pub retention: CustomEventRetention,
 }
 
 impl CustomEvent {
@@ -35,6 +53,27 @@ impl CustomEvent {
             topic: topic.into(),
             origin,
             payload,
+            retention: CustomEventRetention::Replay,
+        }
+    }
+
+    /// Creates a latest-wins custom event.
+    pub fn latest(topic: impl Into<String>, origin: Option<NodeId>, payload: serde_json::Value) -> Self {
+        Self {
+            topic: topic.into(),
+            origin,
+            payload,
+            retention: CustomEventRetention::Latest,
+        }
+    }
+
+    /// Creates an engine-internal custom event that is excluded from UI replay.
+    pub fn transient(topic: impl Into<String>, origin: Option<NodeId>, payload: serde_json::Value) -> Self {
+        Self {
+            topic: topic.into(),
+            origin,
+            payload,
+            retention: CustomEventRetention::Transient,
         }
     }
 
@@ -47,9 +86,27 @@ impl CustomEvent {
         Ok(Self::new(topic, origin, serde_json::to_value(payload)?))
     }
 
+    /// Creates a latest-wins custom event by serializing a typed payload into JSON.
+    pub fn from_latest_payload<T: Serialize>(
+        topic: impl Into<String>,
+        origin: Option<NodeId>,
+        payload: &T,
+    ) -> serde_json::Result<Self> {
+        Ok(Self::latest(topic, origin, serde_json::to_value(payload)?))
+    }
+
+    /// Creates an engine-internal custom event by serializing a typed payload into JSON.
+    pub fn from_transient_payload<T: Serialize>(
+        topic: impl Into<String>,
+        origin: Option<NodeId>,
+        payload: &T,
+    ) -> serde_json::Result<Self> {
+        Ok(Self::transient(topic, origin, serde_json::to_value(payload)?))
+    }
+
     /// Deserializes the JSON payload into a typed value.
     pub fn payload_as<T: DeserializeOwned>(&self) -> serde_json::Result<T> {
-        serde_json::from_value(self.payload.clone())
+        T::deserialize(&self.payload)
     }
 }
 

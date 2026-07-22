@@ -14,6 +14,7 @@ use golden_engine::app::{
 };
 use golden_engine::application::{AppliedUiTransaction, ProductionRuntime};
 use golden_engine::engine::{Engine, EngineTime};
+use golden_engine::events::CustomEventRetention;
 use golden_engine::node::NodeId;
 use golden_engine::ui_read_model::UiReadModel;
 use golden_protocol::{
@@ -42,8 +43,10 @@ use tokio_tungstenite::{
 use crate::project_host;
 
 mod outbound_queue;
+mod runtime_pacer;
 
 use outbound_queue::{DEFAULT_OUTBOUND_CAPACITY, QueuePushResult, WsOutboundQueue};
+use runtime_pacer::RuntimeLoopPacer;
 
 const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
@@ -245,6 +248,7 @@ fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
         UiEditIntent::RemoveUserContextScope { .. } => "remove_user_context_scope",
         UiEditIntent::UpsertUserContextEntry { .. } => "upsert_user_context_entry",
         UiEditIntent::RemoveUserContextEntry { .. } => "remove_user_context_entry",
+        UiEditIntent::SendNodeEvent { .. } => "send_node_event",
         UiEditIntent::ReevaluateGraph => "reevaluate_graph",
         UiEditIntent::ClearLogs => "clear_logs",
         UiEditIntent::SetLogMaxEntries { .. } => "set_log_max_entries",
@@ -577,16 +581,14 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
 
 fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<T>, read_model: Arc<UiReadModel>) {
     thread::spawn(move || {
-        let mut last_tick_start = Instant::now();
-        let mut stats_window_start = last_tick_start;
+        let mut pacer = RuntimeLoopPacer::new();
+        let mut stats_window_start = Instant::now();
         let mut stats_window_ticks = 0u64;
 
         loop {
-            let tick_start = Instant::now();
-            let elapsed = tick_start.saturating_duration_since(last_tick_start);
-            last_tick_start = tick_start;
+            let tick = pacer.begin_tick();
 
-            let tick_interval = match runtime.run_tick(elapsed) {
+            let tick_interval = match runtime.run_tick(tick.elapsed) {
                 Ok(result) => result.next_interval,
                 Err(err) => {
                     report_runtime_tick_failure(&err);
@@ -623,12 +625,7 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<
                 stats_window_ticks = 0;
             }
 
-            let spent = tick_start.elapsed();
-            if spent < tick_interval {
-                thread::sleep(tick_interval - spent);
-            } else {
-                thread::yield_now();
-            }
+            pacer.wait_for_next_tick(tick.started_at, tick_interval);
         }
     });
 }
@@ -1245,7 +1242,10 @@ fn ui_data_plane(read_model: &UiReadModel, event: &UiEventDto) -> UiDataPlane {
     }
     match &event.kind {
         UiEventKind::ParamChanged { .. } => UiDataPlane::Trigger,
-        UiEventKind::Custom { topic, .. } if topic.contains("preview") => UiDataPlane::Preview,
+        UiEventKind::Custom {
+            retention: CustomEventRetention::Latest,
+            ..
+        } => UiDataPlane::Preview,
         UiEventKind::Custom { topic, .. } if topic.contains("catalog") || topic.ends_with("_items_changed") => {
             UiDataPlane::Catalog
         }

@@ -219,7 +219,7 @@
             }
           },
           "tabComponent": "golden-tab",
-          "title": "Inspector: Signals"
+          "title": "Inspector: MAction 2"
         },
         "logger": {
           "contentComponent": "logger",
@@ -282,7 +282,7 @@
       }
     },
     "selected_node_ids": [
-      4294967592
+      4294967660
     ]
   },
   "root": {
@@ -5581,18 +5581,6 @@
                 },
                 "children": [
                   {
-                    "uuid": "f5fa6483-3b13-49ab-a28f-9b201ffe0208",
-                    "type": "int",
-                    "meta": {
-                      "decl_id": "parameters/update_rate_hz"
-                    },
-                    "data": {
-                      "value": {
-                        "Int": 100
-                      }
-                    }
-                  },
-                  {
                     "uuid": "3f5291a7-e75f-44d3-aade-ec07b3cf84c8",
                     "type": "signal_list",
                     "meta": {
@@ -6997,11 +6985,11 @@
                                     "mode": "templateText",
                                     "spec": {
                                       "mode": "templateText",
-                                      "template": "down {index}"
+                                      "template": "down {index} : {list:thresh}"
                                     }
                                   },
                                   "value": {
-                                    "Str": "down {index}"
+                                    "Str": "down {index} : {list:thresh}"
                                   }
                                 }
                               }
@@ -7420,11 +7408,11 @@
                                     "mode": "templateText",
                                     "spec": {
                                       "mode": "templateText",
-                                      "template": "down {index}"
+                                      "template": "down {index} : {list:thresh}"
                                     }
                                   },
                                   "value": {
-                                    "Str": "down {index}"
+                                    "Str": "down {index} : {list:thresh}"
                                   }
                                 }
                               }
@@ -7843,11 +7831,11 @@
                                     "mode": "templateText",
                                     "spec": {
                                       "mode": "templateText",
-                                      "template": "down {index}"
+                                      "template": "down {index} : {list:thresh}"
                                     }
                                   },
                                   "value": {
-                                    "Str": "down {index}"
+                                    "Str": "down {index} : {list:thresh}"
                                   }
                                 }
                               }

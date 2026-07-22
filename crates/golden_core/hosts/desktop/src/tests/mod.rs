@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use super::*;
 
-mod desktop_tests;
-mod launch_args_tests;
-mod window_state_tests;
+mod desktop;
+mod launch_args;
+mod window_state;

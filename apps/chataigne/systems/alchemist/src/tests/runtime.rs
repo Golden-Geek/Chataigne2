@@ -169,6 +169,50 @@ fn debug_capture_default_is_off() {
 }
 
 #[test]
+fn runtime_input_snapshot_overlays_shared_values_without_mutating_the_base() {
+    let shared_reference = StableRef::new(ValueTypeId::new("float"), "shared");
+    let local_reference = StableRef::new(ValueTypeId::new("float"), "local");
+    let shared_values = std::sync::Arc::new(std::collections::HashMap::from([(
+        shared_reference.clone(),
+        RuntimeValue::Float(1.0),
+    )]));
+    let peer = RuntimeInputSnapshot::with_shared_values(std::sync::Arc::clone(&shared_values));
+    let mut inputs = RuntimeInputSnapshot::with_shared_values(std::sync::Arc::clone(&shared_values));
+
+    assert_eq!(inputs.get(&shared_reference), Some(&RuntimeValue::Float(1.0)));
+    assert_eq!(
+        inputs.insert(shared_reference.clone(), RuntimeValue::Float(2.0)),
+        Some(RuntimeValue::Float(1.0))
+    );
+    assert_eq!(inputs.insert(local_reference.clone(), RuntimeValue::Float(3.0)), None);
+
+    assert_eq!(inputs.get(&shared_reference), Some(&RuntimeValue::Float(2.0)));
+    assert_eq!(inputs.get(&local_reference), Some(&RuntimeValue::Float(3.0)));
+    assert_eq!(peer.get(&shared_reference), Some(&RuntimeValue::Float(1.0)));
+    assert_eq!(shared_values.get(&shared_reference), Some(&RuntimeValue::Float(1.0)));
+}
+
+#[test]
+fn ten_thousand_runtime_input_snapshots_share_one_value_base() {
+    let reference = StableRef::new(ValueTypeId::new("float"), "shared");
+    let shared_values = std::sync::Arc::new(std::collections::HashMap::from([(
+        reference.clone(),
+        RuntimeValue::Float(1.0),
+    )]));
+
+    let snapshots = (0..10_000)
+        .map(|_| RuntimeInputSnapshot::with_shared_values(std::sync::Arc::clone(&shared_values)))
+        .collect::<Vec<_>>();
+
+    assert_eq!(std::sync::Arc::strong_count(&shared_values), 10_001);
+    assert!(
+        snapshots
+            .iter()
+            .all(|snapshot| snapshot.get(&reference) == Some(&RuntimeValue::Float(1.0)))
+    );
+}
+
+#[test]
 fn runtime_input_snapshot_overrides_unconnected_socket_default() {
     let mut graph = TestGraph::new();
     let mut debug = node("debug_value");
@@ -1052,6 +1096,40 @@ fn preview_capture_off_when_editor_not_visible() {
     let output = evaluate_with_capture_mode(&mut runtime, 1, DebugCaptureMode::Off);
 
     assert!(output.debug_samples.is_empty());
+}
+
+#[test]
+fn capture_off_preserves_runtime_memory_and_log_intents() {
+    let mut graph = TestGraph::new();
+    let mut source = constant(RuntimeValue::Float(4.25));
+    source.config.set("log", RuntimeValue::Bool(true));
+    let source = graph.add_node(source).unwrap();
+    let mut captured_runtime = runtime(&graph);
+    let mut uncaptured_runtime = runtime(&graph);
+    let source_slot = captured_runtime
+        .compiled
+        .exec_nodes
+        .iter()
+        .find(|node| node.authored_id == source)
+        .and_then(|node| node.outputs.first())
+        .copied()
+        .expect("constant source should expose one output slot");
+
+    let captured = evaluate_with_capture_mode(&mut captured_runtime, 7, DebugCaptureMode::All { history_len: 8 });
+    let uncaptured = evaluate_with_capture_mode(&mut uncaptured_runtime, 7, DebugCaptureMode::Off);
+
+    assert!(!captured.debug_samples.is_empty());
+    assert!(uncaptured.debug_samples.is_empty());
+    assert_eq!(uncaptured.intents, captured.intents);
+    assert_eq!(uncaptured.diagnostics, captured.diagnostics);
+    assert_eq!(
+        uncaptured_runtime.memory.value(source_slot),
+        captured_runtime.memory.value(source_slot)
+    );
+    assert_eq!(
+        uncaptured_runtime.memory.last_executed_nodes(),
+        captured_runtime.memory.last_executed_nodes()
+    );
 }
 
 #[test]

@@ -1,16 +1,18 @@
 use std::path::PathBuf;
 
 use crate::app::{
-    DEFAULT_ENGINE_LOW_FREQUENCY_HZ, DEFAULT_ENGINE_MAX_FREQUENCY_HZ, ProjectLifecycle, ensure_preferences_tree,
-    from_sparse_project_json_with_ui_state, insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
-    load_sparse_project_file_with_ui_state_recovering, preferences_data_folder, preferences_engine_low_frequency_hz,
-    preferences_engine_max_frequency_hz, to_sparse_preferences_json_pretty, to_sparse_project_json_pretty,
-    to_sparse_project_json_pretty_with_ui_state,
+    DEFAULT_ENGINE_LOW_FREQUENCY_HZ, DEFAULT_ENGINE_MAX_FREQUENCY_HZ, PREFERENCES_DECL_ID, PREFERENCES_ENGINE_DECL_ID,
+    PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID, ProjectLifecycle, apply_preferences_runtime_limits,
+    ensure_preferences_tree, from_sparse_project_json_with_ui_state, insert_sparse_preferences_json,
+    load_sparse_project_file_with_ui_state, load_sparse_project_file_with_ui_state_recovering, preferences_data_folder,
+    preferences_engine_low_frequency_hz, preferences_engine_max_frequency_hz, to_sparse_preferences_json_pretty,
+    to_sparse_project_json_pretty, to_sparse_project_json_pretty_with_ui_state,
 };
 use crate::define_node_enum;
 use crate::edit::{Edit, NodeTree};
 use crate::engine::{Engine, ProjectLoadRecoveryStage};
 use crate::node::Folder;
+use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 define_node_enum!(
     enum PreferencesTestNode {}
@@ -62,6 +64,36 @@ fn preferences_tree_exposes_engine_frequency_defaults() {
         preferences_engine_low_frequency_hz(&engine),
         DEFAULT_ENGINE_LOW_FREQUENCY_HZ
     );
+}
+
+#[test]
+fn runtime_limits_follow_live_max_frequency_preference_changes() {
+    let root: PreferencesTestNode = Folder::new("root").into();
+    let mut engine = Engine::new(root);
+    ensure_preferences_tree(&mut engine, "C:/ChataigneData");
+    engine.apply_edits().expect("preferences tree should attach");
+
+    let snapshot = engine.process_tree_snapshot();
+    let preferences = snapshot
+        .find_child_by_decl_id(snapshot.root(), PREFERENCES_DECL_ID)
+        .expect("preferences root");
+    let engine_preferences = snapshot
+        .find_child_by_decl_id(preferences, PREFERENCES_ENGINE_DECL_ID)
+        .expect("engine preferences");
+    let max_frequency = snapshot
+        .find_child_by_decl_id(engine_preferences, PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID)
+        .expect("max frequency preference");
+
+    engine.edits.push(Edit::SetParam {
+        node: max_frequency,
+        value: ParamValue::Int(125),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("max frequency preference should change");
+    apply_preferences_runtime_limits(&mut engine);
+
+    assert_eq!(preferences_engine_max_frequency_hz(&engine), 125);
+    assert_eq!(engine.runtime_limits().max_loop_frequency_hz, 125);
 }
 
 #[test]
