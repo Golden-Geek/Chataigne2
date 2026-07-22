@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ProcessorLaneCatalogEntryDto } from '../../../state_machine/generated/ProcessorLaneCatalogEntryDto';
-import { processorPreviewLaneOptions } from '../formulaPreviewSessionStore.svelte';
+import {
+	formulaPreviewSessionStore,
+	processorPreviewLaneOptions
+} from '../formulaPreviewSessionStore.svelte';
 
 const lane = (processorId: string, index: number): ProcessorLaneCatalogEntryDto => ({
 	processor_id: processorId,
@@ -17,7 +20,9 @@ const lane = (processorId: string, index: number): ProcessorLaneCatalogEntryDto 
 		]
 	},
 	label: `Device ${index + 1}`,
-	has_memory: true
+	has_memory: true,
+	is_default_preview: index === 0,
+	is_processor_preview: index === 0
 });
 
 describe('processor preview checkpoints', () => {
@@ -42,5 +47,21 @@ describe('processor preview checkpoints', () => {
 		expect(processors).toHaveLength(5);
 		expect(processors.every((options) => options.length === 127)).toBe(true);
 		expect(new Set(processors[0].map((option) => option.id)).size).toBe(127);
+	});
+
+	it('follows the effective processor preview and falls back to the multiplex default', () => {
+		const defaultLane = { ...lane('processor', 1), is_processor_preview: false };
+		const overrideLane = {
+			...lane('processor', 2),
+			is_default_preview: false,
+			is_processor_preview: true
+		};
+		const multiplexDefault = { ...lane('processor', 0), is_processor_preview: false };
+		const lanes = processorPreviewLaneOptions([multiplexDefault, defaultLane, overrideLane]);
+
+		expect(formulaPreviewSessionStore.processorLane(42, lanes)?.id).toBe(lanes[2].id);
+
+		const withoutOverride = lanes.map((option) => ({ ...option, isProcessorPreview: false }));
+		expect(formulaPreviewSessionStore.processorLane(42, withoutOverride)?.id).toBe(lanes[0].id);
 	});
 });

@@ -14,6 +14,8 @@ export interface FormulaPreviewLaneOption {
 	label: string;
 	contextKey: ContextKeyDto | null;
 	hasMemory: boolean;
+	isDefaultPreview: boolean;
+	isProcessorPreview: boolean;
 }
 
 export interface FormulaPreviewSessionModel {
@@ -45,7 +47,9 @@ const laneOption = (lane: ProcessorLaneCatalogEntryDto): FormulaPreviewLaneOptio
 	id: contextKeyId(lane.context_key),
 	label: lane.label || contextKeyLabel(lane.context_key),
 	contextKey: lane.context_key,
-	hasMemory: lane.has_memory
+	hasMemory: lane.has_memory,
+	isDefaultPreview: lane.is_default_preview,
+	isProcessorPreview: lane.is_processor_preview
 });
 
 export const processorPreviewLaneOptions = (
@@ -62,16 +66,7 @@ const previewSubtitle = (
 };
 
 class FormulaPreviewSessionStore {
-	private processorLaneByProcessor = $state<Record<string, string>>({});
 	private editorLaneByProcessor = $state<Record<string, string>>({});
-
-	selectProcessorLane(processorNodeId: number | null, laneId: string): void {
-		if (processorNodeId === null) return;
-		this.processorLaneByProcessor = {
-			...this.processorLaneByProcessor,
-			[String(processorNodeId)]: laneId
-		};
-	}
 
 	selectEditorLane(processorNodeId: number | null, laneId: string): void {
 		if (processorNodeId === null) return;
@@ -86,8 +81,12 @@ class FormulaPreviewSessionStore {
 		lanes: readonly FormulaPreviewLaneOption[]
 	): FormulaPreviewLaneOption | null {
 		if (processorNodeId === null) return null;
-		const selectedId = this.processorLaneByProcessor[String(processorNodeId)];
-		return lanes.find((lane) => lane.id === selectedId) ?? lanes[0] ?? null;
+		return (
+			lanes.find((lane) => lane.isProcessorPreview) ??
+			lanes.find((lane) => lane.isDefaultPreview) ??
+			lanes[0] ??
+			null
+		);
 	}
 
 	model(
@@ -106,6 +105,8 @@ class FormulaPreviewSessionStore {
 								label: 'Default lane',
 								contextKey: null,
 								hasMemory: false,
+								isDefaultPreview: true,
+								isProcessorPreview: true
 							}
 						];
 		const processorLane = this.processorLane(processor?.node_id ?? null, lanes);

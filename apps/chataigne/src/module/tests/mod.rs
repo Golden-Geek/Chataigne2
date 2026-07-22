@@ -227,11 +227,15 @@ fn multiplex_sample_active_runtime_stays_realtime() {
 
     let path = targeted_performance_sample_path(SAMPLE);
     let mut engine = load_sparse_project_file::<AppNode, _>(&path).expect("multiplex sample should load");
-    let processor_count = engine
+    let processor_ids = engine
         .nodes
         .iter()
-        .filter(|(_, node)| node.get_type() == "state_processor")
-        .count();
+        .filter_map(|(_, node)| {
+            (node.get_type() == "state_processor")
+                .then(|| node.node_data().meta.uuid.0.to_string())
+        })
+        .collect::<Vec<_>>();
+    let processor_count = processor_ids.len();
     assert!(
         processor_count >= 5,
         "the performance regression must exercise at least five sample processors"
@@ -240,7 +244,7 @@ fn multiplex_sample_active_runtime_stays_realtime() {
     prepare_engine_for_runtime(&mut engine).expect("multiplex sample should prepare");
     let overview_demand = ProcessorOverviewDemandDto {
         subscription_id: "multiplex-performance-overview".to_owned(),
-        active: true,
+        processor_ids,
     };
     let manager_id = state_machine_manager_id(&engine);
     let overview_ack = engine.apply_ui_intent(UiEditIntent::SendNodeEvent {

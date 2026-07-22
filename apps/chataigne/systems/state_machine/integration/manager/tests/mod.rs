@@ -45,12 +45,14 @@ use super::{
     processor_formula_from_snapshot, processor_formula_source_ref, processor_overview_publish_due,
     processor_overview_shard, processor_overview_topic, processor_override_value,
     processor_preview_needs_hydration, processor_preview_plan, processor_requires_forced_recompute,
-    processor_should_evaluate, resolve_multiplex_template_value, resolved_output_param_overrides,
+    processor_should_evaluate, requested_inactive_processor_nodes, requested_processor_overviews,
+    resolve_multiplex_template_value, resolved_output_param_overrides,
     retain_requested_preview_snapshots, runtime_invalidation_for_node, selected_context_includes_lane,
     set_output_target_param, should_emit_runtime_log,
 };
 
 fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
+    let default_item = items.first().cloned().expect("test context axes need an item");
     ProcessorContextAxisRuntime {
         axis,
         name: name.to_owned(),
@@ -61,6 +63,7 @@ fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> P
             .map(|(index, item)| (item, index))
             .collect(),
         items,
+        default_item,
     }
 }
 
@@ -288,6 +291,7 @@ fn processor_overview_demand_expires_without_enabling_debug_preview() {
     manager.runtime_cache.processor_overview_demands.insert(
         "stale-overview".to_owned(),
         ProcessorOverviewDemandLease {
+            processor_ids: HashSet::new(),
             expires_at: Duration::from_secs(1),
         },
     );
@@ -306,6 +310,74 @@ fn processor_overview_demand_expires_without_enabling_debug_preview() {
     assert!(manager.runtime_cache.processor_overview_demands.is_empty());
     assert!(manager.runtime_cache.processor_overview_demand_dirty);
     assert!(manager.runtime_cache.preview_demands.is_empty());
+}
+
+#[test]
+fn processor_overview_demands_union_visible_processors_across_panels() {
+    let shared = ProcessorId::new();
+    let first_only = ProcessorId::new();
+    let second_only = ProcessorId::new();
+    let leases = HashMap::from([
+        (
+            "first-panel".to_owned(),
+            ProcessorOverviewDemandLease {
+                processor_ids: HashSet::from([shared, first_only]),
+                expires_at: Duration::from_secs(1),
+            },
+        ),
+        (
+            "second-panel".to_owned(),
+            ProcessorOverviewDemandLease {
+                processor_ids: HashSet::from([shared, second_only]),
+                expires_at: Duration::from_secs(1),
+            },
+        ),
+    ]);
+
+    assert_eq!(
+        requested_processor_overviews(&leases),
+        HashSet::from([shared, first_only, second_only])
+    );
+}
+
+#[test]
+fn processor_overview_resolves_requested_inactive_processor_nodes_only() {
+    let root = NodeId(1);
+    let active_node = NodeId(2);
+    let inactive_node = NodeId(3);
+    let non_processor_node = NodeId(4);
+    let active_id = ProcessorId::new();
+    let inactive_id = ProcessorId::new();
+    let non_processor_id = ProcessorId::new();
+    let mut active = context_scope_test_node(active_node, Some(root), None, Some(inactive_node), "state_processor");
+    active.uuid = NodeUuid(active_id.as_uuid());
+    let mut inactive =
+        context_scope_test_node(inactive_node, Some(root), None, Some(non_processor_node), "state_processor");
+    inactive.uuid = NodeUuid(inactive_id.as_uuid());
+    inactive.enabled = false;
+    let mut non_processor = context_scope_test_node(non_processor_node, Some(root), None, None, "folder");
+    non_processor.uuid = NodeUuid(non_processor_id.as_uuid());
+    let snapshot = ProcessTreeSnapshot::new(
+        root,
+        HashMap::from([
+            (
+                root,
+                context_scope_test_node(root, None, Some(active_node), None, "root"),
+            ),
+            (active_node, active),
+            (inactive_node, inactive),
+            (non_processor_node, non_processor),
+        ]),
+    );
+
+    assert_eq!(
+        requested_inactive_processor_nodes(
+            &snapshot,
+            &[active_node],
+            &HashSet::from([active_id, inactive_id, non_processor_id]),
+        ),
+        vec![inactive_node]
+    );
 }
 
 #[test]
@@ -350,6 +422,9 @@ fn processor_overview_publication_emits_only_the_changed_shard() {
         multiplex_lane_count: 2,
         preview_context_key: None,
         preview_lane_label: "Device #1".to_owned(),
+        preview_index: 1,
+        default_preview_index: 1,
+        preview_overridden: false,
         condition_states: Vec::new(),
     };
     let mut manager = StateMachineManager::new();
@@ -391,10 +466,9 @@ fn processor_overview_publication_emits_only_the_changed_shard() {
 #[test]
 fn processor_overview_lane_selection_is_independent_from_formula_debug_demand() {
     let processor_id = ProcessorId::new();
-    let context_key = ContextKey::single("device", "right");
     let payload = ProcessorOverviewLaneSelectionDto {
         processor_id: processor_id.to_string(),
-        context_key: Some((&context_key).into()),
+        preview_index: Some(2),
     };
     let event = golden_core::events::CustomEvent::from_payload(
         STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
@@ -411,7 +485,7 @@ fn processor_overview_lane_selection_is_independent_from_formula_debug_demand() 
             .runtime_cache
             .processor_overview_lane_selections
             .get(&processor_id),
-        Some(&context_key)
+        Some(&2)
     );
     assert!(
         manager
@@ -822,6 +896,52 @@ fn multiplex_lane_count_uses_axis_cardinality_without_materializing_keys() {
         &axes,
         &ContextKey::single("primary", "missing")
     ));
+}
+
+#[test]
+fn processor_preview_indexes_compose_multiplex_defaults_without_materializing_lanes() {
+    let processor_id = ProcessorId::new();
+    let primary_axis = ContextAxisId::new("primary");
+    let secondary_axis = ContextAxisId::new("secondary");
+    let primary_items = [ContextItemId::new("p0"), ContextItemId::new("p1")];
+    let secondary_items = [
+        ContextItemId::new("s0"),
+        ContextItemId::new("s1"),
+        ContextItemId::new("s2"),
+    ];
+    let mut primary = context_axis(primary_axis.clone(), "Primary", primary_items.to_vec());
+    primary.default_item = primary_items[1].clone();
+    let mut secondary = context_axis(
+        secondary_axis.clone(),
+        "Secondary",
+        secondary_items.to_vec(),
+    );
+    secondary.default_item = secondary_items[2].clone();
+    let provider = context_provider(
+        processor_id,
+        context_runtime(vec![primary, secondary], Vec::new()),
+    );
+    let axes = AxisSet::from_iter([primary_axis.clone(), secondary_axis.clone()]);
+
+    let default_key = provider
+        .default_context_key(processor_id, &axes)
+        .expect("axis defaults should form a processor context key");
+    assert_eq!(
+        provider.preview_index_for_context_key(processor_id, &axes, &default_key),
+        Some(6)
+    );
+    assert!(provider.context_key_uses_axis_defaults(processor_id, &default_key));
+
+    let override_key = provider
+        .context_key_at_preview_index(processor_id, &axes, 2)
+        .expect("a valid one-based preview index should resolve directly");
+    assert_eq!(
+        override_key,
+        ContextKey::new([
+            chataigne_alchemist::ContextKeyPart::new(primary_axis, primary_items[0].clone()),
+            chataigne_alchemist::ContextKeyPart::new(secondary_axis, secondary_items[1].clone()),
+        ])
+    );
 }
 
 #[test]

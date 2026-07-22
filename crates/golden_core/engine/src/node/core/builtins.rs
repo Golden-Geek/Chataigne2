@@ -3,14 +3,15 @@ use std::any::Any;
 use crate::{
     edit::{Edit, NodeTree},
     events::{Event, EventFrame, EventKind},
-    parameter::{ParamValue, Parameter, ParameterChangeCheck, ReferenceTargetKind},
+    parameter::{ParamValue, Parameter, ParameterChangeCheck, RangeConstraint, ReferenceTargetKind},
     process_ctx::ProcessCtx,
 };
 
 use super::{
     EventPropagation, FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeData, NodeId, NodeUserPermissions,
     PARAMETER_NODE_TYPES, USER_CONTEXT_ALLOWED_ITEM_KINDS, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_FOLDER_NODE_TYPE,
-    USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_DEFAULT_LABEL, USER_CONTEXT_MULTIPLEX_ITEM_KIND,
+    USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_DEFAULT_LABEL,
+    USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID, USER_CONTEXT_MULTIPLEX_ITEM_KIND,
     USER_CONTEXT_MULTIPLEX_LIST_ITEM_KIND, USER_CONTEXT_MULTIPLEX_LIST_NODE_TYPE_PREFIX,
     USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserCreatableItem,
     default_parameter_value_for_node_type,
@@ -354,12 +355,24 @@ impl UserContextMultiplexNode {
 fn user_context_multiplex_node_tree(label: impl Into<String>) -> NodeTree {
     NodeTree::new(UserContextMultiplexNode::new(label))
         .with_child(NodeTree::new(user_context_multiplex_count_parameter()))
+        .with_child(NodeTree::new(user_context_multiplex_default_preview_index_parameter()))
 }
 
 fn user_context_multiplex_count_parameter() -> Parameter {
     let mut count = Parameter::new("Count", ParamValue::Int(0), ParameterChangeCheck::ValueChange);
     count.node_data_mut().meta.decl_id.0 = USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID.to_string();
     count
+}
+
+fn user_context_multiplex_default_preview_index_parameter() -> Parameter {
+    let mut index = Parameter::new(
+        "Default Preview Index",
+        ParamValue::Int(1),
+        ParameterChangeCheck::ValueChange,
+    );
+    index.node_data_mut().meta.decl_id.0 = USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID.to_string();
+    index.constraints.range = RangeConstraint::uniform(Some(1.0), None);
+    index
 }
 
 fn multiplex_container_rules() -> UserContainerRules {
@@ -439,15 +452,28 @@ impl Node for UserContextMultiplexNode {
         if ctx.tree_snapshot().is_some() {
             ctx.add_event_listener_subtree(self.id(), self.id(), 1);
         }
-        if self.ensure_count_listener(ctx) {
+        let count_ready = self.ensure_count_listener(ctx);
+        if count_ready {
             self.reconcile_entry_counts(ctx);
-            return;
+        } else {
+            ctx.edits.push(Edit::AddNode {
+                parent: self.id(),
+                prev_sibling: None,
+                node: Box::new(user_context_multiplex_count_parameter()),
+            });
         }
-        ctx.edits.push(Edit::AddNode {
-            parent: self.id(),
-            prev_sibling: None,
-            node: Box::new(user_context_multiplex_count_parameter()),
+        let default_preview_index_ready = ctx.tree_snapshot().is_some_and(|snapshot| {
+            snapshot
+                .find_child_by_decl_id(self.id(), USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID)
+                .is_some()
         });
+        if !default_preview_index_ready {
+            ctx.edits.push(Edit::AddNode {
+                parent: self.id(),
+                prev_sibling: None,
+                node: Box::new(user_context_multiplex_default_preview_index_parameter()),
+            });
+        }
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {

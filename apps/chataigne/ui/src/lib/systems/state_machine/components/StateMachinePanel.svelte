@@ -71,6 +71,7 @@
 	const STATE_PLACEMENT_INDEX_CELL_REM = 8;
 	const STATE_PLACEMENT_MAX_RING = 128;
 	const CAMERA_PERSIST_DELAY_MS = 150;
+	const PROCESSOR_OVERVIEW_VISIBILITY_SETTLE_MS = 200;
 	const PROCESSOR_OVERVIEW_HEARTBEAT_MS = 2000;
 	const processorOverviewSubscriptionId = `state-machine-overview:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
 
@@ -132,6 +133,9 @@
 	let geometryPersistenceTail = Promise.resolve();
 	let pendingCamera: GraphCamera | null = null;
 	let cameraPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
+	let processorVisibilitySettleTimer: ReturnType<typeof setTimeout> | null = null;
+	let pendingVisibleStateIds: string[] = [];
+	let settledVisibleStateIds = $state<string[]>([]);
 	let autoWire = $state(false);
 	let initializedAutoWirePanelId: string | null = null;
 
@@ -164,13 +168,13 @@
 		);
 	});
 
-	const publishProcessorOverviewDemand = (active: boolean): void => {
+	const publishProcessorOverviewDemand = (processorIds: string[]): void => {
 		const activeSession = session;
 		const stateMachineManager = manager;
 		if (!activeSession || activeSession.status !== 'connected' || !stateMachineManager) return;
 		const payload: ProcessorOverviewDemandDto = {
 			subscription_id: processorOverviewSubscriptionId,
-			active
+			processor_ids: processorIds
 		};
 		void activeSession
 			.sendIntent({
@@ -182,9 +186,21 @@
 			.catch(() => undefined);
 	};
 
-	$effect(() => {
-		publishProcessorOverviewDemand(true);
-	});
+	const stringArraysMatch = (left: string[], right: string[]): boolean =>
+		left.length === right.length && left.every((value, index) => value === right[index]);
+
+	const settleVisibleStateIds = (nodeIds: string[]): void => {
+		pendingVisibleStateIds = [...nodeIds].sort();
+		if (processorVisibilitySettleTimer !== null) {
+			clearTimeout(processorVisibilitySettleTimer);
+		}
+		processorVisibilitySettleTimer = setTimeout(() => {
+			processorVisibilitySettleTimer = null;
+			if (!stringArraysMatch(settledVisibleStateIds, pendingVisibleStateIds)) {
+				settledVisibleStateIds = pendingVisibleStateIds;
+			}
+		}, PROCESSOR_OVERVIEW_VISIBILITY_SETTLE_MS);
+	};
 
 	let stateNodes = $derived.by(() => {
 		if (!session || !manager) {
@@ -366,6 +382,56 @@
 			]
 		}))
 	);
+	let stateNodesByGraphId = $derived(
+		new Map(stateNodes.map((stateNode) => [String(stateNode.node_id), stateNode]))
+	);
+
+	const collectVisibleProcessorIds = (node: UiNodeDto, processorIds: Set<string>): void => {
+		if (node.user_item_kind === PROCESSOR_ITEM_KIND) {
+			processorIds.add(node.uuid);
+			return;
+		}
+		if (
+			node.node_type === PROCESSOR_FOLDER_NODE_TYPE &&
+			node.meta.presentation?.collapsed === true
+		) {
+			return;
+		}
+		for (const childId of node.children) {
+			const child = session?.graph.state.nodesById.get(childId);
+			if (isProcessorTreeNode(child)) {
+				collectVisibleProcessorIds(child, processorIds);
+			}
+		}
+	};
+
+	let visibleProcessorIds = $derived.by(() => {
+		const processorIds = new Set<string>();
+		for (const stateId of settledVisibleStateIds) {
+			const stateNode = stateNodesByGraphId.get(stateId);
+			if (!stateNode || stateNode.meta.presentation?.collapsed === true) {
+				continue;
+			}
+			const processorManager = declaredChild(stateNode, PROCESSORS_DECL_ID);
+			if (!processorManager) {
+				continue;
+			}
+			for (const childId of processorManager.children) {
+				const child = session?.graph.state.nodesById.get(childId);
+				if (isProcessorTreeNode(child)) {
+					collectVisibleProcessorIds(child, processorIds);
+				}
+			}
+		}
+		return [...processorIds].sort();
+	});
+	let visibleProcessorDemandKey = $derived(visibleProcessorIds.join('\u0000'));
+
+	$effect(() => {
+		publishProcessorOverviewDemand(
+			visibleProcessorDemandKey === '' ? [] : visibleProcessorDemandKey.split('\u0000')
+		);
+	});
 	let stateNodeIds = $derived(new Set(stateNodes.map((node) => node.node_id)));
 	let selectedStateNodeIds = $derived(
 		new Set((session?.selectedNodesIds ?? []).filter((nodeId) => stateNodeIds.has(nodeId)))
@@ -930,7 +996,7 @@
 
 	onMount(() => {
 		const processorOverviewHeartbeat = setInterval(
-			() => publishProcessorOverviewDemand(true),
+			() => publishProcessorOverviewDemand(visibleProcessorIds),
 			PROCESSOR_OVERVIEW_HEARTBEAT_MS
 		);
 		const unregisterFrame = registerCommandHandler(
@@ -945,7 +1011,11 @@
 		);
 		return () => {
 			clearInterval(processorOverviewHeartbeat);
-			publishProcessorOverviewDemand(false);
+			if (processorVisibilitySettleTimer !== null) {
+				clearTimeout(processorVisibilitySettleTimer);
+				processorVisibilitySettleTimer = null;
+			}
+			publishProcessorOverviewDemand([]);
 			unregisterFrame();
 			unregisterHome();
 			flushCameraPersistence();
@@ -985,6 +1055,7 @@
 		onNodeResize={persistNodeResize}
 		onNodeRename={renameState}
 		onNodeCollapsedChange={setStateCollapsed}
+		onVisibleNodeIdsChange={settleVisibleStateIds}
 		onNodeEnabledChange={setStateEnabled}
 		onConnect={connectStates}
 		nodeContent={stateNodeContent}

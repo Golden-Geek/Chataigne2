@@ -18,9 +18,10 @@ use crate::node::{
     PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID, PARAMETER_ANIMATION_RANGE_Y_DECL_ID,
     PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID,
     PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_FOLDER_NODE_TYPE, USER_CONTEXT_ITEM_KIND,
-    USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE, UserContainerRules,
-    UserContextMultiplexListNode, UserContextMultiplexNode, UserContextNode, UserCreatableItem, UserNodeRole,
-    curve_from_snapshot, user_context_multiplex_list_node_type,
+    USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID,
+    USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextMultiplexListNode,
+    UserContextMultiplexNode, UserContextNode, UserCreatableItem, UserNodeRole, curve_from_snapshot,
+    user_context_multiplex_list_node_type,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints,
@@ -3672,6 +3673,8 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
         .expect("multiplex should exist");
     let count = find_child_by_decl(&engine, multiplex, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
         .expect("multiplex should create count parameter");
+    find_child_by_decl(&engine, multiplex, USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID)
+        .expect("multiplex should create a default preview index parameter");
 
     let list_type = user_context_multiplex_list_node_type("float");
     engine

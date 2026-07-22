@@ -365,6 +365,8 @@ pub struct ProcessorLaneCatalogEntryDto {
     pub context_key: Option<ContextKeyDto>,
     pub label: String,
     pub has_memory: bool,
+    pub is_default_preview: bool,
+    pub is_processor_preview: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -390,6 +392,11 @@ pub struct ProcessorRuntimeOverviewDto {
     pub multiplex_lane_count: usize,
     pub preview_context_key: Option<ContextKeyDto>,
     pub preview_lane_label: String,
+    /// Effective one-based index in the processor's Cartesian lane set.
+    pub preview_index: usize,
+    /// One-based lane index composed from the defaults of the multiplex axes used by this processor.
+    pub default_preview_index: usize,
+    pub preview_overridden: bool,
     pub condition_states: Vec<ProcessorLaneConditionPreviewDto>,
 }
 
@@ -404,7 +411,8 @@ pub struct ProcessorOverviewDemandDto {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ProcessorOverviewLaneSelectionDto {
     pub processor_id: String,
-    pub context_key: Option<ContextKeyDto>,
+    /// One-based processor lane index, or `None` to follow the multiplex defaults.
+    pub preview_index: Option<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
