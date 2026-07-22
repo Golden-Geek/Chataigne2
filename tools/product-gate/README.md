@@ -26,7 +26,7 @@ The gate executes checked-in hooks as explicit required items:
 
 | Hook file | Required evidence |
 |---|---|
-| `module-loopback-smoke.ps1` | Literal real-binary `phase0.osc-loopback.v1`, schema-v1 result, locked scenario/save-reload digests, command acknowledgement, input value, ordered effects, and no leaked Chataigne process |
+| `module-loopback-smoke.ps1` | Literal real-binary `osc-loopback.v1`, schema-v1 result, locked scenario/save-reload digests, command acknowledgement, input value, ordered effects, and no leaked Chataigne process |
 | `cargo-run-smoke.ps1` | Literal root `cargo run`, bounded backend/frontend/engine-connected readiness, fixture mutation, and clean process-tree shutdown |
 | `watch-smoke.ps1` | Literal root `watch`, distinct frontend/backend/session readiness, restart behavior, fixture mutation, and clean shutdown |
 | `cargo-run-dev-smoke.ps1` | Literal root `cargo run -- --dev`, live frontend plus engine connection, fixture mutation, and clean shutdown |
@@ -47,18 +47,16 @@ consumers. The gate rejects a different installed toolchain before builds run. A
 the gate explicitly installs the Chromium revision selected by the locked `playwright-core`
 package; browser evidence never relies on a runner's pre-populated cache.
 
-Pass `-DependencyAudit` at named phase/release qualification points after running the pinned
+Pass `-DependencyAudit` for release qualification after running the pinned
 qualification-tool installer. This adds RustSec advisory, license/source/bans, reviewed duplicate
 version, unused dependency, and npm production-audit results. It is opt-in so routine current-host
 product checks remain fast and offline-friendly.
 
 ## Validation cadence
 
-Ordinary migration supercommits run this gate locally on `x86_64-pc-windows-msvc`. The GitHub
-workflow is reserved for the named cross-platform qualification points in the architecture plan,
-plus changes to host startup, native dependencies, target selection, packaging, or
-platform-specific code. Keeping a long-lived pull request open is not required for local
-validation; open a focused PR when a review or qualification point is ready.
+Ordinary development runs this gate locally on the current platform. The GitHub workflow provides
+cross-platform qualification and should also run for changes to host startup, native dependencies,
+target selection, packaging, or platform-specific code.
 
 Remote platform results remain `NOT_RUN` between qualifications and are never inferred from the
 Windows result.

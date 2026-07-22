@@ -129,7 +129,7 @@ ensure_linux_system_deps() {
       exit 1
     fi
   elif command -v pacman >/dev/null 2>&1; then
-    echo "Install the Arch desktop prerequisites listed in docs/workspace-hygiene.md before rerunning tools/dev.sh." >&2
+    echo "Install the Arch desktop prerequisites listed in docs/operations/workspace-hygiene.md before rerunning tools/dev.sh." >&2
     exit 1
   elif command -v zypper >/dev/null 2>&1; then
     local packages=(
@@ -164,7 +164,7 @@ ensure_linux_system_deps() {
       exit 1
     fi
   elif command -v apk >/dev/null 2>&1; then
-    echo "Install the Alpine desktop prerequisites listed in docs/workspace-hygiene.md before rerunning tools/dev.sh." >&2
+    echo "Install the Alpine desktop prerequisites listed in docs/operations/workspace-hygiene.md before rerunning tools/dev.sh." >&2
     exit 1
   else
     echo "Unsupported Linux package manager. Install the Tauri Linux prerequisites manually, then rerun this script." >&2
@@ -204,7 +204,7 @@ ensure_system_deps() {
 ensure_rustup() {
   load_cargo_env
   if ! command -v rustup >/dev/null 2>&1; then
-    echo "rustup is a system prerequisite. Install it and the pinned toolchain from docs/workspace-hygiene.md." >&2
+    echo "rustup is a system prerequisite. Install it and the pinned toolchain from docs/operations/workspace-hygiene.md." >&2
     exit 1
   fi
 }

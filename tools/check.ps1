@@ -70,20 +70,8 @@ Run-Step "cargo check" {
     cargo check --workspace
 }
 
-Run-Step "Phase 2 architecture contracts" {
-    python tools/migration/check_phase2_contracts.py
-}
-
-Run-Step "Phase 3 foundation contracts" {
-    python tools/migration/check_phase3_contracts.py
-}
-
-Run-Step "Phase 7 generated protocol contracts" {
-    python tools/migration/check_phase7_contracts.py
-}
-
-Run-Step "Phase 8 module and IO construction contracts" {
-    python tools/migration/check_phase8_contracts.py
+Run-Step "qualification tooling tests" {
+    python -m unittest discover -s tools/qualification/tests -v
 }
 
 if (-not $SkipUiInstall) {

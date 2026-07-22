@@ -9,7 +9,7 @@
 		type GraphWorldBounds,
 		type GraphWorldContentContext
 	} from 'golden_graph_ui';
-	import { LegacyGraphDocumentAdapter } from '../../graph/legacyGraphDocumentAdapter';
+	import { GraphDocumentAdapter } from '../../graph/graphDocumentAdapter';
 	import type {
 		NodeId,
 		PanelProps,
@@ -220,7 +220,7 @@
 		home: () => boolean;
 		focus: () => void;
 	} | null = $state(null);
-	const graphDocument = new LegacyGraphDocumentAdapter().update([], []);
+	const graphDocument = new GraphDocumentAdapter().update([], []);
 
 	let activeDrag = $state<DragGesture | null>(null);
 	let positionPreviews = $state<Record<string, Point2>>({});

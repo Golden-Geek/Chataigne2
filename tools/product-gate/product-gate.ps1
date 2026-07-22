@@ -780,77 +780,11 @@ Invoke-GateCommand `
     -DependsOn @("ui.dependencies_ready") | Out-Null
 
 Invoke-GateCommand `
-    -Id "product_manifest.drift" `
-    -Name "Product manifest drift" `
+    -Id "qualification.tool_tests" `
+    -Name "Qualification tooling tests" `
     -Executable "python" `
-    -Arguments @("tools/migration/product_manifest.py", "check") `
+    -Arguments @("-m", "unittest", "discover", "-s", "tools/qualification/tests", "-v") `
     -DependsOn @("toolchain.contract") | Out-Null
-Invoke-GateCommand `
-    -Id "product_manifest.schema" `
-    -Name "Product manifest schema" `
-    -Executable "python" `
-    -Arguments @("tools/migration/product_manifest.py", "validate") `
-    -DependsOn @("product_manifest.drift") | Out-Null
-Invoke-GateCommand `
-    -Id "product_manifest.tests" `
-    -Name "Product manifest generator tests" `
-    -Executable "python" `
-    -Arguments @("-m", "unittest", "discover", "-s", "tools/migration/tests", "-v") `
-    -DependsOn @("product_manifest.schema") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase2_contracts" `
-    -Name "Phase 2 application seam contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase2_contracts.py") `
-    -DependsOn @("product_manifest.tests") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase3_contracts" `
-    -Name "Phase 3 foundation contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase3_contracts.py") `
-    -DependsOn @("architecture.phase2_contracts") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase4_contracts" `
-    -Name "Phase 4 Alchemist ownership and authoring contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase4_contracts.py") `
-    -DependsOn @("architecture.phase3_contracts") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase5_contracts" `
-    -Name "Phase 5 statechart, condition, context, and processor contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase5_contracts.py") `
-    -DependsOn @("architecture.phase4_contracts") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase6_contracts" `
-    -Name "Phase 6 production runtime-center contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase6_contracts.py") `
-    -DependsOn @("architecture.phase5_contracts") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase7_contracts" `
-    -Name "Phase 7 generated multi-plane protocol and UI-store contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase7_contracts.py") `
-    -DependsOn @("architecture.phase6_contracts") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase8_contracts" `
-    -Name "Phase 8 module and IO construction contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase8_contracts.py") `
-    -DependsOn @("architecture.phase7_contracts") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase9_deletion" `
-    -Name "Phase 9 governed deletion contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase9_deletion.py") `
-    -DependsOn @("architecture.phase8_contracts") | Out-Null
-Invoke-GateCommand `
-    -Id "architecture.phase9_docs" `
-    -Name "Phase 9 final documentation contracts" `
-    -Executable "python" `
-    -Arguments @("tools/migration/check_phase9_docs.py") `
-    -DependsOn @("architecture.phase9_deletion") | Out-Null
 
 Invoke-GateCommand `
     -Id "rust.format" `
@@ -871,23 +805,23 @@ Invoke-GateCommand `
     -Arguments (@("test", "--workspace") + $cargoFeatureArguments) `
     -DependsOn @("rust.build") | Out-Null
 Invoke-GateCommand `
-    -Id "runtime.phase6_debug_fixtures" `
-    -Name "Phase 6 P50-L1 and P5-L127 debug fixtures" `
+    -Id "runtime.processor_debug_fixtures" `
+    -Name "Processor P50-L1 and P5-L127 debug fixtures" `
     -Executable "cargo" `
-    -Arguments @("test", "-p", "chataigne_processor", "phase5_p", "--", "--nocapture") `
-    -DependsOn @("rust.build", "architecture.phase6_contracts") | Out-Null
+    -Arguments @("test", "-p", "chataigne_processor", "processor_scale_", "--", "--nocapture") `
+    -DependsOn @("rust.build") | Out-Null
 Invoke-GateCommand `
-    -Id "runtime.phase6_release_fixtures" `
-    -Name "Phase 6 P50-L1 and P5-L127 release fixtures" `
+    -Id "runtime.processor_release_fixtures" `
+    -Name "Processor P50-L1 and P5-L127 release fixtures" `
     -Executable "cargo" `
-    -Arguments @("test", "-p", "chataigne_processor", "--release", "phase5_p", "--", "--nocapture") `
-    -DependsOn @("runtime.phase6_debug_fixtures") | Out-Null
+    -Arguments @("test", "-p", "chataigne_processor", "--release", "processor_scale_", "--", "--nocapture") `
+    -DependsOn @("runtime.processor_debug_fixtures") | Out-Null
 Invoke-GateCommand `
     -Id "rust.runtime_build" `
     -Name "Final Chataigne runtime build" `
     -Executable "cargo" `
     -Arguments @("build", "-p", "Chataigne2", "--bin", "Chataigne2") `
-    -DependsOn @("rust.format", "rust.clippy", "rust.test", "runtime.phase6_release_fixtures") | Out-Null
+    -DependsOn @("rust.format", "rust.clippy", "rust.test", "runtime.processor_release_fixtures") | Out-Null
 
 Invoke-GateCommand `
     -Id "ui.check" `

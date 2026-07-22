@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "npm run dev --workspace chataigne-ui",
     "build": "npm run build --workspace chataigne-ui",
-    "test": "npm run test --workspace golden_statechart_ui && npm run test --workspace chataigne-ui",
+    "test": "npm run test --workspace chataigne-ui",
     "check": "npm run check --workspace chataigne-ui",
     "lint": "npm run lint --workspace chataigne-ui",
     "format": "npm run format --workspace chataigne-ui",

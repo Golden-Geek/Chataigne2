@@ -1,0 +1,22 @@
+[package]
+name = "chataigne_state_machine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["serde"]
+serde = []
+
+[dependencies]
+chataigne_alchemist.workspace = true
+chataigne_processor.workspace = true
+chataigne_state_machine_model.workspace = true
+golden_values.workspace = true
+indexmap.workspace = true
+serde.workspace = true
+ts-rs.workspace = true
+
+[dev-dependencies]
+golden_graph.workspace = true
+chataigne_processor = { workspace = true, features = ["testkit"] }

@@ -11,7 +11,7 @@ adapters live in this app workspace.
   `golden_ui/components/...`, and `golden_graph_ui`.
 - Keep product DTO adaptation, registry hooks, panels, and assets in this app workspace.
 - Keep Svelte code on Svelte 5 runes and direct event props.
-- Treat generated state-machine DTOs under `src/lib/state_machine/generated/` as build output.
+- Treat generated state-machine DTOs under `src/lib/systems/state_machine/generated/` as build output.
 - Do not recreate transport, engine, or module policy in UI code.
 
 ## Development

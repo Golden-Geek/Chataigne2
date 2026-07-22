@@ -1,28 +1,28 @@
 [workspace]
 members = [
     "apps/chataigne",
-    "apps/chataigne/alchemist",
-    "apps/chataigne/processor",
-    "apps/chataigne/state_machine",
-    "crates/codegen_support",
-    "crates/application",
-    "crates/core",
-    "crates/core_facade",
-    "crates/core_macros",
-    "crates/context",
-    "crates/condition",
-    "crates/graph",
-    "crates/io",
-    "crates/model",
-    "crates/parameters",
-    "crates/golden_statechart",
-    "crates/values",
-    "crates/host_desktop",
-    "crates/persistence",
-    "crates/protocol",
-    "crates/runtime",
-    "crates/script",
-    "crates/transport_server",
+    "apps/chataigne/systems/alchemist",
+    "apps/chataigne/systems/alchemist/condition",
+    "apps/chataigne/systems/alchemist/processor",
+    "apps/chataigne/systems/state_machine/model",
+    "apps/chataigne/systems/state_machine/runtime",
+    "crates/golden_core",
+    "crates/golden_core/engine",
+    "crates/golden_core/foundation/application",
+    "crates/golden_core/foundation/context",
+    "crates/golden_core/foundation/model",
+    "crates/golden_core/foundation/parameters",
+    "crates/golden_core/foundation/values",
+    "crates/golden_core/hosts/desktop",
+    "crates/golden_core/hosts/transport",
+    "crates/golden_core/runtime/control",
+    "crates/golden_core/runtime/io",
+    "crates/golden_core/runtime/script",
+    "crates/golden_core/services/persistence",
+    "crates/golden_core/services/protocol",
+    "crates/golden_core/support/codegen",
+    "crates/golden_core/support/macros",
+    "crates/golden_graph",
     "xtask",
 ]
 default-members = ["apps/chataigne"]
@@ -38,20 +38,21 @@ repository = "https://github.com/Golden-Geek/Chataigne2"
 [workspace.dependencies]
 artnet_protocol = "0.4.4"
 atomic-write-file = "0.3.0"
-chataigne_alchemist = { path = "apps/chataigne/alchemist" }
-chataigne_processor = { path = "apps/chataigne/processor" }
+chataigne_alchemist = { path = "apps/chataigne/systems/alchemist" }
+chataigne_condition = { path = "apps/chataigne/systems/alchemist/condition" }
+chataigne_processor = { path = "apps/chataigne/systems/alchemist/processor" }
+chataigne_state_machine = { path = "apps/chataigne/systems/state_machine/runtime" }
+chataigne_state_machine_model = { path = "apps/chataigne/systems/state_machine/model" }
 delaunator = "1.1.0"
-golden_application = { path = "crates/application" }
-golden_context = { path = "crates/context" }
-golden_condition = { path = "crates/condition" }
-golden_graph = { path = "crates/graph" }
-golden_io = { path = "crates/io" }
-golden_model = { path = "crates/model" }
-golden_parameters = { path = "crates/parameters" }
-golden_persistence = { path = "crates/persistence" }
-golden_runtime = { path = "crates/runtime" }
-golden_statechart = { path = "crates/golden_statechart" }
-golden_values = { path = "crates/values" }
+golden_application = { path = "crates/golden_core/foundation/application" }
+golden_context = { path = "crates/golden_core/foundation/context" }
+golden_graph = { path = "crates/golden_graph" }
+golden_io = { path = "crates/golden_core/runtime/io" }
+golden_model = { path = "crates/golden_core/foundation/model" }
+golden_parameters = { path = "crates/golden_core/foundation/parameters" }
+golden_persistence = { path = "crates/golden_core/services/persistence" }
+golden_runtime = { path = "crates/golden_core/runtime/control" }
+golden_values = { path = "crates/golden_core/foundation/values" }
 indexmap = { version = "2", features = ["serde"] }
 regex = "1"
 sacn = "0.11.1"

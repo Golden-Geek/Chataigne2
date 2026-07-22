@@ -1,0 +1,3604 @@
+{
+  "version": "1.0",
+  "root": {
+    "uuid": "0c8cdd84-ca59-4401-8ac1-a416d519d793",
+    "type": "folder",
+    "meta": {
+      "decl_id": "root",
+      "short_name": "root",
+      "enabled": true,
+      "can_be_disabled": false,
+      "label": "Root"
+    },
+    "children": [
+      {
+        "uuid": "b2ea3df8-8abe-4ee6-9dfb-bd6714928619",
+        "type": "dashboard"
+      },
+      {
+        "uuid": "bde8d4a4-571a-46fe-b86b-03e2d13f1c85",
+        "type": "alchemist_formula_library",
+        "children": [
+          {
+            "uuid": "11111111-2222-4333-8444-000000000001",
+            "type": "alchemist_formula",
+            "meta": {
+              "label": "Action",
+              "tags": [
+                "chataigne.formula.external.builtin:chataigne.action@1",
+                "chataigne.formula.external.read_only"
+              ],
+              "user_permissions": {},
+              "presentation": {
+                "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
+              }
+            },
+            "children": [
+              {
+                "uuid": "3917d290-1e7e-409f-a948-3991e1df39c5",
+                "type": "bool",
+                "meta": {
+                  "decl_id": "is_valid",
+                  "short_name": "is_valid",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ]
+                }
+              },
+              {
+                "uuid": "d45ca17e-cdd9-44ef-abfd-dc97c0c5556c",
+                "type": "str",
+                "meta": {
+                  "decl_id": "diagnostics_json",
+                  "short_name": "diagnostics_json",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ]
+                }
+              },
+              {
+                "uuid": "ef9bca5e-6307-4c6d-8d95-fb6da392bee1",
+                "type": "str",
+                "meta": {
+                  "decl_id": "managed_regions_json",
+                  "short_name": "managed_regions_json",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ]
+                }
+              },
+              {
+                "uuid": "d3d338d0-acc6-48a4-86f2-9d3624e6c0ef",
+                "type": "alchemist_properties",
+                "meta": {
+                  "decl_id": "properties",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "user_permissions": {}
+                },
+                "children": [
+                  {
+                    "uuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "label": "Conditions",
+                      "tags": [
+                        "chataigne.formula.external.read_only",
+                        "alchemist.manager.role:condition"
+                      ],
+                      "user_permissions": {},
+                      "presentation": {
+                        "color": {
+                          "r": 0.186,
+                          "g": 0.569,
+                          "b": 0.8171,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.6051733333333333,
+                          "g": 0.8988,
+                          "b": 0.22120000000000006,
+                          "a": 1.0
+                        },
+                        "collapsed": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "ee0f62fc-03ff-4de1-bdfa-cc62753a26b2",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        }
+                      },
+                      {
+                        "uuid": "3d7313e1-8afd-4484-bd54-d045ea5e24ce",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "23999a34-6c29-4850-8b52-e77b9b8d7873",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "label": "On True",
+                      "tags": [
+                        "chataigne.formula.external.read_only",
+                        "alchemist.manager.role:output"
+                      ],
+                      "user_permissions": {},
+                      "presentation": {
+                        "color": {
+                          "r": 0.3785,
+                          "g": 0.8584,
+                          "b": 0.2502,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
+                          "a": 1.0
+                        },
+                        "collapsed": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "aafa64d4-eb4b-4a10-a8a2-8bc19bd35b49",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "output"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "d765235a-3e1e-4067-8f86-2ae29af91cb8",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "decl_id": "outputsCopy",
+                      "short_name": "outputsCopy",
+                      "label": "On False",
+                      "tags": [
+                        "chataigne.formula.external.read_only",
+                        "alchemist.manager.role:output"
+                      ],
+                      "user_permissions": {},
+                      "presentation": {
+                        "color": {
+                          "r": 0.8471,
+                          "g": 0.427,
+                          "b": 0.0987,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
+                          "a": 1.0
+                        },
+                        "collapsed": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "64422cdc-bb1d-4dcc-baea-c6c2a6007d7b",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "output"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "04d3153a-3148-4d92-9b34-199868951bb2",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "a782b4ed-20a5-46ff-a5cf-5ad9caa44b79",
+                "type": "str",
+                "meta": {
+                  "decl_id": "duplicate_from_formula_source",
+                  "short_name": "duplicate_from_formula_source",
+                  "label": "Duplicate Source",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                },
+                "data": {
+                  "read_only": true
+                }
+              },
+              {
+                "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c",
+                "type": "alchemist_anode",
+                "meta": {
+                  "can_be_disabled": false,
+                  "label": "Conditions",
+                  "tags": [
+                    "chataigne.formula.external.read_only",
+                    "alchemist.anode.type:chataigne.conditions_manager"
+                  ],
+                  "user_permissions": {},
+                  "presentation": {
+                    "color": {
+                      "r": 0.186,
+                      "g": 0.569,
+                      "b": 0.8171,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.6051733333333333,
+                      "g": 0.8988,
+                      "b": 0.22120000000000006,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "6f4924e4-f874-4cc2-a5c5-68e85064ec25",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "c83770d0-b77d-41e7-810e-bb432b15f596",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "can_be_disabled": false,
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "f8579517-0eb1-4f6d-8bea-3a544d37de2c",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "3938501d-46c9-447d-9c3c-bc2721111cc7",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id",
+                          "short_name": "manager_id",
+                          "label": "Manager",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.55,
+                              "g": 0.62,
+                              "b": 0.7,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "a099eaee-438c-440f-89b4-e382d4b7fa19",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "2f3dc0e4-14f0-4698-89fa-42cfb2b7f26a",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "5eb3fa3c-4cb2-4136-bde8-74607ab96e78",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "685b0adf-f699-45c8-b9a6-ab0548b43d71",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    }
+                  },
+                  {
+                    "uuid": "86c4b6a8-be68-4903-a209-3076f30e73ba",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "d3f9fffb-21f9-478f-9738-6ac2d77c3195",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/valid",
+                          "short_name": "valid",
+                          "label": "Valid",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "f061d54e-0370-4a32-9443-67bdac430c3a",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/valid/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "valid"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "8d2e03c4-654b-40b4-83df-911d5d5991b9",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/valid/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "bool"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "8bf2054c-12c0-40b1-9132-beec6d34e863",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/on_true",
+                          "short_name": "on_true",
+                          "label": "On True",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.98,
+                              "g": 0.42,
+                              "b": 0.22,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "16b47bed-bf66-403d-9773-fe088f0c26db",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/on_true/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "on_true"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "98f35475-bbe8-41cb-bf4e-6dd6a24c803c",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/on_true/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "c4e4b62a-2b81-41d6-ad67-c31acc699024",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/on_false",
+                          "short_name": "on_false",
+                          "label": "On False",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.98,
+                              "g": 0.42,
+                              "b": 0.22,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "d6b5a689-4e7d-499e-a3a0-c0bd235c22bf",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/on_false/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "on_false"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "698cc109-8f4f-4450-bc1d-4f829e8936fd",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/on_false/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "2da53256-3ddc-4601-ade2-85c08c35d9c1",
+                "type": "alchemist_anode",
+                "meta": {
+                  "can_be_disabled": false,
+                  "label": "On True",
+                  "tags": [
+                    "chataigne.formula.external.read_only",
+                    "alchemist.anode.type:chataigne.outputs_manager"
+                  ],
+                  "user_permissions": {},
+                  "presentation": {
+                    "color": {
+                      "r": 0.3785,
+                      "g": 0.8584,
+                      "b": 0.2502,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.5138466666666668,
+                      "g": 0.8476999999999999,
+                      "b": 0.13230000000000003,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "8889dc5d-ab5e-49b6-b1be-d62e9abb1ebc",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "8ecb7d24-2863-4ae7-a624-e1eb54feb0bb",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "can_be_disabled": false,
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "ea391a74-61f8-4a08-b862-9296380fc27a",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "f73be788-9cba-4cc8-89c8-43c5477bec94",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id",
+                          "short_name": "manager_id",
+                          "label": "Manager",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.55,
+                              "g": 0.62,
+                              "b": 0.7,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "4b1eba0f-1514-4b67-83d2-cdb6a8ff72aa",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/trigger_on_values_signal",
+                          "short_name": "trigger_on_values_signal",
+                          "label": "Trigger On Values Signal",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "e952c6ed-5d0f-4770-95cf-ec3a42e2c0f5",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "9a19fe6d-0204-450b-814c-d8bb7893e9f0",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "cabc7fe1-1b03-4744-bdf7-e81b1f51d2f2",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "fb41b2de-8bb2-44de-9a34-ce4591f8a9df",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "290e497d-5d9a-4f03-9966-e610d54aaf4b",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/values",
+                          "short_name": "values",
+                          "label": "Values",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.28,
+                              "g": 0.68,
+                              "b": 0.72,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "6adfed1c-4994-4c73-9bf4-5d7ec608522b",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "values"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "8973c0e2-1c4e-4723-bb84-6fcae73b6d36",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "chataigne.value_set"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "5b87b341-1694-4ded-a1ce-695421ac4e5f",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/trigger",
+                          "short_name": "trigger",
+                          "label": "Trigger",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.98,
+                              "g": 0.42,
+                              "b": 0.22,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "22ee0ac2-d3bc-4474-a634-1ee36656f3a5",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/trigger/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "3a9952a5-03b4-4dee-8371-eb7b7f3bce66",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/trigger/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "d6d69ef2-3450-4c3d-bc52-772b542e1b6b",
+                            "type": "trigger",
+                            "meta": {
+                              "decl_id": "inputs/trigger/value",
+                              "short_name": "value",
+                              "label": "Value",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "color": {
+                                  "r": 0.98,
+                                  "g": 0.42,
+                                  "b": 0.22,
+                                  "a": 1.0
+                                }
+                              }
+                            },
+                            "data": {
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "f60ec4d7-8ceb-42c6-8090-8a6f33edcc1d",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "5280aa0d-b268-43cf-8a7a-e33358b990ba",
+                "type": "alchemist_connection",
+                "meta": {
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "user_permissions": {}
+                },
+                "children": [
+                  {
+                    "uuid": "f3974004-dd2d-4da7-af5f-368861b75075",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node",
+                      "short_name": "source_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "92728f17-fa3a-4737-a47f-9906ca4cb528",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket",
+                      "short_name": "source_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "b3c7c3b1-dddb-4596-9795-4e33fd0dfa3e",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node",
+                      "short_name": "target_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "acc67114-439e-48ad-a3a3-8a76ee90eb03",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket",
+                      "short_name": "target_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "bcdcffe9-98c9-423b-88cf-22d5c599023c",
+                "type": "alchemist_anode",
+                "meta": {
+                  "can_be_disabled": false,
+                  "label": "On False",
+                  "tags": [
+                    "chataigne.formula.external.read_only",
+                    "alchemist.anode.type:chataigne.outputs_manager"
+                  ],
+                  "user_permissions": {},
+                  "presentation": {
+                    "color": {
+                      "r": 0.8471,
+                      "g": 0.427,
+                      "b": 0.0987,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.5138466666666668,
+                      "g": 0.8476999999999999,
+                      "b": 0.13230000000000003,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "c9ef1f17-95cf-45f2-acf2-64aa5637ce85",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "b714bbe4-ec7c-4f5c-b941-251b7bad5a93",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "can_be_disabled": false,
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "1cfbd580-9658-4fe6-b2b5-b131369d1665",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "9833f8c8-02d5-48a9-9a54-9864b22fde12",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id",
+                          "short_name": "manager_id",
+                          "label": "Manager",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.55,
+                              "g": 0.62,
+                              "b": 0.7,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "8840c7f2-0219-47cb-9c02-2708baec6bbd",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/trigger_on_values_signal",
+                          "short_name": "trigger_on_values_signal",
+                          "label": "Trigger On Values Signal",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "e4d8d906-6678-4ae9-a04f-d92324a8fb7f",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "5b5a5175-a3f4-4ace-88cd-94cb565d0097",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "133f3b35-414b-40c3-aada-899728aadc3f",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "b145edbf-ee76-4964-bf41-09b58ff53e83",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "62116d5e-4dc8-4b0b-83bc-365636873815",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/values",
+                          "short_name": "values",
+                          "label": "Values",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.28,
+                              "g": 0.68,
+                              "b": 0.72,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "44af029b-a4c1-4beb-94ea-3b79258ed7cc",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "values"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "a82dd1f2-fd40-4c94-a0be-2a89545928da",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "chataigne.value_set"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "5e5ac02b-6f12-46e7-bb82-ed3a07631dbe",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/trigger",
+                          "short_name": "trigger",
+                          "label": "Trigger",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.98,
+                              "g": 0.42,
+                              "b": 0.22,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "96375dff-135a-4b8c-a442-a7a64064b554",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/trigger/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "02e1cf4c-8ab3-41aa-bfe4-9524551b488c",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/trigger/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "1b5b1f9e-022b-437f-b2dd-f5c4d3600c66",
+                            "type": "trigger",
+                            "meta": {
+                              "decl_id": "inputs/trigger/value",
+                              "short_name": "value",
+                              "label": "Value",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "color": {
+                                  "r": 0.98,
+                                  "g": 0.42,
+                                  "b": 0.22,
+                                  "a": 1.0
+                                }
+                              }
+                            },
+                            "data": {
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "a1ec37c8-13d1-413a-bd21-e277dc6b7789",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "72df208d-55ff-43e4-ac90-3fa37af34f7d",
+                "type": "alchemist_connection",
+                "meta": {
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "user_permissions": {}
+                },
+                "children": [
+                  {
+                    "uuid": "b347f268-2f48-4fc6-a936-1a06d7c986fc",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node",
+                      "short_name": "source_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "21afa738-c7ad-418b-a434-ca18e84f978b",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket",
+                      "short_name": "source_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "205139f2-08e4-48dc-adc6-bf9880cc726c",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node",
+                      "short_name": "target_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "d5fe6a92-4272-45c0-8b79-29f879d91e5e",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket",
+                      "short_name": "target_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "38ce821c-7200-43f5-9d8a-8049006a4796",
+                "type": "reference",
+                "meta": {
+                  "decl_id": "formula_copy_source",
+                  "short_name": "formulaCopySource",
+                  "label": "Formula Copy Source",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                },
+                "data": {
+                  "read_only": true
+                }
+              }
+            ]
+          },
+          {
+            "uuid": "11111111-2222-4333-8444-000000000002",
+            "type": "alchemist_formula",
+            "meta": {
+              "label": "Mapping",
+              "tags": [
+                "chataigne.formula.external.builtin:chataigne.mapping@1",
+                "chataigne.formula.external.read_only"
+              ],
+              "user_permissions": {},
+              "presentation": {
+                "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMiAyMkM3LjI4NTk1IDIyIDQuOTI4OTMgMjIgMy40NjQ0NyAyMC41MzU1QzIgMTkuMDcxMSAyIDE2LjcxNCAyIDEyQzIgNy4yODU5NSAyIDQuOTI4OTMgMy40NjQ0NyAzLjQ2NDQ3QzQuOTI4OTMgMiA3LjI4NTk1IDIgMTIgMkMxNi43MTQgMiAxOS4wNzExIDIgMjAuNTM1NSAzLjQ2NDQ3QzIyIDQuOTI4OTMgMjIgNy4yODU5NSAyMiAxMkMyMiAxNi43MTQgMjIgMTkuMDcxMSAyMC41MzU1IDIwLjUzNTVDMTkuMDcxMSAyMiAxNi43MTQgMjIgMTIgMjJaTTE2LjI2MjMgNy40NzcxOUMxNi41NTEgNy4xODAyIDE3LjAyNTggNy4xNzM1MSAxNy4zMjI4IDcuNDYyMjVMMTguNTIyOCA4LjYyODkyQzE4LjY2ODEgOC43NzAxMyAxOC43NSA4Ljk2NDA5IDE4Ljc1IDkuMTY2NjdDMTguNzUgOS4zNjkyNCAxOC42NjgxIDkuNTYzMiAxOC41MjI4IDkuNzA0NDFMMTcuMzIyOCAxMC44NzExQzE3LjAyNTggMTEuMTU5OCAxNi41NTEgMTEuMTUzMSAxNi4yNjIzIDEwLjg1NjFDMTYuMDExIDEwLjU5NzcgMTUuOTgzNCAxMC4yMDQ2IDE2LjE3NjIgOS45MTY2N0gxNS44MzgzQzE1LjMyNjUgOS45MTY2NyAxNC45OTQ0IDkuOTE3NDQgMTQuNzM3MyA5Ljk0MTczQzE0LjQ5NTUgOS45NjQ1OCAxNC4zNzg3IDEwLjAwNDIgMTQuMjk0IDEwLjA1MDlDMTQuMjEwMiAxMC4wOTY5IDE0LjExNzggMTAuMTcxOCAxMy45NzU4IDEwLjM1ODJDMTMuODIzNiAxMC41NTgxIDEzLjY1MzIgMTAuODMyNSAxMy4zODk2IDExLjI1OThMMTEuODY5MyAxMy43MjMzQzExLjYyODIgMTQuMTEzOCAxMS40MTk3IDE0LjQ1MTggMTEuMjE3NSAxNC43MTcyQzExLjAwMDIgMTUuMDAyNiAxMC43NTgzIDE1LjI0ODggMTAuNDI5NCAxNS40Mjk5QzEwLjEwMTUgMTUuNjEwNCA5Ljc2MzAzIDE1LjY4NDMgOS40MDM4NyAxNS43MTgzQzkuMDY3ODUgMTUuNzUgOC42NjQzNCAxNS43NSA4LjE5NDYgMTUuNzVMNiAxNS43NUM1LjU4NTc5IDE1Ljc1IDUuMjUgMTUuNDE0MiA1LjI1IDE1QzUuMjUgMTQuNTg1OCA1LjU4NTc5IDE0LjI1IDYgMTQuMjVIOC4xNjE3MUM4LjY3MzQ2IDE0LjI1IDkuMDA1NjQgMTQuMjQ5MiA5LjI2Mjc1IDE0LjIyNDlDOS41MDQ1MyAxNC4yMDIxIDkuNjIxMjYgMTQuMTYyNSA5LjcwNjA0IDE0LjExNThDOS43ODk3OCAxNC4wNjk3IDkuODgyMjUgMTMuOTk0OCAxMC4wMjQyIDEzLjgwODVDMTAuMTc2NCAxMy42MDg2IDEwLjM0NjggMTMuMzM0MSAxMC42MTA0IDEyLjkwNjhMMTIuMTMwNyAxMC40NDM0QzEyLjM3MTcgMTAuMDUyOCAxMi41ODAzIDkuNzE0ODUgMTIuNzgyNSA5LjQ0OTQzQzEyLjk5OTggOS4xNjQwNCAxMy4yNDE3IDguOTE3ODQgMTMuNTcwNiA4LjczNjc4QzEzLjg5ODUgOC41NTYzMSAxNC4yMzcgOC40ODIzMyAxNC41OTYxIDguNDQ4MzlDMTQuOTMyMiA4LjQxNjYzIDE1LjMzNTcgOC40MTY2NSAxNS44MDU0IDguNDE2NjdMMTYuMTc2MiA4LjQxNjY3QzE1Ljk4MzQgOC4xMjg3MSAxNi4wMTEgNy43MzU2MiAxNi4yNjIzIDcuNDc3MTlaTTkuMzg1MzEgOS43NjkxNkM5LjMwMDQ2IDkuNzUzMSA5LjE5OTMyIDkuNzUgOC44MDA1NyA5Ljc1SDZDNS41ODU3OSA5Ljc1IDUuMjUgOS40MTQyMSA1LjI1IDlDNS4yNSA4LjU4NTc5IDUuNTg1NzkgOC4yNSA2IDguMjVIOC44MDA1N0w4Ljg1ODQzIDguMjQ5OThDOS4xNzEwMyA4LjI0OTgxIDkuNDIzMDUgOC4yNDk2OCA5LjY2NDIxIDguMjk1MzJDMTAuMjAzMyA4LjM5NzM0IDEwLjY5NzIgOC42Njc4MyAxMS4wNjk0IDkuMDcwMTFDMTEuMjM2MyA5LjI1MDM5IDExLjM2NzkgOS40NjM5IDExLjUyNzggOS43MjM0OEwxMS41NTgyIDkuNzcyNzhDMTEuNzc1OCAxMC4xMjUzIDExLjY2NjQgMTAuNTg3NCAxMS4zMTM5IDEwLjgwNDlDMTAuOTYxNCAxMS4wMjI0IDEwLjQ5OTMgMTAuOTEzIDEwLjI4MTggMTAuNTYwNkMxMC4wNzU5IDEwLjIyNjkgMTAuMDIzNCAxMC4xNDgyIDkuOTY4NTIgMTAuMDg4OUM5LjgxNzgzIDkuOTI2MDkgOS42MTM2OCA5LjgxMjM3IDkuMzg1MzEgOS43NjkxNlpNMTIuNjg2MSAxMy4wMjg0QzEzLjAzODYgMTIuODEwOSAxMy41MDA3IDEyLjkyMDMgMTMuNzE4MiAxMy4yNzI4QzEzLjkyNDEgMTMuNjA2NCAxMy45NzY2IDEzLjY4NTEgMTQuMDMxNSAxMy43NDQ0QzE0LjE4MjIgMTMuOTA3MiAxNC4zODYzIDE0LjAyMSAxNC42MTQ3IDE0LjA2NDJDMTQuNjk5NSAxNC4wODAyIDE0LjgwMDcgMTQuMDgzMyAxNS4xOTk0IDE0LjA4MzNIMTYuMTc2MkMxNS45ODM0IDEzLjc5NTQgMTYuMDExIDEzLjQwMjMgMTYuMjYyMyAxMy4xNDM5QzE2LjU1MSAxMi44NDY5IDE3LjAyNTggMTIuODQwMiAxNy4zMjI4IDEzLjEyODlMMTguNTIyOCAxNC4yOTU2QzE4LjY2ODEgMTQuNDM2OCAxOC43NSAxNC42MzA4IDE4Ljc1IDE0LjgzMzNDMTguNzUgMTUuMDM1OSAxOC42NjgxIDE1LjIyOTkgMTguNTIyOCAxNS4zNzExTDE3LjMyMjggMTYuNTM3N0MxNy4wMjU4IDE2LjgyNjUgMTYuNTUxIDE2LjgxOTggMTYuMjYyMyAxNi41MjI4QzE2LjAxMSAxNi4yNjQ0IDE1Ljk4MzQgMTUuODcxMyAxNi4xNzYyIDE1LjU4MzNIMTUuMTk5NEwxNS4xNDE2IDE1LjU4MzRDMTQuODI5IDE1LjU4MzUgMTQuNTc2OSAxNS41ODM3IDE0LjMzNTggMTUuNTM4QzEzLjc5NjcgMTUuNDM2IDEzLjMwMjggMTUuMTY1NSAxMi45MzA2IDE0Ljc2MzJDMTIuNzYzNyAxNC41ODI5IDEyLjYzMjEgMTQuMzY5NCAxMi40NzIyIDE0LjEwOThMMTIuNDQxOCAxNC4wNjA2QzEyLjIyNDIgMTMuNzA4MSAxMi4zMzM2IDEzLjI0NiAxMi42ODYxIDEzLjAyODRaIiBmaWxsPSIjZGViNTQ1Ii8+IDwvZz4KDTwvc3ZnPg=="
+              }
+            },
+            "children": [
+              {
+                "uuid": "572cead8-0334-466e-b6e7-fc380c5b7e8d",
+                "type": "bool",
+                "meta": {
+                  "decl_id": "is_valid",
+                  "short_name": "is_valid",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ]
+                }
+              },
+              {
+                "uuid": "e801ed0d-1a98-4f29-9b44-d66deb21cfa0",
+                "type": "str",
+                "meta": {
+                  "decl_id": "diagnostics_json",
+                  "short_name": "diagnostics_json",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ]
+                }
+              },
+              {
+                "uuid": "1451b13c-ef2e-4496-aaf4-30d163f9c375",
+                "type": "str",
+                "meta": {
+                  "decl_id": "managed_regions_json",
+                  "short_name": "managed_regions_json",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ]
+                }
+              },
+              {
+                "uuid": "fdf3955b-6950-4e18-9db5-fc7e2508b758",
+                "type": "alchemist_properties",
+                "meta": {
+                  "decl_id": "properties",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "user_permissions": {}
+                },
+                "children": [
+                  {
+                    "uuid": "bd62e7ff-b5ca-413f-9fdf-8887b8d90847",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "label": "Inputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only",
+                        "alchemist.manager.role:input"
+                      ],
+                      "user_permissions": {},
+                      "presentation": {
+                        "color": {
+                          "r": 0.38710000000000006,
+                          "g": 0.833,
+                          "b": 0.14700000000000002,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.38710000000000006,
+                          "g": 0.833,
+                          "b": 0.14700000000000002,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "c3fc7b15-3a7d-4852-ab4f-d1bd5ab48084",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "input"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "e838f49d-6f2e-4f68-86e4-254d552d6458",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "be75e7d3-d64e-44ff-9a3f-ec28b5ad8dce",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "label": "Filters",
+                      "tags": [
+                        "chataigne.formula.external.read_only",
+                        "alchemist.manager.role:filter"
+                      ],
+                      "user_permissions": {},
+                      "presentation": {
+                        "color": {
+                          "r": 0.57128,
+                          "g": 0.8528,
+                          "b": 0.2272,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.57128,
+                          "g": 0.8528,
+                          "b": 0.2272,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "dcc626a4-0bf0-4b35-a3bb-0c46ecf15c55",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "filter"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "7d8716b9-de38-43de-abce-a8fee69fb120",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "36605765-d71b-4644-99c1-bcdb8e632617",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "label": "Outputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only",
+                        "alchemist.manager.role:output"
+                      ],
+                      "user_permissions": {},
+                      "presentation": {
+                        "color": {
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "3cd702dc-ca3c-4285-b25e-6b67d7a843cd",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "output"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "f0ffd83b-c8c1-4c78-90fc-94e232982221",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "fadbf3bb-6b28-4dc9-a3f7-04491413d20d",
+                "type": "str",
+                "meta": {
+                  "decl_id": "duplicate_from_formula_source",
+                  "short_name": "duplicate_from_formula_source",
+                  "label": "Duplicate Source",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                },
+                "data": {
+                  "read_only": true
+                }
+              },
+              {
+                "uuid": "fd181507-c241-49a4-ac90-42265163e724",
+                "type": "alchemist_anode",
+                "meta": {
+                  "can_be_disabled": false,
+                  "label": "Inputs",
+                  "tags": [
+                    "chataigne.formula.external.read_only",
+                    "alchemist.anode.type:chataigne.inputs_manager"
+                  ],
+                  "user_permissions": {},
+                  "presentation": {
+                    "color": {
+                      "r": 0.38710000000000006,
+                      "g": 0.833,
+                      "b": 0.14700000000000002,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.38710000000000006,
+                      "g": 0.833,
+                      "b": 0.14700000000000002,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "43073a66-d299-48c5-a801-9b5e889a18ed",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "5d124b59-692e-4790-97fb-0f0db3058f4d",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "enabled": true,
+                      "can_be_disabled": false,
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "dddbbf4d-4b55-494f-a134-1ffd82079421",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "57ed240f-a9d6-4688-a1a2-35ef611f8f16",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id",
+                          "short_name": "manager_id",
+                          "label": "Manager",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.55,
+                              "g": 0.62,
+                              "b": 0.7,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "2f7560f5-fea6-43d8-9cd7-130ee7b0b630",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "99aa4b03-1672-47d0-87f3-75fcbeb1a2c1",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "9efe58f5-4ad7-4465-92bf-6aa0f7f8a9eb",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "38148223-ac7f-459e-beb1-725874cceda8",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    }
+                  },
+                  {
+                    "uuid": "f1c2657e-6b5d-4cbc-9e01-301dce3a01a7",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "9a71ce80-81d4-4c3e-bf80-9d2e73a6f068",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/values",
+                          "short_name": "values",
+                          "label": "Values",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.28,
+                              "g": 0.68,
+                              "b": 0.72,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "54dd49fc-323f-4b64-8128-19a0e31a1dcf",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/values/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "values"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "093cc2f3-4a72-4c26-a6eb-75976ac08f7d",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/values/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "chataigne.value_set"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "31a8a7de-9e20-416d-adb4-f6f07e033684",
+                "type": "alchemist_anode",
+                "meta": {
+                  "can_be_disabled": false,
+                  "label": "Filters",
+                  "tags": [
+                    "chataigne.formula.external.read_only",
+                    "alchemist.anode.type:chataigne.filters_manager"
+                  ],
+                  "user_permissions": {},
+                  "presentation": {
+                    "color": {
+                      "r": 0.57128,
+                      "g": 0.8528,
+                      "b": 0.2272,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.57128,
+                      "g": 0.8528,
+                      "b": 0.2272,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "c035af24-ef36-47ae-90e0-1abeaf5034d0",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "8ac4a0c6-246c-473f-add7-fd235276adb7",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "enabled": true,
+                      "can_be_disabled": false,
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "931af112-a995-4491-add0-4b86bbc554b5",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "38abd2b8-7e2e-4876-9f5b-fc14498d901c",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id",
+                          "short_name": "manager_id",
+                          "label": "Manager",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.55,
+                              "g": 0.62,
+                              "b": 0.7,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "e0b180eb-fc9d-429e-b66c-420dd881cc99",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "12aaf0af-4140-4d59-8f4c-707fb2b8a80b",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "2bb7017c-ac02-4d2a-9ce1-d78fff45da40",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "5a0083ff-f890-40cb-bca5-d53bc341a42e",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "b08c39ae-fc47-4725-b262-895b02055763",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/values",
+                          "short_name": "values",
+                          "label": "Values",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.28,
+                              "g": 0.68,
+                              "b": 0.72,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "e294cc43-4980-4bcd-91b6-a079155faebc",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "values"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "56dcd76d-3c43-4500-98ed-d082a243b9e2",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "chataigne.value_set"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "4cf3f3c3-9e03-4e3d-ba16-897937eba79b",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "2384e1db-5ff8-47b8-a60b-5357ff8faa9e",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/values",
+                          "short_name": "values",
+                          "label": "Values",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.28,
+                              "g": 0.68,
+                              "b": 0.72,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "2c722ab7-bb4c-424b-a399-86fc91a03544",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/values/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "values"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "f71a0b48-34a2-4c77-97fe-85bad95bbfba",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/values/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "chataigne.value_set"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "81963590-2306-4880-8b75-fd23f4301206",
+                "type": "alchemist_connection",
+                "meta": {
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "user_permissions": {}
+                },
+                "children": [
+                  {
+                    "uuid": "b7ba431a-14ad-4f0e-83a0-beea5e825e70",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node",
+                      "short_name": "source_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "1f7c1630-74cb-48f5-ae22-5ce6a5583915",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket",
+                      "short_name": "source_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "bbd08798-7211-4f57-a4b3-66ee1b211552",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node",
+                      "short_name": "target_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "616e858e-1e06-41e8-a230-0d17cbdcd3c3",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket",
+                      "short_name": "target_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "a83ffdc3-c9bc-47c6-9fd1-5e994ea216f6",
+                "type": "alchemist_anode",
+                "meta": {
+                  "can_be_disabled": false,
+                  "label": "Outputs",
+                  "tags": [
+                    "chataigne.formula.external.read_only",
+                    "alchemist.anode.type:chataigne.outputs_manager"
+                  ],
+                  "user_permissions": {},
+                  "presentation": {
+                    "color": {
+                      "r": 0.5138466666666668,
+                      "g": 0.8476999999999999,
+                      "b": 0.13230000000000003,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.5138466666666668,
+                      "g": 0.8476999999999999,
+                      "b": 0.13230000000000003,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "284128cb-5cf8-4ff6-97fb-d892314dc077",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "53587df0-fab2-40c6-ab7e-ab6180c1b019",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "can_be_disabled": false,
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "e4ae306c-99f1-433c-93f2-7130736d9eb3",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "42e01ba7-2e51-43d8-97c1-b22d20292ea3",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id",
+                          "short_name": "manager_id",
+                          "label": "Manager",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.55,
+                              "g": 0.62,
+                              "b": 0.7,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "ca09fc48-8e19-4bbf-aae9-3a12cab39c5d",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/trigger_on_values_signal",
+                          "short_name": "trigger_on_values_signal",
+                          "label": "Trigger On Values Signal",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "c2555b96-c4ec-4fa2-b05e-2178ddec604d",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "efab8a85-5bb4-47a0-913c-8960224587e0",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "read_only": true
+                        }
+                      },
+                      {
+                        "uuid": "9d0d2763-7fa6-431a-8eb1-e811f9fed30e",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "aacca5ad-8a48-4238-923e-22dfb89b4e74",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "99411a65-00ba-4c81-8ba1-17d1d4791d32",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/values",
+                          "short_name": "values",
+                          "label": "Values",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.28,
+                              "g": 0.68,
+                              "b": 0.72,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "001f8f30-bed3-447a-ab86-ae41dc9599e4",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "values"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "ddee99d6-1a09-4042-96c7-d914c170715d",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/values/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "chataigne.value_set"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "70a1585e-f566-41b8-aef7-5fdd0bf30bfd",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/trigger",
+                          "short_name": "trigger",
+                          "label": "Trigger",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ],
+                          "presentation": {
+                            "color": {
+                              "r": 0.98,
+                              "g": 0.42,
+                              "b": 0.22,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "40bdf5ae-846c-4316-9c53-6aa71d22c67f",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/trigger/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "28a4a7cb-b6c2-47ee-a246-5e19a6aca6c1",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/trigger/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "trigger"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "ca3be2d7-e4af-41f8-a17d-98f922603d5a",
+                            "type": "trigger",
+                            "meta": {
+                              "decl_id": "inputs/trigger/value",
+                              "short_name": "value",
+                              "label": "Value",
+                              "tags": [
+                                "chataigne.formula.external.read_only"
+                              ],
+                              "presentation": {
+                                "color": {
+                                  "r": 0.98,
+                                  "g": 0.42,
+                                  "b": 0.22,
+                                  "a": 1.0
+                                }
+                              }
+                            },
+                            "data": {
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "95717d08-1c51-4c36-a202-12044232177a",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "685110cf-594f-4b5e-9c90-c23e33a11cc6",
+                "type": "alchemist_connection",
+                "meta": {
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "user_permissions": {}
+                },
+                "children": [
+                  {
+                    "uuid": "d2b7dcbe-0784-4b3c-92c0-50226f8dc294",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node",
+                      "short_name": "source_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "faa31f84-f3f9-4dbf-8446-02d0fa9f5e75",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket",
+                      "short_name": "source_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "1048af7f-9be7-4cf0-b701-aaabfdf07569",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node",
+                      "short_name": "target_node",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  },
+                  {
+                    "uuid": "7d0e1897-d855-4162-bea5-ffb6f0e46f00",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket",
+                      "short_name": "target_socket",
+                      "tags": [
+                        "chataigne.formula.external.read_only"
+                      ]
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "f4476ed3-ec20-47f1-85ad-9a5e2ce39537",
+                "type": "reference",
+                "meta": {
+                  "decl_id": "formula_copy_source",
+                  "short_name": "formulaCopySource",
+                  "label": "Formula Copy Source",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                },
+                "data": {
+                  "read_only": true
+                }
+              }
+            ]
+          },
+          {
+            "uuid": "3a3c2eb6-7f2d-4fa9-a97e-962974cb0550",
+            "type": "str",
+            "meta": {
+              "decl_id": "shared_formula_dir",
+              "short_name": "sharedFormulasFolder",
+              "label": "Shared Formulas Folder"
+            },
+            "data": {
+              "control_modes_enabled": false,
+              "default_value": {
+                "Str": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas"
+              },
+              "read_only": true
+            }
+          },
+          {
+            "uuid": "ab0ef94a-dd3f-4b42-97d8-216ffeeba9fa",
+            "type": "alchemist_formula",
+            "meta": {
+              "tags": [
+                "chataigne.formula.external.file"
+              ],
+              "presentation": {}
+            },
+            "children": [
+              {
+                "uuid": "cb6ad3c5-62eb-4a17-adf9-3dec9d0e272c",
+                "type": "file",
+                "meta": {
+                  "decl_id": "external_formula_file",
+                  "short_name": "formulaFile",
+                  "label": "Formula File"
+                },
+                "data": {
+                  "default_value": {
+                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula.json"
+                  },
+                  "value": {
+                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula.json"
+                  }
+                }
+              },
+              {
+                "uuid": "120f4397-ed7d-432e-970c-b9250c313564",
+                "type": "reference",
+                "meta": {
+                  "decl_id": "external_formula_source",
+                  "short_name": "externalFormulaSource",
+                  "label": "External Formula Source",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              },
+              {
+                "uuid": "3d9d7d45-77c2-4d16-8ac4-bd85c9377072",
+                "type": "bool",
+                "meta": {
+                  "decl_id": "external_formula_delete_file",
+                  "short_name": "deleteExternalFormulaFile",
+                  "label": "Delete External Formula File",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "uuid": "53cb6300-4fc9-494e-b256-c7cfbf057503",
+            "type": "alchemist_formula",
+            "meta": {
+              "label": "Formula2",
+              "tags": [
+                "chataigne.formula.external.file"
+              ],
+              "presentation": {}
+            },
+            "children": [
+              {
+                "uuid": "bf3b91ed-dc7a-4ed4-8df7-095f07f38e1e",
+                "type": "file",
+                "meta": {
+                  "decl_id": "external_formula_file",
+                  "short_name": "formulaFile",
+                  "label": "Formula File"
+                },
+                "data": {
+                  "default_value": {
+                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula2.json"
+                  },
+                  "value": {
+                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula2.json"
+                  }
+                }
+              },
+              {
+                "uuid": "78d0f869-8384-4808-a2ea-f889623c5f0f",
+                "type": "reference",
+                "meta": {
+                  "decl_id": "external_formula_source",
+                  "short_name": "externalFormulaSource",
+                  "label": "External Formula Source",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              },
+              {
+                "uuid": "6eed4fd3-7d30-4067-be3c-643e8fbe829b",
+                "type": "bool",
+                "meta": {
+                  "decl_id": "external_formula_delete_file",
+                  "short_name": "deleteExternalFormulaFile",
+                  "label": "Delete External Formula File",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "98d02f10-418c-489f-819f-6f2512ccddbd",
+        "type": "module_manager",
+        "children": [
+          {
+            "uuid": "19aa3661-84e7-4ce2-a7b3-4b012c3f6d35",
+            "type": "gamepad_module",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "abed29db-f834-4a2c-83d8-f6353a021191",
+                "type": "folder",
+                "meta": {
+                  "decl_id": "values"
+                },
+                "children": [
+                  {
+                    "uuid": "81438df2-8fce-4e3e-9606-18bd9b1015bf",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "values/axes"
+                    },
+                    "children": [
+                      {
+                        "uuid": "3d0e8db7-21f9-402e-b4e5-40b6a769e1f6",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "values/axes/left_z"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "uuid": "69e5a26a-00c9-4ae7-b8f6-09290b379aca",
+            "type": "osc_module",
+            "user_role": "itemRoot"
+          },
+          {
+            "uuid": "05e019bd-f5aa-4f14-9a62-d37567ee3d0a",
+            "type": "tcp_client_module",
+            "user_role": "itemRoot"
+          },
+          {
+            "uuid": "98fcb078-61f8-4e39-8250-383074e2a512",
+            "type": "tcp_server_module",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "e0dd8380-68f2-449a-b386-8bbfb979c1e7",
+                "type": "folder",
+                "meta": {
+                  "decl_id": "connection"
+                },
+                "children": [
+                  {
+                    "uuid": "1f056f05-16f7-4fd4-b13b-835ed73774b9",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "connection/clients"
+                    },
+                    "children": [
+                      {
+                        "uuid": "2f802a7c-6fe4-48a6-ab8a-e1238d9b6ef8",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "12700157387",
+                          "short_name": "12700157387",
+                          "label": "127.0.0.1:57387",
+                          "description": "Connected TCP client information.",
+                          "user_permissions": {
+                            "can_edit_name": true,
+                            "can_remove_and_duplicate": true,
+                            "can_edit_constraints": true,
+                            "can_edit_tags": true,
+                            "can_edit_color": true
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "Remote address: 127.0.0.1:57387"
+                          },
+                          "read_only": true
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "uuid": "824d0c3a-1716-4589-b338-edb1319fa3d6",
+            "type": "metronomes_module",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "b1697743-c97e-4c06-8934-e746360443a3",
+                "type": "folder",
+                "meta": {
+                  "decl_id": "values"
+                },
+                "children": [
+                  {
+                    "uuid": "c8ceb229-a556-2c38-e9b7-31eea275a3f4",
+                    "type": "trigger",
+                    "meta": {
+                      "decl_id": "metronome_a5abc65bca3843558ce8478fce00c6f4",
+                      "short_name": "metronome_a5abc65bca3843558ce8478fce00c6f4",
+                      "label": "Metronome",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "e2d7c6d0-79f6-4353-ae18-8ff6839db54e",
+        "type": "state_machine_manager",
+        "children": [
+          {
+            "uuid": "f1bbc1ef-befe-4347-b22a-76f31d6d3185",
+            "type": "state",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "139e6ba2-1fad-4849-b644-dfff6207a07c",
+                "type": "vec2",
+                "meta": {
+                  "decl_id": "position"
+                },
+                "data": {
+                  "value": {
+                    "Vec2": [
+                      63.0,
+                      3.0
+                    ]
+                  }
+                }
+              },
+              {
+                "uuid": "b9674ae1-985f-48ff-b892-566c2145ce65",
+                "type": "vec2",
+                "meta": {
+                  "decl_id": "size",
+                  "enabled": true
+                },
+                "data": {
+                  "value": {
+                    "Vec2": [
+                      13.977216274909882,
+                      11.900448207548685
+                    ]
+                  }
+                }
+              },
+              {
+                "uuid": "dd443ebb-1ca4-4008-af02-a761488b9d96",
+                "type": "state_processor_manager",
+                "meta": {
+                  "decl_id": "processors",
+                  "presentation": {
+                    "show_in_nested_inspector": false
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "edd029c0-7222-48fd-b722-964b0b2bc3c6",
+                    "type": "state_processor",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Action",
+                      "presentation": {
+                        "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
+                      }
+                    },
+                    "data": {
+                      "formula_source": {
+                        "Project": {
+                          "uuid": "11111111-2222-4333-8444-000000000001"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "3a911517-3152-4708-ab60-63a39eefc81d",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "formula"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Reference": {
+                              "uuid": "11111111-2222-4333-8444-000000000001"
+                            }
+                          },
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Action",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula"
+                              ],
+                              "uuid": "11111111-2222-4333-8444-000000000001"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "891c7f5a-c33c-41ae-b779-5dffa0932df2",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "formula_source_key"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "state_processor:project:11111111-2222-4333-8444-000000000001"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "c9fc5be0-0dc9-41de-b72c-25b99acda025",
+                        "type": "sm_condition_manager",
+                        "meta": {
+                          "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "presentation": {
+                            "color": {
+                              "r": 0.186,
+                              "g": 0.569,
+                              "b": 0.8171,
+                              "a": 1.0
+                            },
+                            "default_color": {
+                              "r": 0.186,
+                              "g": 0.569,
+                              "b": 0.8171,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "b5fb18bd-84f2-457d-82e4-cd09ca4d8950",
+                            "type": "sm_input_value_condition",
+                            "user_role": "itemRoot",
+                            "meta": {
+                              "decl_id": "inputValue",
+                              "short_name": "inputValue",
+                              "can_be_disabled": true,
+                              "label": "Input Value",
+                              "user_permissions": {
+                                "can_edit_name": true,
+                                "can_remove_and_duplicate": true,
+                                "can_edit_constraints": true,
+                                "can_edit_tags": true,
+                                "can_edit_color": true
+                              }
+                            },
+                            "children": [
+                              {
+                                "uuid": "28776bf6-1895-4353-90d8-f34108a15333",
+                                "type": "reference",
+                                "meta": {
+                                  "decl_id": "source"
+                                },
+                                "data": {
+                                  "value": {
+                                    "Reference": {
+                                      "cached_name": "Left Z",
+                                      "relative_path_from_root": [
+                                        "moduleManager",
+                                        "module",
+                                        "values",
+                                        "values/axes",
+                                        "values/axes/left_z"
+                                      ],
+                                      "uuid": "3d0e8db7-21f9-402e-b4e5-40b6a769e1f6"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "d4269e03-ca30-4162-9be3-275d3ecd08cd",
+                        "type": "sm_outputs_manager",
+                        "meta": {
+                          "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "label": "On True",
+                          "presentation": {
+                            "color": {
+                              "r": 0.3785,
+                              "g": 0.8584,
+                              "b": 0.2502,
+                              "a": 1.0
+                            },
+                            "default_color": {
+                              "r": 0.3785,
+                              "g": 0.8584,
+                              "b": 0.2502,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "c82abd0a-16d7-48ce-b065-228b50a58518",
+                            "type": "folder",
+                            "meta": {
+                              "decl_id": "advanced",
+                              "user_permissions": {}
+                            },
+                            "children": [
+                              {
+                                "uuid": "a6f6f5ea-5227-45a3-96be-787c42374754",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "25b118e2-560c-4465-93fe-4268cf34f77a",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "dec7e507-94e8-473b-bae4-03fb441d08ac",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "bf9f46d4-6a8d-404c-84c1-a8b9fa9054d0",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "38db2255-3e13-47a4-ae06-5f5b4ef7eaa1",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "f8c4264e-f493-434d-adf5-9b68a2f7db2d",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "90d02eec-6182-410e-b67c-42e933499c30",
+                        "type": "sm_outputs_manager",
+                        "meta": {
+                          "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "label": "On False",
+                          "presentation": {
+                            "color": {
+                              "r": 0.8471,
+                              "g": 0.427,
+                              "b": 0.0987,
+                              "a": 1.0
+                            },
+                            "default_color": {
+                              "r": 0.8471,
+                              "g": 0.427,
+                              "b": 0.0987,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "1d0126c6-fcb8-4f37-b7d3-4317a724afa3",
+                            "type": "folder",
+                            "meta": {
+                              "decl_id": "advanced",
+                              "user_permissions": {}
+                            },
+                            "children": [
+                              {
+                                "uuid": "3a53779b-751c-4a4c-9ccf-c8c071d7d39a",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "11cf6bba-44e5-4cce-9b80-accd6488d185",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "e61c9579-432c-40ee-a432-e52c72413289",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "5a5f562a-4855-496f-9706-cb805ff822bb",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "a70eb168-2f6f-4e57-af5e-c624393b7ad3",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "23840938-0635-4509-a2ae-335ccb94bce0",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

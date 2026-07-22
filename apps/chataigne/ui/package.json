@@ -16,7 +16,7 @@
 		"test": "vitest run",
 		"codegen:golden-graph-ui": "cargo run --manifest-path ../../../Cargo.toml -p golden_codegen_support --bin golden_codegen -- graph-ui ../../../packages/golden-graph-ui/generated",
 		"codegen:golden-ui-protocol": "cargo run --manifest-path ../../../Cargo.toml -p golden_codegen_support --bin golden_codegen -- ui-protocol ../../../packages/golden-ui/generated/rust_protocol",
-		"codegen:state-machine-protocol": "cargo run --manifest-path ../../../Cargo.toml -p chataigne_state_machine --bin generate_state_machine_protocol -- src/lib/state_machine/generated",
+		"codegen:state-machine-protocol": "cargo run --manifest-path ../../../Cargo.toml -p chataigne_state_machine --bin generate_state_machine_protocol -- src/lib/systems/state_machine/generated",
 		"prepare": "npm run codegen:golden-graph-ui && npm run codegen:golden-ui-protocol && npm run codegen:state-machine-protocol && svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -45,7 +45,6 @@
 		"codemirror": "^6.0.2",
 		"dockview-core": "^7.0.2",
 		"golden_graph_ui": "*",
-		"golden_statechart_ui": "*",
 		"golden_ui": "*"
 	}
 }

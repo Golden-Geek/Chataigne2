@@ -2,12 +2,12 @@
 # R1 enforcement: no full-graph iteration (self.nodes.iter/values/keys) in tick-path files.
 #
 # Usage: bash tools/core/check_tick_path.sh [--root <crate-root>]
-# Run from the repo root or pass --root to point at crates/core/src/engine.
+# Run from the repo root or pass --root to point at crates/golden_core/engine/src/engine.
 # Exits 1 when a violation is found.
 
 set -euo pipefail
 
-ROOT="crates/core/src/engine"
+ROOT="crates/golden_core/engine/src/engine"
 if (( $# > 0 )); then
     if [[ $# -ne 2 || "$1" != "--root" ]]; then
         echo "Usage: bash tools/core/check_tick_path.sh [--root <crate-root>]" >&2

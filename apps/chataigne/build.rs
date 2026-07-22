@@ -6,7 +6,7 @@ use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use golden_codegen_support::generate_app_nodes;
+use golden_codegen_support::{generate_app_nodes_from_roots, AppNodeSourceRoot};
 
 const GC_FORCE_NPM_CI: &str = "GC_FORCE_NPM_CI";
 const GC_KINECT20_DLL: &str = "GC_KINECT20_DLL";
@@ -44,7 +44,7 @@ impl BuildPaths {
             bundled_ui_dir: out_dir.join("ui-dist"),
             ui_assets_rs: out_dir.join("ui_assets.rs"),
             app_nodes_rs: out_dir.join("app_nodes.rs"),
-            builtin_formulas_dir: PathBuf::from("builtin_formulas"),
+            builtin_formulas_dir: PathBuf::from("resources/formulas/builtin"),
             builtin_formulas_rs: out_dir.join("builtin_formulas.rs"),
             ui_root,
             workspace_root,
@@ -385,8 +385,12 @@ fn run_tauri_build() {
 }
 
 fn generate_rust_code(paths: &BuildPaths) -> std::io::Result<()> {
-    let src_root = Path::new("src");
-    generate_app_nodes(src_root, &paths.app_nodes_rs);
+    let source_roots = [
+        AppNodeSourceRoot::new(Path::new("src"), ""),
+        AppNodeSourceRoot::new(Path::new("systems/alchemist/integration"), "systems_alchemist"),
+        AppNodeSourceRoot::new(Path::new("systems/state_machine/integration"), "systems_state_machine"),
+    ];
+    generate_app_nodes_from_roots(&source_roots, &paths.app_nodes_rs);
     generate_builtin_formulas_module(&paths.builtin_formulas_dir, &paths.builtin_formulas_rs)
 }
 

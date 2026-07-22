@@ -66,7 +66,7 @@ function Get-CommandVersion {
 
     $command = Get-Command $Executable -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $command) {
-        throw "Required system tool '$Executable' was not found on PATH. Install the pinned version documented in docs/workspace-hygiene.md; repository-local toolchains are not supported."
+        throw "Required system tool '$Executable' was not found on PATH. Install the pinned version documented in docs/operations/workspace-hygiene.md; repository-local toolchains are not supported."
     }
     $output = @(& $command.Source @Arguments 2>&1 | ForEach-Object { [string]$_ }) -join "`n"
     if ($LASTEXITCODE -ne 0) {

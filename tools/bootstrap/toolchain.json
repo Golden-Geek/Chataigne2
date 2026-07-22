@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline": "phase1b-supported-toolchain",
+  "baseline": "supported-toolchain",
   "captured_at": "2026-07-18",
   "rust": {
     "channel": "1.97.0",

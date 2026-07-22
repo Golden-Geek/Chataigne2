@@ -1,59 +1,65 @@
 # Architecture
 
-This repository is a layered workspace with a thin product shell, shared engine/runtime packages,
-and a UI stack that talks to the engine through generated protocol boundaries.
+Chataigne2 is split by ownership: reusable Golden foundations live under `crates/` and
+`packages/`; product behavior lives under `apps/chataigne/`.
 
-## Top-Level Layers
+## Repository layers
 
-### App Shell
+### Golden Core
 
-`Chataigne2` owns app bootstrap, composition, product-level wiring, and app-specific node registration. It should not become the home for reusable engine logic, default desktop/headless startup, protocol declarations, or persistence formats.
+`crates/golden_core/` is the reusable backend framework and the public `golden_core` facade.
+Its internal workspace crates are grouped by role:
 
-### Core Engine
+- `engine/`: node tree, edit loop, scheduling, and UI read model.
+- `foundation/`: application contracts, identities, values, parameters, and contexts.
+- `runtime/`: control runtime, I/O workers, and scripting.
+- `services/`: persistence and protocol boundaries.
+- `hosts/`: desktop and transport hosts.
+- `support/`: macros and code generation.
 
-`golden_core` is the shared runtime workspace. It now exposes explicit crates for the engine, protocol, persistence, transport server, desktop host, scripting, macros, and build-time support. Pure engine consumers should be able to depend on the engine-facing crates without pulling in desktop host concerns, while app shells still launch through the default reusable host/runtime path by default.
+Applications normally depend on the facade at `crates/golden_core/`, not on those implementation
+crates directly.
 
-### Alchemist And Statecharts
+### Golden Graph
 
-`crates/graph` owns the reusable graph document and `crates/golden_statechart` owns hierarchical
-statechart mechanics. Chataigne Formula types, the ANode catalog, compiler/runtime, and graph-domain
-adapter live in `apps/chataigne/alchemist`. Processor policy and lanes live in
-`apps/chataigne/processor`; state-machine composition and its generated protocol live in
-`apps/chataigne/state_machine`.
+`crates/golden_graph/` is the app-agnostic graph document and transaction system.
+`packages/golden-graph-ui/` is its reusable canvas. Neither package knows about Alchemist,
+conditions, processors, or Chataigne state machines.
 
-### Protocol Boundary
+### Chataigne systems
 
-UI request, response, event, snapshot, and version types must have one source of truth. Rust and TypeScript should not manually mirror each other. Build and generation flows should produce the raw transport bindings from the canonical Rust protocol definition, with any UI-local normalization kept as an explicit adapter layer.
+`apps/chataigne/systems/alchemist/` owns the whole Alchemist processing domain: formulas, ANodes,
+conditions, processors, inputs, filters, outputs, lane/value-set execution, and their reusable
+Chataigne-owned kernels. Engine-node integration for those concepts is grouped in
+`apps/chataigne/systems/alchemist/integration/`.
 
-### UI Client And Stores
+`apps/chataigne/systems/state_machine/` owns Chataigne's state/transition model, runtime,
+arbitration, and generated protocol. Its engine-node integration is grouped in
+`apps/chataigne/systems/state_machine/integration/`. It consumes Alchemist processors; it does not define
+a second condition or processing system.
 
-`apps/chataigne/ui` contains the app UI shell and consumes `packages/golden-ui` as the reusable
-workbench boundary. `packages/golden-graph-ui` supplies app-agnostic infinite-canvas rendering and
-interaction, while `packages/golden-statechart-ui` projects reusable statechart documents. The
-Chataigne Formula and State Machine panels, DTO adapters, and product registrations remain
-app-owned. Focused stores sit behind thin facades and depend on transport interfaces.
+The dependency direction is:
 
-### Host Layers
+`golden_core / golden_graph → Alchemist → Chataigne state machine → app shell`.
 
-Desktop startup, browser/headless hosting, native dialogs, and transport servers are host concerns. They should live outside the pure engine modules, but they should still be provided by reusable `golden_core` host layers by default. Apps may override command-line parsing or bootstrap when needed, but they should not need local `src/app/desktop.rs`-style host implementations just to launch.
+### UI
 
-## Build And Codegen Boundary
+`packages/golden-ui/` provides the reusable workbench and `packages/golden-graph-ui/` provides
+the generic graph canvas. Chataigne Formula and State Machine UI, including the state-machine
+document projection, stays under `apps/chataigne/ui/src/lib/systems/` in matching Alchemist and
+state-machine folders.
 
-App build scripts must consume public support APIs. They must not path-import private crate files.
-The app node registry is generated through `crates/codegen_support/`, which provides the stable
-build-time boundary. Shared UI protocol bindings are generated from the root workspace into
-`packages/golden-ui/generated/rust_protocol/`.
+Rust owns transport DTOs and generates TypeScript bindings. UI-local adapters may normalize those
+bindings but must not duplicate the protocol.
 
-## Persistence Direction
+### App shell and hosts
 
-Serialization contracts, project schema, codecs, and migrations belong in dedicated persistence or protocol layers. Desktop file dialogs and host workflows should call persistence APIs rather than define persistence formats themselves.
+`apps/chataigne/src/app/` only composes product nodes, lifecycle hooks, and the default project.
+Desktop startup, browser/headless serving, native dialogs, transports, and persistence remain
+provided by Golden Core.
 
-## Deeper Design Docs
+## Where to continue
 
-Existing design docs live under `crates/core/docs/` and currently include:
-
-- `dashboard_system.md`
-- `node_blueprints.md`
-- `node_contexts.md`
-- `parameters_control_modes.md`
-- `scripting_schema.md`
+Use [the documentation index](docs/README.md) to choose a focused architecture page, guide,
+operations runbook, or reference map. The exact filesystem map is in
+[Repository Layout](docs/reference/repository-layout.md).

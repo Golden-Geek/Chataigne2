@@ -130,9 +130,6 @@ foreach ($directory in Get-ChildItem -LiteralPath $repositoryRoot -Directory -Fo
     }
 }
 
-$submodulesRoot = Join-Path $repositoryRoot "submodules"
-Add-Candidate -Path $submodulesRoot -Category "obsolete-import" -Cleanable $true
-
 $dependencyCleanable = -not $KeepDependencies
 Add-Candidate -Path (Join-Path $repositoryRoot ".venv") -Category "local-toolchain" -Cleanable $dependencyCleanable
 Add-GeneratedChildren -Parent $repositoryRoot -Cleanable $true -DependencyCleanable $dependencyCleanable
@@ -221,11 +218,11 @@ if ($Action -eq "Clean") {
 }
 
 $policyViolations = @($candidates.Values | Where-Object {
-    $_.Category -in @("cargo-target-noncanonical", "obsolete-import")
+    $_.Category -eq "cargo-target-noncanonical"
 })
 if ($policyViolations.Count -gt 0) {
     $paths = @($policyViolations | ForEach-Object { $_.RelativePath }) -join ", "
-    throw "Noncanonical generated or obsolete directories found: $paths. Run tools/workspace-hygiene.ps1 -Action Clean -IncludeAgentWorktrees."
+    throw "Noncanonical generated directories found: $paths. Run tools/workspace-hygiene.ps1 -Action Clean -IncludeAgentWorktrees."
 }
 if ($totalGiB -gt $MaximumGiB) {
     throw "Generated workspace data exceeds the $MaximumGiB GiB budget. Run tools/workspace-hygiene.ps1 -Action Clean."

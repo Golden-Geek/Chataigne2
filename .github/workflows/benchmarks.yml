@@ -61,13 +61,13 @@ jobs:
       - name: Combine results
         run: cat /tmp/bench_tick.txt /tmp/bench_dispatch.txt > /tmp/bench_results.txt
 
-      # Compare against baseline stored in crates/core/benches/baseline.json.
+      # Compare against baseline stored in crates/golden_core/engine/benches/baseline.json.
       # Fails the job when any scenario regresses beyond its threshold.
       - name: Check regressions
         run: |
           python3 tools/core/bench_compare.py \
             --results /tmp/bench_results.txt \
-            --baseline crates/core/benches/baseline.json \
+            --baseline crates/golden_core/engine/benches/baseline.json \
             --output /tmp/bench_summary.md
 
       - name: Publish benchmark summary

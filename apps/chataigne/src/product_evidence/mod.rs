@@ -10,7 +10,7 @@ use std::io::{self, Write};
 
 use serde_json::{json, Value};
 
-pub(crate) const OSC_LOOPBACK_SCENARIO: &str = "phase0.osc-loopback.v1";
+pub(crate) const OSC_LOOPBACK_SCENARIO: &str = "osc-loopback.v1";
 const RESULT_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

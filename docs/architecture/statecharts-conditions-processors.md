@@ -1,45 +1,46 @@
-# Statecharts, Conditions, And Processors
+# State Machine And Alchemist Processing
 
-Phase 5 makes one runtime path responsible for each concern while keeping the existing Chataigne
-authoring and inspection experience.
+Chataigne has one state-machine system and one formula-processing system. Both are app-owned.
 
 ## Ownership
 
-- `golden_statechart` stores state identity, hierarchy, transitions, active configuration,
-  presentation, and revision in one `StatechartGraphDocument`. All edits use graph transactions.
-- `golden_statechart_ui` projects that document into `golden_graph_ui`; the Chataigne panel adds
-  product policy and edit intents without rebuilding a second graph model.
-- `golden_condition` defines app-agnostic Input Value, Input Node, Group, and Script conditions.
-  Compilation produces flat instructions, stable observation IDs, a kernel key, and a dense state
-  layout. Hosts provide input values and script execution through explicit interfaces.
-- `chataigne_processor` owns Processor instances, shared compiled formulas, property overrides,
-  context bindings, lane planning, lifecycle, lane memory, `ValueSet`, and managed pipelines.
-- `chataigne_state_machine` composes statecharts, processors, arbitration, and protocol DTOs.
+- `apps/chataigne/systems/alchemist/` owns Formula and ANode models, compilation, execution, and
+  the graph-domain adapter.
+- `apps/chataigne/systems/alchemist/condition/` owns authored condition definitions, compilation,
+  dense runtime state, and input/script evaluation contracts.
+- `apps/chataigne/systems/alchemist/processor/` owns processors, Inputs, Filters, Outputs,
+  context lanes, `ValueSet`, lifecycle, and managed pipelines.
+- `apps/chataigne/systems/state_machine/model/` owns Chataigne state identity, hierarchy,
+  transitions, active configuration, and graph-backed edits.
+- `apps/chataigne/systems/state_machine/runtime/` composes the model with Alchemist processors,
+  arbitration, and protocol DTOs.
+- Each system's `integration/` folder adapts its kernels to Golden Core nodes.
+- `apps/chataigne/ui/src/lib/systems/alchemist/` owns Alchemist presentation, while
+  `apps/chataigne/ui/src/lib/systems/state_machine/` owns the product panel and its local
+  state-machine document projection. Both render graph surfaces through `golden_graph_ui`.
 
-## Runtime Path
+There are deliberately no generic Golden condition or statechart packages. These concepts encode
+Chataigne behavior and remain with the product.
 
-The Chataigne condition tree is authoring state only. A cache rebuild lowers it once into a compiled
-program and direct parameter bindings. Each default or multiplexed lane evaluates that program with
-its own migratable `ConditionRuntime`. The current program emits transient edges; a companion
-settled program supplies the stable value used after a pulse. Inspector DTOs come from compiled
-observations, so preview capture cannot invoke a second condition implementation.
+## Runtime path
 
-Processor formulas compile once per semantic formula key and are shared by every identical
-instance. The lane compiler combines inherited context axes, context-linked properties, and output
-axes into a stable execution plan. Stateful memory is keyed by `ContextKey`, preserved for retained
-lanes, removed for deleted lanes, and initialized only for new lanes.
+The editable condition tree is authoring state. Alchemist lowers it into a flat compiled program
+and direct parameter bindings. Each default or multiplexed processor lane evaluates that program
+with its own migratable condition runtime. Inspector DTOs are projected from compiled observations,
+so preview capture cannot invoke a second condition implementation.
 
-Action and Mapping remain the only shipped user-facing formula choices. Both use the same Processor,
-condition, context, `ValueSet`, and output-intent path; Mapping is not duplicated into specialized
-single-input and multi-input runtimes.
+Processor formulas compile once per semantic formula key and are shared by identical instances.
+The lane compiler combines inherited context axes, context-linked properties, and output axes into
+a stable execution plan. Stateful memory is keyed by `ContextKey`, retained only for active lanes,
+and initialized only for new lanes.
 
-## Scale And Safety
+The state-machine runtime selects lifecycle and transition work, then dispatches through the same
+Alchemist processor and output-intent path used elsewhere. It does not own alternate Formula,
+condition, input, filter, or output implementations.
+
+## Scale and safety
 
 Compiled conditions do not walk editable condition nodes in steady state. Formula kernels are
-shared through `Arc`, stateless Processors allocate one process cache, and stateful Processors
-allocate memory only for active lanes. The Phase 5 regression fixtures cover P50-L1 and P5-L127 in
-the backend and the UI lane projection, alongside the stronger 10,000-stateless-Processor and
-1,000-stateful-Processor stress tests.
-
-Condition shadow tests compare pure compiled results with reference comparator outcomes. They have
-no command, trigger, device, or output host, so they cannot duplicate product effects.
+shared through `Arc`; stateless processors share process caches; stateful processors allocate
+memory only for active lanes. Shadow tests are pure and have no command, trigger, device, or output
+host, so they cannot duplicate effects.

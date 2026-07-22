@@ -224,7 +224,7 @@ function Invoke-BundledBrowserGate {
     $node = Get-CommandSource -Name "node"
     $browserScript = Join-Path $repositoryRoot "apps/chataigne/ui/scripts/ui-browser-tools.mjs"
     $sourceFixture = if ([string]::IsNullOrWhiteSpace($SourceFixturePath)) {
-        Join-Path $repositoryRoot "apps/chataigne/test-samples/test_simple_load.noisette"
+        Join-Path $repositoryRoot "apps/chataigne/tests/samples/test_simple_load.noisette"
     }
     elseif ([System.IO.Path]::IsPathRooted($SourceFixturePath)) {
         [System.IO.Path]::GetFullPath($SourceFixturePath)

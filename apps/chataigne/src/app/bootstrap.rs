@@ -24,6 +24,6 @@ impl golden_core::app::ProjectLifecycle for AppNode {
     }
 
     fn project_opened(engine: &mut AppEngine) -> Result<(), String> {
-        super::state_machine_nodes_processor::sync_external_formulas(engine)
+        super::systems_alchemist_processor::sync_external_formulas(engine)
     }
 }

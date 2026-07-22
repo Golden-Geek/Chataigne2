@@ -1,7 +1,7 @@
 param(
     [string]$Id = "ui-workflow",
     [string]$SourceFixturePath = "",
-    [string]$FixtureFileName = "phase0-ui-workflow.noisette",
+    [string]$FixtureFileName = "ui-workflow.noisette",
     [int]$Port = 7021,
     [string]$ProductBinary = "",
     [int]$BrowserTimeoutSeconds = 120,

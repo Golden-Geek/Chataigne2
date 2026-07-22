@@ -100,7 +100,7 @@ def main() -> int:
                 "-p",
                 "chataigne_alchemist",
                 "-p",
-                "golden_statechart",
+                "chataigne_state_machine_model",
                 "--locked",
                 "--target",
                 options.target,

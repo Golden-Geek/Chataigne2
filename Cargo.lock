@@ -11,6 +11,7 @@ dependencies = [
  "buttplug",
  "buttplug_core",
  "chataigne_alchemist",
+ "chataigne_condition",
  "chataigne_state_machine",
  "delaunator",
  "device_query",
@@ -19,7 +20,6 @@ dependencies = [
  "futures-util",
  "gilrs",
  "golden_codegen_support",
- "golden_condition",
  "golden_core",
  "golden_io",
  "golden_values",
@@ -44,6 +44,7 @@ dependencies = [
  "sysinfo",
  "tauri",
  "tauri-build",
+ "tempfile",
  "tokio",
  "tokio-tungstenite 0.29.0",
  "uuid",
@@ -985,13 +986,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "chataigne_condition"
+version = "0.1.0"
+dependencies = [
+ "golden_values",
+ "indexmap 2.14.0",
+ "regex",
+ "serde",
+ "sha2",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "chataigne_processor"
 version = "0.1.0"
 dependencies = [
  "chataigne_alchemist",
- "golden_condition",
+ "chataigne_condition",
+ "chataigne_state_machine_model",
  "golden_graph",
- "golden_statechart",
  "golden_values",
  "indexmap 2.14.0",
  "serde",
@@ -1006,12 +1020,24 @@ version = "0.1.0"
 dependencies = [
  "chataigne_alchemist",
  "chataigne_processor",
+ "chataigne_state_machine_model",
  "golden_graph",
- "golden_statechart",
  "golden_values",
  "indexmap 2.14.0",
  "serde",
  "ts-rs",
+]
+
+[[package]]
+name = "chataigne_state_machine_model"
+version = "0.1.0"
+dependencies = [
+ "golden_graph",
+ "indexmap 2.14.0",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]
@@ -2548,19 +2574,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "golden_condition"
-version = "0.1.0"
-dependencies = [
- "golden_values",
- "indexmap 2.14.0",
- "regex",
- "serde",
- "sha2",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
 name = "golden_context"
 version = "0.1.0"
 dependencies = [
@@ -2703,18 +2716,6 @@ name = "golden_script"
 version = "0.1.0"
 dependencies = [
  "golden_engine",
-]
-
-[[package]]
-name = "golden_statechart"
-version = "0.1.0"
-dependencies = [
- "golden_graph",
- "indexmap 2.14.0",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
 ]
 
 [[package]]

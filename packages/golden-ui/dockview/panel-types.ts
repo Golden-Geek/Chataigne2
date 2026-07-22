@@ -98,10 +98,3 @@ export interface PanelController {
 	getPanelByType: (panelType: string) => PanelHandle | null;
 	showPanel: (request: PanelSpawnRequest) => PanelHandle | null;
 }
-
-// Backward-compatible aliases while callers migrate off Dock-specific naming.
-export type DockPanelParams = PanelParams;
-export type DockPanelState = PanelState;
-export type DockPanelProps = PanelProps;
-export type DockPanelExports = PanelExports;
-export type DockPanelComponent = PanelComponent;

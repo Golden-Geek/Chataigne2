@@ -119,11 +119,6 @@ export type {
 export { goldenDockviewTheme } from './dockview/goldenDockviewTheme';
 export { createGoldenTabRenderer } from './dockview/createGoldenTabRenderer';
 export type {
-	DockPanelComponent,
-	DockPanelExports,
-	DockPanelParams,
-	DockPanelProps,
-	DockPanelState,
 	PanelApi,
 	PanelController,
 	PanelComponent,

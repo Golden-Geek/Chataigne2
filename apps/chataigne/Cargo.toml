@@ -20,15 +20,15 @@ artnet_protocol.workspace = true
 base64 = "0.22"
 buttplug = "10.0.3"
 buttplug_core = "10.0.3"
-chataigne_state_machine = { path = "state_machine" }
+chataigne_state_machine.workspace = true
 delaunator.workspace = true
 device_query = "4.0.1"
 dirs = "6"
 elgato-streamdeck = { version = "0.13", optional = true }
 futures-util = "0.3"
-golden_core = { path = "../../crates/core_facade" }
+golden_core = { path = "../../crates/golden_core" }
 chataigne_alchemist.workspace = true
-golden_condition.workspace = true
+chataigne_condition.workspace = true
 golden_io.workspace = true
 golden_values.workspace = true
 gilrs = "0.11.1"
@@ -68,5 +68,8 @@ windows-sys = { version = "0.61.2", features = [
 ] }
 
 [build-dependencies]
-golden_codegen_support = { path = "../../crates/codegen_support" }
+golden_codegen_support = { path = "../../crates/golden_core/support/codegen" }
 tauri-build = "2"
+
+[dev-dependencies]
+tempfile.workspace = true

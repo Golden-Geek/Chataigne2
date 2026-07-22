@@ -9,5 +9,5 @@ Invoke-BundledBrowserGate `
     -BindAddress "0.0.0.0" `
     -BrowserHost $lanAddress.Address `
     -Port 7022 `
-    -FixtureFileName "phase0-lan-browser.noisette" `
+    -FixtureFileName "lan-browser.noisette" `
     -ExpectedHost $lanAddress.Address

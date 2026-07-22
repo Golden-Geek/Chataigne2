@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod signals_tests;
+mod tests;
 mod runtime;
 
 use std::collections::{HashMap, HashSet};

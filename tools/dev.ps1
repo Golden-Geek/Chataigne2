@@ -55,7 +55,7 @@ function Invoke-External {
 function Ensure-Rustup {
     Refresh-Path
     if (-not (Get-CommandExists "rustup")) {
-        throw "rustup is a system prerequisite. Install it and the pinned toolchain from docs/workspace-hygiene.md, then rerun tools/dev.ps1."
+        throw "rustup is a system prerequisite. Install it and the pinned toolchain from docs/operations/workspace-hygiene.md, then rerun tools/dev.ps1."
     }
 }
 

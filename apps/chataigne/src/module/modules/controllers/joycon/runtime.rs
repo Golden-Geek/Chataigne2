@@ -928,4 +928,4 @@ fn joycon_error<E: std::fmt::Debug>(error: E) -> String {
 }
 
 #[cfg(test)]
-mod runtime_tests;
+mod tests;

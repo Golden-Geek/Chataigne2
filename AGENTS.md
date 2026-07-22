@@ -16,42 +16,6 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Keep the app viable for very large graphs and tens of thousands of nodes.
 - Only edit files with the standard file editing tool, not shell-based file mutation.
 
-## Product-Preserving Migration Policy
-
-The active architecture migration is governed by
-[`docs/Golden_Architecture_Final_Plan.md`](docs/Golden_Architecture_Final_Plan.md).
-Until that migration is complete, the following rules take precedence over wording such as
-"thin app shell," "no legacy," or "no compatibility shims":
-
-- The recorded working Chataigne product is the behavioral and experiential oracle. Architectural
-  cleanup is not permission to remove its UI, modules, assets, formulas, scripts, fixtures,
-  hosting modes, or workflows.
-- "Thin app shell" describes final ownership. It does not mean replacing Chataigne with an empty
-  shell, registry-only demo, headless harness, or disconnected frontend during migration.
-- "No legacy" and "no compatibility shims" describe the final production state. Typed temporary
-  adapters, converters, dual reads, and shadow execution are allowed only when they make a named
-  runnable checkpoint or persisted-data migration safer; they are not required merely to keep an
-  intermediate construction commit launchable.
-- Every temporary adapter must be recorded in the parity ledger with an owner, exact scope, expiry
-  phase, deletion criteria, deletion issue, and executable tests. Shadow paths must be incapable of
-  duplicating commands, triggers, effects, or device traffic.
-- A declared `CONSTRUCTION` interval may replace and delete an old in-scope implementation before
-  the replacement passes the full application gate. The last runnable checkpoint and baseline refs
-  must remain immutable, the affected parity rows and expected breakages must be recorded, and the
-  cutover cannot be marked complete until the next named checkpoint passes in the real application.
-- The canonical migration branch may be temporarily non-runnable between named checkpoints. Keep
-  focused compile, unit, contract, serialization, and performance checks running wherever their
-  dependencies are available; do not claim full-product parity from those checks.
-- Named checkpoints at the end of Phases 4, 5, 6, 7, 8, and 9 must build, launch, and pass the
-  complete applicable Chataigne product gate. Phases 6, 8, and 9 also require their declared
-  cross-platform qualification. A checkpoint failure returns the phase to construction state.
-- The failed rewrite is a donor, not a migration base. Import or reimplement donor work one reviewed
-  unit at a time; never merge or cherry-pick the donor branch wholesale.
-
-The recorded refs, evidence state, and phase status live under
-[`docs/product/`](docs/product/README.md). Unknown or unexecuted parity evidence is a blocker, not a
-pass.
-
 ## Target Architecture
 
 ### Chataigne2 App Shell
@@ -83,10 +47,9 @@ pass.
 - `golden_graph` and the final `golden_graph_ui` are the complete app-agnostic graph document,
   editing, presentation, and canvas system. They must never import Alchemist or Chataigne types.
 - Alchemist is Chataigne-specific. Its formula model, ANode registry, compiler/runtime, assets,
-  catalog policy, graph-domain adapter, and formula UI belong under `apps/chataigne` in the final
-  architecture and consume only public Golden contracts.
-- The Rust implementation now lives at `apps/chataigne/alchemist` as `chataigne_alchemist`. The
-  empty imported `packages/golden-alchemist-ui` placeholder has been removed.
+  catalog policy, graph-domain adapter, and formula UI belong under `apps/chataigne` and consume
+  only public Golden contracts.
+- The Rust implementation lives at `apps/chataigne/systems/alchemist` as `chataigne_alchemist`.
 - Reusable Golden runtime, protocol, persistence, processor, condition, and UI layers must use
   domain-neutral contracts and must not depend on the app-owned Alchemist implementation.
 
@@ -144,7 +107,8 @@ pass.
 - Use standard formatters with sane line widths.
 - Reformat touched code consistently with the repository formatter instead of preserving unreadable layout.
 - Keep runtime and tests in separate files. Do not leave inline `mod tests { ... }` blocks in implementation files.
-- When tests belong to a module, place them in a sibling test module file (for example `tests.rs` or `*_tests.rs`).
+- Every test source belongs under a `tests/` directory. Keep that directory directly beside the module or feature it tests; use `tests/mod.rs` as the Rust unit-test module and split larger suites into focused files below it.
+- Keep crate-level integration tests and their fixtures under the crate's top-level `tests/` directory. Do not scatter `tests.rs`, `*_tests.rs`, `*.test.ts`, or `*.spec.ts` beside runtime sources.
 - Keep comments for intent and tradeoffs, not narration.
 - New top-level docs should explain where responsibilities live before pointing people into implementation details.
 
@@ -196,17 +160,14 @@ When a task spans multiple architectural areas, prefer this order:
 - Treat recurring millisecond-range compute or polling on the main thread as a hard no for node implementations. App Control idle polling already pushed `scheduled_ms` above 15ms, and the OS adds its own recurring ~20ms tick, so node work at that cadence must move to an IO/runtime boundary, a background worker, or a coarser event-driven path.
 - For large or data-driven structure creation, design the edit shape before coding: batch detached subtrees, avoid repeated full-tree snapshot rebuilds, and add timing or tests when the expected graph size can grow significantly.
 - Do not preserve broken boundaries for convenience.
-- Do not introduce permanent compatibility shims. During the active product-preserving migration,
-  use only the governed temporary adapters authorized above and delete them at their recorded exit
-  criteria.
+- Do not introduce compatibility shims unless a task explicitly requires a persisted-data
+  migration. Keep any such migration narrow, typed, tested, and removable.
 - Do not duplicate protocol, persistence, or host declarations across languages or layers.
 - When asked to create a new module, treat the module as incomplete unless its command nodes, script-callable functions, script callbacks, and app-owned script template snippets are designed and wired in at the same module boundary.
 - Any implementation involving connection to an endpoint (hardware or software) needs to have an autoreconnect / device recovery strategy
 - For reused Params DSL folders, do not restate inherited metadata such as `label` unless the change intentionally diverges from the base declaration.
 - Do not leave path-based imports into private submodule internals in app code or build scripts.
 - When the repository already violates these rules, treat that as cleanup pressure, not as precedent.
-- After a migration phase is fully validated, commit the completed phase before beginning the next
-  phase so subsequent sessions start from a clean Git state.
 - Always finish with cargo fmt on both root and golden_core to avoid CI failures
 
 ## Code Exploration Policy
@@ -221,9 +182,10 @@ Choose the owning source path before exploring and scope searches accordingly:
 | Layer | Source path |
 | --- | --- |
 | App shell and app-owned modules | `apps/chataigne` |
-| Shared Rust crates | `crates/` |
-| Chataigne Alchemist | `apps/chataigne/alchemist` |
-| Reusable statechart | `crates/golden_statechart` |
+| Golden Core | `crates/golden_core` |
+| Generic graph system | `crates/golden_graph` |
+| Chataigne Alchemist | `apps/chataigne/systems/alchemist` |
+| Chataigne state machine | `apps/chataigne/systems/state_machine` |
 | App-owned UI | `apps/chataigne/ui` |
 | `golden_ui` | `packages/golden-ui` |
 | Generic graph UI | `packages/golden-graph-ui` |

@@ -4,7 +4,7 @@
 Usage:
     python3 tools/core/bench_compare.py \
         --results /tmp/bench_results.txt \
-        --baseline crates/core/benches/baseline.json \
+        --baseline crates/golden_core/engine/benches/baseline.json \
         --output /tmp/bench_summary.md
 
 Regression thresholds (configurable via --threshold-* flags):
@@ -114,12 +114,12 @@ def main() -> int:
         lines.extend(regressions)
         lines.append(
             "\nTo update the baseline after an intentional perf change, "
-            "run `cargo bench` on `main` and update `crates/core/benches/baseline.json`."
+            "run `cargo bench` on `main` and update `crates/golden_core/engine/benches/baseline.json`."
         )
     elif baseline:
         lines.append("\n✅ No regressions detected.")
     else:
-        lines.append("\n⚠️ No baseline found — commit `crates/core/benches/baseline.json` to enable regression checks.")
+        lines.append("\n⚠️ No baseline found — commit `crates/golden_core/engine/benches/baseline.json` to enable regression checks.")
 
     summary = "\n".join(lines) + "\n"
     Path(args.output).write_text(summary)

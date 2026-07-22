@@ -991,10 +991,10 @@ const runProductGate = async (mode) => {
 				telemetry,
 				selectedSignals,
 				'Signals',
-				'Phase 0 Signals',
+				'Product Gate Signals',
 				timeoutMs
 			);
-			steps.push({ step: 'outliner-rename', from: 'Signals', to: 'Phase 0 Signals' });
+			steps.push({ step: 'outliner-rename', from: 'Signals', to: 'Product Gate Signals' });
 			const updateRate = await setNumericParameter(page, telemetry, 'Update Rate', 47, timeoutMs);
 			steps.push({ step: 'inspector-mutation', parameter: 'Update Rate', ...updateRate });
 			const signalFeedback = await observeChangingSignal(page, timeoutMs);
@@ -1017,7 +1017,7 @@ const runProductGate = async (mode) => {
 			await invokeProjectMenuEndpoint(page, 'Open Last', 'project-load', timeoutMs);
 			await waitForOptionalLoadingCycle(page, timeoutMs);
 			await waitForRuntimeReady(page, timeoutMs);
-			await selectManagerItem(page, 'Phase 0 Signals', timeoutMs);
+			await selectManagerItem(page, 'Product Gate Signals', timeoutMs);
 			const persistedInput = parameterInspector(page, 'Update Rate')
 				.locator('input[type="number"]:not(.readonly)')
 				.first();
@@ -1028,13 +1028,13 @@ const runProductGate = async (mode) => {
 			);
 			await page
 				.locator('.outliner-item-content[data-node-id]:visible')
-				.filter({ hasText: /Phase 0 Signals\s+signals_module/ })
+				.filter({ hasText: /Product Gate Signals\s+signals_module/ })
 				.first()
 				.waitFor({ state: 'visible', timeout: timeoutMs });
 			const reloadedSignalFeedback = await observeChangingSignal(page, timeoutMs);
 			steps.push({
 				step: 'save-reload-verified',
-				label: 'Phase 0 Signals',
+				label: 'Product Gate Signals',
 				updateRate: await persistedInput.inputValue(),
 				liveSignal: reloadedSignalFeedback
 			});
@@ -1142,7 +1142,7 @@ const runProductGate = async (mode) => {
 const runMultiClientSoak = async () => {
 	const url = getArgValue('url', defaultUiUrl);
 	const fixturePath = getArgValue('fixture', '');
-	const reportPath = path.resolve(getArgValue('report', 'phase9-soak.browser-report.json'));
+	const reportPath = path.resolve(getArgValue('report', 'soak.browser-report.json'));
 	const artifactDirectory = path.resolve(
 		getArgValue('artifact-directory', path.dirname(reportPath))
 	);
@@ -1158,7 +1158,7 @@ const runMultiClientSoak = async () => {
 	const browser = await chromium.launch(resolveBrowserLaunchOptions());
 	const clients = [];
 	const report = {
-		contract: 'chataigne-phase9-multiclient-soak-v1',
+		contract: 'chataigne-multiclient-soak-v1',
 		status: 'running',
 		url,
 		fixturePath,
@@ -1290,7 +1290,7 @@ const runMultiClientSoak = async () => {
 		for (const client of clients) {
 			await client.page
 				.screenshot({
-					path: path.join(artifactDirectory, `phase9-soak-client-${client.index}-failure.png`),
+					path: path.join(artifactDirectory, `soak-client-${client.index}-failure.png`),
 					fullPage: true
 				})
 				.catch(() => {});

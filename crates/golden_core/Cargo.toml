@@ -1,0 +1,22 @@
+[package]
+name = "golden_core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+golden_application.workspace = true
+golden_context.workspace = true
+golden_graph.workspace = true
+golden_model.workspace = true
+golden_parameters.workspace = true
+golden_values.workspace = true
+golden_engine = { path = "engine" }
+golden_core_macros = { path = "support/macros" }
+golden_host_desktop = { path = "hosts/desktop" }
+golden_persistence = { path = "services/persistence" }
+golden_protocol = { path = "services/protocol" }
+golden_script = { path = "runtime/script" }
+golden_transport_server = { path = "hosts/transport" }

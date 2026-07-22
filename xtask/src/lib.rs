@@ -5,7 +5,7 @@ pub mod readiness;
 mod watch;
 
 #[cfg(test)]
-mod watch_tests;
+mod tests;
 
 pub use cli::{ParseOutcome, WatchConfig, usage};
 

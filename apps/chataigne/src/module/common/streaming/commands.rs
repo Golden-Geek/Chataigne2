@@ -232,4 +232,4 @@ fn parse_hex_string(text: &str) -> Result<Vec<u8>, String> {
 }
 
 #[cfg(test)]
-mod commands_tests;
+mod tests;

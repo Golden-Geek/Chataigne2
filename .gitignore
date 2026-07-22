@@ -27,7 +27,6 @@ target
 /target-*/
 /node_modules
 /.venv/
-/submodules/
 /apps/chataigne/gen/
 /apps/chataigne/ui/.svelte-kit/
 /apps/chataigne/ui/artifacts/

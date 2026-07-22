@@ -4,15 +4,14 @@ This repository is being refactored toward a clean long-term architecture. Optim
 
 ## Repo Map
 
-- `apps/chataigne/`: thin executable shell, app-owned modules, state machine, desktop resources, and UI.
+- `apps/chataigne/`: thin executable shell, app-owned modules, product systems, resources, and UI.
+- `apps/chataigne/systems/alchemist/`: Formula, conditions, processors, Inputs, Filters, and Outputs.
+- `apps/chataigne/systems/state_machine/`: state/transition model, runtime, arbitration, and protocol.
 - `apps/chataigne/ui/`: Svelte 5 app UI shell, reusable package consumption, and app stores.
-- `crates/core/`: pure engine/runtime implementation (`golden_engine`).
-- `crates/core_facade/`: stable `golden_core` facade used by apps.
-- `crates/protocol/`, `crates/persistence/`, `crates/script/`: public reusable boundaries.
-- `crates/transport_server/`, `crates/host_desktop/`: built-in transport and host runtimes.
-- `crates/graph/`, `crates/golden_statechart/`: reusable graph and statechart engines.
-- `crates/core_macros/`, `crates/codegen_support/`: macros and public build/codegen support.
-- `packages/golden-ui/`, `packages/golden-graph-ui/`, `packages/golden-statechart-ui/`: reusable Svelte packages.
+- `crates/golden_core/`: stable facade with grouped engine, foundation, runtime, service, host, and
+  support crates beneath it.
+- `crates/golden_graph/`: reusable graph document and transaction system.
+- `packages/golden-ui/`, `packages/golden-graph-ui/`: reusable Svelte workbench and graph packages.
 
 ## Local Bootstrap
 
@@ -29,7 +28,7 @@ bash ./tools/dev.sh
 These commands install the exact Rust host and checksum-verified portable Node.js/npm distribution
 from the canonical manifest, verify Python, install platform desktop dependencies and root workspace
 dependencies, and then run the app. On Windows, the bootstrap selects the manifest's versioned MSVC
-host. See [docs/development.md](docs/development.md) for prerequisites, diagnostics, root workflows,
+host. See [docs/guides/development.md](docs/guides/development.md) for prerequisites, diagnostics, root workflows,
 qualification commands, and cache policy.
 
 ## Formatting
@@ -71,9 +70,9 @@ npm run format
 
 - Update docs in the same change when responsibilities or architecture move.
 - Keep docs short and architectural.
-- Link to deeper design docs in `crates/core/docs/` instead of duplicating them.
-- Keep `crates/core/docs/source_layout.md` current when filesystem ownership or module-placement rules change.
+- Link to deeper design docs in `crates/golden_core/engine/docs/` instead of duplicating them.
+- Keep `crates/golden_core/engine/docs/source_layout.md` current when filesystem ownership or module-placement rules change.
 - Keep `packages/golden-ui/docs/source_layout.md` current when UI package ownership or file
   placement rules change.
 - Update architecture docs when host/runtime responsibilities move across the app shell and shared crates.
-- Update `docs/repo-transition-plan.md` when repo ownership or migration rules change.
+- Update `ARCHITECTURE.md` and the relevant focused guide when ownership changes.

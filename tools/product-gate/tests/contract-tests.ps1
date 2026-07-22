@@ -110,7 +110,7 @@ if ($clippyIndex -lt 0 -or $testIndex -lt 0 -or $runtimeBuildIndex -lt 0 -or
     $runtimeBuildIndex -lt $clippyIndex -or $runtimeBuildIndex -lt $testIndex) {
     throw "The final runtime build must restore normal Cargo artifacts after clippy and tests."
 }
-if ($gateSource -notmatch '-Id "rust\.runtime_build"(?s:.*?)-Arguments @\("build", "-p", "Chataigne2", "--bin", "Chataigne2"\)(?s:.*?)-DependsOn @\("rust\.format", "rust\.clippy", "rust\.test", "runtime\.phase6_release_fixtures"\)') {
+if ($gateSource -notmatch '-Id "rust\.runtime_build"(?s:.*?)-Arguments @\("build", "-p", "Chataigne2", "--bin", "Chataigne2"\)(?s:.*?)-DependsOn @\("rust\.format", "rust\.clippy", "rust\.test", "runtime\.processor_release_fixtures"\)') {
     throw "The final runtime build must compile the exact Chataigne binary after Rust checks."
 }
 if ($gateSource -notmatch '-Id "smoke\.cargo_run"(?s:.*?)-DependsOn @\("rust\.runtime_build", "ui\.browser_install"\)') {
@@ -157,7 +157,7 @@ if ($cargoRunDevSmokeSource -notmatch '"--dev"' -or
     throw "The cargo-run dev smoke must use the deterministic Windows shutdown contract."
 }
 
-$desktopHostSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "crates/host_desktop/src/desktop.rs"))
+$desktopHostSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "crates/golden_core/hosts/desktop/src/desktop.rs"))
 if ($desktopHostSource -notmatch '"--automation-shutdown-file"' -or
     $desktopHostSource -notmatch 'app_handle\.exit\(0\)') {
     throw "The reusable desktop runtime must expose the automation shutdown contract."

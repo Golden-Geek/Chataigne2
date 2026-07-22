@@ -14,17 +14,17 @@
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
 	import SpatializerEditorPanel from '$lib/panels/modules/SpatializerEditorPanel.svelte';
-	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
-	import ConditionManagerInspector from '$lib/state_machine/components/ConditionManagerInspector.svelte';
-	import FormulaLibraryPanel from '$lib/state_machine/components/FormulaLibraryPanel.svelte';
-	import FormulaNodeInspector from '$lib/state_machine/components/FormulaNodeInspector.svelte';
-	import InputSourceInspector from '$lib/state_machine/components/InputSourceInspector.svelte';
-	import InputValueConditionInspector from '$lib/state_machine/components/InputValueConditionInspector.svelte';
-	import ProcessorFormulaInspector from '$lib/state_machine/components/ProcessorFormulaInspector.svelte';
-	import ProcessorFormulaInspectorPanelHeader from '$lib/state_machine/components/ProcessorFormulaInspectorPanelHeader.svelte';
-	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
-	import { registerSharedFormulaRemovalGuard } from '$lib/state_machine/sharedFormulaRemoval';
-	import { registerProcessorLaneParameterPreviews } from '$lib/state_machine/preview/processorLaneInspection.svelte';
+	import AlchemistEditorPanel from '$lib/systems/alchemist/components/AlchemistEditorPanel.svelte';
+	import ConditionManagerInspector from '$lib/systems/alchemist/components/ConditionManagerInspector.svelte';
+	import FormulaLibraryPanel from '$lib/systems/alchemist/components/FormulaLibraryPanel.svelte';
+	import FormulaNodeInspector from '$lib/systems/alchemist/components/FormulaNodeInspector.svelte';
+	import InputSourceInspector from '$lib/systems/alchemist/components/InputSourceInspector.svelte';
+	import InputValueConditionInspector from '$lib/systems/alchemist/components/InputValueConditionInspector.svelte';
+	import ProcessorFormulaInspector from '$lib/systems/alchemist/components/ProcessorFormulaInspector.svelte';
+	import ProcessorFormulaInspectorPanelHeader from '$lib/systems/alchemist/components/ProcessorFormulaInspectorPanelHeader.svelte';
+	import StateMachinePanel from '$lib/systems/state_machine/components/StateMachinePanel.svelte';
+	import { registerSharedFormulaRemovalGuard } from '$lib/systems/alchemist/sharedFormulaRemoval';
+	import { registerProcessorLaneParameterPreviews } from '$lib/systems/alchemist/preview/processorLaneInspection.svelte';
 
 	registerSharedFormulaRemovalGuard();
 	registerProcessorLaneParameterPreviews();

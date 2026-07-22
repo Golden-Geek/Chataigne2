@@ -6,7 +6,7 @@ about formulas, state transitions, Chataigne modules, runtime scheduling, or edi
 
 ## Current Contract
 
-The first Phase 3 graph slice establishes:
+The graph contract provides:
 
 - stable graph, node, port, edge, comment, group, and viewport-bookmark identities;
 - typed `GraphDomain` port schemas and validation;
@@ -22,10 +22,10 @@ The first Phase 3 graph slice establishes:
 - a typed test domain used by executable contract, rollback, persistence, traversal, and large-graph
   tests.
 
-Alchemist and statecharts now use canonical typed graph documents in their production authoring,
-persistence, compiler, runtime, and UI projection paths. Their former Rust graph adapters are
-removed. The ready-to-run `golden_core` facade exposes `golden_graph`, so the contract is part of the
-reusable product stack rather than an app-local or disconnected crate.
+Alchemist and statecharts use canonical typed graph documents in their production authoring,
+persistence, compiler, runtime, and UI projection paths. The ready-to-run `golden_core` facade
+exposes `golden_graph`, so the contract is part of the reusable product stack rather than an
+app-local or disconnected crate.
 
 ## Graph UI Boundary
 
@@ -33,14 +33,11 @@ reusable product stack rather than an app-local or disconnected crate.
 mechanics, spatial visible-node queries, and incident-edge indexes. Its `GraphRevision` TypeScript
 type is generated from the Rust contract by `golden_codegen_support`; it is not hand-maintained.
 Alchemist-specific assets and domain presentation adapters are app-owned in the Chataigne UI. The
-imported `golden_alchemist_ui` package has been removed after its assets moved into the app; the
 generic canvas remains in the app-agnostic `golden_graph_ui` package.
 
-The working product transport does not yet publish partitioned revisions for every remaining graph
-surface. A pure app-owned `LegacyGraphDocumentAdapter` is still used by the Alchemist and Spatializer
-UI projections and advances every revision plane conservatively. Statechart UI no longer uses it.
-The adapter has no effect authority and remains scheduled for deletion when Phase 7 graph protocol
-DTOs carry canonical revisions directly.
+The app-owned `GraphDocumentAdapter` converts list-backed Alchemist and Spatializer projections into
+the reusable presentation document and advances revision planes conservatively when an input array
+changes. It has no command or effect authority.
 
 ## Mutation Cost
 
@@ -48,6 +45,3 @@ Transactions mutate the live document behind a local undo journal. Removing a no
 incident edges from topology indexes instead of scanning every edge, and a commit advances revisions
 once regardless of operation count. The contract suite includes a 10,000-node localized removal
 case to guard against whole-document snapshot rebuilds at this boundary.
-
-Cutover state is recorded in
-[`phase3-cutovers.v1.json`](../product/manifests/phase3-cutovers.v1.json).

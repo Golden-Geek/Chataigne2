@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$scenario = "phase0.osc-loopback.v1"
+$scenario = "osc-loopback.v1"
 $expectedDigest = "fnv1a64:9da80781af2c7655"
 $expectedReloadDigest = "fnv1a64:78a1a93d927b4a39"
 $repositoryRoot = if ([string]::IsNullOrWhiteSpace($env:PRODUCT_GATE_REPOSITORY_ROOT)) {

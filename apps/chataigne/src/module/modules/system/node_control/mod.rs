@@ -277,4 +277,4 @@ fn node_path(snapshot: &ProcessTreeSnapshot, target: NodeId) -> String {
 }
 
 #[cfg(test)]
-mod node_control_tests;
+mod tests;

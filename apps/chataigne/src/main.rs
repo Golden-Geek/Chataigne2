@@ -3,7 +3,9 @@
 mod app;
 mod product_evidence;
 #[cfg(test)]
-mod test_support;
+mod tests;
+#[cfg(test)]
+pub(crate) use tests::support as test_support;
 
 fn main() -> std::io::Result<()> {
     app::run()

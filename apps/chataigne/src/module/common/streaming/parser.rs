@@ -499,4 +499,4 @@ fn find_line_break(bytes: &[u8]) -> Option<(usize, usize, bool)> {
 }
 
 #[cfg(test)]
-mod parser_tests;
+mod tests;

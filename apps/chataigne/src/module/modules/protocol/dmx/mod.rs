@@ -712,4 +712,4 @@ pub(crate) fn script_blackout(args: &[ParamValue]) -> Result<DmxCommandRequest, 
 }
 
 #[cfg(test)]
-mod dmx_tests;
+mod tests;

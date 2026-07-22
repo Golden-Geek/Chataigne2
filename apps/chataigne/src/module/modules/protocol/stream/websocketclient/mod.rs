@@ -1,7 +1,7 @@
 mod transport;
 
 #[cfg(test)]
-mod transport_tests;
+mod tests;
 
 use std::sync::mpsc::TryRecvError;
 

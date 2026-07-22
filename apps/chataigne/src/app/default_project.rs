@@ -1,7 +1,7 @@
 use golden_core::edit::{Edit, NodeTree};
 
 use super::{AppEngine, FormulaLibrary, ModuleManager, StateMachineManager};
-use crate::app::state_machine_nodes_processor::FormulaCatalog;
+use crate::app::systems_alchemist_processor::FormulaCatalog;
 
 pub(crate) fn initialize_default_project(engine: &mut AppEngine) {
     golden_core::app::add_default_project_nodes(engine);
@@ -23,4 +23,4 @@ fn formula_library_tree() -> NodeTree {
 }
 
 #[cfg(test)]
-mod default_project_tests;
+mod tests;

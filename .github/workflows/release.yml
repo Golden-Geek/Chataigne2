@@ -135,9 +135,9 @@ jobs:
               'WINDOWS_TIMESTAMP_URL'
             ) | ForEach-Object { Remove-Item -LiteralPath "Env:$_" -ErrorAction SilentlyContinue }
           }
-          python tools/migration/run_phase9_package_smoke.py `
+          python tools/qualification/package_smoke.py `
             --platform ${{ matrix.platform }} `
-            --output-dir target/phase9/package-ci/${{ matrix.platform }}
+            --output-dir target/qualification/package-ci/${{ matrix.platform }}
 
       - name: Build and exercise Linux package under a virtual display
         if: runner.os == 'Linux'
@@ -146,9 +146,9 @@ jobs:
           if [[ "${GC_REQUIRE_SIGNING:-0}" != "1" ]]; then
             unset SIGN_KEY
           fi
-          xvfb-run -a python tools/migration/run_phase9_package_smoke.py \
+          xvfb-run -a python tools/qualification/package_smoke.py \
             --platform linux \
-            --output-dir target/phase9/package-ci/linux
+            --output-dir target/qualification/package-ci/linux
 
       - name: Upload native packages and smoke evidence
         if: always()
@@ -157,5 +157,5 @@ jobs:
           name: chataigne-${{ matrix.platform }}-${{ github.sha }}
           path: |
             target/release/bundle/**
-            target/phase9/package-ci/${{ matrix.platform }}/**
+            target/qualification/package-ci/${{ matrix.platform }}/**
           if-no-files-found: error

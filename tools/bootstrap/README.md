@@ -1,6 +1,6 @@
 # Supported workspace toolchain contract
 
-`toolchain.json` is the single source for the supported Rust, Node, npm, Python, and phase/release
+`toolchain.json` is the single source for the supported Rust, Node, npm, Python, and release
 qualification-tool versions.
 `rust-version` and `.nvmrc` are checked-in consumers; CI reads the JSON directly for setup action
 inputs. The Rust installer selects an MSVC host on Windows instead of relying on a developer's
@@ -11,11 +11,9 @@ different host triples per operating system. Developers install the recorded too
 and select it with a rustup directory override. The bootstrap verifies that contract; it does not
 install or download tools into the checkout.
 
-Phase 1B updates one coherent toolchain family at a time. Each update changes the canonical
-manifest and all generated consumers together, passes the Win-x64 local gate, and receives the
-cross-platform qualification required by the migration plan before Phase 1B closes. Selection and
-upgrade policy are recorded in
-[`docs/product/toolchain-policy.md`](../../docs/product/toolchain-policy.md).
+Update one coherent toolchain family at a time. Each update changes the canonical manifest and all
+generated consumers together, passes the local gate, and receives cross-platform qualification.
+Selection and upgrade policy are recorded in [`docs/reference/toolchain.md`](../../docs/reference/toolchain.md).
 
 Validate file consistency without changing the current machine:
 
@@ -52,4 +50,4 @@ CI and the product gate also use `-CheckInstalled`/`--check-installed`, which re
 `install-rust-toolchain.*` and `install-qualification-tools.*` are CI provisioning helpers for
 ephemeral runners only. Developer tasks require the manifest-pinned `cargo-deny` and
 `cargo-machete` commands to be installed system-wide. See
-[`docs/workspace-hygiene.md`](../../docs/workspace-hygiene.md) for installation and cleanup policy.
+[`docs/operations/workspace-hygiene.md`](../../docs/operations/workspace-hygiene.md) for installation and cleanup policy.
