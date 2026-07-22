@@ -85,8 +85,11 @@ def ready_dashboard() -> dict[str, object]:
         "revision": 1,
         "validation_state": "CHECKPOINT_RUNNABLE",
         "last_runnable_checkpoint": {
-            "phase": 8,
-            "qualified_commit": MODULE.PHASE8_CHECKPOINT,
+            "phase": 9,
+            "qualified_commit": "1" * 40,
+            "record_commit": "2" * 40,
+            "cross_platform_run": "https://example.test/product-run",
+            "package_run": "https://example.test/package-run",
         },
         "construction_interval": {},
         "parity_ledger": {
@@ -164,6 +167,78 @@ class Phase9ReadinessTests(unittest.TestCase):
 
         self.assertTrue(report["ready"])
         self.assertEqual(report["blockers"], [])
+
+    def test_construction_state_preserves_phase8_but_is_not_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dashboard = ready_dashboard()
+            dashboard["validation_state"] = "CONSTRUCTION"
+            dashboard["last_runnable_checkpoint"] = {
+                "phase": 8,
+                "qualified_commit": MODULE.PHASE8_CHECKPOINT,
+            }
+            write_json(
+                root,
+                "docs/product/manifests/phase9-qualification.v1.json",
+                dashboard,
+            )
+            write_json(
+                root,
+                "docs/product/manifests/functional-parity.v1.json",
+                {"rows": [{"capability_id": "test/capability"}]},
+            )
+            write_json(
+                root,
+                "docs/product/manifests/functional-parity-evidence.v1.json",
+                {
+                    "manifest_kind": "functional_parity_evidence",
+                    "inventory": "docs/product/manifests/functional-parity.v1.json",
+                    "baseline_ref": MODULE.BASELINE_REF,
+                    "entries": [qualified_row()],
+                },
+            )
+
+            report = MODULE.build_report(root)
+
+        self.assertFalse(report["ready"])
+        self.assertIn("Phase 9 remains in CONSTRUCTION", report["blockers"])
+
+    def test_runnable_state_must_record_phase9_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dashboard = ready_dashboard()
+            dashboard["last_runnable_checkpoint"] = {
+                "phase": 8,
+                "qualified_commit": MODULE.PHASE8_CHECKPOINT,
+            }
+            write_json(
+                root,
+                "docs/product/manifests/phase9-qualification.v1.json",
+                dashboard,
+            )
+            write_json(
+                root,
+                "docs/product/manifests/functional-parity.v1.json",
+                {"rows": [{"capability_id": "test/capability"}]},
+            )
+            write_json(
+                root,
+                "docs/product/manifests/functional-parity-evidence.v1.json",
+                {
+                    "manifest_kind": "functional_parity_evidence",
+                    "inventory": "docs/product/manifests/functional-parity.v1.json",
+                    "baseline_ref": MODULE.BASELINE_REF,
+                    "entries": [qualified_row()],
+                },
+            )
+
+            report = MODULE.build_report(root)
+
+        self.assertFalse(report["ready"])
+        self.assertIn(
+            "Phase 9 runnable state does not record its exact qualified checkpoint",
+            report["blockers"],
+        )
 
     def test_checkpoint_claim_with_incomplete_gate_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

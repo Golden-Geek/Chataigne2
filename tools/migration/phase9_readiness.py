@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 PHASE8_CHECKPOINT = "b45a9b0a7a01ebee386e24a91daa42f897054bc6"
 BASELINE_REF = "fb0f3a58f3593df8994bf8bd46f88ddd7612f41d"
+COMMIT_SHA = re.compile(r"^[0-9a-f]{40}$")
 EXPECTED_SUBPHASES = {"9A", "9B", "9C", "9D"}
 EXPECTED_GATES = {
     "cross-platform-product",
@@ -154,6 +156,10 @@ def _passing_evidence_record(value: Any) -> bool:
     return required.issubset(value) and all(value.get(field) for field in required)
 
 
+def _valid_commit(value: Any) -> bool:
+    return isinstance(value, str) and COMMIT_SHA.fullmatch(value) is not None
+
+
 def row_is_qualified(row: Mapping[str, Any]) -> bool:
     if not NORMATIVE_ROW_FIELDS.issubset(row):
         return False
@@ -215,12 +221,23 @@ def build_report(root: Path) -> dict[str, Any]:
         blockers.append("Phase 9 dashboard has an invalid validation state")
 
     last_checkpoint = dashboard.get("last_runnable_checkpoint")
-    if (
-        not isinstance(last_checkpoint, Mapping)
-        or last_checkpoint.get("phase") != 8
-        or last_checkpoint.get("qualified_commit") != PHASE8_CHECKPOINT
-    ):
-        blockers.append("Phase 9 does not preserve the immutable Phase 8 checkpoint")
+    if validation_state == "CONSTRUCTION":
+        if (
+            not isinstance(last_checkpoint, Mapping)
+            or last_checkpoint.get("phase") != 8
+            or last_checkpoint.get("qualified_commit") != PHASE8_CHECKPOINT
+        ):
+            blockers.append("Phase 9 construction does not preserve the immutable Phase 8 checkpoint")
+    elif validation_state == "CHECKPOINT_RUNNABLE":
+        if (
+            not isinstance(last_checkpoint, Mapping)
+            or last_checkpoint.get("phase") != 9
+            or not _valid_commit(last_checkpoint.get("qualified_commit"))
+            or not _valid_commit(last_checkpoint.get("record_commit"))
+            or not last_checkpoint.get("cross_platform_run")
+            or not last_checkpoint.get("package_run")
+        ):
+            blockers.append("Phase 9 runnable state does not record its exact qualified checkpoint")
 
     subphases = {
         item.get("subphase_id"): item
@@ -356,6 +373,9 @@ def build_report(root: Path) -> dict[str, Any]:
         blockers.append(
             f"temporary migration adapters remain: {sorted(carried_adapters)}"
         )
+
+    if validation_state == "CONSTRUCTION":
+        blockers.append("Phase 9 remains in CONSTRUCTION")
 
     if validation_state == "CHECKPOINT_RUNNABLE" and blockers:
         blockers.insert(
