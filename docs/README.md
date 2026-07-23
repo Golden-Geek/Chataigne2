@@ -6,6 +6,7 @@ Choose a section based on what you are trying to do.
 
 - [Architecture index](architecture/README.md)
 - [Repository layout](reference/repository-layout.md)
+- [Golden Audio](architecture/golden-audio.md)
 - [Alchemist runtime](architecture/alchemist-runtime.md)
 - [State machine and Alchemist processing](architecture/statecharts-conditions-processors.md)
 

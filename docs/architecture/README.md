@@ -7,6 +7,8 @@ This section explains ownership and dependency direction. Start with the
 
 - [Application contracts](application-contracts.md): reusable application and host seams.
 - [Foundation ownership](foundations.md): identities, values, parameters, and contexts.
+- [Golden Audio](golden-audio.md): reusable audio ownership, stable identities, render plans,
+  callback safety, clocks, and device recovery.
 - [Golden Graph](graph-foundation.md): graph documents, transactions, revisions, and presentation.
 - [Hosts](hosts.md): desktop, headless/browser, transport, and native-dialog ownership.
 - [UI protocol](ui-protocol.md): Rust DTO source of truth and generated TypeScript.

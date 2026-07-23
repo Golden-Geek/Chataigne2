@@ -98,3 +98,9 @@ The maintained engine notes live under `crates/golden_core/engine/docs/`:
 
 - `dashboard_system.md`
 - `source_layout.md`
+
+## License
+
+Chataigne2 and the reusable Golden workspace packages are licensed under the
+[GNU General Public License version 3](LICENSE), identified in package metadata as
+`GPL-3.0-only`.
