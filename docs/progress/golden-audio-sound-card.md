@@ -26,10 +26,10 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 5 - native host and toolchain integration.
-- Status: complete on local Windows/WASAPI and Windows/JACK missing-server paths; checkpoint pending.
-- Last checkpoint: `98d12aa8` (`feat(audio): add device discovery model and recovery supervisor`).
-- Next step: add clock-domain bridges, null-clock authority, and two-phase stream switching.
+- Current phase: Phase 6 - clock-domain bridging and seamless recovery.
+- Status: implementation and backend-neutral qualification complete; checkpoint pending.
+- Last checkpoint: `63af125` (`feat(audio): integrate native desktop audio hosts`).
+- Next step: add asynchronous playback, decoding, cache ownership, and streaming workers.
 
 ## Decisions
 
@@ -115,7 +115,7 @@ Decision:
 | Native PipeWire headers/linkage/package runtime | CPAL native backend remains internal; bootstrap and CI install explicit prerequisites; package evidence required | Open |
 | macOS microphone permission and signing | Add usage description/entitlements and test denied/allowed signed package | NOT RUN |
 | Final render-plan destruction on callback | One-pending-plan acknowledged exchange plus retained retired-plan slot; allocation/deallocation guard | Open |
-| Independent input/output clock drift | Bounded ring, adaptive ASRC, PI controller, discontinuity fade, drift/bridge observations | Open |
+| Independent input/output clock drift | Bounded ring, adaptive ASRC, PI controller, discontinuity fade, drift/bridge observations | Mitigated; backend-neutral qualification PASS |
 | Decoder completion after stop/replacement | Monotonic command sequence and cancellation generation watermarks; stale worker results discarded off callback | Open |
 | Large meter/matrix/spectrum UI | Packed latest-only telemetry, Canvas, viewport virtualization, bounded refresh, teardown tests | Open |
 | Legacy unmapped gitlinks | Do not use or modify them; record pre-existing tooling failure | Open, unrelated |
@@ -281,6 +281,32 @@ absent. The official full host set is therefore a named qualification feature ex
 release gates; application code still has one ordinary `golden_audio` dependency and never selects
 CPAL features.
 
+## Phase 6 implementation
+
+The backend-neutral clock and recovery layer now provides:
+
+- a bounded interleaved input ring with whole-callback admission, explicit overflow and disconnect
+  results, timestamp-loss and discontinuity counters, and atomically sampled observations;
+- a preallocated Rubato asynchronous polynomial resampler using `process_into_buffer`, with the
+  configured engine rate kept stable while device rates change;
+- a bounded proportional-integral drift controller with configurable target fill, gains, integral
+  clamp, and correction limit;
+- input latency estimates that combine observed ring fill, resampler delay, and configured output
+  buffering without querying devices from the render path;
+- a deadline-based null-clock driver with bounded catch-up;
+- one render-clock coordinator that admits exactly one authoritative null or output source, ignores
+  non-authoritative callbacks, advances a single monotonic sample timeline, and emits sample-accurate
+  handoff gains;
+- prepare/prime-compatible output replacement with fade-down, block-boundary authority switch,
+  fade-up, and explicit retired-stream accounting; and
+- immediate promotion of an already primed replacement if the old output disappears during handoff.
+
+Device-rate reconfiguration is a control-thread operation: it rebuilds and preallocates the
+resampler, flushes samples from the old clock domain, resets drift history, records a
+discontinuity, and leaves the engine sample rate and timeline unchanged. Output loss immediately
+moves authority to the null clock unless a primed replacement is ready, so active playback state
+does not retrigger.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -356,6 +382,16 @@ CPAL features.
 | Windows ASIO compile/runtime | NOT RUN - local LLVM/Clang and verified SDK archive identity are absent; CI job owns the compile gate |
 | macOS CoreAudio/JACK qualification | NOT RUN - no exact-commit remote result yet |
 | Linux ALSA/JACK/native-PipeWire/realtime-DBus qualification | NOT RUN - no exact-commit remote result yet |
+| `cargo test -p golden_audio --no-default-features` after Phase 6 | PASS - 74 tests (68 unit, 6 integration), 0 failed |
+| Phase 6 input callback allocation guard | PASS - 100 warmed Rubato/ring write-read blocks, 0 allocations, 0 deallocations, 0 bytes |
+| Phase 6 drift simulations | PASS - stable convergence from -1,000 through +1,000 ppm without tail oscillation |
+| Phase 6 discontinuity qualification | PASS - underflow, overflow, timestamp loss, discontinuity, and abrupt 48 to 44.1 kHz change remain bounded and observable |
+| Phase 6 clock handoff qualification | PASS - output loss to null, reconnect, primed replacement, loss during handoff, and 10,000 switches preserve one monotonic timeline |
+| Phase 6 mock soak | PASS - one simulated hour at 48 kHz/128 frames with 10,000-block loss/reconnect cadence and exact frame growth |
+| Phase 6 no-default/default checks and warning-free Clippy | PASS |
+| Phase 6 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
+| Root and Golden Core formatting plus `--check` after Phase 6 | PASS |
+| Phase 6 real backend 30-minute drift/reconnect soaks | NOT RUN - exact-commit hardware/backend qualification remains a Phase 14 gate |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
@@ -442,8 +478,19 @@ Phase 5:
 - `docs/architecture/golden-audio.md`
 - `docs/reference/toolchain.md`
 
+Phase 6:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `crates/golden_audio/Cargo.toml`
+- `crates/golden_audio/src/lib.rs`
+- `crates/golden_audio/src/clock/`
+- `crates/golden_audio/tests/clock_contract.rs`
+- `docs/architecture/golden-audio.md`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 6-15 remain. The immediate next gate is explicit input/output clock-domain bridging,
-software null-clock continuity, two-phase authority switching, and recovery without playback
-retrigger.
+Phases 7-15 remain. The immediate next gate is bounded asynchronous file playback with private
+Symphonia decoding, resident and streamed asset ownership, cancellation generations, and no file
+I/O or decode work on callback or engine-loop threads.

@@ -92,6 +92,19 @@ Clock switching is two phase: prepare and prime the replacement, switch at an en
 then retire the old stream away from the callback. Playback advances on the null clock, so output
 loss and recovery never retrigger a voice.
 
+The implemented input bridge owns a bounded SPSC sample ring, an asynchronous Rubato resampler with
+preallocated input/output storage, and a bounded PI drift controller. The input callback only
+validates and copies a complete interleaved callback block. The render side adjusts the resampling
+ratio from ring fill, emits silence on starvation, and publishes coalesced fill, drift, latency,
+underflow, overflow, timestamp-loss, and discontinuity observations. A device-rate change rebuilds
+the resampler and flushes the old clock domain on the control thread; it never changes engine time.
+
+`RenderClockCoordinator` is the single authority gate. Non-authoritative callbacks cannot advance
+the timeline. A ready replacement fades the old output down, becomes authoritative on a block
+boundary, fades up, and makes the old generation eligible for control-thread retirement. If the old
+stream fails during handoff, a primed replacement is promoted immediately; otherwise the
+deadline-driven null clock takes authority without resetting the sample counter.
+
 ## Hard real-time contract
 
 The render and input callbacks must not:

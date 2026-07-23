@@ -6,6 +6,7 @@
 //! Native backend and application-domain types are intentionally excluded from the public API.
 
 pub mod backend;
+pub mod clock;
 pub mod config;
 #[cfg(feature = "codegen")]
 pub mod contract;
@@ -24,6 +25,11 @@ pub use backend::{
 };
 #[cfg(feature = "desktop")]
 pub use backend::{compiled_cpal_backends, probe_cpal_backends};
+pub use clock::{
+    ClockAuthority, ClockBlock, ClockBridgeConfig, ClockBridgeObservation, ClockHandoffPhase, ClockSource,
+    DriftController, DriftControllerConfig, InputClockReader, InputClockWriter, InputReadError, InputReadResult,
+    InputWriteError, InputWriteResult, NullClockDriver, RenderClockCoordinator, input_clock_bridge,
+};
 pub use config::{
     AnalysisTapConfiguration, AudioConfiguration, AudioEngineConfig, DirectionConfiguration, GainDb, InputPatchRoute,
     MonitorRoute, OutputPatchRoute, PlaybackRoute, VirtualInputChannel, VirtualOutputChannel,

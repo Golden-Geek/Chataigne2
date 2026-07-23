@@ -21,6 +21,7 @@ codegen = ["dep:ts-rs"]
 [dependencies]
 cpal = { workspace = true, optional = true }
 rtrb.workspace = true
+rubato.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 ts-rs = { workspace = true, optional = true }
