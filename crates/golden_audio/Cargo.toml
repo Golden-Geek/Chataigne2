@@ -8,8 +8,9 @@ repository.workspace = true
 description = "Application-agnostic real-time audio engine and device foundation for Golden applications"
 
 [features]
-default = ["desktop"]
+default = ["desktop", "playback"]
 desktop = ["dep:cpal"]
+playback = ["dep:symphonia"]
 asio = ["desktop", "cpal/asio"]
 jack = ["desktop", "cpal/jack"]
 native-pipewire = ["desktop", "cpal/pipewire"]
@@ -23,14 +24,17 @@ cpal = { workspace = true, optional = true }
 rtrb.workspace = true
 rubato.workspace = true
 serde.workspace = true
+symphonia = { workspace = true, optional = true }
 thiserror.workspace = true
 ts-rs = { workspace = true, optional = true }
 uuid.workspace = true
 
 [dev-dependencies]
 allocation-counter.workspace = true
+base64.workspace = true
 criterion.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 
 [[bin]]
 name = "generate_golden_audio_contract"
@@ -54,3 +58,8 @@ harness = false
 [[bench]]
 name = "routing"
 harness = false
+
+[[bench]]
+name = "playback"
+harness = false
+required-features = ["playback"]

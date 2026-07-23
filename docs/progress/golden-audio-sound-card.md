@@ -26,10 +26,10 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 6 - clock-domain bridging and seamless recovery.
+- Current phase: Phase 7 - file playback and voice lifecycle.
 - Status: implementation and backend-neutral qualification complete; checkpoint pending.
-- Last checkpoint: `63af125` (`feat(audio): integrate native desktop audio hosts`).
-- Next step: add asynchronous playback, decoding, cache ownership, and streaming workers.
+- Last checkpoint: `740c306b` (`feat(audio): add clock-domain bridging and seamless recovery`).
+- Next step: add realtime-safe RMS, pitch, spectrum, and observation transport.
 
 ## Decisions
 
@@ -63,6 +63,7 @@ qualify are:
 | Control commands | 4,096 |
 | Events | 4,096 |
 | Stream/read-ahead frames | 65,536 per stream |
+| Decoder workers | 2 |
 | Gain dezipper | 10 ms, configurable from 5–20 ms |
 | Observation rate | 30 Hz, configurable through 60 Hz |
 
@@ -116,7 +117,7 @@ Decision:
 | macOS microphone permission and signing | Add usage description/entitlements and test denied/allowed signed package | NOT RUN |
 | Final render-plan destruction on callback | One-pending-plan acknowledged exchange plus retained retired-plan slot; allocation/deallocation guard | Open |
 | Independent input/output clock drift | Bounded ring, adaptive ASRC, PI controller, discontinuity fade, drift/bridge observations | Mitigated; backend-neutral qualification PASS |
-| Decoder completion after stop/replacement | Monotonic command sequence and cancellation generation watermarks; stale worker results discarded off callback | Open |
+| Decoder completion after stop/replacement | Monotonic command sequence and cancellation generation watermarks; stale worker results discarded off callback | Mitigated; deterministic ordering suite PASS |
 | Large meter/matrix/spectrum UI | Packed latest-only telemetry, Canvas, viewport virtualization, bounded refresh, teardown tests | Open |
 | Legacy unmapped gitlinks | Do not use or modify them; record pre-existing tooling failure | Open, unrelated |
 
@@ -155,6 +156,13 @@ local implementation baseline; they are not cross-platform or device deadline cl
 | `baf373c` + Phase 2 working tree | Routing: 1,024 routes | median 60.218 µs |
 | `baf373c` + Phase 2 working tree | Routing: 4,096 routes | median 208.83 µs |
 | `baf373c` + Phase 2 working tree | Routing: 16,384 routes | median 694.98 µs |
+| `740c306b` + Phase 7 working tree | Playback: 1 resident voice, 128 frames | median 0.251 µs per callback |
+| `740c306b` + Phase 7 working tree | Playback: 16 resident voices, 128 frames | median 3.987 µs per callback |
+| `740c306b` + Phase 7 working tree | Playback: 64 resident voices, 128 frames | median 15.974 µs per callback |
+| `740c306b` + Phase 7 working tree | Playback: 128 resident voices, 128 frames | median 31.487 µs per callback |
+| `740c306b` + Phase 7 working tree | Playback: 256 resident voices, 128 frames | median 64.486 µs per callback |
+| `740c306b` + Phase 7 working tree | Playback: 8 resident plus 8 streamed voices, 128 frames | median 3.591 µs per callback |
+| `740c306b` + Phase 7 working tree | Decode: one-second stereo WAV at 48 kHz | median 154.07 µs |
 
 The warmed render allocation guard observed zero allocations, zero deallocations, and zero net
 bytes. Phase 14 still owns the full reference workload, queue-pressure, memory, soak, and callback
@@ -307,6 +315,32 @@ discontinuity, and leaves the engine sample rate and timeline unchanged. Output 
 moves authority to the null clock unless a primed replacement is ready, so active playback state
 does not retrigger.
 
+## Phase 7 implementation
+
+The playback layer now provides:
+
+- one Rust-owned format registry for WAV, AIFF, CAF, FLAC, MP3, MP4/M4A, Ogg, Matroska, and WebM
+  families, with the same extension union emitted by TypeScript code generation;
+- private Symphonia probe/decode sessions with structured corrupt, truncated, unsupported, and
+  cancellation errors, plus worker-side conversion to the configured engine rate;
+- a fixed decoder-worker pool with bounded request/result queues, per-ID and stop-all cancellation
+  watermarks, and stale-result rejection for same-ID replacement;
+- immutable planar resident assets and an off-realtime cache with fingerprint invalidation, exact
+  byte accounting, threshold and total-budget enforcement, deterministic eviction, and active
+  `Arc` safety;
+- bounded streaming read-ahead rings that are primed before activation, recover from starvation,
+  and share cancellation and terminal status with decoder workers;
+- fixed generational voice slots with explicit mono, stereo, and multichannel routing, preallocated
+  stream scratch, sample-accurate start/stop ramps, and control-thread reclamation;
+- public engine integration that orders play, replacement, stop, and stop-all with the existing
+  command sequence while publishing lifecycle events only for the surviving generation; and
+- sustained playback and decoder benchmarks whose setup and teardown are outside measured callback
+  time.
+
+The render path never probes, opens, reads, decodes, resamples, mutates the cache, allocates, or
+drops the final asset reference. Output loss leaves the same voice playhead advancing under the
+authoritative null clock; restoring output does not enqueue or restart playback.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -392,6 +426,18 @@ does not retrigger.
 | Phase 6 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
 | Root and Golden Core formatting plus `--check` after Phase 6 | PASS |
 | Phase 6 real backend 30-minute drift/reconnect soaks | NOT RUN - exact-commit hardware/backend qualification remains a Phase 14 gate |
+| `cargo test -p golden_audio --no-default-features` after Phase 7 | PASS - 87 tests (81 unit, 6 integration), 0 failed |
+| `cargo test -p golden_audio` after Phase 7 | PASS - 102 tests (93 unit, 9 integration), 0 failed |
+| Phase 7 real-format fixtures | PASS - every advertised extension maps to and decodes an actual WAV, AIFF, CAF, FLAC, MP3, MP4/M4A, Ogg, Matroska, or WebM fixture |
+| Phase 7 ordering and cancellation | PASS - pending and active same-ID replacement, pending stop, stop-all, rapid play/stop, and stale worker results |
+| Phase 7 cache and streaming | PASS - cache hit, fingerprint invalidation, eviction, budget enforcement, bounded read-ahead, starvation, and recovery |
+| Phase 7 callback ownership | PASS - resident rendering allocates and deallocates nothing; final asset and queued activation ownership return to control |
+| Phase 7 TypeScript generation | PASS - 27 generated files, extension metadata emitted, and no missing index export target |
+| Phase 7 sustained quick benchmarks | PASS - 1/16/64/128/256 resident voices, mixed resident/streamed voices, and decoder throughput recorded above |
+| Phase 7 no-default/default warning-free Clippy and playback benchmark compile | PASS |
+| Phase 7 core-only dependency tree | PASS - Symphonia absent with `--no-default-features` and private in the default build |
+| Phase 7 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
+| Phase 7 `cargo machete` | FAIL - the same six pre-existing unused dependencies remain in `Chataigne2`; none belong to `golden_audio` |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
@@ -489,8 +535,24 @@ Phase 6:
 - `docs/architecture/golden-audio.md`
 - `docs/progress/golden-audio-sound-card.md`
 
+Phase 7:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `crates/golden_audio/Cargo.toml`
+- `crates/golden_audio/README.md`
+- `crates/golden_audio/src/contract.rs`
+- `crates/golden_audio/src/control/engine.rs`
+- `crates/golden_audio/src/lib.rs`
+- `crates/golden_audio/src/limits.rs`
+- `crates/golden_audio/src/playback/`
+- `crates/golden_audio/src/realtime/ownership.rs`
+- `crates/golden_audio/tests/playback_ordering.rs`
+- `crates/golden_audio/benches/playback.rs`
+- `docs/architecture/golden-audio.md`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 7-15 remain. The immediate next gate is bounded asynchronous file playback with private
-Symphonia decoding, resident and streamed asset ownership, cancellation generations, and no file
-I/O or decode work on callback or engine-loop threads.
+Phases 8-15 remain. The immediate next gate is realtime-safe RMS/peak accumulation, bounded analysis
+frame scheduling, pitch and spectrum workers, and topology-generation-safe observation snapshots.

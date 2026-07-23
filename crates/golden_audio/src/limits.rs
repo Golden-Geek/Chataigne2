@@ -73,6 +73,7 @@ pub struct EngineLimits {
     pub command_queue_capacity: usize,
     pub event_queue_capacity: usize,
     pub stream_ring_frames: u32,
+    pub decoder_worker_count: u16,
 }
 
 impl EngineLimits {
@@ -90,6 +91,7 @@ impl EngineLimits {
             ("command_queue_capacity", self.command_queue_capacity as u64),
             ("event_queue_capacity", self.event_queue_capacity as u64),
             ("stream_ring_frames", u64::from(self.stream_ring_frames)),
+            ("decoder_worker_count", u64::from(self.decoder_worker_count)),
         ];
         if let Some((name, _)) = required_nonzero.into_iter().find(|(_, value)| *value == 0) {
             return Err(AudioError::invalid_configuration(format!(
@@ -125,6 +127,7 @@ impl Default for EngineLimits {
             command_queue_capacity: 4_096,
             event_queue_capacity: 4_096,
             stream_ring_frames: 65_536,
+            decoder_worker_count: 2,
         }
     }
 }

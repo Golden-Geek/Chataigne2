@@ -108,6 +108,23 @@ impl<T> RealtimeVoiceSlots<T> {
         }
     }
 
+    #[must_use]
+    pub fn active_id_at(&self, slot_index: usize) -> Option<VoiceId> {
+        let slot = self.slots.get(slot_index)?;
+        match &slot.state {
+            VoiceSlotState::Active(active) => Some(active.id),
+            VoiceSlotState::Vacant | VoiceSlotState::Retained(_) => None,
+        }
+    }
+
+    pub fn active_mut(&mut self, id: VoiceId) -> Option<&mut T> {
+        let slot = self.slots.get_mut(usize::from(id.slot()))?;
+        match &mut slot.state {
+            VoiceSlotState::Active(active) if active.id == id => Some(active.payload.as_mut()),
+            VoiceSlotState::Vacant | VoiceSlotState::Active(_) | VoiceSlotState::Retained(_) => None,
+        }
+    }
+
     pub fn retire(&mut self, id: VoiceId, reason: VoiceRetirementReason) -> bool {
         let Some(slot) = self.slots.get_mut(usize::from(id.slot())) else {
             return false;

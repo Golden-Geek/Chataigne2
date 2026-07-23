@@ -16,6 +16,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod ids;
 pub mod limits;
+pub mod playback;
 pub mod realtime;
 pub mod render;
 
@@ -55,6 +56,19 @@ pub use ids::{
     ConfigGeneration, InvalidIdentifier, PhysicalChannelKey, PlaybackId, VoiceId,
 };
 pub use limits::{EngineLimits, FrameCount, SampleRate};
+pub use playback::{
+    AssetCache, AudioFileFormat, AudioFileFormatDescriptor, AudioSourceFingerprint, CacheInsertResult,
+    CacheObservation, DefaultPlaybackRoute, PlaybackRenderEvent, PlaybackRenderMetrics, PlaybackRendererRetirement,
+    PlaybackVoice, PlaybackVoiceController, PlaybackVoiceRenderer, PlaybackVoiceSource, ResidentAssetKey,
+    ResidentAudioAsset, StreamPlaybackReader, StreamPlaybackState, StreamPlaybackWriter, StreamWriteError,
+    StreamWriteResult, audio_file_format_for_extension, default_playback_routes, playback_voice_pool,
+    streaming_playback_ring, supported_audio_extensions, supported_audio_formats,
+};
+#[cfg(feature = "playback")]
+pub use playback::{
+    AudioFileProbe, PlaybackPreparation, PlaybackPreparationFailure, PlaybackPreparationResult, PlaybackScheduler,
+    PlaybackSchedulerConfig, PlaybackSchedulerRequest, decode_audio_file, probe_audio_file,
+};
 pub use realtime::{
     AnalysisCaptureError, AnalysisFrame, AnalysisFrameReader, AnalysisFrameWriter, AnalysisRecycleError,
     AnalysisWriterRetirement, GainMailboxTarget, OrderedRealtimeControlReader, OrderedRealtimeControlWriter,

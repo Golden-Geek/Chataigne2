@@ -69,10 +69,29 @@ ts-rs = { version = "12", features = ["serde-json-impl", "uuid-impl"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 arc-swap = "1"
 allocation-counter = "0.8.1"
+base64 = "0.22.1"
 criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
 cpal = { version = "0.18.1", default-features = false }
 rtrb = "0.3.4"
 rubato = { version = "4.0.0", default-features = false }
+symphonia = { version = "0.6.0", default-features = false, features = [
+    "aac",
+    "adpcm",
+    "aiff",
+    "alac",
+    "caf",
+    "flac",
+    "id3v1",
+    "id3v2",
+    "isomp4",
+    "mkv",
+    "mp3",
+    "ogg",
+    "opt-simd",
+    "pcm",
+    "vorbis",
+    "wav",
+] }
 
 [[workspace.metadata.docs.rs]]
 all-features = true

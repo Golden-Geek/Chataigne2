@@ -16,6 +16,13 @@ use crate::{
     AudioQueueKind, BackendPolicy, CommandSequence, ConfigGeneration, EngineLimits, NullBackend, QueuePressureCounters,
     QueuePressureEvent, RenderCompileContext, RenderPlanCompiler,
 };
+#[cfg(feature = "playback")]
+use crate::{
+    PlaybackFailure, PlaybackInfo, PlaybackPreparation, PlaybackPreparationResult, PlaybackRenderEvent,
+    PlaybackScheduler, PlaybackSchedulerConfig, PlaybackSchedulerRequest, PlaybackStopInfo, PlaybackStopReason,
+    PlaybackVoice, PlaybackVoiceController, PlaybackVoiceRenderer, PlaybackVoiceSource, default_playback_routes,
+    playback_voice_pool,
+};
 
 use super::ingress::{CommandEnvelope, CommandQueueProducer, command_queue};
 
@@ -128,6 +135,15 @@ impl AudioEngineBuilder {
         self.config.validate()?;
         self.limits.validate()?;
         validate_backends(&self.backends, &self.backend_policy)?;
+        #[cfg(feature = "playback")]
+        let (playback_voice_controller, playback_renderer) = playback_voice_pool(
+            self.limits.max_voices,
+            self.limits.max_virtual_outputs,
+            self.config.internal_block_frames.get() as usize,
+        )?;
+        #[cfg(feature = "playback")]
+        let playback_scheduler =
+            PlaybackScheduler::new(PlaybackSchedulerConfig::from_engine(&self.config, &self.limits))?;
 
         let pressure = QueuePressureCounters::default();
         let (command_sender, command_receiver, worker_thread) =
@@ -168,6 +184,10 @@ impl AudioEngineBuilder {
                         limits,
                         backends,
                         pressure,
+                        #[cfg(feature = "playback")]
+                        playback_scheduler,
+                        #[cfg(feature = "playback")]
+                        playback_voice_controller,
                     },
                 );
             })
@@ -186,6 +206,8 @@ impl AudioEngineBuilder {
                 receiver: event_receiver,
             }),
             observations,
+            #[cfg(feature = "playback")]
+            playback_renderer: Some(playback_renderer),
         })
     }
 }
@@ -197,6 +219,8 @@ pub struct AudioEngine {
     worker: Option<JoinHandle<()>>,
     events: Option<AudioEventReceiver>,
     observations: AudioObservationReader,
+    #[cfg(feature = "playback")]
+    playback_renderer: Option<PlaybackVoiceRenderer>,
 }
 
 impl AudioEngine {
@@ -212,6 +236,11 @@ impl AudioEngine {
 
     pub fn take_event_receiver(&mut self) -> Option<AudioEventReceiver> {
         self.events.take()
+    }
+
+    #[cfg(feature = "playback")]
+    pub fn take_playback_renderer(&mut self) -> Option<PlaybackVoiceRenderer> {
+        self.playback_renderer.take()
     }
 
     pub fn shutdown(&mut self) -> Result<(), AudioError> {
@@ -233,6 +262,10 @@ impl AudioEngine {
                     "audio control worker panicked during shutdown",
                 )
             })?;
+        }
+        #[cfg(feature = "playback")]
+        if let Some(renderer) = self.playback_renderer.take() {
+            renderer.into_retirement().reclaim();
         }
         self.control.state.store(STATE_STOPPED, Ordering::Release);
         Ok(())
@@ -288,6 +321,10 @@ struct ControlWorker {
     limits: EngineLimits,
     backends: Vec<Arc<dyn AudioBackend>>,
     pressure: QueuePressureCounters,
+    #[cfg(feature = "playback")]
+    playback_scheduler: PlaybackScheduler,
+    #[cfg(feature = "playback")]
+    playback_voice_controller: PlaybackVoiceController,
 }
 
 fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: ControlWorker) {
@@ -299,10 +336,26 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
         limits,
         backends,
         pressure,
+        #[cfg(feature = "playback")]
+        mut playback_scheduler,
+        #[cfg(feature = "playback")]
+        mut playback_voice_controller,
     } = worker;
     publish_backend_inventory(&event_sender, &observation, backends.as_slice());
     let mut reported_command_pressure = 0;
+    #[cfg(feature = "playback")]
+    let mut playback_lifecycle = std::collections::HashMap::new();
     loop {
+        #[cfg(feature = "playback")]
+        drain_playback_work(
+            &event_sender,
+            &observation,
+            &engine_config,
+            &limits,
+            &mut playback_scheduler,
+            &mut playback_voice_controller,
+            &mut playback_lifecycle,
+        );
         let Ok(envelope) = command_receiver.pop() else {
             report_command_pressure(
                 &event_sender,
@@ -311,7 +364,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                 limits.command_queue_capacity,
                 &mut reported_command_pressure,
             );
-            thread::park_timeout(Duration::from_millis(250));
+            thread::park_timeout(Duration::from_millis(if cfg!(feature = "playback") { 5 } else { 250 }));
             continue;
         };
         let _sequence = envelope.sequence;
@@ -326,23 +379,72 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                     *config,
                 );
             }
-            AudioCommand::SetEnabled(enabled) => update_observation(&observation, |snapshot| {
-                snapshot.enabled = enabled;
-            }),
-            AudioCommand::SetMasterGain { .. }
-            | AudioCommand::SetChannelGain { .. }
-            | AudioCommand::StopFile { .. }
-            | AudioCommand::StopAllFiles => {}
-            AudioCommand::PlayFile(request) => {
-                let event = AudioEvent::PlaybackFailed(crate::PlaybackFailure {
-                    playback_id: request.playback_id,
-                    path: request.path,
-                    error: AudioError::new(
-                        AudioErrorCategory::DecodeFailed,
-                        "file playback is not enabled in the backend-independent foundation",
-                    ),
+            AudioCommand::SetEnabled(enabled) => {
+                #[cfg(feature = "playback")]
+                if !enabled {
+                    stop_all_playback(
+                        &event_sender,
+                        &observation,
+                        &mut playback_scheduler,
+                        &mut playback_voice_controller,
+                        &mut playback_lifecycle,
+                        PlaybackStopReason::ModuleDisabled,
+                    );
+                }
+                update_observation(&observation, |snapshot| {
+                    snapshot.enabled = enabled;
                 });
-                publish_event(&event_sender, &observation, event);
+            }
+            AudioCommand::SetMasterGain { .. } | AudioCommand::SetChannelGain { .. } => {}
+            AudioCommand::StopFile {
+                playback_id: _playback_id,
+            } => {
+                #[cfg(feature = "playback")]
+                stop_playback(
+                    &event_sender,
+                    &observation,
+                    &mut playback_scheduler,
+                    &mut playback_voice_controller,
+                    &mut playback_lifecycle,
+                    &_playback_id,
+                    PlaybackStopReason::Requested,
+                );
+            }
+            AudioCommand::StopAllFiles => {
+                #[cfg(feature = "playback")]
+                stop_all_playback(
+                    &event_sender,
+                    &observation,
+                    &mut playback_scheduler,
+                    &mut playback_voice_controller,
+                    &mut playback_lifecycle,
+                    PlaybackStopReason::StopAll,
+                );
+            }
+            AudioCommand::PlayFile(request) => {
+                #[cfg(feature = "playback")]
+                schedule_playback(
+                    &event_sender,
+                    &observation,
+                    &mut playback_scheduler,
+                    &mut playback_voice_controller,
+                    &mut playback_lifecycle,
+                    _sequence,
+                    request,
+                );
+                #[cfg(not(feature = "playback"))]
+                publish_event(
+                    &event_sender,
+                    &observation,
+                    AudioEvent::PlaybackFailed(crate::PlaybackFailure {
+                        playback_id: request.playback_id,
+                        path: request.path,
+                        error: AudioError::new(
+                            AudioErrorCategory::DecodeFailed,
+                            "file playback support is not compiled into this build",
+                        ),
+                    }),
+                );
             }
             AudioCommand::Shutdown => break,
         }
@@ -356,6 +458,320 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
     }
     publish_event(&event_sender, &observation, AudioEvent::ShutdownComplete);
     state.store(STATE_STOPPED, Ordering::Release);
+}
+
+#[cfg(feature = "playback")]
+#[derive(Clone, Debug)]
+enum PlaybackLifecycle {
+    Pending {
+        sequence: CommandSequence,
+    },
+    Playing {
+        sequence: CommandSequence,
+        info: PlaybackInfo,
+    },
+}
+
+#[cfg(feature = "playback")]
+fn schedule_playback(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    scheduler: &mut PlaybackScheduler,
+    voices: &mut PlaybackVoiceController,
+    lifecycle: &mut std::collections::HashMap<crate::PlaybackId, PlaybackLifecycle>,
+    sequence: CommandSequence,
+    request: crate::PlayFileRequest,
+) {
+    if lifecycle.contains_key(&request.playback_id) {
+        stop_playback(
+            event_sender,
+            observation,
+            scheduler,
+            voices,
+            lifecycle,
+            &request.playback_id,
+            PlaybackStopReason::Replaced,
+        );
+    }
+    let playback_id = request.playback_id.clone();
+    let path = request.path.clone();
+    match scheduler.try_schedule(PlaybackSchedulerRequest {
+        sequence,
+        request: request.clone(),
+    }) {
+        Ok(()) => {
+            lifecycle.insert(playback_id, PlaybackLifecycle::Pending { sequence });
+        }
+        Err(error) => publish_event(
+            event_sender,
+            observation,
+            AudioEvent::PlaybackFailed(PlaybackFailure {
+                playback_id,
+                path,
+                error,
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "playback")]
+fn stop_playback(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    scheduler: &mut PlaybackScheduler,
+    voices: &mut PlaybackVoiceController,
+    lifecycle: &mut std::collections::HashMap<crate::PlaybackId, PlaybackLifecycle>,
+    playback_id: &crate::PlaybackId,
+    reason: PlaybackStopReason,
+) {
+    let Some(current) = lifecycle.remove(playback_id) else {
+        return;
+    };
+    match current {
+        PlaybackLifecycle::Pending { .. } => {
+            scheduler.stop(playback_id);
+            publish_event(
+                event_sender,
+                observation,
+                AudioEvent::PlaybackStopped(PlaybackStopInfo {
+                    playback_id: playback_id.clone(),
+                    voice: None,
+                    reason,
+                }),
+            );
+        }
+        PlaybackLifecycle::Playing { sequence, info } => {
+            if let Err(error) = voices.try_stop(info.voice, reason) {
+                lifecycle.insert(
+                    playback_id.clone(),
+                    PlaybackLifecycle::Playing {
+                        sequence,
+                        info: info.clone(),
+                    },
+                );
+                publish_event(
+                    event_sender,
+                    observation,
+                    AudioEvent::PlaybackFailed(PlaybackFailure {
+                        playback_id: playback_id.clone(),
+                        path: info.path,
+                        error,
+                    }),
+                );
+                return;
+            }
+            scheduler.stop(playback_id);
+        }
+    }
+}
+
+#[cfg(feature = "playback")]
+fn stop_all_playback(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    scheduler: &mut PlaybackScheduler,
+    voices: &mut PlaybackVoiceController,
+    lifecycle: &mut std::collections::HashMap<crate::PlaybackId, PlaybackLifecycle>,
+    reason: PlaybackStopReason,
+) {
+    let render_stop = voices.try_stop_all(reason);
+    if render_stop.is_ok() {
+        scheduler.stop_all();
+    }
+    let stopped = std::mem::take(lifecycle);
+    let mut still_playing = std::collections::HashMap::new();
+    for (playback_id, current) in stopped {
+        match current {
+            PlaybackLifecycle::Pending { .. } => {
+                scheduler.stop(&playback_id);
+                publish_event(
+                    event_sender,
+                    observation,
+                    AudioEvent::PlaybackStopped(PlaybackStopInfo {
+                        playback_id,
+                        voice: None,
+                        reason,
+                    }),
+                );
+            }
+            PlaybackLifecycle::Playing { sequence, info } => {
+                if let Err(error) = &render_stop {
+                    publish_event(
+                        event_sender,
+                        observation,
+                        AudioEvent::PlaybackFailed(PlaybackFailure {
+                            playback_id: playback_id.clone(),
+                            path: info.path.clone(),
+                            error: error.clone(),
+                        }),
+                    );
+                    still_playing.insert(playback_id, PlaybackLifecycle::Playing { sequence, info });
+                }
+            }
+        }
+    }
+    lifecycle.extend(still_playing);
+}
+
+#[cfg(feature = "playback")]
+fn drain_playback_work(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    engine_config: &AudioEngineConfig,
+    limits: &EngineLimits,
+    scheduler: &mut PlaybackScheduler,
+    voices: &mut PlaybackVoiceController,
+    lifecycle: &mut std::collections::HashMap<crate::PlaybackId, PlaybackLifecycle>,
+) {
+    let mut retired = Vec::new();
+    voices.reclaim(|event| retired.push(event));
+    for event in retired {
+        publish_render_event(event_sender, observation, scheduler, lifecycle, event);
+    }
+    while let Some(result) = scheduler.try_recv() {
+        let sequence = result.sequence();
+        let playback_id = result.playback_id().clone();
+        let is_current = lifecycle.get(&playback_id).is_some_and(
+            |state| matches!(state, PlaybackLifecycle::Pending { sequence: active, .. } if *active == sequence),
+        );
+        if !is_current {
+            continue;
+        }
+        match result {
+            PlaybackPreparationResult::Failed(failure) => {
+                lifecycle.remove(&failure.playback_id);
+                publish_event(
+                    event_sender,
+                    observation,
+                    AudioEvent::PlaybackFailed(PlaybackFailure {
+                        playback_id: failure.playback_id,
+                        path: failure.path,
+                        error: failure.error,
+                    }),
+                );
+            }
+            PlaybackPreparationResult::Prepared {
+                sequence,
+                request,
+                preparation,
+            } => {
+                let (channels, source) = match preparation {
+                    PlaybackPreparation::Resident(asset) => (asset.channels(), PlaybackVoiceSource::Resident(asset)),
+                    PlaybackPreparation::Stream { probe, reader } => {
+                        let channels = probe.channels;
+                        let scratch_len =
+                            usize::from(channels).saturating_mul(engine_config.internal_block_frames.get() as usize);
+                        (
+                            channels,
+                            PlaybackVoiceSource::Stream {
+                                reader,
+                                channels,
+                                scratch: vec![0.0; scratch_len].into_boxed_slice(),
+                            },
+                        )
+                    }
+                };
+                let routes = default_playback_routes(channels, limits.max_virtual_outputs);
+                let ramp_frames = (f64::from(engine_config.sample_rate.get()) * f64::from(engine_config.gain_ramp_ms)
+                    / 1_000.0)
+                    .round()
+                    .max(1.0) as u32;
+                let voice = PlaybackVoice::new(
+                    request.playback_id.clone(),
+                    request.path.clone(),
+                    source,
+                    request.gain,
+                    routes,
+                    ramp_frames,
+                    engine_config.internal_block_frames.get() as usize,
+                );
+                let admitted = voice.and_then(|voice| voices.try_activate(voice));
+                match admitted {
+                    Ok(voice) => {
+                        let info = PlaybackInfo {
+                            playback_id: request.playback_id.clone(),
+                            path: request.path,
+                            voice,
+                        };
+                        lifecycle.insert(
+                            request.playback_id,
+                            PlaybackLifecycle::Playing {
+                                sequence,
+                                info: info.clone(),
+                            },
+                        );
+                        publish_event(event_sender, observation, AudioEvent::PlaybackStarted(info));
+                    }
+                    Err(error) => {
+                        scheduler.complete(&request.playback_id, sequence);
+                        lifecycle.remove(&request.playback_id);
+                        publish_event(
+                            event_sender,
+                            observation,
+                            AudioEvent::PlaybackFailed(PlaybackFailure {
+                                playback_id: request.playback_id,
+                                path: request.path,
+                                error,
+                            }),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "playback")]
+fn publish_render_event(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    scheduler: &mut PlaybackScheduler,
+    lifecycle: &mut std::collections::HashMap<crate::PlaybackId, PlaybackLifecycle>,
+    event: PlaybackRenderEvent,
+) {
+    let (playback_id, voice) = match &event {
+        PlaybackRenderEvent::Finished { playback_id, voice, .. }
+        | PlaybackRenderEvent::Stopped { playback_id, voice, .. }
+        | PlaybackRenderEvent::Failed { playback_id, voice, .. } => (playback_id.clone(), *voice),
+    };
+    if let Some(PlaybackLifecycle::Playing { sequence, info }) = lifecycle.get(&playback_id)
+        && info.voice == voice
+    {
+        let sequence = *sequence;
+        lifecycle.remove(&playback_id);
+        scheduler.complete(&playback_id, sequence);
+    }
+    let audio_event = match event {
+        PlaybackRenderEvent::Finished {
+            playback_id,
+            path,
+            voice,
+            ..
+        } => AudioEvent::PlaybackFinished(PlaybackInfo {
+            playback_id,
+            path,
+            voice,
+        }),
+        PlaybackRenderEvent::Stopped {
+            playback_id,
+            voice,
+            reason,
+            ..
+        } => AudioEvent::PlaybackStopped(PlaybackStopInfo {
+            playback_id,
+            voice: Some(voice),
+            reason,
+        }),
+        PlaybackRenderEvent::Failed { playback_id, path, .. } => AudioEvent::PlaybackFailed(PlaybackFailure {
+            playback_id,
+            path,
+            error: AudioError::new(
+                AudioErrorCategory::DecodeFailed,
+                "streamed playback decoder failed after the voice started",
+            ),
+        }),
+    };
+    publish_event(event_sender, observation, audio_event);
 }
 
 fn apply_configuration(

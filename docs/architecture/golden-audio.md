@@ -105,6 +105,34 @@ boundary, fades up, and makes the old generation eligible for control-thread ret
 stream fails during handoff, a primed replacement is promoted immediately; otherwise the
 deadline-driven null clock takes authority without resetting the sample counter.
 
+## Playback boundary
+
+File playback is a three-stage ownership pipeline:
+
+1. The control worker orders play, stop, stop-all, gain, and configuration commands and assigns a
+   monotonic sequence to each request.
+2. A fixed decoder-worker pool privately uses Symphonia to probe and decode, resamples to the engine
+   rate, maintains the bounded resident cache, and primes bounded stream rings.
+3. The render callback activates prebuilt fixed-slot voices, reads planar resident assets or
+   streaming rings, applies bounded start/stop ramps and explicit routes, and returns completed
+   ownership for control-thread destruction.
+
+Playback-ID cancellation watermarks make a late decoder result stale. Reusing an ID therefore
+replaces its pending or active generation without allowing an older load to start. Stop-all advances
+a global watermark and cancels every pending worker request. Worker and result queues are bounded;
+capacity pressure is a structured failure rather than a new thread or unbounded allocation.
+
+Resident assets are immutable `Arc`-owned planar buffers keyed by canonical path metadata, track,
+and engine sample rate. Cache lookup, insertion, invalidation, and eviction happen only on decoder
+or control threads. Large files use bounded read-ahead and emit silence on starvation without
+blocking the callback. Both source forms advance against the same engine sample timeline, including
+while the null clock owns output, so reconnect never restarts a voice.
+
+The advertised file-extension table is authored once in Rust and emitted into the generated
+TypeScript contract. Symphonia remains an optional private implementation dependency behind the
+default `playback` feature; the backend-neutral voice and stream primitives remain usable without
+default features.
+
 ## Hard real-time contract
 
 The render and input callbacks must not:

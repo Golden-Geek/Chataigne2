@@ -9,8 +9,10 @@ It deliberately has no dependency on Golden Core, Chataigne, Tauri, or a UI fram
 backend, codec, resampler, and DSP dependencies are private implementation details and never appear
 in public signatures.
 
-The default `desktop` feature enables the native operating-system host through the private CPAL
-adapter. The backend-independent null/offline core remains available with no features:
+The default `desktop` and `playback` features enable the native operating-system host through the
+private CPAL adapter and asynchronous file playback through private Symphonia workers. The
+backend-independent null/offline core, render voice pool, and stream ring remain available with no
+features:
 
 ```sh
 cargo test -p golden_audio --no-default-features
@@ -27,6 +29,21 @@ ASIO, JACK, native PipeWire, and real-time DBus integration are exposed through 
 qualification features documented in the
 [toolchain policy](../../docs/reference/toolchain.md#native-audio-prerequisites). Applications
 depend on `golden_audio`; they do not import or configure CPAL directly.
+
+## Playback ownership
+
+`AudioCommand::PlayFile` is ordered with configuration, gain, stop, and stop-all commands. A fixed
+worker pool probes and decodes files, resamples them to the engine rate, and either inserts a small
+immutable asset into the resident cache or primes a bounded streaming ring. The audio callback only
+reads preallocated resident or streamed voice state.
+
+Applications take the `PlaybackVoiceRenderer` once and invoke it from the authoritative render
+callback. Finished and stopped voice ownership is returned to the control thread for destruction.
+Decoder completions carry command generations, so stopping or replacing a playback ID cannot start
+a stale decode.
+
+The supported extension list has one Rust source and is included in the generated TypeScript
+contract. Raw AAC and WMA are intentionally not advertised.
 
 ## Null/offline example
 
