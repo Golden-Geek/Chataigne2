@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AudioBackendState, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceTargetId, AudioDirection, AudioError,
-    AudioStreamStatus, BackendId, SampleRate,
+    AudioSampleFormat, AudioStreamStatus, BackendId, ChannelCountPolicy, SampleFormatPolicy, SampleRate,
+    SampleRatePolicy, StreamNegotiationRequest,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -47,6 +48,17 @@ impl StreamRequest {
             ));
         }
         self.buffer_policy.validate()
+    }
+
+    #[must_use]
+    pub fn negotiation_request(&self) -> StreamNegotiationRequest {
+        StreamNegotiationRequest {
+            direction: self.direction,
+            channels: ChannelCountPolicy::Exact(self.channels),
+            sample_rate: SampleRatePolicy::Exact(self.engine_sample_rate),
+            sample_format: SampleFormatPolicy::Exact(AudioSampleFormat::F32),
+            buffer: self.buffer_policy,
+        }
     }
 }
 

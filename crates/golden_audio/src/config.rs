@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AnalysisTapId, AudioBufferPolicy, AudioChannelId, AudioDeviceTargetId, AudioError, AudioRecoveryPolicy,
+    AnalysisTapId, AudioBufferPolicy, AudioChannelId, AudioDeviceSelection, AudioError, AudioRecoveryPolicy,
     AudioRouteId, EngineLimits, FrameCount, PhysicalChannelKey, SampleRate,
 };
 
@@ -87,7 +87,7 @@ impl Default for AudioEngineConfig {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct DirectionConfiguration {
     pub enabled: bool,
-    pub target: Option<AudioDeviceTargetId>,
+    pub device: Option<AudioDeviceSelection>,
     pub recovery_policy: AudioRecoveryPolicy,
     pub buffer_policy: AudioBufferPolicy,
 }
@@ -97,7 +97,7 @@ impl DirectionConfiguration {
     pub fn disabled() -> Self {
         Self {
             enabled: false,
-            target: None,
+            device: None,
             recovery_policy: AudioRecoveryPolicy::WaitForSelected,
             buffer_policy: AudioBufferPolicy::Automatic,
         }
@@ -105,7 +105,7 @@ impl DirectionConfiguration {
 
     pub fn validate(&self, direction: &'static str) -> Result<(), AudioError> {
         self.buffer_policy.validate()?;
-        if self.enabled && self.target.is_none() {
+        if self.enabled && self.device.is_none() {
             return Err(AudioError::invalid_configuration(format!(
                 "enabled {direction} requires a device target"
             )));

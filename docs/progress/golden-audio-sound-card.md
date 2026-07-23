@@ -26,11 +26,11 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 3 — callback-safe control plane and plan lifecycle.
+- Current phase: Phase 4 — device model, negotiation, and recovery supervisor.
 - Status: complete locally; checkpoint pending.
-- Last checkpoint: `433b941` (`feat(audio): implement deterministic realtime render core`).
-- Next step: implement the complete backend-neutral device model, negotiation scoring, mock device
-  recovery, profile matching, and structured stream state transitions.
+- Last checkpoint: `ba987c2` (`feat(audio): add bounded realtime control and plan exchange`).
+- Next step: add target-specific CPAL host adapters, platform feature wiring, bootstrap checks, and
+  backend probe tooling without leaking native audio dependencies into Chataigne.
 
 ## Decisions
 
@@ -226,6 +226,32 @@ The callback/control ownership boundary now provides:
 The crate still forbids all locally authored unsafe code. Miri/sanitizer coverage was therefore not
 required by the Phase 3 conditional gate.
 
+## Phase 4 implementation
+
+The backend-neutral device layer now provides:
+
+- explicit durable-ID versus fallback-fingerprint identity, last-known labels, deterministic
+  profile keys, and ambiguity reporting that never guesses between duplicate devices;
+- physical-channel descriptors and validated supported stream configuration ranges for each
+  direction, format, channel count, sample-rate range, and buffer range;
+- deterministic negotiation with strict or preference policies for channel count, sample rate,
+  sample format, and buffer size, including structured unsupported-request context;
+- generic serializable device-profile storage keyed independently of device labels or enumeration
+  order;
+- independent input/output supervisor state, explicit missing/busy/permission/unavailable states,
+  deterministic exponential backoff with bounded jitter, and prepare/prime/switch/commit phases;
+- strict selected-device recovery and separately explicit operating-system-default following;
+- descriptor-change detection that re-enters preparation without replacing the active stream
+  before commit;
+- a richer mock backend with ordered connect, disconnect, default-change, format-change,
+  server-restart, and flapping events plus controllable busy and permission failures; and
+- a canonical action-free `AudioDeviceInspectorState` projection with all referenced TypeScript
+  DTOs generated from Rust.
+
+`DirectionConfiguration` now owns an `AudioDeviceSelection` instead of a bare target. This is the
+intentional schema boundary that keeps fallback identity, last-known label, and profile key together
+with the persisted selection.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -275,6 +301,16 @@ required by the Phase 3 conditional gate.
 | Phase 3 codegen-feature check | PASS |
 | Phase 3 `cargo deny check` | PASS — advisories, bans, GPLv3 license policy, and sources |
 | Root and Golden Core formatting plus `--check` after Phase 3 | PASS |
+| `cargo test -p golden_audio --no-default-features` after Phase 4 | PASS — 58 tests (54 unit, 4 integration), 0 failed |
+| Phase 4 stable-ID/fallback tests | PASS — rename/re-enumeration retained identity; unique fallback matched; duplicates reported ambiguous |
+| Phase 4 selection/recovery tests | PASS — strict missing retained selection, follow-default tracked only OS default, input/output remained independent |
+| Phase 4 negotiation tests | PASS — capability enumeration order did not affect selection; unsupported fixed request returned structured `UnsupportedFormat` |
+| Phase 4 mock recovery tests | PASS — connect, disconnect, busy, permission denied, format change, server restart, and flapping |
+| Phase 4 TypeScript generation | PASS — 25 generated files and every `index.ts` export target exists |
+| Phase 4 inspector projection test | PASS — canonical state serializes data only, with no action fields |
+| Phase 4 no-default/all-target check and warning-free Clippy | PASS |
+| Phase 4 `cargo deny check` | PASS — advisories, bans, GPLv3 license policy, and sources |
+| Root and Golden Core formatting plus `--check` after Phase 4 | PASS |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
@@ -329,7 +365,18 @@ Phase 3:
 - `crates/golden_audio/src/tests/engine.rs`
 - `crates/golden_audio/tests/realtime_contract.rs`
 
+Phase 4:
+
+- `crates/golden_audio/src/backend/`
+- `crates/golden_audio/src/config.rs`
+- `crates/golden_audio/src/contract.rs`
+- `crates/golden_audio/src/device/`
+- `crates/golden_audio/src/ids.rs`
+- `crates/golden_audio/src/lib.rs`
+- `crates/golden_audio/src/tests/backend.rs`
+- `crates/golden_audio/tests/device_contract.rs`
+
 ## Remaining work
 
-Phases 4–15 remain. The immediate next gate is deterministic device discovery, format negotiation,
-stable channel identity, profile recovery, and mock device-loss/reconnect behavior.
+Phases 5–15 remain. The immediate next gate is the private CPAL adapter, required host feature
+matrix, toolchain/bootstrap support, clean missing-driver/server behavior, and backend probe.

@@ -1,9 +1,9 @@
 use std::sync::{Arc, RwLock};
 
 use crate::{
-    AudioBackend, AudioBackendState, AudioDeviceDescriptor, AudioDeviceReadiness, AudioError, AudioErrorCategory,
-    AudioPermissionState, AudioSampleFormat, AudioStream, AudioStreamStatus, BackendDescriptor, BackendId,
-    NegotiatedStreamFormat, StreamRequest,
+    AudioBackend, AudioBackendState, AudioDeviceDescriptor, AudioDeviceReadiness, AudioDeviceTargetId, AudioDirection,
+    AudioError, AudioErrorCategory, AudioPermissionState, AudioRecoveryPolicy, AudioStream, AudioStreamStatus,
+    BackendDescriptor, BackendId, DeviceNegotiator, StreamRequest, SupportedStreamConfiguration,
 };
 
 #[derive(Clone, Debug)]
@@ -21,6 +21,29 @@ struct MockBackendState {
     descriptor: BackendDescriptor,
     devices: Vec<AudioDeviceDescriptor>,
     open_error: Option<AudioError>,
+    event_revision: u64,
+    events: Vec<MockBackendEvent>,
+    flapping: bool,
+    flapping_phase: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MockBackendEvent {
+    pub revision: u64,
+    pub kind: MockBackendEventKind,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MockBackendEventKind {
+    Connected(AudioDeviceTargetId),
+    Disconnected(AudioDeviceTargetId),
+    DefaultChanged {
+        direction: AudioDirection,
+        target: AudioDeviceTargetId,
+    },
+    FormatChanged(AudioDeviceTargetId),
+    ServerRestarted,
+    FlappingChanged(bool),
 }
 
 impl MockBackend {
@@ -35,6 +58,10 @@ impl MockBackend {
             },
             devices: Vec::new(),
             open_error: None,
+            event_revision: 0,
+            events: Vec::new(),
+            flapping: false,
+            flapping_phase: false,
         }));
         (
             Self {
@@ -58,6 +85,84 @@ impl MockBackendControl {
     pub fn set_devices(&self, devices: Vec<AudioDeviceDescriptor>) -> Result<(), AudioError> {
         self.write_state()?.devices = devices;
         Ok(())
+    }
+
+    pub fn connect_device(&self, device: AudioDeviceDescriptor) -> Result<(), AudioError> {
+        let mut state = self.write_state()?;
+        let target = device.target.clone();
+        state.devices.retain(|current| current.target != target);
+        state.devices.push(device);
+        push_event(&mut state, MockBackendEventKind::Connected(target));
+        Ok(())
+    }
+
+    pub fn disconnect_device(&self, target: &AudioDeviceTargetId) -> Result<(), AudioError> {
+        let mut state = self.write_state()?;
+        state.devices.retain(|device| &device.target != target);
+        push_event(&mut state, MockBackendEventKind::Disconnected(target.clone()));
+        Ok(())
+    }
+
+    pub fn set_default(&self, direction: AudioDirection, target: &AudioDeviceTargetId) -> Result<(), AudioError> {
+        let mut state = self.write_state()?;
+        if !state.devices.iter().any(|device| &device.target == target) {
+            return Err(AudioError::new(
+                AudioErrorCategory::DeviceMissing,
+                "mock default target is not connected",
+            ));
+        }
+        for device in &mut state.devices {
+            let selected = &device.target == target;
+            match direction {
+                AudioDirection::Input => device.is_system_default_input = selected,
+                AudioDirection::Output => device.is_system_default_output = selected,
+            }
+        }
+        push_event(
+            &mut state,
+            MockBackendEventKind::DefaultChanged {
+                direction,
+                target: target.clone(),
+            },
+        );
+        Ok(())
+    }
+
+    pub fn change_supported_configurations(
+        &self,
+        target: &AudioDeviceTargetId,
+        configurations: Vec<SupportedStreamConfiguration>,
+    ) -> Result<(), AudioError> {
+        let mut state = self.write_state()?;
+        let Some(device) = state.devices.iter_mut().find(|device| &device.target == target) else {
+            return Err(AudioError::new(
+                AudioErrorCategory::DeviceMissing,
+                "mock format-change target is not connected",
+            ));
+        };
+        device.supported_configurations = configurations;
+        push_event(&mut state, MockBackendEventKind::FormatChanged(target.clone()));
+        Ok(())
+    }
+
+    pub fn restart_server(&self) -> Result<(), AudioError> {
+        let mut state = self.write_state()?;
+        state.descriptor.state = AudioBackendState::Available;
+        state.descriptor.detail = None;
+        push_event(&mut state, MockBackendEventKind::ServerRestarted);
+        Ok(())
+    }
+
+    pub fn set_flapping(&self, enabled: bool) -> Result<(), AudioError> {
+        let mut state = self.write_state()?;
+        state.flapping = enabled;
+        state.flapping_phase = false;
+        push_event(&mut state, MockBackendEventKind::FlappingChanged(enabled));
+        Ok(())
+    }
+
+    pub fn drain_events(&self) -> Result<Vec<MockBackendEvent>, AudioError> {
+        Ok(std::mem::take(&mut self.write_state()?.events))
     }
 
     pub fn set_state(&self, state: AudioBackendState, detail: Option<String>) -> Result<(), AudioError> {
@@ -95,7 +200,12 @@ impl AudioBackend for MockBackend {
     }
 
     fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError> {
-        let state = self.read_state()?;
+        let mut state = self.shared.write().map_err(|_| {
+            AudioError::new(
+                AudioErrorCategory::InternalInvariant,
+                "mock backend state lock was poisoned",
+            )
+        })?;
         if state.descriptor.state != AudioBackendState::Available {
             return Err(AudioError::new(
                 AudioErrorCategory::BackendUnavailable,
@@ -106,6 +216,15 @@ impl AudioBackend for MockBackend {
                     .unwrap_or_else(|| "mock backend is unavailable".to_owned()),
             ));
         }
+        if state.flapping {
+            state.flapping_phase = !state.flapping_phase;
+            if state.flapping_phase {
+                return Err(AudioError::new(
+                    AudioErrorCategory::BackendUnavailable,
+                    "mock backend is flapping",
+                ));
+            }
+        }
         Ok(state.devices.clone())
     }
 
@@ -115,38 +234,53 @@ impl AudioBackend for MockBackend {
         if let Some(error) = &state.open_error {
             return Err(error.clone());
         }
-        if !state
+        let device = state
             .devices
             .iter()
-            .any(|device| device.target == request.target && device.supports(request.direction))
-        {
-            return Err(AudioError::new(
-                AudioErrorCategory::DeviceMissing,
-                "requested mock audio device is missing",
-            ));
-        }
+            .find(|device| match &request.target {
+                AudioDeviceTargetId::Device { .. } => {
+                    device.target == request.target && device.supports(request.direction)
+                }
+                AudioDeviceTargetId::SystemDefault { backend } => {
+                    device.target.backend() == backend
+                        && device.supports(request.direction)
+                        && match request.direction {
+                            AudioDirection::Input => device.is_system_default_input,
+                            AudioDirection::Output => device.is_system_default_output,
+                        }
+                }
+            })
+            .ok_or_else(|| {
+                AudioError::new(
+                    AudioErrorCategory::DeviceMissing,
+                    "requested mock audio device is missing",
+                )
+            })?;
+        let format = DeviceNegotiator.negotiate(device, request.negotiation_request())?;
         Ok(Box::new(MockStream {
             status: AudioStreamStatus {
                 direction: request.direction,
                 enabled: true,
                 selected_target: Some(request.target.clone()),
-                active_target: Some(request.target.clone()),
+                selected_label: Some(device.label.clone()),
+                profile_key: Some(device.profile_key.clone()),
+                active_target: Some(device.target.clone()),
                 readiness: AudioDeviceReadiness::Ready,
                 permission: AudioPermissionState::Granted,
-                format: Some(NegotiatedStreamFormat {
-                    sample_rate: request.engine_sample_rate.get(),
-                    channels: request.channels,
-                    sample_format: AudioSampleFormat::F32,
-                    buffer_frames: match request.buffer_policy {
-                        crate::AudioBufferPolicy::Automatic => 128,
-                        crate::AudioBufferPolicy::Fixed(frames) => frames,
-                    },
-                    estimated_latency_ms: 2.0,
-                }),
+                recovery_policy: AudioRecoveryPolicy::WaitForSelected,
+                retry_attempt: 0,
+                next_retry_ms: None,
+                format: Some(format),
                 error: None,
             },
         }))
     }
+}
+
+fn push_event(state: &mut MockBackendState, kind: MockBackendEventKind) {
+    state.event_revision = state.event_revision.saturating_add(1);
+    let revision = state.event_revision;
+    state.events.push(MockBackendEvent { revision, kind });
 }
 
 #[derive(Debug)]

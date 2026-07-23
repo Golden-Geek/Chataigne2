@@ -1,7 +1,8 @@
 use crate::{
-    AudioBackend, AudioBackendState, AudioDeviceDescriptor, AudioDeviceId, AudioDeviceReadiness, AudioDeviceTargetId,
-    AudioError, AudioPermissionState, AudioSampleFormat, AudioStream, AudioStreamStatus, BackendDescriptor, BackendId,
-    NegotiatedStreamFormat, PhysicalChannelDescriptor, PhysicalChannelKey, StreamRequest,
+    AudioBackend, AudioBackendState, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceId,
+    AudioDeviceReadiness, AudioDeviceTargetId, AudioDirection, AudioError, AudioPermissionState, AudioSampleFormat,
+    AudioStream, AudioStreamStatus, BackendDescriptor, BackendId, DeviceNegotiator, PhysicalChannelDescriptor,
+    PhysicalChannelKey, StreamRequest, SupportedBufferFrames, SupportedStreamConfiguration, profile_key_for,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -35,12 +36,25 @@ impl AudioBackend for NullBackend {
     fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError> {
         let input_channels = physical_channels("input", 2);
         let output_channels = physical_channels("output", 2);
+        let target = Self::target();
+        let fingerprint = AudioDeviceFingerprint {
+            product: Some("Golden Audio Null Duplex".to_owned()),
+            input_channels: 2,
+            output_channels: 2,
+            ..AudioDeviceFingerprint::default()
+        };
         Ok(vec![AudioDeviceDescriptor {
-            target: Self::target(),
+            profile_key: profile_key_for(&target, None, None),
+            target,
             label: "Null Duplex".to_owned(),
-            fingerprint: Some("golden-audio:null-duplex:v1".to_owned()),
+            stable_id: true,
+            fingerprint,
             input_channels,
             output_channels,
+            supported_configurations: vec![
+                null_supported_configuration(AudioDirection::Input),
+                null_supported_configuration(AudioDirection::Output),
+            ],
             is_system_default_input: true,
             is_system_default_output: true,
         }])
@@ -54,7 +68,28 @@ impl AudioBackend for NullBackend {
                 "null backend cannot open a target owned by another backend",
             ));
         }
-        Ok(Box::new(NullStream::new(request)))
+        let device = self
+            .discover()?
+            .into_iter()
+            .next()
+            .expect("null backend always provides one device");
+        let format = DeviceNegotiator.negotiate(&device, request.negotiation_request())?;
+        Ok(Box::new(NullStream::new(request, format)))
+    }
+}
+
+fn null_supported_configuration(direction: AudioDirection) -> SupportedStreamConfiguration {
+    SupportedStreamConfiguration {
+        direction,
+        channels: 2,
+        sample_format: AudioSampleFormat::F32,
+        min_sample_rate: crate::SampleRate::MIN,
+        max_sample_rate: crate::SampleRate::MAX,
+        buffer_frames: SupportedBufferFrames {
+            min: 1,
+            max: 65_536,
+            preferred: 128,
+        },
     }
 }
 
@@ -83,25 +118,21 @@ struct NullStream {
 }
 
 impl NullStream {
-    fn new(request: &StreamRequest) -> Self {
+    fn new(request: &StreamRequest, format: crate::NegotiatedStreamFormat) -> Self {
         Self {
             status: AudioStreamStatus {
                 direction: request.direction,
                 enabled: true,
                 selected_target: Some(request.target.clone()),
+                selected_label: Some("Null Duplex".to_owned()),
+                profile_key: Some(profile_key_for(&request.target, None, None)),
                 active_target: Some(request.target.clone()),
                 readiness: AudioDeviceReadiness::Ready,
                 permission: AudioPermissionState::NotRequired,
-                format: Some(NegotiatedStreamFormat {
-                    sample_rate: request.engine_sample_rate.get(),
-                    channels: request.channels,
-                    sample_format: AudioSampleFormat::F32,
-                    buffer_frames: match request.buffer_policy {
-                        crate::AudioBufferPolicy::Automatic => 128,
-                        crate::AudioBufferPolicy::Fixed(frames) => frames,
-                    },
-                    estimated_latency_ms: 0.0,
-                }),
+                recovery_policy: crate::AudioRecoveryPolicy::WaitForSelected,
+                retry_attempt: 0,
+                next_retry_ms: None,
+                format: Some(format),
                 error: None,
             },
         }

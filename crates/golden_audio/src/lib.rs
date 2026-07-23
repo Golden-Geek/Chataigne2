@@ -19,8 +19,8 @@ pub mod realtime;
 pub mod render;
 
 pub use backend::{
-    AudioBackend, AudioStream, BackendDescriptor, BackendPolicy, MockBackend, MockBackendControl, NullBackend,
-    StreamRequest,
+    AudioBackend, AudioStream, BackendDescriptor, BackendPolicy, MockBackend, MockBackendControl, MockBackendEvent,
+    MockBackendEventKind, NullBackend, StreamRequest,
 };
 pub use config::{
     AnalysisTapConfiguration, AudioConfiguration, AudioEngineConfig, DirectionConfiguration, GainDb, InputPatchRoute,
@@ -32,15 +32,19 @@ pub use control::{
     PlaybackFailure, PlaybackInfo, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent,
 };
 pub use device::{
-    AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceInspectorState,
-    AudioDeviceReadiness, AudioDeviceTargetId, AudioDirection, AudioInspectorError, AudioPermissionState,
-    AudioRecoveryPolicy, AudioSampleFormat, AudioStreamStatus, NegotiatedStreamFormat, PhysicalChannelDescriptor,
+    AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceFingerprint,
+    AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceProfile, AudioDeviceReadiness, AudioDeviceSelection,
+    AudioDeviceTargetId, AudioDirection, AudioInspectorError, AudioPermissionState, AudioRecoveryPolicy,
+    AudioSampleFormat, AudioStreamStatus, ChannelCountPolicy, DeviceNegotiator, DeviceProfileStore, DeviceSupervisor,
+    DeviceSupervisorConfig, DeviceSwitchPhase, NegotiatedStreamFormat, PhysicalChannelDescriptor, RetryBackoff,
+    SampleFormatPolicy, SampleRatePolicy, StreamNegotiationRequest, SupervisorDirection, SupportedBufferFrames,
+    SupportedStreamConfiguration, match_device_selection, profile_key_for,
 };
 pub use diagnostics::{DiagnosticEvent, DiagnosticSeverity};
 pub use error::{AudioError, AudioErrorCategory};
 pub use ids::{
-    AnalysisTapId, AudioChannelId, AudioDeviceId, AudioRouteId, BackendId, CommandSequence, ConfigGeneration,
-    InvalidIdentifier, PhysicalChannelKey, PlaybackId, VoiceId,
+    AnalysisTapId, AudioChannelId, AudioDeviceId, AudioDeviceProfileKey, AudioRouteId, BackendId, CommandSequence,
+    ConfigGeneration, InvalidIdentifier, PhysicalChannelKey, PlaybackId, VoiceId,
 };
 pub use limits::{EngineLimits, FrameCount, SampleRate};
 pub use realtime::{

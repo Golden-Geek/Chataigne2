@@ -121,6 +121,7 @@ uuid_id!(AnalysisTapId);
 
 string_id!(BackendId, "backend");
 string_id!(AudioDeviceId, "audio device");
+string_id!(AudioDeviceProfileKey, "audio device profile");
 string_id!(PhysicalChannelKey, "physical channel");
 string_id!(PlaybackId, "playback");
 
