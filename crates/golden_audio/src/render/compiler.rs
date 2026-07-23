@@ -2,7 +2,9 @@ use std::collections::{BTreeSet, HashMap};
 
 use crate::{AudioConfiguration, AudioEngineConfig, AudioError, AudioRouteId, EngineLimits, PhysicalChannelKey};
 
-use super::{CompiledRoute, CompiledRouteMatrix, RenderPlan, RenderWarning, RenderWarningCode, RouteSpan};
+use super::{
+    CompiledAnalysisTap, CompiledRoute, CompiledRouteMatrix, RenderPlan, RenderWarning, RenderWarningCode, RouteSpan,
+};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RenderCompileContext {
@@ -67,6 +69,9 @@ impl RenderPlanCompiler {
     ) -> Result<RenderPlanCompilation, AudioError> {
         self.engine.validate()?;
         config.validate(&self.limits)?;
+        for tap in &config.analysis_taps {
+            tap.processor.validate(self.engine.sample_rate, &self.limits)?;
+        }
         validate_context(context, &self.limits)?;
 
         let mut virtual_inputs = config
@@ -173,11 +178,31 @@ impl RenderPlanCompiler {
         let gain_ramp_frames = (self.engine.sample_rate.get() as f32 * self.engine.gain_ramp_ms / 1_000.0)
             .round()
             .max(1.0) as u32;
+        let rms_window_frames = (self.engine.sample_rate.get() as f32 * self.engine.rms_window_ms / 1_000.0)
+            .round()
+            .max(1.0) as u32;
+        let observation_interval_frames =
+            (self.engine.sample_rate.get() / u32::from(self.engine.observation_hz)).max(1);
+        let mut analysis_taps = config
+            .analysis_taps
+            .iter()
+            .map(|tap| CompiledAnalysisTap {
+                id: tap.id,
+                source: tap.source,
+                source_index: input_indices[&tap.source],
+                enabled: tap.enabled,
+                processor: tap.processor,
+            })
+            .collect::<Vec<_>>();
+        analysis_taps.sort_by_key(|tap| tap.id);
 
         Ok(RenderPlanCompilation {
             plan: RenderPlan {
                 sample_rate: self.engine.sample_rate,
                 internal_block_frames: self.engine.internal_block_frames,
+                observation_hz: self.engine.observation_hz,
+                observation_interval_frames,
+                rms_window_frames,
                 gain_ramp_frames,
                 physical_inputs: context.physical_inputs.clone(),
                 physical_outputs: context.physical_outputs.clone(),
@@ -190,6 +215,7 @@ impl RenderPlanCompiler {
                 output_patch: compile_matrix(output_indices.len(), physical_output_indices.len(), output_routes),
                 output_gains,
                 master_gain: config.master_gain.to_linear(),
+                analysis_taps,
             },
             warnings,
         })

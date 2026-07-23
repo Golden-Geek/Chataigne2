@@ -2781,6 +2781,7 @@ dependencies = [
  "base64 0.22.1",
  "cpal",
  "criterion 0.8.2",
+ "realfft",
  "rtrb",
  "rubato",
  "serde",
@@ -5454,6 +5455,15 @@ name = "readmouse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be105c72a1e6a5a1198acee3d5b506a15676b74a02ecd78060042a447f408d94"
+
+[[package]]
+name = "realfft"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f821338fddb99d089116342c46e9f1fbf3828dba077674613e734e01d6ea8677"
+dependencies = [
+ "rustfft",
+]
 
 [[package]]
 name = "reborrow"

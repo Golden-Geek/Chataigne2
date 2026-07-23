@@ -5,6 +5,7 @@
 //!
 //! Native backend and application-domain types are intentionally excluded from the public API.
 
+pub mod analysis;
 pub mod backend;
 pub mod clock;
 pub mod config;
@@ -20,6 +21,17 @@ pub mod playback;
 pub mod realtime;
 pub mod render;
 
+#[cfg(feature = "analysis")]
+pub use analysis::{
+    AnalysisController, AnalysisObservationReader, AnalysisRenderer, AnalysisRendererRetirement, PitchAnalyzer,
+    SpectrumAnalyzer, SpectrumBandGeometry, analysis_pipeline, spectrum_band_geometry,
+};
+pub use analysis::{
+    AnalysisDiagnosticsObservation, AnalysisObservationSnapshot, AnalysisProcessorConfiguration, AnalysisResult,
+    AnalysisTapObservation, ChannelObservation, MeterAccumulator, PitchAnalysisConfiguration, PitchObservation,
+    SpectrumAnalysisConfiguration, SpectrumBandObservation, SpectrumBandSpacing, SpectrumObservation, SpectrumOverlap,
+    SpectrumWindow, linear_to_dbfs,
+};
 pub use backend::{
     AudioBackend, AudioCallbackTimestamp, AudioStream, AudioStreamHandler, BackendDescriptor, BackendPolicy,
     MockBackend, MockBackendControl, MockBackendEvent, MockBackendEventKind, NullBackend, StreamRequest,
@@ -37,8 +49,8 @@ pub use config::{
 };
 pub use control::{
     AudioCommand, AudioControl, AudioEngine, AudioEngineBuilder, AudioEvent, AudioEventReceiver,
-    AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, ChannelObservation, PlayFileRequest,
-    PlaybackFailure, PlaybackInfo, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent,
+    AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, PlayFileRequest, PlaybackFailure, PlaybackInfo,
+    PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent,
 };
 pub use device::{
     AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceFingerprint,
@@ -70,19 +82,19 @@ pub use playback::{
     PlaybackSchedulerConfig, PlaybackSchedulerRequest, decode_audio_file, probe_audio_file,
 };
 pub use realtime::{
-    AnalysisCaptureError, AnalysisFrame, AnalysisFrameReader, AnalysisFrameWriter, AnalysisRecycleError,
-    AnalysisWriterRetirement, GainMailboxTarget, OrderedRealtimeControlReader, OrderedRealtimeControlWriter,
-    PlanPublishError, PlanSwapResult, PreparedVoice, QueuePressureCounters, QueuePressureSnapshot, RealtimeBarrier,
-    RealtimeBarrierKind, RealtimeControlUpdate, RealtimePlanRetirement, RealtimePlanSlot, RealtimePlanSlotMetrics,
-    RealtimeScope, RealtimeVoiceRetirement, RealtimeVoiceSlots, RenderPlanPublisher, RetiredVoice,
-    VoiceRetirementReason, VoiceSlotController, acknowledged_plan_exchange, analysis_frame_pool, assert_not_realtime,
-    is_realtime_thread, ordered_realtime_controls, voice_slot_pool,
+    AnalysisCaptureError, AnalysisFrame, AnalysisFrameReader, AnalysisFrameTag, AnalysisFrameWriter,
+    AnalysisRecycleError, AnalysisWriterRetirement, GainMailboxTarget, OrderedRealtimeControlReader,
+    OrderedRealtimeControlWriter, PlanPublishError, PlanSwapResult, PreparedVoice, QueuePressureCounters,
+    QueuePressureSnapshot, RealtimeBarrier, RealtimeBarrierKind, RealtimeControlUpdate, RealtimePlanRetirement,
+    RealtimePlanSlot, RealtimePlanSlotMetrics, RealtimeScope, RealtimeVoiceRetirement, RealtimeVoiceSlots,
+    RenderPlanPublisher, RetiredVoice, VoiceRetirementReason, VoiceSlotController, acknowledged_plan_exchange,
+    analysis_frame_pool, assert_not_realtime, is_realtime_thread, ordered_realtime_controls, voice_slot_pool,
 };
 pub use render::{
-    CompiledRoute, CompiledRouteMatrix, ConversionStats, GainSmoother, InterleavedInput, InterleavedOutput,
-    OfflineClock, OfflineRenderer, PlanarBuffer, RenderCompileContext, RenderPlan, RenderPlanCompilation,
-    RenderPlanCompiler, RenderProcessor, RenderProcessorMetrics, RenderWarning, RenderWarningCode, RouteSpan,
-    deinterleave, interleave, render_scalar_reference,
+    CompiledAnalysisTap, CompiledRoute, CompiledRouteMatrix, ConversionStats, GainSmoother, InterleavedInput,
+    InterleavedOutput, OfflineClock, OfflineRenderer, PlanarBuffer, RenderCompileContext, RenderPlan,
+    RenderPlanCompilation, RenderPlanCompiler, RenderProcessor, RenderProcessorMetrics, RenderWarning,
+    RenderWarningCode, RouteSpan, deinterleave, interleave, render_scalar_reference,
 };
 
 #[cfg(test)]

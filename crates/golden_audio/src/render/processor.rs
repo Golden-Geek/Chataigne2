@@ -1,3 +1,5 @@
+#[cfg(feature = "analysis")]
+use crate::AnalysisRenderer;
 use crate::{AudioChannelId, AudioError, AudioErrorCategory, AudioRouteId, GainDb};
 
 use super::{
@@ -23,6 +25,8 @@ pub struct RenderProcessor {
     output_gains: Vec<GainSmoother>,
     master_gain: GainSmoother,
     metrics: RenderProcessorMetrics,
+    #[cfg(feature = "analysis")]
+    analysis: Option<AnalysisRenderer>,
 }
 
 impl RenderProcessor {
@@ -39,6 +43,8 @@ impl RenderProcessor {
             master_gain: GainSmoother::settled(plan.master_gain),
             plan: Box::new(plan),
             metrics: RenderProcessorMetrics::default(),
+            #[cfg(feature = "analysis")]
+            analysis: None,
         })
     }
 
@@ -50,6 +56,27 @@ impl RenderProcessor {
     #[must_use]
     pub const fn metrics(&self) -> RenderProcessorMetrics {
         self.metrics
+    }
+
+    #[cfg(feature = "analysis")]
+    pub fn attach_analysis(&mut self, renderer: AnalysisRenderer) -> Result<(), AudioError> {
+        if self.analysis.is_some() {
+            return Err(AudioError::invalid_configuration(
+                "render processor already has an analysis renderer",
+            ));
+        }
+        if !renderer.matches_plan(&self.plan) {
+            return Err(AudioError::invalid_configuration(
+                "analysis renderer topology does not match the render plan",
+            ));
+        }
+        self.analysis = Some(renderer);
+        Ok(())
+    }
+
+    #[cfg(feature = "analysis")]
+    pub fn take_analysis(&mut self) -> Option<AnalysisRenderer> {
+        self.analysis.take()
     }
 
     pub fn set_route_gain(&mut self, route: AudioRouteId, gain: GainDb) -> Result<(), AudioError> {
@@ -142,6 +169,14 @@ impl RenderProcessor {
                 clear_destination: true,
             },
         )?;
+        #[cfg(feature = "analysis")]
+        if let Some(analysis) = &mut self.analysis {
+            analysis.capture_inputs(
+                &self.virtual_inputs,
+                frames,
+                self.metrics.rendered_frames.saturating_add(frame_offset as u64),
+            )?;
+        }
         mix_routes(
             &self.plan.monitoring,
             &mut self.monitoring_state,
@@ -167,6 +202,14 @@ impl RenderProcessor {
             },
         )?;
         self.apply_output_and_master_gains(frames);
+        #[cfg(feature = "analysis")]
+        if let Some(analysis) = &mut self.analysis {
+            analysis.capture_outputs(
+                &self.virtual_outputs,
+                frames,
+                self.metrics.rendered_frames.saturating_add(frame_offset as u64),
+            )?;
+        }
         mix_routes(
             &self.plan.output_patch,
             &mut self.output_patch_state,

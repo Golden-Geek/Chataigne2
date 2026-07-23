@@ -74,6 +74,7 @@ criterion = { version = "0.8.2", default-features = false, features = ["cargo_be
 cpal = { version = "0.18.1", default-features = false }
 rtrb = "0.3.4"
 rubato = { version = "4.0.0", default-features = false }
+realfft = "3.5.0"
 symphonia = { version = "0.6.0", default-features = false, features = [
     "aac",
     "adpcm",

@@ -223,15 +223,27 @@ pub fn voice_slot_pool<T>(capacity: u16) -> Result<(VoiceSlotController<T>, Real
 
 #[derive(Debug)]
 pub struct AnalysisFrame {
-    sequence: u64,
+    tag: AnalysisFrameTag,
     valid_samples: usize,
     samples: Box<[f32]>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AnalysisFrameTag {
+    pub topology_generation: u64,
+    pub tap_index: u16,
+    pub render_frame: u64,
 }
 
 impl AnalysisFrame {
     #[must_use]
     pub const fn sequence(&self) -> u64 {
-        self.sequence
+        self.tag.render_frame
+    }
+
+    #[must_use]
+    pub const fn tag(&self) -> AnalysisFrameTag {
+        self.tag
     }
 
     #[must_use]
@@ -266,12 +278,41 @@ pub struct AnalysisFrameWriter {
 
 impl AnalysisFrameWriter {
     pub fn capture(&mut self, sequence: u64, samples: &[f32]) -> Result<(), AnalysisCaptureError> {
-        if let Some(frame) = self.retained_ready.take()
-            && let Err(PushError::Full(frame)) = self.ready_producer.push(frame)
-        {
-            self.retained_ready = Some(frame);
-            self.pressure.analysis_ready_full();
-            return Err(AnalysisCaptureError::ReadyQueueFull);
+        self.capture_tagged(
+            AnalysisFrameTag {
+                render_frame: sequence,
+                ..AnalysisFrameTag::default()
+            },
+            samples,
+        )
+    }
+
+    pub fn capture_tagged(&mut self, tag: AnalysisFrameTag, samples: &[f32]) -> Result<(), AnalysisCaptureError> {
+        self.capture_tagged_with(tag, samples.len(), |destination| destination.copy_from_slice(samples))
+    }
+
+    pub fn capture_tagged_with(
+        &mut self,
+        tag: AnalysisFrameTag,
+        sample_count: usize,
+        fill: impl FnOnce(&mut [f32]),
+    ) -> Result<(), AnalysisCaptureError> {
+        if let Some(mut frame) = self.retained_ready.take() {
+            if sample_count > frame.samples.len() {
+                self.retained_ready = Some(frame);
+                return Err(AnalysisCaptureError::FrameTooLarge);
+            }
+            frame.tag = tag;
+            frame.valid_samples = sample_count;
+            fill(&mut frame.samples[..sample_count]);
+            return match self.ready_producer.push(frame) {
+                Ok(()) => Ok(()),
+                Err(PushError::Full(frame)) => {
+                    self.retained_ready = Some(frame);
+                    self.pressure.analysis_ready_full();
+                    Err(AnalysisCaptureError::ReadyQueueFull)
+                }
+            };
         }
         let mut frame = if let Some(frame) = self.retained_free.take() {
             frame
@@ -282,14 +323,14 @@ impl AnalysisFrameWriter {
             };
             frame
         };
-        if samples.len() > frame.samples.len() {
+        if sample_count > frame.samples.len() {
             frame.valid_samples = 0;
             self.retained_free = Some(frame);
             return Err(AnalysisCaptureError::FrameTooLarge);
         }
-        frame.sequence = sequence;
-        frame.valid_samples = samples.len();
-        frame.samples[..samples.len()].copy_from_slice(samples);
+        frame.tag = tag;
+        frame.valid_samples = sample_count;
+        fill(&mut frame.samples[..sample_count]);
         match self.ready_producer.push(frame) {
             Ok(()) => Ok(()),
             Err(PushError::Full(frame)) => {
@@ -300,26 +341,52 @@ impl AnalysisFrameWriter {
         }
     }
 
+    /// Publishes a newest retained frame after worker-side capacity becomes available.
+    pub fn flush_retained(&mut self) -> bool {
+        let Some(frame) = self.retained_ready.take() else {
+            return true;
+        };
+        match self.ready_producer.push(frame) {
+            Ok(()) => true,
+            Err(PushError::Full(frame)) => {
+                self.retained_ready = Some(frame);
+                false
+            }
+        }
+    }
+
     #[must_use]
     pub fn into_retirement(self) -> AnalysisWriterRetirement {
         AnalysisWriterRetirement {
+            free_consumer: self.free_consumer,
+            ready_producer: self.ready_producer,
             retained_free: self.retained_free,
             retained_ready: self.retained_ready,
+            pressure: self.pressure,
         }
     }
 }
 
 #[derive(Debug)]
 pub struct AnalysisWriterRetirement {
+    free_consumer: Consumer<Box<AnalysisFrame>>,
+    ready_producer: Producer<Box<AnalysisFrame>>,
     retained_free: Option<Box<AnalysisFrame>>,
     retained_ready: Option<Box<AnalysisFrame>>,
+    pressure: QueuePressureCounters,
 }
 
 impl AnalysisWriterRetirement {
     pub fn reclaim(self) {
         assert_not_realtime("final analysis-frame reclamation");
-        drop(self.retained_free);
-        drop(self.retained_ready);
+        let Self {
+            free_consumer,
+            ready_producer,
+            retained_free,
+            retained_ready,
+            pressure,
+        } = self;
+        drop((free_consumer, ready_producer, retained_free, retained_ready, pressure));
     }
 }
 
@@ -361,12 +428,15 @@ pub fn analysis_frame_pool(
         ));
     }
     let pressure = QueuePressureCounters::default();
-    let (mut free_producer, free_consumer) = RingBuffer::new(slot_count);
+    let allocated_frames = slot_count
+        .checked_add(1)
+        .ok_or_else(|| AudioError::capacity_exceeded("analysis frame slot count overflowed"))?;
+    let (mut free_producer, free_consumer) = RingBuffer::new(allocated_frames);
     let (ready_producer, ready_consumer) = RingBuffer::new(slot_count);
-    for _ in 0..slot_count {
+    for _ in 0..allocated_frames {
         free_producer
             .push(Box::new(AnalysisFrame {
-                sequence: 0,
+                tag: AnalysisFrameTag::default(),
                 valid_samples: 0,
                 samples: vec![0.0; frame_capacity].into_boxed_slice(),
             }))

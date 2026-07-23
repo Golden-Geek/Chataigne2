@@ -15,9 +15,9 @@ pub use gain_mailbox::{
 };
 pub use guard::{RealtimeScope, assert_not_realtime, is_realtime_thread};
 pub use ownership::{
-    AnalysisCaptureError, AnalysisFrame, AnalysisFrameReader, AnalysisFrameWriter, AnalysisRecycleError,
-    AnalysisWriterRetirement, PreparedVoice, RealtimeVoiceRetirement, RealtimeVoiceSlots, RetiredVoice,
-    VoiceRetirementReason, VoiceSlotController, analysis_frame_pool, voice_slot_pool,
+    AnalysisCaptureError, AnalysisFrame, AnalysisFrameReader, AnalysisFrameTag, AnalysisFrameWriter,
+    AnalysisRecycleError, AnalysisWriterRetirement, PreparedVoice, RealtimeVoiceRetirement, RealtimeVoiceSlots,
+    RetiredVoice, VoiceRetirementReason, VoiceSlotController, analysis_frame_pool, voice_slot_pool,
 };
 pub use plan_exchange::{
     PlanPublishError, PlanSwapResult, RealtimePlanRetirement, RealtimePlanSlot, RealtimePlanSlotMetrics,

@@ -38,7 +38,7 @@ fn fixed_voice_slots_retain_payload_when_return_queue_is_full() {
 fn analysis_frames_are_preallocated_bounded_and_recyclable() {
     let (mut reader, mut writer) = analysis_frame_pool(1, 4).unwrap();
     writer.capture(7, &[1.0, 2.0, 3.0]).unwrap();
-    assert_eq!(writer.capture(8, &[4.0]), Err(AnalysisCaptureError::NoFreeFrame));
+    assert_eq!(writer.capture(8, &[4.0]), Err(AnalysisCaptureError::ReadyQueueFull));
 
     let frame = reader.try_recv().unwrap();
     assert_eq!(frame.sequence(), 7);
@@ -48,6 +48,23 @@ fn analysis_frames_are_preallocated_bounded_and_recyclable() {
     let frame = reader.try_recv().unwrap();
     assert_eq!(frame.samples(), &[5.0; 4]);
     reader.recycle(frame).unwrap();
+    writer.into_retirement().reclaim();
+}
+
+#[test]
+fn analysis_overload_retains_the_newest_frame_until_worker_capacity_returns() {
+    let (mut reader, mut writer) = analysis_frame_pool(1, 2).unwrap();
+    writer.capture(1, &[1.0]).unwrap();
+    assert_eq!(writer.capture(2, &[2.0]), Err(AnalysisCaptureError::ReadyQueueFull));
+    assert_eq!(writer.capture(3, &[3.0]), Err(AnalysisCaptureError::ReadyQueueFull));
+    let first = reader.try_recv().unwrap();
+    assert_eq!(first.sequence(), 1);
+    reader.recycle(first).unwrap();
+    assert!(writer.flush_retained());
+    let newest = reader.try_recv().unwrap();
+    assert_eq!(newest.sequence(), 3);
+    assert_eq!(newest.samples(), &[3.0]);
+    reader.recycle(newest).unwrap();
     writer.into_retirement().reclaim();
 }
 

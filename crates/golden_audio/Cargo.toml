@@ -8,7 +8,8 @@ repository.workspace = true
 description = "Application-agnostic real-time audio engine and device foundation for Golden applications"
 
 [features]
-default = ["desktop", "playback"]
+default = ["analysis", "desktop", "playback"]
+analysis = ["dep:realfft"]
 desktop = ["dep:cpal"]
 playback = ["dep:symphonia"]
 asio = ["desktop", "cpal/asio"]
@@ -23,6 +24,7 @@ codegen = ["dep:ts-rs"]
 cpal = { workspace = true, optional = true }
 rtrb.workspace = true
 rubato.workspace = true
+realfft = { workspace = true, optional = true }
 serde.workspace = true
 symphonia = { workspace = true, optional = true }
 thiserror.workspace = true
@@ -63,3 +65,8 @@ harness = false
 name = "playback"
 harness = false
 required-features = ["playback"]
+
+[[bench]]
+name = "analysis"
+harness = false
+required-features = ["analysis"]

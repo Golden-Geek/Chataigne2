@@ -9,7 +9,7 @@ pub use engine::{AudioControl, AudioEngine, AudioEngineBuilder, AudioEventReceiv
 pub use event::{
     AudioEvent, AudioQueueKind, PlaybackFailure, PlaybackInfo, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent,
 };
-pub use observation::{AudioObservationReader, AudioObservationSnapshot, ChannelObservation};
+pub use observation::{AudioObservationReader, AudioObservationSnapshot};
 
 #[cfg(test)]
 mod tests;

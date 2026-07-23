@@ -133,6 +133,37 @@ TypeScript contract. Symphonia remains an optional private implementation depend
 default `playback` feature; the backend-neutral voice and stream primitives remain usable without
 default features.
 
+## Analysis boundary
+
+Analysis is split at the callback boundary:
+
+- The render plan resolves stable tap IDs and virtual-input IDs to compact indices.
+- The callback accumulates virtual-input RMS/peak before monitoring and virtual-output RMS/peak
+  after output/master gain. RMS windows are frame-counted and therefore independent of backend
+  callback partitioning; lock-free meter snapshots publish at the configured 1–60 Hz rate.
+- Tap capture copies newest bounded windows into a preallocated frame pool. A full worker queue
+  retains the newest pending frame and counts pressure instead of blocking audio.
+- One dedicated worker performs YIN pitch detection and real-valued FFT analysis. It owns all
+  difference arrays, FFT plans/scratch, window coefficients, band geometry, result allocation, and
+  observation locks.
+
+Pitch configuration includes frame size, frequency bounds, RMS power threshold, YIN threshold, and
+confidence threshold. Results include validity, frequency, confidence, MIDI note, note name, and
+cents. The focused in-crate YIN kernel was selected over another dependency because it keeps
+scratch ownership explicit and passed the deterministic tone, harmonic, detuning, silence, noise,
+low-amplitude, and chirp suite.
+
+Spectrum configuration supports power-of-two sizes from 256 through 16,384 frames, Hann and
+Blackman-Harris windows, zero/50/75-percent overlap, linear and logarithmic 1–256-band geometry,
+Nyquist clipping, normalized single-sided band amplitude, and attack/release smoothing. Band
+identity is the stable band index; frequency-range changes update its low, center, and high metadata.
+
+Analysis snapshots contain one topology generation. The worker discards stale generations, and
+readers combine generation-fixed tap results with seqlock-protected meter banks. Disabling one tap
+atomically stops capture and clears its latest result without rebuilding the render or device
+topology. Diagnostics expose captured, processed, dropped, and stale frame counts plus total and
+maximum worker time.
+
 ## Hard real-time contract
 
 The render and input callbacks must not:

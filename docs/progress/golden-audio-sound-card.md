@@ -26,10 +26,10 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 7 - file playback and voice lifecycle.
+- Current phase: Phase 8 - RMS, pitch, spectrum, and observation transport.
 - Status: implementation and backend-neutral qualification complete; checkpoint pending.
-- Last checkpoint: `740c306b` (`feat(audio): add clock-domain bridging and seamless recovery`).
-- Next step: add realtime-safe RMS, pitch, spectrum, and observation transport.
+- Last checkpoint: `db226cc2` (`feat(audio): add ordered asynchronous file playback`).
+- Next step: add the Chataigne-owned Sound Card schema and persistence boundary.
 
 ## Decisions
 
@@ -88,6 +88,12 @@ The selected versions fit the pinned Rust `1.97.0` toolchain:
 Symphonia will enable only `aac`, `adpcm`, `aiff`, `alac`, `caf`, `flac`, `isomp4`, `mkv`, `mp3`,
 `ogg`, `pcm`, `vorbis`, and `wav`, plus the required metadata/SIMD features. Experimental video and
 subtitle codecs remain disabled.
+
+Phase 8 selected a focused in-crate YIN kernel instead of adding `pitch-detection`. The local
+implementation keeps all difference scratch and thresholds explicit, needs no additional
+dependency, and passes the synthetic tone, harmonic, detuning, silence, noise, low-amplitude, and
+chirp suite. RealFFT 3.5.0 remains a private optional dependency behind the default `analysis`
+feature; it is absent from no-default-feature builds.
 
 ### Workspace and ASIO licensing
 
@@ -163,6 +169,11 @@ local implementation baseline; they are not cross-platform or device deadline cl
 | `740c306b` + Phase 7 working tree | Playback: 256 resident voices, 128 frames | median 64.486 µs per callback |
 | `740c306b` + Phase 7 working tree | Playback: 8 resident plus 8 streamed voices, 128 frames | median 3.591 µs per callback |
 | `740c306b` + Phase 7 working tree | Decode: one-second stereo WAV at 48 kHz | median 154.07 µs |
+| `db226cc2` + Phase 8 working tree | Metering: 256 channels, 128 frames | median 105.87 µs |
+| `db226cc2` + Phase 8 working tree | YIN: 2,048-frame pitch window | median 590.42 µs on analysis worker |
+| `db226cc2` + Phase 8 working tree | Real FFT: 256 frames | median 1.715 µs on analysis worker |
+| `db226cc2` + Phase 8 working tree | Real FFT: 2,048 frames | median 5.688 µs on analysis worker |
+| `db226cc2` + Phase 8 working tree | Real FFT: 16,384 frames | median 38.662 µs on analysis worker |
 
 The warmed render allocation guard observed zero allocations, zero deallocations, and zero net
 bytes. Phase 14 still owns the full reference workload, queue-pressure, memory, soak, and callback
@@ -341,6 +352,30 @@ The render path never probes, opens, reads, decodes, resamples, mutates the cach
 drops the final asset reference. Output loss leaves the same voice playhead advancing under the
 authoritative null clock; restoring output does not enqueue or restart playback.
 
+## Phase 8 implementation
+
+The analysis layer now provides:
+
+- render-plan compilation from stable tap and virtual-input IDs to compact source indices;
+- callback-side virtual-input RMS/peak before monitoring and virtual-output RMS/peak after
+  output/master gain, with explicit millisecond windows and independent 1–60 Hz publication;
+- atomic seqlock meter banks that publish linear RMS, RMS dBFS, peak dBFS, clip state, input/output
+  maxima, and the combined global maximum without callback locks or allocation;
+- a bounded frame pool with one extra newest-frame retention slot, so worker overload replaces stale
+  pending work and never delays rendering;
+- one dedicated analysis worker with preallocated YIN difference/input scratch and preplanned
+  RealFFT input, output, window, and scratch storage;
+- pitch results with validity, frequency, confidence, MIDI note, note name, and cents;
+- Hann and Blackman-Harris FFT windows, 0/50/75-percent overlap, normalized single-sided linear or
+  logarithmic bands, Nyquist clipping, and attack/release smoothing;
+- generation-fixed latest observation snapshots and atomically independent analyzer enablement; and
+- captured, processed, dropped, stale, total worker-time, and maximum worker-time diagnostics.
+
+The callback allocation guard crosses both an RMS-window completion and observation publication
+with zero allocation or deallocation. Worker-overload tests fill the frame queue and retain the
+newest pending frame while the render call continues successfully. Disabling a tap clears its
+result and stops capture without changing the render plan or device state.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -438,6 +473,19 @@ authoritative null clock; restoring output does not enqueue or restart playback.
 | Phase 7 core-only dependency tree | PASS - Symphonia absent with `--no-default-features` and private in the default build |
 | Phase 7 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
 | Phase 7 `cargo machete` | FAIL - the same six pre-existing unused dependencies remain in `Chataigne2`; none belong to `golden_audio` |
+| `cargo test -p golden_audio --no-default-features` after Phase 8 | PASS - 91 tests (85 unit, 6 integration), 0 failed |
+| `cargo test -p golden_audio` after Phase 8 | PASS - 120 tests (108 unit, 12 integration), 0 failed |
+| Phase 8 meter qualification | PASS - exact DC, sine, square, silence, multichannel, dBFS-floor, clipping, callback-partition, and input/output signal-point tests |
+| Phase 8 pitch qualification | PASS - tones, harmonics, detuning, MIDI/note/cents, silence, noise, low amplitude, and chirp bounds |
+| Phase 8 spectrum qualification | PASS - bin-centered/off-bin tones, Hann/Blackman-Harris, linear/log geometry, Nyquist clipping, overlap, normalization, smoothing, and size changes |
+| Phase 8 overload and topology | PASS - newest-frame retention, dropped-frame diagnostics, uninterrupted render, independent disable, and generation-isolated snapshots |
+| Phase 8 callback allocation guard | PASS - RMS completion and 30 Hz publication observed 0 allocations, 0 deallocations, and 0 bytes |
+| Phase 8 TypeScript generation | PASS - 45 generated files, all analysis DTOs emitted from Rust, and no missing index export target |
+| Phase 8 quick benchmarks | PASS - 256-channel metering, YIN, and 256/2,048/16,384-frame FFT results recorded above |
+| Phase 8 no-default/default warning-free Clippy and analysis benchmark compile | PASS |
+| Phase 8 core-only dependency tree | PASS - RealFFT absent with `--no-default-features` and private in the default build |
+| Phase 8 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
+| Phase 8 `cargo machete` | FAIL - the same six pre-existing unused dependencies remain in `Chataigne2`; none belong to `golden_audio` |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
@@ -552,7 +600,27 @@ Phase 7:
 - `docs/architecture/golden-audio.md`
 - `docs/progress/golden-audio-sound-card.md`
 
+Phase 8:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `crates/golden_audio/Cargo.toml`
+- `crates/golden_audio/README.md`
+- `crates/golden_audio/benches/analysis.rs`
+- `crates/golden_audio/src/analysis/`
+- `crates/golden_audio/src/config.rs`
+- `crates/golden_audio/src/contract.rs`
+- `crates/golden_audio/src/control/observation.rs`
+- `crates/golden_audio/src/ids.rs`
+- `crates/golden_audio/src/lib.rs`
+- `crates/golden_audio/src/realtime/`
+- `crates/golden_audio/src/render/`
+- `crates/golden_audio/tests/synthetic_analysis.rs`
+- `docs/architecture/golden-audio.md`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 8-15 remain. The immediate next gate is realtime-safe RMS/peak accumulation, bounded analysis
-frame scheduling, pitch and spectrum workers, and topology-generation-safe observation snapshots.
+Phases 9-15 remain. The immediate next gate is the Chataigne-owned Sound Card module schema,
+backend-neutral `golden_audio` dependency, stable node identity mapping, authoring defaults, and
+persistence round trips.

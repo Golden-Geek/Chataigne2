@@ -2,12 +2,23 @@ use std::path::Path;
 
 use ts_rs::{Config, TS};
 
-use crate::{AudioDeviceInspectorState, AudioDeviceSelection, AudioFileFormat, supported_audio_extensions};
+use crate::{
+    AnalysisObservationSnapshot, AnalysisTapConfiguration, AudioDeviceInspectorState, AudioDeviceSelection,
+    AudioFileFormat, supported_audio_extensions,
+};
 
 const INDEX: &str = "\
+export type { AnalysisDiagnosticsObservation } from './AnalysisDiagnosticsObservation';\n\
+export type { AnalysisObservationSnapshot } from './AnalysisObservationSnapshot';\n\
+export type { AnalysisProcessorConfiguration } from './AnalysisProcessorConfiguration';\n\
+export type { AnalysisResult } from './AnalysisResult';\n\
+export type { AnalysisTapConfiguration } from './AnalysisTapConfiguration';\n\
+export type { AnalysisTapId } from './AnalysisTapId';\n\
+export type { AnalysisTapObservation } from './AnalysisTapObservation';\n\
 export type { AudioBackendState } from './AudioBackendState';\n\
 export type { AudioBackendStatus } from './AudioBackendStatus';\n\
 export type { AudioBufferPolicy } from './AudioBufferPolicy';\n\
+export type { AudioChannelId } from './AudioChannelId';\n\
 export type { AudioDeviceDescriptor } from './AudioDeviceDescriptor';\n\
 export type { AudioDeviceFingerprint } from './AudioDeviceFingerprint';\n\
 export type { AudioDeviceId } from './AudioDeviceId';\n\
@@ -25,9 +36,19 @@ export type { AudioRecoveryPolicy } from './AudioRecoveryPolicy';\n\
 export type { AudioSampleFormat } from './AudioSampleFormat';\n\
 export type { AudioStreamStatus } from './AudioStreamStatus';\n\
 export type { BackendId } from './BackendId';\n\
+export type { ChannelObservation } from './ChannelObservation';\n\
+export type { ConfigGeneration } from './ConfigGeneration';\n\
 export type { NegotiatedStreamFormat } from './NegotiatedStreamFormat';\n\
 export type { PhysicalChannelDescriptor } from './PhysicalChannelDescriptor';\n\
 export type { PhysicalChannelKey } from './PhysicalChannelKey';\n\
+export type { PitchAnalysisConfiguration } from './PitchAnalysisConfiguration';\n\
+export type { PitchObservation } from './PitchObservation';\n\
+export type { SpectrumAnalysisConfiguration } from './SpectrumAnalysisConfiguration';\n\
+export type { SpectrumBandObservation } from './SpectrumBandObservation';\n\
+export type { SpectrumBandSpacing } from './SpectrumBandSpacing';\n\
+export type { SpectrumObservation } from './SpectrumObservation';\n\
+export type { SpectrumOverlap } from './SpectrumOverlap';\n\
+export type { SpectrumWindow } from './SpectrumWindow';\n\
 export type { SupportedBufferFrames } from './SupportedBufferFrames';\n\
 export type { SupportedStreamConfiguration } from './SupportedStreamConfiguration';\n\
 export { supportedAudioExtensions } from './supportedAudioExtensions';\n\
@@ -40,6 +61,8 @@ pub fn export_device_contract(output_dir: impl AsRef<Path>) -> Result<(), Box<dy
     AudioDeviceInspectorState::export_all(&config)?;
     AudioDeviceSelection::export_all(&config)?;
     AudioFileFormat::export_all(&config)?;
+    AnalysisTapConfiguration::export_all(&config)?;
+    AnalysisObservationSnapshot::export_all(&config)?;
     let extensions = supported_audio_extensions()
         .iter()
         .map(|extension| format!("'{extension}'"))

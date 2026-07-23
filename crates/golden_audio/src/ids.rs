@@ -7,7 +7,8 @@ use uuid::Uuid;
 macro_rules! uuid_id {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-        #[serde(transparent)]
+        #[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
+        #[cfg_attr(feature = "codegen", ts(export))]
         pub struct $name(Uuid);
 
         impl $name {
@@ -126,7 +127,8 @@ string_id!(PhysicalChannelKey, "physical channel");
 string_id!(PlaybackId, "playback");
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
+#[cfg_attr(feature = "codegen", ts(export))]
 pub struct ConfigGeneration(u64);
 
 impl ConfigGeneration {

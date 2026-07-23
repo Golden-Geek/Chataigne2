@@ -18,6 +18,9 @@ Review every change below `src/render` and `src/realtime` against this list:
   barriers preserve control ordering.
 - Voice assets and analysis frames move through fixed slots or bounded SPSC queues; saturation
   retains ownership and increments a preallocated counter.
+- Meter accumulators, seqlock publication, tap circular windows, and the newest-frame retention slot
+  are fully preallocated. YIN, FFT planning/execution, band generation, result ownership, and
+  observation locks stay on the dedicated analysis worker.
 - Callback entry uses `RealtimeScope` in debug/test builds. Constructors, publishers, reclaimers,
   device operations, decoders, and other control-thread APIs call `assert_not_realtime`.
 - Recoverable starvation/underflow produces silence and counters, never a wait or panic.

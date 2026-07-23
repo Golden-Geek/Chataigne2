@@ -2,16 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AudioChannelId, AudioDeviceInspectorState, ConfigGeneration};
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct ChannelObservation {
-    pub channel: AudioChannelId,
-    pub rms_linear: f32,
-    pub rms_dbfs: f32,
-    pub peak_dbfs: f32,
-    pub clipped: bool,
-}
+use crate::{AudioDeviceInspectorState, ChannelObservation, ConfigGeneration};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AudioObservationSnapshot {

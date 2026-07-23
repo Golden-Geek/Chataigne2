@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AnalysisTapId, AudioBufferPolicy, AudioChannelId, AudioDeviceSelection, AudioError, AudioRecoveryPolicy,
-    AudioRouteId, EngineLimits, FrameCount, PhysicalChannelKey, SampleRate,
+    AnalysisProcessorConfiguration, AnalysisTapId, AudioBufferPolicy, AudioChannelId, AudioDeviceSelection, AudioError,
+    AudioRecoveryPolicy, AudioRouteId, EngineLimits, FrameCount, PhysicalChannelKey, SampleRate,
 };
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
@@ -55,6 +55,7 @@ pub struct AudioEngineConfig {
     pub internal_block_frames: FrameCount,
     pub gain_ramp_ms: f32,
     pub observation_hz: u16,
+    pub rms_window_ms: f32,
 }
 
 impl AudioEngineConfig {
@@ -69,6 +70,11 @@ impl AudioEngineConfig {
                 "observation rate must be from 1 through 60 Hz",
             ));
         }
+        if !self.rms_window_ms.is_finite() || !(5.0..=1_000.0).contains(&self.rms_window_ms) {
+            return Err(AudioError::invalid_configuration(
+                "RMS window must be finite and between 5 and 1,000 milliseconds",
+            ));
+        }
         Ok(())
     }
 }
@@ -80,6 +86,7 @@ impl Default for AudioEngineConfig {
             internal_block_frames: FrameCount::default(),
             gain_ramp_ms: 10.0,
             observation_hz: 30,
+            rms_window_ms: 50.0,
         }
     }
 }
@@ -159,11 +166,14 @@ pub struct OutputPatchRoute {
     pub gain: GainDb,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
+#[cfg_attr(feature = "codegen", ts(export))]
 pub struct AnalysisTapConfiguration {
     pub id: AnalysisTapId,
     pub source: AudioChannelId,
     pub enabled: bool,
+    pub processor: AnalysisProcessorConfiguration,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

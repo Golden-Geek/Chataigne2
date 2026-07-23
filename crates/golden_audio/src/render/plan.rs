@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{AudioChannelId, AudioRouteId, FrameCount, PhysicalChannelKey, SampleRate};
+use crate::{
+    AnalysisProcessorConfiguration, AnalysisTapId, AudioChannelId, AudioRouteId, FrameCount, PhysicalChannelKey,
+    SampleRate,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CompiledRoute {
@@ -24,6 +27,15 @@ pub struct CompiledRouteMatrix {
     pub destination_spans: Vec<RouteSpan>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CompiledAnalysisTap {
+    pub id: AnalysisTapId,
+    pub source: AudioChannelId,
+    pub source_index: usize,
+    pub enabled: bool,
+    pub processor: AnalysisProcessorConfiguration,
+}
+
 impl CompiledRouteMatrix {
     #[must_use]
     pub fn empty(source_channels: usize, destination_channels: usize) -> Self {
@@ -40,6 +52,9 @@ impl CompiledRouteMatrix {
 pub struct RenderPlan {
     pub sample_rate: SampleRate,
     pub internal_block_frames: FrameCount,
+    pub observation_hz: u16,
+    pub observation_interval_frames: u32,
+    pub rms_window_frames: u32,
     pub gain_ramp_frames: u32,
     pub physical_inputs: Vec<PhysicalChannelKey>,
     pub physical_outputs: Vec<PhysicalChannelKey>,
@@ -52,6 +67,7 @@ pub struct RenderPlan {
     pub output_patch: CompiledRouteMatrix,
     pub output_gains: Vec<f32>,
     pub master_gain: f32,
+    pub analysis_taps: Vec<CompiledAnalysisTap>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
