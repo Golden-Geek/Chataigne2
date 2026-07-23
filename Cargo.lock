@@ -19,6 +19,7 @@ dependencies = [
  "elgato-streamdeck",
  "futures-util",
  "gilrs",
+ "golden_audio",
  "golden_codegen_support",
  "golden_core",
  "golden_io",

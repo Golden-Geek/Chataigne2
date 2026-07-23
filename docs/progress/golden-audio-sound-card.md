@@ -26,10 +26,11 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 8 - RMS, pitch, spectrum, and observation transport.
-- Status: implementation and backend-neutral qualification complete; checkpoint pending.
-- Last checkpoint: `db226cc2` (`feat(audio): add ordered asynchronous file playback`).
-- Next step: add the Chataigne-owned Sound Card schema and persistence boundary.
+- Current phase: Phase 9 - Chataigne Sound Card schema and persistence.
+- Status: implementation and backend-neutral persistence qualification complete.
+- Last checkpoint: `0cc3dc61` (`feat(audio): add realtime-safe metering and analysis`).
+- Phase 9 checkpoint: this change (`feat(chataigne): add persistent Sound Card module model`).
+- Stop boundary: Phase 10 runtime integration has not started.
 
 ## Decisions
 
@@ -376,6 +377,33 @@ with zero allocation or deallocation. Worker-overload tests fill the frame queue
 newest pending frame while the render call continues successfully. Disabling a tap clears its
 result and stops capture without changing the render plan or device state.
 
+## Phase 9 implementation
+
+The Chataigne-owned Sound Card model now provides:
+
+- one app dependency on `golden_audio.workspace` without an app-selected backend feature list;
+- a generated `Audio / Sound Card` module catalog item, app-owned child schemas, and exactly five
+  generated command node types exposed by its `ModuleCommandTester`;
+- correctly separated authored containers, removable/duplicable channels, profiles, routes, and
+  analyzers, plus read-only derived meter and analysis result structures;
+- two default virtual inputs, two default virtual outputs, one-to-one default input/output device
+  profiles, meter projections, and pitch/spectrum analyzer outputs materialized in batched
+  `NodeTree` operations;
+- stable authored UUID identity across rename and reorder, fresh identity on duplication, and
+  deterministic UUIDv5 identities for rebuildable meter, analyzer-result, and spectrum-band
+  projections;
+- same-Sound-Card reference filters for virtual input/output routes and channel-volume commands;
+- event-driven derived-structure repair with no Phase 9 periodic poll or audio runtime;
+- sparse project persistence for authored profiles, routes, identity, gain, and missing device
+  selections, including a tagged missing enum choice after production-style reload preparation;
+  and
+- a fixture-backed lifecycle suite covering creation, save/reload, duplication, removal, projection
+  repair, null-backend readiness, generated catalog membership, command scoping, and cross-module
+  reference rejection.
+
+Phase 9 deliberately stops at the persistent app model. It does not construct an audio engine,
+open a native backend, poll live values, or execute the five command nodes.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -486,7 +514,15 @@ result and stops capture without changing the render plan or device state.
 | Phase 8 core-only dependency tree | PASS - RealFFT absent with `--no-default-features` and private in the default build |
 | Phase 8 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
 | Phase 8 `cargo machete` | FAIL - the same six pre-existing unused dependencies remain in `Chataigne2`; none belong to `golden_audio` |
-| Chataigne tests | NOT RUN |
+| Phase 9 focused Sound Card tests | PASS - 6 tests covering catalog/commands, defaults, sparse persistence, in-tree and externally linked same-module filters, repair, duplication, and removal |
+| `cargo test -p Chataigne2 --no-fail-fast` after Phase 9 | PASS - 449 tests, 0 failed |
+| `cargo test -p golden_audio` after Phase 9 | PASS - 120 tests (108 unit, 12 integration), 0 failed |
+| `cargo check --workspace --all-targets` after Phase 9 | PASS |
+| Phase 9 app all-target Clippy with known unrelated workspace lints allowed | PASS - no Phase 9 warning or lint remained |
+| Phase 9 strict all-target Clippy | FAIL before reaching the app - pre-existing `chataigne_condition::runtime::evaluate_leaf` argument-count lint; the app-only retry also reported existing Alchemist/state-machine lints |
+| Phase 9 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
+| Phase 9 `cargo machete` | FAIL - the same six pre-existing unused dependencies remain in `Chataigne2`; `golden_audio` is used and was not reported |
+| Root and Golden Core formatting plus `--check` after Phase 9 | PASS |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
 | Cross-platform backend/hardware matrix | NOT RUN |
@@ -619,8 +655,14 @@ Phase 8:
 - `docs/architecture/golden-audio.md`
 - `docs/progress/golden-audio-sound-card.md`
 
+Phase 9:
+
+- `Cargo.lock`
+- `apps/chataigne/Cargo.toml`
+- `apps/chataigne/src/module/reference_filters.rs`
+- `apps/chataigne/src/module/modules/audio/sound_card/`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 9-15 remain. The immediate next gate is the Chataigne-owned Sound Card module schema,
-backend-neutral `golden_audio` dependency, stable node identity mapping, authoring defaults, and
-persistence round trips.
+Phases 10-15 remain. Work is intentionally stopped at the completed Phase 9 persistence boundary.

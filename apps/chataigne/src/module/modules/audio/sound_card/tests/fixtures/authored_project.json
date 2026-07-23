@@ -1,0 +1,17 @@
+{
+  "input_label": "Lead Input",
+  "input_order": [1, 0],
+  "output_volume_db": -6.0,
+  "monitor_route": {
+    "input": 0,
+    "output": 1
+  },
+  "playback_route": {
+    "source_channel": 1,
+    "output": 0
+  },
+  "missing_input_device": {
+    "id": "wasapi:missing-interface:input",
+    "label": "Missing Interface"
+  }
+}
