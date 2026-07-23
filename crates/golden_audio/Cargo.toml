@@ -1,0 +1,26 @@
+[package]
+name = "golden_audio"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Application-agnostic real-time audio engine and device foundation for Golden applications"
+
+[features]
+default = []
+codegen = ["dep:ts-rs"]
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+ts-rs = { workspace = true, optional = true }
+uuid.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[[bin]]
+name = "generate_golden_audio_contract"
+path = "src/bin/generate_golden_audio_contract.rs"
+required-features = ["codegen"]

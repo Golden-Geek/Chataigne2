@@ -26,9 +26,11 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 0 — baseline, decisions, and progress record.
+- Current phase: Phase 1 — crate scaffold and backend-independent contract.
 - Status: complete locally; checkpoint pending.
-- Next step: scaffold the backend-independent `golden_audio` crate.
+- Last checkpoint: `5a7b8ce` (`docs(audio): lock golden_audio architecture and execution baseline`).
+- Next step: implement planar buffers, deterministic route compilation, gain ramps, and the offline
+  renderer.
 
 ## Decisions
 
@@ -142,6 +144,28 @@ and soak measurements are `NOT RUN`.
 | --- | --- | --- | --- | --- |
 | N/A | Windows x64 baseline | N/A | Initial audio benchmark suite | NOT RUN |
 
+## Phase 1 implementation
+
+The new `crates/golden_audio` workspace crate provides:
+
+- strong UUID-backed virtual channel, route, and analysis identities;
+- validated backend, device, physical-channel, and playback string identities;
+- monotonic configuration/command generations and generational voice IDs;
+- validated sample rates, frame counts, decibel gains, engine configuration, and centralized
+  `EngineLimits`;
+- authored backend-neutral channel, route, device-selection, and analysis configuration;
+- structured public errors, diagnostics, commands, events, and coalesced observations;
+- app-agnostic device/stream/inspector DTOs with optional Rust-to-TypeScript code generation;
+- public backend and stream traits, a deterministic null backend, and a controllable mock backend;
+- an offline sample clock; and
+- a bounded nonblocking control producer, owned control worker, single event receiver, clean
+  idempotent shutdown, and last-valid-generation behavior.
+
+The Phase 1 control worker deliberately does not render or decode. Playback requests produce a
+structured unsupported-foundation failure until the playback phase. Callback ownership and the
+plan exchange replace the current worker-side synchronization in Phase 3; no callback exists in
+Phase 1.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -162,7 +186,13 @@ and soak measurements are `NOT RUN`.
 | `cargo metadata --no-deps --format-version 1` | PASS — workspace manifests accept `GPL-3.0-only` |
 | `npm pkg get license --workspaces --include-workspace-root` | PASS — all current npm workspace packages report `GPL-3.0-only` |
 | `git diff --check` | PASS — no whitespace errors; Git emitted only existing Windows line-ending conversion warnings |
-| Phase 1 Rust checks/tests/clippy | NOT RUN |
+| `cargo check -p golden_audio --no-default-features --all-targets` | PASS |
+| `cargo test -p golden_audio --no-default-features` | PASS — 12 tests (11 unit, 1 external-style integration), 0 failed |
+| `cargo clippy -p golden_audio --no-default-features --all-targets -- -D warnings` | PASS |
+| `cargo check -p golden_audio --features codegen --all-targets` | PASS |
+| `cargo run -p golden_audio --features codegen --bin generate_golden_audio_contract -- target/golden-audio-contract-phase1` | PASS — generated 20 TypeScript files in ignored build output |
+| `cargo tree -p golden_audio --no-default-features --edges normal` | PASS — only serde, thiserror, UUID, and their transitive dependencies; no Golden Core or Chataigne dependency |
+| Root and Golden Core `cargo fmt` plus `--check` | PASS after Phase 1 |
 | Root and Golden Core formatting | NOT RUN |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
@@ -184,6 +214,16 @@ Phase 0:
 - `packages/golden-graph-ui/package.json`
 - `README.md`
 - `package-lock.json`
+
+Phase 1:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `crates/golden_audio/Cargo.toml`
+- `crates/golden_audio/README.md`
+- `crates/golden_audio/src/`
+- `crates/golden_audio/tests/public_api.rs`
+- `crates/golden_audio/examples/null_offline.rs`
 
 ## Remaining work
 

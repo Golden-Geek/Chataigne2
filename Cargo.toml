@@ -22,6 +22,7 @@ members = [
     "crates/golden_core/services/protocol",
     "crates/golden_core/support/codegen",
     "crates/golden_core/support/macros",
+    "crates/golden_audio",
     "crates/golden_graph",
     "xtask",
 ]
@@ -45,6 +46,7 @@ chataigne_state_machine = { path = "apps/chataigne/systems/state_machine/runtime
 chataigne_state_machine_model = { path = "apps/chataigne/systems/state_machine/model" }
 delaunator = "1.1.0"
 golden_application = { path = "crates/golden_core/foundation/application" }
+golden_audio = { path = "crates/golden_audio" }
 golden_context = { path = "crates/golden_core/foundation/context" }
 golden_graph = { path = "crates/golden_graph" }
 golden_io = { path = "crates/golden_core/runtime/io" }
