@@ -11,10 +11,10 @@ use std::{
 use rtrb::Consumer;
 
 use crate::{
-    AudioBackend, AudioBackendState, AudioBackendStatus, AudioCommand, AudioConfiguration, AudioDeviceInspectorState,
-    AudioEngineConfig, AudioError, AudioErrorCategory, AudioEvent, AudioObservationReader, AudioObservationSnapshot,
-    AudioQueueKind, BackendPolicy, CommandSequence, ConfigGeneration, EngineLimits, NullBackend, QueuePressureCounters,
-    QueuePressureEvent, RenderCompileContext, RenderPlanCompiler,
+    AudioBackend, AudioCommand, AudioConfiguration, AudioDeviceInspectorState, AudioEngineConfig, AudioError,
+    AudioErrorCategory, AudioEvent, AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, BackendPolicy,
+    CommandSequence, ConfigGeneration, EngineLimits, NullBackend, QueuePressureCounters, QueuePressureEvent,
+    RenderCompileContext, RenderPlanCompiler,
 };
 #[cfg(feature = "playback")]
 use crate::{
@@ -24,6 +24,7 @@ use crate::{
     playback_voice_pool,
 };
 
+use super::device_runtime::DeviceRuntime;
 use super::ingress::{CommandEnvelope, CommandQueueProducer, command_queue};
 
 const STATE_RUNNING: u8 = 0;
@@ -122,6 +123,20 @@ impl AudioEngineBuilder {
         let id = backend.descriptor().id;
         self.backends.retain(|current| current.descriptor().id != id);
         self.backends.push(Arc::new(backend));
+        self
+    }
+
+    /// Registers an already type-erased backend.
+    ///
+    /// Native host discovery returns boxed backends because the set of compiled
+    /// host implementations is platform-dependent. Keeping that erasure at the
+    /// builder boundary lets applications register the complete native set
+    /// without knowing concrete backend types.
+    #[must_use]
+    pub fn with_boxed_backend(mut self, backend: Box<dyn AudioBackend>) -> Self {
+        let id = backend.descriptor().id;
+        self.backends.retain(|current| current.descriptor().id != id);
+        self.backends.push(Arc::from(backend));
         self
     }
 
@@ -341,7 +356,9 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
         #[cfg(feature = "playback")]
         mut playback_voice_controller,
     } = worker;
-    publish_backend_inventory(&event_sender, &observation, backends.as_slice());
+    let mut devices = DeviceRuntime::new(&engine_config)
+        .expect("validated audio engine configuration must create a device supervisor");
+    devices.refresh(&event_sender, &observation, backends.as_slice(), true);
     let mut reported_command_pressure = 0;
     #[cfg(feature = "playback")]
     let mut playback_lifecycle = std::collections::HashMap::new();
@@ -357,6 +374,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
             &mut playback_lifecycle,
         );
         let Ok(envelope) = command_receiver.pop() else {
+            devices.refresh(&event_sender, &observation, backends.as_slice(), false);
             report_command_pressure(
                 &event_sender,
                 &observation,
@@ -371,10 +389,14 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
         match envelope.command {
             AudioCommand::ApplyConfiguration { generation, config } => {
                 apply_configuration(
-                    &event_sender,
-                    &observation,
-                    &engine_config,
-                    &limits,
+                    ApplyConfigurationContext {
+                        event_sender: &event_sender,
+                        observation: &observation,
+                        engine_config: &engine_config,
+                        limits: &limits,
+                        backends: backends.as_slice(),
+                        devices: &mut devices,
+                    },
                     generation,
                     *config,
                 );
@@ -394,6 +416,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                 update_observation(&observation, |snapshot| {
                     snapshot.enabled = enabled;
                 });
+                devices.set_enabled(&event_sender, &observation, backends.as_slice(), enabled);
             }
             AudioCommand::SetMasterGain { .. } | AudioCommand::SetChannelGain { .. } => {}
             AudioCommand::StopFile {
@@ -456,6 +479,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
             &mut reported_command_pressure,
         );
     }
+    devices.shutdown(&event_sender, &observation);
     publish_event(&event_sender, &observation, AudioEvent::ShutdownComplete);
     state.store(STATE_STOPPED, Ordering::Release);
 }
@@ -774,22 +798,29 @@ fn publish_render_event(
     publish_event(event_sender, observation, audio_event);
 }
 
+struct ApplyConfigurationContext<'a> {
+    event_sender: &'a SyncSender<AudioEvent>,
+    observation: &'a Arc<RwLock<AudioObservationSnapshot>>,
+    engine_config: &'a AudioEngineConfig,
+    limits: &'a EngineLimits,
+    backends: &'a [Arc<dyn AudioBackend>],
+    devices: &'a mut DeviceRuntime,
+}
+
 fn apply_configuration(
-    event_sender: &SyncSender<AudioEvent>,
-    observation: &Arc<RwLock<AudioObservationSnapshot>>,
-    engine_config: &AudioEngineConfig,
-    limits: &EngineLimits,
+    runtime: ApplyConfigurationContext<'_>,
     generation: ConfigGeneration,
     config: AudioConfiguration,
 ) {
-    let active_generation = observation
+    let active_generation = runtime
+        .observation
         .read()
         .map(|snapshot| snapshot.generation)
         .unwrap_or(ConfigGeneration::INITIAL);
     if generation <= active_generation {
         publish_event(
-            event_sender,
-            observation,
+            runtime.event_sender,
+            runtime.observation,
             AudioEvent::ConfigurationRejected {
                 generation,
                 error: AudioError::invalid_configuration(format!(
@@ -800,21 +831,67 @@ fn apply_configuration(
         return;
     }
     let context = RenderCompileContext::derive_from_configuration(&config);
-    match RenderPlanCompiler::new(engine_config.clone(), limits.clone()).compile(&config, &context) {
-        Ok(_compilation) => {
-            update_observation(observation, |snapshot| {
+    match RenderPlanCompiler::new(runtime.engine_config.clone(), runtime.limits.clone()).compile(&config, &context) {
+        Ok(compilation) => {
+            let inputs = config
+                .virtual_inputs
+                .iter()
+                .map(|channel| crate::ChannelObservation {
+                    channel: channel.id,
+                    rms_linear: 0.0,
+                    rms_dbfs: crate::GainDb::SILENCE_DB,
+                    peak_dbfs: crate::GainDb::SILENCE_DB,
+                    clipped: false,
+                })
+                .collect();
+            let outputs = config
+                .virtual_outputs
+                .iter()
+                .map(|channel| crate::ChannelObservation {
+                    channel: channel.id,
+                    rms_linear: 0.0,
+                    rms_dbfs: crate::GainDb::SILENCE_DB,
+                    peak_dbfs: crate::GainDb::SILENCE_DB,
+                    clipped: false,
+                })
+                .collect();
+            let analysis_taps = config
+                .analysis_taps
+                .iter()
+                .map(|tap| crate::AnalysisTapObservation {
+                    tap: tap.id,
+                    source: tap.source,
+                    enabled: tap.enabled,
+                    result: None,
+                })
+                .collect();
+            runtime.devices.configure(
+                runtime.event_sender,
+                runtime.observation,
+                runtime.backends,
+                &config,
+                compilation.plan,
+            );
+            update_observation(runtime.observation, |snapshot| {
                 snapshot.generation = generation;
                 snapshot.enabled = config.enabled;
+                snapshot.inputs = inputs;
+                snapshot.outputs = outputs;
+                snapshot.analysis = crate::AnalysisObservationSnapshot {
+                    generation,
+                    taps: analysis_taps,
+                    ..crate::AnalysisObservationSnapshot::default()
+                };
             });
             publish_event(
-                event_sender,
-                observation,
+                runtime.event_sender,
+                runtime.observation,
                 AudioEvent::ConfigurationApplied { generation },
             );
         }
         Err(error) => publish_event(
-            event_sender,
-            observation,
+            runtime.event_sender,
+            runtime.observation,
             AudioEvent::ConfigurationRejected { generation, error },
         ),
     }
@@ -846,45 +923,7 @@ fn report_command_pressure(
     );
 }
 
-fn publish_backend_inventory(
-    event_sender: &SyncSender<AudioEvent>,
-    observation: &Arc<RwLock<AudioObservationSnapshot>>,
-    backends: &[Arc<dyn AudioBackend>],
-) {
-    let mut statuses = Vec::with_capacity(backends.len());
-    let mut devices = Vec::new();
-    for backend in backends {
-        let descriptor = backend.descriptor();
-        let mut status = AudioBackendStatus {
-            backend: descriptor.id,
-            label: descriptor.label,
-            state: descriptor.state,
-            detail: descriptor.detail,
-        };
-        if status.state == AudioBackendState::Available {
-            match backend.discover() {
-                Ok(discovered) => devices.extend(discovered),
-                Err(error) => {
-                    status.state = AudioBackendState::Failed;
-                    status.detail = Some(error.to_string());
-                }
-            }
-        }
-        publish_event(
-            event_sender,
-            observation,
-            AudioEvent::BackendStatusChanged(status.clone()),
-        );
-        statuses.push(status);
-    }
-    update_observation(observation, |snapshot| {
-        snapshot.device.backends = statuses;
-        snapshot.device.devices = devices;
-        snapshot.device.discovery_in_progress = false;
-    });
-}
-
-fn publish_event(
+pub(super) fn publish_event(
     sender: &SyncSender<AudioEvent>,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     event: AudioEvent,
@@ -896,7 +935,7 @@ fn publish_event(
     }
 }
 
-fn update_observation(
+pub(super) fn update_observation(
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     update: impl FnOnce(&mut AudioObservationSnapshot),
 ) {

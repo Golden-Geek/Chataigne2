@@ -1,0 +1,14 @@
+[package]
+name = "chataigne_sound_card_protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+golden_audio = { workspace = true, features = ["codegen"] }
+serde.workspace = true
+ts-rs.workspace = true
+
+[[bin]]
+name = "generate_sound_card_protocol"
+path = "src/bin/generate_sound_card_protocol.rs"

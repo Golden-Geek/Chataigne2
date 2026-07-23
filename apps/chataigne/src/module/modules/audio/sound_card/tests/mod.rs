@@ -1,5 +1,9 @@
 use std::{collections::HashSet, time::Duration};
 
+use golden_audio::{
+    AudioBackend, AudioBackendState, AudioBackendStatus, AudioChannelId,
+    AudioDeviceInspectorState, AudioDeviceTargetId, BackendId, NullBackend,
+};
 use golden_core::{
     app::ProjectNode,
     edit::{Edit, NodeTree},
@@ -9,7 +13,7 @@ use golden_core::{
 };
 
 use super::{
-    meter_uuid, SoundCardModule, ANALYSIS_PATH, INPUT_LEVELS_PATH,
+    meter_uuid, runtime, SoundCardModule, ANALYSIS_PATH, INPUT_LEVELS_PATH,
     INPUT_PROFILES_PATH, OUTPUT_LEVELS_PATH, OUTPUT_PROFILES_PATH,
     PITCH_RESULTS_PATH, SPECTRUM_RESULTS_PATH, VIRTUAL_INPUTS_PATH,
     VIRTUAL_OUTPUTS_PATH,
@@ -20,12 +24,14 @@ use crate::app::{
     },
     module_modules_audio_sound_card_schema::{
         SoundCardChannelMeter, SoundCardInputPatchRoute, SoundCardInputProfile,
-        SoundCardMonitorRoute, SoundCardPitchAnalyzer, SoundCardPlaybackRoute,
-        SoundCardSpectrumAnalyzer, SoundCardSpectrumBand, SoundCardVirtualInput,
-        SoundCardVirtualOutput, SOUND_CARD_VIRTUAL_INPUT_FILTER_KEY,
-        SOUND_CARD_VIRTUAL_OUTPUT_FILTER_KEY,
+        SoundCardMonitorRoute, SoundCardOutputPatchRoute, SoundCardOutputProfile,
+        SoundCardPitchAnalyzer, SoundCardPlaybackRoute, SoundCardSpectrumAnalyzer,
+        SoundCardSpectrumBand, SoundCardVirtualInput, SoundCardVirtualOutput,
+        SOUND_CARD_VIRTUAL_INPUT_FILTER_KEY, SOUND_CARD_VIRTUAL_OUTPUT_FILTER_KEY,
     },
 };
+
+mod phase10;
 
 #[test]
 fn generated_catalog_contains_sound_card_and_only_its_five_tester_commands() {

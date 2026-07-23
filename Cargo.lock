@@ -12,6 +12,7 @@ dependencies = [
  "buttplug_core",
  "chataigne_alchemist",
  "chataigne_condition",
+ "chataigne_sound_card_protocol",
  "chataigne_state_machine",
  "delaunator",
  "device_query",
@@ -1113,6 +1114,15 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "uuid",
+]
+
+[[package]]
+name = "chataigne_sound_card_protocol"
+version = "0.1.0"
+dependencies = [
+ "golden_audio",
+ "serde",
+ "ts-rs",
 ]
 
 [[package]]

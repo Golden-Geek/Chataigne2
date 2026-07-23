@@ -307,6 +307,7 @@ pub struct AudioStreamStatus {
     pub permission: AudioPermissionState,
     pub recovery_policy: AudioRecoveryPolicy,
     pub retry_attempt: u32,
+    #[cfg_attr(feature = "codegen", ts(type = "number | null"))]
     pub next_retry_ms: Option<u64>,
     pub format: Option<NegotiatedStreamFormat>,
     pub error: Option<AudioInspectorError>,

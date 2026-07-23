@@ -1,10 +1,13 @@
 #[cfg(test)]
 mod tests;
+mod integration;
+mod runtime;
 
 use std::collections::HashSet;
 
 use golden_core::{
     edit::{Edit, NodeTree},
+    engine::NodeExecutionRule,
     events::{Event, EventKind},
     node,
     node::{
@@ -22,10 +25,11 @@ pub(crate) use crate::app::module_modules_audio_sound_card_commands::SOUND_CARD_
 use crate::app::module_modules_audio_sound_card_schema::{
     SoundCardAnalysisList, SoundCardChannelMeter, SoundCardInputPatchRoute,
     SoundCardInputProfile, SoundCardInputProfileList, SoundCardMonitorRouteList,
-    SoundCardOutputPatchRoute, SoundCardOutputProfile, SoundCardOutputProfileList,
-    SoundCardPitchAnalyzer, SoundCardPlaybackRouteList, SoundCardSpectrumAnalyzer,
-    SoundCardSpectrumBand, SoundCardVirtualInput, SoundCardVirtualInputList,
-    SoundCardVirtualOutput, SoundCardVirtualOutputList,
+    SoundCardMonitorRoute, SoundCardOutputPatchRoute, SoundCardOutputProfile,
+    SoundCardOutputProfileList, SoundCardPitchAnalyzer, SoundCardPlaybackRoute,
+    SoundCardPlaybackRouteList, SoundCardSpectrumAnalyzer, SoundCardSpectrumBand,
+    SoundCardVirtualInput, SoundCardVirtualInputList, SoundCardVirtualOutput,
+    SoundCardVirtualOutputList,
 };
 
 const SYSTEM_DEFAULT_INPUT: &str = "platform_default:system_default:input";
@@ -74,6 +78,10 @@ const SPECTRUM_RESULTS_PATH: &str = "values/spectrum_bands";
         );
         fixed_buffer_frames: i32 = 128 [16..8192] (
             label = "Fixed Buffer Frames"
+        );
+        refresh_devices: ParamValue = ParamValue::Trigger() (
+            label = "Refresh Devices",
+            description = "Request a nonblocking audio backend discovery refresh."
         );
         input_readiness: String = "disabled".to_string() (
             label = "Input Readiness",
@@ -171,13 +179,21 @@ const SPECTRUM_RESULTS_PATH: &str = "values/spectrum_bands";
 )]
 pub struct SoundCardModule {
     base: crate::app::ModuleBase,
+    runtime: Option<runtime::SoundCardRuntime>,
+    configuration_dirty: bool,
+    active_runtime_warnings: HashSet<(NodeId, String)>,
+    runtime_error_node: Option<NodeId>,
 }
 
 impl SoundCardModule {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleBase::create_with_command_types(
-            SOUND_CARD_COMMAND_TYPES,
-        ))
+        Self::new(
+            crate::app::ModuleBase::create_with_command_types(SOUND_CARD_COMMAND_TYPES),
+            None,
+            true,
+            HashSet::new(),
+            None,
+        )
     }
 
     fn initialize_fresh_defaults(
@@ -368,32 +384,6 @@ impl SoundCardModule {
         sync_analysis_results(ctx, snapshot, self.id(), analyzers.as_slice());
     }
 
-    fn sync_device_choices(
-        &self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-    ) {
-        if let Some(parameter) =
-            find_path(snapshot, self.id(), "connection/input_device")
-        {
-            sync_device_enum(
-                ctx,
-                parameter,
-                SYSTEM_DEFAULT_INPUT,
-                "System Default Input",
-            );
-        }
-        if let Some(parameter) =
-            find_path(snapshot, self.id(), "connection/output_device")
-        {
-            sync_device_enum(
-                ctx,
-                parameter,
-                SYSTEM_DEFAULT_OUTPUT,
-                "System Default Output",
-            );
-        }
-    }
 }
 
 #[golden_core::item(
@@ -423,6 +413,34 @@ impl Node for SoundCardModule {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
         }
         self.sync_device_choices(ctx, snapshot.as_ref());
+        self.configuration_dirty = true;
+        self.ensure_runtime(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        if self.configuration_dirty {
+            if let Some(snapshot) = ctx.tree_snapshot_arc() {
+                self.refresh_configuration(ctx, snapshot.as_ref());
+            }
+        }
+        self.poll_runtime(ctx);
+    }
+
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.stop_runtime();
+    }
+
+    fn needs_update(&self) -> bool {
+        self.runtime.is_some() || self.configuration_dirty
+    }
+
+    fn update_requires_tree_snapshot(&self) -> bool {
+        self.configuration_dirty
+    }
+
+    fn execution_rule(&self) -> NodeExecutionRule {
+        NodeExecutionRule::periodic(runtime::SOUND_CARD_UPDATE_RATE_HZ)
+            .with_compiled_kernel(runtime::SOUND_CARD_COMPILED_KERNEL)
     }
 
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
@@ -438,18 +456,29 @@ impl Node for SoundCardModule {
 
     fn inbox_requires_tree_snapshot(&self, events: &golden_core::events::EventFrame) -> bool {
         events.iter().any(|event| {
-            matches!(
-                event.kind,
-                EventKind::ParamChanged { .. }
-                    | EventKind::ChildAdded { .. }
+            match event.kind {
+                EventKind::ParamChanged { param, .. } => !self
+                    .runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.bindings().is_runtime_value(param)),
+                EventKind::ChildAdded { .. }
                     | EventKind::ChildRemoved { .. }
                     | EventKind::ChildReplaced { .. }
-                    | EventKind::MetaChanged { .. }
-            )
+                    | EventKind::MetaChanged { .. } => true,
+                _ => false,
+            }
         })
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
+        if self
+            .runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.bindings().is_runtime_value(param))
+        {
+            return;
+        }
+        self.configuration_dirty = true;
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
             self.sync_device_choices(ctx, snapshot.as_ref());
@@ -462,26 +491,38 @@ impl Node for SoundCardModule {
         if patch.label.is_none() {
             return;
         }
+        self.configuration_dirty = true;
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
         }
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+        self.configuration_dirty = true;
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
         }
     }
 
     fn on_child_removed(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+        self.configuration_dirty = true;
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
         }
     }
 
     fn on_child_replaced(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {
+        self.configuration_dirty = true;
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
+        }
+    }
+
+    fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {
+        if let Some(runtime) = self.runtime.as_mut() {
+            let _ = runtime.set_enabled(enabled);
+        } else {
+            self.configuration_dirty = true;
         }
     }
 
@@ -553,7 +594,7 @@ fn sync_device_enum(
     if parameter_id.0 == 0 {
         return;
     }
-    ctx.call_node_mutation(parameter_id, move |node, inner_ctx| {
+    ctx.call_node_mutation_without_snapshot(parameter_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
             return Err("Sound Card device selector is not a parameter".to_string());
         };

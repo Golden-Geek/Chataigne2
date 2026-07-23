@@ -82,11 +82,17 @@ pub struct AnalysisTapObservation {
 #[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
 #[cfg_attr(feature = "codegen", ts(export))]
 pub struct AnalysisDiagnosticsObservation {
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
     pub captured_frames: u64,
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
     pub processed_frames: u64,
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
     pub dropped_frames: u64,
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
     pub stale_frames: u64,
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
     pub worker_time_micros: u64,
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
     pub maximum_worker_time_micros: u64,
 }
 
@@ -95,6 +101,7 @@ pub struct AnalysisDiagnosticsObservation {
 #[cfg_attr(feature = "codegen", ts(export))]
 pub struct AnalysisObservationSnapshot {
     pub generation: ConfigGeneration,
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
     pub render_frame: u64,
     pub inputs: Vec<ChannelObservation>,
     pub outputs: Vec<ChannelObservation>,

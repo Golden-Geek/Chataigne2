@@ -6,6 +6,7 @@ members = [
     "apps/chataigne/systems/alchemist/processor",
     "apps/chataigne/systems/state_machine/model",
     "apps/chataigne/systems/state_machine/runtime",
+    "apps/chataigne/systems/sound_card_protocol",
     "crates/golden_core",
     "crates/golden_core/engine",
     "crates/golden_core/foundation/application",
@@ -44,6 +45,7 @@ chataigne_condition = { path = "apps/chataigne/systems/alchemist/condition" }
 chataigne_processor = { path = "apps/chataigne/systems/alchemist/processor" }
 chataigne_state_machine = { path = "apps/chataigne/systems/state_machine/runtime" }
 chataigne_state_machine_model = { path = "apps/chataigne/systems/state_machine/model" }
+chataigne_sound_card_protocol = { path = "apps/chataigne/systems/sound_card_protocol" }
 delaunator = "1.1.0"
 golden_application = { path = "crates/golden_core/foundation/application" }
 golden_audio = { path = "crates/golden_audio" }

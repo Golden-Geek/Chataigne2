@@ -214,6 +214,23 @@ JACK, native PipeWire, and real-time DBus support without changing application d
 backend probe enumerates hosts and devices but does not open a stream. The separate smoke example
 opens the default output, writes silence for 100 ms, and closes it.
 
+## Chataigne runtime integration
+
+The Sound Card module owns the application adapter and starts one reusable `AudioEngine` when the
+node becomes ready. Tree snapshots are requested only for dirty authored configuration. The adapter
+converts persistent UUIDs and references into Golden IDs, submits one generation for the complete
+stabilized edit batch, and retains the last valid engine plan when conversion fails.
+
+The Golden control worker owns discovery, device supervision, active streams, and the compiled
+render plan. Chataigne polls its coalesced observation at 30 Hz, updates cached value-node IDs only
+when values move beyond the configured epsilon, and publishes one latest-only app telemetry
+envelope. Missing selections remain persisted; unresolved local routes remain authored and receive
+visible warnings so removal and undo stay atomic.
+
+The app-owned Svelte adapter only maps Sound Card connection paths and `golden_ui` intents to the
+generic device-inspector contract. It has no registration side effect. The reusable inspector and
+registry integration remain owned by the future `golden_audio_ui` package.
+
 ## Public surface
 
 The small backend-neutral surface is centered on:

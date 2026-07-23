@@ -21,6 +21,7 @@ base64 = "0.22"
 buttplug = "10.0.3"
 buttplug_core = "10.0.3"
 chataigne_state_machine.workspace = true
+chataigne_sound_card_protocol.workspace = true
 delaunator.workspace = true
 device_query = "4.0.1"
 dirs = "6"

@@ -1,4 +1,10 @@
-use crate::{AudioCommand, AudioConfiguration, AudioEngineBuilder, AudioErrorCategory, AudioEvent, ConfigGeneration};
+use std::{thread, time::Duration};
+
+use crate::{
+    AudioChannelId, AudioCommand, AudioConfiguration, AudioDeviceReadiness, AudioDeviceSelection, AudioDirection,
+    AudioEngineBuilder, AudioErrorCategory, AudioEvent, AudioRouteId, ConfigGeneration, DirectionConfiguration, GainDb,
+    NullBackend, OutputPatchRoute, PhysicalChannelKey, VirtualOutputChannel,
+};
 
 #[test]
 fn engine_applies_configuration_and_shuts_down_twice() {
@@ -112,5 +118,64 @@ fn stale_configuration_generation_cannot_replace_the_newest_plan() {
     }
 
     assert_eq!(engine.observations().latest().generation, newest);
+    engine.shutdown().unwrap();
+}
+
+#[test]
+fn applied_configuration_drives_null_device_readiness_and_channel_observations() {
+    let mut engine = AudioEngineBuilder::default().build().unwrap();
+    let first = AudioChannelId::new();
+    let second = AudioChannelId::new();
+    let mut configuration = AudioConfiguration::empty();
+    configuration.output = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Output,
+        )),
+        recovery_policy: crate::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: crate::AudioBufferPolicy::Automatic,
+    };
+    configuration.virtual_outputs = vec![
+        VirtualOutputChannel {
+            id: first,
+            label: "Left".to_owned(),
+            gain: GainDb::UNITY,
+        },
+        VirtualOutputChannel {
+            id: second,
+            label: "Right".to_owned(),
+            gain: GainDb::UNITY,
+        },
+    ];
+    configuration.output_patch = vec![OutputPatchRoute {
+        id: AudioRouteId::new(),
+        source: first,
+        destination: PhysicalChannelKey::new("output:0").unwrap(),
+        gain: GainDb::UNITY,
+    }];
+    let generation = ConfigGeneration::new(1);
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+
+    let mut latest = engine.observations().latest();
+    for _ in 0..100 {
+        latest = engine.observations().latest();
+        if latest.generation == generation && latest.device.output.readiness == AudioDeviceReadiness::Ready {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(latest.generation, generation);
+    assert_eq!(latest.device.output.readiness, AudioDeviceReadiness::Ready);
+    assert_eq!(
+        latest.outputs.iter().map(|channel| channel.channel).collect::<Vec<_>>(),
+        [first, second]
+    );
     engine.shutdown().unwrap();
 }

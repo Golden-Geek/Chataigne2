@@ -26,11 +26,11 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 9 - Chataigne Sound Card schema and persistence.
-- Status: implementation and backend-neutral persistence qualification complete.
-- Last checkpoint: `0cc3dc61` (`feat(audio): add realtime-safe metering and analysis`).
-- Phase 9 checkpoint: this change (`feat(chataigne): add persistent Sound Card module model`).
-- Stop boundary: Phase 10 runtime integration has not started.
+- Current phase: Phase 10 - Chataigne runtime adapter and live values.
+- Status: implementation and local qualification complete.
+- Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
+- Phase 10 checkpoint: this change (`feat(chataigne): connect Sound Card nodes to golden_audio`).
+- Stop boundary: Phase 11 commands, scripting, and callbacks have not started.
 
 ## Decisions
 
@@ -404,6 +404,35 @@ The Chataigne-owned Sound Card model now provides:
 Phase 9 deliberately stops at the persistent app model. It does not construct an audio engine,
 open a native backend, poll live values, or execute the five command nodes.
 
+## Phase 10 implementation
+
+The Chataigne-owned runtime adapter now provides:
+
+- one `golden_audio::AudioEngine` lifecycle per live Sound Card module, using every compiled native
+  backend plus the deterministic null backend, with explicit shutdown on module removal, project
+  replacement, and drop;
+- dirty-tree conversion into backend-neutral `AudioConfiguration` values, stable UUID-derived
+  channel/route/tap identities, device-profile selection by stable profile key, and one coalesced
+  configuration generation per stabilization batch;
+- last-valid-plan behavior: invalid foreign references reject the replacement, while missing
+  devices and dangling local references keep authored topology intact and surface node warnings;
+- Golden-owned periodic discovery, device supervision, stream open/start/stop, recovery status, and
+  active compiled-plan ownership on the control worker;
+- live device choices that add discovered targets without replacing a persisted missing enum value;
+- cached runtime `NodeId` bindings, 30 Hz observation polling, epsilon-filtered parameter writes,
+  readiness and data-capability projection, and no steady-state process-tree or state-machine
+  snapshot rebuild;
+- read-only meter, analyzer, playback, stream, and diagnostic value projection from the coalesced
+  Golden observation;
+- an app-owned latest-only `chataigne.sound_card.telemetry` envelope whose embedded device and
+  analysis contracts, plus the envelope itself, are generated from Rust into TypeScript; and
+- an unregistered Svelte 5 `ChataigneAudioDeviceInspectorAdapter` that translates the future
+  reusable inspector binding into ordinary `golden_ui` parameter intents. Registration remains a
+  Phase 12 responsibility.
+
+Phase 10 deliberately stops before command execution, multiplex admission, script functions,
+callbacks, snippets, and templates. Those remain Phase 11 work.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -523,7 +552,19 @@ open a native backend, poll live values, or execute the five command nodes.
 | Phase 9 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
 | Phase 9 `cargo machete` | FAIL - the same six pre-existing unused dependencies remain in `Chataigne2`; `golden_audio` is used and was not reported |
 | Root and Golden Core formatting plus `--check` after Phase 9 | PASS |
-| UI checks/tests/build | NOT RUN |
+| Phase 10 focused Sound Card tests | PASS - 14 tests covering persistence plus stable UUID conversion, generation coalescing, invalid-plan retention, missing-device recovery, unresolved-route warnings, atomic undo, readiness/capabilities, bounded snapshot-free values, and worker shutdown |
+| `cargo test -p golden_audio` after Phase 10 | PASS - 121 tests (109 unit, 12 integration), 0 failed |
+| `cargo test -p Chataigne2 --no-fail-fast` after Phase 10 | 456 PASS, 1 timing-sensitive pre-existing multiplex performance test exceeded its 10 ms threshold under suite load; its immediate isolated rerun PASSed |
+| `cargo check --workspace --all-targets` after Phase 10 | PASS |
+| `cargo clippy -p golden_audio --all-targets -- -D warnings` after Phase 10 | PASS |
+| Phase 10 app all-target Clippy with only the documented unrelated Alchemist/state-machine lint classes allowed | PASS - no Sound Card warning or lint remained |
+| Phase 10 strict app all-target Clippy | FAIL on the same unrelated Alchemist/state-machine lint classes documented in Phase 9 |
+| Phase 10 Sound Card Rust-to-TypeScript generation | PASS - 46 deterministic files covering device, stream, analysis, and packed app telemetry declarations |
+| `npm run check` in `apps/chataigne/ui` after Phase 10 | PASS - 0 errors and 0 warnings |
+| `npm test` in `apps/chataigne/ui` after Phase 10 | PASS - 18 tests in 7 files |
+| `npm run build` in `apps/chataigne/ui` after Phase 10 | PASS - static production build completed; only the existing chunk-size advisory was emitted |
+| Cargo and npm workspace license metadata after Phase 10 | PASS - all 26 Cargo packages and all four npm workspaces report `GPL-3.0-only` |
+| Root and Golden Core formatting plus `--check` after Phase 10 | PASS |
 | Product run modes | NOT RUN |
 | Cross-platform backend/hardware matrix | NOT RUN |
 
@@ -663,6 +704,24 @@ Phase 9:
 - `apps/chataigne/src/module/modules/audio/sound_card/`
 - `docs/progress/golden-audio-sound-card.md`
 
+Phase 10:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `apps/chataigne/Cargo.toml`
+- `apps/chataigne/src/module/modules/audio/sound_card/`
+- `apps/chataigne/systems/sound_card_protocol/`
+- `apps/chataigne/ui/README.md`
+- `apps/chataigne/ui/package.json`
+- `apps/chataigne/ui/src/lib/modules/audio/sound-card/`
+- `crates/golden_audio/src/analysis/observation.rs`
+- `crates/golden_audio/src/control/`
+- `crates/golden_audio/src/ids.rs`
+- `crates/golden_audio/src/tests/engine.rs`
+- `docs/architecture/golden-audio.md`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 10-15 remain. Work is intentionally stopped at the completed Phase 9 persistence boundary.
+Phases 11-15 remain. Work is intentionally stopped at the completed Phase 10 runtime-integration
+boundary.

@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AudioDeviceInspectorState, ChannelObservation, ConfigGeneration};
+use crate::{AnalysisObservationSnapshot, AudioDeviceInspectorState, ChannelObservation, ConfigGeneration};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AudioObservationSnapshot {
@@ -18,6 +18,7 @@ pub struct AudioObservationSnapshot {
     pub dropped_event_count: u64,
     pub queue_pressure_count: u64,
     pub device: AudioDeviceInspectorState,
+    pub analysis: AnalysisObservationSnapshot,
 }
 
 impl Default for AudioObservationSnapshot {
@@ -35,6 +36,7 @@ impl Default for AudioObservationSnapshot {
             dropped_event_count: 0,
             queue_pressure_count: 0,
             device: AudioDeviceInspectorState::default(),
+            analysis: AnalysisObservationSnapshot::default(),
         }
     }
 }

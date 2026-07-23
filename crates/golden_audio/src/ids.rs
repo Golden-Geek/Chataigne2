@@ -129,6 +129,7 @@ string_id!(PlaybackId, "playback");
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
 #[cfg_attr(feature = "codegen", ts(export))]
+#[cfg_attr(feature = "codegen", ts(type = "number"))]
 pub struct ConfigGeneration(u64);
 
 impl ConfigGeneration {

@@ -12,6 +12,9 @@ adapters live in this app workspace.
 - Keep product DTO adaptation, registry hooks, panels, and assets in this app workspace.
 - Keep Svelte code on Svelte 5 runes and direct event props.
 - Treat generated state-machine DTOs under `src/lib/systems/state_machine/generated/` as build output.
+- Treat generated Sound Card/audio DTOs under
+  `src/lib/modules/audio/sound-card/generated/` as build output. Regenerate them with
+  `npm run codegen:sound-card-protocol`.
 - Do not recreate transport, engine, or module policy in UI code.
 
 ## Development
