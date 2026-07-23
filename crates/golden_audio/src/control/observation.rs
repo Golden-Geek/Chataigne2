@@ -25,6 +25,7 @@ pub struct AudioObservationSnapshot {
     pub global_max_rms: f32,
     pub active_voice_count: u16,
     pub dropped_event_count: u64,
+    pub queue_pressure_count: u64,
     pub device: AudioDeviceInspectorState,
 }
 
@@ -41,6 +42,7 @@ impl Default for AudioObservationSnapshot {
             global_max_rms: 0.0,
             active_voice_count: 0,
             dropped_event_count: 0,
+            queue_pressure_count: 0,
             device: AudioDeviceInspectorState::default(),
         }
     }

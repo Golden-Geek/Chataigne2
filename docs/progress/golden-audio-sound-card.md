@@ -26,11 +26,11 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 2 — deterministic realtime render core.
+- Current phase: Phase 3 — callback-safe control plane and plan lifecycle.
 - Status: complete locally; checkpoint pending.
-- Last checkpoint: `baf373c` (`feat(audio): add backend-neutral golden_audio foundation`).
-- Next step: implement callback-safe ownership, bounded queues, acknowledged plan exchange, and
-  ordered realtime parameter updates.
+- Last checkpoint: `433b941` (`feat(audio): implement deterministic realtime render core`).
+- Next step: implement the complete backend-neutral device model, negotiation scoring, mock device
+  recovery, profile matching, and structured stream state transitions.
 
 ## Decisions
 
@@ -201,6 +201,31 @@ The backend-independent render core now provides:
 - tests covering deterministic compilation, ordering, ramps, conversion boundaries, oversized
   callbacks, offline timing, and warmed callback allocation/deallocation behavior.
 
+## Phase 3 implementation
+
+The callback/control ownership boundary now provides:
+
+- a bounded `rtrb` application-to-control ingress with a cloneable, nonblocking `try_lock` producer,
+  a parked control worker, monotonic command sequences, explicit saturation errors, and structured
+  command-queue pressure events;
+- generation ordering that rejects stale configurations and compiles each candidate before
+  replacing the last valid generation;
+- an acknowledged single-pending-plan exchange that swaps only at block boundaries, returns old
+  plans to the control thread, and retains a retired plan in a fixed callback slot when the return
+  queue is unexpectedly full;
+- atomic coalescing gain mailboxes plus fixed-capacity play, stop, stop-all, and plan-swap sequence
+  barriers that prevent high-rate parameters crossing ordered operations;
+- fixed generational voice slots whose asset payloads are returned through a bounded queue and
+  retained in-place under saturation;
+- preallocated analysis-frame ownership circulating through free and ready SPSC queues;
+- shared allocation-free pressure counters for every callback boundary and a debug/test
+  `RealtimeScope` guard that rejects control-thread reclamation from callbacks; and
+- controlled retirement values that transfer final plan, voice, and analysis ownership for
+  destruction away from callback threads.
+
+The crate still forbids all locally authored unsafe code. Miri/sanitizer coverage was therefore not
+required by the Phase 3 conditional gate.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -238,6 +263,18 @@ The backend-independent render core now provides:
 | `cargo deny check` after GPL metadata correction | PASS after fixing the initial failure — `deny.toml` had not allowed the workspace's `GPL-3.0-only` license |
 | `cargo machete` | FAIL — only six pre-existing unused dependencies in `Chataigne2`; no `golden_audio` dependency was reported |
 | Root and Golden Core formatting plus `--check` after Phase 2 | PASS |
+| `cargo test -p golden_audio --no-default-features` after Phase 3 | PASS — 46 tests (43 unit, 3 integration), 0 failed |
+| Phase 3 plan stress | PASS — 1,000,000 acknowledged swaps; 1,000,001 balanced drops; 0 callback drops |
+| Phase 3 gain stress | PASS — 1,000,000 updates coalesced to the final sequence without queue growth |
+| Phase 3 callback ownership allocation guard | PASS — plan swap, voice retirement, and analysis transfer observed 0 allocations, 0 deallocations, and 0 bytes |
+| Phase 3 full-return defensive path | PASS — old plan retained, no callback drop, later acknowledgement reclaimed it off callback |
+| Phase 3 ordering tests | PASS — gain changes remain on the correct side of play/stop and plan-swap barriers |
+| Phase 3 bounded queue/producer disconnect tests | PASS — explicit full error/counter, FIFO order, and abandoned producer visibility |
+| Phase 3 Miri/sanitizer conditional gate | NOT APPLICABLE — no unsafe code was introduced and `golden_audio` retains `#![forbid(unsafe_code)]` |
+| Phase 3 `cargo check` and warning-free Clippy, no default features/all targets | PASS |
+| Phase 3 codegen-feature check | PASS |
+| Phase 3 `cargo deny check` | PASS — advisories, bans, GPLv3 license policy, and sources |
+| Root and Golden Core formatting plus `--check` after Phase 3 | PASS |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
@@ -280,8 +317,19 @@ Phase 2:
 - `crates/golden_audio/tests/offline_render.rs`
 - `crates/golden_audio/benches/`
 
+Phase 3:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `crates/golden_audio/Cargo.toml`
+- `crates/golden_audio/src/control/`
+- `crates/golden_audio/src/lib.rs`
+- `crates/golden_audio/src/realtime/`
+- `crates/golden_audio/src/render/REALTIME_REVIEW.md`
+- `crates/golden_audio/src/tests/engine.rs`
+- `crates/golden_audio/tests/realtime_contract.rs`
+
 ## Remaining work
 
-Phases 3–15 remain. The immediate next gate is the callback/control ownership model with bounded
-SPSC queues, one acknowledged pending render plan, retained plan destruction off callback, ordered
-gain updates, overflow events, and stress tests.
+Phases 4–15 remain. The immediate next gate is deterministic device discovery, format negotiation,
+stable channel identity, profile recovery, and mock device-loss/reconnect behavior.

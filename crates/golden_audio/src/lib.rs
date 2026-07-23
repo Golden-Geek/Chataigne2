@@ -15,6 +15,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod ids;
 pub mod limits;
+pub mod realtime;
 pub mod render;
 
 pub use backend::{
@@ -27,8 +28,8 @@ pub use config::{
 };
 pub use control::{
     AudioCommand, AudioControl, AudioEngine, AudioEngineBuilder, AudioEvent, AudioEventReceiver,
-    AudioObservationReader, AudioObservationSnapshot, ChannelObservation, PlayFileRequest, PlaybackFailure,
-    PlaybackInfo, PlaybackStopInfo, PlaybackStopReason,
+    AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, ChannelObservation, PlayFileRequest,
+    PlaybackFailure, PlaybackInfo, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent,
 };
 pub use device::{
     AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceInspectorState,
@@ -42,6 +43,15 @@ pub use ids::{
     InvalidIdentifier, PhysicalChannelKey, PlaybackId, VoiceId,
 };
 pub use limits::{EngineLimits, FrameCount, SampleRate};
+pub use realtime::{
+    AnalysisCaptureError, AnalysisFrame, AnalysisFrameReader, AnalysisFrameWriter, AnalysisRecycleError,
+    AnalysisWriterRetirement, GainMailboxTarget, OrderedRealtimeControlReader, OrderedRealtimeControlWriter,
+    PlanPublishError, PlanSwapResult, PreparedVoice, QueuePressureCounters, QueuePressureSnapshot, RealtimeBarrier,
+    RealtimeBarrierKind, RealtimeControlUpdate, RealtimePlanRetirement, RealtimePlanSlot, RealtimePlanSlotMetrics,
+    RealtimeScope, RealtimeVoiceRetirement, RealtimeVoiceSlots, RenderPlanPublisher, RetiredVoice,
+    VoiceRetirementReason, VoiceSlotController, acknowledged_plan_exchange, analysis_frame_pool, assert_not_realtime,
+    is_realtime_thread, ordered_realtime_controls, voice_slot_pool,
+};
 pub use render::{
     CompiledRoute, CompiledRouteMatrix, ConversionStats, GainSmoother, InterleavedInput, InterleavedOutput,
     OfflineClock, OfflineRenderer, PlanarBuffer, RenderCompileContext, RenderPlan, RenderPlanCompilation,

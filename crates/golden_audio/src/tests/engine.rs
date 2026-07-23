@@ -72,3 +72,45 @@ fn invalid_generation_leaves_last_valid_observation_active() {
     assert_eq!(engine.observations().latest().generation, valid_generation);
     engine.shutdown().unwrap();
 }
+
+#[test]
+fn stale_configuration_generation_cannot_replace_the_newest_plan() {
+    let mut engine = AudioEngineBuilder::default().build().unwrap();
+    let events = engine.take_event_receiver().unwrap();
+    let control = engine.control();
+    let newest = ConfigGeneration::new(8);
+    control
+        .submit(AudioCommand::ApplyConfiguration {
+            generation: newest,
+            config: Box::new(AudioConfiguration::empty()),
+        })
+        .unwrap();
+
+    loop {
+        if matches!(
+            events.recv().unwrap(),
+            AudioEvent::ConfigurationApplied { generation } if generation == newest
+        ) {
+            break;
+        }
+    }
+
+    let stale = ConfigGeneration::new(7);
+    control
+        .submit(AudioCommand::ApplyConfiguration {
+            generation: stale,
+            config: Box::new(AudioConfiguration::empty()),
+        })
+        .unwrap();
+    loop {
+        if matches!(
+            events.recv().unwrap(),
+            AudioEvent::ConfigurationRejected { generation, .. } if generation == stale
+        ) {
+            break;
+        }
+    }
+
+    assert_eq!(engine.observations().latest().generation, newest);
+    engine.shutdown().unwrap();
+}

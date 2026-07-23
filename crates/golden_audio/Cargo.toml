@@ -12,6 +12,7 @@ default = []
 codegen = ["dep:ts-rs"]
 
 [dependencies]
+rtrb.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 ts-rs = { workspace = true, optional = true }

@@ -2,30 +2,30 @@ use std::{
     sync::{
         Arc, RwLock,
         atomic::{AtomicU8, AtomicU64, Ordering},
-        mpsc::{Receiver, SyncSender, TrySendError, sync_channel},
+        mpsc::{Receiver, SyncSender, sync_channel},
     },
     thread::{self, JoinHandle},
+    time::Duration,
 };
+
+use rtrb::Consumer;
 
 use crate::{
     AudioBackend, AudioBackendState, AudioBackendStatus, AudioCommand, AudioConfiguration, AudioDeviceInspectorState,
-    AudioError, AudioErrorCategory, AudioEvent, AudioObservationReader, AudioObservationSnapshot, BackendPolicy,
-    CommandSequence, ConfigGeneration, EngineLimits, NullBackend,
+    AudioEngineConfig, AudioError, AudioErrorCategory, AudioEvent, AudioObservationReader, AudioObservationSnapshot,
+    AudioQueueKind, BackendPolicy, CommandSequence, ConfigGeneration, EngineLimits, NullBackend, QueuePressureCounters,
+    QueuePressureEvent, RenderCompileContext, RenderPlanCompiler,
 };
+
+use super::ingress::{CommandEnvelope, CommandQueueProducer, command_queue};
 
 const STATE_RUNNING: u8 = 0;
 const STATE_STOPPING: u8 = 1;
 const STATE_STOPPED: u8 = 2;
 
 #[derive(Clone, Debug)]
-struct CommandEnvelope {
-    sequence: CommandSequence,
-    command: AudioCommand,
-}
-
-#[derive(Clone, Debug)]
 pub struct AudioControl {
-    sender: SyncSender<CommandEnvelope>,
+    sender: CommandQueueProducer,
     state: Arc<AtomicU8>,
     next_sequence: Arc<AtomicU64>,
 }
@@ -39,9 +39,7 @@ impl AudioControl {
             return Err(AudioError::shutting_down());
         }
         let sequence = next_sequence(&self.next_sequence)?;
-        self.sender
-            .try_send(CommandEnvelope { sequence, command })
-            .map_err(map_try_send_error)?;
+        self.sender.try_push(CommandEnvelope { sequence, command })?;
         Ok(sequence)
     }
 
@@ -58,14 +56,14 @@ impl AudioControl {
         }
 
         let sequence = next_sequence(&self.next_sequence)?;
-        match self.sender.try_send(CommandEnvelope {
+        match self.sender.try_push(CommandEnvelope {
             sequence,
             command: AudioCommand::Shutdown,
         }) {
             Ok(()) => Ok(sequence),
             Err(error) => {
                 self.state.store(STATE_RUNNING, Ordering::Release);
-                Err(map_try_send_error(error))
+                Err(error)
             }
         }
     }
@@ -131,7 +129,9 @@ impl AudioEngineBuilder {
         self.limits.validate()?;
         validate_backends(&self.backends, &self.backend_policy)?;
 
-        let (command_sender, command_receiver) = sync_channel(self.limits.command_queue_capacity);
+        let pressure = QueuePressureCounters::default();
+        let (command_sender, command_receiver, worker_thread) =
+            command_queue(self.limits.command_queue_capacity, pressure.clone());
         let (event_sender, event_receiver) = sync_channel(self.limits.event_queue_capacity);
         let observation = Arc::new(RwLock::new(AudioObservationSnapshot {
             device: AudioDeviceInspectorState {
@@ -151,18 +151,24 @@ impl AudioEngineBuilder {
             shared: Arc::clone(&observation),
         };
         let limits = self.limits;
+        let engine_config = self.config;
         let backends = self.backends;
         let worker_state = Arc::clone(&state);
         let worker = thread::Builder::new()
             .name("golden-audio-control".to_owned())
             .spawn(move || {
+                let _ = worker_thread.set(thread::current());
                 run_control_worker(
                     command_receiver,
-                    event_sender,
-                    observation,
-                    worker_state,
-                    limits,
-                    backends,
+                    ControlWorker {
+                        event_sender,
+                        observation,
+                        state: worker_state,
+                        engine_config,
+                        limits,
+                        backends,
+                        pressure,
+                    },
                 );
             })
             .map_err(|error| {
@@ -187,7 +193,7 @@ impl AudioEngineBuilder {
 #[derive(Debug)]
 pub struct AudioEngine {
     control: AudioControl,
-    raw_sender: SyncSender<CommandEnvelope>,
+    raw_sender: CommandQueueProducer,
     worker: Option<JoinHandle<()>>,
     events: Option<AudioEventReceiver>,
     observations: AudioObservationReader,
@@ -215,12 +221,10 @@ impl AudioEngine {
         let previous = self.control.state.swap(STATE_STOPPING, Ordering::AcqRel);
         if previous == STATE_RUNNING {
             let sequence = next_sequence(&self.control.next_sequence)?;
-            self.raw_sender
-                .send(CommandEnvelope {
-                    sequence,
-                    command: AudioCommand::Shutdown,
-                })
-                .map_err(|_| AudioError::shutting_down())?;
+            self.raw_sender.push_blocking(CommandEnvelope {
+                sequence,
+                command: AudioCommand::Shutdown,
+            })?;
         }
         if let Some(worker) = self.worker.take() {
             worker.join().map_err(|_| {
@@ -251,13 +255,6 @@ fn next_sequence(counter: &AtomicU64) -> Result<CommandSequence, AudioError> {
     })
 }
 
-fn map_try_send_error(error: TrySendError<CommandEnvelope>) -> AudioError {
-    match error {
-        TrySendError::Full(_) => AudioError::queue_full("command"),
-        TrySendError::Disconnected(_) => AudioError::shutting_down(),
-    }
-}
-
 fn validate_backends(backends: &[Arc<dyn AudioBackend>], policy: &BackendPolicy) -> Result<(), AudioError> {
     let mut ids = std::collections::HashSet::with_capacity(backends.len());
     for backend in backends {
@@ -283,20 +280,51 @@ fn validate_backends(backends: &[Arc<dyn AudioBackend>], policy: &BackendPolicy)
     Ok(())
 }
 
-fn run_control_worker(
-    command_receiver: Receiver<CommandEnvelope>,
+struct ControlWorker {
     event_sender: SyncSender<AudioEvent>,
     observation: Arc<RwLock<AudioObservationSnapshot>>,
     state: Arc<AtomicU8>,
+    engine_config: AudioEngineConfig,
     limits: EngineLimits,
     backends: Vec<Arc<dyn AudioBackend>>,
-) {
+    pressure: QueuePressureCounters,
+}
+
+fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: ControlWorker) {
+    let ControlWorker {
+        event_sender,
+        observation,
+        state,
+        engine_config,
+        limits,
+        backends,
+        pressure,
+    } = worker;
     publish_backend_inventory(&event_sender, &observation, backends.as_slice());
-    while let Ok(envelope) = command_receiver.recv() {
+    let mut reported_command_pressure = 0;
+    loop {
+        let Ok(envelope) = command_receiver.pop() else {
+            report_command_pressure(
+                &event_sender,
+                &observation,
+                &pressure,
+                limits.command_queue_capacity,
+                &mut reported_command_pressure,
+            );
+            thread::park_timeout(Duration::from_millis(250));
+            continue;
+        };
         let _sequence = envelope.sequence;
         match envelope.command {
             AudioCommand::ApplyConfiguration { generation, config } => {
-                apply_configuration(&event_sender, &observation, &limits, generation, *config);
+                apply_configuration(
+                    &event_sender,
+                    &observation,
+                    &engine_config,
+                    &limits,
+                    generation,
+                    *config,
+                );
             }
             AudioCommand::SetEnabled(enabled) => update_observation(&observation, |snapshot| {
                 snapshot.enabled = enabled;
@@ -318,6 +346,13 @@ fn run_control_worker(
             }
             AudioCommand::Shutdown => break,
         }
+        report_command_pressure(
+            &event_sender,
+            &observation,
+            &pressure,
+            limits.command_queue_capacity,
+            &mut reported_command_pressure,
+        );
     }
     publish_event(&event_sender, &observation, AudioEvent::ShutdownComplete);
     state.store(STATE_STOPPED, Ordering::Release);
@@ -326,12 +361,31 @@ fn run_control_worker(
 fn apply_configuration(
     event_sender: &SyncSender<AudioEvent>,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    engine_config: &AudioEngineConfig,
     limits: &EngineLimits,
     generation: ConfigGeneration,
     config: AudioConfiguration,
 ) {
-    match config.validate(limits) {
-        Ok(()) => {
+    let active_generation = observation
+        .read()
+        .map(|snapshot| snapshot.generation)
+        .unwrap_or(ConfigGeneration::INITIAL);
+    if generation <= active_generation {
+        publish_event(
+            event_sender,
+            observation,
+            AudioEvent::ConfigurationRejected {
+                generation,
+                error: AudioError::invalid_configuration(format!(
+                    "configuration generation {generation} is not newer than active generation {active_generation}"
+                )),
+            },
+        );
+        return;
+    }
+    let context = RenderCompileContext::derive_from_configuration(&config);
+    match RenderPlanCompiler::new(engine_config.clone(), limits.clone()).compile(&config, &context) {
+        Ok(_compilation) => {
             update_observation(observation, |snapshot| {
                 snapshot.generation = generation;
                 snapshot.enabled = config.enabled;
@@ -348,6 +402,32 @@ fn apply_configuration(
             AudioEvent::ConfigurationRejected { generation, error },
         ),
     }
+}
+
+fn report_command_pressure(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    pressure: &QueuePressureCounters,
+    capacity: usize,
+    reported: &mut u64,
+) {
+    let occurrences = pressure.snapshot().command_full;
+    if occurrences == *reported {
+        return;
+    }
+    *reported = occurrences;
+    update_observation(observation, |snapshot| {
+        snapshot.queue_pressure_count = occurrences;
+    });
+    publish_event(
+        event_sender,
+        observation,
+        AudioEvent::QueuePressure(QueuePressureEvent {
+            queue: AudioQueueKind::Command,
+            occurrences,
+            capacity,
+        }),
+    );
 }
 
 fn publish_backend_inventory(
