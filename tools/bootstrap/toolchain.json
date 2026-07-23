@@ -27,6 +27,43 @@
   "python": {
     "version": "3.14"
   },
+  "audio": {
+    "cpal": "0.18.1",
+    "asio_sys": "0.3.0",
+    "normal_feature": "desktop",
+    "qualification_feature": "full-desktop",
+    "windows": {
+      "native_host": "wasapi",
+      "optional_hosts": [
+        "asio",
+        "jack"
+      ],
+      "asio_sdk_environment": "CPAL_ASIO_DIR",
+      "asio_sdk_cache": "system-temporary-directory/asio_sdk",
+      "required_build_tools": [
+        "visual-cpp",
+        "llvm-clang"
+      ]
+    },
+    "macos": {
+      "native_host": "coreaudio",
+      "optional_hosts": [
+        "jack"
+      ]
+    },
+    "linux": {
+      "native_host": "alsa",
+      "optional_hosts": [
+        "jack",
+        "pipewire"
+      ],
+      "realtime_feature": "realtime-dbus",
+      "required_build_tools": [
+        "clang",
+        "pkg-config"
+      ]
+    }
+  },
   "qualification_tools": {
     "cargo_deny": "0.20.2",
     "cargo_machete": "0.9.2"

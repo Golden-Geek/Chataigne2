@@ -26,11 +26,10 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 4 — device model, negotiation, and recovery supervisor.
-- Status: complete locally; checkpoint pending.
-- Last checkpoint: `ba987c2` (`feat(audio): add bounded realtime control and plan exchange`).
-- Next step: add target-specific CPAL host adapters, platform feature wiring, bootstrap checks, and
-  backend probe tooling without leaking native audio dependencies into Chataigne.
+- Current phase: Phase 5 - native host and toolchain integration.
+- Status: complete on local Windows/WASAPI and Windows/JACK missing-server paths; checkpoint pending.
+- Last checkpoint: `98d12aa8` (`feat(audio): add device discovery model and recovery supervisor`).
+- Next step: add clock-domain bridges, null-clock authority, and two-phase stream switching.
 
 ## Decisions
 
@@ -252,6 +251,36 @@ The backend-neutral device layer now provides:
 intentional schema boundary that keeps fallback identity, last-known label, and profile key together
 with the persisted selection.
 
+## Phase 5 implementation
+
+The private native-host layer now provides:
+
+- a CPAL 0.18.1 adapter that maps compiled hosts, durable device IDs, structured descriptions,
+  defaults, physical channels, supported configurations, negotiated streams, timestamps, and
+  structured errors into Golden contracts without exposing a CPAL type;
+- backend-neutral `AudioStreamHandler` callbacks for input and output, pre-silenced output, fixed
+  atomic runtime-error publication, and stream-owned preallocated conversion scratch for CPAL's
+  24-bit wrapper formats;
+- integer and floating-point callback conversion for i8/i16/i24/i32/i64, u8/u16/u24/u32/u64, f32,
+  and f64; DSD is deliberately not advertised because the current PCM engine has no valid DSD
+  representation;
+- compiled-host and runtime-capability probing that distinguishes native availability,
+  missing-server JACK/PipeWire, missing-driver ASIO, and host failures without opening a stream;
+- a separate explicit device smoke example that opens the default output, renders silence for
+  100 ms, and stops cleanly;
+- safe feature bundles for native desktop, ASIO, JACK, native PipeWire, real-time priority/DBus, and
+  the full desktop qualification set;
+- canonical audio toolchain metadata plus Windows ASIO prerequisite checks and Linux
+  ALSA/JACK/PipeWire/DBus prerequisite checks; and
+- a three-platform CI host job, bounded non-checkout ASIO SDK cache, and matching Linux
+  release/product-gate packages.
+
+Normal desktop builds intentionally keep the native OS host as the default. Enabling ASIO by
+default would make an otherwise clean Windows checkout fail before bootstrap when LLVM/Clang is
+absent. The official full host set is therefore a named qualification feature exercised by CI and
+release gates; application code still has one ordinary `golden_audio` dependency and never selects
+CPAL features.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -311,6 +340,22 @@ with the persisted selection.
 | Phase 4 no-default/all-target check and warning-free Clippy | PASS |
 | Phase 4 `cargo deny check` | PASS — advisories, bans, GPLv3 license policy, and sources |
 | Root and Golden Core formatting plus `--check` after Phase 4 | PASS |
+| `cargo test -p golden_audio --no-default-features` after Phase 5 | PASS - 60 tests (55 unit, 5 integration), 0 failed |
+| `cargo test -p golden_audio` after Phase 5 | PASS - 63 tests (58 unit, 5 integration), 0 failed |
+| Phase 5 Windows native-host probe | PASS - WASAPI available; no stream opened |
+| Phase 5 Windows JACK compile and missing-server probe | PASS - dynamic JACK compiled and an empty host reported `MissingServer` without startup failure |
+| Phase 5 WASAPI output smoke | PASS - default 2-channel output opened, started at 48 kHz, rendered silence for 100 ms, and stopped |
+| Phase 5 callback format coverage | PASS - all PCM CPAL formats mapped; packed 24-bit conversion remains preallocated and private; DSD excluded |
+| Phase 5 core-only dependency tree | PASS - CPAL and native dependencies absent with `--no-default-features` |
+| Phase 5 default dependency tree | PASS - CPAL is private to `golden_audio` |
+| Phase 5 TypeScript generation | PASS - 25 generated files, expanded sample-format union, and no missing index targets |
+| Phase 5 no-default and default warning-free Clippy | PASS |
+| Phase 5 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
+| Phase 5 toolchain/script/workflow validation | PASS - JSON, PowerShell parse, normalized shell syntax, and all workflow YAML |
+| Root and Golden Core formatting plus `--check` after Phase 5 | PASS |
+| Windows ASIO compile/runtime | NOT RUN - local LLVM/Clang and verified SDK archive identity are absent; CI job owns the compile gate |
+| macOS CoreAudio/JACK qualification | NOT RUN - no exact-commit remote result yet |
+| Linux ALSA/JACK/native-PipeWire/realtime-DBus qualification | NOT RUN - no exact-commit remote result yet |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
@@ -376,7 +421,29 @@ Phase 4:
 - `crates/golden_audio/src/tests/backend.rs`
 - `crates/golden_audio/tests/device_contract.rs`
 
+Phase 5:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `crates/golden_audio/Cargo.toml`
+- `crates/golden_audio/examples/backend_probe.rs`
+- `crates/golden_audio/examples/backend_smoke.rs`
+- `crates/golden_audio/src/backend/cpal/`
+- `crates/golden_audio/src/backend/traits.rs`
+- `crates/golden_audio/src/device/`
+- `crates/golden_audio/src/render/convert.rs`
+- `crates/golden_audio/tests/public_api.rs`
+- `tools/bootstrap/toolchain.json`
+- `tools/dev.ps1`
+- `tools/dev.sh`
+- `.github/workflows/ci.yml`
+- `.github/workflows/product-gate.yml`
+- `.github/workflows/release.yml`
+- `docs/architecture/golden-audio.md`
+- `docs/reference/toolchain.md`
+
 ## Remaining work
 
-Phases 5–15 remain. The immediate next gate is the private CPAL adapter, required host feature
-matrix, toolchain/bootstrap support, clean missing-driver/server behavior, and backend probe.
+Phases 6-15 remain. The immediate next gate is explicit input/output clock-domain bridging,
+software null-clock continuity, two-phase authority switching, and recovery without playback
+retrigger.

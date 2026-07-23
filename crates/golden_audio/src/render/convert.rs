@@ -4,32 +4,46 @@ use super::PlanarBuffer;
 
 #[derive(Debug)]
 pub enum InterleavedInput<'a> {
+    I8(&'a [i8]),
     F32(&'a [f32]),
     F64(&'a [f64]),
     I16(&'a [i16]),
     I24(&'a [i32]),
     I32(&'a [i32]),
+    I64(&'a [i64]),
+    U8(&'a [u8]),
     U16(&'a [u16]),
     U24(&'a [u32]),
     U32(&'a [u32]),
+    U64(&'a [u64]),
 }
 
 impl InterleavedInput<'_> {
     #[must_use]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         match self {
+            Self::I8(samples) => samples.len(),
             Self::F32(samples) => samples.len(),
             Self::F64(samples) => samples.len(),
             Self::I16(samples) => samples.len(),
             Self::I24(samples) | Self::I32(samples) => samples.len(),
+            Self::I64(samples) => samples.len(),
+            Self::U8(samples) => samples.len(),
             Self::U16(samples) => samples.len(),
             Self::U24(samples) | Self::U32(samples) => samples.len(),
+            Self::U64(samples) => samples.len(),
         }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     #[must_use]
     fn normalized(&self, index: usize) -> f32 {
         match self {
+            Self::I8(samples) => signed_to_f32(i64::from(samples[index]), 128, 127),
             Self::F32(samples) => finite_or_zero(samples[index]),
             Self::F64(samples) => finite_or_zero_f64(samples[index]),
             Self::I16(samples) => signed_to_f32(i64::from(samples[index]), 32_768, 32_767),
@@ -39,9 +53,12 @@ impl InterleavedInput<'_> {
                 8_388_607,
             ),
             Self::I32(samples) => signed_to_f32(i64::from(samples[index]), 2_147_483_648, 2_147_483_647),
+            Self::I64(samples) => signed_to_f32_i128(i128::from(samples[index]), 1_i128 << 63, (1_i128 << 63) - 1),
+            Self::U8(samples) => unsigned_to_f32(u64::from(samples[index]), 255),
             Self::U16(samples) => unsigned_to_f32(u64::from(samples[index]), 65_535),
             Self::U24(samples) => unsigned_to_f32(u64::from(samples[index].min(16_777_215)), 16_777_215),
             Self::U32(samples) => unsigned_to_f32(u64::from(samples[index]), 4_294_967_295),
+            Self::U64(samples) => unsigned_to_f32_u128(u128::from(samples[index]), u128::from(u64::MAX)),
         }
     }
 
@@ -50,38 +67,77 @@ impl InterleavedInput<'_> {
         match self {
             Self::F32(samples) => !samples[index].is_finite(),
             Self::F64(samples) => !samples[index].is_finite(),
-            Self::I16(_) | Self::I24(_) | Self::I32(_) | Self::U16(_) | Self::U24(_) | Self::U32(_) => false,
+            Self::I8(_)
+            | Self::I16(_)
+            | Self::I24(_)
+            | Self::I32(_)
+            | Self::I64(_)
+            | Self::U8(_)
+            | Self::U16(_)
+            | Self::U24(_)
+            | Self::U32(_)
+            | Self::U64(_) => false,
         }
     }
 }
 
 #[derive(Debug)]
 pub enum InterleavedOutput<'a> {
+    I8(&'a mut [i8]),
     F32(&'a mut [f32]),
     F64(&'a mut [f64]),
     I16(&'a mut [i16]),
     I24(&'a mut [i32]),
     I32(&'a mut [i32]),
+    I64(&'a mut [i64]),
+    U8(&'a mut [u8]),
     U16(&'a mut [u16]),
     U24(&'a mut [u32]),
     U32(&'a mut [u32]),
+    U64(&'a mut [u64]),
 }
 
 impl InterleavedOutput<'_> {
     #[must_use]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         match self {
+            Self::I8(samples) => samples.len(),
             Self::F32(samples) => samples.len(),
             Self::F64(samples) => samples.len(),
             Self::I16(samples) => samples.len(),
             Self::I24(samples) | Self::I32(samples) => samples.len(),
+            Self::I64(samples) => samples.len(),
+            Self::U8(samples) => samples.len(),
             Self::U16(samples) => samples.len(),
             Self::U24(samples) | Self::U32(samples) => samples.len(),
+            Self::U64(samples) => samples.len(),
+        }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn fill_silence(&mut self) {
+        match self {
+            Self::I8(samples) => samples.fill(0),
+            Self::F32(samples) => samples.fill(0.0),
+            Self::F64(samples) => samples.fill(0.0),
+            Self::I16(samples) => samples.fill(0),
+            Self::I24(samples) | Self::I32(samples) => samples.fill(0),
+            Self::I64(samples) => samples.fill(0),
+            Self::U8(samples) => samples.fill(1 << 7),
+            Self::U16(samples) => samples.fill(1 << 15),
+            Self::U24(samples) => samples.fill(1 << 23),
+            Self::U32(samples) => samples.fill(1 << 31),
+            Self::U64(samples) => samples.fill(1 << 63),
         }
     }
 
     fn set_normalized(&mut self, index: usize, sample: f32) {
         match self {
+            Self::I8(samples) => samples[index] = f32_to_signed(sample, 128, 127) as i8,
             Self::F32(samples) => samples[index] = sample,
             Self::F64(samples) => samples[index] = f64::from(sample),
             Self::I16(samples) => samples[index] = f32_to_signed(sample, 32_768, 32_767) as i16,
@@ -91,12 +147,19 @@ impl InterleavedOutput<'_> {
             Self::I32(samples) => {
                 samples[index] = f32_to_signed(sample, 2_147_483_648, 2_147_483_647) as i32;
             }
+            Self::I64(samples) => {
+                samples[index] = f32_to_signed_i128(sample, 1_i128 << 63, (1_i128 << 63) - 1) as i64;
+            }
+            Self::U8(samples) => samples[index] = f32_to_unsigned(sample, 255) as u8,
             Self::U16(samples) => samples[index] = f32_to_unsigned(sample, 65_535) as u16,
             Self::U24(samples) => {
                 samples[index] = f32_to_unsigned(sample, 16_777_215) as u32;
             }
             Self::U32(samples) => {
                 samples[index] = f32_to_unsigned(sample, 4_294_967_295) as u32;
+            }
+            Self::U64(samples) => {
+                samples[index] = f32_to_unsigned_u128(sample, u128::from(u64::MAX)) as u64;
             }
         }
     }
@@ -201,7 +264,19 @@ fn signed_to_f32(sample: i64, negative_scale: i64, positive_scale: i64) -> f32 {
     }
 }
 
+fn signed_to_f32_i128(sample: i128, negative_scale: i128, positive_scale: i128) -> f32 {
+    if sample < 0 {
+        (sample as f64 / negative_scale as f64) as f32
+    } else {
+        (sample as f64 / positive_scale as f64) as f32
+    }
+}
+
 fn unsigned_to_f32(sample: u64, maximum: u64) -> f32 {
+    (sample as f64 / maximum as f64 * 2.0 - 1.0) as f32
+}
+
+fn unsigned_to_f32_u128(sample: u128, maximum: u128) -> f32 {
     (sample as f64 / maximum as f64 * 2.0 - 1.0) as f32
 }
 
@@ -213,6 +288,20 @@ fn f32_to_signed(sample: f32, negative_scale: i64, positive_scale: i64) -> i64 {
     }
 }
 
+fn f32_to_signed_i128(sample: f32, negative_scale: i128, positive_scale: i128) -> i128 {
+    let scaled = if sample < 0.0 {
+        (f64::from(sample) * negative_scale as f64).round() as i128
+    } else {
+        (f64::from(sample) * positive_scale as f64).round() as i128
+    };
+    scaled.clamp(-negative_scale, positive_scale)
+}
+
 fn f32_to_unsigned(sample: f32, maximum: u64) -> u64 {
     ((f64::from(sample) * 0.5 + 0.5) * maximum as f64).round() as u64
+}
+
+fn f32_to_unsigned_u128(sample: f32, maximum: u128) -> u128 {
+    let scaled = ((f64::from(sample) * 0.5 + 0.5) * maximum as f64).round() as u128;
+    scaled.min(maximum)
 }

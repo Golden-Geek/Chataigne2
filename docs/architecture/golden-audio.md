@@ -124,6 +124,24 @@ Input and output selections are independent. Discovery and stream supervision ru
 Chataigne's engine thread. Optional servers, drivers, permissions, or priority elevation failures
 become structured statuses and diagnostics, never application startup failures.
 
+## Native host boundary
+
+CPAL 0.18.1 is confined to `golden_audio::backend::cpal`. Public host enumeration returns boxed
+`AudioBackend` values, and callback data crosses the boundary only as Golden sample buffers and
+`AudioCallbackTimestamp`. The adapter maps stable CPAL device IDs, descriptions, physical-channel
+counts, supported formats, default devices, and structured errors into Golden contracts.
+
+The callback owns its `AudioStreamHandler`. Primitive formats are borrowed directly without
+allocation. CPAL's 24-bit wrapper samples are converted through stream-owned, preallocated `f32`
+scratch storage, so those dependency types do not enter the public API. Output buffers are silenced
+before user processing, and callback errors publish fixed atomic codes for control-side inspection;
+callbacks do not allocate, format, log, or destroy control-owned state.
+
+The ordinary `desktop` feature uses the native OS host. Platform qualification features add ASIO,
+JACK, native PipeWire, and real-time DBus support without changing application dependencies. The
+backend probe enumerates hosts and devices but does not open a stream. The separate smoke example
+opens the default output, writes silence for 100 ms, and closes it.
+
 ## Public surface
 
 The small backend-neutral surface is centered on:
@@ -133,6 +151,8 @@ The small backend-neutral surface is centered on:
 - authored `AudioConfiguration` and validated `EngineLimits`;
 - `AudioCommand` for configuration, ordered playback, smoothed gains, enablement, and shutdown;
 - `AudioEvent` and coalesced observation snapshots;
+- `AudioBackend`, `AudioStream`, and `AudioStreamHandler` for backend-neutral discovery and
+  callback integration;
 - strong IDs and validated `GainDb`, `SampleRate`, and `FrameCount` values; and
 - structured `AudioError` categories that preserve a stable category plus human-readable context.
 

@@ -13,6 +13,11 @@ env:
   LINUX_BUILD_PACKAGES: >-
     libwebkit2gtk-4.1-dev
     libasound2-dev
+    libjack-jackd2-dev
+    libpipewire-0.3-dev
+    libdbus-1-dev
+    clang
+    libclang-dev
     libusb-1.0-0-dev
     build-essential
     curl
@@ -26,6 +31,61 @@ env:
     librsvg2-dev
 
 jobs:
+  golden_audio_hosts:
+    name: Golden Audio hosts (${{ matrix.label }})
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows
+            runs_on: windows-latest
+            features: asio,jack,realtime
+          - label: macOS
+            runs_on: macos-15
+            features: jack
+          - label: Linux
+            runs_on: ubuntu-24.04
+            features: jack,native-pipewire,realtime-dbus
+            install_linux_deps: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Activate repository-pinned Rust toolchain (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tools/bootstrap/install-rust-toolchain.ps1
+      - name: Activate repository-pinned Rust toolchain (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: sh ./tools/bootstrap/install-rust-toolchain.sh
+      - name: Install Linux audio prerequisites
+        if: ${{ matrix.install_linux_deps }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y $LINUX_BUILD_PACKAGES
+      - name: Cache CPAL ASIO SDK outside the checkout
+        if: runner.os == 'Windows'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/asio_sdk
+          key: asio-sdk-cpal-0.18.1-asio-sys-0.3.0
+      - name: Configure LLVM for ASIO bindgen
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $clang = (Get-Command clang -ErrorAction Stop).Source
+          "LIBCLANG_PATH=$(Split-Path -Parent $clang)" >> $env:GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: golden-audio-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
+      - name: Verify backend-neutral audio core
+        run: cargo test -p golden_audio --no-default-features
+      - name: Compile and test platform audio hosts
+        run: cargo test -p golden_audio --features "${{ matrix.features }}"
+      - name: Probe hosts without opening streams
+        run: cargo run -p golden_audio --example backend_probe --features "${{ matrix.features }}"
+
   golden_engine_tests:
     name: golden_engine tests
     runs-on: ubuntu-latest

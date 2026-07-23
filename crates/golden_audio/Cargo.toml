@@ -8,10 +8,18 @@ repository.workspace = true
 description = "Application-agnostic real-time audio engine and device foundation for Golden applications"
 
 [features]
-default = []
+default = ["desktop"]
+desktop = ["dep:cpal"]
+asio = ["desktop", "cpal/asio"]
+jack = ["desktop", "cpal/jack"]
+native-pipewire = ["desktop", "cpal/pipewire"]
+realtime = ["desktop", "cpal/realtime"]
+realtime-dbus = ["realtime", "cpal/realtime-dbus"]
+full-desktop = ["asio", "jack", "native-pipewire", "realtime-dbus"]
 codegen = ["dep:ts-rs"]
 
 [dependencies]
+cpal = { workspace = true, optional = true }
 rtrb.workspace = true
 serde.workspace = true
 thiserror.workspace = true
@@ -27,6 +35,16 @@ serde_json.workspace = true
 name = "generate_golden_audio_contract"
 path = "src/bin/generate_golden_audio_contract.rs"
 required-features = ["codegen"]
+
+[[example]]
+name = "backend_probe"
+path = "examples/backend_probe.rs"
+required-features = ["desktop"]
+
+[[example]]
+name = "backend_smoke"
+path = "examples/backend_smoke.rs"
+required-features = ["desktop"]
 
 [[bench]]
 name = "render"

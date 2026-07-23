@@ -132,6 +132,11 @@ jobs:
             curl \
             file \
             libasound2-dev \
+            libdbus-1-dev \
+            libjack-jackd2-dev \
+            libpipewire-0.3-dev \
+            clang \
+            libclang-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libsoup-3.0-dev \
@@ -287,6 +292,11 @@ jobs:
             curl \
             file \
             libasound2-dev \
+            libdbus-1-dev \
+            libjack-jackd2-dev \
+            libpipewire-0.3-dev \
+            clang \
+            libclang-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libsoup-3.0-dev \

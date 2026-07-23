@@ -19,9 +19,11 @@ pub mod realtime;
 pub mod render;
 
 pub use backend::{
-    AudioBackend, AudioStream, BackendDescriptor, BackendPolicy, MockBackend, MockBackendControl, MockBackendEvent,
-    MockBackendEventKind, NullBackend, StreamRequest,
+    AudioBackend, AudioCallbackTimestamp, AudioStream, AudioStreamHandler, BackendDescriptor, BackendPolicy,
+    MockBackend, MockBackendControl, MockBackendEvent, MockBackendEventKind, NullBackend, StreamRequest,
 };
+#[cfg(feature = "desktop")]
+pub use backend::{compiled_cpal_backends, probe_cpal_backends};
 pub use config::{
     AnalysisTapConfiguration, AudioConfiguration, AudioEngineConfig, DirectionConfiguration, GainDb, InputPatchRoute,
     MonitorRoute, OutputPatchRoute, PlaybackRoute, VirtualInputChannel, VirtualOutputChannel,

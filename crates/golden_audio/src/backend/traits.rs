@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AudioBackendState, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceTargetId, AudioDirection, AudioError,
-    AudioSampleFormat, AudioStreamStatus, BackendId, ChannelCountPolicy, SampleFormatPolicy, SampleRate,
-    SampleRatePolicy, StreamNegotiationRequest,
+    AudioStreamStatus, BackendId, ChannelCountPolicy, InterleavedInput, InterleavedOutput, SampleFormatPolicy,
+    SampleRate, SampleRatePolicy, StreamNegotiationRequest,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -56,7 +56,7 @@ impl StreamRequest {
             direction: self.direction,
             channels: ChannelCountPolicy::Exact(self.channels),
             sample_rate: SampleRatePolicy::Exact(self.engine_sample_rate),
-            sample_format: SampleFormatPolicy::Exact(AudioSampleFormat::F32),
+            sample_format: SampleFormatPolicy::PreferF32,
             buffer: self.buffer_policy,
         }
     }
@@ -74,10 +74,39 @@ impl fmt::Debug for dyn AudioStream {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AudioCallbackTimestamp {
+    pub callback_nanos: u128,
+    pub device_nanos: u128,
+}
+
+pub trait AudioStreamHandler: Send + 'static {
+    fn process_input(&mut self, _samples: InterleavedInput<'_>, _timestamp: AudioCallbackTimestamp) {}
+
+    fn process_output(&mut self, mut samples: InterleavedOutput<'_>, _timestamp: AudioCallbackTimestamp) {
+        samples.fill_silence();
+    }
+}
+
+impl fmt::Debug for dyn AudioStreamHandler {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("AudioStreamHandler")
+    }
+}
+
 pub trait AudioBackend: Send + Sync {
     fn descriptor(&self) -> BackendDescriptor;
     fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError>;
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError>;
+
+    fn open_stream_with_handler(
+        &self,
+        request: &StreamRequest,
+        handler: Box<dyn AudioStreamHandler>,
+    ) -> Result<Box<dyn AudioStream>, AudioError> {
+        drop(handler);
+        self.open_stream(request)
+    }
 }
 
 impl fmt::Debug for dyn AudioBackend {

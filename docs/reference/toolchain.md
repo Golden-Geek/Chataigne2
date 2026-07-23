@@ -12,6 +12,8 @@ from that contract instead of maintaining independent pins.
 | Node.js | `26.5.0` | Supported JavaScript/UI runtime |
 | npm | `11.17.0` | Version bundled by the selected Node.js release |
 | Python | `3.14.x` | Compatible system interpreter range; patch/security updates do not require parallel installs |
+| CPAL | `0.18.1` | Private `golden_audio` host adapter for WASAPI, CoreAudio, ALSA, ASIO, JACK, and native PipeWire |
+| asio-sys | `0.3.0` | CPAL's Windows ASIO SDK build integration |
 | cargo-deny | `0.20.2` | Pinned release advisory, license, source, and bans qualification |
 | cargo-machete | `0.9.2` | Pinned release unused-dependency qualification |
 | Windows Rust host | `x86_64-pc-windows-msvc` | Primary local development and iteration target |
@@ -37,6 +39,32 @@ TypeScript template rather than a hand-selected combination: Svelte `^5.56.1`, S
 TypeScript `^6.0.3`. The lock resolves those official ranges to the newest compatible releases.
 Chataigne uses the official static adapter instead of the template's auto adapter because the
 desktop and remote-browser hosts require the generated static artifact.
+
+## Native audio prerequisites
+
+The ordinary `golden_audio` `desktop` feature compiles the native operating-system host: WASAPI on
+Windows, CoreAudio on macOS, and ALSA on Linux. The separately named `full-desktop` qualification
+feature adds ASIO and JACK on Windows, JACK on macOS, and JACK, native PipeWire, and real-time DBus
+integration on Linux. Native dependencies remain private to `golden_audio`; applications do not
+select CPAL features directly.
+
+Windows ASIO builds require the Visual C++ toolchain, LLVM/Clang for bindgen, and the Steinberg ASIO
+SDK. `asio-sys` uses `CPAL_ASIO_DIR` when supplied and otherwise downloads the SDK into the system
+temporary directory's `asio_sdk` folder. CI caches only that bounded, non-checkout folder. The SDK
+is not vendored because its distribution terms and archive identity still require release
+qualification. A missing ASIO driver is a runtime `MissingDriver` state, not a startup failure.
+
+Linux host qualification requires Clang plus the ALSA, JACK, PipeWire, and DBus development
+packages. JACK retains dynamic loading, so a missing JACK client library or server is reported as
+`MissingServer`. Native PipeWire is a distinct CPAL host and is probed independently from
+PipeWire's JACK compatibility layer. Real-time scheduling refusal is surfaced as structured stream
+status and does not abort the application.
+
+Use `cargo run -p golden_audio --example backend_probe` to inspect compiled native hosts without
+opening a stream. Use `--features full-desktop` only in an environment that has the platform
+prerequisites above. The default remains the external-prerequisite-free native desktop path so a clean
+developer checkout can run after the ordinary workspace bootstrap; release qualification is
+responsible for the full host set.
 
 ## Upgrade Boundaries
 

@@ -153,8 +153,12 @@ const fn format_rank(format: AudioSampleFormat) -> u8 {
         AudioSampleFormat::I32 => 2,
         AudioSampleFormat::I24 => 3,
         AudioSampleFormat::I16 => 4,
-        AudioSampleFormat::U32 => 5,
-        AudioSampleFormat::U24 => 6,
-        AudioSampleFormat::U16 => 7,
+        AudioSampleFormat::I64 => 5,
+        AudioSampleFormat::I8 => 6,
+        AudioSampleFormat::U32 => 7,
+        AudioSampleFormat::U24 => 8,
+        AudioSampleFormat::U16 => 9,
+        AudioSampleFormat::U64 => 10,
+        AudioSampleFormat::U8 => 11,
     }
 }

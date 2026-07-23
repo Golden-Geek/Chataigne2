@@ -81,4 +81,35 @@ fn all_boundary_sample_formats_convert_without_shape_drift() {
     let mut u32_output = [0_u32; 3];
     interleave(&planar, 0, 1, 3, InterleavedOutput::U32(&mut u32_output)).unwrap();
     assert_eq!(u32_output, [0, 2_147_483_648, u32::MAX]);
+
+    let mut i8_output = [0_i8; 3];
+    interleave(&planar, 0, 1, 3, InterleavedOutput::I8(&mut i8_output)).unwrap();
+    assert_eq!(i8_output, [i8::MIN, 0, i8::MAX]);
+
+    let mut i64_output = [0_i64; 3];
+    interleave(&planar, 0, 1, 3, InterleavedOutput::I64(&mut i64_output)).unwrap();
+    assert_eq!(i64_output, [i64::MIN, 0, i64::MAX]);
+
+    let mut u8_output = [0_u8; 3];
+    interleave(&planar, 0, 1, 3, InterleavedOutput::U8(&mut u8_output)).unwrap();
+    assert_eq!(u8_output, [0, 128, u8::MAX]);
+
+    let mut u64_output = [0_u64; 3];
+    interleave(&planar, 0, 1, 3, InterleavedOutput::U64(&mut u64_output)).unwrap();
+    assert_eq!(u64_output, [0, 1_u64 << 63, u64::MAX]);
+}
+
+#[test]
+fn output_silence_uses_the_zero_point_of_each_sample_encoding() {
+    let mut signed = [1_i64; 2];
+    InterleavedOutput::I64(&mut signed).fill_silence();
+    assert_eq!(signed, [0, 0]);
+
+    let mut unsigned = [0_u64; 2];
+    InterleavedOutput::U64(&mut unsigned).fill_silence();
+    assert_eq!(unsigned, [1_u64 << 63; 2]);
+
+    let mut float = [1.0_f32; 2];
+    InterleavedOutput::F32(&mut float).fill_silence();
+    assert_eq!(float, [0.0, 0.0]);
 }

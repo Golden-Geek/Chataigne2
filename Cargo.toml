@@ -70,6 +70,7 @@ uuid = { version = "1", features = ["serde", "v4"] }
 arc-swap = "1"
 allocation-counter = "0.8.1"
 criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
+cpal = { version = "0.18.1", default-features = false }
 rtrb = "0.3.4"
 
 [[workspace.metadata.docs.rs]]

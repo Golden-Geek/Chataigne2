@@ -3,6 +3,7 @@ param(
     [switch] $SetupOnly,
     [switch] $SkipUiInstall,
     [switch] $SkipWindowsBuildTools,
+    [switch] $FullAudioHosts,
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $CargoArgs
@@ -92,6 +93,29 @@ function Ensure-WindowsBuildTools {
     throw "Visual Studio C++ Build Tools with the VCTools workload are a system prerequisite. Install them, then rerun tools/dev.ps1."
 }
 
+function Ensure-AudioBuildTools {
+    Write-Step "Audio host build tools"
+    if (-not $FullAudioHosts) {
+        Write-Host "WASAPI is ready. Use -FullAudioHosts to verify ASIO/JACK build prerequisites."
+        return
+    }
+    if (-not (Get-CommandExists "clang")) {
+        throw "Full Windows audio hosts require LLVM/Clang for ASIO bindings. Install LLVM and rerun tools/dev.ps1 -FullAudioHosts."
+    }
+    if ([string]::IsNullOrWhiteSpace($env:LIBCLANG_PATH)) {
+        $env:LIBCLANG_PATH = Split-Path -Parent (Get-Command "clang").Source
+        Write-Host "LIBCLANG_PATH set for this process to $env:LIBCLANG_PATH."
+    }
+    if ([string]::IsNullOrWhiteSpace($env:CPAL_ASIO_DIR)) {
+        Write-Host "CPAL_ASIO_DIR is not set; asio-sys will use the bounded system temporary ASIO SDK cache."
+    } elseif (-not (Test-Path -LiteralPath $env:CPAL_ASIO_DIR -PathType Container)) {
+        throw "CPAL_ASIO_DIR does not name an existing ASIO SDK directory: $env:CPAL_ASIO_DIR"
+    } else {
+        Write-Host "ASIO SDK found at CPAL_ASIO_DIR."
+    }
+    Write-Host "LLVM/Clang found. ASIO and dynamically loaded JACK are ready to compile."
+}
+
 function Activate-CanonicalToolchain {
     Write-Step "Canonical Rust, Node, npm, and Python contract"
     Ensure-Rustup
@@ -130,6 +154,7 @@ function Ensure-UiDependencies {
 }
 
 Ensure-WindowsBuildTools
+Ensure-AudioBuildTools
 Activate-CanonicalToolchain
 Ensure-UiDependencies
 

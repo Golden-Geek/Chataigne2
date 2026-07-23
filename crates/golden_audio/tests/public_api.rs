@@ -1,6 +1,7 @@
 use golden_audio::{
-    AudioBackend, AudioCommand, AudioConfiguration, AudioEngineBuilder, AudioEvent, ConfigGeneration, EngineLimits,
-    FrameCount, NullBackend, OfflineClock, SampleRate,
+    AudioBackend, AudioCallbackTimestamp, AudioCommand, AudioConfiguration, AudioEngineBuilder, AudioEvent,
+    AudioStreamHandler, ConfigGeneration, EngineLimits, FrameCount, InterleavedOutput, NullBackend, OfflineClock,
+    SampleRate,
 };
 
 #[test]
@@ -29,4 +30,16 @@ fn external_consumer_can_use_backend_neutral_surface() {
     let mut clock = OfflineClock::new(SampleRate::new(48_000).unwrap()).unwrap();
     assert_eq!(clock.advance(FrameCount::new(128).unwrap()).unwrap(), 128);
     engine.shutdown().unwrap();
+}
+
+#[derive(Debug)]
+struct DefaultOutputHandler;
+
+impl AudioStreamHandler for DefaultOutputHandler {}
+
+#[test]
+fn external_handler_default_is_safe_silence() {
+    let mut samples = [1.0_f32; 8];
+    DefaultOutputHandler.process_output(InterleavedOutput::F32(&mut samples), AudioCallbackTimestamp::default());
+    assert_eq!(samples, [0.0; 8]);
 }

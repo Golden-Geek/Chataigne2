@@ -80,14 +80,18 @@ impl AudioBufferPolicy {
 #[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
 #[cfg_attr(feature = "codegen", ts(export))]
 pub enum AudioSampleFormat {
+    I8,
     F32,
     F64,
     I16,
     I24,
     I32,
+    I64,
+    U8,
     U16,
     U24,
     U32,
+    U64,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
