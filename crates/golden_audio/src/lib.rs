@@ -42,7 +42,12 @@ pub use ids::{
     InvalidIdentifier, PhysicalChannelKey, PlaybackId, VoiceId,
 };
 pub use limits::{EngineLimits, FrameCount, SampleRate};
-pub use render::OfflineClock;
+pub use render::{
+    CompiledRoute, CompiledRouteMatrix, ConversionStats, GainSmoother, InterleavedInput, InterleavedOutput,
+    OfflineClock, OfflineRenderer, PlanarBuffer, RenderCompileContext, RenderPlan, RenderPlanCompilation,
+    RenderPlanCompiler, RenderProcessor, RenderProcessorMetrics, RenderWarning, RenderWarningCode, RouteSpan,
+    deinterleave, interleave, render_scalar_reference,
+};
 
 #[cfg(test)]
 mod tests;

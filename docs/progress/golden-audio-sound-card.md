@@ -26,11 +26,11 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 1 — crate scaffold and backend-independent contract.
+- Current phase: Phase 2 — deterministic realtime render core.
 - Status: complete locally; checkpoint pending.
-- Last checkpoint: `5a7b8ce` (`docs(audio): lock golden_audio architecture and execution baseline`).
-- Next step: implement planar buffers, deterministic route compilation, gain ramps, and the offline
-  renderer.
+- Last checkpoint: `baf373c` (`feat(audio): add backend-neutral golden_audio foundation`).
+- Next step: implement callback-safe ownership, bounded queues, acknowledged plan exchange, and
+  ordered realtime parameter updates.
 
 ## Decisions
 
@@ -82,6 +82,8 @@ The selected versions fit the pinned Rust `1.97.0` toolchain:
 | rtrb | 0.3.4 | MIT OR Apache-2.0 | Rust 1.38; bounded SPSC queues |
 | realfft | 3.5.0 | MIT | RustFFT baseline Rust 1.61 |
 | pitch-detection | 0.3.0 | MIT OR Apache-2.0 | Evaluated behind a private adapter; a focused in-crate YIN kernel is preferred if it gives clearer bounded ownership and passes the synthetic suite |
+| allocation-counter | 0.8.1 | MIT OR Apache-2.0 | Dev-only callback allocation/deallocation guard |
+| Criterion | 0.8.2 | Apache-2.0 OR MIT | Dev-only render and routing benchmarks; Rust 1.86 |
 
 Symphonia will enable only `aac`, `adpcm`, `aiff`, `alac`, `caf`, `flac`, `isomp4`, `mkv`, `mp3`,
 `ogg`, `pcm`, `vorbis`, and `wav`, plus the required metadata/SIMD features. Experimental video and
@@ -137,12 +139,27 @@ Decision:
 
 ## Performance evidence
 
-No audio engine exists at Phase 0. All render, routing, playback, analysis, memory, queue-pressure,
-and soak measurements are `NOT RUN`.
+Phase 2 results are scalar, backend-independent release benchmarks. The hardware was an Intel Core
+Ultra 9 275HX (24 logical processors) on Windows 11 build 26200. These measurements establish the
+local implementation baseline; they are not cross-platform or device deadline claims.
 
-| Revision | Hardware / OS | Backend | Workload | Result |
-| --- | --- | --- | --- | --- |
-| N/A | Windows x64 baseline | N/A | Initial audio benchmark suite | NOT RUN |
+| Revision | Workload | Result |
+| --- | --- | --- |
+| `baf373c` + Phase 2 working tree | Render: 8 channels, 16 routes, 32 frames | median 356.41 ns |
+| `baf373c` + Phase 2 working tree | Render: 8 channels, 16 routes, 1,024 frames | median 9.2262 µs |
+| `baf373c` + Phase 2 working tree | Render: 32 channels, 128 routes, 128 frames | median 7.5126 µs |
+| `baf373c` + Phase 2 working tree | Render: 128 channels, 1,024 routes, 256 frames | median 120.06 µs |
+| `baf373c` + Phase 2 working tree | Render: 256 channels, 16,384 routes, 1,024 frames | median 5.6106 ms |
+| `baf373c` + Phase 2 working tree | Routing: requested 0 routes (16 physical patch routes) | median 1.1042 µs |
+| `baf373c` + Phase 2 working tree | Routing: 16 routes | median 1.1129 µs |
+| `baf373c` + Phase 2 working tree | Routing: 128 routes | median 7.8434 µs |
+| `baf373c` + Phase 2 working tree | Routing: 1,024 routes | median 60.218 µs |
+| `baf373c` + Phase 2 working tree | Routing: 4,096 routes | median 208.83 µs |
+| `baf373c` + Phase 2 working tree | Routing: 16,384 routes | median 694.98 µs |
+
+The warmed render allocation guard observed zero allocations, zero deallocations, and zero net
+bytes. Phase 14 still owns the full reference workload, queue-pressure, memory, soak, and callback
+deadline qualification.
 
 ## Phase 1 implementation
 
@@ -165,6 +182,24 @@ The Phase 1 control worker deliberately does not render or decode. Playback requ
 structured unsupported-foundation failure until the playback phase. Callback ownership and the
 plan exchange replace the current worker-side synchronization in Phase 3; no callback exists in
 Phase 1.
+
+## Phase 2 implementation
+
+The backend-independent render core now provides:
+
+- bounded preallocated planar scratch buffers and chunked processing for oversized callbacks;
+- deterministic route compilation with stable channel ordering, destination-major route spans,
+  unresolved-endpoint warnings, and explicit physical/playback route sources;
+- stateful per-route, per-channel, and master gain ramps;
+- the required signal order: input patch, monitoring and playback mix, virtual-output faders,
+  master gain, then physical-output patch;
+- non-finite containment and saturating interleaved conversion for `f32`, `f64`, signed and
+  unsigned 16/24/32-bit boundary formats;
+- an offline renderer and a deliberately simple scalar reference implementation used for
+  sample-exact comparison;
+- release-mode render/routing benchmarks and a source-level realtime review checklist; and
+- tests covering deterministic compilation, ordering, ramps, conversion boundaries, oversized
+  callbacks, offline timing, and warmed callback allocation/deallocation behavior.
 
 ## Commands and evidence
 
@@ -193,7 +228,16 @@ Phase 1.
 | `cargo run -p golden_audio --features codegen --bin generate_golden_audio_contract -- target/golden-audio-contract-phase1` | PASS — generated 20 TypeScript files in ignored build output |
 | `cargo tree -p golden_audio --no-default-features --edges normal` | PASS — only serde, thiserror, UUID, and their transitive dependencies; no Golden Core or Chataigne dependency |
 | Root and Golden Core `cargo fmt` plus `--check` | PASS after Phase 1 |
-| Root and Golden Core formatting | NOT RUN |
+| `cargo info allocation-counter@0.8.1 criterion@0.8.2` | PASS — versions, licenses, and declared Rust compatibility recorded; both are dev-only |
+| `cargo test -p golden_audio --no-default-features` after Phase 2 | PASS — 27 tests (25 unit, 2 integration), 0 failed |
+| Phase 2 scalar/reference comparison | PASS — sample exact for input patch, monitoring, playback, faders, master, and output patch |
+| Phase 2 warmed render allocation guard | PASS — 0 allocations, 0 deallocations, 0 bytes |
+| `cargo bench -p golden_audio --no-default-features --no-run` | PASS |
+| Phase 2 quick render/routing benchmarks | PASS — results recorded above |
+| First routing quick benchmark | FAIL then fixed — requested 0 and 16 routes produced the same Criterion ID; IDs now retain the requested route count and the complete rerun passed |
+| `cargo deny check` after GPL metadata correction | PASS after fixing the initial failure — `deny.toml` had not allowed the workspace's `GPL-3.0-only` license |
+| `cargo machete` | FAIL — only six pre-existing unused dependencies in `Chataigne2`; no `golden_audio` dependency was reported |
+| Root and Golden Core formatting plus `--check` after Phase 2 | PASS |
 | Chataigne tests | NOT RUN |
 | UI checks/tests/build | NOT RUN |
 | Product run modes | NOT RUN |
@@ -225,8 +269,19 @@ Phase 1:
 - `crates/golden_audio/tests/public_api.rs`
 - `crates/golden_audio/examples/null_offline.rs`
 
+Phase 2:
+
+- `Cargo.toml`
+- `Cargo.lock`
+- `deny.toml`
+- `crates/golden_audio/Cargo.toml`
+- `crates/golden_audio/src/lib.rs`
+- `crates/golden_audio/src/render/`
+- `crates/golden_audio/tests/offline_render.rs`
+- `crates/golden_audio/benches/`
+
 ## Remaining work
 
-Phases 1–15 remain. The immediate next gate is the backend-independent crate with strong types,
-validated limits/configuration, null/mock/offline backends, control/event contracts, clean shutdown,
-and external-style API tests.
+Phases 3–15 remain. The immediate next gate is the callback/control ownership model with bounded
+SPSC queues, one acknowledged pending render plan, retained plan destruction off callback, ordered
+gain updates, overflow events, and stress tests.
