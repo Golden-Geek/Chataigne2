@@ -32,6 +32,7 @@ use crate::app::{
 };
 
 mod phase10;
+mod phase11;
 
 #[test]
 fn generated_catalog_contains_sound_card_and_only_its_five_tester_commands() {

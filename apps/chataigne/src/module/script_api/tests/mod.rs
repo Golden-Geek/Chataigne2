@@ -119,6 +119,18 @@ const METRONOMES_CALLBACK_DOCS: &[&str] = &["metronomeTick(name, ticks, totalTic
 
 const SPATIALIZER_FUNCTION_DOCS: &[&str] = &["Spatializer module values", "local.values"];
 
+const SOUND_CARD_FUNCTION_DOCS: &[&str] = &[
+    "Sound Card module functions",
+    "local.playFile(path, playbackId)",
+    "local.setChannelVolume(channel, volumeDb)",
+];
+
+const SOUND_CARD_CALLBACK_DOCS: &[&str] = &[
+    "Sound Card module callbacks",
+    "playbackStarted(playbackId, path, info)",
+    "audioDeviceStatusChanged(direction, status)",
+];
+
 #[test]
 fn module_script_templates_document_available_functions_for_each_module() {
     let osc_module_type = <crate::app::GenericOscModule as DeclaredUserItemNode>::ITEM_NODE_TYPE;
@@ -170,6 +182,11 @@ fn module_script_templates_document_available_functions_for_each_module() {
             crate::app::SpatializerModule::NODE_TYPE,
             SPATIALIZER_FUNCTION_DOCS,
             &[],
+        ),
+        (
+            crate::app::SoundCardModule::NODE_TYPE,
+            SOUND_CARD_FUNCTION_DOCS,
+            SOUND_CARD_CALLBACK_DOCS,
         ),
         (osc_module_type, OSC_FUNCTION_DOCS, &[]),
         (crate::app::SerialModule::NODE_TYPE, STREAM_FUNCTION_DOCS, &[]),

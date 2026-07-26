@@ -112,14 +112,39 @@ pub(crate) fn emit_script_callback(
     callback: &str,
     args: Vec<JsonValue>,
 ) {
-    ctx.emit_custom_event(CustomEvent::new(
+    ctx.emit_custom_event(script_callback_event(module_id, callback, args));
+}
+
+pub(crate) fn emit_transient_script_callback(
+    ctx: &mut ProcessCtx,
+    module_id: NodeId,
+    callback: &str,
+    args: Vec<JsonValue>,
+) {
+    ctx.emit_custom_event(CustomEvent::transient(
         MODULE_SCRIPT_CALLBACK_TOPIC,
         Some(module_id),
-        serde_json::json!({
-            "callback": callback,
-            "args": args,
-        }),
+        script_callback_payload(callback, args),
     ));
+}
+
+fn script_callback_event(
+    module_id: NodeId,
+    callback: &str,
+    args: Vec<JsonValue>,
+) -> CustomEvent {
+    CustomEvent::new(
+        MODULE_SCRIPT_CALLBACK_TOPIC,
+        Some(module_id),
+        script_callback_payload(callback, args),
+    )
+}
+
+fn script_callback_payload(callback: &str, args: Vec<JsonValue>) -> JsonValue {
+    serde_json::json!({
+        "callback": callback,
+        "args": args,
+    })
 }
 
 pub(crate) struct ModuleParamCallbackRoots {

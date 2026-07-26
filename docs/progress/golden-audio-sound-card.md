@@ -26,11 +26,12 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 10 - Chataigne runtime adapter and live values.
+- Current phase: Phase 11 - commands, multiplexing, scripts, and callbacks.
 - Status: implementation and local qualification complete.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
-- Phase 10 checkpoint: this change (`feat(chataigne): connect Sound Card nodes to golden_audio`).
-- Stop boundary: Phase 11 commands, scripting, and callbacks have not started.
+- Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
+- Phase 11 checkpoint: this change (`feat(chataigne): expose Sound Card commands and scripting`).
+- Stop boundary: Phase 12 reusable `golden_audio_ui` work has not started.
 
 ## Decisions
 
@@ -433,6 +434,32 @@ The Chataigne-owned runtime adapter now provides:
 Phase 10 deliberately stops before command execution, multiplex admission, script functions,
 callbacks, snippets, and templates. Those remain Phase 11 work.
 
+## Phase 11 implementation
+
+The Chataigne-owned command and scripting boundary now provides:
+
+- executable manual, auto-triggered, external-target, and transient multiplex command paths for
+  Play File, Stop File, Stop All Files, Set Master Volume, and Set Channel Volume;
+- effective-snapshot extraction for every command parameter, so each multiplex lane supplies its
+  own file path, playback ID, virtual-output reference, and gain without mutating the authored
+  command node;
+- typed bounded admission into `golden_audio`, ordered same-ID replacement and cross-ID
+  independence, and a structured `chataigne.sound_card.command.result` event for admitted
+  sequences or typed failures;
+- app-side virtual-output validation that rejects inputs, foreign modules, deleted nodes, empty
+  references, and physical-channel strings before crossing the Golden boundary;
+- active master/output gain handling on the Golden control worker without render-plan
+  recompilation, plus structured diagnostics if a stale target reaches the worker;
+- script descriptors and host dispatch for `playFile`, `stopFile`, `stopAllFiles`,
+  `setMasterVolume`, and `setChannelVolume`, including stable virtual-output UUID tokens;
+- playback lifecycle plus device/backend status callbacks with documented argument shapes;
+- transient playback callback delivery, which stays inside the live engine inbox and cannot enter
+  UI replay or transport resynchronization; and
+- an app-owned Sound Card script template, comment-only function/callback snippets, and scripting
+  guide coverage.
+
+Phase 11 deliberately leaves reusable device-inspector presentation and registration to Phase 12.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -565,6 +592,13 @@ callbacks, snippets, and templates. Those remain Phase 11 work.
 | `npm run build` in `apps/chataigne/ui` after Phase 10 | PASS - static production build completed; only the existing chunk-size advisory was emitted |
 | Cargo and npm workspace license metadata after Phase 10 | PASS - all 26 Cargo packages and all four npm workspaces report `GPL-3.0-only` |
 | Root and Golden Core formatting plus `--check` after Phase 10 | PASS |
+| Phase 11 focused Sound Card tests | PASS - 7 tests covering manual/auto/external command execution, per-lane multiplex overrides, ordered replacement admissions, local output validation, disabled/missing-output behavior, script descriptors/templates/dispatch, callback shapes, and transient retention |
+| `cargo test -p golden_audio` after Phase 11 | PASS - 122 tests (110 unit, 12 integration), 0 failed |
+| `cargo test -p Chataigne2 --no-fail-fast` after Phase 11 | PASS - 464 tests, 0 failed |
+| `cargo clippy -p golden_audio --all-targets -- -D warnings` after Phase 11 | PASS |
+| `cargo clippy -p Chataigne2 --all-targets` after Phase 11 | PASS - existing workspace warnings only; no Sound Card warning remained |
+| Phase 11 strict app all-target Clippy | FAIL before reaching the app on the existing Alchemist condition argument-count lint; allowing that lint exposed the broader pre-existing Golden Core/Alchemist warning backlog |
+| Root and Golden Core formatting plus `--check` after Phase 11 | PASS |
 | Product run modes | NOT RUN |
 | Cross-platform backend/hardware matrix | NOT RUN |
 

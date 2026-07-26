@@ -2,17 +2,18 @@
 mod tests;
 mod integration;
 mod runtime;
+mod script;
 
 use std::collections::HashSet;
 
 use golden_core::{
     edit::{Edit, NodeTree},
     engine::NodeExecutionRule,
-    events::{Event, EventKind},
+    events::{CustomEvent, Event, EventKind},
     node,
     node::{
         DeclId, Folder, Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch,
-        NodeReference, NodeUserPermissions, NodeUuid,
+        NodeReference, NodeScriptDescriptor, NodeUserPermissions, NodeUuid,
     },
     parameter::{
         Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption,
@@ -443,6 +444,23 @@ impl Node for SoundCardModule {
             .with_compiled_kernel(runtime::SOUND_CARD_COMPILED_KERNEL)
     }
 
+    fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
+        self.sound_card_script_descriptor()
+    }
+
+    fn engine_call_script_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Result<bool, String> {
+        if let Some(result) = self.call_sound_card_script_method(ctx, method, args) {
+            result?;
+            return Ok(true);
+        }
+        self.base.engine_call_script_method(ctx, method, args)
+    }
+
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
             EventKind::ParamChanged { .. }
@@ -456,15 +474,19 @@ impl Node for SoundCardModule {
 
     fn inbox_requires_tree_snapshot(&self, events: &golden_core::events::EventFrame) -> bool {
         events.iter().any(|event| {
-            match event.kind {
+            match &event.kind {
                 EventKind::ParamChanged { param, .. } => !self
                     .runtime
                     .as_ref()
-                    .is_some_and(|runtime| runtime.bindings().is_runtime_value(param)),
+                    .is_some_and(|runtime| runtime.bindings().is_runtime_value(*param)),
                 EventKind::ChildAdded { .. }
                     | EventKind::ChildRemoved { .. }
                     | EventKind::ChildReplaced { .. }
                     | EventKind::MetaChanged { .. } => true,
+                EventKind::Custom(custom) => {
+                    custom.topic
+                        == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
+                }
                 _ => false,
             }
         })
@@ -524,6 +546,10 @@ impl Node for SoundCardModule {
         } else {
             self.configuration_dirty = true;
         }
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
+        self.handle_sound_card_command_event(ctx, &event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

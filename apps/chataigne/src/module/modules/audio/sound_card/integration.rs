@@ -1,8 +1,31 @@
 use chataigne_sound_card_protocol::{
     SOUND_CARD_TELEMETRY_TOPIC, SoundCardUiTelemetryDto,
 };
+use golden_audio::{
+    AudioCommand, AudioError, AudioErrorCategory, CommandSequence, PlayFileRequest,
+};
+use serde::{Deserialize, Serialize};
 
 use super::*;
+use crate::app::module_modules_audio_sound_card_commands::{
+    SOUND_CARD_COMMAND_TYPES, SOUND_CARD_PLAY_FILE_COMMAND_NODE_TYPE,
+    SOUND_CARD_SET_CHANNEL_VOLUME_COMMAND_NODE_TYPE,
+    SOUND_CARD_SET_MASTER_VOLUME_COMMAND_NODE_TYPE,
+    SOUND_CARD_STOP_ALL_FILES_COMMAND_NODE_TYPE,
+    SOUND_CARD_STOP_FILE_COMMAND_NODE_TYPE, SoundCardCommandRequest,
+};
+
+pub(crate) const SOUND_CARD_COMMAND_RESULT_TOPIC: &str =
+    "chataigne.sound_card.command.result";
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub(crate) struct SoundCardCommandResultEvent {
+    pub module_id: NodeId,
+    pub command_id: NodeId,
+    pub command_type: String,
+    pub admitted_sequence: Option<u64>,
+    pub error: Option<AudioError>,
+}
 
 impl SoundCardModule {
     pub(super) fn sync_device_choices(
@@ -107,7 +130,7 @@ impl SoundCardModule {
             );
             return;
         };
-        let (observation, telemetry) = runtime.poll(ctx);
+        let (observation, telemetry, events) = runtime.poll(ctx);
         let input_ready = direction_ready(&observation.device.input);
         let output_ready = direction_ready(&observation.device.output);
         let any_enabled = observation.device.input.enabled || observation.device.output.enabled;
@@ -126,6 +149,110 @@ impl SoundCardModule {
         if let Some(telemetry) = telemetry {
             self.emit_telemetry(ctx, &telemetry);
         }
+        for event in &events {
+            self.emit_audio_event_callback(ctx, event);
+        }
+    }
+
+    pub(super) fn handle_sound_card_command_event(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        event: &golden_core::events::CustomEvent,
+    ) {
+        let Some(request_event) =
+            crate::app::module_command::decode_module_command_request(event)
+        else {
+            return;
+        };
+        if request_event.module_id != self.id()
+            || !SOUND_CARD_COMMAND_TYPES.contains(&request_event.command_type.as_str())
+        {
+            return;
+        }
+
+        let result = serde_json::from_value::<SoundCardCommandRequest>(
+            request_event.payload.clone(),
+        )
+        .map_err(|error| {
+            command_error(format!("invalid Sound Card command payload: {error}"))
+        })
+        .and_then(|request| {
+            validate_request_type(request_event.command_type.as_str(), &request)?;
+            let snapshot = ctx.tree_snapshot_arc().ok_or_else(|| {
+                command_error("Sound Card command admission requires a tree snapshot")
+            })?;
+            self.admit_request(snapshot.as_ref(), request)
+        });
+
+        let response = match result {
+            Ok(sequence) => {
+                self.base.emit_outgoing_traffic(ctx);
+                SoundCardCommandResultEvent {
+                    module_id: self.id(),
+                    command_id: request_event.command_id,
+                    command_type: request_event.command_type,
+                    admitted_sequence: Some(sequence.get()),
+                    error: None,
+                }
+            }
+            Err(error) => {
+                golden_core::logerror!(origin = self.id(); format!(
+                    "Sound Card command {:?} was not admitted: {error}",
+                    request_event.command_id
+                ));
+                SoundCardCommandResultEvent {
+                    module_id: self.id(),
+                    command_id: request_event.command_id,
+                    command_type: request_event.command_type,
+                    admitted_sequence: None,
+                    error: Some(error),
+                }
+            }
+        };
+        if let Err(error) = ctx.emit_custom_payload(
+            SOUND_CARD_COMMAND_RESULT_TOPIC,
+            Some(self.id()),
+            &response,
+        ) {
+            golden_core::logerror!(origin = self.id(); format!(
+                "Failed to emit Sound Card command result: {error}"
+            ));
+        }
+    }
+
+    pub(super) fn admit_request(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        request: SoundCardCommandRequest,
+    ) -> Result<CommandSequence, AudioError> {
+        if !self.node_data().effective_enabled {
+            return Err(command_error("Sound Card module is disabled"));
+        }
+        let runtime = self
+            .runtime
+            .as_ref()
+            .ok_or_else(|| command_error("Sound Card runtime is not available"))?;
+        let command = match request {
+            SoundCardCommandRequest::PlayFile {
+                path,
+                playback_id,
+            } => AudioCommand::PlayFile(PlayFileRequest::new(path, playback_id)),
+            SoundCardCommandRequest::StopFile { playback_id } => {
+                AudioCommand::StopFile { playback_id }
+            }
+            SoundCardCommandRequest::StopAllFiles => AudioCommand::StopAllFiles,
+            SoundCardCommandRequest::SetMasterVolume { gain } => {
+                AudioCommand::SetMasterGain { gain }
+            }
+            SoundCardCommandRequest::SetChannelVolume {
+                virtual_output,
+                gain,
+            } => AudioCommand::SetChannelGain {
+                channel: resolve_virtual_output(snapshot, self.id(), &virtual_output)?,
+                gain,
+            },
+        };
+        runtime.admit(command)
     }
 
     fn sync_live_device_choices(
@@ -215,6 +342,79 @@ impl SoundCardModule {
             runtime.stop();
         }
     }
+}
+
+fn validate_request_type(
+    command_type: &str,
+    request: &SoundCardCommandRequest,
+) -> Result<(), AudioError> {
+    let matches = matches!(
+        (command_type, request),
+        (
+            SOUND_CARD_PLAY_FILE_COMMAND_NODE_TYPE,
+            SoundCardCommandRequest::PlayFile { .. }
+        ) | (
+            SOUND_CARD_STOP_FILE_COMMAND_NODE_TYPE,
+            SoundCardCommandRequest::StopFile { .. }
+        ) | (
+            SOUND_CARD_STOP_ALL_FILES_COMMAND_NODE_TYPE,
+            SoundCardCommandRequest::StopAllFiles
+        ) | (
+            SOUND_CARD_SET_MASTER_VOLUME_COMMAND_NODE_TYPE,
+            SoundCardCommandRequest::SetMasterVolume { .. }
+        ) | (
+            SOUND_CARD_SET_CHANNEL_VOLUME_COMMAND_NODE_TYPE,
+            SoundCardCommandRequest::SetChannelVolume { .. }
+        )
+    );
+    matches.then_some(()).ok_or_else(|| {
+        command_error(format!(
+            "Sound Card command payload does not match node type '{command_type}'"
+        ))
+    })
+}
+
+fn resolve_virtual_output(
+    snapshot: &ProcessTreeSnapshot,
+    module: NodeId,
+    reference: &NodeReference,
+) -> Result<golden_audio::AudioChannelId, AudioError> {
+    let target = reference
+        .cached_id()
+        .filter(|target| {
+            snapshot
+                .node(*target)
+                .is_some_and(|node| node.uuid == reference.uuid())
+        })
+        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))
+        .ok_or_else(|| {
+            command_error(format!(
+                "Sound Card virtual output {} is missing",
+                reference.uuid().0
+            ))
+        })?;
+    let target_state = snapshot
+        .node(target)
+        .ok_or_else(|| command_error("Sound Card virtual output disappeared"))?;
+    if target_state.node_type != SoundCardVirtualOutput::NODE_TYPE {
+        return Err(command_error(
+            "Sound Card channel volume target is not a virtual output",
+        ));
+    }
+    if crate::app::module::resolve_enclosing_module_root(snapshot, target)
+        != Some(module)
+    {
+        return Err(command_error(
+            "Sound Card channel volume target belongs to another module",
+        ));
+    }
+    Ok(golden_audio::AudioChannelId::from_uuid(
+        target_state.uuid.0,
+    ))
+}
+
+fn command_error(message: impl Into<String>) -> AudioError {
+    AudioError::new(AudioErrorCategory::InvalidConfiguration, message)
 }
 
 fn sync_device_enum_with_state(

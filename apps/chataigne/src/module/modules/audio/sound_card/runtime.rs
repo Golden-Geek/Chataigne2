@@ -222,11 +222,23 @@ impl SoundCardRuntime {
             .map_err(|error| error.to_string())
     }
 
+    pub(super) fn admit(
+        &self,
+        command: AudioCommand,
+    ) -> Result<golden_audio::CommandSequence, golden_audio::AudioError> {
+        self.engine.control().submit(command)
+    }
+
     pub(super) fn poll(
         &mut self,
         ctx: &mut ProcessCtx,
-    ) -> (AudioObservationSnapshot, Option<SoundCardUiTelemetryDto>) {
-        for event in self.events.drain() {
+    ) -> (
+        AudioObservationSnapshot,
+        Option<SoundCardUiTelemetryDto>,
+        Vec<AudioEvent>,
+    ) {
+        let events = self.events.drain();
+        for event in &events {
             match event {
                 AudioEvent::ConfigurationRejected { error, .. } => {
                     self.last_error = Some(error.to_string());
@@ -238,7 +250,7 @@ impl SoundCardRuntime {
                     self.last_error = Some(failure.error.to_string());
                 }
                 AudioEvent::Diagnostic(diagnostic) => {
-                    self.last_error = Some(diagnostic.message);
+                    self.last_error = Some(diagnostic.message.clone());
                 }
                 _ => {}
             }
@@ -251,7 +263,7 @@ impl SoundCardRuntime {
         if changed {
             self.last_telemetry = Some(telemetry.clone());
         }
-        (observation, changed.then_some(telemetry))
+        (observation, changed.then_some(telemetry), events)
     }
 
     pub(super) fn stop(&mut self) {

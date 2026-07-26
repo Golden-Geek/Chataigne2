@@ -4,9 +4,9 @@ use std::{
 };
 
 use crate::{
-    AudioBackend, AudioBackendState, AudioBackendStatus, AudioConfiguration, AudioEngineConfig, AudioError,
-    AudioErrorCategory, AudioEvent, AudioObservationSnapshot, AudioStream, DeviceSupervisor, DeviceSupervisorConfig,
-    DeviceSwitchPhase, RenderPlan, StreamRequest,
+    AudioBackend, AudioBackendState, AudioBackendStatus, AudioChannelId, AudioConfiguration, AudioEngineConfig,
+    AudioError, AudioErrorCategory, AudioEvent, AudioObservationSnapshot, AudioStream, DeviceSupervisor,
+    DeviceSupervisorConfig, DeviceSwitchPhase, GainDb, RenderPlan, StreamRequest,
 };
 
 use super::engine::{publish_event, update_observation};
@@ -62,6 +62,43 @@ impl DeviceRuntime {
         self.enabled = enabled;
         self.apply_direction_configuration();
         self.refresh(event_sender, observation, backends, true);
+    }
+
+    pub(super) fn set_master_gain(&mut self, gain: GainDb) -> Result<(), AudioError> {
+        let Some((configuration, plan)) = &mut self.configuration else {
+            return Err(AudioError::invalid_configuration(
+                "audio runtime has no active configuration",
+            ));
+        };
+        configuration.master_gain = gain;
+        plan.master_gain = gain.to_linear();
+        Ok(())
+    }
+
+    pub(super) fn set_channel_gain(&mut self, channel: AudioChannelId, gain: GainDb) -> Result<(), AudioError> {
+        let Some((configuration, plan)) = &mut self.configuration else {
+            return Err(AudioError::invalid_configuration(
+                "audio runtime has no active configuration",
+            ));
+        };
+        let Some(configuration_channel) = configuration
+            .virtual_outputs
+            .iter_mut()
+            .find(|candidate| candidate.id == channel)
+        else {
+            return Err(AudioError::invalid_configuration(format!(
+                "active audio configuration does not contain output channel {channel}"
+            )));
+        };
+        let Some(plan_index) = plan.virtual_outputs.iter().position(|candidate| *candidate == channel) else {
+            return Err(AudioError::new(
+                AudioErrorCategory::InternalInvariant,
+                format!("active render plan does not contain output channel {channel}"),
+            ));
+        };
+        configuration_channel.gain = gain;
+        plan.output_gains[plan_index] = gain.to_linear();
+        Ok(())
     }
 
     fn apply_direction_configuration(&mut self) {

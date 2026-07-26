@@ -179,3 +179,65 @@ fn applied_configuration_drives_null_device_readiness_and_channel_observations()
     );
     engine.shutdown().unwrap();
 }
+
+#[test]
+fn gain_commands_are_processed_without_recompiling_configuration() {
+    let mut engine = AudioEngineBuilder::default().build().unwrap();
+    let events = engine.take_event_receiver().unwrap();
+    let output = AudioChannelId::new();
+    let mut configuration = AudioConfiguration::empty();
+    configuration.virtual_outputs.push(VirtualOutputChannel {
+        id: output,
+        label: "Output".to_owned(),
+        gain: GainDb::UNITY,
+    });
+    let generation = ConfigGeneration::new(1);
+    let control = engine.control();
+    control
+        .submit(AudioCommand::ApplyConfiguration {
+            generation,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+    loop {
+        if matches!(
+            events.recv().unwrap(),
+            AudioEvent::ConfigurationApplied {
+                generation: applied
+            } if applied == generation
+        ) {
+            break;
+        }
+    }
+
+    control
+        .submit(AudioCommand::SetMasterGain {
+            gain: GainDb::new(-6.0).unwrap(),
+        })
+        .unwrap();
+    control
+        .submit(AudioCommand::SetChannelGain {
+            channel: output,
+            gain: GainDb::new(-3.0).unwrap(),
+        })
+        .unwrap();
+    control
+        .submit(AudioCommand::SetChannelGain {
+            channel: AudioChannelId::new(),
+            gain: GainDb::UNITY,
+        })
+        .unwrap();
+
+    let diagnostic = loop {
+        if let AudioEvent::Diagnostic(diagnostic) = events.recv().unwrap() {
+            break diagnostic;
+        }
+    };
+    assert_eq!(diagnostic.code, "audio_command_failed");
+    assert_eq!(
+        diagnostic.context.get("operation").map(String::as_str),
+        Some("set_channel_gain")
+    );
+    assert_eq!(engine.observations().latest().generation, generation);
+    engine.shutdown().unwrap();
+}

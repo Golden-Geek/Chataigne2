@@ -110,6 +110,31 @@ App Control modules emit:
 
 `change` includes the watched folder path plus created, modified, and removed entry lists.
 
+Sound Card modules expose:
+
+- `playFile(path, playbackId)`
+- `stopFile(playbackId)`
+- `stopAllFiles()`
+- `setMasterVolume(volumeDb)`
+- `setChannelVolume(channel, volumeDb)`
+
+`playbackId` is a non-empty lane identifier. A new play on the same lane replaces the
+loading or active voice, while other lanes remain independent. `channel` must be a
+virtual-output node handle owned by that Sound Card, or the stable UUID of that node.
+Volume arguments are in dB from -120 through +24.
+
+Sound Card modules emit:
+
+- `playbackStarted(playbackId, path, info)`
+- `playbackFinished(playbackId, info)`
+- `playbackStopped(playbackId, reason, info)`
+- `playbackFailed(playbackId, path, error)`
+- `audioDeviceStatusChanged(direction, status)`
+- `audioBackendStatusChanged(backend, status)`
+
+Playback lifecycle callbacks are transient live events. They are delivered once and are
+not replayed after a UI reconnect, transport resync, or project reload.
+
 Concrete modules should add script methods and callback constants at their own boundary and delegate
 shared parsing or payload construction to app-owned family helpers. Do not add Chataigne2-specific
 module scripting callbacks to `golden_core` templates or engine modules.

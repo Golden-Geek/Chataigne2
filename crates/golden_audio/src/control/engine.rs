@@ -13,8 +13,8 @@ use rtrb::Consumer;
 use crate::{
     AudioBackend, AudioCommand, AudioConfiguration, AudioDeviceInspectorState, AudioEngineConfig, AudioError,
     AudioErrorCategory, AudioEvent, AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, BackendPolicy,
-    CommandSequence, ConfigGeneration, EngineLimits, NullBackend, QueuePressureCounters, QueuePressureEvent,
-    RenderCompileContext, RenderPlanCompiler,
+    CommandSequence, ConfigGeneration, DiagnosticEvent, DiagnosticSeverity, EngineLimits, NullBackend,
+    QueuePressureCounters, QueuePressureEvent, RenderCompileContext, RenderPlanCompiler,
 };
 #[cfg(feature = "playback")]
 use crate::{
@@ -418,7 +418,16 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                 });
                 devices.set_enabled(&event_sender, &observation, backends.as_slice(), enabled);
             }
-            AudioCommand::SetMasterGain { .. } | AudioCommand::SetChannelGain { .. } => {}
+            AudioCommand::SetMasterGain { gain } => {
+                if let Err(error) = devices.set_master_gain(gain) {
+                    publish_command_failure(&event_sender, &observation, "set_master_gain", error);
+                }
+            }
+            AudioCommand::SetChannelGain { channel, gain } => {
+                if let Err(error) = devices.set_channel_gain(channel, gain) {
+                    publish_command_failure(&event_sender, &observation, "set_channel_gain", error);
+                }
+            }
             AudioCommand::StopFile {
                 playback_id: _playback_id,
             } => {
@@ -920,6 +929,23 @@ fn report_command_pressure(
             occurrences,
             capacity,
         }),
+    );
+}
+
+fn publish_command_failure(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    operation: &str,
+    error: AudioError,
+) {
+    publish_event(
+        event_sender,
+        observation,
+        AudioEvent::Diagnostic(
+            DiagnosticEvent::new(DiagnosticSeverity::Error, "audio_command_failed", error.to_string())
+                .with_context("operation", operation)
+                .with_context("category", format!("{:?}", error.category).to_lowercase()),
+        ),
     );
 }
 
