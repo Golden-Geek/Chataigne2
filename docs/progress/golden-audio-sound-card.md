@@ -27,8 +27,9 @@ backend remains `NOT RUN`.
 ## Current status
 
 - Current phase: Phase 14 - performance, robustness, and product evidence.
-- Status: deterministic implementation and local qualification complete; mounted browser inspection,
-  real-device endurance, and cross-platform results remain outstanding.
+- Status: deterministic implementation, local qualification, and the Windows WASAPI real-device
+  endurance gate are complete; mounted browser inspection and cross-platform results remain
+  outstanding.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
 - Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
@@ -37,8 +38,10 @@ backend remains `NOT RUN`.
 - Phase 14 checkpoint: this change (`perf(audio): add Sound Card runtime qualification`).
 - Phase 14 managed-device qualification checkpoint: this change
   (`fix(audio): harden managed device recovery`).
-- Stop boundary: Phase 14 cannot be marked fully complete until the named real-device soak,
-  mounted normal/narrow browser inspection, and cross-platform runs have exact-commit evidence.
+- Phase 14 analysis endurance checkpoint: `f6661d6c`
+  (`fix(audio): preserve analysis frames through scheduler stalls`).
+- Stop boundary: Phase 14 cannot be marked fully complete until mounted normal/narrow browser
+  inspection and cross-platform runs have exact-commit evidence.
 
 ## Decisions
 
@@ -140,7 +143,7 @@ Decision:
 
 | Platform | Backend | Build | Discovery | Stream I/O | Recovery | Package/startup |
 | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PARTIAL - 15-second medium-workload run completed 3 planned stop/reopen cycles with 0 XRuns, deadline misses, or analysis drops; one-hour exact-commit gate remains | NOT RUN |
+| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PASS - exact `f6661d6c` release build sustained the medium workload for one hour through 5 planned stop/reopen cycles with 0 warnings, XRuns, deadline misses, bridge pressure, playback failures, or analysis drops | NOT RUN |
 | Windows x64 | ASIO | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows x64 | JACK | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows arm64 | WASAPI | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
@@ -594,10 +597,25 @@ bridges and enter the supervisor retry/reopen path. A 15-second release rerun on
 output sustained the medium
 32-channel/128-route/32-voice workload through three planned stop/reopen cycles with zero callback
 XRuns, backend warnings, render deadline misses, control pressure, playback failures, and dropped
-or stale analysis frames. This is short regression evidence, not the named one-hour gate.
+or stale analysis frames.
+
+The first exact-commit one-hour run at `898ad103` kept every realtime, playback, and recovery
+counter clean but correctly failed the strict gate after four analysis frames were discarded
+during rare host-scheduler stalls. The analysis worker had been coalescing queued frames even when
+it had enough processing capacity. At `f6661d6c`, it instead processes the bounded queue in order
+and reserves four preallocated frames per tap to absorb short scheduler stalls; sustained overload
+remains bounded and observable.
+
+The corrected release build ran for 3,600.055 seconds on the default WASAPI Realtek output at
+48 kHz stereo with a negotiated 480-frame callback buffer. It rendered 172,758,784 frames and
+completed all five planned stop/reopen cycles. The strict JSON report passed with zero backend
+warnings, callback XRuns, render deadline misses, control queue pressure, input/output bridge
+underflows or overflows, playback failures, dropped analysis frames, or stale analysis frames. The
+maximum render call was 1,398 microseconds, and every recovery returned to `Ready` without retry.
+
 The configured browser surface again reported no browser, so mounted normal/narrow visual
-inspection remains `NOT RUN`; no desktop-control fallback was used. A one-hour real-device
-supported-workload run, recovery soak, other Windows backends, macOS, and Linux remain `NOT RUN`.
+inspection remains `NOT RUN`; no desktop-control fallback was used. Other Windows backends,
+macOS, and Linux remain `NOT RUN`.
 
 ## Commands and evidence
 
@@ -763,7 +781,7 @@ supported-workload run, recovery soak, other Windows backends, macOS, and Linux 
 | Phase 14 combined quick Criterion benchmark | PASS - small, medium, large, and extreme-offline medians recorded in the performance table |
 | Phase 14 exact-percentile release runner | PASS - 10,000 measured blocks per workload; p50/p99/p99.99/max, deadline-ratio, memory, and analysis-pressure evidence recorded above |
 | Phase 14 managed callback integration | PASS - callback-backed decoded playback output, synthetic-input monitoring/meter/output, null-clock XRun, and callback allocation tests |
-| `cargo test -p golden_audio` after Phase 14 | PASS - 133 tests (117 unit, 16 integration), 0 failed |
+| `cargo test -p golden_audio` after Phase 14 | PASS - 134 tests (118 unit, 16 integration), 0 failed |
 | Phase 14 Golden Audio feature matrix | PASS - no-default, playback-only, analysis-only, and default all-target checks |
 | Phase 14 Golden Audio strict Clippy | PASS - default and no-default all-target runs with `-D warnings` |
 | `cargo test -p Chataigne2` after Phase 14 | PASS - 468 tests, 0 failed |
@@ -772,12 +790,14 @@ supported-workload run, recovery soak, other Windows backends, macOS, and Linux 
 | Phase 14 Windows default-output smoke | PASS - stereo 48 kHz stream opened, ran silent for 100 ms, and stopped |
 | Phase 14 managed-device runner tests | PASS - option/fixture guards, medium null-backend signal/recovery, supervisor runtime-failure backoff, and callback-stream invalidation/reopen |
 | Phase 14 short Windows managed-device recovery | PASS - release, 15 seconds, medium workload, 3 planned recoveries, 0 XRuns/backend warnings/deadline misses/queue pressure/playback failures/analysis drops |
+| Phase 14 initial one-hour Windows managed-device soak | FAIL at exact `898ad103` - 4 analysis frames dropped during host-scheduler stalls; all realtime, playback, warning, and recovery counters were otherwise clean |
+| Phase 14 corrected one-hour Windows managed-device soak | PASS at exact `f6661d6c` - release, 3,600.055 seconds, medium workload, 172,758,784 frames, 5/5 planned recoveries, 0 warnings/XRuns/deadline misses/bridge pressure/queue pressure/playback failures/analysis drops |
 | Phase 14 generated audio/Sound Card contracts | PASS - playback and render observations regenerated in both consumers; reusable generated-contract drift check passed |
 | Phase 14 reusable audio UI checks | PASS - 0 Svelte diagnostics and 21 tests |
 | Phase 14 Chataigne UI checks | PASS - 0 Svelte diagnostics, Prettier clean, 36 tests, and static production build |
 | Phase 14 evidence route production build | PASS - `/evidence/sound-card` emitted in the server/static build |
 | Phase 14 mounted normal/narrow browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
-| Phase 14 one-hour real-device workload and recovery soak | NOT RUN |
+| Phase 14 one-hour real-device workload and recovery soak | PASS - exact `f6661d6c` WASAPI release report, strict `golden-audio-managed-device-soak.v1` contract |
 | Product run modes | NOT RUN |
 | Cross-platform backend/hardware matrix | NOT RUN |
 
@@ -1001,7 +1021,8 @@ Phase 14:
 
 ## Remaining work
 
-Phase 14 local implementation and deterministic qualification are complete. Phase 14 remains open
-only for mounted normal/narrow visual inspection, the named one-hour real-device workload/recovery
-soak, and exact-commit cross-platform backend results. Phase 15 owns final documentation, release,
-and packaging gates after those external qualification results exist.
+Phase 14 local implementation, deterministic qualification, and the Windows WASAPI one-hour
+real-device workload/recovery gate are complete. Phase 14 remains open only for mounted
+normal/narrow visual inspection and exact-commit cross-platform backend results. Phase 15 owns
+final documentation, release, and packaging gates after those external qualification results
+exist.
