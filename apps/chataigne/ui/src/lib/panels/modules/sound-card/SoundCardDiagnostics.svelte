@@ -22,6 +22,40 @@
 		<dd>{telemetry.queue_pressure_count}</dd>
 	</div>
 	<div>
+		<dt>Playback queue pressure</dt>
+		<dd>{telemetry.playback.command_queue_pressure_count}</dd>
+	</div>
+	<div>
+		<dt>Render timing</dt>
+		<dd>
+			{telemetry.runtime.maximum_render_time_micros} us max /
+			{telemetry.runtime.rendered_blocks} blocks
+		</dd>
+	</div>
+	<div>
+		<dt>Render deadline misses</dt>
+		<dd>{telemetry.runtime.deadline_miss_count}</dd>
+	</div>
+	<div>
+		<dt>Callback XRuns</dt>
+		<dd>
+			{telemetry.runtime.xrun_count} total /
+			{telemetry.runtime.input_underflow_count} input under /
+			{telemetry.runtime.output_underflow_count} output under
+		</dd>
+	</div>
+	<div>
+		<dt>Render control pressure</dt>
+		<dd>{telemetry.runtime.control_queue_pressure_count}</dd>
+	</div>
+	<div>
+		<dt>Resident playback cache</dt>
+		<dd>
+			{telemetry.playback.cache_entries} assets /
+			{(telemetry.playback.resident_bytes / 1_048_576).toFixed(1)} MiB
+		</dd>
+	</div>
+	<div>
 		<dt>Analysis frames</dt>
 		<dd>
 			{telemetry.analysis.diagnostics.processed_frames} processed /

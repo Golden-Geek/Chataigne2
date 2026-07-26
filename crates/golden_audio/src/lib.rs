@@ -18,6 +18,8 @@ pub mod error;
 pub mod ids;
 pub mod limits;
 pub mod playback;
+#[cfg(all(feature = "analysis", feature = "playback"))]
+pub mod qualification;
 pub mod realtime;
 pub mod render;
 
@@ -50,7 +52,7 @@ pub use config::{
 pub use control::{
     AudioCommand, AudioControl, AudioEngine, AudioEngineBuilder, AudioEvent, AudioEventReceiver,
     AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, PlayFileRequest, PlaybackFailure, PlaybackInfo,
-    PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent,
+    PlaybackObservation, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent, RenderRuntimeObservation,
 };
 pub use device::{
     AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceFingerprint,

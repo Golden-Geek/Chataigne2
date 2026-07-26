@@ -26,15 +26,17 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 13 - module-editor registry and full Sound Card UI.
-- Status: implementation and local qualification complete.
+- Current phase: Phase 14 - performance, robustness, and product evidence.
+- Status: deterministic implementation and local qualification complete; mounted browser inspection,
+  real-device endurance, and cross-platform results remain outstanding.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
 - Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
 - Phase 12 checkpoint: `2db280bf` (`feat(audio-ui): add reusable Golden audio device inspector`).
-- Phase 13 checkpoint: this change (`feat(ui): add scalable Sound Card editor`).
-- Stop boundary: Phase 14 performance, robustness, hardware, and visual product qualification has
-  not started.
+- Phase 13 checkpoint: `0bb953b1` (`feat(ui): add scalable Sound Card editor`).
+- Phase 14 checkpoint: this change (`perf(audio): add Sound Card runtime qualification`).
+- Stop boundary: Phase 14 cannot be marked fully complete until the named real-device soak,
+  mounted normal/narrow browser inspection, and cross-platform runs have exact-commit evidence.
 
 ## Decisions
 
@@ -126,7 +128,7 @@ Decision:
 | JACK library/server absent | Preserve dynamic loading; report `Unavailable`; app startup must pass without JACK | Open |
 | Native PipeWire headers/linkage/package runtime | CPAL native backend remains internal; bootstrap and CI install explicit prerequisites; package evidence required | Open |
 | macOS microphone permission and signing | Add usage description/entitlements and test denied/allowed signed package | NOT RUN |
-| Final render-plan destruction on callback | One-pending-plan acknowledged exchange plus retained retired-plan slot; allocation/deallocation guard | Open |
+| Final render-plan destruction on callback | One-pending-plan acknowledged exchange plus retained retired-plan slot; allocation/deallocation guard | Mitigated; deterministic ownership qualification PASS |
 | Independent input/output clock drift | Bounded ring, adaptive ASRC, PI controller, discontinuity fade, drift/bridge observations | Mitigated; backend-neutral qualification PASS |
 | Decoder completion after stop/replacement | Monotonic command sequence and cancellation generation watermarks; stale worker results discarded off callback | Mitigated; deterministic ordering suite PASS |
 | Large meter/matrix/spectrum UI | Packed latest-only telemetry, Canvas, viewport virtualization, bounded refresh, teardown tests | Open |
@@ -136,7 +138,7 @@ Decision:
 
 | Platform | Backend | Build | Discovery | Stream I/O | Recovery | Package/startup |
 | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | WASAPI | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | NOT RUN | NOT RUN |
 | Windows x64 | ASIO | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows x64 | JACK | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows arm64 | WASAPI | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
@@ -180,9 +182,14 @@ local implementation baseline; they are not cross-platform or device deadline cl
 | `db226cc2` + Phase 8 working tree | Real FFT: 2,048 frames | median 5.688 µs on analysis worker |
 | `db226cc2` + Phase 8 working tree | Real FFT: 16,384 frames | median 38.662 µs on analysis worker |
 
+| `0bb953b1` + Phase 14 working tree | Combined small reference workload | median 8.659 microseconds |
+| `0bb953b1` + Phase 14 working tree | Combined medium reference workload | median 42.467 microseconds |
+| `0bb953b1` + Phase 14 working tree | Combined large reference workload | median 197.02 microseconds |
+| `0bb953b1` + Phase 14 working tree | Combined extreme-offline reference workload | median 1.1588 ms |
+
 The warmed render allocation guard observed zero allocations, zero deallocations, and zero net
-bytes. Phase 14 still owns the full reference workload, queue-pressure, memory, soak, and callback
-deadline qualification.
+bytes. The Phase 14 combined harness extends that guard across routing, resident playback, meters,
+pitch capture, and spectrum capture.
 
 ## Phase 1 implementation
 
@@ -522,6 +529,61 @@ normal and narrow desktop sizes is `NOT RUN`. Phase 14 still owns reference-work
 the additional underrun/overrun/starvation/drift/bridge/render diagnostics, hardware/backend soaks,
 cross-platform qualification, and mounted product evidence.
 
+## Phase 14 implementation
+
+The reusable engine now provides a ready-to-run managed render path in addition to its existing
+external-callback surface. Chataigne opts into that path when it creates a Sound Card engine.
+Golden Audio owns the render worker, acknowledged render/stream bridge swaps, playback renderer,
+analysis controller, and device callback handlers. Native input callbacks write to the bounded
+adaptive clock bridge; native output callbacks drain a bounded prefilled queue and wake the render
+worker. When no callback consumes output, the same worker advances from the paced null clock so
+playback, meters, and analysis retain one monotonic timeline.
+
+The callback bridges allocate, compile, decode, and destroy nothing. Input/output bridge and render
+plans retire through acknowledged exchanges and are reclaimed on the control thread. Integration
+tests drive deterministic callback-backed input and output streams: one proves decoded playback
+reaches the backend output callback, one proves synthetic backend input reaches monitoring,
+input/output meters, and the output callback, and one proves the null backend advances without
+false callback XRuns. Warmed input and output handler calls observe zero allocations,
+deallocations, and bytes.
+
+Phase 14 also adds:
+
+- one app-agnostic combined workload harness covering routing, playback, meters, pitch, and
+  spectrum at the documented small, medium, large, and extreme-offline capacities;
+- a Criterion benchmark plus an exact-percentile release qualification runner with environment,
+  profile, revision, memory, queue-pressure, and analysis-pressure metadata;
+- render blocks/frames, total/max render time, deadline misses, callback XRuns, input/output
+  underflow/overflow, playback queue/cache, and control queue observations;
+- generated Rust-to-TypeScript render/playback observation contracts and Sound Card diagnostics
+  for timing, XRuns, queue pressure, and resident cache use;
+- a deterministic `sound-card.v1` product-evidence scenario using the null backend and medium
+  combined workload; and
+- a mounted `/evidence/sound-card` route backed by the deterministic editor harness.
+
+The release percentile run used Windows x64, an Intel64 Family 6 Model 198 Stepping 2 processor
+(24 logical processors), Rust release mode, 48 kHz, and 128-frame blocks. Setup and warm-up were
+excluded; each row contains 10,000 measured blocks:
+
+| Workload | p50 | p99 | p99.99 | Maximum | p99 / block | p99.99 / block | Estimated resident memory |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Small | 8.6 us | 9.6 us | 73.7 us | 73.8 us | 0.36% | 2.76% | 3,859,072 bytes |
+| Medium | 41.6 us | 50.5 us | 92.6 us | 123.4 us | 1.89% | 3.47% | 3,961,856 bytes |
+| Large | 192.9 us | 241.8 us | 492.2 us | 547.2 us | 9.07% | 18.46% | 4,268,032 bytes |
+| Extreme offline | 984.2 us | 1,411.9 us | 1,745.1 us | 1,752.4 us | 52.95% | 65.44% | 17,604,608 bytes |
+
+Small, medium, and large clear the local release-run p99/p99.99 ratios. Extreme offline is
+explicitly outside the hardware-deadline target. The unpaced runner intentionally overloads the
+analysis worker and recorded bounded dropped analysis frames for medium and large; those
+drops are stress evidence, not real-time-paced XRun results. Profiling did not justify a
+platform-specific acceleration path, so the scalar implementation remains authoritative.
+
+The Windows native probe found WASAPI available and the default-output smoke opened, started,
+wrote silence for 100 ms, and stopped successfully. That is not a real-signal or endurance result.
+The configured browser surface again reported no browser, so mounted normal/narrow visual
+inspection remains `NOT RUN`; no desktop-control fallback was used. A one-hour real-device
+supported-workload run, recovery soak, other Windows backends, macOS, and Linux remain `NOT RUN`.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -682,6 +744,23 @@ cross-platform qualification, and mounted product evidence.
 | Phase 13 256-by-256 matrix evidence | PASS - one Canvas, 512 axis options, and fewer than 600 focused DOM controls; no per-cell component expansion |
 | Phase 13 mounted browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
 | Root and Golden Core formatting plus `--check` after Phase 13 | PASS |
+| Phase 14 combined workload allocation guard | PASS - routing, resident playback, meters, pitch capture, and spectrum capture observed 0 allocations, 0 deallocations, and 0 bytes after warm-up |
+| Phase 14 combined quick Criterion benchmark | PASS - small, medium, large, and extreme-offline medians recorded in the performance table |
+| Phase 14 exact-percentile release runner | PASS - 10,000 measured blocks per workload; p50/p99/p99.99/max, deadline-ratio, memory, and analysis-pressure evidence recorded above |
+| Phase 14 managed callback integration | PASS - callback-backed decoded playback output, synthetic-input monitoring/meter/output, null-clock XRun, and callback allocation tests |
+| `cargo test -p golden_audio` after Phase 14 | PASS - 128 tests (113 unit, 15 integration), 0 failed |
+| Phase 14 Golden Audio feature matrix | PASS - no-default, playback-only, analysis-only, and default all-target checks |
+| Phase 14 Golden Audio strict Clippy | PASS - default and no-default all-target runs with `-D warnings` |
+| `cargo test -p Chataigne2` after Phase 14 | PASS - 468 tests, 0 failed |
+| Phase 14 Sound Card product evidence | PASS - `sound-card.v1`, semantic digest `fnv1a64:8e5054f8524fa1bc` |
+| Phase 14 Windows native probe | PASS - WASAPI available |
+| Phase 14 Windows default-output smoke | PASS - stereo 48 kHz stream opened, ran silent for 100 ms, and stopped |
+| Phase 14 generated audio/Sound Card contracts | PASS - playback and render observations regenerated in both consumers; reusable generated-contract drift check passed |
+| Phase 14 reusable audio UI checks | PASS - 0 Svelte diagnostics and 21 tests |
+| Phase 14 Chataigne UI checks | PASS - 0 Svelte diagnostics, Prettier clean, 36 tests, and static production build |
+| Phase 14 evidence route production build | PASS - `/evidence/sound-card` emitted in the server/static build |
+| Phase 14 mounted normal/narrow browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
+| Phase 14 one-hour real-device workload and recovery soak | NOT RUN |
 | Product run modes | NOT RUN |
 | Cross-platform backend/hardware matrix | NOT RUN |
 
@@ -886,9 +965,26 @@ Phase 13:
 - `docs/guides/ui-extension.md`
 - `docs/progress/golden-audio-sound-card.md`
 
+Phase 14:
+
+- `crates/golden_audio/src/control/`
+- `crates/golden_audio/src/qualification/`
+- `crates/golden_audio/benches/reference_workloads.rs`
+- `crates/golden_audio/examples/reference_qualification.rs`
+- `crates/golden_audio/tests/playback_ordering.rs`
+- `apps/chataigne/src/module/modules/audio/sound_card/`
+- `apps/chataigne/src/product_evidence/`
+- `apps/chataigne/systems/sound_card_protocol/`
+- `packages/golden-audio-ui/generated/`
+- `apps/chataigne/ui/src/lib/modules/audio/sound-card/generated/`
+- `apps/chataigne/ui/src/lib/panels/modules/sound-card/`
+- `apps/chataigne/ui/src/routes/evidence/sound-card/`
+- `docs/architecture/golden-audio.md`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 14-15 remain. Work is intentionally stopped at the completed Phase 13 full-editor boundary.
-Phase 14 owns performance and robustness qualification, the remaining low-level diagnostic
-metrics, mounted visual evidence, real backend/hardware soaks, and cross-platform results. Phase 15
-owns final documentation, release, and packaging gates.
+Phase 14 local implementation and deterministic qualification are complete. Phase 14 remains open
+only for mounted normal/narrow visual inspection, the named one-hour real-device workload/recovery
+soak, and exact-commit cross-platform backend results. Phase 15 owns final documentation, release,
+and packaging gates after those external qualification results exist.

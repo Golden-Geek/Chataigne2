@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use golden_audio::{AnalysisObservationSnapshot, AudioDeviceInspectorState, ChannelObservation, ConfigGeneration};
+use golden_audio::{
+    AnalysisObservationSnapshot, AudioDeviceInspectorState, ChannelObservation, ConfigGeneration, PlaybackObservation,
+    RenderRuntimeObservation,
+};
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
@@ -47,8 +50,8 @@ pub struct SoundCardUiTelemetryDto {
     pub input_global_max_rms: f32,
     pub output_global_max_rms: f32,
     pub global_max_rms: f32,
-    pub active_voice_count: u16,
-    pub loading_voice_count: u16,
+    pub playback: PlaybackObservation,
+    pub runtime: RenderRuntimeObservation,
     pub playback_source_channel_limit: u16,
     pub playback_voices: Vec<SoundCardPlaybackVoiceDto>,
     #[ts(type = "number")]

@@ -93,6 +93,10 @@ impl AudioBackend for CpalBackend {
         self.open_stream_with_handler(request, Box::new(SilenceHandler))
     }
 
+    fn supports_stream_handlers(&self) -> bool {
+        true
+    }
+
     fn open_stream_with_handler(
         &self,
         request: &StreamRequest,

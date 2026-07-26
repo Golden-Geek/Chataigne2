@@ -11,10 +11,9 @@ use std::{
 use rtrb::Consumer;
 
 use crate::{
-    AudioBackend, AudioCommand, AudioConfiguration, AudioDeviceInspectorState, AudioEngineConfig, AudioError,
-    AudioErrorCategory, AudioEvent, AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, BackendPolicy,
-    CommandSequence, ConfigGeneration, DiagnosticEvent, DiagnosticSeverity, EngineLimits, NullBackend,
-    QueuePressureCounters, QueuePressureEvent, RenderCompileContext, RenderPlanCompiler,
+    AudioBackend, AudioCommand, AudioDeviceInspectorState, AudioEngineConfig, AudioError, AudioErrorCategory,
+    AudioEvent, AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, BackendPolicy, CommandSequence,
+    DiagnosticEvent, DiagnosticSeverity, EngineLimits, NullBackend, QueuePressureCounters, QueuePressureEvent,
 };
 #[cfg(feature = "playback")]
 use crate::{
@@ -24,8 +23,11 @@ use crate::{
     playback_voice_pool,
 };
 
+use super::configuration::{ApplyConfigurationContext, apply_configuration, validate_backends};
 use super::device_runtime::DeviceRuntime;
 use super::ingress::{CommandEnvelope, CommandQueueProducer, command_queue};
+#[cfg(all(feature = "analysis", feature = "playback"))]
+use super::render_runtime::ManagedRenderRuntime;
 
 const STATE_RUNNING: u8 = 0;
 const STATE_STOPPING: u8 = 1;
@@ -104,6 +106,7 @@ pub struct AudioEngineBuilder {
     pub limits: EngineLimits,
     pub backend_policy: BackendPolicy,
     backends: Vec<Arc<dyn AudioBackend>>,
+    managed_render_runtime: bool,
 }
 
 impl Default for AudioEngineBuilder {
@@ -113,6 +116,7 @@ impl Default for AudioEngineBuilder {
             limits: EngineLimits::default(),
             backend_policy: BackendPolicy::default(),
             backends: vec![Arc::new(NullBackend)],
+            managed_render_runtime: false,
         }
     }
 }
@@ -146,6 +150,16 @@ impl AudioEngineBuilder {
         self
     }
 
+    /// Lets Golden Audio own the render worker and backend callback bridges.
+    ///
+    /// This is the ready-to-run path for product adapters. External audio hosts
+    /// can keep taking the callback renderer directly.
+    #[must_use]
+    pub fn with_managed_render_runtime(mut self) -> Self {
+        self.managed_render_runtime = true;
+        self
+    }
+
     pub fn build(self) -> Result<AudioEngine, AudioError> {
         self.config.validate()?;
         self.limits.validate()?;
@@ -156,6 +170,10 @@ impl AudioEngineBuilder {
             self.limits.max_virtual_outputs,
             self.config.internal_block_frames.get() as usize,
         )?;
+        #[cfg(all(feature = "analysis", feature = "playback"))]
+        let mut playback_renderer = Some(playback_renderer);
+        #[cfg(all(feature = "playback", not(feature = "analysis")))]
+        let playback_renderer = Some(playback_renderer);
         #[cfg(feature = "playback")]
         let playback_scheduler =
             PlaybackScheduler::new(PlaybackSchedulerConfig::from_engine(&self.config, &self.limits))?;
@@ -183,6 +201,24 @@ impl AudioEngineBuilder {
         };
         let limits = self.limits;
         let engine_config = self.config;
+        #[cfg(all(feature = "analysis", feature = "playback"))]
+        let managed_render_runtime = if self.managed_render_runtime {
+            Some(ManagedRenderRuntime::start(
+                &engine_config,
+                &limits,
+                playback_renderer
+                    .take()
+                    .expect("playback renderer is present during engine construction"),
+            )?)
+        } else {
+            None
+        };
+        #[cfg(not(all(feature = "analysis", feature = "playback")))]
+        if self.managed_render_runtime {
+            return Err(AudioError::invalid_configuration(
+                "managed rendering requires the analysis and playback features",
+            ));
+        }
         let backends = self.backends;
         let worker_state = Arc::clone(&state);
         let worker = thread::Builder::new()
@@ -203,6 +239,8 @@ impl AudioEngineBuilder {
                         playback_scheduler,
                         #[cfg(feature = "playback")]
                         playback_voice_controller,
+                        #[cfg(all(feature = "analysis", feature = "playback"))]
+                        managed_render_runtime,
                     },
                 );
             })
@@ -222,7 +260,7 @@ impl AudioEngineBuilder {
             }),
             observations,
             #[cfg(feature = "playback")]
-            playback_renderer: Some(playback_renderer),
+            playback_renderer,
         })
     }
 }
@@ -303,31 +341,6 @@ fn next_sequence(counter: &AtomicU64) -> Result<CommandSequence, AudioError> {
     })
 }
 
-fn validate_backends(backends: &[Arc<dyn AudioBackend>], policy: &BackendPolicy) -> Result<(), AudioError> {
-    let mut ids = std::collections::HashSet::with_capacity(backends.len());
-    for backend in backends {
-        let id = backend.descriptor().id;
-        if !ids.insert(id.clone()) {
-            return Err(AudioError::invalid_configuration(format!(
-                "duplicate audio backend ID {id}"
-            )));
-        }
-    }
-    for preferred in &policy.preferred {
-        if !ids.contains(preferred) && !(policy.allow_null_fallback && preferred == &NullBackend::backend_id()) {
-            return Err(AudioError::invalid_configuration(format!(
-                "preferred audio backend {preferred} was not registered"
-            )));
-        }
-    }
-    if backends.is_empty() && !policy.allow_null_fallback {
-        return Err(AudioError::invalid_configuration(
-            "audio engine has no registered backend and null fallback is disabled",
-        ));
-    }
-    Ok(())
-}
-
 struct ControlWorker {
     event_sender: SyncSender<AudioEvent>,
     observation: Arc<RwLock<AudioObservationSnapshot>>,
@@ -340,6 +353,8 @@ struct ControlWorker {
     playback_scheduler: PlaybackScheduler,
     #[cfg(feature = "playback")]
     playback_voice_controller: PlaybackVoiceController,
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    managed_render_runtime: Option<ManagedRenderRuntime>,
 }
 
 fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: ControlWorker) {
@@ -355,14 +370,25 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
         mut playback_scheduler,
         #[cfg(feature = "playback")]
         mut playback_voice_controller,
+        #[cfg(all(feature = "analysis", feature = "playback"))]
+        mut managed_render_runtime,
     } = worker;
     let mut devices = DeviceRuntime::new(&engine_config)
         .expect("validated audio engine configuration must create a device supervisor");
-    devices.refresh(&event_sender, &observation, backends.as_slice(), true);
+    devices.refresh(
+        &event_sender,
+        &observation,
+        backends.as_slice(),
+        true,
+        #[cfg(all(feature = "analysis", feature = "playback"))]
+        managed_render_runtime.as_mut(),
+    );
     let mut reported_command_pressure = 0;
     #[cfg(feature = "playback")]
     let mut playback_lifecycle = std::collections::HashMap::new();
     loop {
+        #[cfg(all(feature = "analysis", feature = "playback"))]
+        refresh_managed_render_observation(managed_render_runtime.as_mut(), &observation);
         #[cfg(feature = "playback")]
         drain_playback_work(
             &event_sender,
@@ -374,7 +400,14 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
             &mut playback_lifecycle,
         );
         let Ok(envelope) = command_receiver.pop() else {
-            devices.refresh(&event_sender, &observation, backends.as_slice(), false);
+            devices.refresh(
+                &event_sender,
+                &observation,
+                backends.as_slice(),
+                false,
+                #[cfg(all(feature = "analysis", feature = "playback"))]
+                managed_render_runtime.as_mut(),
+            );
             report_command_pressure(
                 &event_sender,
                 &observation,
@@ -396,6 +429,8 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                         limits: &limits,
                         backends: backends.as_slice(),
                         devices: &mut devices,
+                        #[cfg(all(feature = "analysis", feature = "playback"))]
+                        managed_render_runtime: managed_render_runtime.as_mut(),
                     },
                     generation,
                     *config,
@@ -416,15 +451,36 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                 update_observation(&observation, |snapshot| {
                     snapshot.enabled = enabled;
                 });
-                devices.set_enabled(&event_sender, &observation, backends.as_slice(), enabled);
+                devices.set_enabled(
+                    &event_sender,
+                    &observation,
+                    backends.as_slice(),
+                    enabled,
+                    #[cfg(all(feature = "analysis", feature = "playback"))]
+                    managed_render_runtime.as_mut(),
+                );
             }
             AudioCommand::SetMasterGain { gain } => {
-                if let Err(error) = devices.set_master_gain(gain) {
+                let applied = devices.set_master_gain(gain);
+                #[cfg(all(feature = "analysis", feature = "playback"))]
+                let applied = applied.and_then(|()| {
+                    managed_render_runtime
+                        .as_mut()
+                        .map_or(Ok(()), |runtime| runtime.set_master_gain(gain))
+                });
+                if let Err(error) = applied {
                     publish_command_failure(&event_sender, &observation, "set_master_gain", error);
                 }
             }
             AudioCommand::SetChannelGain { channel, gain } => {
-                if let Err(error) = devices.set_channel_gain(channel, gain) {
+                let applied = devices.set_channel_gain(channel, gain);
+                #[cfg(all(feature = "analysis", feature = "playback"))]
+                let applied = applied.and_then(|()| {
+                    managed_render_runtime
+                        .as_mut()
+                        .map_or(Ok(()), |runtime| runtime.set_channel_gain(channel, gain))
+                });
+                if let Err(error) = applied {
                     publish_command_failure(&event_sender, &observation, "set_channel_gain", error);
                 }
             }
@@ -488,7 +544,16 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
             &mut reported_command_pressure,
         );
     }
-    devices.shutdown(&event_sender, &observation);
+    devices.shutdown(
+        &event_sender,
+        &observation,
+        #[cfg(all(feature = "analysis", feature = "playback"))]
+        managed_render_runtime.as_mut(),
+    );
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    if let Some(runtime) = &mut managed_render_runtime {
+        let _ = runtime.shutdown();
+    }
     publish_event(&event_sender, &observation, AudioEvent::ShutdownComplete);
     state.store(STATE_STOPPED, Ordering::Release);
 }
@@ -752,6 +817,38 @@ fn drain_playback_work(
             }
         }
     }
+    publish_playback_observation(observation, scheduler, voices, lifecycle);
+}
+
+#[cfg(feature = "playback")]
+fn publish_playback_observation(
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    scheduler: &PlaybackScheduler,
+    voices: &PlaybackVoiceController,
+    lifecycle: &std::collections::HashMap<crate::PlaybackId, PlaybackLifecycle>,
+) {
+    let cache = scheduler.cache_observation();
+    let loading_voices = lifecycle
+        .values()
+        .filter(|state| matches!(state, PlaybackLifecycle::Pending { .. }))
+        .count();
+    let active_voices = lifecycle
+        .values()
+        .filter(|state| matches!(state, PlaybackLifecycle::Playing { .. }))
+        .count();
+    update_observation(observation, |snapshot| {
+        snapshot.playback = crate::PlaybackObservation {
+            loading_voices: u16::try_from(loading_voices).unwrap_or(u16::MAX),
+            active_voices: u16::try_from(active_voices).unwrap_or(u16::MAX),
+            command_queue_pressure_count: voices.command_queue_full(),
+            cache_entries: u64::try_from(cache.entries).unwrap_or(u64::MAX),
+            resident_bytes: cache.resident_bytes,
+            cache_hits: cache.hits,
+            cache_misses: cache.misses,
+            cache_invalidations: cache.invalidations,
+            cache_evictions: cache.evictions,
+        };
+    });
 }
 
 #[cfg(feature = "playback")]
@@ -807,103 +904,27 @@ fn publish_render_event(
     publish_event(event_sender, observation, audio_event);
 }
 
-struct ApplyConfigurationContext<'a> {
-    event_sender: &'a SyncSender<AudioEvent>,
-    observation: &'a Arc<RwLock<AudioObservationSnapshot>>,
-    engine_config: &'a AudioEngineConfig,
-    limits: &'a EngineLimits,
-    backends: &'a [Arc<dyn AudioBackend>],
-    devices: &'a mut DeviceRuntime,
-}
-
-fn apply_configuration(
-    runtime: ApplyConfigurationContext<'_>,
-    generation: ConfigGeneration,
-    config: AudioConfiguration,
+#[cfg(all(feature = "analysis", feature = "playback"))]
+fn refresh_managed_render_observation(
+    runtime: Option<&mut ManagedRenderRuntime>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
 ) {
-    let active_generation = runtime
-        .observation
-        .read()
-        .map(|snapshot| snapshot.generation)
-        .unwrap_or(ConfigGeneration::INITIAL);
-    if generation <= active_generation {
-        publish_event(
-            runtime.event_sender,
-            runtime.observation,
-            AudioEvent::ConfigurationRejected {
-                generation,
-                error: AudioError::invalid_configuration(format!(
-                    "configuration generation {generation} is not newer than active generation {active_generation}"
-                )),
-            },
-        );
+    let Some(runtime) = runtime else {
         return;
-    }
-    let context = RenderCompileContext::derive_from_configuration(&config);
-    match RenderPlanCompiler::new(runtime.engine_config.clone(), runtime.limits.clone()).compile(&config, &context) {
-        Ok(compilation) => {
-            let inputs = config
-                .virtual_inputs
-                .iter()
-                .map(|channel| crate::ChannelObservation {
-                    channel: channel.id,
-                    rms_linear: 0.0,
-                    rms_dbfs: crate::GainDb::SILENCE_DB,
-                    peak_dbfs: crate::GainDb::SILENCE_DB,
-                    clipped: false,
-                })
-                .collect();
-            let outputs = config
-                .virtual_outputs
-                .iter()
-                .map(|channel| crate::ChannelObservation {
-                    channel: channel.id,
-                    rms_linear: 0.0,
-                    rms_dbfs: crate::GainDb::SILENCE_DB,
-                    peak_dbfs: crate::GainDb::SILENCE_DB,
-                    clipped: false,
-                })
-                .collect();
-            let analysis_taps = config
-                .analysis_taps
-                .iter()
-                .map(|tap| crate::AnalysisTapObservation {
-                    tap: tap.id,
-                    source: tap.source,
-                    enabled: tap.enabled,
-                    result: None,
-                })
-                .collect();
-            runtime.devices.configure(
-                runtime.event_sender,
-                runtime.observation,
-                runtime.backends,
-                &config,
-                compilation.plan,
-            );
-            update_observation(runtime.observation, |snapshot| {
-                snapshot.generation = generation;
-                snapshot.enabled = config.enabled;
-                snapshot.inputs = inputs;
-                snapshot.outputs = outputs;
-                snapshot.analysis = crate::AnalysisObservationSnapshot {
-                    generation,
-                    taps: analysis_taps,
-                    ..crate::AnalysisObservationSnapshot::default()
-                };
-            });
-            publish_event(
-                runtime.event_sender,
-                runtime.observation,
-                AudioEvent::ConfigurationApplied { generation },
-            );
+    };
+    let (render, analysis) = runtime.refresh_observation();
+    update_observation(observation, |snapshot| {
+        snapshot.runtime = render;
+        snapshot.render_frame = render.rendered_frames;
+        if let Some(analysis) = analysis {
+            snapshot.inputs = analysis.inputs.clone();
+            snapshot.outputs = analysis.outputs.clone();
+            snapshot.input_global_max_rms = analysis.input_global_max_rms;
+            snapshot.output_global_max_rms = analysis.output_global_max_rms;
+            snapshot.global_max_rms = analysis.global_max_rms;
+            snapshot.analysis = analysis;
         }
-        Err(error) => publish_event(
-            runtime.event_sender,
-            runtime.observation,
-            AudioEvent::ConfigurationRejected { generation, error },
-        ),
-    }
+    });
 }
 
 fn report_command_pressure(

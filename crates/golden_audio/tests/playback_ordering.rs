@@ -6,10 +6,263 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(feature = "analysis")]
+use allocation_counter::measure;
+#[cfg(feature = "analysis")]
 use golden_audio::{
-    AudioCommand, AudioEngineBuilder, AudioEvent, PlanarBuffer, PlayFileRequest, PlaybackId, PlaybackStopReason,
+    AudioBackend, AudioCallbackTimestamp, AudioChannelId, AudioConfiguration, AudioDeviceSelection, AudioDirection,
+    AudioError, AudioRouteId, AudioStream, AudioStreamHandler, AudioStreamStatus, ConfigGeneration,
+    DirectionConfiguration, GainDb, InputPatchRoute, InterleavedInput, InterleavedOutput, MonitorRoute, NullBackend,
+    OutputPatchRoute, PhysicalChannelKey, PlaybackRoute, StreamRequest, VirtualInputChannel, VirtualOutputChannel,
+};
+use golden_audio::{
+    AudioCommand, AudioEngine, AudioEngineBuilder, AudioEvent, PlanarBuffer, PlayFileRequest, PlaybackId,
+    PlaybackObservation, PlaybackStopReason,
+};
+#[cfg(feature = "analysis")]
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+    },
+    thread::JoinHandle,
 };
 use tempfile::{Builder, NamedTempFile};
+
+#[cfg(feature = "analysis")]
+#[test]
+fn managed_runtime_drives_playback_and_the_backend_output_callback() {
+    let callback_signal = Arc::new(AtomicBool::new(false));
+    let callback_count = Arc::new(AtomicU64::new(0));
+    let input_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
+    let output_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
+    let backend = CallbackBackend {
+        callback_signal: Arc::clone(&callback_signal),
+        callback_count: Arc::clone(&callback_count),
+        input_callback_allocation: Arc::clone(&input_callback_allocation),
+        output_callback_allocation: Arc::clone(&output_callback_allocation),
+    };
+    let file = sine_wave_file(1, 48_000, 4_096);
+    let playback_id = PlaybackId::new("managed").unwrap();
+    let mut engine = AudioEngineBuilder::default()
+        .with_backend(backend)
+        .with_managed_render_runtime()
+        .build()
+        .unwrap();
+    assert!(engine.take_playback_renderer().is_none());
+    let events = engine.take_event_receiver().unwrap();
+    let output = AudioChannelId::new();
+    let mut configuration = AudioConfiguration::empty();
+    configuration.output = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Output,
+        )),
+        recovery_policy: golden_audio::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: golden_audio::AudioBufferPolicy::Fixed(128),
+    };
+    configuration.virtual_outputs.push(VirtualOutputChannel {
+        id: output,
+        label: "Managed output".to_owned(),
+        gain: GainDb::UNITY,
+    });
+    configuration.playback_patch.push(PlaybackRoute {
+        id: AudioRouteId::new(),
+        source_channel: 0,
+        destination: output,
+        gain: GainDb::UNITY,
+    });
+    for destination in ["output:0", "output:1"] {
+        configuration.output_patch.push(OutputPatchRoute {
+            id: AudioRouteId::new(),
+            source: output,
+            destination: PhysicalChannelKey::new(destination).unwrap(),
+            gain: GainDb::UNITY,
+        });
+    }
+    let generation = ConfigGeneration::new(1);
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::ConfigurationApplied { generation: applied } if *applied == generation),
+    );
+
+    engine
+        .control()
+        .submit(AudioCommand::PlayFile(PlayFileRequest::new(
+            file.path(),
+            playback_id.clone(),
+        )))
+        .unwrap();
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::PlaybackStarted(info) if info.playback_id == playback_id),
+    );
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::PlaybackFinished(info) if info.playback_id == playback_id),
+    );
+    wait_until(|| callback_signal.load(Ordering::Relaxed));
+    wait_until(|| output_callback_allocation.load(Ordering::Relaxed) != u64::MAX);
+    let observation = engine.observations().latest();
+    assert!(observation.runtime.rendered_frames >= 4_096);
+    assert!(callback_count.load(Ordering::Relaxed) > 0);
+    assert_eq!(output_callback_allocation.load(Ordering::Relaxed), 0);
+    assert_eq!(observation.playback.active_voices, 0);
+    engine.shutdown().unwrap();
+}
+
+#[cfg(feature = "analysis")]
+#[test]
+fn managed_runtime_bridges_backend_input_into_monitoring_and_metering() {
+    let callback_signal = Arc::new(AtomicBool::new(false));
+    let callback_count = Arc::new(AtomicU64::new(0));
+    let input_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
+    let output_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
+    let backend = CallbackBackend {
+        callback_signal: Arc::clone(&callback_signal),
+        callback_count: Arc::clone(&callback_count),
+        input_callback_allocation: Arc::clone(&input_callback_allocation),
+        output_callback_allocation: Arc::clone(&output_callback_allocation),
+    };
+    let mut engine = AudioEngineBuilder::default()
+        .with_backend(backend)
+        .with_managed_render_runtime()
+        .build()
+        .unwrap();
+    let events = engine.take_event_receiver().unwrap();
+    let inputs = [AudioChannelId::new(), AudioChannelId::new()];
+    let output = AudioChannelId::new();
+    let mut configuration = AudioConfiguration::empty();
+    configuration.input = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Input,
+        )),
+        recovery_policy: golden_audio::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: golden_audio::AudioBufferPolicy::Fixed(128),
+    };
+    configuration.output = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Output,
+        )),
+        recovery_policy: golden_audio::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: golden_audio::AudioBufferPolicy::Fixed(128),
+    };
+    for (index, input) in inputs.into_iter().enumerate() {
+        configuration.virtual_inputs.push(VirtualInputChannel {
+            id: input,
+            label: format!("Managed input {}", index + 1),
+        });
+        configuration.input_patch.push(InputPatchRoute {
+            id: AudioRouteId::new(),
+            source: PhysicalChannelKey::new(format!("input:{index}")).unwrap(),
+            destination: input,
+            gain: GainDb::UNITY,
+        });
+    }
+    configuration.virtual_outputs.push(VirtualOutputChannel {
+        id: output,
+        label: "Managed output".to_owned(),
+        gain: GainDb::UNITY,
+    });
+    configuration.monitoring.push(MonitorRoute {
+        id: AudioRouteId::new(),
+        source: inputs[0],
+        destination: output,
+        gain: GainDb::UNITY,
+    });
+    for destination in ["output:0", "output:1"] {
+        configuration.output_patch.push(OutputPatchRoute {
+            id: AudioRouteId::new(),
+            source: output,
+            destination: PhysicalChannelKey::new(destination).unwrap(),
+            gain: GainDb::UNITY,
+        });
+    }
+    let generation = ConfigGeneration::new(1);
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::ConfigurationApplied { generation: applied } if *applied == generation),
+    );
+    wait_until(|| callback_signal.load(Ordering::Relaxed));
+    wait_until(|| engine.observations().latest().input_global_max_rms > 0.01);
+    wait_until(|| input_callback_allocation.load(Ordering::Relaxed) != u64::MAX);
+    wait_until(|| output_callback_allocation.load(Ordering::Relaxed) != u64::MAX);
+
+    let observation = engine.observations().latest();
+    assert!(observation.output_global_max_rms > 0.01);
+    assert!(observation.runtime.rendered_frames > 0);
+    assert!(callback_count.load(Ordering::Relaxed) > 0);
+    assert_eq!(input_callback_allocation.load(Ordering::Relaxed), 0);
+    assert_eq!(output_callback_allocation.load(Ordering::Relaxed), 0);
+    engine.shutdown().unwrap();
+}
+
+#[cfg(feature = "analysis")]
+#[test]
+fn managed_runtime_uses_null_clock_without_false_callback_xruns() {
+    let mut engine = AudioEngineBuilder::default()
+        .with_managed_render_runtime()
+        .build()
+        .unwrap();
+    let events = engine.take_event_receiver().unwrap();
+    let mut configuration = AudioConfiguration::empty();
+    configuration.input = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Input,
+        )),
+        recovery_policy: golden_audio::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: golden_audio::AudioBufferPolicy::Fixed(128),
+    };
+    configuration.output = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Output,
+        )),
+        recovery_policy: golden_audio::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: golden_audio::AudioBufferPolicy::Fixed(128),
+    };
+    let generation = ConfigGeneration::new(1);
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::ConfigurationApplied { generation: applied } if *applied == generation),
+    );
+    wait_until(|| engine.observations().latest().runtime.rendered_blocks >= 8);
+
+    let observation = engine.observations().latest();
+    assert_eq!(observation.runtime.xrun_count, 0);
+    assert_eq!(observation.runtime.input_underflow_count, 0);
+    assert_eq!(observation.runtime.output_underflow_count, 0);
+    engine.shutdown().unwrap();
+}
 
 #[test]
 fn public_engine_runs_ordered_async_playback_through_the_callback_renderer() {
@@ -33,6 +286,11 @@ fn public_engine_runs_ordered_async_playback_through_the_callback_renderer() {
         AudioEvent::PlaybackStarted(info) => info.voice,
         _ => unreachable!(),
     };
+    let playback = wait_playback(&engine, |playback| playback.active_voices == 1);
+    assert_eq!(playback.active_voices, 1);
+    assert_eq!(playback.loading_voices, 0);
+    assert_eq!(playback.cache_entries, 1);
+    assert!(playback.resident_bytes > 0);
 
     let mut destination = PlanarBuffer::new(256, 128).unwrap();
     renderer.render(&mut destination, 128).unwrap();
@@ -42,6 +300,10 @@ fn public_engine_runs_ordered_async_playback_through_the_callback_renderer() {
         |event| matches!(event, AudioEvent::PlaybackFinished(info) if info.voice == voice),
     );
     assert!(matches!(finished, AudioEvent::PlaybackFinished(_)));
+    assert_eq!(
+        wait_playback(&engine, |playback| playback.active_voices == 0).active_voices,
+        0
+    );
     engine.shutdown().unwrap();
 }
 
@@ -168,6 +430,190 @@ fn wait_event(events: &golden_audio::AudioEventReceiver, predicate: impl Fn(&Aud
         }
         assert!(Instant::now() < deadline, "timed out waiting for playback event");
         thread::sleep(Duration::from_millis(2));
+    }
+}
+
+fn wait_playback(engine: &AudioEngine, predicate: impl Fn(PlaybackObservation) -> bool) -> PlaybackObservation {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let playback = engine.observations().latest().playback;
+        if predicate(playback) {
+            return playback;
+        }
+        assert!(Instant::now() < deadline, "timed out waiting for playback observation");
+        thread::sleep(Duration::from_millis(2));
+    }
+}
+
+#[cfg(feature = "analysis")]
+fn wait_until(predicate: impl Fn() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while !predicate() {
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for managed callback output"
+        );
+        thread::sleep(Duration::from_millis(2));
+    }
+}
+
+#[cfg(feature = "analysis")]
+#[derive(Clone, Debug)]
+struct CallbackBackend {
+    callback_signal: Arc<AtomicBool>,
+    callback_count: Arc<AtomicU64>,
+    input_callback_allocation: Arc<AtomicU64>,
+    output_callback_allocation: Arc<AtomicU64>,
+}
+
+#[cfg(feature = "analysis")]
+impl AudioBackend for CallbackBackend {
+    fn descriptor(&self) -> golden_audio::BackendDescriptor {
+        NullBackend.descriptor()
+    }
+
+    fn discover(&self) -> Result<Vec<golden_audio::AudioDeviceDescriptor>, AudioError> {
+        NullBackend.discover()
+    }
+
+    fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError> {
+        NullBackend.open_stream(request)
+    }
+
+    fn supports_stream_handlers(&self) -> bool {
+        true
+    }
+
+    fn open_stream_with_handler(
+        &self,
+        request: &StreamRequest,
+        handler: Box<dyn AudioStreamHandler>,
+    ) -> Result<Box<dyn AudioStream>, AudioError> {
+        let status = NullBackend.open_stream(request)?.status();
+        Ok(Box::new(CallbackStream {
+            status,
+            direction: request.direction,
+            channels: usize::from(request.channels),
+            handler: Some(handler),
+            running: Arc::new(AtomicBool::new(false)),
+            callback_signal: Arc::clone(&self.callback_signal),
+            callback_count: Arc::clone(&self.callback_count),
+            input_callback_allocation: Arc::clone(&self.input_callback_allocation),
+            output_callback_allocation: Arc::clone(&self.output_callback_allocation),
+            worker: None,
+        }))
+    }
+}
+
+#[cfg(feature = "analysis")]
+#[derive(Debug)]
+struct CallbackStream {
+    status: AudioStreamStatus,
+    direction: AudioDirection,
+    channels: usize,
+    handler: Option<Box<dyn AudioStreamHandler>>,
+    running: Arc<AtomicBool>,
+    callback_signal: Arc<AtomicBool>,
+    callback_count: Arc<AtomicU64>,
+    input_callback_allocation: Arc<AtomicU64>,
+    output_callback_allocation: Arc<AtomicU64>,
+    worker: Option<JoinHandle<Box<dyn AudioStreamHandler>>>,
+}
+
+#[cfg(feature = "analysis")]
+impl AudioStream for CallbackStream {
+    fn status(&self) -> AudioStreamStatus {
+        self.status.clone()
+    }
+
+    fn start(&mut self) -> Result<(), AudioError> {
+        let Some(mut handler) = self.handler.take() else {
+            return Err(AudioError::invalid_configuration(
+                "callback stream cannot be started twice",
+            ));
+        };
+        self.running.store(true, Ordering::Release);
+        let running = Arc::clone(&self.running);
+        let callback_signal = Arc::clone(&self.callback_signal);
+        let callback_count = Arc::clone(&self.callback_count);
+        let input_callback_allocation = Arc::clone(&self.input_callback_allocation);
+        let output_callback_allocation = Arc::clone(&self.output_callback_allocation);
+        let direction = self.direction;
+        let channels = self.channels;
+        self.worker = Some(thread::spawn(move || {
+            let mut samples = vec![0.0_f32; channels * 128];
+            let mut callback_nanos = 0_u128;
+            let mut phase = 0.0_f32;
+            while running.load(Ordering::Acquire) {
+                let timestamp = AudioCallbackTimestamp {
+                    callback_nanos,
+                    device_nanos: callback_nanos,
+                };
+                match direction {
+                    AudioDirection::Input => {
+                        for frame in 0..128 {
+                            let sample = phase.sin() * 0.25;
+                            phase += 440.0 * std::f32::consts::TAU / 48_000.0;
+                            for channel in 0..channels {
+                                samples[frame * channels + channel] = sample;
+                            }
+                        }
+                        if input_callback_allocation.load(Ordering::Relaxed) == u64::MAX && callback_nanos != 0 {
+                            let allocation =
+                                measure(|| handler.process_input(InterleavedInput::F32(&samples), timestamp));
+                            input_callback_allocation.store(
+                                u64::from(
+                                    allocation.count_total != 0
+                                        || allocation.count_current != 0
+                                        || allocation.bytes_total != 0
+                                        || allocation.bytes_current != 0,
+                                ),
+                                Ordering::Relaxed,
+                            );
+                        } else {
+                            handler.process_input(InterleavedInput::F32(&samples), timestamp);
+                        }
+                    }
+                    AudioDirection::Output => {
+                        if output_callback_allocation.load(Ordering::Relaxed) == u64::MAX && callback_nanos != 0 {
+                            let allocation =
+                                measure(|| handler.process_output(InterleavedOutput::F32(&mut samples), timestamp));
+                            output_callback_allocation.store(
+                                u64::from(
+                                    allocation.count_total != 0
+                                        || allocation.count_current != 0
+                                        || allocation.bytes_total != 0
+                                        || allocation.bytes_current != 0,
+                                ),
+                                Ordering::Relaxed,
+                            );
+                        } else {
+                            handler.process_output(InterleavedOutput::F32(&mut samples), timestamp);
+                        }
+                        if samples.iter().any(|sample| sample.abs() > 0.001) {
+                            callback_signal.store(true, Ordering::Relaxed);
+                        }
+                    }
+                }
+                callback_count.fetch_add(1, Ordering::Relaxed);
+                callback_nanos = callback_nanos.saturating_add(2_666_667);
+                thread::sleep(Duration::from_millis(2));
+            }
+            handler
+        }));
+        Ok(())
+    }
+
+    fn stop(&mut self) -> Result<(), AudioError> {
+        self.running.store(false, Ordering::Release);
+        if let Some(worker) = self.worker.take() {
+            self.handler = Some(
+                worker
+                    .join()
+                    .map_err(|_| AudioError::invalid_configuration("callback stream thread panicked"))?,
+            );
+        }
+        Ok(())
     }
 }
 

@@ -53,6 +53,11 @@ name = "backend_smoke"
 path = "examples/backend_smoke.rs"
 required-features = ["desktop"]
 
+[[example]]
+name = "reference_qualification"
+path = "examples/reference_qualification.rs"
+required-features = ["analysis", "playback"]
+
 [[bench]]
 name = "render"
 harness = false
@@ -70,3 +75,8 @@ required-features = ["playback"]
 name = "analysis"
 harness = false
 required-features = ["analysis"]
+
+[[bench]]
+name = "reference_workloads"
+harness = false
+required-features = ["analysis", "playback"]

@@ -99,6 +99,11 @@ pub trait AudioBackend: Send + Sync {
     fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError>;
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError>;
 
+    #[must_use]
+    fn supports_stream_handlers(&self) -> bool {
+        false
+    }
+
     fn open_stream_with_handler(
         &self,
         request: &StreamRequest,

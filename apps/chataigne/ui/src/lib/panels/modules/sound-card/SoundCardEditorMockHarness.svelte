@@ -39,11 +39,11 @@
 		destinationLabel="Virtual input" />
 	<SoundCardPlaybackStatus
 		moduleNodeId={1}
-		activeCount={telemetry.active_voice_count}
-		loadingCount={telemetry.loading_voice_count}
+		activeCount={telemetry.playback.active_voices}
+		loadingCount={telemetry.playback.loading_voices}
 		voices={telemetry.playback_voices} />
 	<SoundCardAnalysisView analysis={telemetry.analysis} />
-	<SoundCardDiagnostics {telemetry} xruns={0} lastError={null} />
+	<SoundCardDiagnostics {telemetry} xruns={telemetry.runtime.xrun_count} lastError={null} />
 </main>
 
 <style>

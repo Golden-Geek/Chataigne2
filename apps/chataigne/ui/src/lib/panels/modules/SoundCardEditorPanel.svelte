@@ -435,8 +435,8 @@
 				{#if telemetry}
 					<SoundCardPlaybackStatus
 						moduleNodeId={activeModule.node_id}
-						activeCount={telemetry.active_voice_count}
-						loadingCount={telemetry.loading_voice_count}
+						activeCount={telemetry.playback.active_voices}
+						loadingCount={telemetry.playback.loading_voices}
 						voices={telemetry.playback_voices} />
 				{/if}
 				<SoundCardNodeSection title="Playback patch" node={playbackRoutes} open={false} />

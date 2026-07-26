@@ -1,6 +1,7 @@
 mod digest;
 mod engine_helpers;
 mod osc_loopback;
+mod sound_card;
 
 #[cfg(test)]
 mod tests;
@@ -11,6 +12,7 @@ use std::io::{self, Write};
 use serde_json::{json, Value};
 
 pub(crate) const OSC_LOOPBACK_SCENARIO: &str = "osc-loopback.v1";
+pub(crate) const SOUND_CARD_SCENARIO: &str = "sound-card.v1";
 const RESULT_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,8 +62,10 @@ pub(crate) fn try_run_from_env() -> io::Result<bool> {
 fn run_named_scenario(scenario: &str) -> Result<Value, String> {
     match scenario {
         OSC_LOOPBACK_SCENARIO => osc_loopback::run(),
+        SOUND_CARD_SCENARIO => sound_card::run(),
         _ => Err(format!(
-            "unknown product evidence scenario '{scenario}'; available scenario: {OSC_LOOPBACK_SCENARIO}"
+            "unknown product evidence scenario '{scenario}'; available scenarios: \
+             {OSC_LOOPBACK_SCENARIO}, {SOUND_CARD_SCENARIO}"
         )),
     }
 }

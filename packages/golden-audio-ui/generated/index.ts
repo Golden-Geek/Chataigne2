@@ -33,6 +33,8 @@ export type { PhysicalChannelDescriptor } from './PhysicalChannelDescriptor';
 export type { PhysicalChannelKey } from './PhysicalChannelKey';
 export type { PitchAnalysisConfiguration } from './PitchAnalysisConfiguration';
 export type { PitchObservation } from './PitchObservation';
+export type { PlaybackObservation } from './PlaybackObservation';
+export type { RenderRuntimeObservation } from './RenderRuntimeObservation';
 export type { SpectrumAnalysisConfiguration } from './SpectrumAnalysisConfiguration';
 export type { SpectrumBandObservation } from './SpectrumBandObservation';
 export type { SpectrumBandSpacing } from './SpectrumBandSpacing';

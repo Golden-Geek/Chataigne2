@@ -3,6 +3,8 @@ import type { AnalysisObservationSnapshot } from "./AnalysisObservationSnapshot"
 import type { AudioDeviceInspectorState } from "./AudioDeviceInspectorState";
 import type { ChannelObservation } from "./ChannelObservation";
 import type { ConfigGeneration } from "./ConfigGeneration";
+import type { PlaybackObservation } from "./PlaybackObservation";
+import type { RenderRuntimeObservation } from "./RenderRuntimeObservation";
 import type { SoundCardPlaybackVoiceDto } from "./SoundCardPlaybackVoiceDto";
 
 /**
@@ -11,4 +13,4 @@ import type { SoundCardPlaybackVoiceDto } from "./SoundCardPlaybackVoiceDto";
  * This app-owned envelope keeps product telemetry separate from the generic
  * Golden device-inspector and analysis contracts embedded within it.
  */
-export type SoundCardUiTelemetryDto = { generation: ConfigGeneration, render_frame: number, device: AudioDeviceInspectorState, inputs: Array<ChannelObservation>, outputs: Array<ChannelObservation>, input_global_max_rms: number, output_global_max_rms: number, global_max_rms: number, active_voice_count: number, loading_voice_count: number, playback_source_channel_limit: number, playback_voices: Array<SoundCardPlaybackVoiceDto>, dropped_event_count: number, queue_pressure_count: number, analysis: AnalysisObservationSnapshot, };
+export type SoundCardUiTelemetryDto = { generation: ConfigGeneration, render_frame: number, device: AudioDeviceInspectorState, inputs: Array<ChannelObservation>, outputs: Array<ChannelObservation>, input_global_max_rms: number, output_global_max_rms: number, global_max_rms: number, playback: PlaybackObservation, runtime: RenderRuntimeObservation, playback_source_channel_limit: number, playback_voices: Array<SoundCardPlaybackVoiceDto>, dropped_event_count: number, queue_pressure_count: number, analysis: AnalysisObservationSnapshot, };

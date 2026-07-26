@@ -8,7 +8,7 @@ use rubato::{
     Adjustable, Async, FixedAsync, PolynomialDegree, Resampler, audioadapter_buffers::direct::InterleavedSlice,
 };
 
-use crate::{AudioError, FrameCount, PlanarBuffer, SampleRate, assert_not_realtime};
+use crate::{AudioError, FrameCount, InterleavedInput, PlanarBuffer, SampleRate, assert_not_realtime};
 
 use super::DriftController;
 use super::drift::DriftControllerConfig;
@@ -127,6 +127,36 @@ pub struct InputClockWriter {
 }
 
 impl InputClockWriter {
+    pub fn write_callback_input(
+        &mut self,
+        samples: InterleavedInput<'_>,
+        device_timestamp_nanos: Option<u128>,
+    ) -> Result<InputWriteResult, InputWriteError> {
+        if samples.is_empty() || !samples.len().is_multiple_of(self.channels) {
+            return Err(InputWriteError::InvalidShape);
+        }
+        self.observe_timestamp(device_timestamp_nanos);
+        if self.producer.is_abandoned() {
+            return Err(InputWriteError::ReaderDisconnected);
+        }
+        if self.producer.slots() < samples.len() {
+            self.shared.overflow_count.fetch_add(1, Ordering::Relaxed);
+            return Err(InputWriteError::Overflow);
+        }
+        for index in 0..samples.len() {
+            self.producer
+                .push(samples.normalized(index))
+                .expect("input bridge capacity was checked before callback write");
+        }
+        let fill_samples = self.capacity_samples.saturating_sub(self.producer.slots());
+        self.shared
+            .fill_frames
+            .store(fill_samples / self.channels, Ordering::Release);
+        let frames = samples.len() / self.channels;
+        self.last_frames = frames;
+        Ok(InputWriteResult { written_frames: frames })
+    }
+
     pub fn write_interleaved(
         &mut self,
         samples: &[f32],

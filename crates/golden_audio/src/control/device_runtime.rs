@@ -10,6 +10,8 @@ use crate::{
 };
 
 use super::engine::{publish_event, update_observation};
+#[cfg(all(feature = "analysis", feature = "playback"))]
+use super::render_runtime::ManagedRenderRuntime;
 
 const DEVICE_DISCOVERY_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -17,6 +19,8 @@ pub(super) struct DeviceRuntime {
     supervisor: DeviceSupervisor,
     input_stream: Option<Box<dyn AudioStream>>,
     output_stream: Option<Box<dyn AudioStream>>,
+    input_handler_active: bool,
+    output_handler_active: bool,
     configuration: Option<(AudioConfiguration, RenderPlan)>,
     enabled: bool,
     last_discovery: Option<Instant>,
@@ -32,6 +36,8 @@ impl DeviceRuntime {
             )?,
             input_stream: None,
             output_stream: None,
+            input_handler_active: false,
+            output_handler_active: false,
             configuration: None,
             enabled: true,
             last_discovery: None,
@@ -45,11 +51,21 @@ impl DeviceRuntime {
         backends: &[Arc<dyn AudioBackend>],
         configuration: &AudioConfiguration,
         plan: RenderPlan,
+        #[cfg(all(feature = "analysis", feature = "playback"))] managed_render_runtime: Option<
+            &mut ManagedRenderRuntime,
+        >,
     ) {
         self.configuration = Some((configuration.clone(), plan));
         self.enabled = configuration.enabled;
         self.apply_direction_configuration();
-        self.refresh(event_sender, observation, backends, true);
+        self.refresh(
+            event_sender,
+            observation,
+            backends,
+            true,
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            managed_render_runtime,
+        );
     }
 
     pub(super) fn set_enabled(
@@ -58,10 +74,20 @@ impl DeviceRuntime {
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
         backends: &[Arc<dyn AudioBackend>],
         enabled: bool,
+        #[cfg(all(feature = "analysis", feature = "playback"))] managed_render_runtime: Option<
+            &mut ManagedRenderRuntime,
+        >,
     ) {
         self.enabled = enabled;
         self.apply_direction_configuration();
-        self.refresh(event_sender, observation, backends, true);
+        self.refresh(
+            event_sender,
+            observation,
+            backends,
+            true,
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            managed_render_runtime,
+        );
     }
 
     pub(super) fn set_master_gain(&mut self, gain: GainDb) -> Result<(), AudioError> {
@@ -129,6 +155,9 @@ impl DeviceRuntime {
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
         backends: &[Arc<dyn AudioBackend>],
         force: bool,
+        #[cfg(all(feature = "analysis", feature = "playback"))] managed_render_runtime: Option<
+            &mut ManagedRenderRuntime,
+        >,
     ) {
         let now = Instant::now();
         if !force
@@ -143,11 +172,21 @@ impl DeviceRuntime {
         let (statuses, discovered) = discover_backend_inventory(event_sender, observation, backends);
         self.supervisor
             .observe_discovery(elapsed_millis(), statuses, discovered);
-        self.reconcile_streams(backends);
+        self.reconcile_streams(
+            backends,
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            managed_render_runtime,
+        );
         self.publish_state(event_sender, observation);
     }
 
-    fn reconcile_streams(&mut self, backends: &[Arc<dyn AudioBackend>]) {
+    fn reconcile_streams(
+        &mut self,
+        backends: &[Arc<dyn AudioBackend>],
+        #[cfg(all(feature = "analysis", feature = "playback"))] mut managed_render_runtime: Option<
+            &mut ManagedRenderRuntime,
+        >,
+    ) {
         let Some((configuration, plan)) = &self.configuration else {
             return;
         };
@@ -168,18 +207,28 @@ impl DeviceRuntime {
         reconcile_direction(
             &mut self.supervisor.input,
             &mut self.input_stream,
+            &mut self.input_handler_active,
             backends,
             configuration.input.buffer_policy,
-            sample_rate,
-            input_channels,
+            StreamShape {
+                sample_rate,
+                channels: input_channels,
+            },
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            managed_render_runtime.as_deref_mut(),
         );
         reconcile_direction(
             &mut self.supervisor.output,
             &mut self.output_stream,
+            &mut self.output_handler_active,
             backends,
             configuration.output.buffer_policy,
-            sample_rate,
-            output_channels,
+            StreamShape {
+                sample_rate,
+                channels: output_channels,
+            },
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            managed_render_runtime,
         );
     }
 
@@ -208,29 +257,60 @@ impl DeviceRuntime {
         &mut self,
         event_sender: &SyncSender<AudioEvent>,
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
+        #[cfg(all(feature = "analysis", feature = "playback"))] managed_render_runtime: Option<
+            &mut ManagedRenderRuntime,
+        >,
     ) {
         stop_stream(&mut self.input_stream);
         stop_stream(&mut self.output_stream);
+        #[cfg(all(feature = "analysis", feature = "playback"))]
+        if let Some(runtime) = managed_render_runtime {
+            if self.input_handler_active {
+                let _ = runtime.disable_stream_handler(crate::AudioDirection::Input);
+            }
+            if self.output_handler_active {
+                let _ = runtime.disable_stream_handler(crate::AudioDirection::Output);
+            }
+        }
+        self.input_handler_active = false;
+        self.output_handler_active = false;
         self.enabled = false;
         self.apply_direction_configuration();
         self.publish_state(event_sender, observation);
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct StreamShape {
+    sample_rate: u32,
+    channels: usize,
+}
+
 fn reconcile_direction(
     direction: &mut crate::SupervisorDirection,
     stream: &mut Option<Box<dyn AudioStream>>,
+    handler_active: &mut bool,
     backends: &[Arc<dyn AudioBackend>],
     buffer_policy: crate::AudioBufferPolicy,
-    sample_rate: u32,
-    stream_channels: usize,
+    shape: StreamShape,
+    #[cfg(all(feature = "analysis", feature = "playback"))] mut managed_render_runtime: Option<
+        &mut ManagedRenderRuntime,
+    >,
 ) {
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    let stream_direction = direction.status().direction;
     match direction.phase() {
         DeviceSwitchPhase::Disabled
         | DeviceSwitchPhase::Missing
         | DeviceSwitchPhase::RetryWaiting
         | DeviceSwitchPhase::Failed => {
             stop_stream(stream);
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            disable_managed_stream_handler(&mut managed_render_runtime, handler_active, stream_direction);
+            #[cfg(not(all(feature = "analysis", feature = "playback")))]
+            {
+                *handler_active = false;
+            }
         }
         DeviceSwitchPhase::Preparing => {
             let Some(target) = direction.status().selected_target.clone() else {
@@ -249,18 +329,43 @@ fn reconcile_direction(
                 );
                 return;
             };
-            let channels = u16::try_from(stream_channels.max(1)).unwrap_or(u16::MAX);
+            let channels = u16::try_from(shape.channels.max(1)).unwrap_or(u16::MAX);
             let request = StreamRequest {
                 direction: direction.status().direction,
                 target,
-                engine_sample_rate: crate::SampleRate::new(sample_rate)
+                engine_sample_rate: crate::SampleRate::new(shape.sample_rate)
                     .expect("device supervisor sample rate is validated"),
                 channels,
                 buffer_policy,
             };
-            match backend.open_stream(&request) {
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            let uses_managed_handler = backend.supports_stream_handlers() && managed_render_runtime.is_some();
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            let prepared = if uses_managed_handler {
+                let runtime = managed_render_runtime
+                    .as_deref_mut()
+                    .expect("managed handler use requires a managed runtime");
+                match runtime.prepare_stream_handler(stream_direction, channels) {
+                    Ok(handler) => {
+                        *handler_active = true;
+                        backend.open_stream_with_handler(&request, handler)
+                    }
+                    Err(error) => Err(error),
+                }
+            } else {
+                backend.open_stream(&request)
+            };
+            #[cfg(not(all(feature = "analysis", feature = "playback")))]
+            let prepared = backend.open_stream(&request);
+            match prepared {
                 Ok(mut prepared) => {
                     let Some(format) = prepared.status().format else {
+                        #[cfg(all(feature = "analysis", feature = "playback"))]
+                        disable_managed_stream_handler(&mut managed_render_runtime, handler_active, stream_direction);
+                        #[cfg(not(all(feature = "analysis", feature = "playback")))]
+                        {
+                            *handler_active = false;
+                        }
                         direction.report_open_error(
                             elapsed_millis(),
                             AudioError::new(
@@ -277,19 +382,69 @@ fn reconcile_direction(
                         .and_then(|()| direction.commit_switch());
                     match switched {
                         Ok(()) => {
+                            #[cfg(all(feature = "analysis", feature = "playback"))]
+                            if !uses_managed_handler {
+                                disable_managed_stream_handler(
+                                    &mut managed_render_runtime,
+                                    handler_active,
+                                    stream_direction,
+                                );
+                            }
                             stop_stream(stream);
                             *stream = Some(prepared);
+                            #[cfg(not(all(feature = "analysis", feature = "playback")))]
+                            {
+                                *handler_active = false;
+                            }
                         }
-                        Err(error) => direction.report_open_error(elapsed_millis(), error),
+                        Err(error) => {
+                            #[cfg(all(feature = "analysis", feature = "playback"))]
+                            disable_managed_stream_handler(
+                                &mut managed_render_runtime,
+                                handler_active,
+                                stream_direction,
+                            );
+                            #[cfg(not(all(feature = "analysis", feature = "playback")))]
+                            {
+                                *handler_active = false;
+                            }
+                            direction.report_open_error(elapsed_millis(), error);
+                        }
                     }
                 }
-                Err(error) => direction.report_open_error(elapsed_millis(), error),
+                Err(error) => {
+                    #[cfg(all(feature = "analysis", feature = "playback"))]
+                    disable_managed_stream_handler(&mut managed_render_runtime, handler_active, stream_direction);
+                    #[cfg(not(all(feature = "analysis", feature = "playback")))]
+                    {
+                        *handler_active = false;
+                    }
+                    direction.report_open_error(elapsed_millis(), error);
+                }
             }
         }
         DeviceSwitchPhase::Discovering
         | DeviceSwitchPhase::Primed
         | DeviceSwitchPhase::Switching
         | DeviceSwitchPhase::Stable => {}
+    }
+}
+
+#[cfg(all(feature = "analysis", feature = "playback"))]
+fn disable_managed_stream_handler(
+    runtime: &mut Option<&mut ManagedRenderRuntime>,
+    handler_active: &mut bool,
+    direction: crate::AudioDirection,
+) {
+    if !*handler_active {
+        return;
+    }
+    let Some(runtime) = runtime.as_deref_mut() else {
+        *handler_active = false;
+        return;
+    };
+    if runtime.disable_stream_handler(direction).is_ok() {
+        *handler_active = false;
     }
 }
 

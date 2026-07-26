@@ -160,6 +160,12 @@ impl<T> RealtimePlanSlot<T> {
     }
 
     #[inline]
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    pub(crate) fn active_mut(&mut self) -> &mut T {
+        self.active.as_mut()
+    }
+
+    #[inline]
     #[must_use]
     pub const fn metrics(&self) -> RealtimePlanSlotMetrics {
         self.metrics

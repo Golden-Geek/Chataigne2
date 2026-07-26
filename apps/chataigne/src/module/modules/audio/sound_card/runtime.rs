@@ -147,7 +147,9 @@ pub(super) struct SoundCardRuntime {
 
 impl SoundCardRuntime {
     pub(super) fn start(sample_rate: SampleRate) -> Result<Self, String> {
-        let mut builder = AudioEngineBuilder::default().without_backends();
+        let mut builder = AudioEngineBuilder::default()
+            .without_backends()
+            .with_managed_render_runtime();
         builder.config.sample_rate = sample_rate;
         #[cfg(not(test))]
         {
@@ -299,10 +301,18 @@ impl SoundCardRuntime {
         self.set_value(
             ctx,
             self.bindings.active_voices,
-            ParamValue::Int(i32::from(observation.active_voice_count)),
+            ParamValue::Int(i32::from(observation.playback.active_voices)),
         );
-        self.set_value(ctx, self.bindings.loading_voices, ParamValue::Int(0));
-        self.set_value(ctx, self.bindings.xruns, ParamValue::Int(0));
+        self.set_value(
+            ctx,
+            self.bindings.loading_voices,
+            ParamValue::Int(i32::from(observation.playback.loading_voices)),
+        );
+        self.set_value(
+            ctx,
+            self.bindings.xruns,
+            ParamValue::Int(saturating_i32(observation.runtime.xrun_count)),
+        );
         self.set_value(
             ctx,
             self.bindings.dropped_analysis_frames,

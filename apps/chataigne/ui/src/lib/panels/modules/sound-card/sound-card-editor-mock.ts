@@ -41,8 +41,30 @@ export const createMockSoundCardTelemetry = (): SoundCardUiTelemetryDto => ({
 	input_global_max_rms: 0.25,
 	output_global_max_rms: 0.31,
 	global_max_rms: 0.31,
-	active_voice_count: 2,
-	loading_voice_count: 1,
+	playback: {
+		loading_voices: 1,
+		active_voices: 2,
+		command_queue_pressure_count: 0,
+		cache_entries: 2,
+		resident_bytes: 3_145_728,
+		cache_hits: 8,
+		cache_misses: 2,
+		cache_invalidations: 0,
+		cache_evictions: 0
+	},
+	runtime: {
+		rendered_blocks: 750,
+		rendered_frames: 96_000,
+		render_time_micros: 48_000,
+		maximum_render_time_micros: 213,
+		deadline_miss_count: 0,
+		xrun_count: 0,
+		control_queue_pressure_count: 0,
+		input_underflow_count: 0,
+		input_overflow_count: 0,
+		output_underflow_count: 0,
+		output_overflow_count: 0
+	},
 	playback_source_channel_limit: 256,
 	playback_voices: [
 		{

@@ -13,5 +13,9 @@ describe('Sound Card editor evidence harness', () => {
 		expect(body).toContain('A4');
 		expect(body).toContain('Spectrum for mock-output-left');
 		expect(body).toContain('Dropped events');
+		expect(body).toContain('Playback queue pressure');
+		expect(body).toContain('Render timing');
+		expect(body).toContain('Callback XRuns');
+		expect(body).toContain('3.0 MiB');
 	});
 });

@@ -38,10 +38,13 @@ worker pool probes and decodes files, resamples them to the engine rate, and eit
 immutable asset into the resident cache or primes a bounded streaming ring. The audio callback only
 reads preallocated resident or streamed voice state.
 
-Applications take the `PlaybackVoiceRenderer` once and invoke it from the authoritative render
-callback. Finished and stopped voice ownership is returned to the control thread for destruction.
-Decoder completions carry command generations, so stopping or replacing a playback ID cannot start
-a stale decode.
+External audio hosts can take the `PlaybackVoiceRenderer` once and invoke it from their
+authoritative render callback. Ready-to-run product adapters instead opt into
+`AudioEngineBuilder::with_managed_render_runtime`; Golden then owns the render worker, installs
+bounded input/output callback bridges, and advances from the paced null clock whenever no output
+callback is consuming. Finished and stopped voice ownership is returned to the control thread for
+destruction in both modes. Decoder completions carry command generations, so stopping or replacing
+a playback ID cannot start a stale decode.
 
 The supported extension list has one Rust source and is included in the generated TypeScript
 contract. Raw AAC and WMA are intentionally not advertised.

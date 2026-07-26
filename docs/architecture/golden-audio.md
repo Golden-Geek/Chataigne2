@@ -221,11 +221,22 @@ node becomes ready. Tree snapshots are requested only for dirty authored configu
 converts persistent UUIDs and references into Golden IDs, submits one generation for the complete
 stabilized edit batch, and retains the last valid engine plan when conversion fails.
 
-The Golden control worker owns discovery, device supervision, active streams, and the compiled
-render plan. Chataigne polls its coalesced observation at 30 Hz, updates cached value-node IDs only
-when values move beyond the configured epsilon, and publishes one latest-only app telemetry
-envelope. Missing selections remain persisted; unresolved local routes remain authored and receive
-visible warnings so removal and undo stay atomic.
+The Golden control worker owns discovery, device supervision, active streams, and compiled-plan
+publication. Chataigne opts into Golden's managed runtime: one dedicated render worker owns the
+active render plan, playback renderer, and analysis renderer. Native input callbacks write through
+the bounded adaptive clock bridge, while native output callbacks drain a bounded prefilled queue
+and wake the worker. An absent output callback selects the paced null-clock path, so playback and
+analysis continue without moving host timing into Chataigne.
+
+Render plans and input/output bridge endpoints cross to the worker through acknowledged ownership
+exchanges and retire back to the control thread. Callback handlers only convert or transfer
+preallocated samples and update atomic pressure counters; they do not lock, allocate, decode,
+compile, log, or destroy final owners.
+
+Chataigne polls the coalesced observation at 30 Hz, updates cached value-node IDs only when values
+move beyond the configured epsilon, and publishes one latest-only app telemetry envelope. Missing
+selections remain persisted; unresolved local routes remain authored and receive visible warnings
+so removal and undo stay atomic.
 
 The app-owned Svelte adapter only maps Sound Card connection paths and `golden_ui` intents to the
 generic device-inspector contract. `golden_audio_ui` owns the selector, status/error presentation,

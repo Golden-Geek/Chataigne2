@@ -4,7 +4,7 @@ use ts_rs::{Config, TS};
 
 use crate::{
     AnalysisObservationSnapshot, AnalysisTapConfiguration, AudioDeviceInspectorState, AudioDeviceSelection,
-    AudioFileFormat, supported_audio_extensions,
+    AudioFileFormat, PlaybackObservation, RenderRuntimeObservation, supported_audio_extensions,
 };
 
 const INDEX: &str = "\
@@ -43,6 +43,8 @@ export type { PhysicalChannelDescriptor } from './PhysicalChannelDescriptor';\n\
 export type { PhysicalChannelKey } from './PhysicalChannelKey';\n\
 export type { PitchAnalysisConfiguration } from './PitchAnalysisConfiguration';\n\
 export type { PitchObservation } from './PitchObservation';\n\
+export type { PlaybackObservation } from './PlaybackObservation';\n\
+export type { RenderRuntimeObservation } from './RenderRuntimeObservation';\n\
 export type { SpectrumAnalysisConfiguration } from './SpectrumAnalysisConfiguration';\n\
 export type { SpectrumBandObservation } from './SpectrumBandObservation';\n\
 export type { SpectrumBandSpacing } from './SpectrumBandSpacing';\n\
@@ -63,6 +65,8 @@ pub fn export_device_contract(output_dir: impl AsRef<Path>) -> Result<(), Box<dy
     AudioFileFormat::export_all(&config)?;
     AnalysisTapConfiguration::export_all(&config)?;
     AnalysisObservationSnapshot::export_all(&config)?;
+    PlaybackObservation::export_all(&config)?;
+    RenderRuntimeObservation::export_all(&config)?;
     let extensions = supported_audio_extensions()
         .iter()
         .map(|extension| format!("'{extension}'"))

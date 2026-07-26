@@ -41,7 +41,7 @@ impl InterleavedInput<'_> {
     }
 
     #[must_use]
-    fn normalized(&self, index: usize) -> f32 {
+    pub(crate) fn normalized(&self, index: usize) -> f32 {
         match self {
             Self::I8(samples) => signed_to_f32(i64::from(samples[index]), 128, 127),
             Self::F32(samples) => finite_or_zero(samples[index]),
@@ -135,7 +135,7 @@ impl InterleavedOutput<'_> {
         }
     }
 
-    fn set_normalized(&mut self, index: usize, sample: f32) {
+    pub(crate) fn set_normalized(&mut self, index: usize, sample: f32) {
         match self {
             Self::I8(samples) => samples[index] = f32_to_signed(sample, 128, 127) as i8,
             Self::F32(samples) => samples[index] = sample,
