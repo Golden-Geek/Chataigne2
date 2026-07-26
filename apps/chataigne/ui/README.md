@@ -11,6 +11,9 @@ workspace.
 - Consume reusable UI through package exports such as `golden_ui`,
   `golden_ui/components/...`, `golden_audio_ui`, and `golden_graph_ui`.
 - Keep product DTO adaptation, registry hooks, panels, and assets in this app workspace.
+- Register product module editors through
+  `src/lib/panels/modules/module-editor-setup.ts`; the shared descriptor registry supplies both
+  inspector-header actions and dock panel definitions.
 - Keep Svelte code on Svelte 5 runes and direct event props.
 - Treat generated state-machine DTOs under `src/lib/systems/state_machine/generated/` as build output.
 - Treat generated Sound Card/audio DTOs under

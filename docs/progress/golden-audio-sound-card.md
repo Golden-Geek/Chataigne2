@@ -26,13 +26,15 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 12 - reusable Golden Audio device inspector.
+- Current phase: Phase 13 - module-editor registry and full Sound Card UI.
 - Status: implementation and local qualification complete.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
 - Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
-- Phase 12 checkpoint: this change (`feat(audio-ui): add reusable Golden audio device inspector`).
-- Stop boundary: Phase 13 module-editor registry and full Sound Card editor work has not started.
+- Phase 12 checkpoint: `2db280bf` (`feat(audio-ui): add reusable Golden audio device inspector`).
+- Phase 13 checkpoint: this change (`feat(ui): add scalable Sound Card editor`).
+- Stop boundary: Phase 14 performance, robustness, hardware, and visual product qualification has
+  not started.
 
 ## Decisions
 
@@ -486,6 +488,40 @@ The reusable UI boundary now provides:
 Phase 12 deliberately leaves the module-editor descriptor registry, full Sound Card editor,
 matrices, meters, playback controls, analysis controls, and product diagnostics to Phase 13.
 
+## Phase 13 implementation
+
+The app-specific editor boundary now provides:
+
+- one Chataigne-owned module-editor descriptor registry used by both the module inspector header
+  and dock panel definitions, with Spatializer migrated to stable per-module panel identity and no
+  product branch added to `golden_ui`;
+- a focused Svelte 5 `SoundCardEditorPanel` that composes the Phase 12 `AudioDeviceSelector` and
+  keeps module/profile selection in dock panel state;
+- generic-inspector-backed virtual input/output authoring, reorder, rename, output faders, and
+  master volume, so all persistent edits continue through public Golden UI intents;
+- active device-profile history plus physical-input, physical-output, monitoring, and playback
+  sparse matrices whose Canvas projection scales independently of matrix area;
+- atomic `CreateUserItem` route creation with source, destination, and gain `initial_params`,
+  existing-gain `SetParam`, route `RemoveNode`, grouped pointer painting through
+  `BeginEdit`/`EndEdit`, acknowledgement-keyed optimistic state, and rejection rollback;
+- authored monitoring visibility while input is disabled, with inactive signal flow communicated
+  in text and styling;
+- frame-coalesced Canvas meters and spectrum, semantic meter/table fallbacks, pitch/spectrum
+  observations, analysis authoring, available diagnostics, and explicit ResizeObserver/animation
+  frame teardown;
+- an app-owned playback lifecycle projection generated from Rust, read-only active voice rows,
+  and ephemeral stop-one/stop-all control events that do not edit project state;
+- a deterministic mock Sound Card evidence harness covering devices, routes, meters, playback,
+  pitch, spectrum, and diagnostics without hardware; and
+- tests for descriptor registration and panel identity, atomic route intents, grouped edit
+  sessions, gain/removal paths, undo/redo, inactive monitoring, packed telemetry rendering,
+  256-by-256 matrix DOM bounds, playback control routing, and Canvas frame cancellation.
+
+The in-app browser surface was unavailable during this revision, so mounted visual inspection at
+normal and narrow desktop sizes is `NOT RUN`. Phase 14 still owns reference-workload profiling,
+the additional underrun/overrun/starvation/drift/bridge/render diagnostics, hardware/backend soaks,
+cross-platform qualification, and mounted product evidence.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
@@ -633,6 +669,19 @@ matrices, meters, playback controls, analysis controls, and product diagnostics 
 | `npm run build --workspace chataigne-ui` after Phase 12 | PASS - static production build completed; only the existing chunk-size advisory was emitted |
 | Phase 12 npm workspace dependency/license audit | PASS - `golden_audio_ui` resolves only its `golden_ui` dependency and Svelte peer; all five npm workspaces report `GPL-3.0-only` |
 | Root `npm run check` and `npm test` after Phase 12 | PASS - package codegen/type checks plus 21 package and 18 app tests |
+| Phase 13 focused Rust tests | PASS - 3 tests for playback lifecycle projection, ephemeral UI stop controls, atomic route creation, grouped gain/removal edits, and undo/redo |
+| `cargo test -p Chataigne2 --no-fail-fast` after Phase 13 | PASS - 467 tests, 0 failed |
+| `cargo clippy -p chataigne_sound_card_protocol --all-targets -- -D warnings` after Phase 13 | PASS |
+| `cargo clippy -p Chataigne2 --all-targets` after Phase 13 | PASS - existing Golden Core, Alchemist, desktop-host, and app warning backlog only; no Phase 13 Sound Card warning remained |
+| `npm run check --workspace chataigne-ui` after Phase 13 | PASS - 0 errors and 0 warnings |
+| `npm run lint --workspace chataigne-ui` after Phase 13 | PASS |
+| `npm test --workspace chataigne-ui` after Phase 13 | PASS - 36 tests in 14 files |
+| `npm run build --workspace chataigne-ui` after Phase 13 | PASS - static production build completed; only the existing chunk-size advisory was emitted |
+| Phase 13 Sound Card protocol regeneration | PASS - generated TypeScript hashes were unchanged after regeneration |
+| Root `npm run check` and `npm test` after Phase 13 | PASS - package codegen/type checks plus 21 package and 36 app tests |
+| Phase 13 256-by-256 matrix evidence | PASS - one Canvas, 512 axis options, and fewer than 600 focused DOM controls; no per-cell component expansion |
+| Phase 13 mounted browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
+| Root and Golden Core formatting plus `--check` after Phase 13 | PASS |
 | Product run modes | NOT RUN |
 | Cross-platform backend/hardware matrix | NOT RUN |
 
@@ -819,7 +868,27 @@ Phase 12:
 - `docs/reference/repository-layout.md`
 - `docs/progress/golden-audio-sound-card.md`
 
+Phase 13:
+
+- `apps/chataigne/src/module/modules/audio/sound_card/`
+- `apps/chataigne/systems/sound_card_protocol/`
+- `apps/chataigne/ui/src/lib/modules/audio/sound-card/generated/`
+- `apps/chataigne/ui/src/lib/inspectors/modules/ModuleInspectorPanelHeader.svelte`
+- `apps/chataigne/ui/src/lib/panels/modules/module-editor-registry.ts`
+- `apps/chataigne/ui/src/lib/panels/modules/module-editor-setup.ts`
+- `apps/chataigne/ui/src/lib/panels/modules/SoundCardEditorPanel.svelte`
+- `apps/chataigne/ui/src/lib/panels/modules/sound-card/`
+- `apps/chataigne/ui/src/routes/+page.svelte`
+- `apps/chataigne/ui/.prettierignore`
+- `apps/chataigne/ui/vite.config.ts`
+- `apps/chataigne/ui/README.md`
+- `docs/architecture/golden-audio.md`
+- `docs/guides/ui-extension.md`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 13-15 remain. Work is intentionally stopped at the completed Phase 12 reusable-inspector
-boundary.
+Phases 14-15 remain. Work is intentionally stopped at the completed Phase 13 full-editor boundary.
+Phase 14 owns performance and robustness qualification, the remaining low-level diagnostic
+metrics, mounted visual evidence, real backend/hardware soaks, and cross-platform results. Phase 15
+owns final documentation, release, and packaging gates.

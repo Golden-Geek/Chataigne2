@@ -3,6 +3,7 @@ mod tests;
 mod integration;
 mod runtime;
 mod script;
+mod settings;
 
 use std::collections::HashSet;
 
@@ -15,14 +16,17 @@ use golden_core::{
         DeclId, Folder, Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch,
         NodeReference, NodeScriptDescriptor, NodeUserPermissions, NodeUuid,
     },
-    parameter::{
-        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption,
-    },
+    parameter::{Enum, ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 use uuid::Uuid;
 
 pub(crate) use crate::app::module_modules_audio_sound_card_commands::SOUND_CARD_COMMAND_TYPES;
+pub(crate) use settings::{
+    backend_options, buffer_policy_options, recovery_policy_options, spectrum_overlap_options,
+    spectrum_spacing_options, spectrum_window_options,
+};
+use settings::{device_options, enum_option};
 use crate::app::module_modules_audio_sound_card_schema::{
     SoundCardAnalysisList, SoundCardChannelMeter, SoundCardInputPatchRoute,
     SoundCardInputProfile, SoundCardInputProfileList, SoundCardMonitorRouteList,
@@ -36,6 +40,7 @@ use crate::app::module_modules_audio_sound_card_schema::{
 const SYSTEM_DEFAULT_INPUT: &str = "platform_default:system_default:input";
 const SYSTEM_DEFAULT_OUTPUT: &str = "platform_default:system_default:output";
 const DEFAULT_SPECTRUM_BANDS: usize = 64;
+const MAX_PLAYBACK_SOURCE_CHANNELS: u16 = 256;
 
 const VIRTUAL_INPUTS_PATH: &str = "parameters/virtual_inputs";
 const VIRTUAL_OUTPUTS_PATH: &str = "parameters/virtual_outputs";
@@ -549,65 +554,14 @@ impl Node for SoundCardModule {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
+        if self.handle_sound_card_ui_control_event(ctx, &event) {
+            return;
+        }
         self.handle_sound_card_command_event(ctx, &event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
-    }
-}
-
-pub(crate) fn backend_options() -> Vec<ParameterEnumOption> {
-    vec![enum_option("platform_default", "Platform Default", 0)]
-}
-
-pub(crate) fn recovery_policy_options() -> Vec<ParameterEnumOption> {
-    vec![
-        enum_option("wait_for_selected", "Wait for Selected", 0),
-        enum_option("follow_system_default", "Follow System Default", 1),
-    ]
-}
-
-pub(crate) fn buffer_policy_options() -> Vec<ParameterEnumOption> {
-    vec![
-        enum_option("automatic", "Automatic", 0),
-        enum_option("fixed", "Fixed", 1),
-    ]
-}
-
-pub(crate) fn spectrum_window_options() -> Vec<ParameterEnumOption> {
-    vec![
-        enum_option("hann", "Hann", 0),
-        enum_option("blackman_harris", "Blackman-Harris", 1),
-    ]
-}
-
-pub(crate) fn spectrum_overlap_options() -> Vec<ParameterEnumOption> {
-    vec![
-        enum_option("none", "None", 0),
-        enum_option("half", "50%", 1),
-        enum_option("three_quarters", "75%", 2),
-    ]
-}
-
-pub(crate) fn spectrum_spacing_options() -> Vec<ParameterEnumOption> {
-    vec![
-        enum_option("linear", "Linear", 0),
-        enum_option("logarithmic", "Logarithmic", 1),
-    ]
-}
-
-fn device_options(value: &str, label: &str) -> Vec<ParameterEnumOption> {
-    vec![enum_option(value, label, 0)]
-}
-
-fn enum_option(value: &str, label: &str, ordering: i32) -> ParameterEnumOption {
-    ParameterEnumOption {
-        variant_id: value.to_string(),
-        value: ParamValue::Enum(value.to_string()),
-        label: label.to_string(),
-        tags: Vec::new(),
-        ordering: Some(ordering),
     }
 }
 

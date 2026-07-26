@@ -43,4 +43,7 @@ export type { SupportedBufferFrames } from './SupportedBufferFrames';
 export type { SupportedStreamConfiguration } from './SupportedStreamConfiguration';
 export { supportedAudioExtensions } from './supportedAudioExtensions';
 export type { SupportedAudioExtension } from './supportedAudioExtensions';
+export type { SoundCardPlaybackLifecycle } from './SoundCardPlaybackLifecycle';
+export type { SoundCardPlaybackVoiceDto } from './SoundCardPlaybackVoiceDto';
+export type { SoundCardUiControlRequest } from './SoundCardUiControlRequest';
 export type { SoundCardUiTelemetryDto } from './SoundCardUiTelemetryDto';

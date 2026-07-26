@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use chataigne_sound_card_protocol::SoundCardUiTelemetryDto;
+use chataigne_sound_card_protocol::{SoundCardPlaybackVoiceDto, SoundCardUiTelemetryDto};
 use golden_audio::{
     AnalysisProcessorConfiguration, AnalysisTapConfiguration, AnalysisTapId, AnalysisTapObservation,
     AnalysisResult, AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration,
@@ -9,7 +9,8 @@ use golden_audio::{
     AudioEvent, AudioEventReceiver, AudioObservationReader, AudioObservationSnapshot,
     AudioRecoveryPolicy, AudioRouteId, ConfigGeneration, DirectionConfiguration, GainDb,
     InputPatchRoute, MonitorRoute, NullBackend, OutputPatchRoute, PhysicalChannelKey,
-    PitchAnalysisConfiguration, PlaybackRoute, SampleRate, SpectrumAnalysisConfiguration,
+    PitchAnalysisConfiguration, PlaybackId, PlaybackRoute, SampleRate,
+    SpectrumAnalysisConfiguration,
     SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow, VirtualInputChannel, VirtualOutputChannel,
     match_device_selection, profile_key_for,
 };
@@ -20,16 +21,19 @@ use golden_core::{
 };
 
 use super::{
-    ANALYSIS_PATH, INPUT_LEVELS_PATH, INPUT_PROFILES_PATH, OUTPUT_LEVELS_PATH,
-    OUTPUT_PROFILES_PATH, PITCH_RESULTS_PATH, SPECTRUM_RESULTS_PATH, SYSTEM_DEFAULT_INPUT,
-    SYSTEM_DEFAULT_OUTPUT, SoundCardChannelMeter, SoundCardInputPatchRoute, SoundCardInputProfile,
-    SoundCardMonitorRoute, SoundCardOutputPatchRoute, SoundCardOutputProfile,
-    SoundCardPitchAnalyzer, SoundCardPlaybackRoute, SoundCardSpectrumAnalyzer,
-    SoundCardSpectrumBand, SoundCardVirtualInput, SoundCardVirtualOutput, VIRTUAL_INPUTS_PATH,
-    VIRTUAL_OUTPUTS_PATH, find_child_by_key, find_path, pitch_result_uuid, spectrum_result_uuid,
+    ANALYSIS_PATH, INPUT_LEVELS_PATH, INPUT_PROFILES_PATH, MAX_PLAYBACK_SOURCE_CHANNELS,
+    OUTPUT_LEVELS_PATH, OUTPUT_PROFILES_PATH, PITCH_RESULTS_PATH, SPECTRUM_RESULTS_PATH,
+    SYSTEM_DEFAULT_INPUT, SYSTEM_DEFAULT_OUTPUT, SoundCardChannelMeter,
+    SoundCardInputPatchRoute, SoundCardInputProfile, SoundCardMonitorRoute,
+    SoundCardOutputPatchRoute, SoundCardOutputProfile, SoundCardPitchAnalyzer,
+    SoundCardPlaybackRoute, SoundCardSpectrumAnalyzer, SoundCardSpectrumBand,
+    SoundCardVirtualInput, SoundCardVirtualOutput, VIRTUAL_INPUTS_PATH,
+    VIRTUAL_OUTPUTS_PATH, find_child_by_key, find_path, pitch_result_uuid,
+    spectrum_result_uuid,
 };
 
 mod observation;
+mod playback;
 mod snapshot;
 
 use observation::{
@@ -136,6 +140,7 @@ pub(super) struct SoundCardRuntime {
     sample_rate: SampleRate,
     bindings: SoundCardValueBindings,
     last_values: HashMap<NodeId, ParamValue>,
+    active_playback_voices: HashMap<PlaybackId, SoundCardPlaybackVoiceDto>,
     last_telemetry: Option<SoundCardUiTelemetryDto>,
     last_error: Option<String>,
 }
@@ -163,6 +168,7 @@ impl SoundCardRuntime {
             sample_rate,
             bindings: SoundCardValueBindings::default(),
             last_values: HashMap::new(),
+            active_playback_voices: HashMap::new(),
             last_telemetry: None,
             last_error: None,
         })
@@ -239,26 +245,18 @@ impl SoundCardRuntime {
     ) {
         let events = self.events.drain();
         for event in &events {
-            match event {
-                AudioEvent::ConfigurationRejected { error, .. } => {
-                    self.last_error = Some(error.to_string());
-                }
-                AudioEvent::ConfigurationApplied { .. } => {
-                    self.last_error = None;
-                }
-                AudioEvent::PlaybackFailed(failure) => {
-                    self.last_error = Some(failure.error.to_string());
-                }
-                AudioEvent::Diagnostic(diagnostic) => {
-                    self.last_error = Some(diagnostic.message.clone());
-                }
-                _ => {}
-            }
+            self.observe_event(event);
         }
 
         let observation = self.observations.latest();
         self.apply_observation_values(ctx, &observation);
-        let telemetry = telemetry_from_observation(&observation);
+        let mut playback_voices = self
+            .active_playback_voices
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        playback_voices.sort_by(|left, right| left.playback_id.cmp(&right.playback_id));
+        let telemetry = telemetry_from_observation(&observation, playback_voices);
         let changed = self.last_telemetry.as_ref() != Some(&telemetry);
         if changed {
             self.last_telemetry = Some(telemetry.clone());

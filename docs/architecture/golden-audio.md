@@ -232,6 +232,14 @@ generic device-inspector contract. `golden_audio_ui` owns the selector, status/e
 and explicit exact-node-type registration helper. Chataigne registers `sound_card_module` during
 app setup; importing either the adapter or reusable package has no registry side effect.
 
+The app-owned full editor composes that selector with persistent virtual-channel authoring,
+device-profile history, sparse input/output/monitoring/playback matrices, packed Canvas meters and
+spectrum, active playback lifecycle controls, analysis configuration, and diagnostics. Route
+creation crosses the public Golden UI boundary as one transaction with backend-owned defaults and
+identity; optimistic matrix presentation remains keyed to acknowledgements and rolls back on
+rejection. Canvas work is frame-coalesced and torn down with the panel, while DOM controls scale
+with authored routes and focused axes rather than the matrix area.
+
 ## Public surface
 
 The small backend-neutral surface is centered on:

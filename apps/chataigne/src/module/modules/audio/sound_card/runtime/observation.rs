@@ -145,6 +145,7 @@ pub(super) fn collect_bindings(
 
 pub(super) fn telemetry_from_observation(
     observation: &AudioObservationSnapshot,
+    playback_voices: Vec<SoundCardPlaybackVoiceDto>,
 ) -> SoundCardUiTelemetryDto {
     SoundCardUiTelemetryDto {
         generation: observation.generation,
@@ -157,6 +158,8 @@ pub(super) fn telemetry_from_observation(
         global_max_rms: observation.global_max_rms,
         active_voice_count: observation.active_voice_count,
         loading_voice_count: 0,
+        playback_source_channel_limit: MAX_PLAYBACK_SOURCE_CHANNELS,
+        playback_voices,
         dropped_event_count: observation.dropped_event_count,
         queue_pressure_count: observation.queue_pressure_count,
         analysis: observation.analysis.clone(),

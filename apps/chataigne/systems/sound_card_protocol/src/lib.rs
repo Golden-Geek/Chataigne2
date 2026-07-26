@@ -5,6 +5,31 @@ use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
 pub const SOUND_CARD_TELEMETRY_TOPIC: &str = "chataigne.sound_card.telemetry";
+pub const SOUND_CARD_UI_CONTROL_TOPIC: &str = "chataigne.sound_card.ui.control";
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, rename_all = "snake_case")]
+pub enum SoundCardPlaybackLifecycle {
+    Playing,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[ts(export)]
+pub struct SoundCardPlaybackVoiceDto {
+    pub playback_id: String,
+    pub path: String,
+    pub voice: String,
+    pub lifecycle: SoundCardPlaybackLifecycle,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, tag = "kind", rename_all = "snake_case")]
+pub enum SoundCardUiControlRequest {
+    StopFile { playback_id: String },
+    StopAllFiles,
+}
 
 /// Latest-wins UI projection emitted by a Chataigne Sound Card module.
 ///
@@ -24,6 +49,8 @@ pub struct SoundCardUiTelemetryDto {
     pub global_max_rms: f32,
     pub active_voice_count: u16,
     pub loading_voice_count: u16,
+    pub playback_source_channel_limit: u16,
+    pub playback_voices: Vec<SoundCardPlaybackVoiceDto>,
     #[ts(type = "number")]
     pub dropped_event_count: u64,
     #[ts(type = "number")]
@@ -35,12 +62,20 @@ pub fn export_sound_card_contract(output_dir: impl AsRef<Path>) -> Result<(), Bo
     let output_dir = output_dir.as_ref();
     golden_audio::contract::export_device_contract(output_dir)?;
     let config = Config::new().with_out_dir(output_dir.to_path_buf());
+    SoundCardPlaybackLifecycle::export_all(&config)?;
+    SoundCardPlaybackVoiceDto::export_all(&config)?;
+    SoundCardUiControlRequest::export_all(&config)?;
     SoundCardUiTelemetryDto::export_all(&config)?;
 
     let index = std::fs::read_to_string(output_dir.join("index.ts"))?;
     std::fs::write(
         output_dir.join("index.ts"),
-        format!("{index}export type {{ SoundCardUiTelemetryDto }} from './SoundCardUiTelemetryDto';\n"),
+        format!(
+            "{index}export type {{ SoundCardPlaybackLifecycle }} from './SoundCardPlaybackLifecycle';\n\
+             export type {{ SoundCardPlaybackVoiceDto }} from './SoundCardPlaybackVoiceDto';\n\
+             export type {{ SoundCardUiControlRequest }} from './SoundCardUiControlRequest';\n\
+             export type {{ SoundCardUiTelemetryDto }} from './SoundCardUiTelemetryDto';\n"
+        ),
     )?;
     Ok(())
 }

@@ -1,5 +1,6 @@
 use chataigne_sound_card_protocol::{
-    SOUND_CARD_TELEMETRY_TOPIC, SoundCardUiTelemetryDto,
+    SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC,
+    SoundCardUiControlRequest, SoundCardUiTelemetryDto,
 };
 use golden_audio::{
     AudioCommand, AudioError, AudioErrorCategory, CommandSequence, PlayFileRequest,
@@ -28,6 +29,48 @@ pub(crate) struct SoundCardCommandResultEvent {
 }
 
 impl SoundCardModule {
+    pub(super) fn handle_sound_card_ui_control_event(
+        &self,
+        ctx: &mut ProcessCtx,
+        event: &golden_core::events::CustomEvent,
+    ) -> bool {
+        if event.topic != SOUND_CARD_UI_CONTROL_TOPIC {
+            return false;
+        }
+        let result = event
+            .payload_as::<SoundCardUiControlRequest>()
+            .map_err(|error| {
+                command_error(format!(
+                    "invalid Sound Card UI control payload: {error}"
+                ))
+            })
+            .and_then(|request| {
+                let snapshot = ctx.tree_snapshot_arc().ok_or_else(|| {
+                    command_error(
+                        "Sound Card UI control requires a tree snapshot",
+                    )
+                })?;
+                let request = match request {
+                    SoundCardUiControlRequest::StopFile { playback_id } => {
+                        SoundCardCommandRequest::StopFile {
+                            playback_id: golden_audio::PlaybackId::new(playback_id)
+                                .map_err(|error| command_error(error.to_string()))?,
+                        }
+                    }
+                    SoundCardUiControlRequest::StopAllFiles => {
+                        SoundCardCommandRequest::StopAllFiles
+                    }
+                };
+                self.admit_request(snapshot.as_ref(), request)
+            });
+        if let Err(error) = result {
+            golden_core::logerror!(origin = self.id(); format!(
+                "Sound Card UI control was not admitted: {error}"
+            ));
+        }
+        true
+    }
+
     pub(super) fn sync_device_choices(
         &self,
         ctx: &mut ProcessCtx,

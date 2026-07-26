@@ -1,30 +1,24 @@
 <script lang="ts">
 	import { showPanel, type NodeInspectorPanelHeaderComponentProps } from 'golden_ui';
-	import generatorsIconUrl from '$lib/assets/icons/module/generators.svg';
 	import ModuleIndicators from '$lib/components/modules/ModuleIndicators.svelte';
+	import {
+		moduleEditorPanelRequest,
+		resolveModuleEditor
+	} from '$lib/panels/modules/module-editor-registry';
 
 	let { node, defaultHeader }: NodeInspectorPanelHeaderComponentProps = $props();
 
-	const SPATIALIZER_MODULE_TYPE = 'spatializer_module';
 	const MODULE_USER_ITEM_KIND = 'module';
 	const MODULE_FOLDER_NODE_TYPE = 'module_folder';
 
 	let showModuleIndicators = $derived(
 		node.user_item_kind === MODULE_USER_ITEM_KIND && node.node_type !== MODULE_FOLDER_NODE_TYPE
 	);
-	let showSpatializerEditor = $derived(node.node_type === SPATIALIZER_MODULE_TYPE);
+	let editorDescriptor = $derived(resolveModuleEditor(node));
 
-	const openSpatializerEditor = (): void => {
-		showPanel({
-			panelId: 'spatializer-editor',
-			panelType: 'spatializerEditor',
-			title: `Spatializer: ${node.meta.label}`,
-			params: { moduleNodeId: node.node_id },
-			position: {
-				referencePanelId: 'state-machine',
-				direction: 'within'
-			}
-		});
+	const openModuleEditor = (): void => {
+		if (!editorDescriptor) return;
+		showPanel(moduleEditorPanelRequest(editorDescriptor, node));
 	};
 </script>
 
@@ -32,17 +26,17 @@
 	{#if showModuleIndicators}
 		<ModuleIndicators {node} />
 	{/if}
-	{#if showSpatializerEditor}
+	{#if editorDescriptor}
 		<button
 			type="button"
-			class="spatializer-open-btn"
+			class="module-editor-open-btn"
 			onclick={(event) => {
 				event.stopPropagation();
-				openSpatializerEditor();
+				openModuleEditor();
 			}}
-			title="Edit Spatializer">
-			<img src={generatorsIconUrl} alt="" class="spatializer-open-icon" />
-			<span>Edit Spatializer</span>
+			title={editorDescriptor.actionLabel}>
+			<img src={editorDescriptor.iconUrl} alt="" class="module-editor-open-icon" />
+			<span>{editorDescriptor.actionLabel}</span>
 		</button>
 	{/if}
 {/snippet}
@@ -50,7 +44,7 @@
 {@render defaultHeader?.(moduleHeaderExtra)}
 
 <style>
-	.spatializer-open-btn {
+	.module-editor-open-btn {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.28rem;
@@ -68,11 +62,11 @@
 		transition: background 0.12s ease;
 	}
 
-	.spatializer-open-btn:hover {
+	.module-editor-open-btn:hover {
 		background: color-mix(in srgb, var(--gc-color-accent) 18%, transparent);
 	}
 
-	.spatializer-open-icon {
+	.module-editor-open-icon {
 		display: block;
 		inline-size: 0.85rem;
 		block-size: 0.85rem;
