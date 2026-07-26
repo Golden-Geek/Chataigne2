@@ -19,9 +19,12 @@ use crate::{
 };
 
 const CONTROL_QUEUE_CAPACITY: usize = 4_096;
-const OUTPUT_QUEUE_BLOCKS: usize = 8;
+const OUTPUT_QUEUE_MIN_BLOCKS: usize = 8;
+const OUTPUT_QUEUE_MAX_BLOCKS: usize = 64;
+const OUTPUT_QUEUE_CALLBACKS: usize = 3;
 const INPUT_RING_CAPACITY_FRAMES: usize = 8_192;
 const BRIDGE_PUBLISH_ATTEMPTS: usize = 50;
+const OUTPUT_PREFILL_ATTEMPTS: usize = 250;
 
 #[derive(Clone, Copy, Debug)]
 enum RenderControl {
@@ -69,6 +72,8 @@ struct InputRuntimeBridge {
 struct OutputRuntimeBridge {
     producer: Producer<f32>,
     channels: usize,
+    prefilled: Arc<AtomicBool>,
+    consumer_started: Arc<AtomicBool>,
 }
 
 #[derive(Debug, Default)]
@@ -204,15 +209,21 @@ impl ManagedRenderRuntime {
         &mut self,
         direction: AudioDirection,
         channels: u16,
+        callback_buffer_frames: u32,
     ) -> Result<Box<dyn AudioStreamHandler>, AudioError> {
         if channels == 0 {
             return Err(AudioError::invalid_configuration(
                 "managed stream handler requires at least one channel",
             ));
         }
+        if callback_buffer_frames == 0 {
+            return Err(AudioError::invalid_configuration(
+                "managed stream handler requires a non-zero callback buffer",
+            ));
+        }
         match direction {
             AudioDirection::Input => self.prepare_input_handler(channels),
-            AudioDirection::Output => self.prepare_output_handler(channels),
+            AudioDirection::Output => self.prepare_output_handler(channels, callback_buffer_frames),
         }
     }
 
@@ -286,20 +297,41 @@ impl ManagedRenderRuntime {
         }))
     }
 
-    fn prepare_output_handler(&mut self, channels: u16) -> Result<Box<dyn AudioStreamHandler>, AudioError> {
+    fn prepare_output_handler(
+        &mut self,
+        channels: u16,
+        callback_buffer_frames: u32,
+    ) -> Result<Box<dyn AudioStreamHandler>, AudioError> {
         let channel_count = usize::from(channels);
+        let block_frames = self.config.internal_block_frames.get() as usize;
+        let queue_blocks = usize::try_from(callback_buffer_frames)
+            .unwrap_or(usize::MAX)
+            .saturating_mul(OUTPUT_QUEUE_CALLBACKS)
+            .div_ceil(block_frames)
+            .max(OUTPUT_QUEUE_MIN_BLOCKS);
+        if queue_blocks > OUTPUT_QUEUE_MAX_BLOCKS {
+            return Err(AudioError::capacity_exceeded(format!(
+                "managed output callback buffer requires {queue_blocks} render blocks; maximum is {OUTPUT_QUEUE_MAX_BLOCKS}"
+            )));
+        }
         let sample_capacity = channel_count
-            .checked_mul(self.config.internal_block_frames.get() as usize)
-            .and_then(|samples| samples.checked_mul(OUTPUT_QUEUE_BLOCKS))
+            .checked_mul(block_frames)
+            .and_then(|samples| samples.checked_mul(queue_blocks))
             .ok_or_else(|| AudioError::capacity_exceeded("managed output queue capacity overflowed"))?;
         let (producer, consumer) = RingBuffer::new(sample_capacity);
+        let prefilled = Arc::new(AtomicBool::new(false));
+        let consumer_started = Arc::new(AtomicBool::new(false));
         self.publish_output_bridge(Some(OutputRuntimeBridge {
             producer,
             channels: channel_count,
+            prefilled: Arc::clone(&prefilled),
+            consumer_started: Arc::clone(&consumer_started),
         }))?;
+        self.wait_for_output_prefill(&prefilled)?;
         Ok(Box::new(ManagedOutputHandler {
             consumer,
             channels: channel_count,
+            consumer_started,
             observation: Arc::clone(&self.observation),
             wake: self.render_thread()?,
         }))
@@ -339,6 +371,20 @@ impl ManagedRenderRuntime {
         }
         drop(bridge);
         Err(AudioError::queue_full("managed_output_bridge"))
+    }
+
+    fn wait_for_output_prefill(&self, prefilled: &AtomicBool) -> Result<(), AudioError> {
+        for _ in 0..OUTPUT_PREFILL_ATTEMPTS {
+            if prefilled.load(Ordering::Acquire) {
+                return Ok(());
+            }
+            self.unpark();
+            thread::sleep(Duration::from_millis(1));
+        }
+        Err(AudioError::new(
+            AudioErrorCategory::InternalInvariant,
+            "managed output queue did not prefill before stream startup",
+        ))
     }
 
     fn push_control(&mut self, control: RenderControl) -> Result<(), AudioError> {
@@ -416,12 +462,14 @@ impl AudioStreamHandler for ManagedInputHandler {
 struct ManagedOutputHandler {
     consumer: Consumer<f32>,
     channels: usize,
+    consumer_started: Arc<AtomicBool>,
     observation: Arc<SharedRenderObservation>,
     wake: Thread,
 }
 
 impl AudioStreamHandler for ManagedOutputHandler {
     fn process_output(&mut self, mut samples: InterleavedOutput<'_>, _timestamp: AudioCallbackTimestamp) {
+        self.consumer_started.store(true, Ordering::Release);
         samples.fill_silence();
         if samples.is_empty() || !samples.len().is_multiple_of(self.channels) {
             self.observation.output_underflow_count.fetch_add(1, Ordering::Relaxed);
@@ -469,12 +517,12 @@ fn run_render_thread(
             apply_controls(plans.active_mut(), &mut controls);
         }
 
+        let output_attached = outputs.active().is_some();
         let output_driven = output_has_consumer(outputs.active(), block_frames);
+        let output_has_room = output_has_capacity(outputs.active(), block_frames);
         let now = Instant::now();
-        if (!output_driven && now < next_deadline)
-            || (output_driven && !output_has_capacity(outputs.active(), block_frames))
-        {
-            let wait = if output_driven {
+        if (!output_driven && now < next_deadline) || (output_attached && !output_has_room) {
+            let wait = if output_attached && !output_has_room {
                 block_duration
             } else {
                 next_deadline.duration_since(now)
@@ -529,6 +577,7 @@ fn run_render_thread(
 fn output_has_consumer(output: &Option<OutputRuntimeBridge>, block_frames: usize) -> bool {
     output.as_ref().is_some_and(|bridge| {
         !bridge.producer.is_abandoned()
+            && bridge.consumer_started.load(Ordering::Acquire)
             && bridge
                 .channels
                 .checked_mul(block_frames)
@@ -603,6 +652,7 @@ fn write_physical_output(
     observation: &SharedRenderObservation,
 ) {
     let channels_match = plan.is_some_and(|plan| plan.physical_outputs.channels() == output.channels);
+    let block_samples = output.channels.saturating_mul(block_frames);
     for frame in 0..block_frames {
         for channel in 0..output.channels {
             let sample = if channels_match {
@@ -613,10 +663,15 @@ fn write_physical_output(
                 0.0
             };
             if output.producer.push(sample).is_err() {
-                observation.output_overflow_count.fetch_add(1, Ordering::Relaxed);
+                if !output.producer.is_abandoned() {
+                    observation.output_overflow_count.fetch_add(1, Ordering::Relaxed);
+                }
                 return;
             }
         }
+    }
+    if output.producer.slots() < block_samples {
+        output.prefilled.store(true, Ordering::Release);
     }
 }
 

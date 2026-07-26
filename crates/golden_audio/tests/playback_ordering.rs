@@ -10,10 +10,11 @@ use std::{
 use allocation_counter::measure;
 #[cfg(feature = "analysis")]
 use golden_audio::{
-    AudioBackend, AudioCallbackTimestamp, AudioChannelId, AudioConfiguration, AudioDeviceSelection, AudioDirection,
-    AudioError, AudioRouteId, AudioStream, AudioStreamHandler, AudioStreamStatus, ConfigGeneration,
-    DirectionConfiguration, GainDb, InputPatchRoute, InterleavedInput, InterleavedOutput, MonitorRoute, NullBackend,
-    OutputPatchRoute, PhysicalChannelKey, PlaybackRoute, StreamRequest, VirtualInputChannel, VirtualOutputChannel,
+    AudioBackend, AudioCallbackTimestamp, AudioChannelId, AudioConfiguration, AudioDeviceReadiness,
+    AudioDeviceSelection, AudioDirection, AudioError, AudioErrorCategory, AudioInspectorError, AudioRouteId,
+    AudioStream, AudioStreamHandler, AudioStreamStatus, ConfigGeneration, DirectionConfiguration, GainDb,
+    InputPatchRoute, InterleavedInput, InterleavedOutput, MonitorRoute, NullBackend, OutputPatchRoute,
+    PhysicalChannelKey, PlaybackRoute, StreamRequest, VirtualInputChannel, VirtualOutputChannel,
 };
 use golden_audio::{
     AudioCommand, AudioEngine, AudioEngineBuilder, AudioEvent, PlanarBuffer, PlayFileRequest, PlaybackId,
@@ -36,11 +37,15 @@ fn managed_runtime_drives_playback_and_the_backend_output_callback() {
     let callback_count = Arc::new(AtomicU64::new(0));
     let input_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
     let output_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
+    let runtime_failure = Arc::new(AtomicBool::new(false));
+    let opened_streams = Arc::new(AtomicU64::new(0));
     let backend = CallbackBackend {
         callback_signal: Arc::clone(&callback_signal),
         callback_count: Arc::clone(&callback_count),
         input_callback_allocation: Arc::clone(&input_callback_allocation),
         output_callback_allocation: Arc::clone(&output_callback_allocation),
+        runtime_failure,
+        opened_streams,
     };
     let file = sine_wave_file(1, 48_000, 4_096);
     let playback_id = PlaybackId::new("managed").unwrap();
@@ -126,11 +131,15 @@ fn managed_runtime_bridges_backend_input_into_monitoring_and_metering() {
     let callback_count = Arc::new(AtomicU64::new(0));
     let input_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
     let output_callback_allocation = Arc::new(AtomicU64::new(u64::MAX));
+    let runtime_failure = Arc::new(AtomicBool::new(false));
+    let opened_streams = Arc::new(AtomicU64::new(0));
     let backend = CallbackBackend {
         callback_signal: Arc::clone(&callback_signal),
         callback_count: Arc::clone(&callback_count),
         input_callback_allocation: Arc::clone(&input_callback_allocation),
         output_callback_allocation: Arc::clone(&output_callback_allocation),
+        runtime_failure,
+        opened_streams,
     };
     let mut engine = AudioEngineBuilder::default()
         .with_backend(backend)
@@ -261,6 +270,75 @@ fn managed_runtime_uses_null_clock_without_false_callback_xruns() {
     assert_eq!(observation.runtime.xrun_count, 0);
     assert_eq!(observation.runtime.input_underflow_count, 0);
     assert_eq!(observation.runtime.output_underflow_count, 0);
+    engine.shutdown().unwrap();
+}
+
+#[cfg(feature = "analysis")]
+#[test]
+fn managed_runtime_reopens_a_callback_stream_after_runtime_invalidation() {
+    let callback_signal = Arc::new(AtomicBool::new(false));
+    let callback_count = Arc::new(AtomicU64::new(0));
+    let runtime_failure = Arc::new(AtomicBool::new(false));
+    let opened_streams = Arc::new(AtomicU64::new(0));
+    let backend = CallbackBackend {
+        callback_signal,
+        callback_count: Arc::clone(&callback_count),
+        input_callback_allocation: Arc::new(AtomicU64::new(u64::MAX)),
+        output_callback_allocation: Arc::new(AtomicU64::new(u64::MAX)),
+        runtime_failure: Arc::clone(&runtime_failure),
+        opened_streams: Arc::clone(&opened_streams),
+    };
+    let mut engine = AudioEngineBuilder::default()
+        .with_backend(backend)
+        .with_managed_render_runtime()
+        .build()
+        .unwrap();
+    let events = engine.take_event_receiver().unwrap();
+    let output = AudioChannelId::new();
+    let mut configuration = AudioConfiguration::empty();
+    configuration.output = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Output,
+        )),
+        recovery_policy: golden_audio::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: golden_audio::AudioBufferPolicy::Fixed(128),
+    };
+    configuration.virtual_outputs.push(VirtualOutputChannel {
+        id: output,
+        label: "Recovering output".to_owned(),
+        gain: GainDb::UNITY,
+    });
+    for destination in ["output:0", "output:1"] {
+        configuration.output_patch.push(OutputPatchRoute {
+            id: AudioRouteId::new(),
+            source: output,
+            destination: PhysicalChannelKey::new(destination).unwrap(),
+            gain: GainDb::UNITY,
+        });
+    }
+    let generation = ConfigGeneration::new(1);
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::ConfigurationApplied { generation: applied } if *applied == generation),
+    );
+    wait_until(|| opened_streams.load(Ordering::Acquire) == 1 && callback_count.load(Ordering::Acquire) > 2);
+
+    runtime_failure.store(true, Ordering::Release);
+
+    wait_until(|| {
+        opened_streams.load(Ordering::Acquire) >= 2
+            && !runtime_failure.load(Ordering::Acquire)
+            && engine.observations().latest().device.output.readiness == AudioDeviceReadiness::Ready
+    });
     engine.shutdown().unwrap();
 }
 
@@ -464,6 +542,8 @@ struct CallbackBackend {
     callback_count: Arc<AtomicU64>,
     input_callback_allocation: Arc<AtomicU64>,
     output_callback_allocation: Arc<AtomicU64>,
+    runtime_failure: Arc<AtomicBool>,
+    opened_streams: Arc<AtomicU64>,
 }
 
 #[cfg(feature = "analysis")]
@@ -489,6 +569,8 @@ impl AudioBackend for CallbackBackend {
         request: &StreamRequest,
         handler: Box<dyn AudioStreamHandler>,
     ) -> Result<Box<dyn AudioStream>, AudioError> {
+        self.runtime_failure.store(false, Ordering::Release);
+        self.opened_streams.fetch_add(1, Ordering::Relaxed);
         let status = NullBackend.open_stream(request)?.status();
         Ok(Box::new(CallbackStream {
             status,
@@ -500,6 +582,7 @@ impl AudioBackend for CallbackBackend {
             callback_count: Arc::clone(&self.callback_count),
             input_callback_allocation: Arc::clone(&self.input_callback_allocation),
             output_callback_allocation: Arc::clone(&self.output_callback_allocation),
+            runtime_failure: Arc::clone(&self.runtime_failure),
             worker: None,
         }))
     }
@@ -517,13 +600,23 @@ struct CallbackStream {
     callback_count: Arc<AtomicU64>,
     input_callback_allocation: Arc<AtomicU64>,
     output_callback_allocation: Arc<AtomicU64>,
+    runtime_failure: Arc<AtomicBool>,
     worker: Option<JoinHandle<Box<dyn AudioStreamHandler>>>,
 }
 
 #[cfg(feature = "analysis")]
 impl AudioStream for CallbackStream {
     fn status(&self) -> AudioStreamStatus {
-        self.status.clone()
+        let mut status = self.status.clone();
+        if self.runtime_failure.load(Ordering::Acquire) {
+            status.readiness = AudioDeviceReadiness::Recovering;
+            status.error = Some(AudioInspectorError {
+                category: AudioErrorCategory::StreamNegotiationFailed,
+                message: "injected callback stream invalidation".to_owned(),
+                technical_detail: None,
+            });
+        }
+        status
     }
 
     fn start(&mut self) -> Result<(), AudioError> {

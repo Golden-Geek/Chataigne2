@@ -267,6 +267,32 @@ impl SupervisorDirection {
         self.schedule_retry(now_ms);
     }
 
+    #[must_use]
+    pub fn report_runtime_status(&mut self, now_ms: u64, runtime: &AudioStreamStatus) -> bool {
+        assert_not_realtime("audio stream runtime status reporting");
+        if !self.status.enabled
+            || self.phase != DeviceSwitchPhase::Stable
+            || runtime.direction != self.direction
+            || runtime.readiness == AudioDeviceReadiness::Ready
+        {
+            return false;
+        }
+        self.active_device = None;
+        self.prepared_device = None;
+        self.status.active_target = None;
+        self.status.format = None;
+        self.status.readiness = runtime.readiness;
+        self.status.permission = runtime.permission;
+        self.status.error = runtime.error.clone().or_else(|| {
+            Some(AudioInspectorError::from(&AudioError::new(
+                AudioErrorCategory::StreamNegotiationFailed,
+                "the active audio stream left the ready state",
+            )))
+        });
+        self.schedule_retry(now_ms);
+        true
+    }
+
     pub fn report_backend_unavailable(&mut self, now_ms: u64, backend: &AudioBackendStatus) {
         if !self.status.enabled {
             return;

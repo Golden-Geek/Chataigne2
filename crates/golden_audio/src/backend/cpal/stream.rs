@@ -368,7 +368,7 @@ fn store_runtime_error(target: &AtomicU8, kind: ErrorKind) {
 }
 
 fn load_runtime_error(source: &AtomicU8) -> Option<(AudioDeviceReadiness, AudioInspectorError)> {
-    let code = source.load(Ordering::Acquire);
+    let code = source.swap(RuntimeErrorCode::None as u8, Ordering::AcqRel);
     let (readiness, category, message) = match code {
         value if value == RuntimeErrorCode::None as u8 => return None,
         value if value == RuntimeErrorCode::DeviceChanged as u8 => (

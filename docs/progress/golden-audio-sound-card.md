@@ -35,6 +35,8 @@ backend remains `NOT RUN`.
 - Phase 12 checkpoint: `2db280bf` (`feat(audio-ui): add reusable Golden audio device inspector`).
 - Phase 13 checkpoint: `0bb953b1` (`feat(ui): add scalable Sound Card editor`).
 - Phase 14 checkpoint: this change (`perf(audio): add Sound Card runtime qualification`).
+- Phase 14 managed-device qualification checkpoint: this change
+  (`fix(audio): harden managed device recovery`).
 - Stop boundary: Phase 14 cannot be marked fully complete until the named real-device soak,
   mounted normal/narrow browser inspection, and cross-platform runs have exact-commit evidence.
 
@@ -138,7 +140,7 @@ Decision:
 
 | Platform | Backend | Build | Discovery | Stream I/O | Recovery | Package/startup |
 | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | NOT RUN | NOT RUN |
+| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PARTIAL - 15-second medium-workload run completed 3 planned stop/reopen cycles with 0 XRuns, deadline misses, or analysis drops; one-hour exact-commit gate remains | NOT RUN |
 | Windows x64 | ASIO | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows x64 | JACK | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows arm64 | WASAPI | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
@@ -558,8 +560,11 @@ Phase 14 also adds:
 - generated Rust-to-TypeScript render/playback observation contracts and Sound Card diagnostics
   for timing, XRuns, queue pressure, and resident cache use;
 - a deterministic `sound-card.v1` product-evidence scenario using the null backend and medium
-  combined workload; and
-- a mounted `/evidence/sound-card` route backed by the deterministic editor harness.
+  combined workload;
+- a mounted `/evidence/sound-card` route backed by the deterministic editor harness; and
+- a backend-neutral managed-device soak contract and release runner with explicit warm-up,
+  negotiated-buffer queue sizing, paced prefill, periodic stop/reopen recovery, JSON evidence, and
+  strict signal/deadline/XRun/analysis acceptance checks.
 
 The release percentile run used Windows x64, an Intel64 Family 6 Model 198 Stepping 2 processor
 (24 logical processors), Rust release mode, 48 kHz, and 128-frame blocks. Setup and warm-up were
@@ -580,6 +585,16 @@ platform-specific acceleration path, so the scalar implementation remains author
 
 The Windows native probe found WASAPI available and the default-output smoke opened, started,
 wrote silence for 100 ms, and stopped successfully. That is not a real-signal or endurance result.
+The managed-device runner then exposed startup underflow and recovery-prefill overflow in the
+initial callback bridge. The queue now holds three negotiated callback periods, prefill advances
+at engine-clock pace, a full priming bridge pauses until its first callback, and retired bridges do
+not report false overflow. Native backend error statuses are consumed once by the control worker:
+ready warnings become strict soak diagnostics, while invalidated or failed streams retire their
+bridges and enter the supervisor retry/reopen path. A 15-second release rerun on the same WASAPI
+output sustained the medium
+32-channel/128-route/32-voice workload through three planned stop/reopen cycles with zero callback
+XRuns, backend warnings, render deadline misses, control pressure, playback failures, and dropped
+or stale analysis frames. This is short regression evidence, not the named one-hour gate.
 The configured browser surface again reported no browser, so mounted normal/narrow visual
 inspection remains `NOT RUN`; no desktop-control fallback was used. A one-hour real-device
 supported-workload run, recovery soak, other Windows backends, macOS, and Linux remain `NOT RUN`.
@@ -748,13 +763,15 @@ supported-workload run, recovery soak, other Windows backends, macOS, and Linux 
 | Phase 14 combined quick Criterion benchmark | PASS - small, medium, large, and extreme-offline medians recorded in the performance table |
 | Phase 14 exact-percentile release runner | PASS - 10,000 measured blocks per workload; p50/p99/p99.99/max, deadline-ratio, memory, and analysis-pressure evidence recorded above |
 | Phase 14 managed callback integration | PASS - callback-backed decoded playback output, synthetic-input monitoring/meter/output, null-clock XRun, and callback allocation tests |
-| `cargo test -p golden_audio` after Phase 14 | PASS - 128 tests (113 unit, 15 integration), 0 failed |
+| `cargo test -p golden_audio` after Phase 14 | PASS - 133 tests (117 unit, 16 integration), 0 failed |
 | Phase 14 Golden Audio feature matrix | PASS - no-default, playback-only, analysis-only, and default all-target checks |
 | Phase 14 Golden Audio strict Clippy | PASS - default and no-default all-target runs with `-D warnings` |
 | `cargo test -p Chataigne2` after Phase 14 | PASS - 468 tests, 0 failed |
 | Phase 14 Sound Card product evidence | PASS - `sound-card.v1`, semantic digest `fnv1a64:8e5054f8524fa1bc` |
 | Phase 14 Windows native probe | PASS - WASAPI available |
 | Phase 14 Windows default-output smoke | PASS - stereo 48 kHz stream opened, ran silent for 100 ms, and stopped |
+| Phase 14 managed-device runner tests | PASS - option/fixture guards, medium null-backend signal/recovery, supervisor runtime-failure backoff, and callback-stream invalidation/reopen |
+| Phase 14 short Windows managed-device recovery | PASS - release, 15 seconds, medium workload, 3 planned recoveries, 0 XRuns/backend warnings/deadline misses/queue pressure/playback failures/analysis drops |
 | Phase 14 generated audio/Sound Card contracts | PASS - playback and render observations regenerated in both consumers; reusable generated-contract drift check passed |
 | Phase 14 reusable audio UI checks | PASS - 0 Svelte diagnostics and 21 tests |
 | Phase 14 Chataigne UI checks | PASS - 0 Svelte diagnostics, Prettier clean, 36 tests, and static production build |

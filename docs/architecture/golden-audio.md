@@ -228,6 +228,18 @@ the bounded adaptive clock bridge, while native output callbacks drain a bounded
 and wake the worker. An absent output callback selects the paced null-clock path, so playback and
 analysis continue without moving host timing into Chataigne.
 
+The output queue derives its capacity from the negotiated device buffer and holds three callback
+periods, rounded to whole internal render blocks. Initial and recovery prefill follows the engine
+clock until the first native callback; a full priming queue pauses the timeline instead of
+rendering unconsumed blocks. Once callbacks begin, queue occupancy drives refill. Retiring or
+abandoning a bridge is a lifecycle transition rather than an XRun, while underflow or overflow on
+an active bridge remains observable and fails managed-device qualification.
+
+Backend callback errors cross as one-shot atomic stream statuses. A ready stream warning becomes a
+structured diagnostic; a missing, invalidated, or failed stream retires its callback bridge,
+enters the supervisor's bounded retry backoff, and is reopened from fresh discovery. This polling
+stays on the control worker and never moves backend status inspection onto the render thread.
+
 Render plans and input/output bridge endpoints cross to the worker through acknowledged ownership
 exchanges and retire back to the control thread. Callback handlers only convert or transfer
 preallocated samples and update atomic pressure counters; they do not lock, allocate, decode,

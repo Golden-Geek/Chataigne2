@@ -22,6 +22,12 @@ use crate::{
     VirtualInputChannel, VirtualOutputChannel, analysis_pipeline, default_playback_routes, playback_voice_pool,
 };
 
+mod device_soak;
+pub use device_soak::{
+    ManagedDeviceReadinessTransition, ManagedDeviceSoakOptions, ManagedDeviceSoakProgress, ManagedDeviceSoakReport,
+    run_managed_device_soak, run_managed_device_soak_with_progress, write_reference_wave,
+};
+
 #[cfg(test)]
 mod tests;
 
@@ -132,7 +138,7 @@ impl ReferenceWorkloadHarness {
     pub fn new(workload: ReferenceWorkload) -> Result<Self, AudioError> {
         let specification = workload.specification();
         let limits = EngineLimits::default();
-        let (configuration, context) = configuration(specification)?;
+        let (configuration, context) = configuration(specification, PHYSICAL_CHANNELS)?;
         let plan = RenderPlanCompiler::new(AudioEngineConfig::default(), limits.clone())
             .compile(&configuration, &context)?
             .plan;
@@ -289,14 +295,15 @@ impl Drop for ReferenceWorkloadHarness {
 
 fn configuration(
     specification: ReferenceWorkloadSpec,
+    physical_channel_count: usize,
 ) -> Result<(AudioConfiguration, RenderCompileContext), AudioError> {
     let channels = usize::from(specification.channels);
     let inputs = (0..channels).map(|index| channel_id(1, index)).collect::<Vec<_>>();
     let outputs = (0..channels).map(|index| channel_id(2, index)).collect::<Vec<_>>();
-    let physical_inputs = (0..PHYSICAL_CHANNELS)
+    let physical_inputs = (0..physical_channel_count)
         .map(|index| physical("input", index))
         .collect::<Vec<_>>();
-    let physical_outputs = (0..PHYSICAL_CHANNELS)
+    let physical_outputs = (0..physical_channel_count)
         .map(|index| physical("output", index))
         .collect::<Vec<_>>();
     let mut configuration = AudioConfiguration::empty();
@@ -317,7 +324,7 @@ fn configuration(
             gain: GainDb::UNITY,
         })
         .collect();
-    configuration.input_patch = (0..PHYSICAL_CHANNELS)
+    configuration.input_patch = (0..physical_channel_count.min(channels))
         .map(|index| InputPatchRoute {
             id: route_id(1, index),
             source: physical_inputs[index].clone(),
@@ -325,7 +332,7 @@ fn configuration(
             gain: GainDb::UNITY,
         })
         .collect();
-    configuration.output_patch = (0..PHYSICAL_CHANNELS)
+    configuration.output_patch = (0..physical_channel_count.min(channels))
         .map(|index| OutputPatchRoute {
             id: route_id(2, index),
             source: outputs[index],
@@ -333,7 +340,7 @@ fn configuration(
             gain: GainDb::UNITY,
         })
         .collect();
-    configuration.playback_patch = (0..PHYSICAL_CHANNELS)
+    configuration.playback_patch = (0..physical_channel_count.min(channels))
         .map(|index| PlaybackRoute {
             id: route_id(3, index),
             source_channel: index as u16,

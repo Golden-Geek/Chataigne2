@@ -1,7 +1,7 @@
 use crate::{
     AudioBufferPolicy, AudioDeviceReadiness, AudioDeviceSelection, AudioDirection, AudioError, AudioErrorCategory,
-    AudioRecoveryPolicy, AudioSampleFormat, DeviceSupervisor, DeviceSupervisorConfig, DeviceSwitchPhase,
-    NegotiatedStreamFormat, RetryBackoff, SampleRate,
+    AudioInspectorError, AudioRecoveryPolicy, AudioSampleFormat, DeviceSupervisor, DeviceSupervisorConfig,
+    DeviceSwitchPhase, NegotiatedStreamFormat, RetryBackoff, SampleRate,
 };
 
 use super::support::{backend_status, configuration, device, fingerprint};
@@ -182,4 +182,42 @@ fn permission_denial_is_structured_and_selected_device_is_preserved() {
         supervisor.output.status().selected_target.as_ref(),
         Some(&selection.target)
     );
+}
+
+#[test]
+fn active_stream_failure_retires_the_device_and_enters_retry_backoff() {
+    let output = device("output", "Output", true, fingerprint("Output", 0, 2), 0, 2, false, true);
+    let selection = AudioDeviceSelection::from_descriptor(&output);
+    let mut supervisor = supervisor();
+    supervisor
+        .output
+        .configure(true, Some(selection.clone()), AudioRecoveryPolicy::WaitForSelected);
+    supervisor.observe_discovery(0, vec![backend_status()], vec![output]);
+    commit_output(&mut supervisor, 2);
+    let mut runtime = supervisor.output.status().clone();
+    runtime.readiness = AudioDeviceReadiness::Recovering;
+    runtime.error = Some(AudioInspectorError {
+        category: AudioErrorCategory::StreamNegotiationFailed,
+        message: "stream invalidated".to_owned(),
+        technical_detail: None,
+    });
+
+    assert!(supervisor.output.report_runtime_status(100, &runtime));
+    assert_eq!(supervisor.output.phase(), DeviceSwitchPhase::RetryWaiting);
+    assert_eq!(
+        supervisor.output.status().selected_target.as_ref(),
+        Some(&selection.target)
+    );
+    assert!(supervisor.output.status().active_target.is_none());
+    assert!(supervisor.output.status().format.is_none());
+    assert_eq!(
+        supervisor
+            .output
+            .status()
+            .error
+            .as_ref()
+            .map(|error| error.message.as_str()),
+        Some("stream invalidated")
+    );
+    assert!(supervisor.output.status().next_retry_ms.is_some());
 }

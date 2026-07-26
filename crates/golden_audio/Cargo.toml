@@ -58,6 +58,11 @@ name = "reference_qualification"
 path = "examples/reference_qualification.rs"
 required-features = ["analysis", "playback"]
 
+[[example]]
+name = "managed_device_soak"
+path = "examples/managed_device_soak.rs"
+required-features = ["analysis", "desktop", "playback"]
+
 [[bench]]
 name = "render"
 harness = false

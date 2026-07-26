@@ -3,6 +3,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(all(feature = "analysis", feature = "playback"))]
+use crate::DeviceNegotiator;
 use crate::{
     AudioBackend, AudioBackendState, AudioBackendStatus, AudioChannelId, AudioConfiguration, AudioEngineConfig,
     AudioError, AudioErrorCategory, AudioEvent, AudioObservationSnapshot, AudioStream, DeviceSupervisor,
@@ -159,6 +161,15 @@ impl DeviceRuntime {
             &mut ManagedRenderRuntime,
         >,
     ) {
+        if self.observe_runtime_statuses(event_sender, observation) {
+            self.reconcile_streams(
+                backends,
+                #[cfg(all(feature = "analysis", feature = "playback"))]
+                managed_render_runtime,
+            );
+            self.publish_state(event_sender, observation);
+            return;
+        }
         let now = Instant::now();
         if !force
             && self
@@ -178,6 +189,29 @@ impl DeviceRuntime {
             managed_render_runtime,
         );
         self.publish_state(event_sender, observation);
+    }
+
+    fn observe_runtime_statuses(
+        &mut self,
+        event_sender: &SyncSender<AudioEvent>,
+        observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    ) -> bool {
+        let now_ms = elapsed_millis();
+        let input_failed = observe_runtime_status(
+            &mut self.supervisor.input,
+            self.input_stream.as_deref(),
+            now_ms,
+            event_sender,
+            observation,
+        );
+        let output_failed = observe_runtime_status(
+            &mut self.supervisor.output,
+            self.output_stream.as_deref(),
+            now_ms,
+            event_sender,
+            observation,
+        );
+        input_failed || output_failed
     }
 
     fn reconcile_streams(
@@ -209,6 +243,7 @@ impl DeviceRuntime {
             &mut self.input_stream,
             &mut self.input_handler_active,
             backends,
+            inspector.devices.as_slice(),
             configuration.input.buffer_policy,
             StreamShape {
                 sample_rate,
@@ -222,6 +257,7 @@ impl DeviceRuntime {
             &mut self.output_stream,
             &mut self.output_handler_active,
             backends,
+            inspector.devices.as_slice(),
             configuration.output.buffer_policy,
             StreamShape {
                 sample_rate,
@@ -280,17 +316,54 @@ impl DeviceRuntime {
     }
 }
 
+fn observe_runtime_status(
+    direction: &mut crate::SupervisorDirection,
+    stream: Option<&dyn AudioStream>,
+    now_ms: u64,
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+) -> bool {
+    let Some(stream) = stream else {
+        return false;
+    };
+    let status = stream.status();
+    if status.readiness == crate::AudioDeviceReadiness::Ready {
+        if let Some(error) = status.error {
+            publish_event(
+                event_sender,
+                observation,
+                AudioEvent::Diagnostic(
+                    crate::DiagnosticEvent::new(
+                        crate::DiagnosticSeverity::Warning,
+                        "audio_stream_runtime_warning",
+                        error.message,
+                    )
+                    .with_context("direction", format!("{:?}", status.direction))
+                    .with_context("category", format!("{:?}", error.category)),
+                ),
+            );
+        }
+        false
+    } else {
+        direction.report_runtime_status(now_ms, &status)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 struct StreamShape {
     sample_rate: u32,
     channels: usize,
 }
 
+// Stream reconciliation needs both the supervisor state and the discovered host
+// inventory; keeping those inputs explicit avoids hiding backend I/O in a context object.
+#[allow(clippy::too_many_arguments)]
 fn reconcile_direction(
     direction: &mut crate::SupervisorDirection,
     stream: &mut Option<Box<dyn AudioStream>>,
     handler_active: &mut bool,
     backends: &[Arc<dyn AudioBackend>],
+    _devices: &[crate::AudioDeviceDescriptor],
     buffer_policy: crate::AudioBufferPolicy,
     shape: StreamShape,
     #[cfg(all(feature = "analysis", feature = "playback"))] mut managed_render_runtime: Option<
@@ -342,10 +415,17 @@ fn reconcile_direction(
             let uses_managed_handler = backend.supports_stream_handlers() && managed_render_runtime.is_some();
             #[cfg(all(feature = "analysis", feature = "playback"))]
             let prepared = if uses_managed_handler {
+                let callback_buffer_frames = match negotiated_buffer_frames(_devices, &request) {
+                    Ok(frames) => frames,
+                    Err(error) => {
+                        direction.report_open_error(elapsed_millis(), error);
+                        return;
+                    }
+                };
                 let runtime = managed_render_runtime
                     .as_deref_mut()
                     .expect("managed handler use requires a managed runtime");
-                match runtime.prepare_stream_handler(stream_direction, channels) {
+                match runtime.prepare_stream_handler(stream_direction, channels, callback_buffer_frames) {
                     Ok(handler) => {
                         *handler_active = true;
                         backend.open_stream_with_handler(&request, handler)
@@ -448,16 +528,30 @@ fn disable_managed_stream_handler(
     }
 }
 
-fn stream_channel_count(
-    status: &crate::AudioStreamStatus,
+#[cfg(all(feature = "analysis", feature = "playback"))]
+fn negotiated_buffer_frames(
     devices: &[crate::AudioDeviceDescriptor],
+    request: &StreamRequest,
+) -> Result<u32, AudioError> {
+    let device = selected_device(devices, &request.target, request.direction).ok_or_else(|| {
+        AudioError::new(
+            AudioErrorCategory::DeviceMissing,
+            "selected audio device disappeared before stream negotiation",
+        )
+    })?;
+    DeviceNegotiator
+        .negotiate(device, request.negotiation_request())
+        .map(|format| format.buffer_frames)
+}
+
+fn selected_device<'a>(
+    devices: &'a [crate::AudioDeviceDescriptor],
+    target: &crate::AudioDeviceTargetId,
     direction: crate::AudioDirection,
-    required_channels: usize,
-) -> usize {
-    let selected = status.selected_target.as_ref();
-    let selected_device = devices.iter().find(|device| {
+) -> Option<&'a crate::AudioDeviceDescriptor> {
+    devices.iter().find(|device| {
         device.supports(direction)
-            && selected.is_some_and(|target| match target {
+            && match target {
                 crate::AudioDeviceTargetId::Device { .. } => device.target == *target,
                 crate::AudioDeviceTargetId::SystemDefault { backend } => {
                     device.target.backend() == backend
@@ -466,12 +560,24 @@ fn stream_channel_count(
                             crate::AudioDirection::Output => device.is_system_default_output,
                         }
                 }
-            })
-    });
-    let discovered_channels = selected_device.map_or(0, |device| match direction {
-        crate::AudioDirection::Input => device.input_channels.len(),
-        crate::AudioDirection::Output => device.output_channels.len(),
-    });
+            }
+    })
+}
+
+fn stream_channel_count(
+    status: &crate::AudioStreamStatus,
+    devices: &[crate::AudioDeviceDescriptor],
+    direction: crate::AudioDirection,
+    required_channels: usize,
+) -> usize {
+    let discovered_channels = status
+        .selected_target
+        .as_ref()
+        .and_then(|target| selected_device(devices, target, direction))
+        .map_or(0, |device| match direction {
+            crate::AudioDirection::Input => device.input_channels.len(),
+            crate::AudioDirection::Output => device.output_channels.len(),
+        });
     discovered_channels.max(required_channels).max(1)
 }
 

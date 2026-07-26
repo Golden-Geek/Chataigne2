@@ -26,6 +26,22 @@ cargo run -p golden_audio --example backend_probe
 cargo run -p golden_audio --example backend_smoke
 ```
 
+The managed callback path has a release-mode endurance gate that runs the medium reference
+workload against the system default output, cycles the stream every ten minutes, and emits a
+machine-readable report:
+
+```sh
+cargo run --release -p golden_audio --example managed_device_soak -- \
+  --seconds 3600 \
+  --recovery-seconds 600 \
+  --report target/golden-audio-managed-soak.json
+```
+
+The fixture is a temporary stereo PCM signal played at `-96 dB` per voice. The runner excludes
+device and playback warm-up, fails on callback XRuns, backend runtime warnings, deadline misses,
+queue pressure, analysis drops, non-silent-signal loss, or incomplete recovery, and removes the
+fixture on exit.
+
 ASIO, JACK, native PipeWire, and real-time DBus integration are exposed through platform
 qualification features documented in the
 [toolchain policy](../../docs/reference/toolchain.md#native-audio-prerequisites). Applications
@@ -45,6 +61,11 @@ bounded input/output callback bridges, and advances from the paced null clock wh
 callback is consuming. Finished and stopped voice ownership is returned to the control thread for
 destruction in both modes. Decoder completions carry command generations, so stopping or replacing
 a playback ID cannot start a stale decode.
+
+Managed output queues are sized from the negotiated callback buffer. Startup and recovery prefill
+three callback periods on the engine clock before the stream starts, then switch to callback-driven
+refill after the first callback. This bounds startup latency while avoiding artificial render
+bursts, callback starvation, and writes into retired bridges.
 
 The supported extension list has one Rust source and is included in the generated TypeScript
 contract. Raw AAC and WMA are intentionally not advertised.

@@ -4,6 +4,8 @@ use allocation_counter::measure;
 
 use super::{ReferenceWorkload, ReferenceWorkloadHarness};
 
+mod device_soak;
+
 #[test]
 fn small_reference_workload_is_finite_active_and_allocation_free_after_warmup() {
     let mut harness = ReferenceWorkloadHarness::new(ReferenceWorkload::Small).unwrap();
