@@ -167,6 +167,39 @@ fn worker_overload_drops_analysis_frames_without_rejecting_audio_capture() {
 }
 
 #[test]
+fn worker_processes_a_bounded_burst_without_discarding_intermediate_frames() {
+    let plan = analysis_plan();
+    let (mut controller, mut renderer) =
+        analysis_pipeline(ConfigGeneration::new(12), &plan, &EngineLimits::default()).unwrap();
+    let observations = controller.observations();
+    let frames = 2_048 + 3 * 1_024;
+    let mut inputs = PlanarBuffer::new(1, frames).unwrap();
+    for frame in 0..frames {
+        inputs.set_sample(
+            0,
+            frame,
+            (std::f32::consts::TAU * 220.0 * frame as f32 / 48_000.0).sin(),
+        );
+    }
+    renderer.capture_inputs(&inputs, frames, 0).unwrap();
+
+    let mut diagnostics = observations.latest().diagnostics;
+    for _ in 0..100 {
+        diagnostics = observations.latest().diagnostics;
+        if diagnostics.processed_frames == 4 {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+
+    assert_eq!(diagnostics.captured_frames, 4);
+    assert_eq!(diagnostics.processed_frames, 4);
+    assert_eq!(diagnostics.dropped_frames, 0);
+    controller.shutdown().unwrap();
+    renderer.into_retirement().reclaim();
+}
+
+#[test]
 fn warmed_render_with_meter_publication_and_analysis_capture_does_not_allocate() {
     let plan = analysis_plan();
     let (mut controller, renderer) =

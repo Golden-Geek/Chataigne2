@@ -19,6 +19,9 @@ use super::{
     ChannelObservation, MeterAccumulator, PitchAnalyzer, SpectrumAnalyzer,
 };
 
+// Covers short host-scheduler stalls while keeping overload memory strictly bounded.
+const BUFFERED_FRAMES_PER_ANALYSIS_TAP: usize = 4;
+
 #[derive(Debug)]
 struct AtomicChannelObservation {
     rms_linear: AtomicU32,
@@ -465,7 +468,11 @@ pub fn analysis_pipeline(
         diagnostics: SharedDiagnostics::default(),
         shutdown: AtomicBool::new(false),
     });
-    let slot_count = plan.analysis_taps.len().saturating_mul(2).max(1);
+    let slot_count = plan
+        .analysis_taps
+        .len()
+        .saturating_mul(BUFFERED_FRAMES_PER_ANALYSIS_TAP)
+        .max(1);
     let (reader, writer) = analysis_frame_pool(slot_count, limits.max_fft_frames as usize)?;
     let input_meters = MeterAccumulator::new(plan.virtual_inputs.clone(), plan.rms_window_frames as usize)?;
     let output_meters = MeterAccumulator::new(plan.virtual_outputs.clone(), plan.rms_window_frames as usize)?;
@@ -502,59 +509,46 @@ pub fn analysis_pipeline(
 }
 
 fn run_worker(mut reader: AnalysisFrameReader, mut taps: Vec<WorkerTap>, shared: Arc<SharedAnalysis>) {
-    let mut newest_frames = (0..taps.len()).map(|_| None).collect::<Vec<_>>();
     while !shared.shutdown.load(Ordering::Acquire) {
-        let mut received = false;
-        while let Some(frame) = reader.try_recv() {
-            if shared.shutdown.load(Ordering::Acquire) {
-                let _ = reader.recycle(frame);
-                break;
-            }
-            received = true;
-            let tag = frame.tag();
-            let Some(tap) = taps.get(usize::from(tag.tap_index)) else {
-                shared.diagnostics.stale_frames.fetch_add(1, Ordering::Relaxed);
-                let _ = reader.recycle(frame);
-                continue;
-            };
-            if tag.topology_generation != shared.generation.get() || !tap.enabled.load(Ordering::Acquire) {
-                shared.diagnostics.stale_frames.fetch_add(1, Ordering::Relaxed);
-                let _ = reader.recycle(frame);
-                continue;
-            }
-            if let Some(stale) = newest_frames[usize::from(tag.tap_index)].replace(frame) {
-                shared.diagnostics.dropped_frames.fetch_add(1, Ordering::Relaxed);
-                let _ = reader.recycle(stale);
-            }
-        }
-        for (tap_index, pending) in newest_frames.iter_mut().enumerate() {
-            let Some(frame) = pending.take() else {
-                continue;
-            };
-            let tap = &mut taps[tap_index];
-            let started_at = Instant::now();
-            let result = tap.analyzer.analyze(frame.samples());
-            let elapsed = u64::try_from(started_at.elapsed().as_micros()).unwrap_or(u64::MAX);
-            shared
-                .diagnostics
-                .worker_time_micros
-                .fetch_add(elapsed, Ordering::Relaxed);
-            shared
-                .diagnostics
-                .maximum_worker_time_micros
-                .fetch_max(elapsed, Ordering::Relaxed);
-            shared.diagnostics.processed_frames.fetch_add(1, Ordering::Relaxed);
-            if tap.enabled.load(Ordering::Acquire)
-                && let Ok(result) = result
-                && let Ok(mut observations) = shared.taps.write()
-                && let Some(observation) = observations.get_mut(tap_index)
-            {
-                observation.result = Some(result);
-            }
-            let _ = reader.recycle(frame);
-        }
-        if !received {
+        let Some(frame) = reader.try_recv() else {
             thread::park_timeout(Duration::from_millis(5));
+            continue;
+        };
+        if shared.shutdown.load(Ordering::Acquire) {
+            let _ = reader.recycle(frame);
+            break;
         }
+        let tag = frame.tag();
+        let tap_index = usize::from(tag.tap_index);
+        let Some(tap) = taps.get_mut(tap_index) else {
+            shared.diagnostics.stale_frames.fetch_add(1, Ordering::Relaxed);
+            let _ = reader.recycle(frame);
+            continue;
+        };
+        if tag.topology_generation != shared.generation.get() || !tap.enabled.load(Ordering::Acquire) {
+            shared.diagnostics.stale_frames.fetch_add(1, Ordering::Relaxed);
+            let _ = reader.recycle(frame);
+            continue;
+        }
+        let started_at = Instant::now();
+        let result = tap.analyzer.analyze(frame.samples());
+        let elapsed = u64::try_from(started_at.elapsed().as_micros()).unwrap_or(u64::MAX);
+        shared
+            .diagnostics
+            .worker_time_micros
+            .fetch_add(elapsed, Ordering::Relaxed);
+        shared
+            .diagnostics
+            .maximum_worker_time_micros
+            .fetch_max(elapsed, Ordering::Relaxed);
+        shared.diagnostics.processed_frames.fetch_add(1, Ordering::Relaxed);
+        if tap.enabled.load(Ordering::Acquire)
+            && let Ok(result) = result
+            && let Ok(mut observations) = shared.taps.write()
+            && let Some(observation) = observations.get_mut(tap_index)
+        {
+            observation.result = Some(result);
+        }
+        let _ = reader.recycle(frame);
     }
 }
