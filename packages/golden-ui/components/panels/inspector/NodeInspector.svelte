@@ -9,7 +9,11 @@
 	import { getContainerColorForNode, getIconURLForNode } from '../../../store/node-types';
 	import EnableButton from '../../common/EnableButton.svelte';
 	import NodeWarningBadge from '../../common/NodeWarningBadge.svelte';
-	import { resolveNodeInspector, type NodeInspectorOrder } from './node-inspector-registry';
+	import {
+		resolveNodeInspector,
+		type NodeInspectorChildFilter,
+		type NodeInspectorOrder
+	} from './node-inspector-registry';
 	import NodeAddButton from '../../common/NodeAddButton.svelte';
 	import type { Snippet } from 'svelte';
 	import Arrow from '../../common/Arrow.svelte';
@@ -355,16 +359,19 @@
 			{/if}
 		{/snippet}
 
-		{#snippet builtInChildItems(controlNodeType: String = '')}
-			{#each childNodes as child, index (child.node_id)}
+		{#snippet builtInChildItems(
+			controlNodeType: String = '',
+			renderedChildNodes: UiNodeDto[] = childNodes
+		)}
+			{#each renderedChildNodes as child, index (child.node_id)}
 				<Self
 					nodes={[child]}
 					level={level + 1}
-					order={childNodes.length === 1
+					order={renderedChildNodes.length === 1
 						? 'solo'
 						: index === 0
 							? 'first'
-							: index === childNodes.length - 1
+							: index === renderedChildNodes.length - 1
 								? 'last'
 								: ''}
 					{layoutMode}
@@ -386,10 +393,16 @@
 			</div>
 		{/snippet}
 
-		{#snippet builtInChildrenStatic(controlNodeType: String = '')}
+		{#snippet builtInChildrenStatic(
+			controlNodeType: String = '',
+			childFilter?: NodeInspectorChildFilter
+		)}
 			<div class="node-inspector-children">
 				<div class="node-inspector-children-wrapper">
-					{@render builtInChildItems(controlNodeType)}
+					{@render builtInChildItems(
+						controlNodeType,
+						childFilter ? childNodes.filter(childFilter) : childNodes
+					)}
 				</div>
 			</div>
 		{/snippet}
@@ -436,8 +449,8 @@
 				{#snippet defaultContent(content?: Snippet, extraClass: String = '')}
 					{@render builtInContent(content, extraClass)}
 				{/snippet}
-				{#snippet defaultChildren(extraClass: String = '')}
-					{@render builtInChildrenStatic(extraClass)}
+				{#snippet defaultChildren(extraClass: String = '', childFilter?: NodeInspectorChildFilter)}
+					{@render builtInChildrenStatic(extraClass, childFilter)}
 				{/snippet}
 			</CustomInspectorComponent>
 		{:else}

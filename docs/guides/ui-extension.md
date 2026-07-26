@@ -7,6 +7,8 @@ product behavior from `apps/chataigne/ui`; reusable packages never import Chatai
 
 - `packages/golden-ui` owns docking, common panels, inspector controls, context-menu plumbing,
   transport interfaces, and generated Rust protocol bindings.
+- `packages/golden-audio-ui` owns reusable audio device selection, status/error presentation,
+  generated audio DTOs, and the generic application binding.
 - `packages/golden-graph-ui` owns graph viewport, selection, slots, wires, and canvas interaction.
 - `apps/chataigne/ui/src/lib/systems/state_machine/document` owns the Chataigne state-machine projection
   over `golden_graph_ui`.
@@ -26,6 +28,7 @@ Rust DTOs are the protocol source of truth. Regenerate bindings after changing t
 
 ```text
 npm run codegen:golden-ui-protocol --workspace chataigne-ui
+npm run codegen --workspace golden_audio_ui
 npm run codegen:state-machine-protocol --workspace chataigne-ui
 ```
 

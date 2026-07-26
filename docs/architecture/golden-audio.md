@@ -228,8 +228,9 @@ envelope. Missing selections remain persisted; unresolved local routes remain au
 visible warnings so removal and undo stay atomic.
 
 The app-owned Svelte adapter only maps Sound Card connection paths and `golden_ui` intents to the
-generic device-inspector contract. It has no registration side effect. The reusable inspector and
-registry integration remain owned by the future `golden_audio_ui` package.
+generic device-inspector contract. `golden_audio_ui` owns the selector, status/error presentation,
+and explicit exact-node-type registration helper. Chataigne registers `sound_card_module` during
+app setup; importing either the adapter or reusable package has no registry side effect.
 
 ## Public surface
 

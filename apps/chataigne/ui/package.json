@@ -19,7 +19,7 @@
 		"codegen:golden-ui-protocol": "cargo run --manifest-path ../../../Cargo.toml -p golden_codegen_support --bin golden_codegen -- ui-protocol ../../../packages/golden-ui/generated/rust_protocol",
 		"codegen:state-machine-protocol": "cargo run --manifest-path ../../../Cargo.toml -p chataigne_state_machine --bin generate_state_machine_protocol -- src/lib/systems/state_machine/generated",
 		"codegen:sound-card-protocol": "cargo run --manifest-path ../../../Cargo.toml -p chataigne_sound_card_protocol --bin generate_sound_card_protocol -- src/lib/modules/audio/sound-card/generated",
-		"prepare": "npm run codegen:golden-graph-ui && npm run codegen:golden-ui-protocol && npm run codegen:state-machine-protocol && npm run codegen:sound-card-protocol && svelte-kit sync || echo ''",
+		"prepare": "npm run codegen:golden-graph-ui && npm run codegen:golden-ui-protocol && npm run codegen --workspace golden_audio_ui && npm run codegen:state-machine-protocol && npm run codegen:sound-card-protocol && svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"smoke:ui": "node ./scripts/ui-browser-tools.mjs smoke",
@@ -46,6 +46,7 @@
 		"@codemirror/theme-one-dark": "^6.1.3",
 		"codemirror": "^6.0.2",
 		"dockview-core": "^7.0.2",
+		"golden_audio_ui": "*",
 		"golden_graph_ui": "*",
 		"golden_ui": "*"
 	}

@@ -1,37 +1,15 @@
 import type { NodeId, ParamValue, UiNodeDto } from 'golden_ui';
 import { appState } from 'golden_ui/store/workbench.svelte';
 import { sendSetParamIntent } from 'golden_ui/store/ui-intents';
-import type {
-	AudioBufferPolicy,
-	AudioDeviceInspectorState,
-	AudioDeviceTargetId,
-	AudioRecoveryPolicy,
-	AudioStreamStatus,
-	SoundCardUiTelemetryDto
-} from './generated';
+import {
+	createGoldenAudioDeviceParameterBinding,
+	type AudioDeviceInspectorBinding,
+	type AudioDeviceInspectorState,
+	type AudioStreamStatus
+} from 'golden_audio_ui';
+import type { SoundCardUiTelemetryDto } from './generated';
 
 export const SOUND_CARD_TELEMETRY_TOPIC = 'chataigne.sound_card.telemetry';
-
-export type IntentResult = boolean;
-
-/**
- * Structural contract consumed by the reusable Golden audio inspector in Phase 12.
- *
- * This app adapter intentionally has no registry side effect. It translates
- * Chataigne's persisted node paths into ordinary golden_ui edit intents.
- */
-export interface AudioDeviceInspectorBinding {
-	readonly state: AudioDeviceInspectorState;
-	setInputEnabled(enabled: boolean): Promise<IntentResult>;
-	selectInputTarget(target: AudioDeviceTargetId): Promise<IntentResult>;
-	setOutputEnabled(enabled: boolean): Promise<IntentResult>;
-	selectOutputTarget(target: AudioDeviceTargetId): Promise<IntentResult>;
-	setRecoveryPolicy(policy: AudioRecoveryPolicy): Promise<IntentResult>;
-	setSampleRate(rate: number): Promise<IntentResult>;
-	setBufferPolicy(policy: AudioBufferPolicy): Promise<IntentResult>;
-	setFixedBufferFrames(frames: number): Promise<IntentResult>;
-	refreshDevices(): Promise<void>;
-}
 
 const disabledStream = (direction: 'input' | 'output'): AudioStreamStatus => ({
 	direction,
@@ -58,11 +36,6 @@ const emptyState = (): AudioDeviceInspectorState => ({
 	engine_sample_rate: 48_000,
 	buffer_policy: { kind: 'automatic' }
 });
-
-export const audioDeviceTargetParamValue = (target: AudioDeviceTargetId): string =>
-	target.kind === 'system_default'
-		? JSON.stringify({ kind: 'system_default', backend: target.backend })
-		: JSON.stringify({ kind: 'device', backend: target.backend, device: target.device });
 
 const childByKey = (parent: UiNodeDto, key: string): UiNodeDto | null => {
 	const nodes = appState.session?.graph.state.nodesById;
@@ -94,86 +67,49 @@ const setParameter = async (
 	moduleId: NodeId,
 	path: string,
 	value: ParamValue
-): Promise<IntentResult> => {
+): Promise<boolean> => {
 	const node = nodeAtPath(moduleId, path);
 	if (!node || node.data.kind !== 'parameter') return false;
 	return sendSetParamIntent(node.node_id, value, node.data.param.event_behaviour);
 };
 
-export class ChataigneAudioDeviceInspectorAdapter implements AudioDeviceInspectorBinding {
-	readonly moduleId: NodeId;
-
-	constructor(moduleId: NodeId) {
-		this.moduleId = moduleId;
-	}
-
-	get state(): AudioDeviceInspectorState {
-		return (
-			appState.session?.getCustomEventPayload<SoundCardUiTelemetryDto>(
-				SOUND_CARD_TELEMETRY_TOPIC,
-				this.moduleId
-			)?.device ?? emptyState()
-		);
-	}
-
-	setInputEnabled(enabled: boolean): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/input_enabled', { kind: 'bool', value: enabled });
-	}
-
-	selectInputTarget(target: AudioDeviceTargetId): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/input_device', {
-			kind: 'enum',
-			value: audioDeviceTargetParamValue(target)
-		});
-	}
-
-	setOutputEnabled(enabled: boolean): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/output_enabled', {
-			kind: 'bool',
-			value: enabled
-		});
-	}
-
-	selectOutputTarget(target: AudioDeviceTargetId): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/output_device', {
-			kind: 'enum',
-			value: audioDeviceTargetParamValue(target)
-		});
-	}
-
-	setRecoveryPolicy(policy: AudioRecoveryPolicy): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/recovery_policy', {
-			kind: 'enum',
-			value: policy
-		});
-	}
-
-	setSampleRate(rate: number): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/engine_sample_rate', {
-			kind: 'int',
-			value: Math.round(rate)
-		});
-	}
-
-	setBufferPolicy(policy: AudioBufferPolicy): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/buffer_policy', {
-			kind: 'enum',
-			value: policy.kind
-		});
-	}
-
-	setFixedBufferFrames(frames: number): Promise<IntentResult> {
-		return setParameter(this.moduleId, 'connection/fixed_buffer_frames', {
-			kind: 'int',
-			value: Math.round(frames)
-		});
-	}
-
-	async refreshDevices(): Promise<void> {
-		await setParameter(this.moduleId, 'connection/refresh_devices', { kind: 'trigger' });
-	}
-}
+const parameterTargets = {
+	inputEnabled: 'connection/input_enabled',
+	inputTarget: 'connection/input_device',
+	outputEnabled: 'connection/output_enabled',
+	outputTarget: 'connection/output_device',
+	recoveryPolicy: 'connection/recovery_policy',
+	sampleRate: 'connection/engine_sample_rate',
+	bufferPolicy: 'connection/buffer_policy',
+	fixedBufferFrames: 'connection/fixed_buffer_frames',
+	refreshDevices: 'connection/refresh_devices'
+} as const;
 
 export const createSoundCardAudioDeviceInspectorAdapter = (
 	moduleId: NodeId
-): AudioDeviceInspectorBinding => new ChataigneAudioDeviceInspectorAdapter(moduleId);
+): AudioDeviceInspectorBinding =>
+	createGoldenAudioDeviceParameterBinding(
+		{
+			get state() {
+				return (
+					appState.session?.getCustomEventPayload<SoundCardUiTelemetryDto>(
+						SOUND_CARD_TELEMETRY_TOPIC,
+						moduleId
+					)?.device ?? emptyState()
+				);
+			},
+			get fixedBufferFrames() {
+				const parameter = nodeAtPath(moduleId, parameterTargets.fixedBufferFrames);
+				if (parameter?.data.kind !== 'parameter') return undefined;
+				const value = parameter.data.param.value;
+				return value.kind === 'int' ? value.value : undefined;
+			},
+			setParameter(target, value) {
+				return typeof target === 'string'
+					? setParameter(moduleId, target, value)
+					: Promise.resolve(false);
+			}
+		},
+		parameterTargets,
+		['connection']
+	);

@@ -6,6 +6,7 @@ import AnimationCurveNodeInspector from './nodes/AnimationCurveNodeInspector.sve
 import GradientNodeInspector from './nodes/GradientNodeInspector.svelte';
 
 export type NodeInspectorOrder = 'first' | 'last' | 'solo' | '';
+export type NodeInspectorChildFilter = (node: UiNodeDto) => boolean;
 
 export interface NodeInspectorComponentProps {
 	node: UiNodeDto;
@@ -20,7 +21,7 @@ export interface NodeInspectorComponentProps {
 	setCollapsed?: (collapsed: boolean) => void;
 	defaultHeader?: Snippet<[Snippet?]>;
 	defaultContent?: Snippet<[Snippet?, String?]>;
-	defaultChildren?: Snippet<[String?]>;
+	defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
 	referencePickerViews?: NodePickerModalView[];
 }
 

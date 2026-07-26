@@ -67,6 +67,8 @@ for the exact convention.
 
 - `packages/golden-ui/`: reusable workbench, stores, transport adapters, and generated Rust
   protocol bindings.
+- `packages/golden-audio-ui/`: reusable audio device selection/status UI and generated
+  `golden_audio` contracts.
 - `packages/golden-graph-ui/`: domain-neutral graph canvas.
 - `apps/chataigne/ui/src/lib/systems/alchemist/`: Formula, condition, processor, input, filter, and
   output UI.

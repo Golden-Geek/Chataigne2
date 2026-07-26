@@ -7,6 +7,7 @@
 		type PanelSpawnRequest,
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
+	import { registerGoldenAudioDeviceInspector } from 'golden_audio_ui';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
 	import { resolveRuntimeEndpoints } from '$lib/runtimeEndpoints';
 	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
@@ -25,6 +26,7 @@
 	import StateMachinePanel from '$lib/systems/state_machine/components/StateMachinePanel.svelte';
 	import { registerSharedFormulaRemovalGuard } from '$lib/systems/alchemist/sharedFormulaRemoval';
 	import { registerProcessorLaneParameterPreviews } from '$lib/systems/alchemist/preview/processorLaneInspection.svelte';
+	import { createSoundCardAudioDeviceInspectorAdapter } from '$lib/modules/audio/sound-card/audio-device-inspector-adapter.svelte';
 
 	registerSharedFormulaRemovalGuard();
 	registerProcessorLaneParameterPreviews();
@@ -52,6 +54,9 @@
 		component: ModuleNodeInspector,
 		panelHeaderComponent: ModuleInspectorPanelHeader
 	});
+	registerGoldenAudioDeviceInspector('sound_card_module', (node) =>
+		createSoundCardAudioDeviceInspectorAdapter(node.node_id)
+	);
 
 	registerNodeInspector('state_processor', {
 		component: ProcessorFormulaInspector,

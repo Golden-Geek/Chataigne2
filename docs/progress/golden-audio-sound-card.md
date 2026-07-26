@@ -26,12 +26,13 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 11 - commands, multiplexing, scripts, and callbacks.
+- Current phase: Phase 12 - reusable Golden Audio device inspector.
 - Status: implementation and local qualification complete.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
-- Phase 11 checkpoint: this change (`feat(chataigne): expose Sound Card commands and scripting`).
-- Stop boundary: Phase 12 reusable `golden_audio_ui` work has not started.
+- Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
+- Phase 12 checkpoint: this change (`feat(audio-ui): add reusable Golden audio device inspector`).
+- Stop boundary: Phase 13 module-editor registry and full Sound Card editor work has not started.
 
 ## Decisions
 
@@ -460,10 +461,35 @@ The Chataigne-owned command and scripting boundary now provides:
 
 Phase 11 deliberately leaves reusable device-inspector presentation and registration to Phase 12.
 
+## Phase 12 implementation
+
+The reusable UI boundary now provides:
+
+- a `golden_audio_ui` npm workspace package whose generated TypeScript device contract comes
+  directly from the Rust `golden_audio` DTOs and has a deterministic drift check;
+- `AudioDeviceSelector` with separate input/output enablement and backend-grouped native selectors,
+  stable and persisted-missing targets, backend/readiness/permission presentation, negotiated
+  format and latency summaries, shared recovery/sample-rate/buffer controls, and nonblocking
+  refresh;
+- structured diagnostics with expandable technical detail, visible focus, semantic labels, native
+  keyboard interaction, and live status announcements without color-only meaning;
+- a generic binding contract plus a reusable declared-path/node-ID parameter adapter that emits
+  ordinary `golden_ui` parameter intents and contains no device or negotiation policy;
+- explicit exact-node-type registration, unregister, binding resolution, and deterministic test
+  reset helpers with no import-time registry side effects;
+- a Chataigne-independent mock adapter and standalone consumer;
+- a narrow `golden_ui` default-child filter hook so a custom inspector can render app children
+  while omitting only the parameter folder represented by the custom presentation; and
+- Chataigne registration for `sound_card_module`, using the generic parameter binding to map the
+  existing connection folder and hiding that one duplicated folder below the reusable selector.
+
+Phase 12 deliberately leaves the module-editor descriptor registry, full Sound Card editor,
+matrices, meters, playback controls, analysis controls, and product diagnostics to Phase 13.
+
 ## Commands and evidence
 
 | Command / inspection | Result |
-| --- | --- |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `git branch --show-current` | PASS — `main` |
 | `git rev-parse HEAD` | PASS — `c9cf6992326294475dbc4c9e9b1d5b8558130318` |
 | `git rev-parse main` | PASS — matches HEAD |
@@ -599,6 +625,14 @@ Phase 11 deliberately leaves reusable device-inspector presentation and registra
 | `cargo clippy -p Chataigne2 --all-targets` after Phase 11 | PASS - existing workspace warnings only; no Sound Card warning remained |
 | Phase 11 strict app all-target Clippy | FAIL before reaching the app on the existing Alchemist condition argument-count lint; allowing that lint exposed the broader pre-existing Golden Core/Alchemist warning backlog |
 | Root and Golden Core formatting plus `--check` after Phase 11 | PASS |
+| `npm run check --workspace golden_audio_ui` after Phase 12 | PASS - 0 errors and 0 warnings |
+| `npm run check:generated --workspace golden_audio_ui` after Phase 12 | PASS - all 45 generated files match the Rust DTO exporter |
+| `npm test --workspace golden_audio_ui` after Phase 12 | PASS - 21 tests in 5 files |
+| `npm run check --workspace chataigne-ui` after Phase 12 | PASS - 0 errors and 0 warnings |
+| `npm test --workspace chataigne-ui` after Phase 12 | PASS - 18 tests in 7 files |
+| `npm run build --workspace chataigne-ui` after Phase 12 | PASS - static production build completed; only the existing chunk-size advisory was emitted |
+| Phase 12 npm workspace dependency/license audit | PASS - `golden_audio_ui` resolves only its `golden_ui` dependency and Svelte peer; all five npm workspaces report `GPL-3.0-only` |
+| Root `npm run check` and `npm test` after Phase 12 | PASS - package codegen/type checks plus 21 package and 18 app tests |
 | Product run modes | NOT RUN |
 | Cross-platform backend/hardware matrix | NOT RUN |
 
@@ -755,7 +789,37 @@ Phase 10:
 - `docs/architecture/golden-audio.md`
 - `docs/progress/golden-audio-sound-card.md`
 
+Phase 11:
+
+- `apps/chataigne/src/module/modules/audio/sound_card/`
+- `apps/chataigne/src/module/script_api/`
+- `apps/chataigne/src/module/script_templates/sound_card_module.js`
+- `apps/chataigne/src/module/script_templates/snippets/sound_card_*.js`
+- `crates/golden_audio/src/control/`
+- `crates/golden_audio/src/tests/engine.rs`
+- `docs/guides/module-scripting.md`
+- `docs/progress/golden-audio-sound-card.md`
+
+Phase 12:
+
+- `packages/golden-audio-ui/`
+- `packages/golden-ui/components/panels/inspector/`
+- `packages/golden-ui/index.ts`
+- `packages/golden-ui/store/platform.svelte.ts`
+- `apps/chataigne/ui/README.md`
+- `apps/chataigne/ui/package.json`
+- `apps/chataigne/ui/src/lib/modules/audio/sound-card/audio-device-inspector-adapter.svelte.ts`
+- `apps/chataigne/ui/src/routes/+page.svelte`
+- `package.json`
+- `package-lock.json`
+- `README.md`
+- `docs/architecture/golden-audio.md`
+- `docs/guides/ui-extension.md`
+- `docs/reference/contributor-map.md`
+- `docs/reference/repository-layout.md`
+- `docs/progress/golden-audio-sound-card.md`
+
 ## Remaining work
 
-Phases 11-15 remain. Work is intentionally stopped at the completed Phase 10 runtime-integration
+Phases 13-15 remain. Work is intentionally stopped at the completed Phase 12 reusable-inspector
 boundary.

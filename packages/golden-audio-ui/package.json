@@ -1,0 +1,30 @@
+{
+	"name": "golden_audio_ui",
+	"private": true,
+	"version": "0.1.0",
+	"license": "GPL-3.0-only",
+	"type": "module",
+	"svelte": "./index.ts",
+	"types": "./index.ts",
+	"exports": {
+		".": {
+			"types": "./index.ts",
+			"svelte": "./index.ts",
+			"default": "./index.ts"
+		},
+		"./generated": "./generated/index.ts",
+		"./mock": "./mock.svelte.ts"
+	},
+	"scripts": {
+		"codegen": "cargo run --manifest-path ../../Cargo.toml -p golden_audio --features codegen --bin generate_golden_audio_contract -- generated",
+		"check": "svelte-check --tsconfig ./tsconfig.json",
+		"check:generated": "node ./scripts/check-generated.mjs",
+		"test": "vitest run"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"dependencies": {
+		"golden_ui": "*"
+	}
+}

@@ -106,9 +106,11 @@ export {
 	registerNodeInspector,
 	registerNodeInspectors,
 	unregisterNodeInspector,
-	clearCustomNodeInspectors
+	clearCustomNodeInspectors,
+	resolveNodeInspector
 } from './components/panels/inspector/node-inspector-registry';
 export type {
+	NodeInspectorChildFilter,
 	NodeInspectorComponentProps,
 	NodeInspectorEntry,
 	NodeInspectorOrder,

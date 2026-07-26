@@ -24,6 +24,7 @@ runtime boundary and its side-effect-safety rules.
 and context contracts that graph packages build upon.
 [Graph Foundation](docs/architecture/graph-foundation.md) describes the typed graph-domain,
 transaction, revision, topology, presentation, traversal, and persistence contract.
+
 - protocol declarations and code generation are moving toward a single source of truth.
 - `cargo run` and the built app now ship the UI bundle and serve it from the built-in Rust host by default, so the desktop app does not depend on a separate Vite process to be usable.
 - `cargo run -- --dev` launches against the live Svelte/Vite dev server from
@@ -69,6 +70,7 @@ the machine without launching the app.
 - `crates/golden_core/`: reusable backend framework, grouped by responsibility.
 - `crates/golden_graph/`: reusable graph document and transaction system.
 - `packages/golden-ui/`: reusable application workbench and dock UI package.
+- `packages/golden-audio-ui/`: reusable audio device inspector and generated audio UI contracts.
 - `packages/golden-graph-ui/`: reusable infinite node-graph canvas package.
 - `Cargo.toml` and `package.json`: the single root Rust and JavaScript workspaces.
 

@@ -15,8 +15,8 @@
   "scripts": {
     "dev": "npm run dev --workspace chataigne-ui",
     "build": "npm run build --workspace chataigne-ui",
-    "test": "npm run test --workspace chataigne-ui",
-    "check": "npm run check --workspace chataigne-ui",
+    "test": "npm run test --workspace golden_audio_ui && npm run test --workspace chataigne-ui",
+    "check": "npm run check --workspace golden_audio_ui && npm run check:generated --workspace golden_audio_ui && npm run check --workspace chataigne-ui",
     "lint": "npm run lint --workspace chataigne-ui",
     "format": "npm run format --workspace chataigne-ui",
     "package": "node tools/release/check-signing.mjs && npm run build && npm exec -- tauri build --config apps/chataigne/tauri.conf.json",
