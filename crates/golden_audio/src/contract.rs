@@ -20,6 +20,7 @@ export type { AudioBackendStatus } from './AudioBackendStatus';\n\
 export type { AudioBufferPolicy } from './AudioBufferPolicy';\n\
 export type { AudioChannelId } from './AudioChannelId';\n\
 export type { AudioDeviceDescriptor } from './AudioDeviceDescriptor';\n\
+export type { AudioDeviceCatalogEntry } from './AudioDeviceCatalogEntry';\n\
 export type { AudioDeviceFingerprint } from './AudioDeviceFingerprint';\n\
 export type { AudioDeviceId } from './AudioDeviceId';\n\
 export type { AudioDeviceInspectorState } from './AudioDeviceInspectorState';\n\

@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+use std::{
+    sync::{
+        Arc, OnceLock,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    },
+    thread::Thread,
 };
 
 use rtrb::{Consumer, Producer, RingBuffer};
@@ -42,6 +45,7 @@ struct SharedStreamState {
     end_of_file: AtomicBool,
     cancelled: AtomicBool,
     failed: AtomicBool,
+    writer_wake: OnceLock<Thread>,
 }
 
 impl SharedStreamState {
@@ -118,6 +122,11 @@ impl StreamPlaybackWriter {
         self.shared.snapshot()
     }
 
+    #[cfg(feature = "playback")]
+    pub(crate) fn register_current_thread_wake(&self) {
+        let _ = self.shared.writer_wake.set(std::thread::current());
+    }
+
     fn update_fill(&self) {
         let fill_samples = self.shared.capacity_samples.saturating_sub(self.producer.slots());
         self.shared
@@ -153,11 +162,15 @@ impl StreamPlaybackReader {
             .read_frames
             .fetch_add(u64::try_from(copied_frames).unwrap_or(u64::MAX), Ordering::Relaxed);
         self.update_fill();
+        if copied_frames > 0 {
+            self.wake_writer();
+        }
         copied_frames
     }
 
     pub fn cancel(&self) {
         self.shared.cancelled.store(true, Ordering::Release);
+        self.wake_writer();
     }
 
     #[must_use]
@@ -174,6 +187,18 @@ impl StreamPlaybackReader {
         self.shared
             .fill_frames
             .store(self.consumer.slots() / self.shared.channels, Ordering::Release);
+    }
+
+    fn wake_writer(&self) {
+        if let Some(thread) = self.shared.writer_wake.get() {
+            thread.unpark();
+        }
+    }
+}
+
+impl Drop for StreamPlaybackReader {
+    fn drop(&mut self) {
+        self.wake_writer();
     }
 }
 
@@ -201,6 +226,7 @@ pub fn streaming_playback_ring(
         end_of_file: AtomicBool::new(false),
         cancelled: AtomicBool::new(false),
         failed: AtomicBool::new(false),
+        writer_wake: OnceLock::new(),
     });
     Ok((
         StreamPlaybackWriter {

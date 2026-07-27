@@ -27,6 +27,7 @@ members = [
     "crates/golden_graph",
     "xtask",
 ]
+exclude = ["vendor/cpal-0.18.1"]
 default-members = ["apps/chataigne"]
 resolver = "2"
 
@@ -71,9 +72,11 @@ ts-rs = { version = "12", features = ["serde-json-impl", "uuid-impl"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 arc-swap = "1"
 allocation-counter = "0.8.1"
+asio-sys = "0.3.0"
+audio_thread_priority = { version = "0.35.1", default-features = false }
 base64 = "0.22.1"
 criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
-cpal = { version = "0.18.1", default-features = false }
+cpal = { version = "0.18.1", path = "vendor/cpal-0.18.1", default-features = false }
 rtrb = "0.3.4"
 rubato = { version = "4.0.0", default-features = false }
 realfft = "3.5.0"

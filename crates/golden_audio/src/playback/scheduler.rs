@@ -6,8 +6,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         mpsc::{Receiver, SyncSender, TrySendError, sync_channel},
     },
-    thread::{self, JoinHandle},
-    time::Duration,
+    thread::{self, JoinHandle, Thread},
 };
 
 use crate::{
@@ -51,12 +50,13 @@ impl PlaybackSchedulerConfig {
             || self.stream_ring_frames == 0
             || self.job_capacity == 0
             || self.result_capacity == 0
+            || self.job_capacity < usize::from(self.worker_count)
             || self.resident_asset_threshold_bytes == 0
             || self.resident_cache_budget_bytes == 0
             || self.resident_asset_threshold_bytes > self.resident_cache_budget_bytes
         {
             return Err(AudioError::invalid_configuration(
-                "playback scheduler capacities and worker count must be positive and cache threshold must fit its budget",
+                "playback scheduler capacities and worker count must be positive, job capacity must cover every worker, and cache threshold must fit its budget",
             ));
         }
         Ok(())
@@ -127,8 +127,15 @@ struct ActiveRequest {
 }
 
 #[derive(Debug)]
+struct WorkerInbox {
+    sender: SyncSender<WorkerRequest>,
+    wake: Thread,
+}
+
+#[derive(Debug)]
 pub struct PlaybackScheduler {
-    requests: Option<SyncSender<WorkerRequest>>,
+    requests: Vec<WorkerInbox>,
+    next_worker: usize,
     results: Receiver<PlaybackPreparationResult>,
     active: HashMap<PlaybackId, ActiveRequest>,
     cache: Arc<Mutex<AssetCache>>,
@@ -144,31 +151,50 @@ impl PlaybackScheduler {
             config.resident_asset_threshold_bytes,
             config.resident_cache_budget_bytes,
         )?));
-        let (request_sender, request_receiver) = sync_channel(config.job_capacity);
-        let request_receiver = Arc::new(Mutex::new(request_receiver));
         let (result_sender, result_receiver) = sync_channel(config.result_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
-        let mut workers = Vec::with_capacity(usize::from(config.worker_count));
+        let worker_count = usize::from(config.worker_count);
+        let base_capacity = config.job_capacity / worker_count;
+        let extra_capacity = config.job_capacity % worker_count;
+        let mut requests = Vec::<WorkerInbox>::with_capacity(worker_count);
+        let mut workers = Vec::<JoinHandle<()>>::with_capacity(worker_count);
         for index in 0..config.worker_count {
-            let requests = Arc::clone(&request_receiver);
+            let request_capacity = base_capacity + usize::from(usize::from(index) < extra_capacity);
+            let (request_sender, request_receiver) = sync_channel(request_capacity);
             let results = result_sender.clone();
             let worker_cache = Arc::clone(&cache);
             let worker_shutdown = Arc::clone(&shutdown);
-            let worker = thread::Builder::new()
+            let worker = match thread::Builder::new()
                 .name(format!("golden-audio-decoder-{index}"))
-                .spawn(move || run_decoder_worker(config, requests, results, worker_cache, worker_shutdown))
-                .map_err(|error| {
+                .spawn(move || {
+                    run_decoder_worker(config, request_receiver, results, worker_cache, worker_shutdown);
+                }) {
+                Ok(worker) => worker,
+                Err(error) => {
                     shutdown.store(true, Ordering::Release);
-                    AudioError::new(
+                    for inbox in &requests {
+                        inbox.wake.unpark();
+                    }
+                    requests.clear();
+                    for worker in workers.drain(..) {
+                        let _ = worker.join();
+                    }
+                    return Err(AudioError::new(
                         AudioErrorCategory::InternalInvariant,
                         format!("failed to start playback decoder worker {index}: {error}"),
-                    )
-                })?;
+                    ));
+                }
+            };
+            requests.push(WorkerInbox {
+                sender: request_sender,
+                wake: worker.thread().clone(),
+            });
             workers.push(worker);
         }
         drop(result_sender);
         Ok(Self {
-            requests: Some(request_sender),
+            requests,
+            next_worker: 0,
             results: result_receiver,
             active: HashMap::new(),
             cache,
@@ -181,28 +207,47 @@ impl PlaybackScheduler {
         assert_not_realtime("playback decode scheduling");
         if let Some(previous) = self.active.remove(&scheduled.request.playback_id) {
             previous.cancellation.store(true, Ordering::Release);
+            self.wake_workers();
         }
         let cancellation = Arc::new(AtomicBool::new(false));
         let request = WorkerRequest {
             scheduled: scheduled.clone(),
             cancellation: Arc::clone(&cancellation),
         };
-        let Some(sender) = &self.requests else {
+        if self.requests.is_empty() {
             return Err(AudioError::shutting_down());
-        };
-        match sender.try_send(request) {
-            Ok(()) => {
-                self.active.insert(
-                    scheduled.request.playback_id,
-                    ActiveRequest {
-                        sequence: scheduled.sequence,
-                        cancellation,
-                    },
-                );
-                Ok(())
+        }
+        let worker_count = self.requests.len();
+        let mut request = request;
+        let mut connected_worker = false;
+        for offset in 0..worker_count {
+            let index = (self.next_worker + offset) % worker_count;
+            match self.requests[index].sender.try_send(request) {
+                Ok(()) => {
+                    self.next_worker = (index + 1) % worker_count;
+                    self.requests[index].wake.unpark();
+                    self.active.insert(
+                        scheduled.request.playback_id,
+                        ActiveRequest {
+                            sequence: scheduled.sequence,
+                            cancellation,
+                        },
+                    );
+                    return Ok(());
+                }
+                Err(TrySendError::Full(returned)) => {
+                    connected_worker = true;
+                    request = returned;
+                }
+                Err(TrySendError::Disconnected(returned)) => {
+                    request = returned;
+                }
             }
-            Err(TrySendError::Full(_)) => Err(AudioError::queue_full("playback decoder job")),
-            Err(TrySendError::Disconnected(_)) => Err(AudioError::shutting_down()),
+        }
+        if connected_worker {
+            Err(AudioError::queue_full("playback decoder job"))
+        } else {
+            Err(AudioError::shutting_down())
         }
     }
 
@@ -212,6 +257,7 @@ impl PlaybackScheduler {
             return false;
         };
         active.cancellation.store(true, Ordering::Release);
+        self.wake_workers();
         true
     }
 
@@ -221,6 +267,7 @@ impl PlaybackScheduler {
         for (_, active) in self.active.drain() {
             active.cancellation.store(true, Ordering::Release);
         }
+        self.wake_workers();
         count
     }
 
@@ -239,6 +286,7 @@ impl PlaybackScheduler {
         assert_not_realtime("playback preparation result consumption");
         loop {
             let result = self.results.try_recv().ok()?;
+            self.wake_workers();
             let is_current = self
                 .active
                 .get(result.playback_id())
@@ -269,8 +317,12 @@ impl PlaybackScheduler {
         if self.workers.is_empty() {
             return Ok(());
         }
+        for (_, active) in self.active.drain() {
+            active.cancellation.store(true, Ordering::Release);
+        }
         self.shutdown.store(true, Ordering::Release);
-        self.requests.take();
+        self.wake_workers();
+        self.requests.clear();
         for worker in self.workers.drain(..) {
             worker.join().map_err(|_| {
                 AudioError::new(
@@ -280,6 +332,12 @@ impl PlaybackScheduler {
             })?;
         }
         Ok(())
+    }
+
+    fn wake_workers(&self) {
+        for inbox in &self.requests {
+            inbox.wake.unpark();
+        }
     }
 }
 
@@ -291,7 +349,7 @@ impl Drop for PlaybackScheduler {
 
 fn run_decoder_worker(
     config: PlaybackSchedulerConfig,
-    requests: Arc<Mutex<Receiver<WorkerRequest>>>,
+    requests: Receiver<WorkerRequest>,
     results: SyncSender<PlaybackPreparationResult>,
     cache: Arc<Mutex<AssetCache>>,
     shutdown: Arc<AtomicBool>,
@@ -299,15 +357,17 @@ fn run_decoder_worker(
     let mut streams = Vec::<ActiveStream>::new();
     let mut pending_results = VecDeque::new();
     while !shutdown.load(Ordering::Acquire) {
-        flush_results(&results, &mut pending_results);
+        let mut made_progress = flush_results(&results, &mut pending_results);
         if pending_results.len() < config.result_capacity
-            && let Some(request) = try_receive(&requests, streams.is_empty())
-            && !request.cancellation.load(Ordering::Acquire)
+            && let Some(request) = try_receive(&requests)
         {
-            match prepare_request(config, request, &cache) {
-                WorkerPreparation::Result(result) => pending_results.push_back(result),
-                WorkerPreparation::Stream(stream) => streams.push(stream),
-                WorkerPreparation::Cancelled => {}
+            made_progress = true;
+            if !request.cancellation.load(Ordering::Acquire) {
+                match prepare_request(config, request, &cache) {
+                    WorkerPreparation::Result(result) => pending_results.push_back(result),
+                    WorkerPreparation::Stream(stream) => streams.push(stream),
+                    WorkerPreparation::Cancelled => {}
+                }
             }
         }
 
@@ -315,41 +375,45 @@ fn run_decoder_worker(
         while index < streams.len() {
             let outcome = streams[index].pump(config.stream_ring_frames / 2);
             match outcome {
-                StreamPump::Keep => index += 1,
+                StreamPump::Progress => {
+                    made_progress = true;
+                    index += 1;
+                }
+                StreamPump::Blocked => index += 1,
                 StreamPump::Result(result) => {
+                    made_progress = true;
                     pending_results.push_back(result);
                     index += 1;
                 }
                 StreamPump::Finished => {
+                    made_progress = true;
                     streams.swap_remove(index);
                 }
                 StreamPump::ResultAndFinished(result) => {
+                    made_progress = true;
                     pending_results.push_back(result);
                     streams.swap_remove(index);
                 }
             }
         }
-        if streams.is_empty() {
-            thread::yield_now();
+        if !made_progress {
+            thread::park();
         }
     }
 }
 
-fn try_receive(requests: &Mutex<Receiver<WorkerRequest>>, may_wait: bool) -> Option<WorkerRequest> {
-    let Ok(receiver) = requests.lock() else {
-        return None;
-    };
-    if may_wait {
-        receiver.recv_timeout(Duration::from_millis(5)).ok()
-    } else {
-        receiver.try_recv().ok()
-    }
+fn try_receive(requests: &Receiver<WorkerRequest>) -> Option<WorkerRequest> {
+    requests.try_recv().ok()
 }
 
-fn flush_results(results: &SyncSender<PlaybackPreparationResult>, pending: &mut VecDeque<PlaybackPreparationResult>) {
+fn flush_results(
+    results: &SyncSender<PlaybackPreparationResult>,
+    pending: &mut VecDeque<PlaybackPreparationResult>,
+) -> bool {
+    let mut made_progress = false;
     while let Some(result) = pending.pop_front() {
         match results.try_send(result) {
-            Ok(()) => {}
+            Ok(()) => made_progress = true,
             Err(TrySendError::Full(result)) => {
                 pending.push_front(result);
                 break;
@@ -360,6 +424,7 @@ fn flush_results(results: &SyncSender<PlaybackPreparationResult>, pending: &mut 
             }
         }
     }
+    made_progress
 }
 
 enum WorkerPreparation {
@@ -459,6 +524,7 @@ impl ActiveStream {
         let channels = session.probe.channels;
         let (writer, reader) = streaming_playback_ring(channels, config.stream_ring_frames)
             .map_err(|error| Box::new((request.scheduled.clone(), error)))?;
+        writer.register_current_thread_wake();
         Ok(Self {
             scheduled: Some(request.scheduled),
             cancellation: request.cancellation,
@@ -479,7 +545,7 @@ impl ActiveStream {
         }
         self.flush_pending();
         if self.pending_offset < self.pending.len() {
-            return self.announce_if_primed(prime_frames);
+            return self.blocked_or_announce(prime_frames);
         }
         if self.source_ended {
             self.writer.finish();
@@ -495,7 +561,7 @@ impl ActiveStream {
                 }
                 self.pending_offset = 0;
                 self.flush_pending();
-                self.announce_if_primed(prime_frames)
+                self.progress_or_announce(prime_frames)
             }
             Ok(None) => {
                 self.resampler.finish(&mut self.pending);
@@ -509,7 +575,7 @@ impl ActiveStream {
                         None => StreamPump::Finished,
                     }
                 } else {
-                    self.announce_if_primed(prime_frames)
+                    self.blocked_or_announce(prime_frames)
                 }
             }
             Err(error) => self.fail(error),
@@ -539,11 +605,23 @@ impl ActiveStream {
         }
     }
 
-    fn announce_if_primed(&mut self, prime_frames: usize) -> StreamPump {
+    fn progress_or_announce(&mut self, prime_frames: usize) -> StreamPump {
         if self.reader.is_some() && self.writer.state().fill_frames >= prime_frames.max(1) {
-            self.take_prepared_result().map_or(StreamPump::Keep, StreamPump::Result)
+            self.take_prepared_result()
+                .map_or(StreamPump::Progress, StreamPump::Result)
+        } else if self.pending_offset < self.pending.len() {
+            StreamPump::Blocked
         } else {
-            StreamPump::Keep
+            StreamPump::Progress
+        }
+    }
+
+    fn blocked_or_announce(&mut self, prime_frames: usize) -> StreamPump {
+        if self.reader.is_some() && self.writer.state().fill_frames >= prime_frames.max(1) {
+            self.take_prepared_result()
+                .map_or(StreamPump::Blocked, StreamPump::Result)
+        } else {
+            StreamPump::Blocked
         }
     }
 
@@ -570,7 +648,8 @@ impl ActiveStream {
 }
 
 enum StreamPump {
-    Keep,
+    Progress,
+    Blocked,
     Result(PlaybackPreparationResult),
     Finished,
     ResultAndFinished(PlaybackPreparationResult),

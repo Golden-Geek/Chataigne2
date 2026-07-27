@@ -205,7 +205,7 @@ impl AudioBackend for MockBackend {
             })
     }
 
-    fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError> {
+    fn device_inventory(&self) -> Result<crate::AudioDeviceInventory, AudioError> {
         let mut state = self.shared.write().map_err(|_| {
             AudioError::new(
                 AudioErrorCategory::InternalInvariant,
@@ -231,7 +231,7 @@ impl AudioBackend for MockBackend {
                 ));
             }
         }
-        Ok(state.devices.clone())
+        Ok(crate::AudioDeviceInventory::from_devices(state.devices.clone()))
     }
 
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError> {

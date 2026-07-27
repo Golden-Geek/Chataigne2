@@ -2,7 +2,8 @@
 
 `golden_audio` is the reusable, application-agnostic audio engine. Chataigne owns the Sound Card
 product model and maps persistent project nodes to this engine. `golden_audio_ui` is the reusable
-Svelte presentation companion for device selection and stream status.
+Svelte presentation companion for driver/device selection, stream status, and channel-routing
+presentation.
 
 ## Dependency direction
 
@@ -34,19 +35,19 @@ The dependencies only point downward:
 
 ## Ownership
 
-`golden_audio` owns device discovery, stable device identities, format negotiation, streams,
-recovery, clock bridging, virtual buses, immutable render plans, routing and gain kernels, playback,
-analysis, bounded control exchange, diagnostics, offline rendering, and deterministic null/mock
-backends.
+`golden_audio` owns host-scoped device discovery, stable device identities, format negotiation,
+streams, recovery, clock bridging, internal buses, immutable render plans, routing and gain kernels,
+playback, analysis, bounded control exchange, diagnostics, offline rendering, and deterministic
+null/mock backends.
 
-Chataigne owns the `sound_card_module` tree, stable node-to-audio identity mapping, authored device
-profiles and routes, lifecycle integration, command and script surfaces, project persistence,
-reference filters, telemetry adaptation, and the full Sound Card editor.
+Chataigne owns the `sound_card_module` tree, the one-driver product policy, stable node-to-audio
+identity mapping, authored channels and direct routes, lifecycle integration, command and script
+surfaces, project persistence, reference filters, telemetry adaptation, and the Sound Card editor.
 
-`golden_audio_ui` owns the generic audio device inspector and selector, status rendering,
-accessibility behavior, and its application binding contract. An application adapter may translate
-node paths and intents, but may not invent fallback policy, device identity, format negotiation,
-route cleanup, or domain defaults.
+`golden_audio_ui` owns generic audio driver/device controls, status rendering, the SVG channel patch
+bay, accessibility behavior, and application binding contracts. An application adapter may
+translate node paths and typed intents, but may not invent fallback policy, device identity, format
+negotiation, channel counts, route cleanup, or domain defaults.
 
 ## Stable authored model and compiled runtime
 
@@ -60,26 +61,29 @@ it to a dense immutable `RenderPlan`:
    `EngineLimits`.
 5. A rejected generation leaves the last valid plan active.
 
-Virtual channel identity is independent of label, order, backend, device, and physical-channel
-index. Chataigne derives it from the persistent virtual-channel node UUID. Physical indices never
-cross the reusable engine boundary into project references, commands, or scripts.
+Channel identity is independent of label, order, driver, device, and physical-channel index.
+Chataigne derives it from the persistent channel node UUID. The engine may describe these stable
+logical endpoints as virtual channels internally, but product UI, project labels, commands, and
+scripts use the simpler input/output Channel terminology. Logical channel references use stable
+UUID-derived IDs. Backend-neutral `PhysicalChannelKey` values are the persisted endpoints of patch
+routes; backend-native device handles and array indices do not enter the authored graph.
 
 ## Signal and clock model
 
 ```text
-physical input -> format conversion -> input clock bridge -> input patch -> virtual inputs
-                                                                        |          |
-                                                                        |          +-> analysis
-                                                                        v
-                                                                 monitoring matrix
-decoded/resampled voices -> playback patch ------------------------------+
-                                                                        |
-                                                                        v
-                                                               virtual outputs
-                                                                        |
-                                              output faders -> master -> output patch
-                                                                        |
-                                      output rate/format conversion -> physical output
+physical input -> format conversion -> input clock bridge -> input routing -> input channels
+                                                                          |          |
+                                                                          |          +-> analysis
+                                                                          v
+                                                                   monitoring routes
+decoded/resampled voices -> playback routing -----------------------------+
+                                                                          |
+                                                                          v
+                                                                  output channels
+                                                                          |
+                                              output faders -> master -> output routing
+                                                                          |
+                                        output rate/format conversion -> physical output
 ```
 
 The configured engine sample rate defines timeline time. The ready output callback is the render
@@ -137,8 +141,8 @@ default features.
 
 Analysis is split at the callback boundary:
 
-- The render plan resolves stable tap IDs and virtual-input IDs to compact indices.
-- The callback accumulates virtual-input RMS/peak before monitoring and virtual-output RMS/peak
+- The render plan resolves stable tap IDs and logical input-channel IDs to compact indices.
+- The callback accumulates input-channel RMS/peak before monitoring and output-channel RMS/peak
   after output/master gain. RMS windows are frame-counted and therefore independent of backend
   callback partitioning; lock-free meter snapshots publish at the configured 1–60 Hz rate.
 - Tap capture copies newest bounded windows into a preallocated frame pool. A full worker queue
@@ -187,26 +191,50 @@ neither may delay rendering.
 
 ## Device recovery contract
 
-A selection stores backend plus stable device identity, with a fallback fingerprint and last-known
-label only where the backend lacks a durable ID. A missing selected device remains selected and is
-reported as `Missing`. Strict recovery waits and renders silence. Following the operating-system
-default is a separate explicit policy.
+Each Sound Card has one shared Audio Driver selection. Selecting `None` registers, discovers, and
+opens no native host; both hardware directions are disabled while the null clock keeps engine time
+available to non-hardware work. Selecting a driver registers and discovers only that exact host.
+Changing it retires the old host before the replacement becomes eligible, so an unselected ASIO,
+JACK, PipeWire, CoreAudio, ALSA, or WASAPI host cannot reserve devices or start a driver as a side
+effect of creating the module.
 
-Input and output selections are independent. Discovery and stream supervision run outside
-Chataigne's engine thread. Optional servers, drivers, permissions, or priority elevation failures
-become structured statuses and diagnostics, never application startup failures.
+Input Device and Output Device are selected independently within the active host, and each direction
+has a `None` choice. An explicit device selection stores stable identity, fallback fingerprint, and
+last-known label. If it disappears, that direction stops, retains the requested target, and waits
+for the same device; it never falls through to unrelated hardware. A system-default selection may
+follow operating-system default changes where the host provides that concept. Recovery restores an
+explicit user choice when it becomes available again.
+
+Sample Rate and Buffer Size expose `Automatic` plus backend-projected compatible choices. The
+backend derives those choices from the active input/output capabilities, intersects them when both
+directions are active, and uses the remaining direction when the other is `None`. The UI never
+guesses a rate, buffer, fallback, or compatibility policy.
+
+Discovery and stream supervision run outside Chataigne's engine thread. Optional servers, drivers,
+permissions, or priority elevation failures become structured statuses and diagnostics, never
+application startup failures.
 
 ## Native host boundary
 
-CPAL 0.18.1 is confined to `golden_audio::backend::cpal`. Public host enumeration returns boxed
-`AudioBackend` values, and callback data crosses the boundary only as Golden sample buffers and
+CPAL 0.18.1 is confined to `golden_audio::backend::cpal`. The compiled host catalog exposes
+side-effect-free IDs and labels, while only the selected host becomes a registered
+`AudioBackend`. Callback data crosses the boundary only as Golden sample buffers and
 `AudioCallbackTimestamp`. The adapter maps stable CPAL device IDs, descriptions, physical-channel
 counts, supported formats, default devices, and structured errors into Golden contracts.
 
+The workspace vendors CPAL 0.18.1 with one narrow ASIO lookup patch. Upstream's default
+`device_by_id` walks the installed device iterator, which loads ASIO drivers in registry order.
+The patched ASIO host builds a single-name iterator for the requested `DeviceId`, so catalog
+discovery stays name-only and probing or opening one selection never initializes preceding
+drivers. The exact delta and removal condition are recorded in the
+[vendor patch note](../../vendor/cpal-0.18.1/CHATAIGNE_PATCH.md). Remove the vendor patch when
+upstream provides the equivalent exact lookup.
+
 `AudioBackend::id` is the side-effect-free identity path used by registration, validation, and
-routing. Descriptor and device discovery may initialize native hosts, so the managed engine calls
-them only from its control worker. Constructing an engine therefore never probes ASIO, WASAPI, or
-another host on the application thread.
+routing. Descriptor and device discovery may initialize a native host, so the managed engine calls
+them only for the selected host and only from its control worker. Constructing a module with Audio
+Driver `None`, or choosing another compiled driver, therefore never probes ASIO or any other
+unselected host.
 
 The callback owns its `AudioStreamHandler`. Primitive formats are borrowed directly without
 allocation. CPAL's 24-bit wrapper samples are converted through stream-owned, preallocated `f32`
@@ -220,32 +248,55 @@ PipeWire, and real-time DBus support without changing application dependencies. 
 enumerates hosts and devices but does not open a stream. The separate smoke example opens the
 default output, writes silence for 100 ms, and closes it.
 
+## Sound Card product model
+
+The module tree presents three small sections:
+
+1. **Connection** contains Audio Driver, Input Device, Output Device, Sample Rate, Buffer Size, and
+   direct Input Routing / Output Routing containers. No Device Profile concept is exposed or
+   persisted as an editable user model. Routing nodes remain structurally stable for persistence,
+   while their custom inspectors are absent when that direction's device is `None`.
+2. **Parameters** contains master and per-channel input/output volumes plus a Processing container.
+   Direction parameter roots remain stable and are hidden by their inspectors while unused. Pitch
+   Detection and Spectral Analysis are booleans, disabled by default.
+3. **Values** mirrors active input/output master and channel levels. Pitch Detection and Spectral
+   Analysis value containers exist only while their corresponding processing booleans are enabled;
+   unused direction Value roots are removed from the tree.
+
+The user authors Input Channels and Output Channels through ordinary parameter edits. The backend
+owns stable channel identities, default labels, descendant reconciliation, route validation and
+cleanup, and topology materialization. One stabilized edit batch reconciles a count change, and
+newly available stereo endpoints receive default one-to-one left/right routing. The UI may edit a
+channel label and request a route, but it does not allocate nodes, labels, IDs, or hidden route
+parameters.
+
 ## Chataigne runtime integration
 
 The Sound Card module owns the application adapter and queues reusable `AudioEngine` construction
-on a dedicated lifecycle worker when the node becomes ready. Node creation does not wait for native
-host initialization. Completed runtimes cross back through a pending-result channel; stale
-sample-rate generations and retired runtimes return to that worker for shutdown, so replacement,
-removal, and project drop do not join audio workers on Chataigne's engine thread. Startup failures
-use bounded reconnect backoff.
+for the selected Audio Driver on a dedicated lifecycle worker. Node creation does not wait for
+native host initialization, and Audio Driver `None` does not construct a hardware backend.
+Completed runtimes cross back through a pending-result channel; stale driver/format generations and
+retired runtimes return to that worker for shutdown, so replacement, removal, and project drop do
+not join audio workers on Chataigne's engine thread. Startup failures use bounded reconnect backoff.
 
 Tree snapshots are requested only for dirty authored configuration after the requested runtime is
 ready. The adapter converts persistent UUIDs and references into Golden IDs, submits one generation
 for the complete stabilized edit batch, and retains the last valid engine plan when conversion
 fails.
 
-Fresh module creation keeps the authored and read-only projection model intact, including the
-default spectrum-band nodes. Golden Core accumulates lifecycle-generated descendants and publishes
-the completed Sound Card as one subtree transaction instead of rebuilding a UI projection for
-every declared child. The module repairs derived structure once per structural event frame; its
-individual child callbacks only mark the audio configuration dirty.
+Fresh module creation keeps authored controls and read-only projections separate. Golden Core
+accumulates lifecycle-generated channel/routing descendants and publishes the completed Sound Card
+as one subtree transaction instead of rebuilding a UI projection for every declared child.
+Processing-result descendants are materialized only for enabled processing features. The module
+repairs derived structure once per structural event frame; its individual child callbacks only mark
+the audio configuration dirty.
 
-The Golden control worker owns discovery, device supervision, active streams, and compiled-plan
-publication. Chataigne opts into Golden's managed runtime: one dedicated render worker owns the
-active render plan, playback renderer, and analysis renderer. Native input callbacks write through
-the bounded adaptive clock bridge, while native output callbacks drain a bounded prefilled queue
-and wake the worker. An absent output callback selects the paced null-clock path, so playback and
-analysis continue without moving host timing into Chataigne.
+The Golden control worker owns selected-host discovery, device supervision, active streams, and
+compiled-plan publication. Chataigne opts into Golden's managed runtime: one dedicated render worker
+owns the active render plan, playback renderer, and enabled analysis processors. Native input
+callbacks write through the bounded adaptive clock bridge, while native output callbacks drain a
+bounded prefilled queue and wake the worker. An absent output callback selects the paced null-clock
+path, so playback and enabled analysis continue without moving host timing into Chataigne.
 
 The output queue derives its capacity from the negotiated device buffer and holds three callback
 periods, rounded to whole internal render blocks. Initial and recovery prefill follows the engine
@@ -266,21 +317,22 @@ compile, log, or destroy final owners.
 
 Chataigne polls the coalesced observation at 30 Hz, updates cached value-node IDs only when values
 move beyond the configured epsilon, and publishes one latest-only app telemetry envelope. Missing
-selections remain persisted; unresolved local routes remain authored and receive visible warnings
-so removal and undo stay atomic.
+explicit device selections remain persisted; unresolved local routes remain authored and receive
+visible warnings so removal and undo stay atomic.
 
-The app-owned Svelte adapter only maps Sound Card connection paths and `golden_ui` intents to the
-generic device-inspector contract. `golden_audio_ui` owns the selector, status/error presentation,
-and explicit exact-node-type registration helper. Chataigne registers `sound_card_module` during
-app setup; importing either the adapter or reusable package has no registry side effect.
+The app-owned Svelte adapter maps Sound Card connection paths and typed routing requests to public
+backend intents. `golden_audio_ui` owns generic driver/device presentation, status/error
+presentation, the SVG patch-bay component, and explicit exact-node-type registration helpers.
+Importing either the adapter or reusable package has no registry side effect.
 
-The app-owned full editor composes that selector with persistent virtual-channel authoring,
-device-profile history, sparse input/output/monitoring/playback matrices, packed Canvas meters and
-spectrum, active playback lifecycle controls, analysis configuration, and diagnostics. Route
-creation crosses the public Golden UI boundary as one transaction with backend-owned defaults and
-identity; optimistic matrix presentation remains keyed to acknowledgements and rolls back on
-rejection. Canvas work is frame-coalesced and torn down with the panel, while DOM controls scale
-with authored routes and focused axes rather than the matrix area.
+Input and output routing use a two-column SVG patch bay. Input device channels are on the left and
+editable Sound Card Input Channels are on the right; editable Sound Card Output Channels are on the
+left and output device channels are on the right. It renders one element per endpoint and one curve
+per authored route, so DOM/SVG work is `O(endpoints + routes)`, never the Cartesian product of both
+channel sets. Connect, disconnect, rename, and channel-count operations cross the public UI boundary
+as typed Sound Card intents. The backend applies each accepted operation atomically and owns route
+identity, validation, stereo defaults, and cleanup; acknowledgement-keyed optimistic presentation
+rolls back on rejection.
 
 ## Public surface
 
@@ -300,10 +352,12 @@ No native backend, codec, or DSP implementation type appears in a public signatu
 
 ## Product defaults
 
-The Sound Card module starts with output enabled on the system default, input disabled, two virtual
-inputs, two virtual outputs, empty monitoring, one-to-one compatible device patches, 0 dB faders and
-master, a 48 kHz engine rate, and a 128-frame internal block. These are Chataigne authoring defaults,
-not hard-coded policy in the reusable UI.
+With a hardware driver selected, Input Device starts at `None` and Output Device starts at that
+host's system default. Input and output each start with two user-facing Channels and compatible
+physical endpoints receive parallel left/right routing. Master and channel gains start at 0 dB.
+Sample Rate and Buffer Size start at `Automatic`; Pitch Detection and Spectral Analysis start
+disabled and therefore have no Values containers. These are backend-owned Chataigne defaults, not
+policy recreated in reusable UI code.
 
 See the implementation and evidence ledger in
 [Golden Audio and Sound Card progress](../progress/golden-audio-sound-card.md).

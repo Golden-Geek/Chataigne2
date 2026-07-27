@@ -7,7 +7,6 @@
 		type PanelSpawnRequest,
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
-	import { registerGoldenAudioDeviceInspector } from 'golden_audio_ui';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
 	import { resolveRuntimeEndpoints } from '$lib/runtimeEndpoints';
 	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
@@ -29,7 +28,8 @@
 	import StateMachinePanel from '$lib/systems/state_machine/components/StateMachinePanel.svelte';
 	import { registerSharedFormulaRemovalGuard } from '$lib/systems/alchemist/sharedFormulaRemoval';
 	import { registerProcessorLaneParameterPreviews } from '$lib/systems/alchemist/preview/processorLaneInspection.svelte';
-	import { createSoundCardAudioDeviceInspectorAdapter } from '$lib/modules/audio/sound-card/audio-device-inspector-adapter.svelte';
+	import SoundCardDirectionParametersInspector from '$lib/modules/audio/sound-card/SoundCardDirectionParametersInspector.svelte';
+	import SoundCardRoutingInspector from '$lib/modules/audio/sound-card/SoundCardRoutingInspector.svelte';
 
 	registerSharedFormulaRemovalGuard();
 	registerProcessorLaneParameterPreviews();
@@ -58,9 +58,18 @@
 		component: ModuleNodeInspector,
 		panelHeaderComponent: ModuleInspectorPanelHeader
 	});
-	registerGoldenAudioDeviceInspector('sound_card_module', (node) =>
-		createSoundCardAudioDeviceInspectorAdapter(node.node_id)
-	);
+	registerNodeInspector('sound_card_input_routing', {
+		component: SoundCardRoutingInspector
+	});
+	registerNodeInspector('sound_card_output_routing', {
+		component: SoundCardRoutingInspector
+	});
+	registerNodeInspector('sound_card_input_parameters', {
+		component: SoundCardDirectionParametersInspector
+	});
+	registerNodeInspector('sound_card_output_parameters', {
+		component: SoundCardDirectionParametersInspector
+	});
 
 	registerNodeInspector('state_processor', {
 		component: ProcessorFormulaInspector,

@@ -1,9 +1,9 @@
 use crate::{
     AudioEngineConfig, EngineLimits, GainDb, MonitorRoute, PlanarBuffer, RenderPlanCompiler, RenderProcessor,
-    RenderWarningCode, render_scalar_reference,
+    render_scalar_reference,
 };
 
-use super::support::{compile, one_to_one_fixture, route_id};
+use super::support::{compile, one_to_one_fixture, physical, route_id};
 
 #[test]
 fn empty_graph_renders_silence() {
@@ -102,7 +102,7 @@ fn master_gain_changes_ramp_sample_accurately_across_internal_chunks() {
 }
 
 #[test]
-fn compiler_is_deterministic_and_warns_without_guessing_missing_physical_channels() {
+fn compiler_is_deterministic_and_rejects_missing_physical_channels() {
     let mut fixture = one_to_one_fixture(2, true);
     let compiler = RenderPlanCompiler::new(AudioEngineConfig::default(), EngineLimits::default());
     let expected = compiler.compile(&fixture.config, &fixture.context).unwrap().plan;
@@ -115,17 +115,37 @@ fn compiler_is_deterministic_and_warns_without_guessing_missing_physical_channel
     let reordered = compiler.compile(&fixture.config, &fixture.context).unwrap().plan;
     assert_eq!(expected, reordered);
 
-    fixture.context.physical_inputs.clear();
-    let compilation = compiler.compile(&fixture.config, &fixture.context).unwrap();
-    assert!(compilation.plan.input_patch.routes.is_empty());
-    assert_eq!(
-        compilation
-            .warnings
-            .iter()
-            .filter(|warning| warning.code == RenderWarningCode::UnresolvedPhysicalInput)
-            .count(),
-        2
-    );
+    fixture.config.physical_inputs.clear();
+    assert!(compiler.compile(&fixture.config, &fixture.context).is_err());
+}
+
+#[test]
+fn full_physical_inventory_preserves_non_contiguous_route_indices() {
+    let mut fixture = one_to_one_fixture(1, false);
+    fixture.config.physical_inputs = (0..6).map(|index| physical("input", index)).collect();
+    fixture.config.physical_outputs = (0..6).map(|index| physical("output", index)).collect();
+    fixture.config.input_patch[0].source = physical("input", 4);
+    fixture.config.output_patch[0].destination = physical("output", 5);
+
+    let plan = compile(&fixture);
+    assert_eq!(plan.physical_inputs, fixture.config.physical_inputs);
+    assert_eq!(plan.physical_outputs, fixture.config.physical_outputs);
+    assert_eq!(plan.input_patch.source_channels, 6);
+    assert_eq!(plan.input_patch.routes[0].source, 4);
+    assert_eq!(plan.output_patch.destination_channels, 6);
+    assert_eq!(plan.output_patch.routes[0].destination, 5);
+
+    let mut processor = RenderProcessor::new(plan).unwrap();
+    let mut input = PlanarBuffer::new(6, 1).unwrap();
+    input.set_sample(4, 0, 0.375);
+    let playback = PlanarBuffer::new(0, 1).unwrap();
+    let mut output = PlanarBuffer::new(6, 1).unwrap();
+    processor.render(&input, &playback, &mut output, 1).unwrap();
+
+    assert_eq!(output.sample(5, 0), 0.375);
+    for channel in 0..5 {
+        assert_eq!(output.sample(channel, 0), 0.0);
+    }
 }
 
 #[test]

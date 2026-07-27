@@ -191,6 +191,37 @@ pub struct AudioDeviceDescriptor {
     pub is_system_default_output: bool,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
+#[cfg_attr(feature = "codegen", ts(export))]
+pub struct AudioDeviceCatalogEntry {
+    pub target: AudioDeviceTargetId,
+    pub label: String,
+}
+
+impl From<&AudioDeviceDescriptor> for AudioDeviceCatalogEntry {
+    fn from(device: &AudioDeviceDescriptor) -> Self {
+        Self {
+            target: device.target.clone(),
+            label: device.label.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct AudioDeviceInventory {
+    pub catalog: Vec<AudioDeviceCatalogEntry>,
+    pub devices: Vec<AudioDeviceDescriptor>,
+}
+
+impl AudioDeviceInventory {
+    #[must_use]
+    pub fn from_devices(devices: Vec<AudioDeviceDescriptor>) -> Self {
+        let catalog = devices.iter().map(AudioDeviceCatalogEntry::from).collect();
+        Self { catalog, devices }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
 #[cfg_attr(feature = "codegen", ts(export))]
@@ -365,7 +396,10 @@ impl From<&AudioError> for AudioInspectorError {
 #[cfg_attr(feature = "codegen", ts(export))]
 pub struct AudioDeviceInspectorState {
     pub discovery_in_progress: bool,
+    #[cfg_attr(feature = "codegen", ts(type = "number"))]
+    pub inventory_revision: u64,
     pub backends: Vec<AudioBackendStatus>,
+    pub device_catalog: Vec<AudioDeviceCatalogEntry>,
     pub devices: Vec<AudioDeviceDescriptor>,
     pub input: AudioStreamStatus,
     pub output: AudioStreamStatus,
@@ -377,7 +411,9 @@ impl Default for AudioDeviceInspectorState {
     fn default() -> Self {
         Self {
             discovery_in_progress: false,
+            inventory_revision: 0,
             backends: Vec::new(),
+            device_catalog: Vec::new(),
             devices: Vec::new(),
             input: AudioStreamStatus::disabled(AudioDirection::Input),
             output: AudioStreamStatus::disabled(AudioDirection::Output),

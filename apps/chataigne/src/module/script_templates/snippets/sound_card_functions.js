@@ -8,6 +8,6 @@
  *
  * `playbackId` is a non-empty lane identifier. Playing a new file on the same
  * lane replaces its loading or active voice without affecting other lanes.
- * `channel` accepts a virtual-output node handle or that node's stable UUID.
+ * `channel` accepts an output-channel node handle or that node's stable UUID.
  * Volumes are expressed in dB from -120 through +24.
  */

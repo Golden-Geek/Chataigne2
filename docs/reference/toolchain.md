@@ -13,6 +13,7 @@ from that contract instead of maintaining independent pins.
 | npm | `11.17.0` | Version bundled by the selected Node.js release |
 | Python | `3.14.x` | Compatible system interpreter range; patch/security updates do not require parallel installs |
 | CPAL | `0.18.1` | Private `golden_audio` host adapter for WASAPI, CoreAudio, ALSA, ASIO, JACK, and native PipeWire |
+| audio_thread_priority | `0.35.1` | Cross-platform audio callback and managed-render scheduling |
 | asio-sys | `0.3.0` | CPAL's Windows ASIO SDK build integration |
 | cargo-deny | `0.20.2` | Pinned release advisory, license, source, and bans qualification |
 | cargo-machete | `0.9.2` | Pinned release unused-dependency qualification |
@@ -43,11 +44,13 @@ desktop and remote-browser hosts require the generated static artifact.
 ## Native audio prerequisites
 
 The reusable `golden_audio` `desktop` feature compiles the native operating-system host: WASAPI on
-Windows, CoreAudio on macOS, and ALSA on Linux. Chataigne enables `golden_audio/asio` in its default
-feature set, so ordinary Windows product builds expose both WASAPI and ASIO; CPAL target-gates that
-dependency away on other operating systems. The separately named `full-desktop` qualification
-feature adds every optional host. Native dependencies remain private to `golden_audio`;
-applications do not select CPAL features directly.
+Windows, CoreAudio on macOS, and ALSA on Linux. Chataigne enables `golden_audio/asio` and
+`golden_audio/realtime` in its default feature set, so ordinary Windows product builds expose both
+WASAPI and ASIO and request realtime scheduling for device callbacks and the managed render worker;
+CPAL target-gates ASIO away on other operating systems. Scheduling refusal is reported as a
+structured warning and playback continues at normal priority. The separately named `full-desktop`
+qualification feature adds every optional host. Native dependencies remain private to
+`golden_audio`; applications do not select CPAL features directly.
 
 Windows ASIO builds require the Visual C++ toolchain and LLVM/Clang with `libclang.dll` for bindgen.
 `tools/bootstrap/configure-asio-sdk.ps1` fetches the exact official `audiosdk/asio` Git revision

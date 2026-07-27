@@ -44,11 +44,11 @@ UI code may collect input and compute viewport presentation. Backend intents own
 control modes, module policy, graph mutation semantics, and internal parameter writes. Stores
 depend on transport interfaces and compose behind a thin workbench session facade.
 
-Sound Card matrix creation uses one `CreateUserItem` intent with backend-recognized source,
-destination, and gain `initial_params`; gain changes use `SetParam`, removal uses `RemoveNode`, and
-pointer painting is enclosed in `BeginEdit`/`EndEdit`. Canvas renders the dense matrix and packed
-telemetry, while a sparse DOM route list and focused controls preserve keyboard and assistive
-access without mounting one component per matrix cell.
+Sound Card routing uses generated typed connect, disconnect, and rename control requests. The app
+backend validates physical endpoints and channel ownership, then owns route-node creation and
+removal. The reusable SVG patch bay renders two endpoint columns plus authored curves, keeping DOM
+and interaction work proportional to endpoints plus routes while preserving keyboard and
+assistive access.
 
 Use Svelte 5 runes and direct event properties (`onclick`, `onfocus`, and similar). Prefer relative
 layout units. After an extension, run `npm run check`, `npm run lint`, `npm test`, and the mounted

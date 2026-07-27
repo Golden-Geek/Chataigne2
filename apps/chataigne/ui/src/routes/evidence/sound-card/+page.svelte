@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SoundCardEditorMockHarness from '$lib/panels/modules/sound-card/SoundCardEditorMockHarness.svelte';
+	import SoundCardRoutingEvidence from '$lib/modules/audio/sound-card/SoundCardRoutingEvidence.svelte';
 </script>
 
 <svelte:head>
@@ -9,4 +9,4 @@
 		content="Deterministic hardware-independent visual evidence for the Chataigne Sound Card editor." />
 </svelte:head>
 
-<SoundCardEditorMockHarness />
+<SoundCardRoutingEvidence />

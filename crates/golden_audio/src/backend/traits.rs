@@ -3,9 +3,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AudioBackendState, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceTargetId, AudioDirection, AudioError,
-    AudioStreamStatus, BackendId, ChannelCountPolicy, InterleavedInput, InterleavedOutput, SampleFormatPolicy,
-    SampleRate, SampleRatePolicy, StreamNegotiationRequest,
+    AudioBackendState, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceInventory, AudioDeviceTargetId,
+    AudioDirection, AudioError, AudioStreamStatus, BackendId, ChannelCountPolicy, InterleavedInput, InterleavedOutput,
+    SampleFormatPolicy, SampleRate, SampleRatePolicy, StreamNegotiationRequest,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -103,7 +103,20 @@ pub trait AudioBackend: Send + Sync {
     fn id(&self) -> BackendId;
 
     fn descriptor(&self) -> BackendDescriptor;
-    fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError>;
+    fn device_inventory(&self) -> Result<AudioDeviceInventory, AudioError>;
+
+    fn probe_device(&self, target: &AudioDeviceTargetId) -> Result<Option<AudioDeviceDescriptor>, AudioError> {
+        Ok(self
+            .device_inventory()?
+            .devices
+            .into_iter()
+            .find(|device| device.target == *target))
+    }
+
+    fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError> {
+        self.device_inventory().map(|inventory| inventory.devices)
+    }
+
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError>;
 
     #[must_use]

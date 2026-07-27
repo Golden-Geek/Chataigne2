@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc::Sender};
 use std::time::Duration;
 
 use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
@@ -372,6 +372,8 @@ pub struct ProcessCtx {
     pub runtime_elapsed: Duration,
     /// Optional read-only tree snapshot shared for this callback pass.
     tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    /// Thread-safe ingress used by IO workers to re-enter the engine edit pipeline.
+    external_edit_sender: Option<Sender<Edit>>,
 }
 
 impl ProcessCtx {
@@ -385,7 +387,20 @@ impl ProcessCtx {
             delta_time: Duration::ZERO,
             runtime_elapsed: Duration::ZERO,
             tree_snapshot: None,
+            external_edit_sender: None,
         }
+    }
+
+    /// Attaches the engine's thread-safe edit ingress for lifecycle and runtime callbacks.
+    pub(crate) fn set_external_edit_sender(&mut self, sender: Sender<Edit>) {
+        self.external_edit_sender = Some(sender);
+    }
+
+    /// Returns a sender that background workers may use to emit edits back into this engine.
+    ///
+    /// Standalone contexts created outside an [`crate::engine::Engine`] do not expose one.
+    pub fn external_edit_sender(&self) -> Option<Sender<Edit>> {
+        self.external_edit_sender.clone()
     }
 
     /// Attaches a read-only tree snapshot to this context.

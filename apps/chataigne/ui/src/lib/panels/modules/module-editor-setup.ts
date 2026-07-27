@@ -24,7 +24,7 @@ const defaultModuleEditors: readonly ModuleEditorDescriptor[] = [
 		panelType: 'soundCardEditor',
 		panelIdPrefix: 'sound-card-editor',
 		panelComponent: SoundCardEditorPanel,
-		description: 'Routing, playback, analysis, and diagnostics for Sound Card modules',
+		description: 'Connection, routing, channel levels, and processing for Sound Card modules',
 		actionLabel: 'Edit Sound Card',
 		iconUrl: audioIconUrl,
 		title: (node) => `Sound Card: ${node.meta.label}`

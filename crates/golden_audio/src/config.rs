@@ -181,6 +181,8 @@ pub struct AudioConfiguration {
     pub enabled: bool,
     pub input: DirectionConfiguration,
     pub output: DirectionConfiguration,
+    pub physical_inputs: Vec<PhysicalChannelKey>,
+    pub physical_outputs: Vec<PhysicalChannelKey>,
     pub virtual_inputs: Vec<VirtualInputChannel>,
     pub virtual_outputs: Vec<VirtualOutputChannel>,
     pub input_patch: Vec<InputPatchRoute>,
@@ -198,6 +200,8 @@ impl AudioConfiguration {
             enabled: true,
             input: DirectionConfiguration::disabled(),
             output: DirectionConfiguration::disabled(),
+            physical_inputs: Vec::new(),
+            physical_outputs: Vec::new(),
             virtual_inputs: Vec::new(),
             virtual_outputs: Vec::new(),
             input_patch: Vec::new(),
@@ -213,6 +217,26 @@ impl AudioConfiguration {
         limits.validate()?;
         self.input.validate("input")?;
         self.output.validate("output")?;
+        if self.input.enabled && self.physical_inputs.is_empty() {
+            return Err(AudioError::invalid_configuration(
+                "enabled input requires a physical channel inventory",
+            ));
+        }
+        if self.output.enabled && self.physical_outputs.is_empty() {
+            return Err(AudioError::invalid_configuration(
+                "enabled output requires a physical channel inventory",
+            ));
+        }
+        validate_capacity(
+            "physical input channels",
+            self.physical_inputs.len(),
+            usize::from(limits.max_physical_inputs),
+        )?;
+        validate_capacity(
+            "physical output channels",
+            self.physical_outputs.len(),
+            usize::from(limits.max_physical_outputs),
+        )?;
         validate_capacity(
             "virtual input channels",
             self.virtual_inputs.len(),
@@ -237,10 +261,14 @@ impl AudioConfiguration {
             collect_unique_channel_ids("virtual input", self.virtual_inputs.iter().map(|channel| channel.id))?;
         let output_ids =
             collect_unique_channel_ids("virtual output", self.virtual_outputs.iter().map(|channel| channel.id))?;
+        let physical_input_keys = collect_unique_physical_channel_keys("physical input", self.physical_inputs.iter())?;
+        let physical_output_keys =
+            collect_unique_physical_channel_keys("physical output", self.physical_outputs.iter())?;
         let mut route_ids = HashSet::with_capacity(route_count);
 
         for route in &self.input_patch {
             validate_unique_route_id(&mut route_ids, route.id)?;
+            validate_physical_channel_reference("input patch source", &route.source, &physical_input_keys)?;
             validate_channel_reference("input patch destination", route.destination, &input_ids)?;
             GainDb::new(route.gain.get())?;
         }
@@ -258,6 +286,7 @@ impl AudioConfiguration {
         for route in &self.output_patch {
             validate_unique_route_id(&mut route_ids, route.id)?;
             validate_channel_reference("output patch source", route.source, &output_ids)?;
+            validate_physical_channel_reference("output patch destination", &route.destination, &physical_output_keys)?;
             GainDb::new(route.gain.get())?;
         }
         for channel in &self.virtual_outputs {
@@ -307,6 +336,34 @@ fn collect_unique_channel_ids(
         }
     }
     Ok(collected)
+}
+
+fn collect_unique_physical_channel_keys<'a>(
+    name: &str,
+    keys: impl Iterator<Item = &'a PhysicalChannelKey>,
+) -> Result<HashSet<PhysicalChannelKey>, AudioError> {
+    let mut collected = HashSet::new();
+    for key in keys {
+        if !collected.insert(key.clone()) {
+            return Err(AudioError::invalid_configuration(format!(
+                "duplicate {name} channel key {key}"
+            )));
+        }
+    }
+    Ok(collected)
+}
+
+fn validate_physical_channel_reference(
+    name: &str,
+    key: &PhysicalChannelKey,
+    known: &HashSet<PhysicalChannelKey>,
+) -> Result<(), AudioError> {
+    if !known.contains(key) {
+        return Err(AudioError::invalid_configuration(format!(
+            "{name} references unavailable physical channel {key}"
+        )));
+    }
+    Ok(())
 }
 
 fn validate_unique_route_id(route_ids: &mut HashSet<AudioRouteId>, id: AudioRouteId) -> Result<(), AudioError> {

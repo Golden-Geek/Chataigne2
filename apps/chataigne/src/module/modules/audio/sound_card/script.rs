@@ -22,10 +22,8 @@ pub(super) const PLAYBACK_STARTED_CALLBACK: &str = "playbackStarted";
 pub(super) const PLAYBACK_FINISHED_CALLBACK: &str = "playbackFinished";
 pub(super) const PLAYBACK_STOPPED_CALLBACK: &str = "playbackStopped";
 pub(super) const PLAYBACK_FAILED_CALLBACK: &str = "playbackFailed";
-pub(super) const AUDIO_DEVICE_STATUS_CHANGED_CALLBACK: &str =
-    "audioDeviceStatusChanged";
-pub(super) const AUDIO_BACKEND_STATUS_CHANGED_CALLBACK: &str =
-    "audioBackendStatusChanged";
+pub(super) const AUDIO_DEVICE_STATUS_CHANGED_CALLBACK: &str = "audioDeviceStatusChanged";
+pub(super) const AUDIO_BACKEND_STATUS_CHANGED_CALLBACK: &str = "audioBackendStatusChanged";
 
 impl SoundCardModule {
     pub(super) fn sound_card_script_descriptor(&self) -> NodeScriptDescriptor {
@@ -53,14 +51,8 @@ impl SoundCardModule {
         }))
     }
 
-    pub(super) fn emit_audio_event_callback(
-        &self,
-        ctx: &mut ProcessCtx,
-        event: &AudioEvent,
-    ) {
-        use crate::app::module::script_api::{
-            emit_script_callback, emit_transient_script_callback,
-        };
+    pub(super) fn emit_audio_event_callback(&self, ctx: &mut ProcessCtx, event: &AudioEvent) {
+        use crate::app::module::script_api::{emit_script_callback, emit_transient_script_callback};
 
         match event {
             AudioEvent::PlaybackStarted(info) => emit_transient_script_callback(
@@ -77,10 +69,7 @@ impl SoundCardModule {
                 ctx,
                 self.id(),
                 PLAYBACK_FINISHED_CALLBACK,
-                vec![
-                    serde_json::json!(info.playback_id.as_str()),
-                    json_value(info),
-                ],
+                vec![serde_json::json!(info.playback_id.as_str()), json_value(info)],
             ),
             AudioEvent::PlaybackStopped(info) => emit_transient_script_callback(
                 ctx,
@@ -112,20 +101,14 @@ impl SoundCardModule {
                 ctx,
                 self.id(),
                 AUDIO_BACKEND_STATUS_CHANGED_CALLBACK,
-                vec![
-                    serde_json::json!(status.backend.as_str()),
-                    json_value(status),
-                ],
+                vec![serde_json::json!(status.backend.as_str()), json_value(status)],
             ),
             _ => {}
         }
     }
 }
 
-fn script_request(
-    method: &str,
-    args: &[ParamValue],
-) -> Option<Result<SoundCardCommandRequest, String>> {
+fn script_request(method: &str, args: &[ParamValue]) -> Option<Result<SoundCardCommandRequest, String>> {
     let result = match method {
         "playFile" => exact_args(method, args, 2).and_then(|()| {
             let path = string_arg(method, args, 0, "path")?;
@@ -142,9 +125,7 @@ fn script_request(
                 playback_id: playback_id_arg(method, args, 0)?,
             })
         }),
-        "stopAllFiles" => {
-            exact_args(method, args, 0).map(|()| SoundCardCommandRequest::StopAllFiles)
-        }
+        "stopAllFiles" => exact_args(method, args, 0).map(|()| SoundCardCommandRequest::StopAllFiles),
         "setMasterVolume" => exact_args(method, args, 1).and_then(|()| {
             Ok(SoundCardCommandRequest::SetMasterVolume {
                 gain: gain_arg(method, args, 0)?,
@@ -152,7 +133,7 @@ fn script_request(
         }),
         "setChannelVolume" => exact_args(method, args, 2).and_then(|()| {
             Ok(SoundCardCommandRequest::SetChannelVolume {
-                virtual_output: channel_reference_arg(method, args, 0)?,
+                output_channel: channel_reference_arg(method, args, 0)?,
                 gain: gain_arg(method, args, 1)?,
             })
         }),
@@ -172,53 +153,28 @@ fn exact_args(method: &str, args: &[ParamValue], expected: usize) -> Result<(), 
     }
 }
 
-fn string_arg(
-    method: &str,
-    args: &[ParamValue],
-    index: usize,
-    name: &str,
-) -> Result<String, String> {
+fn string_arg(method: &str, args: &[ParamValue], index: usize, name: &str) -> Result<String, String> {
     args.get(index)
         .and_then(ParamValue::as_str)
         .ok_or_else(|| format!("{method} expects {name} to be a string"))
 }
 
-fn playback_id_arg(
-    method: &str,
-    args: &[ParamValue],
-    index: usize,
-) -> Result<golden_audio::PlaybackId, String> {
-    golden_audio::PlaybackId::new(string_arg(
-        method,
-        args,
-        index,
-        "playbackId",
-    )?)
-    .map_err(|error| format!("{method} received an invalid playbackId: {error}"))
+fn playback_id_arg(method: &str, args: &[ParamValue], index: usize) -> Result<golden_audio::PlaybackId, String> {
+    golden_audio::PlaybackId::new(string_arg(method, args, index, "playbackId")?)
+        .map_err(|error| format!("{method} received an invalid playbackId: {error}"))
 }
 
-fn gain_arg(
-    method: &str,
-    args: &[ParamValue],
-    index: usize,
-) -> Result<golden_audio::GainDb, String> {
+fn gain_arg(method: &str, args: &[ParamValue], index: usize) -> Result<golden_audio::GainDb, String> {
     let value = args
         .get(index)
         .and_then(ParamValue::as_float)
         .ok_or_else(|| format!("{method} expects volumeDb to be numeric"))?;
-    golden_audio::GainDb::new(value as f32)
-        .map_err(|error| format!("{method} received an invalid volumeDb: {error}"))
+    golden_audio::GainDb::new(value as f32).map_err(|error| format!("{method} received an invalid volumeDb: {error}"))
 }
 
-fn channel_reference_arg(
-    method: &str,
-    args: &[ParamValue],
-    index: usize,
-) -> Result<NodeReference, String> {
+fn channel_reference_arg(method: &str, args: &[ParamValue], index: usize) -> Result<NodeReference, String> {
     let Some(value) = args.get(index) else {
-        return Err(format!(
-            "{method} expects a virtual-output node handle or UUID token"
-        ));
+        return Err(format!("{method} expects an output-channel node handle or UUID token"));
     };
     if let ParamValue::Reference(reference) = value {
         if reference.is_empty() {
@@ -227,9 +183,7 @@ fn channel_reference_arg(
         return Ok(reference.clone());
     }
     let Some(token) = value.as_str() else {
-        return Err(format!(
-            "{method} expects a virtual-output node handle or UUID token"
-        ));
+        return Err(format!("{method} expects an output-channel node handle or UUID token"));
     };
     let uuid = uuid::Uuid::parse_str(token.as_str())
         .map_err(|_| format!("{method} received an invalid channel UUID token"))?;

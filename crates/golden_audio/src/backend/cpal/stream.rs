@@ -33,7 +33,7 @@ pub(super) fn open_cpal_stream(
     let config = StreamConfig {
         channels: format.channels,
         sample_rate: format.sample_rate,
-        buffer_size: BufferSize::Fixed(format.buffer_frames),
+        buffer_size: cpal_buffer_size(request, &format),
     };
     let callback_sample_capacity = usize::from(format.channels)
         .checked_mul(format.buffer_frames as usize)
@@ -83,6 +83,13 @@ pub(super) fn open_cpal_stream(
             error: None,
         },
     }))
+}
+
+pub(super) fn cpal_buffer_size(request: &StreamRequest, format: &NegotiatedStreamFormat) -> BufferSize {
+    match request.buffer_policy {
+        crate::AudioBufferPolicy::Automatic => BufferSize::Default,
+        crate::AudioBufferPolicy::Fixed(_) => BufferSize::Fixed(format.buffer_frames),
+    }
 }
 
 fn input_callback(

@@ -19,6 +19,8 @@ pub fn fixture(channels: usize, total_routes: usize, frames: usize) -> RenderFix
     let physical_inputs = (0..channels).map(|index| physical("input", index)).collect::<Vec<_>>();
     let physical_outputs = (0..channels).map(|index| physical("output", index)).collect::<Vec<_>>();
     let mut config = AudioConfiguration::empty();
+    config.physical_inputs = physical_inputs;
+    config.physical_outputs = physical_outputs;
     config.virtual_inputs = inputs
         .iter()
         .enumerate()
@@ -39,7 +41,7 @@ pub fn fixture(channels: usize, total_routes: usize, frames: usize) -> RenderFix
     config.input_patch = (0..channels)
         .map(|index| InputPatchRoute {
             id: route_id(1, index),
-            source: physical_inputs[index].clone(),
+            source: config.physical_inputs[index].clone(),
             destination: inputs[index],
             gain: GainDb::UNITY,
         })
@@ -48,7 +50,7 @@ pub fn fixture(channels: usize, total_routes: usize, frames: usize) -> RenderFix
         .map(|index| OutputPatchRoute {
             id: route_id(2, index),
             source: outputs[index],
-            destination: physical_outputs[index].clone(),
+            destination: config.physical_outputs[index].clone(),
             gain: GainDb::UNITY,
         })
         .collect();
@@ -62,8 +64,6 @@ pub fn fixture(channels: usize, total_routes: usize, frames: usize) -> RenderFix
         })
         .collect();
     let context = RenderCompileContext {
-        physical_inputs,
-        physical_outputs,
         playback_source_channels: 0,
     };
     let limits = EngineLimits {

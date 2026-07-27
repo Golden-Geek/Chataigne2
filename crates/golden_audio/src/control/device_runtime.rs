@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     sync::{Arc, RwLock, mpsc::SyncSender},
     time::{Duration, Instant},
 };
@@ -6,9 +7,10 @@ use std::{
 #[cfg(all(feature = "analysis", feature = "playback"))]
 use crate::DeviceNegotiator;
 use crate::{
-    AudioBackend, AudioBackendState, AudioBackendStatus, AudioChannelId, AudioConfiguration, AudioEngineConfig,
-    AudioError, AudioErrorCategory, AudioEvent, AudioObservationSnapshot, AudioStream, DeviceSupervisor,
-    DeviceSupervisorConfig, DeviceSwitchPhase, GainDb, RenderPlan, StreamRequest,
+    AudioBackend, AudioBackendState, AudioBackendStatus, AudioChannelId, AudioConfiguration, AudioDeviceCatalogEntry,
+    AudioDeviceDescriptor, AudioDeviceTargetId, AudioEngineConfig, AudioError, AudioErrorCategory, AudioEvent,
+    AudioObservationSnapshot, AudioStream, DeviceSupervisor, DeviceSupervisorConfig, DeviceSwitchPhase, GainDb,
+    RenderPlan, StreamRequest,
 };
 
 use super::engine::{publish_event, update_observation};
@@ -24,6 +26,9 @@ pub(super) struct DeviceRuntime {
     input_handler_active: bool,
     output_handler_active: bool,
     configuration: Option<(AudioConfiguration, RenderPlan)>,
+    probe_interests: Vec<AudioDeviceTargetId>,
+    probed_devices: HashMap<AudioDeviceTargetId, AudioDeviceDescriptor>,
+    probe_failures: HashMap<AudioDeviceTargetId, AudioError>,
     enabled: bool,
     last_discovery: Option<Instant>,
 }
@@ -41,6 +46,9 @@ impl DeviceRuntime {
             input_handler_active: false,
             output_handler_active: false,
             configuration: None,
+            probe_interests: Vec::new(),
+            probed_devices: HashMap::new(),
+            probe_failures: HashMap::new(),
             enabled: true,
             last_discovery: None,
         })
@@ -82,6 +90,27 @@ impl DeviceRuntime {
     ) {
         self.enabled = enabled;
         self.apply_direction_configuration();
+        self.refresh(
+            event_sender,
+            observation,
+            backends,
+            true,
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            managed_render_runtime,
+        );
+    }
+
+    pub(super) fn set_probe_interests(
+        &mut self,
+        event_sender: &SyncSender<AudioEvent>,
+        observation: &Arc<RwLock<AudioObservationSnapshot>>,
+        backends: &[Arc<dyn AudioBackend>],
+        targets: Vec<AudioDeviceTargetId>,
+        #[cfg(all(feature = "analysis", feature = "playback"))] managed_render_runtime: Option<
+            &mut ManagedRenderRuntime,
+        >,
+    ) {
+        self.probe_interests = deduplicate_targets(targets);
         self.refresh(
             event_sender,
             observation,
@@ -180,15 +209,61 @@ impl DeviceRuntime {
             return;
         }
         self.last_discovery = Some(now);
-        let (statuses, discovered) = discover_backend_inventory(event_sender, observation, backends);
+        self.evict_unstable_configured_probes();
+        let probe_targets = self.desired_probe_targets();
+        let (statuses, catalog, discovered) = discover_backend_inventory(
+            event_sender,
+            observation,
+            backends,
+            probe_targets.as_slice(),
+            &mut self.probed_devices,
+            &mut self.probe_failures,
+        );
         self.supervisor
-            .observe_discovery(elapsed_millis(), statuses, discovered);
+            .observe_discovery(elapsed_millis(), statuses, catalog, discovered);
         self.reconcile_streams(
             backends,
             #[cfg(all(feature = "analysis", feature = "playback"))]
             managed_render_runtime,
         );
         self.publish_state(event_sender, observation);
+    }
+
+    fn desired_probe_targets(&self) -> Vec<AudioDeviceTargetId> {
+        let mut targets = self.probe_interests.clone();
+        for target in [
+            self.supervisor.input.status().selected_target.as_ref(),
+            self.supervisor.output.status().selected_target.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if !targets.contains(target) {
+                targets.push(target.clone());
+            }
+        }
+        targets
+    }
+
+    fn evict_unstable_configured_probes(&mut self) {
+        let configured = [
+            self.supervisor.input.status().selected_target.as_ref(),
+            self.supervisor.output.status().selected_target.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .cloned()
+        .collect::<Vec<_>>();
+        let stable = [
+            (&self.supervisor.input, self.supervisor.input.status()),
+            (&self.supervisor.output, self.supervisor.output.status()),
+        ]
+        .into_iter()
+        .filter(|(direction, _)| direction.phase() == DeviceSwitchPhase::Stable)
+        .filter_map(|(_, status)| status.active_target.clone())
+        .collect::<Vec<_>>();
+        self.probed_devices
+            .retain(|target, _| !configured.contains(target) || stable.contains(target));
     }
 
     fn observe_runtime_statuses(
@@ -226,18 +301,6 @@ impl DeviceRuntime {
         };
         let inspector = self.supervisor.inspector_state();
         let sample_rate = inspector.engine_sample_rate;
-        let input_channels = stream_channel_count(
-            &inspector.input,
-            inspector.devices.as_slice(),
-            crate::AudioDirection::Input,
-            plan.physical_inputs.len(),
-        );
-        let output_channels = stream_channel_count(
-            &inspector.output,
-            inspector.devices.as_slice(),
-            crate::AudioDirection::Output,
-            plan.physical_outputs.len(),
-        );
         reconcile_direction(
             &mut self.supervisor.input,
             &mut self.input_stream,
@@ -247,7 +310,7 @@ impl DeviceRuntime {
             configuration.input.buffer_policy,
             StreamShape {
                 sample_rate,
-                channels: input_channels,
+                physical_channels: plan.physical_inputs.as_slice(),
             },
             #[cfg(all(feature = "analysis", feature = "playback"))]
             managed_render_runtime.as_deref_mut(),
@@ -261,7 +324,7 @@ impl DeviceRuntime {
             configuration.output.buffer_policy,
             StreamShape {
                 sample_rate,
-                channels: output_channels,
+                physical_channels: plan.physical_outputs.as_slice(),
             },
             #[cfg(all(feature = "analysis", feature = "playback"))]
             managed_render_runtime,
@@ -286,6 +349,15 @@ impl DeviceRuntime {
         }
         if previous.output != state.output {
             publish_event(event_sender, observation, AudioEvent::DeviceStatusChanged(state.output));
+        }
+        if previous.inventory_revision != state.inventory_revision {
+            publish_event(
+                event_sender,
+                observation,
+                AudioEvent::DeviceInventoryChanged {
+                    revision: state.inventory_revision,
+                },
+            );
         }
     }
 
@@ -350,9 +422,9 @@ fn observe_runtime_status(
 }
 
 #[derive(Clone, Copy, Debug)]
-struct StreamShape {
+struct StreamShape<'a> {
     sample_rate: u32,
-    channels: usize,
+    physical_channels: &'a [crate::PhysicalChannelKey],
 }
 
 // Stream reconciliation needs both the supervisor state and the discovered host
@@ -363,9 +435,9 @@ fn reconcile_direction(
     stream: &mut Option<Box<dyn AudioStream>>,
     handler_active: &mut bool,
     backends: &[Arc<dyn AudioBackend>],
-    _devices: &[crate::AudioDeviceDescriptor],
+    devices: &[crate::AudioDeviceDescriptor],
     buffer_policy: crate::AudioBufferPolicy,
-    shape: StreamShape,
+    shape: StreamShape<'_>,
     #[cfg(all(feature = "analysis", feature = "playback"))] mut managed_render_runtime: Option<
         &mut ManagedRenderRuntime,
     >,
@@ -399,7 +471,17 @@ fn reconcile_direction(
                 );
                 return;
             };
-            let channels = u16::try_from(shape.channels.max(1)).unwrap_or(u16::MAX);
+            if let Err(error) = validate_stream_channel_inventory(
+                devices,
+                &target,
+                direction.status().direction,
+                shape.physical_channels,
+            ) {
+                direction.report_open_error(elapsed_millis(), error);
+                return;
+            }
+            let channels = u16::try_from(shape.physical_channels.len())
+                .expect("validated physical channel limits fit the stream channel width");
             let request = StreamRequest {
                 direction: direction.status().direction,
                 target,
@@ -412,7 +494,7 @@ fn reconcile_direction(
             let uses_managed_handler = backend.supports_stream_handlers() && managed_render_runtime.is_some();
             #[cfg(all(feature = "analysis", feature = "playback"))]
             let prepared = if uses_managed_handler {
-                let callback_buffer_frames = match negotiated_buffer_frames(_devices, &request) {
+                let callback_buffer_frames = match negotiated_buffer_frames(devices, &request) {
                     Ok(frames) => frames,
                     Err(error) => {
                         direction.report_open_error(elapsed_millis(), error);
@@ -561,21 +643,40 @@ fn selected_device<'a>(
     })
 }
 
-fn stream_channel_count(
-    status: &crate::AudioStreamStatus,
+pub(super) fn validate_stream_channel_inventory(
     devices: &[crate::AudioDeviceDescriptor],
+    target: &crate::AudioDeviceTargetId,
     direction: crate::AudioDirection,
-    required_channels: usize,
-) -> usize {
-    let discovered_channels = status
-        .selected_target
-        .as_ref()
-        .and_then(|target| selected_device(devices, target, direction))
-        .map_or(0, |device| match direction {
-            crate::AudioDirection::Input => device.input_channels.len(),
-            crate::AudioDirection::Output => device.output_channels.len(),
-        });
-    discovered_channels.max(required_channels).max(1)
+    configured: &[crate::PhysicalChannelKey],
+) -> Result<(), AudioError> {
+    let device = selected_device(devices, target, direction).ok_or_else(|| {
+        AudioError::new(
+            AudioErrorCategory::DeviceMissing,
+            "selected audio device disappeared before stream preparation",
+        )
+    })?;
+    let discovered = match direction {
+        crate::AudioDirection::Input => device.input_channels.as_slice(),
+        crate::AudioDirection::Output => device.output_channels.as_slice(),
+    };
+    let matches = discovered.len() == configured.len()
+        && discovered
+            .iter()
+            .zip(configured)
+            .all(|(descriptor, configured)| descriptor.key == *configured);
+    if !matches {
+        return Err(AudioError::new(
+            AudioErrorCategory::StreamNegotiationFailed,
+            format!(
+                "configured physical {} channel inventory no longer matches the selected device",
+                match direction {
+                    crate::AudioDirection::Input => "input",
+                    crate::AudioDirection::Output => "output",
+                }
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn stop_stream(stream: &mut Option<Box<dyn AudioStream>>) {
@@ -594,16 +695,24 @@ fn elapsed_millis() -> u64 {
         .unwrap_or(u64::MAX)
 }
 
-fn discover_backend_inventory(
+pub(super) fn discover_backend_inventory(
     event_sender: &SyncSender<AudioEvent>,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     backends: &[Arc<dyn AudioBackend>],
-) -> (Vec<AudioBackendStatus>, Vec<crate::AudioDeviceDescriptor>) {
+    probe_targets: &[AudioDeviceTargetId],
+    probed_devices: &mut HashMap<AudioDeviceTargetId, AudioDeviceDescriptor>,
+    probe_failures: &mut HashMap<AudioDeviceTargetId, AudioError>,
+) -> (
+    Vec<AudioBackendStatus>,
+    Vec<AudioDeviceCatalogEntry>,
+    Vec<AudioDeviceDescriptor>,
+) {
     let previous = observation
         .read()
         .map(|snapshot| snapshot.device.backends.clone())
         .unwrap_or_default();
     let mut statuses = Vec::with_capacity(backends.len());
+    let mut catalog = Vec::new();
     let mut devices = Vec::new();
     for backend in backends {
         let descriptor = backend.descriptor();
@@ -614,8 +723,11 @@ fn discover_backend_inventory(
             detail: descriptor.detail,
         };
         if status.state == AudioBackendState::Available {
-            match backend.discover() {
-                Ok(discovered) => devices.extend(discovered),
+            match backend.device_inventory() {
+                Ok(inventory) => {
+                    extend_unique_catalog(&mut catalog, inventory.catalog);
+                    extend_unique_devices(&mut devices, inventory.devices);
+                }
                 Err(error) => {
                     status.state = AudioBackendState::Failed;
                     status.detail = Some(error.to_string());
@@ -631,10 +743,111 @@ fn discover_backend_inventory(
         }
         statuses.push(status);
     }
-    update_observation(observation, |snapshot| {
-        snapshot.device.backends = statuses.clone();
-        snapshot.device.devices = devices.clone();
-        snapshot.device.discovery_in_progress = false;
-    });
-    (statuses, devices)
+
+    probed_devices.retain(|target, _| probe_targets.contains(target) && catalog_contains(&catalog, target));
+    probe_failures.retain(|target, _| probe_targets.contains(target) && catalog_contains(&catalog, target));
+    for target in probe_targets {
+        if devices.iter().any(|device| device.target == *target) {
+            probe_failures.remove(target);
+            continue;
+        }
+        if !catalog_contains(&catalog, target) {
+            probed_devices.remove(target);
+            probe_failures.remove(target);
+            continue;
+        }
+        if let Some(device) = probed_devices.get(target) {
+            devices.push(device.clone());
+            continue;
+        }
+        let Some(backend) = backends.iter().find(|backend| backend.id() == *target.backend()) else {
+            continue;
+        };
+        match backend.probe_device(target) {
+            Ok(Some(device)) if device.target == *target => {
+                probe_failures.remove(target);
+                probed_devices.insert(target.clone(), device.clone());
+                devices.push(device);
+            }
+            Ok(Some(device)) => {
+                publish_probe_failure(
+                    event_sender,
+                    observation,
+                    probe_failures,
+                    target,
+                    AudioError::new(
+                        AudioErrorCategory::InternalInvariant,
+                        format!(
+                            "backend returned descriptor for {:?} while probing {:?}",
+                            device.target, target
+                        ),
+                    ),
+                );
+            }
+            Ok(None) => {
+                probed_devices.remove(target);
+                probe_failures.remove(target);
+            }
+            Err(error) => {
+                publish_probe_failure(event_sender, observation, probe_failures, target, error);
+            }
+        }
+    }
+    (statuses, catalog, devices)
+}
+
+fn publish_probe_failure(
+    event_sender: &SyncSender<AudioEvent>,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    failures: &mut HashMap<AudioDeviceTargetId, AudioError>,
+    target: &AudioDeviceTargetId,
+    error: AudioError,
+) {
+    if failures.get(target) == Some(&error) {
+        return;
+    }
+    failures.insert(target.clone(), error.clone());
+    publish_event(
+        event_sender,
+        observation,
+        AudioEvent::Diagnostic(
+            crate::DiagnosticEvent::new(
+                crate::DiagnosticSeverity::Warning,
+                "audio_device_probe_failed",
+                "failed to probe the selected audio device",
+            )
+            .with_context("target", format!("{target:?}"))
+            .with_context("error", error.to_string()),
+        ),
+    );
+}
+
+fn catalog_contains(catalog: &[AudioDeviceCatalogEntry], target: &AudioDeviceTargetId) -> bool {
+    catalog.iter().any(|entry| entry.target == *target)
+}
+
+fn extend_unique_catalog(destination: &mut Vec<AudioDeviceCatalogEntry>, source: Vec<AudioDeviceCatalogEntry>) {
+    for entry in source {
+        if !catalog_contains(destination, &entry.target) {
+            destination.push(entry);
+        }
+    }
+}
+
+fn extend_unique_devices(destination: &mut Vec<AudioDeviceDescriptor>, source: Vec<AudioDeviceDescriptor>) {
+    for device in source {
+        if !destination.iter().any(|candidate| candidate.target == device.target) {
+            destination.push(device);
+        }
+    }
+}
+
+fn deduplicate_targets(targets: Vec<AudioDeviceTargetId>) -> Vec<AudioDeviceTargetId> {
+    let mut unique = Vec::with_capacity(targets.len());
+    for target in targets {
+        if !unique.contains(&target) {
+            unique.push(target);
+        }
+    }
+    unique
 }

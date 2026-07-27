@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceProfileKey, AudioDeviceTargetId, AudioDirection,
+    AudioDeviceCatalogEntry, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceProfileKey, AudioDeviceTargetId,
+    AudioDirection,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -22,6 +23,16 @@ impl AudioDeviceSelection {
             fallback_fingerprint: (!device.stable_id).then(|| device.fingerprint.clone()),
             last_known_label: device.label.clone(),
             profile_key: device.profile_key.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn from_catalog_entry(device: &AudioDeviceCatalogEntry) -> Self {
+        Self {
+            profile_key: profile_key_for(&device.target, None, None),
+            target: device.target.clone(),
+            fallback_fingerprint: None,
+            last_known_label: device.label.clone(),
         }
     }
 

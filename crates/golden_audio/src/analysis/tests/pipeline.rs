@@ -25,6 +25,8 @@ fn analysis_plan() -> RenderPlan {
     let physical_input = PhysicalChannelKey::new("input:0").unwrap();
     let physical_output = PhysicalChannelKey::new("output:0").unwrap();
     let mut configuration = AudioConfiguration::empty();
+    configuration.physical_inputs.push(physical_input.clone());
+    configuration.physical_outputs.push(physical_output.clone());
     configuration.virtual_inputs.push(VirtualInputChannel {
         id: input,
         label: "Input".to_owned(),
@@ -70,8 +72,6 @@ fn analysis_plan() -> RenderPlan {
         .compile(
             &configuration,
             &RenderCompileContext {
-                physical_inputs: vec![physical_input],
-                physical_outputs: vec![physical_output],
                 playback_source_channels: 0,
             },
         )

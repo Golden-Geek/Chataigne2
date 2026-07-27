@@ -1428,8 +1428,6 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f77b11176c37874be37e8d691c946e31b2b8c357abce9526f6a99eb469e1028"
 dependencies = [
  "alsa",
  "alsa-sys",
@@ -2789,6 +2787,8 @@ name = "golden_audio"
 version = "0.1.0"
 dependencies = [
  "allocation-counter",
+ "asio-sys",
+ "audio_thread_priority",
  "base64 0.22.1",
  "cpal",
  "criterion 0.8.2",

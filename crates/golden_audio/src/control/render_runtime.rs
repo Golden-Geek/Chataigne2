@@ -2,6 +2,7 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc::{RecvTimeoutError, sync_channel},
     },
     thread::{self, JoinHandle, Thread},
     time::{Duration, Instant},
@@ -9,6 +10,7 @@ use std::{
 
 use rtrb::{Consumer, Producer, PushError, RingBuffer};
 
+use crate::realtime::AudioThreadPriorityGuard;
 use crate::{
     AnalysisController, AnalysisObservationSnapshot, AudioCallbackTimestamp, AudioChannelId, AudioDirection,
     AudioEngineConfig, AudioError, AudioErrorCategory, AudioStreamHandler, ClockBridgeConfig, ConfigGeneration,
@@ -136,6 +138,7 @@ pub(super) struct ManagedRenderRuntime {
     pending_analysis: Option<AnalysisController>,
     shutdown: Arc<AtomicBool>,
     thread: Option<JoinHandle<RuntimeThreadRetirement>>,
+    startup_priority_error: Option<String>,
     limits: EngineLimits,
     config: AudioEngineConfig,
 }
@@ -157,10 +160,19 @@ impl ManagedRenderRuntime {
         let block_frames = config.internal_block_frames.get() as usize;
         let sample_rate = config.sample_rate.get();
         let playback_buffer = PlanarBuffer::new(usize::from(limits.max_virtual_outputs), block_frames)?;
+        let (priority_sender, priority_receiver) = sync_channel(1);
         let worker = thread::Builder::new()
             .name("golden-audio-render".to_owned())
             .spawn(move || {
-                run_render_thread(
+                let (priority_guard, priority_error) = match AudioThreadPriorityGuard::promote(
+                    u32::try_from(block_frames).unwrap_or(u32::MAX),
+                    sample_rate,
+                ) {
+                    Ok(guard) => (Some(guard), None),
+                    Err(error) => (None, Some(error)),
+                };
+                let _ = priority_sender.try_send(priority_error);
+                let retirement = run_render_thread(
                     plans,
                     inputs,
                     outputs,
@@ -171,7 +183,9 @@ impl ManagedRenderRuntime {
                     sample_rate,
                     thread_observation,
                     thread_shutdown,
-                )
+                );
+                drop(priority_guard);
+                retirement
             })
             .map_err(|error| {
                 AudioError::new(
@@ -179,6 +193,18 @@ impl ManagedRenderRuntime {
                     format!("failed to start managed audio render thread: {error}"),
                 )
             })?;
+        let startup_priority_error = match priority_receiver.recv_timeout(Duration::from_secs(1)) {
+            Ok(error) => error,
+            Err(RecvTimeoutError::Timeout) => {
+                Some("realtime priority setup did not complete within one second".to_owned())
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                return Err(AudioError::new(
+                    AudioErrorCategory::InternalInvariant,
+                    "managed audio render thread exited before realtime priority setup",
+                ));
+            }
+        };
         Ok(Self {
             plan_publisher,
             input_publisher,
@@ -189,6 +215,7 @@ impl ManagedRenderRuntime {
             pending_analysis: None,
             shutdown,
             thread: Some(worker),
+            startup_priority_error,
             limits: limits.clone(),
             config: config.clone(),
         })
@@ -203,6 +230,10 @@ impl ManagedRenderRuntime {
         self.pending_analysis = Some(analysis);
         self.unpark();
         Ok(())
+    }
+
+    pub(super) fn take_startup_priority_error(&mut self) -> Option<String> {
+        self.startup_priority_error.take()
     }
 
     pub(super) fn prepare_stream_handler(

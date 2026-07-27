@@ -11,6 +11,7 @@ fn offline_renderer_executes_backend_neutral_signal_graph() {
     let output = AudioChannelId::from_uuid(Uuid::from_u128(2));
     let physical_output = PhysicalChannelKey::new("offline:out:0").unwrap();
     let mut config = AudioConfiguration::empty();
+    config.physical_outputs.push(physical_output.clone());
     config.virtual_inputs.push(VirtualInputChannel {
         id: input,
         label: "Input".to_owned(),
@@ -39,8 +40,6 @@ fn offline_renderer_executes_backend_neutral_signal_graph() {
         gain: GainDb::UNITY,
     });
     let context = RenderCompileContext {
-        physical_inputs: Vec::new(),
-        physical_outputs: vec![physical_output],
         playback_source_channels: 1,
     };
     let plan = RenderPlanCompiler::new(AudioEngineConfig::default(), EngineLimits::default())

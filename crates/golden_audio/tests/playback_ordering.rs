@@ -46,6 +46,7 @@ fn managed_runtime_drives_playback_and_the_backend_output_callback() {
         output_callback_allocation: Arc::clone(&output_callback_allocation),
         runtime_failure,
         opened_streams,
+        continuity: None,
     };
     let file = sine_wave_file(1, 48_000, 4_096);
     let playback_id = PlaybackId::new("managed").unwrap();
@@ -58,6 +59,7 @@ fn managed_runtime_drives_playback_and_the_backend_output_callback() {
     let events = engine.take_event_receiver().unwrap();
     let output = AudioChannelId::new();
     let mut configuration = AudioConfiguration::empty();
+    configuration.physical_outputs = null_physical_channels("output");
     configuration.output = DirectionConfiguration {
         enabled: true,
         device: Some(AudioDeviceSelection::follow_system_default(
@@ -126,6 +128,113 @@ fn managed_runtime_drives_playback_and_the_backend_output_callback() {
 
 #[cfg(feature = "analysis")]
 #[test]
+fn managed_streaming_continues_while_the_host_thread_is_stalled() {
+    let callback_signal = Arc::new(AtomicBool::new(false));
+    let callback_count = Arc::new(AtomicU64::new(0));
+    let continuity = Arc::new(OutputContinuity::default());
+    let backend = CallbackBackend {
+        callback_signal,
+        callback_count: Arc::clone(&callback_count),
+        input_callback_allocation: Arc::new(AtomicU64::new(u64::MAX)),
+        output_callback_allocation: Arc::new(AtomicU64::new(u64::MAX)),
+        runtime_failure: Arc::new(AtomicBool::new(false)),
+        opened_streams: Arc::new(AtomicU64::new(0)),
+        continuity: Some(Arc::clone(&continuity)),
+    };
+    let file = sine_wave_file(2, 48_000, 96_000);
+    let playback_id = PlaybackId::new("host-stall-stream").unwrap();
+    let mut builder = AudioEngineBuilder::default();
+    builder.limits.resident_asset_threshold_bytes = 1;
+    builder.limits.stream_ring_frames = 1_024;
+    let mut engine = builder
+        .with_backend(backend)
+        .with_managed_render_runtime()
+        .build()
+        .unwrap();
+    let events = engine.take_event_receiver().unwrap();
+    let output = AudioChannelId::new();
+    let mut configuration = AudioConfiguration::empty();
+    configuration.physical_outputs = null_physical_channels("output");
+    configuration.output = DirectionConfiguration {
+        enabled: true,
+        device: Some(AudioDeviceSelection::follow_system_default(
+            NullBackend::backend_id(),
+            AudioDirection::Output,
+        )),
+        recovery_policy: golden_audio::AudioRecoveryPolicy::WaitForSelected,
+        buffer_policy: golden_audio::AudioBufferPolicy::Fixed(128),
+    };
+    configuration.virtual_outputs.push(VirtualOutputChannel {
+        id: output,
+        label: "Host-independent output".to_owned(),
+        gain: GainDb::UNITY,
+    });
+    configuration.playback_patch.push(PlaybackRoute {
+        id: AudioRouteId::new(),
+        source_channel: 0,
+        destination: output,
+        gain: GainDb::UNITY,
+    });
+    for destination in ["output:0", "output:1"] {
+        configuration.output_patch.push(OutputPatchRoute {
+            id: AudioRouteId::new(),
+            source: output,
+            destination: PhysicalChannelKey::new(destination).unwrap(),
+            gain: GainDb::UNITY,
+        });
+    }
+    let generation = ConfigGeneration::new(1);
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::ConfigurationApplied { generation: applied } if *applied == generation),
+    );
+    engine
+        .control()
+        .submit(AudioCommand::PlayFile(PlayFileRequest::new(
+            file.path(),
+            playback_id.clone(),
+        )))
+        .unwrap();
+    wait_event(
+        &events,
+        |event| matches!(event, AudioEvent::PlaybackStarted(info) if info.playback_id == playback_id),
+    );
+    wait_until(|| continuity.observed_signal.load(Ordering::Acquire));
+
+    let callbacks_before_stall = callback_count.load(Ordering::Acquire);
+    continuity.monitor.store(true, Ordering::Release);
+    let stall_deadline = Instant::now() + Duration::from_millis(350);
+    while Instant::now() < stall_deadline {
+        std::hint::spin_loop();
+    }
+    continuity.monitor.store(false, Ordering::Release);
+
+    assert!(
+        callback_count.load(Ordering::Acquire) >= callbacks_before_stall + 50,
+        "the device callback stopped progressing with the host thread"
+    );
+    assert_eq!(
+        continuity.silent_callbacks.load(Ordering::Acquire),
+        0,
+        "streaming output dropped to silence while the host thread was stalled"
+    );
+    assert_eq!(
+        engine.observations().latest().runtime.output_underflow_count,
+        0,
+        "the managed output bridge underflowed while the host thread was stalled"
+    );
+    engine.shutdown().unwrap();
+}
+
+#[cfg(feature = "analysis")]
+#[test]
 fn managed_runtime_bridges_backend_input_into_monitoring_and_metering() {
     let callback_signal = Arc::new(AtomicBool::new(false));
     let callback_count = Arc::new(AtomicU64::new(0));
@@ -140,6 +249,7 @@ fn managed_runtime_bridges_backend_input_into_monitoring_and_metering() {
         output_callback_allocation: Arc::clone(&output_callback_allocation),
         runtime_failure,
         opened_streams,
+        continuity: None,
     };
     let mut engine = AudioEngineBuilder::default()
         .with_backend(backend)
@@ -150,6 +260,8 @@ fn managed_runtime_bridges_backend_input_into_monitoring_and_metering() {
     let inputs = [AudioChannelId::new(), AudioChannelId::new()];
     let output = AudioChannelId::new();
     let mut configuration = AudioConfiguration::empty();
+    configuration.physical_inputs = null_physical_channels("input");
+    configuration.physical_outputs = null_physical_channels("output");
     configuration.input = DirectionConfiguration {
         enabled: true,
         device: Some(AudioDeviceSelection::follow_system_default(
@@ -234,6 +346,8 @@ fn managed_runtime_uses_null_clock_without_false_callback_xruns() {
         .unwrap();
     let events = engine.take_event_receiver().unwrap();
     let mut configuration = AudioConfiguration::empty();
+    configuration.physical_inputs = null_physical_channels("input");
+    configuration.physical_outputs = null_physical_channels("output");
     configuration.input = DirectionConfiguration {
         enabled: true,
         device: Some(AudioDeviceSelection::follow_system_default(
@@ -287,6 +401,7 @@ fn managed_runtime_reopens_a_callback_stream_after_runtime_invalidation() {
         output_callback_allocation: Arc::new(AtomicU64::new(u64::MAX)),
         runtime_failure: Arc::clone(&runtime_failure),
         opened_streams: Arc::clone(&opened_streams),
+        continuity: None,
     };
     let mut engine = AudioEngineBuilder::default()
         .with_backend(backend)
@@ -296,6 +411,7 @@ fn managed_runtime_reopens_a_callback_stream_after_runtime_invalidation() {
     let events = engine.take_event_receiver().unwrap();
     let output = AudioChannelId::new();
     let mut configuration = AudioConfiguration::empty();
+    configuration.physical_outputs = null_physical_channels("output");
     configuration.output = DirectionConfiguration {
         enabled: true,
         device: Some(AudioDeviceSelection::follow_system_default(
@@ -536,6 +652,13 @@ fn wait_until(predicate: impl Fn() -> bool) {
 }
 
 #[cfg(feature = "analysis")]
+fn null_physical_channels(prefix: &str) -> Vec<PhysicalChannelKey> {
+    (0..2)
+        .map(|index| PhysicalChannelKey::new(format!("{prefix}:{index}")).unwrap())
+        .collect()
+}
+
+#[cfg(feature = "analysis")]
 #[derive(Clone, Debug)]
 struct CallbackBackend {
     callback_signal: Arc<AtomicBool>,
@@ -544,6 +667,26 @@ struct CallbackBackend {
     output_callback_allocation: Arc<AtomicU64>,
     runtime_failure: Arc<AtomicBool>,
     opened_streams: Arc<AtomicU64>,
+    continuity: Option<Arc<OutputContinuity>>,
+}
+
+#[cfg(feature = "analysis")]
+#[derive(Debug, Default)]
+struct OutputContinuity {
+    observed_signal: AtomicBool,
+    monitor: AtomicBool,
+    silent_callbacks: AtomicU64,
+}
+
+#[cfg(feature = "analysis")]
+impl OutputContinuity {
+    fn observe(&self, samples: &[f32]) {
+        if samples.iter().any(|sample| sample.abs() > 0.001) {
+            self.observed_signal.store(true, Ordering::Release);
+        } else if self.observed_signal.load(Ordering::Acquire) && self.monitor.load(Ordering::Acquire) {
+            self.silent_callbacks.fetch_add(1, Ordering::Relaxed);
+        }
+    }
 }
 
 #[cfg(feature = "analysis")]
@@ -556,8 +699,8 @@ impl AudioBackend for CallbackBackend {
         NullBackend.descriptor()
     }
 
-    fn discover(&self) -> Result<Vec<golden_audio::AudioDeviceDescriptor>, AudioError> {
-        NullBackend.discover()
+    fn device_inventory(&self) -> Result<golden_audio::AudioDeviceInventory, AudioError> {
+        NullBackend.device_inventory()
     }
 
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError> {
@@ -587,6 +730,7 @@ impl AudioBackend for CallbackBackend {
             input_callback_allocation: Arc::clone(&self.input_callback_allocation),
             output_callback_allocation: Arc::clone(&self.output_callback_allocation),
             runtime_failure: Arc::clone(&self.runtime_failure),
+            continuity: self.continuity.as_ref().map(Arc::clone),
             worker: None,
         }))
     }
@@ -605,6 +749,7 @@ struct CallbackStream {
     input_callback_allocation: Arc<AtomicU64>,
     output_callback_allocation: Arc<AtomicU64>,
     runtime_failure: Arc<AtomicBool>,
+    continuity: Option<Arc<OutputContinuity>>,
     worker: Option<JoinHandle<Box<dyn AudioStreamHandler>>>,
 }
 
@@ -635,6 +780,7 @@ impl AudioStream for CallbackStream {
         let callback_count = Arc::clone(&self.callback_count);
         let input_callback_allocation = Arc::clone(&self.input_callback_allocation);
         let output_callback_allocation = Arc::clone(&self.output_callback_allocation);
+        let continuity = self.continuity.as_ref().map(Arc::clone);
         let direction = self.direction;
         let channels = self.channels;
         self.worker = Some(thread::spawn(move || {
@@ -689,6 +835,9 @@ impl AudioStream for CallbackStream {
                         }
                         if samples.iter().any(|sample| sample.abs() > 0.001) {
                             callback_signal.store(true, Ordering::Relaxed);
+                        }
+                        if let Some(continuity) = &continuity {
+                            continuity.observe(&samples);
                         }
                     }
                 }

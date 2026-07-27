@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    AudioBackend, AudioDeviceDescriptor, AudioEngineBuilder, AudioError, AudioStream, BackendDescriptor, BackendId,
+    AudioBackend, AudioDeviceInventory, AudioEngineBuilder, AudioError, AudioStream, BackendDescriptor, BackendId,
     BackendPolicy, NullBackend, StreamRequest,
 };
 
@@ -19,7 +19,7 @@ impl AudioBackend for IdentityOnlyBackend {
         panic!("backend identity access must not probe the descriptor")
     }
 
-    fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError> {
+    fn device_inventory(&self) -> Result<AudioDeviceInventory, AudioError> {
         panic!("backend validation must not discover devices")
     }
 

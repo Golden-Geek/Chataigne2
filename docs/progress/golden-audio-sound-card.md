@@ -26,11 +26,14 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 15 - cross-platform release qualification and documentation.
-- Status: the implementation, deterministic/local qualification, Windows WASAPI endurance,
-  asynchronous Sound Card startup, strict workspace lint/dependency gates, and unsigned
-  cross-platform package workflow are complete. Mounted browser inspection and mandatory
-  real-backend rows that require unavailable hardware remain outstanding.
+- Historical plan phase: Phase 15 - cross-platform release qualification and documentation.
+- Active follow-up: simplify the Sound Card product model and make native-host activation
+  driver-selective.
+- Status: the original implementation, deterministic/local qualification, Windows WASAPI
+  endurance, asynchronous Sound Card startup, strict workspace lint/dependency gates, and unsigned
+  cross-platform package workflow are complete at the revisions recorded below. Those results
+  remain valid historical evidence, but they do not qualify the follow-up architecture until its
+  focused regression and mounted UI evidence are recorded.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
 - Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
@@ -44,6 +47,8 @@ backend remains `NOT RUN`.
 - Phase 14 bundled-host checkpoints: `85e6cc36`
   (`fix(host): preserve discovery routes with bundled UI`) and `a245641b`
   (`fix(host): avoid bundled headless self-probe`).
+- Simplification checkpoint: not yet recorded. The active contract is summarized below; its evidence
+  remains `NOT RUN` in this ledger.
 - Stop boundary: Phase 15 cannot be marked complete until mounted normal/narrow browser inspection
   and every mandatory real-backend row has exact-commit evidence. Certificates, code signing, and
   notarization are launch-only concerns and are never validation gates.
@@ -58,6 +63,31 @@ backend remains `NOT RUN`.
 - Chataigne owns all Sound Card nodes, authored defaults, commands, scripts, persistence, and
   domain-specific editor behavior.
 - Native audio, decoding, resampling, and analysis dependencies remain private to `golden_audio`.
+
+### Current Sound Card product contract
+
+- One Audio Driver gates both directions. `None` registers, discovers, and opens no native host;
+  otherwise only the selected host is registered and discovered.
+- Input Device and Output Device are selected within that host and each has a `None` choice.
+  Explicit devices remain selected and wait through loss; system-default selections follow host
+  default changes where that concept exists.
+- Sample Rate and Buffer Size expose `Automatic` plus backend-derived compatible values. The backend
+  intersects active input/output capabilities and the UI does not infer compatibility or fallback.
+- Routing is direct between physical device channels and stable Sound Card Channels. Device Profiles
+  and profile-history presentation are not part of the product model. Routing and Parameters remain
+  structurally stable but are absent from the editor while their device is `None`; the corresponding
+  Values root is absent from the tree.
+- The user authors channel counts through ordinary parameter edits. The backend owns channel
+  descendants, stable IDs, default labels, route identity, validation, cleanup, and stereo-default
+  synchronization in one stabilized edit batch. UI code sends typed connect, disconnect, and rename
+  intents rather than constructing route nodes or internal parameters.
+- Pitch Detection and Spectral Analysis are disabled-by-default Processing booleans. Their Values
+  containers are materialized only while enabled; input/output Parameters are hidden and Values are
+  absent for inactive directions.
+- Routing presentation is a two-column SVG patch bay with one element per endpoint and one curve per
+  route. Its render and interaction model is `O(endpoints + routes)`, not a dense Cartesian matrix.
+- User-facing text says Input Channel, Output Channel, and Channel Routing. Internal engine code may
+  retain domain-neutral virtual-bus terminology where it is technically useful.
 
 ### Initial engine limits
 
@@ -144,8 +174,9 @@ Decision:
 | Final render-plan destruction on callback | One-pending-plan acknowledged exchange plus retained retired-plan slot; allocation/deallocation guard | Mitigated; deterministic ownership qualification PASS |
 | Independent input/output clock drift | Bounded ring, adaptive ASRC, PI controller, discontinuity fade, drift/bridge observations | Mitigated; backend-neutral qualification PASS |
 | Decoder completion after stop/replacement | Monotonic command sequence and cancellation generation watermarks; stale worker results discarded off callback | Mitigated; deterministic ordering suite PASS |
-| Large meter/matrix/spectrum UI | Packed latest-only telemetry, Canvas, viewport virtualization, bounded refresh, teardown tests | Open |
-| Native host probing freezes Sound Card creation | Side-effect-free backend identity plus a Chataigne lifecycle worker for engine startup, replacement, and retirement; gated blocked-initializer regression | Mitigated; deterministic responsiveness qualification PASS |
+| Large routing UI expands as the channel Cartesian product | Two endpoint columns plus authored SVG curves; typed interaction state and DOM/SVG size must remain `O(endpoints + routes)` | Follow-up evidence NOT RUN |
+| An unselected native host starts or reserves devices | Register and discover only the shared Audio Driver selection; `None` constructs no hardware backend | Follow-up evidence NOT RUN |
+| Selected native host probing freezes Sound Card changes | Side-effect-free catalog identity plus a Chataigne lifecycle worker for selected-host startup, replacement, and retirement | Historical responsiveness PASS; selective-host regression NOT RUN |
 | Default Sound Card graph blocks UI acknowledgement | Coalesce lifecycle descendants into one completed subtree UI transaction, use stage-specific lifecycle snapshots and static catalog fast paths, initialize native audio asynchronously, and defer the redundant fresh-structure rescan | Mitigated; exact UI-intent creation inside a 10,000-node graph PASS under the 250 ms debug ceiling (about 65-70 ms locally) |
 | Legacy unmapped gitlinks | Do not use or modify them; record pre-existing tooling failure | Open, unrelated |
 
@@ -406,24 +437,25 @@ result and stops capture without changing the render plan or device state.
 
 ## Phase 9 implementation
 
-The Chataigne-owned Sound Card model now provides:
+This section through Phase 13 records the predecessor product model at the exact historical
+checkpoints. It remains evidence for the reusable engine, persistence, lifecycle, protocol, and UI
+extension boundaries established there; it is not the current Sound Card UX contract. Obsolete
+topology details are intentionally summarized rather than presented as contributor guidance.
+
+The Phase 9 Chataigne-owned Sound Card model established:
 
 - one app dependency on `golden_audio.workspace` without an app-selected backend feature list;
 - a generated `Audio / Sound Card` module catalog item, app-owned child schemas, and exactly five
   generated command node types exposed by its `ModuleCommandTester`;
-- correctly separated authored containers, removable/duplicable channels, profiles, routes, and
-  analyzers, plus read-only derived meter and analysis result structures;
-- two default virtual inputs, two default virtual outputs, one-to-one default input/output device
-  profiles, meter projections, and pitch/spectrum analyzer outputs materialized in batched
-  `NodeTree` operations;
+- correctly separated authored topology and read-only derived meter/analysis projections,
+  materialized in batched `NodeTree` operations;
 - stable authored UUID identity across rename and reorder, fresh identity on duplication, and
   deterministic UUIDv5 identities for rebuildable meter, analyzer-result, and spectrum-band
   projections;
-- same-Sound-Card reference filters for virtual input/output routes and channel-volume commands;
+- same-Sound-Card reference filters for routes and channel-volume commands;
 - event-driven derived-structure repair with no Phase 9 periodic poll or audio runtime;
-- sparse project persistence for authored profiles, routes, identity, gain, and missing device
-  selections, including a tagged missing enum choice after production-style reload preparation;
-  and
+- sparse project persistence for authored routes, identity, gain, and missing device selections,
+  including a tagged missing enum choice after production-style reload preparation; and
 - a fixture-backed lifecycle suite covering creation, save/reload, duplication, removal, projection
   repair, null-backend readiness, generated catalog membership, command scoping, and cross-module
   reference rejection.
@@ -433,18 +465,18 @@ open a native backend, poll live values, or execute the five command nodes.
 
 ## Phase 10 implementation
 
-The Chataigne-owned runtime adapter now provides:
+The Phase 10 Chataigne-owned runtime adapter established:
 
 - one asynchronously constructed `golden_audio::AudioEngine` lifecycle per live Sound Card module,
-  using every compiled native backend plus the deterministic null backend; startup, sample-rate
-  replacement, and retirement run through an app-owned lifecycle worker with bounded retry, and
-  module removal or project drop never waits for native host shutdown on the engine thread;
+  with startup, replacement, and retirement running through an app-owned lifecycle worker with
+  bounded retry, so module removal or project drop never waits for native host shutdown on the
+  engine thread;
 - immediate UI creation acknowledgement: Golden Core coalesces lifecycle-generated descendants
   into one completed subtree transaction, and the Sound Card performs derived-structure repair
   once for the complete structural event frame rather than once per child event;
 - dirty-tree conversion into backend-neutral `AudioConfiguration` values, stable UUID-derived
-  channel/route/tap identities, device-profile selection by stable profile key, and one coalesced
-  configuration generation per stabilization batch;
+  channel/route/tap identities, durable device selection, and one coalesced configuration generation
+  per stabilization batch;
 - last-valid-plan behavior: invalid foreign references reject the replacement, while missing
   devices and dangling local references keep authored topology intact and surface node warnings;
 - Golden-owned periodic discovery, device supervision, stream open/start/stop, recovery status, and
@@ -453,7 +485,7 @@ The Chataigne-owned runtime adapter now provides:
 - cached runtime `NodeId` bindings, 30 Hz observation polling, epsilon-filtered parameter writes,
   readiness and data-capability projection, and no steady-state process-tree or state-machine
   snapshot rebuild;
-- read-only meter, analyzer, playback, stream, and diagnostic value projection from the coalesced
+- read-only meter, processing, playback, stream, and diagnostic value projection from the coalesced
   Golden observation;
 - an app-owned latest-only `chataigne.sound_card.telemetry` envelope whose embedded device and
   analysis contracts, plus the envelope itself, are generated from Rust into TypeScript; and
@@ -471,17 +503,17 @@ The Chataigne-owned command and scripting boundary now provides:
 - executable manual, auto-triggered, external-target, and transient multiplex command paths for
   Play File, Stop File, Stop All Files, Set Master Volume, and Set Channel Volume;
 - effective-snapshot extraction for every command parameter, so each multiplex lane supplies its
-  own file path, playback ID, virtual-output reference, and gain without mutating the authored
+  own file path, playback ID, output-channel reference, and gain without mutating the authored
   command node;
 - typed bounded admission into `golden_audio`, ordered same-ID replacement and cross-ID
   independence, and a structured `chataigne.sound_card.command.result` event for admitted
   sequences or typed failures;
-- app-side virtual-output validation that rejects inputs, foreign modules, deleted nodes, empty
+- app-side output-channel validation that rejects inputs, foreign modules, deleted nodes, empty
   references, and physical-channel strings before crossing the Golden boundary;
 - active master/output gain handling on the Golden control worker without render-plan
   recompilation, plus structured diagnostics if a stale target reaches the worker;
 - script descriptors and host dispatch for `playFile`, `stopFile`, `stopAllFiles`,
-  `setMasterVolume`, and `setChannelVolume`, including stable virtual-output UUID tokens;
+  `setMasterVolume`, and `setChannelVolume`, including stable output-channel UUID tokens;
 - playback lifecycle plus device/backend status callbacks with documented argument shapes;
 - transient playback callback delivery, which stays inside the live engine inbox and cannot enter
   UI replay or transport resynchronization; and
@@ -492,14 +524,12 @@ Phase 11 deliberately leaves reusable device-inspector presentation and registra
 
 ## Phase 12 implementation
 
-The reusable UI boundary now provides:
+The Phase 12 reusable UI boundary established:
 
 - a `golden_audio_ui` npm workspace package whose generated TypeScript device contract comes
   directly from the Rust `golden_audio` DTOs and has a deterministic drift check;
-- `AudioDeviceSelector` with separate input/output enablement and backend-grouped native selectors,
-  stable and persisted-missing targets, backend/readiness/permission presentation, negotiated
-  format and latency summaries, shared recovery/sample-rate/buffer controls, and nonblocking
-  refresh;
+- stable and persisted-missing targets, backend/readiness/permission presentation, negotiated
+  format and latency summaries, and nonblocking refresh;
 - structured diagnostics with expandable technical detail, visible focus, semantic labels, native
   keyboard interaction, and live status announcements without color-only meaning;
 - a generic binding contract plus a reusable declared-path/node-ID parameter adapter that emits
@@ -509,30 +539,22 @@ The reusable UI boundary now provides:
 - a Chataigne-independent mock adapter and standalone consumer;
 - a narrow `golden_ui` default-child filter hook so a custom inspector can render app children
   while omitting only the parameter folder represented by the custom presentation; and
-- Chataigne registration for `sound_card_module`, using the generic parameter binding to map the
-  existing connection folder and hiding that one duplicated folder below the reusable selector.
+- an app registration path that consumes reusable presentation through public Golden UI hooks.
 
-Phase 12 deliberately leaves the module-editor descriptor registry, full Sound Card editor,
-matrices, meters, playback controls, analysis controls, and product diagnostics to Phase 13.
+The driver-gated selector and patch-bay binding required by the current product contract supersede
+the predecessor selector presentation while retaining these package and registry boundaries.
 
 ## Phase 13 implementation
 
-The app-specific editor boundary now provides:
+The Phase 13 app-specific editor boundary established:
 
 - one Chataigne-owned module-editor descriptor registry used by both the module inspector header
   and dock panel definitions, with Spatializer migrated to stable per-module panel identity and no
   product branch added to `golden_ui`;
-- a focused Svelte 5 `SoundCardEditorPanel` that composes the Phase 12 `AudioDeviceSelector` and
-  keeps module/profile selection in dock panel state;
-- generic-inspector-backed virtual input/output authoring, reorder, rename, output faders, and
-  master volume, so all persistent edits continue through public Golden UI intents;
-- active device-profile history plus physical-input, physical-output, monitoring, and playback
-  sparse matrices whose Canvas projection scales independently of matrix area;
+- a focused Svelte 5 `SoundCardEditorPanel` composed through public Golden UI extension points;
 - atomic `CreateUserItem` route creation with source, destination, and gain `initial_params`,
   existing-gain `SetParam`, route `RemoveNode`, grouped pointer painting through
   `BeginEdit`/`EndEdit`, acknowledgement-keyed optimistic state, and rejection rollback;
-- authored monitoring visibility while input is disabled, with inactive signal flow communicated
-  in text and styling;
 - frame-coalesced Canvas meters and spectrum, semantic meter/table fallbacks, pitch/spectrum
   observations, analysis authoring, available diagnostics, and explicit ResizeObserver/animation
   frame teardown;
@@ -542,7 +564,12 @@ The app-specific editor boundary now provides:
   pitch, spectrum, and diagnostics without hardware; and
 - tests for descriptor registration and panel identity, atomic route intents, grouped edit
   sessions, gain/removal paths, undo/redo, inactive monitoring, packed telemetry rendering,
-  256-by-256 matrix DOM bounds, playback control routing, and Canvas frame cancellation.
+  predecessor routing-view scale bounds, playback control routing, and Canvas frame cancellation.
+
+The current follow-up replaces that predecessor editor presentation and its generic node-mutation
+route path with the three-section Sound Card tree, typed routing intents, conditional processing
+Values, and the `O(endpoints + routes)` SVG patch bay described below. The exact Phase 13 tests and
+measurements remain historical evidence only.
 
 The in-app browser surface was unavailable during this revision, so mounted visual inspection at
 normal and narrow desktop sizes is `NOT RUN`. Phase 14 still owns reference-workload profiling,
@@ -647,6 +674,29 @@ environment gates.
 The configured browser surface again reported no browser, so mounted normal/narrow visual
 inspection remains `NOT RUN`; no desktop-control fallback was used. Other Windows backends,
 macOS, and Linux remain `NOT RUN`.
+
+## Sound Card simplification follow-up
+
+The product contract after the phased implementation removes the complexity that the Phase 9-13
+predecessor exposed:
+
+- one shared Audio Driver is the only native-host gate; `None` touches no hardware, and selecting a
+  host registers/discovers only that host;
+- Input Device and Output Device are scoped to that host, with explicit-device wait/recovery and
+  system-default following kept as distinct backend semantics;
+- Sample Rate and Buffer Size are `Automatic` or capability-derived compatible choices;
+- physical endpoints route directly to stable user-facing Channels without Device Profiles;
+- backend intents own channel-count synchronization, default names and stereo routes, connect,
+  disconnect, rename, validation, and atomic topology edits;
+- Pitch Detection and Spectral Analysis are disabled-by-default booleans whose Values exist only
+  while enabled; and
+- the routing UI is a two-column SVG patch bay with `O(endpoints + routes)` rendered elements.
+
+The historical qualification above proves the reusable render, playback, analysis, recovery,
+protocol, and lifecycle foundations. It does not prove selective-host activation, the simplified
+tree, conditional Values, or the new patch-bay interaction. Those follow-up rows remain `NOT RUN`
+until focused Rust/UI tests, generated-contract checks, normal/narrow mounted inspection, and the
+relevant real-driver smoke are recorded at an exact revision.
 
 ## Commands and evidence
 
@@ -806,7 +856,7 @@ macOS, and Linux remain `NOT RUN`.
 | `npm run build --workspace chataigne-ui` after Phase 13 | PASS - static production build completed; only the existing chunk-size advisory was emitted |
 | Phase 13 Sound Card protocol regeneration | PASS - generated TypeScript hashes were unchanged after regeneration |
 | Root `npm run check` and `npm test` after Phase 13 | PASS - package codegen/type checks plus 21 package and 36 app tests |
-| Phase 13 256-by-256 matrix evidence | PASS - one Canvas, 512 axis options, and fewer than 600 focused DOM controls; no per-cell component expansion |
+| Historical Phase 13 predecessor-editor scale evidence | PASS - one Canvas, 512 axis options, and fewer than 600 focused DOM controls; superseded by the SVG patch-bay contract |
 | Phase 13 mounted browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
 | Root and Golden Core formatting plus `--check` after Phase 13 | PASS |
 | Phase 14 combined workload allocation guard | PASS - routing, resident playback, meters, pitch capture, and spectrum capture observed 0 allocations, 0 deallocations, and 0 bytes after warm-up |
@@ -847,6 +897,11 @@ macOS, and Linux remain `NOT RUN`.
 | Unsigned cross-platform package workflow | PASS at exact `2c0b9810` - Windows, macOS, and Linux package build/install-or-extract/browser exercise/cleanup completed without signing credentials |
 | Product run modes | PARTIAL - exact `a245641b` bundled headless release startup passed; mounted desktop, browser session, and installed package remain `NOT RUN` |
 | Cross-platform backend/hardware matrix | NOT RUN |
+| Simplification selected-host and `None` isolation regressions | PASS - deterministic construction and passive-`None` regressions; physical host isolation remains part of the hardware matrix |
+| Simplification device recovery and capability-derived format regressions | PASS - deterministic inventory/recovery and exact capability-intersection regressions; physical unplug/replug remains part of the hardware matrix |
+| Simplification backend-owned channel/routing/conditional-Values tests | PASS |
+| Simplification generated-contract and UI check/test/build gates | PASS - generated contracts are current, both Svelte checks are clean, and reusable/app UI tests pass |
+| Simplification SVG patch-bay normal/narrow mounted inspection | NOT RUN |
 
 ## Files changed
 
@@ -1072,7 +1127,12 @@ Phase 14:
 
 Phase 14 implementation and deterministic qualification are complete, including the Windows WASAPI
 one-hour real-device workload/recovery gate. Phase 15 documentation and unsigned package automation
-are implemented. The remaining evidence is environmental: mounted normal/narrow browser
-inspection, macOS input-permission behavior, and mandatory real-device/backend recovery rows on
-hardware that is not currently available. Certificates, signing, notarization, and timestamp
-services are explicitly outside validation and cannot block Sound Card completion.
+are implemented for the predecessor revision. The simplification follow-up implementation and
+focused deterministic evidence are complete: selected-host-only activation, passive `None`,
+capability-derived formats, backend-owned channel/route synchronization, conditional processing
+Values, typed routing intents, and the reusable SVG patch bay are covered.
+
+The remaining original-plan evidence is environmental: mounted normal/narrow browser inspection,
+macOS input-permission behavior, and mandatory real-device/backend recovery rows on hardware that is
+not currently available. Certificates, signing, notarization, and timestamp services are explicitly
+outside validation and cannot block Sound Card completion.

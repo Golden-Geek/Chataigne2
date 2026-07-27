@@ -35,24 +35,24 @@ pub(crate) fn register_module_reference_filters<T: Node>(engine: &mut Engine<T>)
         |engine, _param_node, _root, candidate| candidate_is_module_values_parameter(engine, candidate),
     );
     engine.register_reference_filter(
-        crate::app::module_modules_audio_sound_card_schema::SOUND_CARD_VIRTUAL_INPUT_FILTER_KEY,
+        crate::app::module_modules_audio_sound_card_schema::SOUND_CARD_INPUT_GAIN_FILTER_KEY,
         |engine, param, _root, candidate| {
-            candidate_is_same_sound_card_channel(
+            candidate_is_same_sound_card_gain(
                 engine,
                 param,
                 candidate,
-                crate::app::module_modules_audio_sound_card_schema::SoundCardVirtualInput::NODE_TYPE,
+                crate::app::module_modules_audio_sound_card_schema::SoundCardInputChannelList::NODE_TYPE,
             )
         },
     );
     engine.register_reference_filter(
-        crate::app::module_modules_audio_sound_card_schema::SOUND_CARD_VIRTUAL_OUTPUT_FILTER_KEY,
+        crate::app::module_modules_audio_sound_card_schema::SOUND_CARD_OUTPUT_GAIN_FILTER_KEY,
         |engine, param, _root, candidate| {
-            candidate_is_same_sound_card_channel(
+            candidate_is_same_sound_card_gain(
                 engine,
                 param,
                 candidate,
-                crate::app::module_modules_audio_sound_card_schema::SoundCardVirtualOutput::NODE_TYPE,
+                crate::app::module_modules_audio_sound_card_schema::SoundCardOutputChannelList::NODE_TYPE,
             )
         },
     );
@@ -95,16 +95,25 @@ fn candidate_is_module_values_parameter<T: Node>(engine: &Engine<T>, candidate: 
     has_values_ancestor && has_module_ancestor && has_module_manager_ancestor
 }
 
-fn candidate_is_same_sound_card_channel<T: Node>(
+fn candidate_is_same_sound_card_gain<T: Node>(
     engine: &Engine<T>,
     parameter: NodeId,
     candidate: NodeId,
-    expected_node_type: &str,
+    expected_container_type: &str,
 ) -> bool {
+    let Some(candidate_node) = engine.nodes.get(candidate) else {
+        return false;
+    };
+    if candidate_node.get_type() != "float" {
+        return false;
+    }
+    let Some(parent) = candidate_node.node_data().parent else {
+        return false;
+    };
     if engine
         .nodes
-        .get(candidate)
-        .is_none_or(|node| node.get_type() != expected_node_type)
+        .get(parent)
+        .is_none_or(|node| node.get_type() != expected_container_type)
     {
         return false;
     }

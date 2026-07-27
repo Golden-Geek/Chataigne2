@@ -1,23 +1,31 @@
 use std::{
     fmt,
-    sync::mpsc::{SendError, TryRecvError},
+    sync::mpsc::{RecvTimeoutError, SendError, TryRecvError},
     thread,
+    time::Duration,
 };
 
-use golden_audio::SampleRate;
+use golden_audio::{BackendId, SampleRate};
 use golden_io::{PendingReceiver, WorkerTask, pending_channel};
 
-use super::SoundCardRuntime;
+use super::{RuntimeWakeSender, SoundCardRuntime};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+const START_COALESCE_WINDOW: Duration = Duration::from_millis(10);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct SoundCardRuntimeRequest {
     id: u64,
     sample_rate: SampleRate,
+    driver: Option<BackendId>,
 }
 
 impl SoundCardRuntimeRequest {
-    pub(crate) const fn sample_rate(self) -> SampleRate {
+    pub(crate) const fn sample_rate(&self) -> SampleRate {
         self.sample_rate
+    }
+
+    pub(crate) fn driver(&self) -> Option<&BackendId> {
+        self.driver.as_ref()
     }
 }
 
@@ -34,9 +42,7 @@ pub(crate) enum SoundCardRuntimeWorkerPoll {
 }
 
 enum SoundCardRuntimeWorkerCommand {
-    Start {
-        request: SoundCardRuntimeRequest,
-    },
+    Start { request: SoundCardRuntimeRequest },
     Retire(Box<SoundCardRuntime>),
 }
 
@@ -47,32 +53,36 @@ pub(crate) struct SoundCardRuntimeWorker {
 }
 
 impl SoundCardRuntimeWorker {
-    pub(crate) fn spawn() -> Result<Self, String> {
-        Self::spawn_using(SoundCardRuntime::start)
+    pub(crate) fn spawn(wake: RuntimeWakeSender) -> Result<Self, String> {
+        Self::spawn_using(wake, SoundCardRuntime::start_selected)
     }
 
-    #[cfg(test)]
-    pub(crate) fn spawn_with<F>(starter: F) -> Result<Self, String>
+    fn spawn_using<F>(wake: RuntimeWakeSender, starter: F) -> Result<Self, String>
     where
-        F: Fn(SampleRate) -> Result<SoundCardRuntime, String> + Send + 'static,
-    {
-        Self::spawn_using(starter)
-    }
-
-    fn spawn_using<F>(starter: F) -> Result<Self, String>
-    where
-        F: Fn(SampleRate) -> Result<SoundCardRuntime, String> + Send + 'static,
+        F: Fn(SampleRate, Option<BackendId>) -> Result<SoundCardRuntime, String> + Send + 'static,
     {
         let (event_sender, events) = pending_channel();
         let task = WorkerTask::spawn("chataigne-sound-card-runtime", move |commands| {
             while let Ok(command) = commands.recv() {
                 match command {
-                    SoundCardRuntimeWorkerCommand::Start { request } => {
-                        let result = starter(request.sample_rate).map(Box::new);
-                        let _ = event_sender.send(SoundCardRuntimeStarted {
-                            request,
-                            result,
-                        });
+                    SoundCardRuntimeWorkerCommand::Start { request: first_request } => {
+                        // Driver construction may load native libraries and must never
+                        // churn through a FIFO of stale UI selections. Wait for one
+                        // short host-boundary window and construct only the newest
+                        // request observed before initialization begins.
+                        let mut request = first_request;
+                        loop {
+                            match commands.recv_timeout(START_COALESCE_WINDOW) {
+                                Ok(SoundCardRuntimeWorkerCommand::Start { request: newer }) => request = newer,
+                                Ok(SoundCardRuntimeWorkerCommand::Retire(mut runtime)) => runtime.stop(),
+                                Err(RecvTimeoutError::Timeout) => break,
+                                Err(RecvTimeoutError::Disconnected) => return,
+                            }
+                        }
+                        let result = starter(request.sample_rate, request.driver.clone()).map(Box::new);
+                        if event_sender.send(SoundCardRuntimeStarted { request, result }).is_ok() {
+                            wake.wake();
+                        }
                     }
                     SoundCardRuntimeWorkerCommand::Retire(mut runtime) => {
                         runtime.stop();
@@ -88,17 +98,21 @@ impl SoundCardRuntimeWorker {
         })
     }
 
-    pub(crate) fn request_start(
+    pub(crate) fn request_start_for_driver(
         &mut self,
         sample_rate: SampleRate,
+        driver: Option<BackendId>,
     ) -> Result<SoundCardRuntimeRequest, String> {
         let request = SoundCardRuntimeRequest {
             id: self.next_request_id,
             sample_rate,
+            driver,
         };
         self.next_request_id = self.next_request_id.saturating_add(1);
         self.task
-            .send(SoundCardRuntimeWorkerCommand::Start { request })
+            .send(SoundCardRuntimeWorkerCommand::Start {
+                request: request.clone(),
+            })
             .map_err(|_| "Sound Card runtime worker stopped".to_owned())?;
         Ok(request)
     }
@@ -119,8 +133,7 @@ impl SoundCardRuntimeWorker {
 
     pub(crate) fn retire(&self, runtime: SoundCardRuntime) {
         if let Err(SendError(SoundCardRuntimeWorkerCommand::Retire(runtime))) =
-            self.task
-                .send(SoundCardRuntimeWorkerCommand::Retire(Box::new(runtime)))
+            self.task.send(SoundCardRuntimeWorkerCommand::Retire(Box::new(runtime)))
         {
             retire_detached(*runtime);
         }

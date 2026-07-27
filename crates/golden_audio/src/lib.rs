@@ -39,7 +39,10 @@ pub use backend::{
     MockBackend, MockBackendControl, MockBackendEvent, MockBackendEventKind, NullBackend, StreamRequest,
 };
 #[cfg(feature = "desktop")]
-pub use backend::{compiled_cpal_backends, probe_cpal_backends};
+pub use backend::{
+    NativeAudioBackendInfo, compiled_cpal_backend_catalog, compiled_cpal_backends, cpal_backend_by_id,
+    probe_cpal_backends,
+};
 pub use clock::{
     ClockAuthority, ClockBlock, ClockBridgeConfig, ClockBridgeObservation, ClockHandoffPhase, ClockSource,
     DriftController, DriftControllerConfig, InputClockReader, InputClockWriter, InputReadError, InputReadResult,
@@ -55,13 +58,14 @@ pub use control::{
     PlaybackObservation, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent, RenderRuntimeObservation,
 };
 pub use device::{
-    AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceFingerprint,
-    AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceProfile, AudioDeviceReadiness, AudioDeviceSelection,
-    AudioDeviceTargetId, AudioDirection, AudioInspectorError, AudioPermissionState, AudioRecoveryPolicy,
-    AudioSampleFormat, AudioStreamStatus, ChannelCountPolicy, DeviceNegotiator, DeviceProfileStore, DeviceSupervisor,
-    DeviceSupervisorConfig, DeviceSwitchPhase, NegotiatedStreamFormat, PhysicalChannelDescriptor, RetryBackoff,
-    SampleFormatPolicy, SampleRatePolicy, StreamNegotiationRequest, SupervisorDirection, SupportedBufferFrames,
-    SupportedStreamConfiguration, match_device_selection, profile_key_for,
+    AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceCatalogEntry, AudioDeviceDescriptor,
+    AudioDeviceFingerprint, AudioDeviceInspectorState, AudioDeviceInventory, AudioDeviceMatch, AudioDeviceProfile,
+    AudioDeviceReadiness, AudioDeviceSelection, AudioDeviceTargetId, AudioDirection, AudioInspectorError,
+    AudioPermissionState, AudioRecoveryPolicy, AudioSampleFormat, AudioStreamStatus, ChannelCountPolicy,
+    DeviceNegotiator, DeviceProfileStore, DeviceSupervisor, DeviceSupervisorConfig, DeviceSwitchPhase,
+    NegotiatedStreamFormat, PhysicalChannelDescriptor, RetryBackoff, SampleFormatPolicy, SampleRatePolicy,
+    StreamNegotiationRequest, SupervisorDirection, SupportedBufferFrames, SupportedStreamConfiguration,
+    match_device_selection, profile_key_for,
 };
 pub use diagnostics::{DiagnosticEvent, DiagnosticSeverity};
 pub use error::{AudioError, AudioErrorCategory};

@@ -61,6 +61,8 @@ impl Default for FrameCount {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EngineLimits {
+    pub max_physical_inputs: u16,
+    pub max_physical_outputs: u16,
     pub max_virtual_inputs: u16,
     pub max_virtual_outputs: u16,
     pub max_routes: u32,
@@ -79,6 +81,8 @@ pub struct EngineLimits {
 impl EngineLimits {
     pub fn validate(&self) -> Result<(), AudioError> {
         let required_nonzero = [
+            ("max_physical_inputs", u64::from(self.max_physical_inputs)),
+            ("max_physical_outputs", u64::from(self.max_physical_outputs)),
             ("max_virtual_inputs", u64::from(self.max_virtual_inputs)),
             ("max_virtual_outputs", u64::from(self.max_virtual_outputs)),
             ("max_routes", u64::from(self.max_routes)),
@@ -115,6 +119,8 @@ impl EngineLimits {
 impl Default for EngineLimits {
     fn default() -> Self {
         Self {
+            max_physical_inputs: 256,
+            max_physical_outputs: 256,
             max_virtual_inputs: 256,
             max_virtual_outputs: 256,
             max_routes: 16_384,

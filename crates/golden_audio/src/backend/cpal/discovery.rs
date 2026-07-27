@@ -39,6 +39,18 @@ pub(super) fn descriptor_for_device(
     )
 }
 
+/// Describes an exact device without asking the host for system defaults.
+///
+/// ASIO has no system-default concept, and CPAL implements its default lookup by
+/// enumerating drivers. Exact ASIO probes must use this path so selecting one
+/// driver never initializes the others.
+pub(super) fn descriptor_for_exact_device(
+    host_id: HostId,
+    device: &Device,
+) -> Result<AudioDeviceDescriptor, AudioError> {
+    descriptor_for_device_with_defaults(host_id, device, None, None)
+}
+
 fn descriptor_for_device_with_defaults(
     host_id: HostId,
     device: &Device,
@@ -151,7 +163,9 @@ fn supported_configuration(
         SupportedBufferSize::Unknown => SupportedBufferFrames {
             min: 1,
             max: 65_536,
-            preferred: 128,
+            // The native host chooses the actual callback size. Keep enough
+            // render-bridge headroom for common high-latency/Bluetooth paths.
+            preferred: 2_048,
         },
     };
     Some(SupportedStreamConfiguration {

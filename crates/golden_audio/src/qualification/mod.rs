@@ -307,6 +307,8 @@ fn configuration(
         .map(|index| physical("output", index))
         .collect::<Vec<_>>();
     let mut configuration = AudioConfiguration::empty();
+    configuration.physical_inputs = physical_inputs;
+    configuration.physical_outputs = physical_outputs;
     configuration.virtual_inputs = inputs
         .iter()
         .enumerate()
@@ -327,7 +329,7 @@ fn configuration(
     configuration.input_patch = (0..physical_channel_count.min(channels))
         .map(|index| InputPatchRoute {
             id: route_id(1, index),
-            source: physical_inputs[index].clone(),
+            source: configuration.physical_inputs[index].clone(),
             destination: inputs[index],
             gain: GainDb::UNITY,
         })
@@ -336,7 +338,7 @@ fn configuration(
         .map(|index| OutputPatchRoute {
             id: route_id(2, index),
             source: outputs[index],
-            destination: physical_outputs[index].clone(),
+            destination: configuration.physical_outputs[index].clone(),
             gain: GainDb::UNITY,
         })
         .collect();
@@ -367,8 +369,6 @@ fn configuration(
     Ok((
         configuration,
         RenderCompileContext {
-            physical_inputs,
-            physical_outputs,
             playback_source_channels: channels,
         },
     ))

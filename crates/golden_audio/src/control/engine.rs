@@ -2,7 +2,7 @@ use std::{
     sync::{
         Arc, RwLock,
         atomic::{AtomicU8, AtomicU64, Ordering},
-        mpsc::{Receiver, SyncSender, sync_channel},
+        mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel},
     },
     thread::{self, JoinHandle},
     time::Duration,
@@ -53,6 +53,15 @@ impl AudioControl {
         Ok(sequence)
     }
 
+    /// Replaces the exact device targets whose capabilities the control worker
+    /// should probe. Catalog-only entries remain lightweight until included.
+    pub fn set_device_probe_interests(
+        &self,
+        targets: Vec<crate::AudioDeviceTargetId>,
+    ) -> Result<CommandSequence, AudioError> {
+        self.submit(AudioCommand::SetDeviceProbeInterests { targets })
+    }
+
     pub fn shutdown(&self) -> Result<CommandSequence, AudioError> {
         match self
             .state
@@ -97,6 +106,16 @@ impl AudioEventReceiver {
 
     pub fn recv(&self) -> Result<AudioEvent, AudioError> {
         self.receiver.recv().map_err(|_| AudioError::shutting_down())
+    }
+
+    /// Waits for an event until `timeout`, allowing host adapters to combine
+    /// event-driven delivery with a deliberately coarse observation cadence.
+    pub fn recv_timeout(&self, timeout: Duration) -> Result<Option<AudioEvent>, AudioError> {
+        match self.receiver.recv_timeout(timeout) {
+            Ok(event) => Ok(Some(event)),
+            Err(RecvTimeoutError::Timeout) => Ok(None),
+            Err(RecvTimeoutError::Disconnected) => Err(AudioError::shutting_down()),
+        }
     }
 }
 
@@ -373,6 +392,27 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
         #[cfg(all(feature = "analysis", feature = "playback"))]
         mut managed_render_runtime,
     } = worker;
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    if let Some(error) = managed_render_runtime
+        .as_mut()
+        .and_then(ManagedRenderRuntime::take_startup_priority_error)
+    {
+        publish_event(
+            &event_sender,
+            &observation,
+            AudioEvent::Diagnostic(
+                DiagnosticEvent::new(
+                    DiagnosticSeverity::Warning,
+                    "audio_render_realtime_priority_denied",
+                    "audio rendering will continue without realtime thread priority",
+                )
+                .with_context("thread", "golden-audio-render")
+                .with_context("block_frames", engine_config.internal_block_frames.get().to_string())
+                .with_context("sample_rate", engine_config.sample_rate.get().to_string())
+                .with_context("error", error),
+            ),
+        );
+    }
     let mut devices = DeviceRuntime::new(&engine_config)
         .expect("validated audio engine configuration must create a device supervisor");
     devices.refresh(
@@ -483,6 +523,16 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                 if let Err(error) = applied {
                     publish_command_failure(&event_sender, &observation, "set_channel_gain", error);
                 }
+            }
+            AudioCommand::SetDeviceProbeInterests { targets } => {
+                devices.set_probe_interests(
+                    &event_sender,
+                    &observation,
+                    backends.as_slice(),
+                    targets,
+                    #[cfg(all(feature = "analysis", feature = "playback"))]
+                    managed_render_runtime.as_mut(),
+                );
             }
             AudioCommand::StopFile {
                 playback_id: _playback_id,

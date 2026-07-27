@@ -21,6 +21,14 @@ fn scheduler_rejects_zero_workers() {
 }
 
 #[test]
+fn scheduler_requires_a_bounded_inbox_for_every_worker() {
+    let mut config = config();
+    config.worker_count = 3;
+    config.job_capacity = 2;
+    assert!(config.validate().is_err());
+}
+
+#[test]
 fn same_id_replacement_discards_stale_decode_completion() {
     let first = sine_wave_file(1, 48_000, 4_096);
     let second = sine_wave_file(2, 48_000, 128);
@@ -136,6 +144,53 @@ fn large_source_uses_bounded_stream_read_ahead_and_recovers_after_consumption() 
         thread::sleep(Duration::from_millis(2));
     }
     assert!(reader.state().written_frames > u64::try_from(first).unwrap());
+    reader.cancel();
+    assert!(scheduler.stop(&id));
+    scheduler.shutdown().unwrap();
+}
+
+#[test]
+fn two_workers_sustain_forced_streaming_without_starvation() {
+    const SOURCE_FRAMES: u32 = 16_384;
+    const RING_FRAMES: usize = 1_024;
+    const BLOCK_FRAMES: usize = 128;
+
+    let file = sine_wave_file(2, 48_000, SOURCE_FRAMES);
+    let mut scheduler_config = config();
+    scheduler_config.resident_asset_threshold_bytes = 1;
+    scheduler_config.stream_ring_frames = RING_FRAMES;
+    assert_eq!(scheduler_config.worker_count, 2);
+
+    let mut scheduler = PlaybackScheduler::new(scheduler_config).unwrap();
+    let id = PlaybackId::new("sustained-stream").unwrap();
+    scheduler.try_schedule(request(1, id.clone(), file.path())).unwrap();
+    let result = wait_result(&mut scheduler);
+    let mut reader = match result {
+        PlaybackPreparationResult::Prepared {
+            preparation: PlaybackPreparation::Stream { reader, .. },
+            ..
+        } => reader,
+        _ => panic!("threshold-forced source should stream"),
+    };
+
+    let mut samples = [0.0_f32; BLOCK_FRAMES * 2];
+    for block in 0..SOURCE_FRAMES as usize / BLOCK_FRAMES {
+        let read = reader.read_interleaved(&mut samples);
+        let state = reader.state();
+        assert_eq!(read, BLOCK_FRAMES, "stream starved in block {block}: {state:?}");
+        assert_eq!(state.read_frames, u64::try_from((block + 1) * BLOCK_FRAMES).unwrap());
+        assert_eq!(state.starvation_count, 0, "stream starved in block {block}");
+        assert!(
+            samples.chunks_exact(2).all(|frame| frame[0] == frame[1]),
+            "stereo fixture channels diverged in block {block}"
+        );
+        thread::sleep(Duration::from_millis(2));
+    }
+
+    let state = reader.state();
+    assert_eq!(state.written_frames, u64::from(SOURCE_FRAMES));
+    assert_eq!(state.read_frames, u64::from(SOURCE_FRAMES));
+    assert_eq!(state.starvation_count, 0);
     reader.cancel();
     assert!(scheduler.stop(&id));
     scheduler.shutdown().unwrap();

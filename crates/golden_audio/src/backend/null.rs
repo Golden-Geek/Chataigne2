@@ -1,8 +1,9 @@
 use crate::{
     AudioBackend, AudioBackendState, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceId,
-    AudioDeviceReadiness, AudioDeviceTargetId, AudioDirection, AudioError, AudioPermissionState, AudioSampleFormat,
-    AudioStream, AudioStreamStatus, BackendDescriptor, BackendId, DeviceNegotiator, PhysicalChannelDescriptor,
-    PhysicalChannelKey, StreamRequest, SupportedBufferFrames, SupportedStreamConfiguration, profile_key_for,
+    AudioDeviceInventory, AudioDeviceReadiness, AudioDeviceTargetId, AudioDirection, AudioError, AudioPermissionState,
+    AudioSampleFormat, AudioStream, AudioStreamStatus, BackendDescriptor, BackendId, DeviceNegotiator,
+    PhysicalChannelDescriptor, PhysicalChannelKey, StreamRequest, SupportedBufferFrames, SupportedStreamConfiguration,
+    profile_key_for,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -37,7 +38,7 @@ impl AudioBackend for NullBackend {
         }
     }
 
-    fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError> {
+    fn device_inventory(&self) -> Result<AudioDeviceInventory, AudioError> {
         let input_channels = physical_channels("input", 2);
         let output_channels = physical_channels("output", 2);
         let target = Self::target();
@@ -47,7 +48,7 @@ impl AudioBackend for NullBackend {
             output_channels: 2,
             ..AudioDeviceFingerprint::default()
         };
-        Ok(vec![AudioDeviceDescriptor {
+        Ok(AudioDeviceInventory::from_devices(vec![AudioDeviceDescriptor {
             profile_key: profile_key_for(&target, None, None),
             target,
             label: "Null Duplex".to_owned(),
@@ -61,7 +62,7 @@ impl AudioBackend for NullBackend {
             ],
             is_system_default_input: true,
             is_system_default_output: true,
-        }])
+        }]))
     }
 
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError> {

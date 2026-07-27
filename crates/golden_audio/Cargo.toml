@@ -12,15 +12,17 @@ default = ["analysis", "desktop", "playback"]
 analysis = ["dep:realfft"]
 desktop = ["dep:cpal"]
 playback = ["dep:symphonia"]
-asio = ["desktop", "cpal/asio"]
+asio = ["desktop", "cpal/asio", "dep:asio-sys"]
 jack = ["desktop", "cpal/jack"]
 native-pipewire = ["desktop", "cpal/pipewire"]
-realtime = ["desktop", "cpal/realtime"]
-realtime-dbus = ["realtime", "cpal/realtime-dbus"]
+realtime = ["desktop", "cpal/realtime", "dep:audio_thread_priority"]
+realtime-dbus = ["realtime", "cpal/realtime-dbus", "audio_thread_priority/with_dbus"]
 full-desktop = ["asio", "jack", "native-pipewire", "realtime-dbus"]
 codegen = ["dep:ts-rs"]
 
 [dependencies]
+audio_thread_priority = { workspace = true, optional = true }
+asio-sys = { workspace = true, optional = true }
 cpal = { workspace = true, optional = true }
 rtrb.workspace = true
 rubato.workspace = true

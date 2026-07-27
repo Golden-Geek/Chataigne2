@@ -1,8 +1,8 @@
 use crate::{
-    AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceDescriptor, AudioDeviceInspectorState,
-    AudioDeviceMatch, AudioDeviceReadiness, AudioDeviceSelection, AudioDirection, AudioError, AudioErrorCategory,
-    AudioInspectorError, AudioPermissionState, AudioRecoveryPolicy, AudioStreamStatus, BackendId,
-    NegotiatedStreamFormat, SampleRate, assert_not_realtime, match_device_selection,
+    AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceCatalogEntry, AudioDeviceDescriptor,
+    AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceReadiness, AudioDeviceSelection, AudioDirection,
+    AudioError, AudioErrorCategory, AudioInspectorError, AudioPermissionState, AudioRecoveryPolicy, AudioStreamStatus,
+    BackendId, NegotiatedStreamFormat, SampleRate, assert_not_realtime, match_device_selection,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -354,7 +354,9 @@ impl SupervisorDirection {
 #[derive(Clone, Debug)]
 pub struct DeviceSupervisor {
     config: DeviceSupervisorConfig,
+    inventory_revision: u64,
     backends: Vec<AudioBackendStatus>,
+    device_catalog: Vec<AudioDeviceCatalogEntry>,
     devices: Vec<AudioDeviceDescriptor>,
     pub input: SupervisorDirection,
     pub output: SupervisorDirection,
@@ -372,7 +374,9 @@ impl DeviceSupervisor {
         buffer_policy.validate()?;
         Ok(Self {
             config,
+            inventory_revision: 0,
             backends: Vec::new(),
+            device_catalog: Vec::new(),
             devices: Vec::new(),
             input: SupervisorDirection::new(AudioDirection::Input, config.retry),
             output: SupervisorDirection::new(AudioDirection::Output, config.retry),
@@ -385,10 +389,15 @@ impl DeviceSupervisor {
         &mut self,
         now_ms: u64,
         backends: Vec<AudioBackendStatus>,
+        device_catalog: Vec<AudioDeviceCatalogEntry>,
         devices: Vec<AudioDeviceDescriptor>,
     ) {
         assert_not_realtime("audio device discovery");
+        if self.device_catalog != device_catalog || self.devices != devices {
+            self.inventory_revision = self.inventory_revision.saturating_add(1);
+        }
         self.backends = backends;
+        self.device_catalog = device_catalog;
         self.devices = devices;
         observe_direction(now_ms, &self.backends, &self.devices, &mut self.input);
         observe_direction(now_ms, &self.backends, &self.devices, &mut self.output);
@@ -406,7 +415,9 @@ impl DeviceSupervisor {
                 (self.input.phase(), self.output.phase()),
                 (DeviceSwitchPhase::Discovering, _) | (_, DeviceSwitchPhase::Discovering)
             ),
+            inventory_revision: self.inventory_revision,
             backends: self.backends.clone(),
+            device_catalog: self.device_catalog.clone(),
             devices: self.devices.clone(),
             input: self.input.status.clone(),
             output: self.output.status.clone(),

@@ -9,9 +9,7 @@ use golden_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::app::module_modules_audio_sound_card_schema::{
-    SoundCardVirtualOutput, SOUND_CARD_VIRTUAL_OUTPUT_FILTER_KEY,
-};
+use crate::app::module_modules_audio_sound_card_schema::SOUND_CARD_OUTPUT_GAIN_FILTER_KEY;
 
 pub(crate) const SOUND_CARD_PLAY_FILE_COMMAND_NODE_TYPE: &str =
     "sound_card_play_file_command";
@@ -46,7 +44,7 @@ pub(crate) enum SoundCardCommandRequest {
         gain: golden_audio::GainDb,
     },
     SetChannelVolume {
-        virtual_output: NodeReference,
+        output_channel: NodeReference,
         gain: golden_audio::GainDb,
     },
 }
@@ -396,16 +394,16 @@ impl Node for SoundCardSetMasterVolumeCommand {
     label = "Set Audio Channel Volume"
 )]
 #[children(
-    virtual_output: NodeReference = NodeReference::default() (
-        label = "Virtual Output",
-        description = "Stable virtual output owned by the target Sound Card module.",
+    output_channel: NodeReference = NodeReference::default() (
+        label = "Output Channel",
+        description = "Stable output channel owned by the target Sound Card module.",
         reference_target_kind = ReferenceTargetKind::AnyNode,
-        reference_allowed_node_types = vec![SoundCardVirtualOutput::NODE_TYPE.to_string()],
-        reference_custom_filter_key = Some(SOUND_CARD_VIRTUAL_OUTPUT_FILTER_KEY.to_string())
+        reference_allowed_node_types = vec!["float".to_string()],
+        reference_custom_filter_key = Some(SOUND_CARD_OUTPUT_GAIN_FILTER_KEY.to_string())
     );
     volume_db: f64 = 0.0 [-120.0..24.0] (
         label = "Volume",
-        description = "Virtual output target in decibels."
+        description = "Output channel target in decibels."
     );
 )]
 pub struct SoundCardSetChannelVolumeCommand {
@@ -423,22 +421,22 @@ impl SoundCardCommand for SoundCardSetChannelVolumeCommand {
         &self,
         snapshot: &ProcessTreeSnapshot,
     ) -> Result<SoundCardCommandRequest, String> {
-        let Some(ParamValue::Reference(virtual_output)) =
-            command_param(snapshot, self.id(), "virtual_output")
+        let Some(ParamValue::Reference(output_channel)) =
+            command_param(snapshot, self.id(), "output_channel")
         else {
             return Err(
-                "Sound Card channel volume requires a virtual-output reference"
+                "Sound Card channel volume requires an output-channel reference"
                     .to_string(),
             );
         };
-        if virtual_output.is_empty() {
+        if output_channel.is_empty() {
             return Err(
-                "Sound Card channel volume requires a virtual-output reference"
+                "Sound Card channel volume requires an output-channel reference"
                     .to_string(),
             );
         }
         Ok(SoundCardCommandRequest::SetChannelVolume {
-            virtual_output: virtual_output.clone(),
+            output_channel: output_channel.clone(),
             gain: gain(snapshot, self.id())?,
         })
     }

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 
 use crate::{AudioConfiguration, AudioEngineConfig, AudioError, AudioRouteId, EngineLimits, PhysicalChannelKey};
 
@@ -6,30 +6,14 @@ use super::{
     CompiledAnalysisTap, CompiledRoute, CompiledRouteMatrix, RenderPlan, RenderWarning, RenderWarningCode, RouteSpan,
 };
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RenderCompileContext {
-    pub physical_inputs: Vec<PhysicalChannelKey>,
-    pub physical_outputs: Vec<PhysicalChannelKey>,
     pub playback_source_channels: usize,
 }
 
 impl RenderCompileContext {
     #[must_use]
     pub fn derive_from_configuration(config: &AudioConfiguration) -> Self {
-        let physical_inputs = config
-            .input_patch
-            .iter()
-            .map(|route| route.source.clone())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect();
-        let physical_outputs = config
-            .output_patch
-            .iter()
-            .map(|route| route.destination.clone())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect();
         let playback_source_channels = config
             .playback_patch
             .iter()
@@ -37,8 +21,6 @@ impl RenderCompileContext {
             .max()
             .unwrap_or(0);
         Self {
-            physical_inputs,
-            physical_outputs,
             playback_source_channels,
         }
     }
@@ -72,8 +54,6 @@ impl RenderPlanCompiler {
         for tap in &config.analysis_taps {
             tap.processor.validate(self.engine.sample_rate, &self.limits)?;
         }
-        validate_context(context, &self.limits)?;
-
         let mut virtual_inputs = config
             .virtual_inputs
             .iter()
@@ -97,28 +77,18 @@ impl RenderPlanCompiler {
             .enumerate()
             .map(|(index, id)| (*id, index))
             .collect::<HashMap<_, _>>();
-        let physical_input_indices = index_keys(context.physical_inputs.as_slice());
-        let physical_output_indices = index_keys(context.physical_outputs.as_slice());
+        let physical_input_indices = index_keys(config.physical_inputs.as_slice());
+        let physical_output_indices = index_keys(config.physical_outputs.as_slice());
         let mut warnings = Vec::new();
 
         let input_routes = config
             .input_patch
             .iter()
-            .filter_map(|route| {
-                let Some(source) = physical_input_indices.get(&route.source).copied() else {
-                    warnings.push(unresolved_warning(
-                        RenderWarningCode::UnresolvedPhysicalInput,
-                        route.id,
-                        format!("physical input {} is unavailable", route.source),
-                    ));
-                    return None;
-                };
-                Some(CompiledRoute {
-                    id: route.id,
-                    source,
-                    destination: input_indices[&route.destination],
-                    gain: route.gain.to_linear(),
-                })
+            .map(|route| CompiledRoute {
+                id: route.id,
+                source: physical_input_indices[&route.source],
+                destination: input_indices[&route.destination],
+                gain: route.gain.to_linear(),
             })
             .collect::<Vec<_>>();
         let monitor_routes = config.monitoring.iter().map(|route| CompiledRoute {
@@ -151,21 +121,11 @@ impl RenderPlanCompiler {
         let output_routes = config
             .output_patch
             .iter()
-            .filter_map(|route| {
-                let Some(destination) = physical_output_indices.get(&route.destination).copied() else {
-                    warnings.push(unresolved_warning(
-                        RenderWarningCode::UnresolvedPhysicalOutput,
-                        route.id,
-                        format!("physical output {} is unavailable", route.destination),
-                    ));
-                    return None;
-                };
-                Some(CompiledRoute {
-                    id: route.id,
-                    source: output_indices[&route.source],
-                    destination,
-                    gain: route.gain.to_linear(),
-                })
+            .map(|route| CompiledRoute {
+                id: route.id,
+                source: output_indices[&route.source],
+                destination: physical_output_indices[&route.destination],
+                gain: route.gain.to_linear(),
             })
             .collect::<Vec<_>>();
 
@@ -204,8 +164,8 @@ impl RenderPlanCompiler {
                 observation_interval_frames,
                 rms_window_frames,
                 gain_ramp_frames,
-                physical_inputs: context.physical_inputs.clone(),
-                physical_outputs: context.physical_outputs.clone(),
+                physical_inputs: config.physical_inputs.clone(),
+                physical_outputs: config.physical_outputs.clone(),
                 virtual_inputs,
                 virtual_outputs,
                 playback_source_channels: context.playback_source_channels,
@@ -220,29 +180,6 @@ impl RenderPlanCompiler {
             warnings,
         })
     }
-}
-
-fn validate_context(context: &RenderCompileContext, limits: &EngineLimits) -> Result<(), AudioError> {
-    if context.physical_inputs.len() > usize::from(limits.max_virtual_inputs)
-        || context.physical_outputs.len() > usize::from(limits.max_virtual_outputs)
-    {
-        return Err(AudioError::capacity_exceeded(
-            "physical channel count exceeds configured channel capacity",
-        ));
-    }
-    ensure_unique_keys("physical input", context.physical_inputs.as_slice())?;
-    ensure_unique_keys("physical output", context.physical_outputs.as_slice())?;
-    Ok(())
-}
-
-fn ensure_unique_keys(name: &str, keys: &[PhysicalChannelKey]) -> Result<(), AudioError> {
-    let unique = keys.iter().collect::<BTreeSet<_>>();
-    if unique.len() != keys.len() {
-        return Err(AudioError::invalid_configuration(format!(
-            "duplicate {name} channel key in render compile context"
-        )));
-    }
-    Ok(())
 }
 
 fn index_keys(keys: &[PhysicalChannelKey]) -> HashMap<PhysicalChannelKey, usize> {

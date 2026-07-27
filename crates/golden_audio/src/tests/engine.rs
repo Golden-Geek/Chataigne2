@@ -136,6 +136,10 @@ fn applied_configuration_drives_null_device_readiness_and_channel_observations()
         recovery_policy: crate::AudioRecoveryPolicy::WaitForSelected,
         buffer_policy: crate::AudioBufferPolicy::Automatic,
     };
+    configuration.physical_outputs = vec![
+        PhysicalChannelKey::new("output:0").unwrap(),
+        PhysicalChannelKey::new("output:1").unwrap(),
+    ];
     configuration.virtual_outputs = vec![
         VirtualOutputChannel {
             id: first,

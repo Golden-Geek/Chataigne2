@@ -69,6 +69,9 @@ pub enum AudioEvent {
         error: AudioError,
     },
     BackendStatusChanged(AudioBackendStatus),
+    DeviceInventoryChanged {
+        revision: u64,
+    },
     DeviceStatusChanged(AudioStreamStatus),
     PlaybackStarted(PlaybackInfo),
     PlaybackFinished(PlaybackInfo),

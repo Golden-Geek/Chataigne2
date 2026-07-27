@@ -8,6 +8,55 @@ fn parameter_nodes_are_not_disableable_by_default() {
     assert!(!parameter.node_data().meta.can_be_disabled);
 }
 
+#[test]
+fn sparse_overlay_keeps_a_read_only_dynamic_default_as_the_current_value() {
+    let empty = ParamValue::Reference(crate::node::NodeReference::default());
+    let mut baseline = Parameter::new("Channel", empty, ParameterChangeCheck::ValueChange);
+    baseline.read_only = true;
+    let baseline_data = baseline
+        .project_encode_data()
+        .expect("baseline parameter should encode");
+
+    let reference = crate::node::NodeReference::with_cached_id(crate::node::NodeUuid(uuid::Uuid::new_v4()), None);
+    let mut authored = Parameter::new(
+        "Channel",
+        ParamValue::Reference(reference.clone()),
+        ParameterChangeCheck::ValueChange,
+    );
+    authored.read_only = true;
+    let overlay = authored
+        .project_encode_data_against_baseline(Some(&baseline_data), false, false)
+        .expect("dynamic read-only parameter should encode");
+
+    assert!(
+        overlay.get("value").is_some(),
+        "the current value must accompany a dynamic default"
+    );
+    baseline
+        .project_decode_data(&overlay)
+        .expect("dynamic read-only parameter should decode");
+    assert_eq!(baseline.value, ParamValue::Reference(reference.clone()));
+
+    let mut legacy_overlay = overlay
+        .as_object()
+        .expect("parameter overlay should be an object")
+        .clone();
+    legacy_overlay.remove("value");
+    let mut legacy_baseline = Parameter::new(
+        "Channel",
+        ParamValue::Reference(crate::node::NodeReference::default()),
+        ParameterChangeCheck::ValueChange,
+    );
+    legacy_baseline
+        .project_decode_data(&serde_json::Value::Object(legacy_overlay))
+        .expect("legacy dynamic default should decode");
+    assert_eq!(
+        legacy_baseline.value,
+        ParamValue::Reference(reference),
+        "legacy default-only records should recover their current value"
+    );
+}
+
 fn approx_eq(left: f64, right: f64) {
     assert!((left - right).abs() < 1e-9, "expected {left} ~= {right}");
 }

@@ -30,8 +30,25 @@ pub struct SoundCardPlaybackVoiceDto {
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(export, tag = "kind", rename_all = "snake_case")]
 pub enum SoundCardUiControlRequest {
-    StopFile { playback_id: String },
+    StopFile {
+        playback_id: String,
+    },
     StopAllFiles,
+    ConnectRoute {
+        direction: golden_audio::AudioDirection,
+        physical_channel: String,
+        app_channel_uuid: String,
+    },
+    DisconnectRoute {
+        direction: golden_audio::AudioDirection,
+        physical_channel: String,
+        app_channel_uuid: String,
+    },
+    RenameChannel {
+        direction: golden_audio::AudioDirection,
+        app_channel_uuid: String,
+        label: String,
+    },
 }
 
 /// Latest-wins UI projection emitted by a Chataigne Sound Card module.
@@ -69,6 +86,13 @@ pub fn export_sound_card_contract(output_dir: impl AsRef<Path>) -> Result<(), Bo
     SoundCardPlaybackVoiceDto::export_all(&config)?;
     SoundCardUiControlRequest::export_all(&config)?;
     SoundCardUiTelemetryDto::export_all(&config)?;
+    std::fs::write(
+        output_dir.join("SoundCardTopics.ts"),
+        format!(
+            "export const SOUND_CARD_TELEMETRY_TOPIC = {SOUND_CARD_TELEMETRY_TOPIC:?} as const;\n\
+             export const SOUND_CARD_UI_CONTROL_TOPIC = {SOUND_CARD_UI_CONTROL_TOPIC:?} as const;\n"
+        ),
+    )?;
 
     let index = std::fs::read_to_string(output_dir.join("index.ts"))?;
     std::fs::write(
@@ -77,7 +101,8 @@ pub fn export_sound_card_contract(output_dir: impl AsRef<Path>) -> Result<(), Bo
             "{index}export type {{ SoundCardPlaybackLifecycle }} from './SoundCardPlaybackLifecycle';\n\
              export type {{ SoundCardPlaybackVoiceDto }} from './SoundCardPlaybackVoiceDto';\n\
              export type {{ SoundCardUiControlRequest }} from './SoundCardUiControlRequest';\n\
-             export type {{ SoundCardUiTelemetryDto }} from './SoundCardUiTelemetryDto';\n"
+             export type {{ SoundCardUiTelemetryDto }} from './SoundCardUiTelemetryDto';\n\
+             export {{ SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC }} from './SoundCardTopics';\n"
         ),
     )?;
     Ok(())

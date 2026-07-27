@@ -33,6 +33,8 @@ pub(super) fn one_to_one_fixture(channels: usize, playback: bool) -> Fixture {
     let physical_inputs = (0..channels).map(|index| physical("input", index)).collect::<Vec<_>>();
     let physical_outputs = (0..channels).map(|index| physical("output", index)).collect::<Vec<_>>();
     let mut config = AudioConfiguration::empty();
+    config.physical_inputs = physical_inputs;
+    config.physical_outputs = physical_outputs;
     config.virtual_inputs = inputs
         .iter()
         .enumerate()
@@ -53,7 +55,7 @@ pub(super) fn one_to_one_fixture(channels: usize, playback: bool) -> Fixture {
     config.input_patch = (0..channels)
         .map(|index| InputPatchRoute {
             id: route_id(1, index),
-            source: physical_inputs[index].clone(),
+            source: config.physical_inputs[index].clone(),
             destination: inputs[index],
             gain: GainDb::UNITY,
         })
@@ -70,7 +72,7 @@ pub(super) fn one_to_one_fixture(channels: usize, playback: bool) -> Fixture {
         .map(|index| OutputPatchRoute {
             id: route_id(4, index),
             source: outputs[index],
-            destination: physical_outputs[index].clone(),
+            destination: config.physical_outputs[index].clone(),
             gain: GainDb::UNITY,
         })
         .collect();
@@ -87,8 +89,6 @@ pub(super) fn one_to_one_fixture(channels: usize, playback: bool) -> Fixture {
     Fixture {
         config,
         context: RenderCompileContext {
-            physical_inputs,
-            physical_outputs,
             playback_source_channels: if playback { channels } else { 0 },
         },
         inputs,

@@ -8,6 +8,8 @@ mod guard;
 mod ownership;
 mod plan_exchange;
 mod pressure;
+#[cfg(all(feature = "analysis", feature = "playback"))]
+mod priority;
 
 pub use gain_mailbox::{
     GainMailboxTarget, OrderedRealtimeControlReader, OrderedRealtimeControlWriter, RealtimeBarrier,
@@ -24,6 +26,8 @@ pub use plan_exchange::{
     RenderPlanPublisher, acknowledged_plan_exchange,
 };
 pub use pressure::{QueuePressureCounters, QueuePressureSnapshot};
+#[cfg(all(feature = "analysis", feature = "playback"))]
+pub(crate) use priority::AudioThreadPriorityGuard;
 
 #[cfg(test)]
 mod tests;

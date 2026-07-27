@@ -249,12 +249,19 @@ fn decode_parameter_project_data_with_baseline(
         return Err(format!("invalid parameter payload: expected an object, got {data:?}"));
     };
 
+    let value_followed_default = parsed.value == parsed.default_value;
     if let Some(value) = object.get("value") {
         parsed.value = decode_project_param_value(value).map_err(|err| format!("invalid parameter payload: {err}"))?;
     }
     if let Some(default_value) = object.get("default_value") {
         parsed.default_value =
             decode_project_param_value(default_value).map_err(|err| format!("invalid parameter payload: {err}"))?;
+        if object.get("value").is_none() && value_followed_default {
+            // Older sparse records for read-only, dynamically constructed
+            // parameters persisted only their changed default. Such parameters
+            // start at that default, so preserve the constructor invariant.
+            parsed.value = parsed.default_value.clone();
+        }
     }
     if let Some(change_check) = object.get("change_check") {
         parsed.change_check = serde_json::from_value(change_check.clone())
@@ -305,7 +312,8 @@ impl Parameter {
         };
         let mut data = serde_json::Map::new();
 
-        if persist_runtime_value && self.value != baseline.value {
+        let value_is_dynamic_default = self.default_value != baseline.default_value && self.value == self.default_value;
+        if (persist_runtime_value || value_is_dynamic_default) && self.value != baseline.value {
             data.insert(
                 "value".to_string(),
                 serde_json::to_value(&self.value).map_err(|err| format!("failed to encode 'value' field: {err}"))?,

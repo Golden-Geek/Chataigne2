@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AudioChannelId, AudioConfiguration, ConfigGeneration, GainDb, PlaybackId};
+use crate::{AudioChannelId, AudioConfiguration, AudioDeviceTargetId, ConfigGeneration, GainDb, PlaybackId};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PlayFileRequest {
@@ -40,6 +40,14 @@ pub enum AudioCommand {
     SetChannelGain {
         channel: AudioChannelId,
         gain: GainDb,
+    },
+    /// Replaces the set of exact device targets whose capabilities should be
+    /// materialized from the lightweight catalog.
+    ///
+    /// Hosts may make device probing expensive or exclusive. Callers should
+    /// submit only targets currently selected in their editor or configuration.
+    SetDeviceProbeInterests {
+        targets: Vec<AudioDeviceTargetId>,
     },
     SetEnabled(bool),
     Shutdown,

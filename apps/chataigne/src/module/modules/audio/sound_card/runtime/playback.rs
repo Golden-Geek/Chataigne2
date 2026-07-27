@@ -1,6 +1,4 @@
-use chataigne_sound_card_protocol::{
-    SoundCardPlaybackLifecycle, SoundCardPlaybackVoiceDto,
-};
+use chataigne_sound_card_protocol::{SoundCardPlaybackLifecycle, SoundCardPlaybackVoiceDto};
 use golden_audio::AudioEvent;
 
 use super::SoundCardRuntime;
@@ -40,21 +38,5 @@ impl SoundCardRuntime {
             }
             _ => {}
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn observe_event_for_test(&mut self, event: &AudioEvent) {
-        self.observe_event(event);
-    }
-
-    #[cfg(test)]
-    pub(crate) fn playback_voices_for_test(&self) -> Vec<SoundCardPlaybackVoiceDto> {
-        let mut voices = self
-            .active_playback_voices
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
-        voices.sort_by(|left, right| left.playback_id.cmp(&right.playback_id));
-        voices
     }
 }

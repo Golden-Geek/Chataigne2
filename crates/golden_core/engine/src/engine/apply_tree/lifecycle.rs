@@ -120,6 +120,7 @@ impl<T: Node> Engine<T> {
         for (index, node_id) in node_ids.iter().copied().enumerate() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
+            ctx.set_external_edit_sender(self.external_edit_sender());
             if let Some(tree_snapshot) = &tree_snapshot {
                 ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
             }
@@ -226,6 +227,7 @@ impl<T: Node> Engine<T> {
         let created_tree_snapshot = needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("ready-single", 1));
         let mut created_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         created_ctx.runtime_elapsed = self.runtime_elapsed;
+        created_ctx.set_external_edit_sender(self.external_edit_sender());
         if let Some(created_tree_snapshot) = &created_tree_snapshot {
             created_ctx.set_tree_snapshot(Arc::clone(created_tree_snapshot));
         }

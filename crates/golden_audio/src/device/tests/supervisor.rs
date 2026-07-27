@@ -1,7 +1,7 @@
 use crate::{
-    AudioBufferPolicy, AudioDeviceReadiness, AudioDeviceSelection, AudioDirection, AudioError, AudioErrorCategory,
-    AudioInspectorError, AudioRecoveryPolicy, AudioSampleFormat, DeviceSupervisor, DeviceSupervisorConfig,
-    DeviceSwitchPhase, NegotiatedStreamFormat, RetryBackoff, SampleRate,
+    AudioBufferPolicy, AudioDeviceCatalogEntry, AudioDeviceDescriptor, AudioDeviceReadiness, AudioDeviceSelection,
+    AudioDirection, AudioError, AudioErrorCategory, AudioInspectorError, AudioRecoveryPolicy, AudioSampleFormat,
+    DeviceSupervisor, DeviceSupervisorConfig, DeviceSwitchPhase, NegotiatedStreamFormat, RetryBackoff, SampleRate,
 };
 
 use super::support::{backend_status, configuration, device, fingerprint};
@@ -29,6 +29,27 @@ fn commit_output(supervisor: &mut DeviceSupervisor, channels: u16) {
     supervisor.output.mark_primed(format(channels)).unwrap();
     supervisor.output.begin_switch().unwrap();
     supervisor.output.commit_switch().unwrap();
+}
+
+fn observe(supervisor: &mut DeviceSupervisor, now_ms: u64, devices: Vec<AudioDeviceDescriptor>) {
+    let catalog = devices.iter().map(AudioDeviceCatalogEntry::from).collect();
+    supervisor.observe_discovery(now_ms, vec![backend_status()], catalog, devices);
+}
+
+#[test]
+fn inventory_revision_changes_only_with_catalog_or_capabilities() {
+    let output = device("output", "Output", true, fingerprint("Output", 0, 2), 0, 2, false, true);
+    let catalog = vec![AudioDeviceCatalogEntry::from(&output)];
+    let mut supervisor = supervisor();
+
+    supervisor.observe_discovery(0, vec![backend_status()], catalog.clone(), Vec::new());
+    assert_eq!(supervisor.inspector_state().inventory_revision, 1);
+    supervisor.observe_discovery(1, vec![backend_status()], catalog.clone(), Vec::new());
+    assert_eq!(supervisor.inspector_state().inventory_revision, 1);
+    supervisor.observe_discovery(2, Vec::new(), catalog.clone(), Vec::new());
+    assert_eq!(supervisor.inspector_state().inventory_revision, 1);
+    supervisor.observe_discovery(3, vec![backend_status()], catalog, vec![output]);
+    assert_eq!(supervisor.inspector_state().inventory_revision, 2);
 }
 
 #[test]
@@ -59,7 +80,7 @@ fn missing_strict_selection_remains_selected_without_default_fallback() {
         .output
         .configure(true, Some(selection.clone()), AudioRecoveryPolicy::WaitForSelected);
 
-    supervisor.observe_discovery(1_000, vec![backend_status()], vec![fallback]);
+    observe(&mut supervisor, 1_000, vec![fallback]);
 
     let status = supervisor.output.status();
     assert_eq!(status.selected_target.as_ref(), Some(&selection.target));
@@ -77,7 +98,7 @@ fn follow_default_tracks_only_the_operating_system_default() {
     supervisor
         .output
         .configure(true, Some(selection.clone()), AudioRecoveryPolicy::FollowSystemDefault);
-    supervisor.observe_discovery(0, vec![backend_status()], vec![first.clone(), second.clone()]);
+    observe(&mut supervisor, 0, vec![first.clone(), second.clone()]);
     assert_eq!(supervisor.output.phase(), DeviceSwitchPhase::Preparing);
     commit_output(&mut supervisor, 2);
     assert_eq!(supervisor.output.status().active_target.as_ref(), Some(&second.target));
@@ -88,7 +109,7 @@ fn follow_default_tracks_only_the_operating_system_default() {
 
     first.is_system_default_output = true;
     second.is_system_default_output = false;
-    supervisor.observe_discovery(10, vec![backend_status()], vec![second, first.clone()]);
+    observe(&mut supervisor, 10, vec![second, first.clone()]);
     assert_eq!(supervisor.output.phase(), DeviceSwitchPhase::Preparing);
     commit_output(&mut supervisor, 2);
     assert_eq!(supervisor.output.status().active_target.as_ref(), Some(&first.target));
@@ -109,7 +130,7 @@ fn input_and_output_selection_and_switching_are_independent() {
         Some(AudioDeviceSelection::from_descriptor(&output)),
         AudioRecoveryPolicy::WaitForSelected,
     );
-    supervisor.observe_discovery(0, vec![backend_status()], vec![output.clone(), input.clone()]);
+    observe(&mut supervisor, 0, vec![output.clone(), input.clone()]);
     supervisor.input.mark_primed(format(2)).unwrap();
     supervisor.input.begin_switch().unwrap();
     supervisor.input.commit_switch().unwrap();
@@ -128,7 +149,7 @@ fn format_change_reenters_prepare_and_recovery_backoff_is_deterministic() {
         Some(AudioDeviceSelection::from_descriptor(&output)),
         AudioRecoveryPolicy::WaitForSelected,
     );
-    supervisor.observe_discovery(0, vec![backend_status()], vec![output.clone()]);
+    observe(&mut supervisor, 0, vec![output.clone()]);
     commit_output(&mut supervisor, 2);
 
     output.supported_configurations = vec![configuration(
@@ -139,7 +160,7 @@ fn format_change_reenters_prepare_and_recovery_backoff_is_deterministic() {
         192_000,
         256,
     )];
-    supervisor.observe_discovery(10, vec![backend_status()], vec![output]);
+    observe(&mut supervisor, 10, vec![output]);
     assert_eq!(supervisor.output.phase(), DeviceSwitchPhase::Preparing);
 
     supervisor
@@ -192,7 +213,7 @@ fn active_stream_failure_retires_the_device_and_enters_retry_backoff() {
     supervisor
         .output
         .configure(true, Some(selection.clone()), AudioRecoveryPolicy::WaitForSelected);
-    supervisor.observe_discovery(0, vec![backend_status()], vec![output]);
+    observe(&mut supervisor, 0, vec![output]);
     commit_output(&mut supervisor, 2);
     let mut runtime = supervisor.output.status().clone();
     runtime.readiness = AudioDeviceReadiness::Recovering;
