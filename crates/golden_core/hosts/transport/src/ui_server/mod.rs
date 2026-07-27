@@ -56,6 +56,7 @@ const WS_IO_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const WS_PING_INTERVAL: Duration = Duration::from_secs(10);
 const WS_PONG_TIMEOUT: Duration = Duration::from_secs(30);
 const ENGINE_STATS_INTERVAL: Duration = Duration::from_millis(250);
+const UI_WEBSOCKET_PATH: &str = "/api/ui/ws";
 
 static NEXT_WS_CLIENT_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -133,7 +134,7 @@ fn ui_discovery_document() -> UiDiscoveryDto {
         version: 1,
         service: "chataigne".to_string(),
         health_path: "/api/ui/health".to_string(),
-        websocket_path: "/ws".to_string(),
+        websocket_path: UI_WEBSOCKET_PATH.to_string(),
         relative_endpoints: true,
     }
 }
@@ -1302,7 +1303,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         return Ok(());
     }
 
-    if request.method.eq_ignore_ascii_case("GET") && request.path == "/api/ui/ws" {
+    if request.method.eq_ignore_ascii_case("GET") && request.path == UI_WEBSOCKET_PATH {
         if !is_websocket_upgrade_request(&request) {
             write_json_error(stream, "426 Upgrade Required", "websocket upgrade required")?;
             return Ok(());
@@ -1626,7 +1627,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
 }
 
 fn resolve_frontend_asset<'a>(assets: &'a [UiAsset], request_path: &str) -> Option<&'a UiAsset> {
-    if assets.is_empty() || request_path.starts_with("/api/") {
+    if assets.is_empty() || request_path.starts_with("/api/") || request_path.starts_with("/.well-known/") {
         return None;
     }
 

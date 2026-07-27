@@ -141,9 +141,25 @@ fn discovery_document_uses_relative_open_lan_endpoints() {
             "version": 1,
             "service": "chataigne",
             "health_path": "/api/ui/health",
-            "websocket_path": "/ws",
+            "websocket_path": "/api/ui/ws",
             "relative_endpoints": true,
         })
+    );
+}
+
+#[test]
+fn bundled_frontend_fallback_does_not_shadow_backend_namespaces() {
+    const ASSETS: [UiAsset; 1] = [UiAsset {
+        path: "/index.html",
+        content_type: "text/html",
+        bytes: b"frontend",
+    }];
+
+    assert!(resolve_frontend_asset(&ASSETS, "/api/ui/health").is_none());
+    assert!(resolve_frontend_asset(&ASSETS, "/.well-known/chataigne").is_none());
+    assert_eq!(
+        resolve_frontend_asset(&ASSETS, "/evidence/sound-card").map(|asset| asset.path),
+        Some("/index.html")
     );
 }
 
