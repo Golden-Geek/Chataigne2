@@ -1,6 +1,21 @@
 use super::*;
 
 impl<T: Node> Engine<T> {
+    fn batch_lifecycle_tree_snapshot(
+        &mut self,
+        stage: &'static str,
+        node_ids: &[NodeId],
+    ) -> Option<Arc<crate::process_ctx::ProcessTreeSnapshot>> {
+        node_ids
+            .iter()
+            .any(|node_id| {
+                self.nodes
+                    .get(*node_id)
+                    .is_some_and(|node| node.lifecycle_requires_tree_snapshot())
+            })
+            .then(|| self.build_lifecycle_tree_snapshot(stage, node_ids.len()))
+    }
+
     pub(crate) fn build_lifecycle_tree_snapshot(
         &mut self,
         stage: &'static str,
@@ -32,11 +47,13 @@ impl<T: Node> Engine<T> {
         }
 
         let event_cursor = self.inbox.events.len();
-        let tree_snapshot = self.build_lifecycle_tree_snapshot("attached-batch", node_ids.len());
+        let tree_snapshot = self.batch_lifecycle_tree_snapshot("attached-batch", node_ids);
         for node_id in node_ids.iter().copied() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
-            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+            if let Some(tree_snapshot) = &tree_snapshot {
+                ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+            }
 
             if let Some(node) = self.nodes.get_mut(node_id) {
                 crate::logger::with_node_origin(node_id, || {
@@ -62,11 +79,13 @@ impl<T: Node> Engine<T> {
         }
 
         let event_cursor = self.inbox.events.len();
-        let tree_snapshot = self.build_lifecycle_tree_snapshot("init-batch", node_ids.len());
+        let tree_snapshot = self.batch_lifecycle_tree_snapshot("init-batch", node_ids);
         for node_id in node_ids.iter().copied() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
-            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+            if let Some(tree_snapshot) = &tree_snapshot {
+                ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+            }
 
             if let Some(node) = self.nodes.get_mut(node_id) {
                 crate::logger::with_node_origin(node_id, || {
@@ -92,11 +111,19 @@ impl<T: Node> Engine<T> {
         }
 
         let mut event_cursor = self.inbox.events.len();
-        let mut tree_snapshot = self.build_lifecycle_tree_snapshot("ready-batch", node_ids.len());
-        for node_id in node_ids.iter().copied() {
+        let needs_tree_snapshot = node_ids.iter().any(|node_id| {
+            self.nodes
+                .get(*node_id)
+                .is_some_and(|node| node.lifecycle_requires_tree_snapshot())
+        });
+        let mut tree_snapshot =
+            needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("ready-batch", node_ids.len()));
+        for (index, node_id) in node_ids.iter().copied().enumerate() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
-            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+            if let Some(tree_snapshot) = &tree_snapshot {
+                ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+            }
 
             if let Some(node) = self.nodes.get_mut(node_id) {
                 crate::logger::with_node_origin(node_id, || {
@@ -107,7 +134,9 @@ impl<T: Node> Engine<T> {
             if self.stabilization_scope_depth == 0 && self.pending_lifecycle_edits_include_structural() {
                 self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
                 event_cursor = self.inbox.events.len();
-                tree_snapshot = self.build_lifecycle_tree_snapshot("ready-batch-rebuild", node_ids.len());
+                if needs_tree_snapshot && index + 1 < node_ids.len() {
+                    tree_snapshot = Some(self.build_lifecycle_tree_snapshot("ready-batch-rebuild", node_ids.len()));
+                }
             }
         }
         if self.stabilization_scope_depth == 0 {

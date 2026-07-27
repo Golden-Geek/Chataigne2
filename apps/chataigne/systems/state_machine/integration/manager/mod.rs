@@ -118,6 +118,14 @@ struct RuntimeFormulaDefaultPreview {
     runtime: ProcessorRuntime,
 }
 
+struct RuntimeProcessorMaterializationContext<'a, 'compile> {
+    snapshot: &'a ProcessTreeSnapshot,
+    formulas: &'a HashMap<NodeUuid, AlchemistFormula>,
+    catalog: &'a FormulaCatalog,
+    context_provider: &'a SnapshotProcessorContextProvider,
+    compile_ctx: &'a chataigne_alchemist::CompileCtx<'compile>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum RuntimeLogKind {
     Compile,
@@ -2221,7 +2229,7 @@ impl StateMachineManager {
                             &runtime_processor.formula.label,
                             processor_node,
                             lane.context_key.as_ref(),
-                            &anode_nodes,
+                            anode_nodes,
                             intent,
                         );
                         runtime_logs.push(LogMessage::new(
@@ -2242,12 +2250,14 @@ impl StateMachineManager {
                         dispatch_command_intent(
                             ctx,
                             snapshot,
-                            processor_node,
-                            runtime_processor.processor.id,
-                            lane.context_key.as_ref(),
-                            provider.as_ref(),
-                            invocation_id,
-                            intent,
+                            RuntimeCommandDispatch {
+                                processor_node,
+                                processor_id: runtime_processor.processor.id,
+                                context_key: lane.context_key.as_ref(),
+                                context_provider: provider.as_ref(),
+                                invocation_id,
+                                intent,
+                            },
                         );
                     }
                 }
@@ -2642,8 +2652,10 @@ impl StateMachineManager {
                 history_len: RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN,
             };
             output_preview.extend(formula_default_output_preview_samples(
-                &mut self.runtime_cache.formula_default_previews,
-                &mut self.runtime_cache.continuous_formula_default_preview_count,
+                FormulaDefaultPreviewState {
+                    cache: &mut self.runtime_cache.formula_default_previews,
+                    continuous_count: &mut self.runtime_cache.continuous_formula_default_preview_count,
+                },
                 compiled,
                 &formula,
                 &eval_ctx,
@@ -2659,14 +2671,15 @@ impl StateMachineManager {
     fn materialize_runtime_processor(
         &mut self,
         ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
         processor_node: NodeId,
-        formulas: &HashMap<NodeUuid, AlchemistFormula>,
-        catalog: &FormulaCatalog,
-        context_provider: &SnapshotProcessorContextProvider,
         previous_runtime: Option<ProcessorRuntime>,
-        compile_ctx: &chataigne_alchemist::CompileCtx<'_>,
+        materialization: &RuntimeProcessorMaterializationContext<'_, '_>,
     ) -> Option<RuntimeProcessor> {
+        let snapshot = materialization.snapshot;
+        let formulas = materialization.formulas;
+        let catalog = materialization.catalog;
+        let context_provider = materialization.context_provider;
+        let compile_ctx = materialization.compile_ctx;
         let (formula_node, formula, formula_ui, formula_source_key) =
             processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)?;
         let mut processor = processor_from_snapshot(snapshot, processor_node, &formula)?;
@@ -2737,6 +2750,13 @@ impl StateMachineManager {
             nodes: &nodes,
             properties: None,
         };
+        let materialization = RuntimeProcessorMaterializationContext {
+            snapshot,
+            formulas,
+            catalog,
+            context_provider,
+            compile_ctx: &compile_ctx,
+        };
         for processor_node in active_processors.iter().copied() {
             let previous_runtime = self
                 .runtime_cache
@@ -2745,13 +2765,9 @@ impl StateMachineManager {
                 .map(|cached| cached.runtime);
             if let Some(runtime_processor) = self.materialize_runtime_processor(
                 ctx,
-                snapshot,
                 processor_node,
-                formulas,
-                catalog,
-                context_provider,
                 previous_runtime,
-                &compile_ctx,
+                &materialization,
             ) {
                 next_processors.insert(processor_node, runtime_processor);
             }
@@ -2829,17 +2845,20 @@ impl StateMachineManager {
             nodes: &nodes,
             properties: None,
         };
+        let materialization = RuntimeProcessorMaterializationContext {
+            snapshot,
+            formulas,
+            catalog,
+            context_provider: context_provider.as_ref(),
+            compile_ctx: &compile_ctx,
+        };
         for processor_node in processor_nodes {
             let previous_runtime = previous.remove(&processor_node).map(|cached| cached.runtime);
             if let Some(runtime_processor) = self.materialize_runtime_processor(
                 ctx,
-                snapshot,
                 processor_node,
-                formulas,
-                catalog,
-                context_provider.as_ref(),
                 previous_runtime,
-                &compile_ctx,
+                &materialization,
             ) {
                 next.insert(processor_node, runtime_processor);
             }
@@ -3339,9 +3358,13 @@ fn compile_processor_runtime_for_cache_rebuild(
     runtime.compile_preserving_compatible_lanes(processor, formula, ctx)
 }
 
+struct FormulaDefaultPreviewState<'a> {
+    cache: &'a mut HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
+    continuous_count: &'a mut usize,
+}
+
 fn formula_default_output_preview_samples(
-    cache: &mut HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
-    continuous_count: &mut usize,
+    state: FormulaDefaultPreviewState<'_>,
     compiled: Arc<CompiledAlchemistFormula>,
     formula: &AlchemistFormula,
     ctx: &EvaluationCtx<'_>,
@@ -3349,6 +3372,10 @@ fn formula_default_output_preview_samples(
     capture: &ProcessorDebugCapture,
     capture_unchanged_outputs: bool,
 ) -> Vec<chataigne_state_machine::ANodeOutputPreviewSample> {
+    let FormulaDefaultPreviewState {
+        cache,
+        continuous_count,
+    } = state;
     let key = formula.id.clone();
     let was_continuous = cache
         .get(&key)
@@ -3927,16 +3954,28 @@ fn intern_runtime_command_invocation(
 /// manager property — then fire each enabled command it contains. A target that
 /// is itself a command is fired directly, and a plain-parameter target is set
 /// (the legacy value-output path).
+struct RuntimeCommandDispatch<'a> {
+    processor_node: NodeId,
+    processor_id: ProcessorId,
+    context_key: Option<&'a ContextKey>,
+    context_provider: &'a SnapshotProcessorContextProvider,
+    invocation_id: crate::app::module_command::ModuleCommandInvocationId,
+    intent: &'a RuntimeIntent,
+}
+
 fn dispatch_command_intent(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
-    processor_node: NodeId,
-    processor_id: ProcessorId,
-    context_key: Option<&ContextKey>,
-    context_provider: &SnapshotProcessorContextProvider,
-    invocation_id: crate::app::module_command::ModuleCommandInvocationId,
-    intent: &RuntimeIntent,
+    dispatch: RuntimeCommandDispatch<'_>,
 ) {
+    let RuntimeCommandDispatch {
+        processor_node,
+        processor_id,
+        context_key,
+        context_provider,
+        invocation_id,
+        intent,
+    } = dispatch;
     let Some(target) = intent.target.as_ref() else {
         return;
     };

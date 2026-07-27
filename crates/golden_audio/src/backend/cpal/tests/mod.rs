@@ -15,7 +15,7 @@ fn probe_reports_every_compiled_host_without_opening_a_stream() {
 
     assert_eq!(probes.len(), compiled.len());
     for (backend, probe) in compiled.iter().zip(probes) {
-        assert_eq!(probe.id, backend.descriptor().id);
+        assert_eq!(probe.id, backend.id());
         assert!(matches!(
             probe.state,
             AudioBackendState::Available

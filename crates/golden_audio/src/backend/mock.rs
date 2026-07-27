@@ -8,6 +8,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct MockBackend {
+    id: BackendId,
     shared: Arc<RwLock<MockBackendState>>,
 }
 
@@ -51,7 +52,7 @@ impl MockBackend {
     pub fn new(id: BackendId, label: impl Into<String>) -> (Self, MockBackendControl) {
         let shared = Arc::new(RwLock::new(MockBackendState {
             descriptor: BackendDescriptor {
-                id,
+                id: id.clone(),
                 label: label.into(),
                 state: AudioBackendState::Available,
                 detail: None,
@@ -65,6 +66,7 @@ impl MockBackend {
         }));
         (
             Self {
+                id,
                 shared: Arc::clone(&shared),
             },
             MockBackendControl { shared },
@@ -188,6 +190,10 @@ impl MockBackendControl {
 }
 
 impl AudioBackend for MockBackend {
+    fn id(&self) -> BackendId {
+        self.id.clone()
+    }
+
     fn descriptor(&self) -> BackendDescriptor {
         self.read_state()
             .map(|state| state.descriptor.clone())

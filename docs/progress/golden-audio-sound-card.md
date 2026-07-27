@@ -28,8 +28,8 @@ backend remains `NOT RUN`.
 
 - Current phase: Phase 14 - performance, robustness, and product evidence.
 - Status: deterministic implementation, local qualification, the Windows WASAPI real-device
-  endurance gate, and bundled release headless startup are complete; mounted browser inspection
-  and cross-platform results remain outstanding.
+  endurance gate, bundled release headless startup, and nonblocking Sound Card runtime creation are
+  complete; mounted browser inspection and cross-platform results remain outstanding.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
 - Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
@@ -143,6 +143,8 @@ Decision:
 | Independent input/output clock drift | Bounded ring, adaptive ASRC, PI controller, discontinuity fade, drift/bridge observations | Mitigated; backend-neutral qualification PASS |
 | Decoder completion after stop/replacement | Monotonic command sequence and cancellation generation watermarks; stale worker results discarded off callback | Mitigated; deterministic ordering suite PASS |
 | Large meter/matrix/spectrum UI | Packed latest-only telemetry, Canvas, viewport virtualization, bounded refresh, teardown tests | Open |
+| Native host probing freezes Sound Card creation | Side-effect-free backend identity plus a Chataigne lifecycle worker for engine startup, replacement, and retirement; gated blocked-initializer regression | Mitigated; deterministic responsiveness qualification PASS |
+| Default Sound Card graph blocks UI acknowledgement | Coalesce lifecycle descendants into one completed subtree UI transaction, honor snapshot-free lifecycle batches, and repair derived structure once per event frame | Mitigated; exact UI-intent creation inside a 10,000-node graph PASS under the 500 ms debug ceiling |
 | Legacy unmapped gitlinks | Do not use or modify them; record pre-existing tooling failure | Open, unrelated |
 
 ## Backend qualification
@@ -431,9 +433,13 @@ open a native backend, poll live values, or execute the five command nodes.
 
 The Chataigne-owned runtime adapter now provides:
 
-- one `golden_audio::AudioEngine` lifecycle per live Sound Card module, using every compiled native
-  backend plus the deterministic null backend, with explicit shutdown on module removal, project
-  replacement, and drop;
+- one asynchronously constructed `golden_audio::AudioEngine` lifecycle per live Sound Card module,
+  using every compiled native backend plus the deterministic null backend; startup, sample-rate
+  replacement, and retirement run through an app-owned lifecycle worker with bounded retry, and
+  module removal or project drop never waits for native host shutdown on the engine thread;
+- immediate UI creation acknowledgement: Golden Core coalesces lifecycle-generated descendants
+  into one completed subtree transaction, and the Sound Card performs derived-structure repair
+  once for the complete structural event frame rather than once per child event;
 - dirty-tree conversion into backend-neutral `AudioConfiguration` values, stable UUID-derived
   channel/route/tap identities, device-profile selection by stable profile key, and one coalesced
   configuration generation per stabilization batch;
@@ -827,6 +833,14 @@ macOS, and Linux remain `NOT RUN`.
 | Corrected bundled headless release startup | PASS at exact `a245641b` - health/read-model ready, discovery JSON correct, WebSocket route reachable, Sound Card evidence and referenced asset HTTP 200, no false frontend warning or error marker |
 | Phase 14 mounted normal/narrow browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
 | Phase 14 one-hour real-device workload and recovery soak | PASS - exact `f6661d6c` WASAPI release report, strict `golden-audio-managed-device-soak.v1` contract |
+| Continued Phase 14 backend identity regression | PASS - backend registration and validation use `AudioBackend::id` without invoking descriptor or device discovery |
+| Continued Phase 14 Sound Card creation responsiveness | PASS - blocked runtime startup and worker drop stay under their 250 ms caller ceilings; the exact Module Manager `CreateUserItem` path starts from 10,003 existing nodes, materializes the 580-node Sound Card subtree as one insertion, and remains under a 500 ms debug ceiling |
+| Continued Golden Audio suite | PASS - 135 tests (119 unit, 16 integration), 0 failed; strict all-target Clippy passed |
+| Continued Golden Engine suite | PASS - 369 tests passed, 1 stress benchmark ignored, and 7 doctests passed |
+| Continued Chataigne suite | PASS - 471 unit tests plus the default-ASIO integration, 0 failed; strict app all-target Clippy with `--no-deps -D warnings` passed |
+| Continued root UI checks | PASS - 0 reusable/app Svelte diagnostics, generated-contract drift clean, 21 reusable tests, and 36 app tests |
+| Continued local unsigned package check | PASS - current production UI and Tauri custom-protocol release executable built successfully at `target/release/Chataigne2.exe` |
+| Golden Engine workspace strict Clippy | FAIL - 123 existing lint findings across the engine/script backlog (including existing argument-count, collapsible-if, and test-only lint classes); the owning Chataigne and Golden Audio strict gates pass |
 | Product run modes | PARTIAL - exact `a245641b` bundled headless release startup passed; mounted desktop, browser session, and installed package remain `NOT RUN` |
 | Cross-platform backend/hardware matrix | NOT RUN |
 

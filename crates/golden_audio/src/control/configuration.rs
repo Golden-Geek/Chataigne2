@@ -26,7 +26,7 @@ pub(super) struct ApplyConfigurationContext<'a> {
 pub(super) fn validate_backends(backends: &[Arc<dyn AudioBackend>], policy: &BackendPolicy) -> Result<(), AudioError> {
     let mut ids = std::collections::HashSet::with_capacity(backends.len());
     for backend in backends {
-        let id = backend.descriptor().id;
+        let id = backend.id();
         if !ids.insert(id.clone()) {
             return Err(AudioError::invalid_configuration(format!(
                 "duplicate audio backend ID {id}"

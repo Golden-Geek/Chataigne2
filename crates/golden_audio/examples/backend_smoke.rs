@@ -9,9 +9,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let requested_backend = env::args().nth(1).unwrap_or_else(|| native_backend_id().to_owned());
     let backend = compiled_cpal_backends()
         .into_iter()
-        .find(|backend| backend.descriptor().id.as_str() == requested_backend)
+        .find(|backend| backend.id().as_str() == requested_backend)
         .ok_or_else(|| format!("backend {requested_backend:?} is not compiled"))?;
-    let backend_id = backend.descriptor().id;
+    let backend_id = backend.id();
     let devices = backend.discover()?;
     let device = devices
         .iter()

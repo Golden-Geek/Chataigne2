@@ -5,7 +5,10 @@ mod runtime;
 mod script;
 mod settings;
 
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 
 use golden_core::{
     edit::{Edit, NodeTree},
@@ -19,6 +22,7 @@ use golden_core::{
     parameter::{Enum, ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use golden_io::ReconnectBackoff;
 use uuid::Uuid;
 
 pub(crate) use crate::app::module_modules_audio_sound_card_commands::SOUND_CARD_COMMAND_TYPES;
@@ -186,6 +190,10 @@ const SPECTRUM_RESULTS_PATH: &str = "values/spectrum_bands";
 pub struct SoundCardModule {
     base: crate::app::ModuleBase,
     runtime: Option<runtime::SoundCardRuntime>,
+    runtime_worker: Option<runtime::SoundCardRuntimeWorker>,
+    runtime_request: Option<runtime::SoundCardRuntimeRequest>,
+    runtime_retry: ReconnectBackoff,
+    runtime_retry_at: Option<(golden_audio::SampleRate, Instant)>,
     configuration_dirty: bool,
     active_runtime_warnings: HashSet<(NodeId, String)>,
     runtime_error_node: Option<NodeId>,
@@ -195,6 +203,10 @@ impl SoundCardModule {
     pub fn create() -> Self {
         Self::new(
             crate::app::ModuleBase::create_with_command_types(SOUND_CARD_COMMAND_TYPES),
+            None,
+            None,
+            None,
+            ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(8)),
             None,
             true,
             HashSet::new(),
@@ -420,11 +432,13 @@ impl Node for SoundCardModule {
         }
         self.sync_device_choices(ctx, snapshot.as_ref());
         self.configuration_dirty = true;
-        self.ensure_runtime(ctx);
+        self.request_runtime_start(ctx);
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        if self.configuration_dirty {
+        self.poll_runtime_worker(ctx);
+        self.request_runtime_start(ctx);
+        if self.configuration_dirty && self.runtime_matches_requested_sample_rate() {
             if let Some(snapshot) = ctx.tree_snapshot_arc() {
                 self.refresh_configuration(ctx, snapshot.as_ref());
             }
@@ -437,11 +451,14 @@ impl Node for SoundCardModule {
     }
 
     fn needs_update(&self) -> bool {
-        self.runtime.is_some() || self.configuration_dirty
+        self.runtime.is_some()
+            || self.runtime_request.is_some()
+            || self.runtime_retry_at.is_some()
+            || self.configuration_dirty
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.configuration_dirty
+        self.configuration_dirty && self.runtime_matches_requested_sample_rate()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -524,25 +541,23 @@ impl Node for SoundCardModule {
         }
     }
 
-    fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+    fn on_structure_changed(&mut self, ctx: &mut ProcessCtx) {
         self.configuration_dirty = true;
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
         }
     }
 
-    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+    fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
         self.configuration_dirty = true;
-        if let Some(snapshot) = ctx.tree_snapshot_arc() {
-            self.synchronize_derived_structure(ctx, snapshot.as_ref());
-        }
     }
 
-    fn on_child_replaced(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {
+    fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
         self.configuration_dirty = true;
-        if let Some(snapshot) = ctx.tree_snapshot_arc() {
-            self.synchronize_derived_structure(ctx, snapshot.as_ref());
-        }
+    }
+
+    fn on_child_replaced(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {
+        self.configuration_dirty = true;
     }
 
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {

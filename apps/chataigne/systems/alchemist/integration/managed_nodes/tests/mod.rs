@@ -163,10 +163,12 @@ fn output_schedule_preserves_invocation_through_delay_and_stagger() {
     let invocation_id = ModuleCommandInvocationId::new(NodeId(40), 7);
     let first = NodeId(101);
     let second = NodeId(102);
-    let mut cache = OutputRuntimeCache::default();
-    cache.delay = 0.5;
-    cache.stagger = 0.5;
-    cache.outputs = vec![output_target(first, false), output_target(second, false)];
+    let cache = OutputRuntimeCache {
+        delay: 0.5,
+        stagger: 0.5,
+        outputs: vec![output_target(first, false), output_target(second, false)],
+        ..OutputRuntimeCache::default()
+    };
     let mut schedule = OutputSchedule::default();
     let mut ctx = process_ctx(1);
 
@@ -189,8 +191,10 @@ fn immediate_log_output_rejects_unchanged_streams_before_emitting_events() {
     let first = ModuleCommandInvocationId::new(emitter, 1);
     let deferred = ModuleCommandInvocationId::new(emitter, 2);
     let command = NodeId(101);
-    let mut cache = OutputRuntimeCache::default();
-    cache.outputs = vec![output_target(command, true)];
+    let cache = OutputRuntimeCache {
+        outputs: vec![output_target(command, true)],
+        ..OutputRuntimeCache::default()
+    };
     let mut schedule = OutputSchedule::default();
     let mut ctx = process_ctx(1);
     let original = vec![ModuleCommandParamOverride {
@@ -230,9 +234,11 @@ fn immediate_log_output_rejects_unchanged_streams_before_emitting_events() {
 fn delayed_log_output_dedupes_before_queueing_and_keeps_admission() {
     let invocation_id = ModuleCommandInvocationId::new(NodeId(40), 1);
     let command = NodeId(101);
-    let mut cache = OutputRuntimeCache::default();
-    cache.delay = 0.5;
-    cache.outputs = vec![output_target(command, true)];
+    let cache = OutputRuntimeCache {
+        delay: 0.5,
+        outputs: vec![output_target(command, true)],
+        ..OutputRuntimeCache::default()
+    };
     let mut schedule = OutputSchedule::default();
     let mut ctx = process_ctx(1);
 
@@ -254,8 +260,10 @@ fn nested_output_schedule_forwards_the_same_invocation() {
     let invocation_id = ModuleCommandInvocationId::new(NodeId(40), 9);
     let group = NodeId(101);
     let command = NodeId(102);
-    let mut parent_cache = OutputRuntimeCache::default();
-    parent_cache.outputs = vec![output_target(group, false)];
+    let parent_cache = OutputRuntimeCache {
+        outputs: vec![output_target(group, false)],
+        ..OutputRuntimeCache::default()
+    };
     let mut parent = OutputSchedule::default();
     let mut parent_ctx = process_ctx(1);
 
@@ -267,8 +275,10 @@ fn nested_output_schedule_forwards_the_same_invocation() {
     );
     let execute = execute_request(&parent_ctx, group);
 
-    let mut child_cache = OutputRuntimeCache::default();
-    child_cache.outputs = vec![output_target(command, true)];
+    let child_cache = OutputRuntimeCache {
+        outputs: vec![output_target(command, true)],
+        ..OutputRuntimeCache::default()
+    };
     let mut child = OutputSchedule::default();
     let mut child_ctx = process_ctx(2);
     child.on_trigger_cached(

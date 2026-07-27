@@ -2183,9 +2183,9 @@ impl<T: Node> Engine<T> {
     ) -> Result<NodeId, crate::engine::EngineEditError> {
         const OPERATION: &str = "CreateUserItem";
 
-        let snapshot = self.build_process_tree_snapshot();
-        let mut created_children = snapshot
-            .child_ids(parent)
+        let mut created_children = self
+            .ui_direct_children(parent)
+            .unwrap_or_default()
             .into_iter()
             .filter(|child_id| !known_children.contains(child_id));
 
@@ -2769,8 +2769,8 @@ impl<T: Node> Engine<T> {
         const OPERATION: &str = "CreateUserItem";
 
         let known_children: HashSet<NodeId> = self
-            .build_process_tree_snapshot()
-            .child_ids(parent)
+            .ui_direct_children(parent)
+            .unwrap_or_default()
             .into_iter()
             .collect();
         self.queue_catalog_create(parent, node_type, label, None)?;

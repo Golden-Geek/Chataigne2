@@ -24,6 +24,10 @@ impl NullBackend {
 }
 
 impl AudioBackend for NullBackend {
+    fn id(&self) -> BackendId {
+        Self::backend_id()
+    }
+
     fn descriptor(&self) -> BackendDescriptor {
         BackendDescriptor {
             id: Self::backend_id(),

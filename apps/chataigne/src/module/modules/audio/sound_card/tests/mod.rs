@@ -1,4 +1,7 @@
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 
 use golden_audio::{
     AudioBackend, AudioBackendState, AudioBackendStatus, AudioChannelId,
@@ -34,6 +37,7 @@ use crate::app::{
 mod phase10;
 mod phase11;
 mod phase13;
+mod phase14;
 
 #[test]
 fn generated_catalog_contains_sound_card_and_only_its_five_tester_commands() {
@@ -584,12 +588,35 @@ fn stabilize(engine: &mut crate::app::AppEngine) {
     engine
         .run_tick(Duration::from_millis(20))
         .expect("Sound Card update should run");
-    for _ in 0..4 {
-        engine.apply_edits().expect("update edits should apply");
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        for _ in 0..4 {
+            engine.apply_edits().expect("update edits should apply");
+            engine
+                .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
+                .expect("update stabilization inbox should dispatch");
+        }
+        if sound_card_runtimes_ready(engine) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "Sound Card runtime worker did not become ready"
+        );
+        std::thread::sleep(Duration::from_millis(1));
         engine
-            .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
-            .expect("update stabilization inbox should dispatch");
+            .run_tick(Duration::from_millis(20))
+            .expect("Sound Card startup update should run");
     }
+}
+
+fn sound_card_runtimes_ready(engine: &crate::app::AppEngine) -> bool {
+    engine.nodes.iter().all(|(_, node)| {
+        let crate::app::AppNode::SoundCardModule(module) = node else {
+            return true;
+        };
+        module.runtime.is_some()
+    })
 }
 
 fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {

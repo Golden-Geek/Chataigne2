@@ -190,6 +190,13 @@ pub struct Engine<T: Node> {
     /// When non-zero, add-node inline stabilization is deferred to the outer pass
     /// to avoid deep recursive `apply_edits` chains.
     pub(crate) stabilization_scope_depth: usize,
+    /// Inserted subtree roots awaiting one coalesced UI projection.
+    ///
+    /// Declared children and app-owned defaults can be materialized recursively
+    /// while an outer insertion is stabilizing. Their final roots are collected
+    /// here so the completed outer subtree is projected once instead of rebuilding
+    /// whole-graph UI snapshots for every generated child.
+    pub(crate) pending_added_subtree_ui_roots: Vec<NodeId>,
     /// Stable iteration list of parameter nodes with an active control or pending diagnostics.
     pub(crate) active_control_params: Vec<NodeId>,
     /// Membership companion for `active_control_params`.
@@ -295,6 +302,7 @@ impl<T: Node> Engine<T> {
             expression_runtime: HashMap::new(),
             pending_node_ready: Vec::new(),
             stabilization_scope_depth: 0,
+            pending_added_subtree_ui_roots: Vec::new(),
             active_control_params: Vec::new(),
             active_control_param_set: HashSet::new(),
             control_source_dependents: HashMap::new(),

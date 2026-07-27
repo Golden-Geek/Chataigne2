@@ -166,7 +166,7 @@ impl<T: Node> Engine<T> {
         // (`from_project_file_with` clears the inbox and the host sends a full snapshot),
         // so skip the per-add UI event build — it costs a whole-tree snapshot per node.
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
-            self.push_added_subtree_ui_events(child_id, parent);
+            self.queue_added_subtree_ui_events(child_id);
         }
 
         Ok(AddNodeEffect {
@@ -285,7 +285,7 @@ impl<T: Node> Engine<T> {
         }
 
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
-            self.push_added_subtree_ui_events(root_id, parent);
+            self.queue_added_subtree_ui_events(root_id);
         }
 
         Ok(AddNodeEffect {
@@ -424,7 +424,7 @@ impl<T: Node> Engine<T> {
         }
 
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
-            self.push_added_subtree_ui_events(root_id, parent);
+            self.queue_added_subtree_ui_events(root_id);
         }
 
         Ok(AddNodeEffect {
@@ -456,6 +456,41 @@ impl<T: Node> Engine<T> {
             true,
             creation_context,
         )
+    }
+
+    fn queue_added_subtree_ui_events(&mut self, root: NodeId) {
+        self.pending_added_subtree_ui_roots.push(root);
+        if self.stabilization_scope_depth != 0 {
+            return;
+        }
+
+        let queued = std::mem::take(&mut self.pending_added_subtree_ui_roots);
+        let candidates = queued.iter().copied().collect::<HashSet<_>>();
+        let mut emitted = HashSet::new();
+
+        for root in queued {
+            if !emitted.insert(root) || !self.nodes.contains(root) {
+                continue;
+            }
+
+            let mut ancestor = self.nodes.get(root).and_then(|node| node.node_data().parent);
+            let mut covered_by_queued_ancestor = false;
+            while let Some(node_id) = ancestor {
+                if candidates.contains(&node_id) {
+                    covered_by_queued_ancestor = true;
+                    break;
+                }
+                ancestor = self.nodes.get(node_id).and_then(|node| node.node_data().parent);
+            }
+            if covered_by_queued_ancestor {
+                continue;
+            }
+
+            let Some(parent) = self.nodes.get(root).and_then(|node| node.node_data().parent) else {
+                continue;
+            };
+            self.push_added_subtree_ui_events(root, parent);
+        }
     }
 
     /// Emits a `GraphTransaction` covering all nodes in the subtree rooted at `root`

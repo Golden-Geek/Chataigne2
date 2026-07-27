@@ -548,6 +548,10 @@ struct CallbackBackend {
 
 #[cfg(feature = "analysis")]
 impl AudioBackend for CallbackBackend {
+    fn id(&self) -> golden_audio::BackendId {
+        NullBackend::backend_id()
+    }
+
     fn descriptor(&self) -> golden_audio::BackendDescriptor {
         NullBackend.descriptor()
     }

@@ -389,10 +389,7 @@ fn reconcile_direction(
             let Some(target) = direction.status().selected_target.clone() else {
                 return;
             };
-            let Some(backend) = backends
-                .iter()
-                .find(|backend| backend.descriptor().id == *target.backend())
-            else {
+            let Some(backend) = backends.iter().find(|backend| backend.id() == *target.backend()) else {
                 direction.report_open_error(
                     elapsed_millis(),
                     AudioError::new(

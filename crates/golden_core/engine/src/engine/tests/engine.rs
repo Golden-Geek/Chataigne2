@@ -114,6 +114,23 @@ impl Node for ReadyRemovedChildMutationNode {
     }
 }
 
+#[crate::node("ready_adds_nested_and_external_children_node")]
+struct ReadyAddsNestedAndExternalChildrenNode {
+    external_parent: NodeId,
+}
+
+#[crate::node("ready_adds_nested_and_external_children_node", from_struct)]
+impl Node for ReadyAddsNestedAndExternalChildrenNode {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: crate::node::NodeCreationContext) {
+        ctx.add_child(self.id(), Folder::new("nested".to_string()), None);
+        ctx.add_child(self.external_parent, Folder::new("external".to_string()), None);
+    }
+
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+}
+
 #[test]
 fn ready_batch_stabilizes_structural_edits_before_removed_child_ready_callbacks() {
     READY_REMOVED_CHILD_MUTATION_COUNT.store(0, Ordering::SeqCst);
@@ -1355,6 +1372,7 @@ crate::define_node_enum!(
         RemoveLifecycleProbeNode,
         ReadyRemovesChildParentNode,
         ReadyRemovedChildMutationNode,
+        ReadyAddsNestedAndExternalChildrenNode,
     }
 );
 
@@ -5473,6 +5491,73 @@ fn move_node_does_not_require_whole_graph_resync() {
 }
 
 // --- Compact subtree event tests ---
+
+#[test]
+fn declared_child_materialization_emits_one_completed_subtree_transaction() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslParamsNode::new(None, None).into(), None);
+
+    engine
+        .apply_edits()
+        .expect("declared child materialization should succeed");
+
+    assert_eq!(
+        engine.ui_event_log().len(),
+        1,
+        "generated descendants must be projected with their completed outer subtree"
+    );
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let ops = first_graph_transaction_ops(&batch);
+    assert_eq!(
+        ops.iter()
+            .filter(|op| matches!(op, UiGraphOp::NodeCreated { .. }))
+            .count(),
+        6,
+        "the completed transaction should contain the owner and all declared descendants"
+    );
+}
+
+#[test]
+fn nested_insertion_coalescing_preserves_external_sibling_projections() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(Folder::new("external host".to_string()).into(), None);
+    engine.apply_edits().expect("external host should materialize");
+    let external_host = direct_children(&engine, engine.root)[0];
+
+    engine.clear_ui_event_log();
+    engine.add_node(ReadyAddsNestedAndExternalChildrenNode::new(external_host).into(), None);
+    engine.apply_edits().expect("ready-time descendants should materialize");
+
+    assert_eq!(
+        engine.ui_event_log().len(),
+        2,
+        "the outer subtree and external sibling need separate projections"
+    );
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let inserted_parents = batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(
+                transaction
+                    .ops
+                    .iter()
+                    .filter_map(|op| match op {
+                        UiGraphOp::NodeCreated { parent, .. } => *parent,
+                        UiGraphOp::SubtreeInserted { parent, .. } => Some(*parent),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>(),
+            ),
+            _ => None,
+        })
+        .flatten()
+        .collect::<HashSet<_>>();
+    assert!(inserted_parents.contains(&engine.root));
+    assert!(inserted_parents.contains(&external_host));
+}
 
 #[test]
 fn add_node_tree_small_emits_node_created_ops() {
@@ -11552,6 +11637,24 @@ fn project_load_tree_batch_preserves_order_and_shares_lifecycle_snapshots() {
         "pre-cutover insertion should omit UI deltas"
     );
     assert_eq!(engine.undo_len(), 0, "pre-cutover insertion must not enter history");
+}
+
+#[test]
+fn snapshot_free_lifecycle_batch_skips_whole_tree_snapshots() {
+    let mut engine = Engine::new(Folder::new("root"));
+    let trees = (0..32)
+        .map(|index| crate::edit::NodeTree::new(Folder::new(format!("folder {index}"))))
+        .collect();
+
+    engine
+        .apply_project_load_node_trees(trees, engine.root, None)
+        .expect("snapshot-free project-load batch should apply");
+
+    assert_eq!(
+        engine.tick_stats().snapshot_builds,
+        0,
+        "a batch whose lifecycle callbacks opt out must not clone the whole tree"
+    );
 }
 
 #[test]

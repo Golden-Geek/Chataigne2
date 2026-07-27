@@ -43,7 +43,7 @@ fn run() -> Result<bool, Box<dyn std::error::Error>> {
     };
     let backend = compiled_cpal_backends()
         .into_iter()
-        .find(|backend| backend.descriptor().id.as_str() == arguments.backend)
+        .find(|backend| backend.id().as_str() == arguments.backend)
         .ok_or_else(|| format!("backend {:?} is not compiled", arguments.backend))?;
     let fixture = TemporaryFixture::new()?;
     write_reference_wave(&fixture.path, Duration::from_secs(5), SampleRate::default())?;

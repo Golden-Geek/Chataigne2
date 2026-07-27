@@ -131,14 +131,28 @@ fn render_pipeline_publishes_generation_safe_meters_pitch_and_diagnostics() {
     controller
         .set_tap_enabled(AnalysisTapId::from_uuid(Uuid::from_u128(10)), false)
         .unwrap();
-    thread::sleep(Duration::from_millis(20));
-    let processed_before = observations.latest().diagnostics.processed_frames;
+    let mut settled = observations.latest().diagnostics;
+    for _ in 0..40 {
+        settled = observations.latest().diagnostics;
+        if settled.processed_frames + settled.stale_frames == settled.captured_frames {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(
+        settled.processed_frames + settled.stale_frames,
+        settled.captured_frames,
+        "captured frames must reach a terminal state after disabling the tap"
+    );
+    let processed_before = settled.processed_frames;
+    let captured_before = settled.captured_frames;
     render_tone(&mut processor, 24);
     thread::sleep(Duration::from_millis(20));
     let disabled = observations.latest();
     assert!(!disabled.taps[0].enabled);
     assert!(disabled.taps[0].result.is_none());
     assert_eq!(disabled.diagnostics.processed_frames, processed_before);
+    assert_eq!(disabled.diagnostics.captured_frames, captured_before);
 
     let renderer = processor.take_analysis().unwrap();
     controller.shutdown().unwrap();

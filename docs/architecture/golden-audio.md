@@ -203,6 +203,11 @@ CPAL 0.18.1 is confined to `golden_audio::backend::cpal`. Public host enumeratio
 `AudioCallbackTimestamp`. The adapter maps stable CPAL device IDs, descriptions, physical-channel
 counts, supported formats, default devices, and structured errors into Golden contracts.
 
+`AudioBackend::id` is the side-effect-free identity path used by registration, validation, and
+routing. Descriptor and device discovery may initialize native hosts, so the managed engine calls
+them only from its control worker. Constructing an engine therefore never probes ASIO, WASAPI, or
+another host on the application thread.
+
 The callback owns its `AudioStreamHandler`. Primitive formats are borrowed directly without
 allocation. CPAL's 24-bit wrapper samples are converted through stream-owned, preallocated `f32`
 scratch storage, so those dependency types do not enter the public API. Output buffers are silenced
@@ -217,10 +222,23 @@ default output, writes silence for 100 ms, and closes it.
 
 ## Chataigne runtime integration
 
-The Sound Card module owns the application adapter and starts one reusable `AudioEngine` when the
-node becomes ready. Tree snapshots are requested only for dirty authored configuration. The adapter
-converts persistent UUIDs and references into Golden IDs, submits one generation for the complete
-stabilized edit batch, and retains the last valid engine plan when conversion fails.
+The Sound Card module owns the application adapter and queues reusable `AudioEngine` construction
+on a dedicated lifecycle worker when the node becomes ready. Node creation does not wait for native
+host initialization. Completed runtimes cross back through a pending-result channel; stale
+sample-rate generations and retired runtimes return to that worker for shutdown, so replacement,
+removal, and project drop do not join audio workers on Chataigne's engine thread. Startup failures
+use bounded reconnect backoff.
+
+Tree snapshots are requested only for dirty authored configuration after the requested runtime is
+ready. The adapter converts persistent UUIDs and references into Golden IDs, submits one generation
+for the complete stabilized edit batch, and retains the last valid engine plan when conversion
+fails.
+
+Fresh module creation keeps the authored and read-only projection model intact, including the
+default spectrum-band nodes. Golden Core accumulates lifecycle-generated descendants and publishes
+the completed Sound Card as one subtree transaction instead of rebuilding a UI projection for
+every declared child. The module repairs derived structure once per structural event frame; its
+individual child callbacks only mark the audio configuration dirty.
 
 The Golden control worker owns discovery, device supervision, active streams, and compiled-plan
 publication. Chataigne opts into Golden's managed runtime: one dedicated render worker owns the

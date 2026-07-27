@@ -124,8 +124,8 @@ impl Default for AudioEngineBuilder {
 impl AudioEngineBuilder {
     #[must_use]
     pub fn with_backend(mut self, backend: impl AudioBackend + 'static) -> Self {
-        let id = backend.descriptor().id;
-        self.backends.retain(|current| current.descriptor().id != id);
+        let id = backend.id();
+        self.backends.retain(|current| current.id() != id);
         self.backends.push(Arc::new(backend));
         self
     }
@@ -138,8 +138,8 @@ impl AudioEngineBuilder {
     /// without knowing concrete backend types.
     #[must_use]
     pub fn with_boxed_backend(mut self, backend: Box<dyn AudioBackend>) -> Self {
-        let id = backend.descriptor().id;
-        self.backends.retain(|current| current.descriptor().id != id);
+        let id = backend.id();
+        self.backends.retain(|current| current.id() != id);
         self.backends.push(Arc::from(backend));
         self
     }

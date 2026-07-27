@@ -328,25 +328,15 @@ fn module_removal_and_project_drop_shutdown_audio_workers() {
     engine.edits.push(Edit::RemoveNode { node: module });
     engine
         .apply_edits()
-        .expect("Sound Card removal should stop its runtime");
+        .expect("Sound Card removal should retire its runtime");
     assert!(!engine.nodes.contains(module));
-    assert!(
-        removed_control
-            .submit(golden_audio::AudioCommand::SetEnabled(true))
-            .is_err(),
-        "the removed module must not leave its control worker running"
-    );
+    wait_until_control_stops(&removed_control);
 
     let (mut replacement, replacement_module) = create_sound_card_module();
     run_sound_tick(&mut replacement);
     let replaced_control = sound_card_control(&replacement, replacement_module);
     drop(replacement);
-    assert!(
-        replaced_control
-            .submit(golden_audio::AudioCommand::SetEnabled(true))
-            .is_err(),
-        "dropping the old project must join its Sound Card worker"
-    );
+    wait_until_control_stops(&replaced_control);
 }
 
 fn run_sound_tick(engine: &mut crate::app::AppEngine) {
@@ -390,6 +380,20 @@ fn sound_card_control(
         .as_ref()
         .expect("Sound Card runtime")
         .control()
+}
+
+fn wait_until_control_stops(control: &golden_audio::AudioControl) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while control
+        .submit(golden_audio::AudioCommand::SetEnabled(true))
+        .is_ok()
+    {
+        assert!(
+            Instant::now() < deadline,
+            "retired Sound Card control worker did not stop"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    }
 }
 
 fn null_audio_inspector() -> AudioDeviceInspectorState {

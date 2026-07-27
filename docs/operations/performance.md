@@ -15,6 +15,12 @@ nodes.
   order and use bounded queues.
 - Structural edits use `NodeTree`/`AddNodeTree` for known subtrees and avoid repeated whole-tree
   snapshots.
+- Lifecycle-generated descendants are accumulated until the outer insertion stabilizes. The UI
+  receives one completed subtree transaction for descendants inside that root, while generated
+  siblings outside the root retain their own transactions.
+- Batch lifecycle callbacks honor `lifecycle_requires_tree_snapshot` across the entire batch.
+  When every node opts out, attached/init/ready stages do not clone the graph. User-item creation
+  compares direct children without constructing whole-tree snapshots.
 
 Run the release scalar qualification from the repository root:
 

@@ -98,32 +98,161 @@ impl SoundCardModule {
         }
     }
 
-    pub(super) fn ensure_runtime(&mut self, ctx: &mut ProcessCtx) {
-        let sample_rate = golden_audio::SampleRate::new(
-            u32::try_from(self.engine_sample_rate.get()).unwrap_or_default(),
-        );
-        let Ok(sample_rate) = sample_rate else {
-            self.set_runtime_error(
-                ctx,
-                self.id(),
-                "Sound Card engine sample rate is invalid",
-            );
-            return;
+    fn requested_sample_rate(&self) -> Result<golden_audio::SampleRate, String> {
+        let sample_rate = u32::try_from(self.engine_sample_rate.get())
+            .map_err(|_| "Sound Card engine sample rate is invalid".to_owned())?;
+        golden_audio::SampleRate::new(sample_rate)
+            .map_err(|_| "Sound Card engine sample rate is invalid".to_owned())
+    }
+
+    pub(super) fn runtime_matches_requested_sample_rate(&self) -> bool {
+        let Ok(sample_rate) = self.requested_sample_rate() else {
+            return false;
         };
         if self
             .runtime
             .as_ref()
             .is_some_and(|runtime| runtime.sample_rate() == sample_rate)
         {
+            return true;
+        }
+        false
+    }
+
+    pub(super) fn request_runtime_start(&mut self, ctx: &mut ProcessCtx) {
+        let sample_rate = match self.requested_sample_rate() {
+            Ok(sample_rate) => sample_rate,
+            Err(error) => {
+                self.set_runtime_error(ctx, self.id(), error.as_str());
+                return;
+            }
+        };
+        if self
+            .runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.sample_rate() == sample_rate)
+        {
+            self.runtime_request = None;
+            self.runtime_retry_at = None;
+            self.runtime_retry.reset();
             return;
         }
-        self.stop_runtime();
-        match runtime::SoundCardRuntime::start(sample_rate) {
+        if self
+            .runtime_request
+            .is_some_and(|request| request.sample_rate() == sample_rate)
+        {
+            return;
+        }
+        if let Some((retry_sample_rate, retry_at)) = self.runtime_retry_at {
+            if retry_sample_rate != sample_rate {
+                self.runtime_retry_at = None;
+                self.runtime_retry.reset();
+            } else if Instant::now() < retry_at {
+                return;
+            } else {
+                self.runtime_retry_at = None;
+            }
+        }
+        if self.runtime_worker.is_none() {
+            match runtime::SoundCardRuntimeWorker::spawn() {
+                Ok(worker) => self.runtime_worker = Some(worker),
+                Err(error) => {
+                    self.schedule_runtime_retry(sample_rate);
+                    self.set_runtime_error(ctx, self.id(), error.as_str());
+                    return;
+                }
+            }
+        }
+        let request = self
+            .runtime_worker
+            .as_mut()
+            .expect("Sound Card runtime worker was initialized")
+            .request_start(sample_rate);
+        match request {
+            Ok(request) => self.runtime_request = Some(request),
+            Err(error) => {
+                self.runtime_worker = None;
+                self.schedule_runtime_retry(sample_rate);
+                self.set_runtime_error(ctx, self.id(), error.as_str());
+            }
+        }
+    }
+
+    pub(super) fn poll_runtime_worker(&mut self, ctx: &mut ProcessCtx) {
+        loop {
+            let poll = self
+                .runtime_worker
+                .as_ref()
+                .map(runtime::SoundCardRuntimeWorker::poll);
+            match poll {
+                None | Some(runtime::SoundCardRuntimeWorkerPoll::Pending) => return,
+                Some(runtime::SoundCardRuntimeWorkerPoll::Started(started)) => {
+                    self.handle_runtime_started(ctx, started);
+                }
+                Some(runtime::SoundCardRuntimeWorkerPoll::Disconnected) => {
+                    self.runtime_worker = None;
+                    let retry_sample_rate = self
+                        .runtime_request
+                        .take()
+                        .map(runtime::SoundCardRuntimeRequest::sample_rate)
+                        .or_else(|| self.requested_sample_rate().ok());
+                    if let Some(sample_rate) = retry_sample_rate {
+                        self.schedule_runtime_retry(sample_rate);
+                    }
+                    self.set_runtime_error(
+                        ctx,
+                        self.id(),
+                        "Sound Card runtime worker stopped unexpectedly",
+                    );
+                    return;
+                }
+            }
+        }
+    }
+
+    fn handle_runtime_started(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        started: runtime::SoundCardRuntimeStarted,
+    ) {
+        if self.runtime_request != Some(started.request) {
+            if let Ok(runtime) = started.result {
+                self.retire_runtime(*runtime);
+            }
+            return;
+        }
+        self.runtime_request = None;
+        if self.requested_sample_rate().ok() != Some(started.request.sample_rate()) {
+            if let Ok(runtime) = started.result {
+                self.retire_runtime(*runtime);
+            }
+            return;
+        }
+        match started.result {
             Ok(runtime) => {
-                self.runtime = Some(runtime);
+                if let Some(previous) = self.runtime.replace(*runtime) {
+                    self.retire_runtime(previous);
+                }
+                self.runtime_retry.reset();
+                self.runtime_retry_at = None;
                 self.configuration_dirty = true;
             }
-            Err(error) => self.set_runtime_error(ctx, self.id(), error.as_str()),
+            Err(error) => {
+                self.schedule_runtime_retry(started.request.sample_rate());
+                self.set_runtime_error(ctx, self.id(), error.as_str());
+            }
+        }
+    }
+
+    fn schedule_runtime_retry(&mut self, sample_rate: golden_audio::SampleRate) {
+        self.runtime_retry_at = Some((sample_rate, self.runtime_retry.schedule(Instant::now())));
+    }
+
+    fn retire_runtime(&self, runtime: runtime::SoundCardRuntime) {
+        if let Some(worker) = self.runtime_worker.as_ref() {
+            worker.retire(runtime);
+        } else {
+            runtime::retire_detached(runtime);
         }
     }
 
@@ -132,7 +261,6 @@ impl SoundCardModule {
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
     ) {
-        self.ensure_runtime(ctx);
         let Some(runtime) = self.runtime.as_ref() else {
             return;
         };
@@ -140,8 +268,7 @@ impl SoundCardModule {
         match runtime::build_configuration(snapshot, self.id(), &inspector) {
             Ok(built) => {
                 if built.sample_rate != runtime.sample_rate() {
-                    self.stop_runtime();
-                    self.ensure_runtime(ctx);
+                    self.configuration_dirty = true;
                     return;
                 }
                 self.apply_runtime_warnings(ctx, built.warnings.as_slice());
@@ -381,9 +508,13 @@ impl SoundCardModule {
     }
 
     pub(super) fn stop_runtime(&mut self) {
-        if let Some(mut runtime) = self.runtime.take() {
-            runtime.stop();
+        self.runtime_request = None;
+        self.runtime_retry_at = None;
+        self.runtime_retry.reset();
+        if let Some(runtime) = self.runtime.take() {
+            self.retire_runtime(runtime);
         }
+        self.runtime_worker = None;
     }
 }
 

@@ -95,6 +95,13 @@ impl fmt::Debug for dyn AudioStreamHandler {
 }
 
 pub trait AudioBackend: Send + Sync {
+    /// Returns the stable backend identity without probing hosts or devices.
+    ///
+    /// Engine construction and routing use this method on latency-sensitive
+    /// callers. Availability and device IO belong in `descriptor` and
+    /// `discover`, which the managed engine invokes from its control worker.
+    fn id(&self) -> BackendId;
+
     fn descriptor(&self) -> BackendDescriptor;
     fn discover(&self) -> Result<Vec<AudioDeviceDescriptor>, AudioError>;
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError>;
@@ -116,11 +123,9 @@ pub trait AudioBackend: Send + Sync {
 
 impl fmt::Debug for dyn AudioBackend {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let descriptor = self.descriptor();
         formatter
             .debug_struct("AudioBackend")
-            .field("id", &descriptor.id)
-            .field("state", &descriptor.state)
-            .finish()
+            .field("id", &self.id())
+            .finish_non_exhaustive()
     }
 }

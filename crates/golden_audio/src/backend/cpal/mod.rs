@@ -57,6 +57,10 @@ pub fn probe_cpal_backends() -> Vec<BackendDescriptor> {
 }
 
 impl AudioBackend for CpalBackend {
+    fn id(&self) -> BackendId {
+        self.backend_id()
+    }
+
     fn descriptor(&self) -> BackendDescriptor {
         let id = self.backend_id();
         let available = cpal::available_hosts().contains(&self.host_id);

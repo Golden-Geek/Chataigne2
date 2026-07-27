@@ -392,6 +392,10 @@ impl ModuleCommandTester {
 
 #[node("module_command_tester", via = manager, from_struct)]
 impl Node for ModuleCommandTester {
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == "module_command_tester").then(Self::create_for_project_decode)
     }

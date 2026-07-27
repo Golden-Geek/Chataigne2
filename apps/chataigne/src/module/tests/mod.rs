@@ -230,10 +230,8 @@ fn multiplex_sample_active_runtime_stays_realtime() {
     let processor_ids = engine
         .nodes
         .iter()
-        .filter_map(|(_, node)| {
-            (node.get_type() == "state_processor")
-                .then(|| node.node_data().meta.uuid.0.to_string())
-        })
+        .filter(|(_, node)| node.get_type() == "state_processor")
+        .map(|(_, node)| node.node_data().meta.uuid.0.to_string())
         .collect::<Vec<_>>();
     let processor_count = processor_ids.len();
     assert!(

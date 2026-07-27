@@ -36,9 +36,9 @@ use golden_values::Value as RuntimeValue;
 use super::{
     ActivePreviewSelection, FormulaPreviewDemandLease, LaneParamResolver, PROCESSOR_MANAGER_DECL_ID,
     ProcessorContextAxisRuntime, ProcessorContextListRuntime, ProcessorContextRuntime, ProcessorContextScopeCache,
-    ProcessorLanePreviewKey, ProcessorOverviewDemandLease, RuntimeFormulaPreviewMode, RuntimeInvalidation,
-    RuntimeLogKey, RuntimeProcessor, STATE_ITEM_KIND, STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
-    SnapshotProcessorContextProvider, StateMachineManager,
+    FormulaDefaultPreviewState, ProcessorLanePreviewKey, ProcessorOverviewDemandLease,
+    RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor, STATE_ITEM_KIND,
+    STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC, SnapshotProcessorContextProvider, StateMachineManager,
     collect_processor_lane_parameter_inspection, compile_processor_runtime_for_cache_rebuild,
     condition_manager_edge_previous, condition_manager_value, formula_default_output_preview_samples,
     intern_runtime_command_invocation, latest_param_value, merge_output_preview_snapshot, output_preview_signature,
@@ -1146,8 +1146,10 @@ fn removed_formula_default_lease_prunes_continuous_runtime_while_other_demand_re
     let capture = ProcessorDebugCapture::Off;
     let runtime_cache = &mut manager.runtime_cache;
     let _ = formula_default_output_preview_samples(
-        &mut runtime_cache.formula_default_previews,
-        &mut runtime_cache.continuous_formula_default_preview_count,
+        FormulaDefaultPreviewState {
+            cache: &mut runtime_cache.formula_default_previews,
+            continuous_count: &mut runtime_cache.continuous_formula_default_preview_count,
+        },
         compiled,
         &formula,
         &eval_ctx,

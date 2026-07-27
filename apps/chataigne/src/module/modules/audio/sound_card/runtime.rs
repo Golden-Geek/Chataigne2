@@ -35,12 +35,17 @@ use super::{
 mod observation;
 mod playback;
 mod snapshot;
+mod worker;
 
 use observation::{
     collect_bindings, format_description, readiness_name, saturating_i32,
     telemetry_from_observation, values_nearly_equal,
 };
 use snapshot::*;
+pub(super) use worker::{
+    SoundCardRuntimeRequest, SoundCardRuntimeStarted, SoundCardRuntimeWorker,
+    SoundCardRuntimeWorkerPoll, retire_detached,
+};
 
 pub(super) const SOUND_CARD_UPDATE_RATE_HZ: u32 = 30;
 pub(super) const SOUND_CARD_COMPILED_KERNEL: &str = "chataigne.runtime.sound_card";
@@ -132,7 +137,7 @@ impl SoundCardValueBindings {
 }
 
 #[derive(Debug)]
-pub(super) struct SoundCardRuntime {
+pub(crate) struct SoundCardRuntime {
     engine: AudioEngine,
     events: AudioEventReceiver,
     observations: AudioObservationReader,
