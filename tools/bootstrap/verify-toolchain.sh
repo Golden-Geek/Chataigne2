@@ -34,6 +34,14 @@ manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 if manifest.get("schema_version") != 1:
     raise SystemExit("Unsupported toolchain manifest schema.")
 
+asio_sdk = manifest["audio"]["asio_sdk"]
+if not re.fullmatch(r"[0-9a-f]{40}", asio_sdk["revision"]):
+    raise SystemExit("The ASIO SDK revision must be a full lowercase Git commit.")
+if asio_sdk["repository"] != "https://github.com/audiosdk/asio.git":
+    raise SystemExit("The ASIO SDK repository must be the supported audiosdk/asio source.")
+if not asio_sdk["repository"] or not asio_sdk["license_mode"] or not asio_sdk["required_paths"]:
+    raise SystemExit("The ASIO SDK contract is incomplete.")
+
 rust_version = (root / manifest["consumers"]["rust_version"]).read_text(encoding="utf-8").strip()
 node_version = (root / manifest["consumers"]["node_version"]).read_text(encoding="utf-8").strip()
 if rust_version != manifest["rust"]["channel"]:

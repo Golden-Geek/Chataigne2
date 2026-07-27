@@ -45,6 +45,26 @@ in the verified environment, for example `./tools/bootstrap/bootstrap.ps1 powers
 -ExecutionPolicy Bypass -File ./tools/product-gate/product-gate.ps1` or
 `sh ./tools/bootstrap/bootstrap.sh pwsh -File ./tools/product-gate/product-gate.ps1`.
 
+Windows ASIO development uses the official `audiosdk/asio` source and the exact Git revision
+recorded in `toolchain.json`. The standalone resolver installs it into a persistent external
+per-user cache and returns the directory expected by `asio-sys`:
+
+```powershell
+$env:CPAL_ASIO_DIR = ./tools/bootstrap/configure-asio-sdk.ps1 -PassThru
+cargo test -p golden_audio --features asio
+```
+
+For a complete local build environment, `./tools/asio.ps1` also validates Visual C++ and
+LLVM/Clang, configures both native build variables for its child command, and runs the backend probe
+by default. Pass a custom command after PowerShell's `--` parameter terminator:
+
+```powershell
+./tools/asio.ps1 -- cargo test -p golden_audio --features asio
+```
+
+`./tools/dev.ps1 -Asio` does the same for Chataigne; `-FullAudioHosts` additionally enables JACK
+and Windows real-time priority support. No SDK files are written into the checkout.
+
 CI and the product gate also use `-CheckInstalled`/`--check-installed`, which rejects a different Rust, Cargo, Node, npm, or Python version instead of silently testing another toolchain.
 
 `install-rust-toolchain.*` and `install-qualification-tools.*` are CI provisioning helpers for

@@ -22,11 +22,24 @@ $requiredValues = @(
     $manifest.node.version,
     $manifest.node.npm_version,
     $manifest.python.version,
+    $manifest.audio.asio_sdk.repository,
+    $manifest.audio.asio_sdk.revision,
+    $manifest.audio.asio_sdk.license_mode,
     $manifest.qualification_tools.cargo_deny,
     $manifest.qualification_tools.cargo_machete
 )
 if (@($requiredValues | Where-Object { [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0) {
     throw "tools/bootstrap/toolchain.json contains an empty required version."
+}
+if ([string]$manifest.audio.asio_sdk.revision -notmatch '^[0-9a-f]{40}$') {
+    throw "The ASIO SDK revision must be a full lowercase Git commit."
+}
+if ([string]$manifest.audio.asio_sdk.repository -ne
+    "https://github.com/audiosdk/asio.git") {
+    throw "The ASIO SDK repository must be the supported audiosdk/asio source."
+}
+if (@($manifest.audio.asio_sdk.required_paths).Count -eq 0) {
+    throw "The ASIO SDK contract must declare its required paths."
 }
 $platformKeys = @("windows_x64", "windows_arm64", "macos_x64", "macos_arm64", "linux_x64", "linux_arm64")
 foreach ($platformKey in $platformKeys) {

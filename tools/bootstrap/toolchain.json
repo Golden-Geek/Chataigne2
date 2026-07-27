@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "baseline": "supported-toolchain",
-  "captured_at": "2026-07-18",
+  "captured_at": "2026-07-27",
   "rust": {
     "channel": "1.97.0",
     "cargo_version": "1.97.0",
@@ -30,6 +30,19 @@
   "audio": {
     "cpal": "0.18.1",
     "asio_sys": "0.3.0",
+    "asio_sdk": {
+      "repository": "https://github.com/audiosdk/asio.git",
+      "revision": "496a0765b8bb9c26f764f22f9a9712a937177db2",
+      "license_mode": "GPL-3.0-only",
+      "required_paths": [
+        "LICENSE.txt",
+        "common/asio.h",
+        "common/asiosys.h",
+        "host/asiodrivers.cpp",
+        "host/asiodrivers.h",
+        "host/pc/asiolist.cpp"
+      ]
+    },
     "normal_feature": "desktop",
     "qualification_feature": "full-desktop",
     "windows": {
@@ -39,7 +52,7 @@
         "jack"
       ],
       "asio_sdk_environment": "CPAL_ASIO_DIR",
-      "asio_sdk_cache": "system-temporary-directory/asio_sdk",
+      "asio_sdk_cache": "local-application-data/Chataigne2/tool-cache/asio-sdk/<revision>",
       "required_build_tools": [
         "visual-cpp",
         "llvm-clang"

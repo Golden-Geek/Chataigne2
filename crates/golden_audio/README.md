@@ -47,6 +47,14 @@ qualification features documented in the
 [toolchain policy](../../docs/reference/toolchain.md#native-audio-prerequisites). Applications
 depend on `golden_audio`; they do not import or configure CPAL directly.
 
+On Windows, the repository wrapper prepares the pinned external ASIO SDK and LLVM environment, then
+runs the host probe by default:
+
+```powershell
+.\tools\asio.ps1
+.\tools\asio.ps1 -- cargo test -p golden_audio --features asio
+```
+
 ## Playback ownership
 
 `AudioCommand::PlayFile` is ordered with configuration, gain, stop, and stop-all commands. A fixed

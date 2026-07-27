@@ -22,6 +22,35 @@ The setup verifies Rust/Cargo/Node/npm/Python and desktop prerequisites, audits 
 data, and runs root `npm ci` when the lock changed. It never installs a language runtime, mutates a
 system package manager, or downloads a portable SDK into the checkout.
 
+### Windows ASIO
+
+ASIO development additionally requires Visual Studio C++ Build Tools and LLVM/Clang with
+`libclang.dll`. With those system prerequisites installed, the local probe is one command:
+
+```powershell
+.\tools\asio.ps1
+```
+
+The wrapper acquires the manifest-pinned
+[`audiosdk/asio`](https://github.com/audiosdk/asio) revision into the external per-user tool cache,
+validates its CPAL layout, and scopes `CPAL_ASIO_DIR` and `LIBCLANG_PATH` to the child process. It
+does not vendor the SDK or permanently mutate the user's environment. Use the same environment for
+other commands by placing them after PowerShell's `--` parameter terminator:
+
+```powershell
+.\tools\asio.ps1 -- cargo test -p golden_audio --features asio
+.\tools\asio.ps1 -- cargo check -p Chataigne2 --features golden_audio/asio
+```
+
+Launch Chataigne with ASIO compiled in through the ordinary bootstrap:
+
+```powershell
+.\tools\dev.ps1 -Asio
+```
+
+An installed vendor ASIO driver is a runtime requirement for devices, not for compilation. Missing
+drivers remain a recoverable `MissingDriver` backend state.
+
 ## Root Commands
 
 | Intent                                           | Command                                                      |

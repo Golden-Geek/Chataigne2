@@ -48,11 +48,13 @@ feature adds ASIO and JACK on Windows, JACK on macOS, and JACK, native PipeWire,
 integration on Linux. Native dependencies remain private to `golden_audio`; applications do not
 select CPAL features directly.
 
-Windows ASIO builds require the Visual C++ toolchain, LLVM/Clang for bindgen, and the Steinberg ASIO
-SDK. `asio-sys` uses `CPAL_ASIO_DIR` when supplied and otherwise downloads the SDK into the system
-temporary directory's `asio_sdk` folder. CI caches only that bounded, non-checkout folder. The SDK
-is not vendored because its distribution terms and archive identity still require release
-qualification. A missing ASIO driver is a runtime `MissingDriver` state, not a startup failure.
+Windows ASIO builds require the Visual C++ toolchain and LLVM/Clang with `libclang.dll` for bindgen.
+`tools/bootstrap/configure-asio-sdk.ps1` fetches the exact official `audiosdk/asio` Git revision
+recorded in `toolchain.json`, validates the layout consumed by `asio-sys`, and returns its persistent
+external per-user cache path. `tools/asio.ps1` configures that path and `LIBCLANG_PATH` for any child
+command; `tools/dev.ps1 -Asio` uses the same path for a local Chataigne run. CI uses the same
+resolver and revision with an ephemeral external cache. The SDK remains outside the checkout, and
+a missing vendor ASIO driver is a runtime `MissingDriver` state rather than a startup failure.
 
 Linux host qualification requires Clang plus the ALSA, JACK, PipeWire, and DBus development
 packages. JACK retains dynamic loading, so a missing JACK client library or server is reported as
@@ -61,10 +63,11 @@ PipeWire's JACK compatibility layer. Real-time scheduling refusal is surfaced as
 status and does not abort the application.
 
 Use `cargo run -p golden_audio --example backend_probe` to inspect compiled native hosts without
-opening a stream. Use `--features full-desktop` only in an environment that has the platform
-prerequisites above. The default remains the external-prerequisite-free native desktop path so a clean
-developer checkout can run after the ordinary workspace bootstrap; release qualification is
-responsible for the full host set.
+opening a stream. On Windows, `tools/asio.ps1` runs that probe with the ASIO feature by default; use
+`--features full-desktop` only in an environment that has all platform prerequisites above. The
+default remains the external-prerequisite-free native desktop path so a clean developer checkout
+can run after the ordinary workspace bootstrap; release qualification is responsible for the full
+host set.
 
 ## Upgrade Boundaries
 

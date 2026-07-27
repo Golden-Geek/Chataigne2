@@ -113,17 +113,20 @@ feature; it is absent from no-default-feature builds.
 ### Workspace and ASIO licensing
 
 CPAL 0.18.1 can build ASIO through `asio-sys` and an external Steinberg SDK located by
-`CPAL_ASIO_DIR`; LLVM/Clang and Visual C++ are build prerequisites. The repository already contains
-the GPLv3 license text, and the project owner confirmed that the entire workspace is GPLv3. Workspace
-Rust and npm package metadata now consistently use the SPDX identifier `GPL-3.0-only`. Steinberg's
-currently published open-source ASIO SDK is also GPLv3, so the earlier MIT incompatibility concern
-does not apply.
+`CPAL_ASIO_DIR`; LLVM/Clang and Visual C++ are build prerequisites. The official `audiosdk/asio`
+source is pinned by full Git revision in `tools/bootstrap/toolchain.json`, and one shared local/CI
+resolver validates the exact SDK layout before exporting it to the build. The repository already
+contains the GPLv3 license text, and the project owner confirmed that the entire workspace is GPLv3.
+Workspace Rust and npm package metadata now consistently use the SPDX identifier `GPL-3.0-only`.
+Steinberg's currently published open-source ASIO SDK is also GPLv3, so the earlier MIT
+incompatibility concern does not apply.
 
 Decision:
 
 - implement and qualify the ASIO backend under the GPLv3 path without checking SDK archives into
   this repository;
-- keep SDK material in the bounded external tool cache and expose `CPAL_ASIO_DIR` only to the build;
+- resolve the pinned official Git source into the bounded external tool cache and expose
+  `CPAL_ASIO_DIR` only to the build;
 - ship Corresponding Source and required license/copyright notices with distributed binaries; and
 - verify Steinberg's ASIO trademark/usage guidance and the exact SDK archive notices during package
   qualification before marking the release row `PASS`.
@@ -147,7 +150,7 @@ Decision:
 | Platform | Backend | Build | Discovery | Stream I/O | Recovery | Package/startup |
 | --- | --- | --- | --- | --- | --- | --- |
 | Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PASS - exact `f6661d6c` release build sustained the medium workload for one hour through 5 planned stop/reopen cycles with 0 warnings, XRuns, deadline misses, bridge pressure, playback failures, or analysis drops | PARTIAL - exact `a245641b` unsigned release bundled-headless startup passed; desktop launch and signed install/uninstall remain `NOT RUN` |
-| Windows x64 | ASIO | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| Windows x64 | ASIO | PASS - pinned `audiosdk/asio` source compiled through CPAL 0.18.1 / `asio-sys` 0.3.0 | PASS - local probe reports ASIO available alongside WASAPI | PASS - default 2-channel output opened, started at 48 kHz, rendered silence for 100 ms, and stopped | NOT RUN | NOT RUN |
 | Windows x64 | JACK | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows arm64 | WASAPI | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | macOS x64 | CoreAudio | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
@@ -708,7 +711,7 @@ macOS, and Linux remain `NOT RUN`.
 | Phase 5 `cargo deny check` | PASS - advisories, bans, GPLv3 license policy, and sources; existing workspace warnings remain non-fatal |
 | Phase 5 toolchain/script/workflow validation | PASS - JSON, PowerShell parse, normalized shell syntax, and all workflow YAML |
 | Root and Golden Core formatting plus `--check` after Phase 5 | PASS |
-| Windows ASIO compile/runtime | NOT RUN - local LLVM/Clang and verified SDK archive identity are absent; CI job owns the compile gate |
+| Windows ASIO local compile/runtime | PARTIAL - pinned SDK checkout, 134 ASIO-feature tests, strict all-target Clippy, Chataigne consumer check, ASIO/WASAPI discovery, and the ASIO 48 kHz output smoke PASS; recovery and package qualification remain NOT RUN |
 | macOS CoreAudio/JACK qualification | NOT RUN - no exact-commit remote result yet |
 | Linux ALSA/JACK/native-PipeWire/realtime-DBus qualification | NOT RUN - no exact-commit remote result yet |
 | `cargo test -p golden_audio --no-default-features` after Phase 6 | PASS - 74 tests (68 unit, 6 integration), 0 failed |
@@ -1048,7 +1051,9 @@ Phase 14:
 ## Remaining work
 
 Phase 14 local implementation, deterministic qualification, and the Windows WASAPI one-hour
-real-device workload/recovery gate are complete. Phase 14 remains open only for mounted
-normal/narrow visual inspection and exact-commit cross-platform backend results. Phase 15 owns
-final documentation, release, and packaging gates after those external qualification results
-exist.
+real-device workload/recovery gate are complete. Windows ASIO source acquisition, compilation,
+tests, discovery, and short real output stream smoke now also pass locally against the pinned SDK;
+ASIO recovery and installed-package qualification remain external gates. Phase 14 otherwise
+remains open for mounted normal/narrow visual inspection and exact-commit cross-platform backend
+results. Phase 15 owns final documentation, release, and packaging gates after those external
+qualification results exist.

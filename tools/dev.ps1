@@ -3,6 +3,7 @@ param(
     [switch] $SetupOnly,
     [switch] $SkipUiInstall,
     [switch] $SkipWindowsBuildTools,
+    [switch] $Asio,
     [switch] $FullAudioHosts,
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -95,25 +96,12 @@ function Ensure-WindowsBuildTools {
 
 function Ensure-AudioBuildTools {
     Write-Step "Audio host build tools"
-    if (-not $FullAudioHosts) {
-        Write-Host "WASAPI is ready. Use -FullAudioHosts to verify ASIO/JACK build prerequisites."
+    if (-not $Asio -and -not $FullAudioHosts) {
+        Write-Host "WASAPI is ready. Use -Asio or -FullAudioHosts for optional audio hosts."
         return
     }
-    if (-not (Get-CommandExists "clang")) {
-        throw "Full Windows audio hosts require LLVM/Clang for ASIO bindings. Install LLVM and rerun tools/dev.ps1 -FullAudioHosts."
-    }
-    if ([string]::IsNullOrWhiteSpace($env:LIBCLANG_PATH)) {
-        $env:LIBCLANG_PATH = Split-Path -Parent (Get-Command "clang").Source
-        Write-Host "LIBCLANG_PATH set for this process to $env:LIBCLANG_PATH."
-    }
-    if ([string]::IsNullOrWhiteSpace($env:CPAL_ASIO_DIR)) {
-        Write-Host "CPAL_ASIO_DIR is not set; asio-sys will use the bounded system temporary ASIO SDK cache."
-    } elseif (-not (Test-Path -LiteralPath $env:CPAL_ASIO_DIR -PathType Container)) {
-        throw "CPAL_ASIO_DIR does not name an existing ASIO SDK directory: $env:CPAL_ASIO_DIR"
-    } else {
-        Write-Host "ASIO SDK found at CPAL_ASIO_DIR."
-    }
-    Write-Host "LLVM/Clang found. ASIO and dynamically loaded JACK are ready to compile."
+    & (Join-Path $Root "tools\asio.ps1") -SetupOnly
+    Write-Host "ASIO and dynamically loaded JACK are ready to compile."
 }
 
 function Activate-CanonicalToolchain {
@@ -160,5 +148,14 @@ Ensure-UiDependencies
 
 if (-not $SetupOnly) {
     Write-Step "Run Chataigne2"
-    Invoke-External "cargo" (@("run") + $CargoArgs)
+    $audioFeatureArguments = @()
+    if ($FullAudioHosts) {
+        $audioFeatureArguments = @(
+            "--features",
+            "golden_audio/asio,golden_audio/jack,golden_audio/realtime"
+        )
+    } elseif ($Asio) {
+        $audioFeatureArguments = @("--features", "golden_audio/asio")
+    }
+    Invoke-External "cargo" (@("run") + $audioFeatureArguments + $CargoArgs)
 }
