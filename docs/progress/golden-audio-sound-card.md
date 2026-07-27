@@ -27,9 +27,9 @@ backend remains `NOT RUN`.
 ## Current status
 
 - Current phase: Phase 14 - performance, robustness, and product evidence.
-- Status: deterministic implementation, local qualification, and the Windows WASAPI real-device
-  endurance gate are complete; mounted browser inspection and cross-platform results remain
-  outstanding.
+- Status: deterministic implementation, local qualification, the Windows WASAPI real-device
+  endurance gate, and bundled release headless startup are complete; mounted browser inspection
+  and cross-platform results remain outstanding.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
 - Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
@@ -40,6 +40,9 @@ backend remains `NOT RUN`.
   (`fix(audio): harden managed device recovery`).
 - Phase 14 analysis endurance checkpoint: `f6661d6c`
   (`fix(audio): preserve analysis frames through scheduler stalls`).
+- Phase 14 bundled-host checkpoints: `85e6cc36`
+  (`fix(host): preserve discovery routes with bundled UI`) and `a245641b`
+  (`fix(host): avoid bundled headless self-probe`).
 - Stop boundary: Phase 14 cannot be marked fully complete until mounted normal/narrow browser
   inspection and cross-platform runs have exact-commit evidence.
 
@@ -143,7 +146,7 @@ Decision:
 
 | Platform | Backend | Build | Discovery | Stream I/O | Recovery | Package/startup |
 | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PASS - exact `f6661d6c` release build sustained the medium workload for one hour through 5 planned stop/reopen cycles with 0 warnings, XRuns, deadline misses, bridge pressure, playback failures, or analysis drops | NOT RUN |
+| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PASS - exact `f6661d6c` release build sustained the medium workload for one hour through 5 planned stop/reopen cycles with 0 warnings, XRuns, deadline misses, bridge pressure, playback failures, or analysis drops | PARTIAL - exact `a245641b` unsigned release bundled-headless startup passed; desktop launch and signed install/uninstall remain `NOT RUN` |
 | Windows x64 | ASIO | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows x64 | JACK | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows arm64 | WASAPI | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
@@ -613,6 +616,22 @@ warnings, callback XRuns, render deadline misses, control queue pressure, input/
 underflows or overflows, playback failures, dropped analysis frames, or stale analysis frames. The
 maximum render call was 1,398 microseconds, and every recovery returned to `Ready` without retry.
 
+Continued bundled-release qualification exposed two reusable host issues outside the app-owned
+Sound Card layer. The static SPA fallback shadowed `/.well-known/chataigne`, and the discovery
+document advertised `/ws` while the authoritative server and UI clients use `/api/ui/ws`.
+`85e6cc36` reserves backend namespaces from the fallback and shares the canonical WebSocket path.
+The next release probe found bundled headless mode waiting five seconds for its own listener before
+starting that listener. `a245641b` removes that self-preflight; requested dev-server readiness
+remains owned by the dev-server launcher.
+
+The exact `a245641b` Windows release binary then started loopback-only in bundled headless mode
+without warnings or error markers. `/api/ui/health` reported both backend and engine read model
+ready, `/.well-known/chataigne` returned the correct relative discovery document,
+`/api/ui/ws` returned the expected HTTP 426 without an upgrade, `/evidence/sound-card` returned
+HTTP 200, and its referenced JavaScript asset returned HTTP 200. The local binary is intentionally
+unsigned; installed-package, signing, desktop-window, and uninstall qualification remain release
+environment gates.
+
 The configured browser surface again reported no browser, so mounted normal/narrow visual
 inspection remains `NOT RUN`; no desktop-control fallback was used. Other Windows backends,
 macOS, and Linux remain `NOT RUN`.
@@ -796,9 +815,14 @@ macOS, and Linux remain `NOT RUN`.
 | Phase 14 reusable audio UI checks | PASS - 0 Svelte diagnostics and 21 tests |
 | Phase 14 Chataigne UI checks | PASS - 0 Svelte diagnostics, Prettier clean, 36 tests, and static production build |
 | Phase 14 evidence route production build | PASS - `/evidence/sound-card` emitted in the server/static build |
+| Continued root UI verification | PASS - 0 diagnostics, generated-contract drift clean, 21 reusable audio UI tests, 36 Chataigne UI tests, Prettier clean, and production build |
+| Bundled discovery route regression | PASS - 21 transport tests; SPA fallback preserves `/api` and `/.well-known`; discovery advertises `/api/ui/ws` |
+| Bundled headless startup regression | PASS - 7 desktop-host tests, 1 subprocess helper ignored, and strict owning-crate Clippy with `--no-deps -D warnings` |
+| Local unsigned package check | PASS at exact `85e6cc36` - production UI plus Tauri custom-protocol release application built successfully |
+| Corrected bundled headless release startup | PASS at exact `a245641b` - health/read-model ready, discovery JSON correct, WebSocket route reachable, Sound Card evidence and referenced asset HTTP 200, no false frontend warning or error marker |
 | Phase 14 mounted normal/narrow browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
 | Phase 14 one-hour real-device workload and recovery soak | PASS - exact `f6661d6c` WASAPI release report, strict `golden-audio-managed-device-soak.v1` contract |
-| Product run modes | NOT RUN |
+| Product run modes | PARTIAL - exact `a245641b` bundled headless release startup passed; mounted desktop, browser session, and installed package remain `NOT RUN` |
 | Cross-platform backend/hardware matrix | NOT RUN |
 
 ## Files changed
@@ -1016,6 +1040,8 @@ Phase 14:
 - `apps/chataigne/ui/src/lib/modules/audio/sound-card/generated/`
 - `apps/chataigne/ui/src/lib/panels/modules/sound-card/`
 - `apps/chataigne/ui/src/routes/evidence/sound-card/`
+- `crates/golden_core/hosts/transport/src/ui_server/`
+- `crates/golden_core/hosts/desktop/src/`
 - `docs/architecture/golden-audio.md`
 - `docs/progress/golden-audio-sound-card.md`
 
