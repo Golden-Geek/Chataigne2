@@ -2,7 +2,7 @@ use crate::edit::{Edit, EditOrigin};
 use crate::engine::Engine;
 use crate::events::CustomEvent;
 use crate::node::{Node, NodeMetaPatch};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
 use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope};
 
@@ -379,6 +379,56 @@ fn first_param_change_survives_the_next_structural_rebuild() {
     };
     assert_eq!(param.value, ParamValue::Int(7));
     assert_eq!(param.default_value, Some(ParamValue::Int(0)));
+}
+
+#[test]
+fn snapshot_materializes_parameter_updates_without_a_structural_rebuild() {
+    let mut engine = Engine::new(Parameter::new(
+        "root",
+        ParamValue::Enum("wasapi".to_string()),
+        ParameterChangeCheck::None,
+    ));
+    let root = engine.root;
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let cursor = read_model.current_event_time();
+
+    let mut constraints = engine.nodes.get(root).expect("root parameter").constraints.clone();
+    constraints.enum_options = ["wasapi", "asio"]
+        .into_iter()
+        .enumerate()
+        .map(|(ordering, backend)| ParameterEnumOption {
+            variant_id: backend.to_string(),
+            value: ParamValue::Enum(backend.to_string()),
+            label: backend.to_uppercase(),
+            tags: Vec::new(),
+            ordering: i32::try_from(ordering).ok(),
+        })
+        .collect();
+    engine.edits.push(Edit::SetParamConstraints {
+        node: root,
+        constraints: constraints.clone(),
+    });
+    engine.apply_edits().expect("parameter constraints should apply");
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: root,
+        value: ParamValue::Enum("asio".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "enum value should apply: {:?}", ack.error_message);
+    let batch = read_model.publish_engine_events_since(&engine, cursor);
+
+    let snapshot = read_model.snapshot_for_scope(UiSubscriptionScope::WholeGraph);
+    assert_eq!(snapshot.at, batch.to.expect("parameter updates should advance time"));
+    let root = snapshot
+        .nodes
+        .iter()
+        .find(|node| node.node_id == root)
+        .expect("root should remain in the snapshot");
+    let UiNodeDataDto::Parameter { param } = &root.data else {
+        panic!("root should remain a parameter");
+    };
+    assert_eq!(param.value, ParamValue::Enum("asio".to_string()));
+    assert_eq!(param.constraints, constraints);
 }
 
 #[test]

@@ -226,7 +226,7 @@ impl UiReadModel {
     ///
     /// All graph and parameter events update the `node_store`. Structural events also rebuild
     /// `current` from pre-built DTOs without traversing the engine. Pure parameter changes defer
-    /// that O(N) rebuild until the next structural batch.
+    /// that O(N) rebuild; snapshot requests materialize their latest node DTOs from `node_store`.
     pub fn apply_event_capture(&self, capture: UiEventCapture) -> UiEventBatch {
         let UiEventCapture {
             mut batch,
@@ -307,14 +307,29 @@ impl UiReadModel {
         let snapshot = self.current_snapshot();
         let mut out = (*snapshot).clone();
         {
+            // `current` intentionally avoids an O(N) rebuild for every runtime value
+            // update. A snapshot is already an O(N) operation, so overlay the latest
+            // parameter values, controls, and constraints here. Structural batches
+            // keep `snapshot.nodes` and `node_store` membership in sync.
+            let store = self.node_store.read().expect("ui read model poisoned");
+            out.nodes = snapshot
+                .nodes
+                .iter()
+                .filter_map(|node| store.get(&node.node_id).cloned())
+                .collect();
+        }
+        {
             let header = self.snapshot_header.lock().expect("ui read model poisoned");
             out.at = header.at;
             out.history = header.history.clone();
             out.user_contexts = header.user_contexts.clone();
             out.project_file = header.project_file.clone();
         }
+        if let Some(latest_event_time) = *self.latest_event_time.lock().expect("ui read model poisoned") {
+            out.at = out.at.max(latest_event_time);
+        }
         out.scope = scope.clone();
-        out.nodes = filter_snapshot_nodes(&snapshot, scope);
+        out.nodes = filter_snapshot_nodes(&out, scope);
         out.protocol_version = UI_PROTOCOL_VERSION.to_string();
         out
     }

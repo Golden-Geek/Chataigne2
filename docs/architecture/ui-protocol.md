@@ -12,6 +12,10 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
   directory as generated output.
 - The HTTP transport adapter in `packages/golden-ui/transport/http.ts` converts those generated Rust-wire types into the UI-local model types in `packages/golden-ui/types.ts`.
 - `types.ts` is a frontend model layer, not a second source of truth for the wire protocol.
+- `crates/golden_core/engine/src/ui_read_model.rs` maintains an incremental node store. Structural
+  events rebuild the immutable topology snapshot, while every snapshot request overlays the latest
+  parameter values, controls, and constraints from that store. This keeps late and reconnecting
+  clients correct without rebuilding a large graph on every runtime value update.
 
 ## Rules
 
