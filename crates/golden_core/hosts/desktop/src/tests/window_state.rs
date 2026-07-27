@@ -47,7 +47,7 @@ fn restore_maps_local_position_to_primary_monitor_when_saved_monitor_is_missing(
     let primary_monitor = monitor("Laptop", 0, 0, 1440, 900);
 
     let bounds = state
-        .restore_bounds(&[primary_monitor.clone()], Some(&primary_monitor))
+        .restore_bounds(std::slice::from_ref(&primary_monitor), Some(&primary_monitor))
         .unwrap();
 
     assert_eq!(bounds.position, StoredPosition { x: 240, y: 160 });

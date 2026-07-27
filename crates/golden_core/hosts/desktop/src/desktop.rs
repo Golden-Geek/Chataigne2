@@ -284,10 +284,10 @@ where
         default_data_folder: app_data_dir.to_string_lossy().to_string(),
     });
     let frontend_assets = if args.no_frontend || args.dev { &[] } else { ui_assets };
-    if let Ok(bind_addr) = std::env::var("GC_UI_BIND") {
-        if !bind_addr.trim().is_empty() {
-            config.bind_addr = bind_addr;
-        }
+    if let Ok(bind_addr) = std::env::var("GC_UI_BIND")
+        && !bind_addr.trim().is_empty()
+    {
+        config.bind_addr = bind_addr;
     }
 
     if args.no_remote {
@@ -311,14 +311,8 @@ where
             None
         };
 
-        if let Some(connect_addr) = url_connect_addr(&frontend_url) {
-            if let Err(err) = wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT) {
-                eprintln!(
-                    "warning: frontend UI at {frontend_url} was not reachable yet ({err}); continuing with headless runtime"
-                );
-            }
-        }
-
+        // Headless mode renders no frontend. A requested dev server is already gated by
+        // `spawn_frontend_dev_server`; bundled assets start with the UI server below.
         let run_result = run_with_ui_server_config(engine, config);
         drop(dev_server_process);
         return run_result;
@@ -346,12 +340,12 @@ where
         None
     };
 
-    if let Some(connect_addr) = url_connect_addr(&frontend_url) {
-        if let Err(err) = wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT) {
-            eprintln!(
-                "warning: frontend UI at {frontend_url} was not reachable yet ({err}); continuing and launching Tauri anyway"
-            );
-        }
+    if let Some(connect_addr) = url_connect_addr(&frontend_url)
+        && let Err(err) = wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT)
+    {
+        eprintln!(
+            "warning: frontend UI at {frontend_url} was not reachable yet ({err}); continuing and launching Tauri anyway"
+        );
     }
 
     let run_result = run_tauri(

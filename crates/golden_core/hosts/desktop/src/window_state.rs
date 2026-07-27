@@ -105,10 +105,10 @@ pub(crate) fn restore_window_state<R: Runtime>(window: &WebviewWindow<R>, persis
     ))) {
         eprintln!("warning: failed restoring window position: {err}");
     }
-    if bounds.maximized {
-        if let Err(err) = window.maximize() {
-            eprintln!("warning: failed restoring maximized window state: {err}");
-        }
+    if bounds.maximized
+        && let Err(err) = window.maximize()
+    {
+        eprintln!("warning: failed restoring maximized window state: {err}");
     }
 }
 
