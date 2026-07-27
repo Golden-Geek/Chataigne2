@@ -47,6 +47,10 @@ qualification features documented in the
 [toolchain policy](../../docs/reference/toolchain.md#native-audio-prerequisites). Applications
 depend on `golden_audio`; they do not import or configure CPAL directly.
 
+Chataigne deliberately enables the `asio` feature in its own default feature set, so ordinary
+Windows product builds include both WASAPI and ASIO while other `golden_audio` consumers retain the
+external-prerequisite-free native default.
+
 On Windows, the repository wrapper prepares the pinned external ASIO SDK and LLVM environment, then
 runs the host probe by default:
 

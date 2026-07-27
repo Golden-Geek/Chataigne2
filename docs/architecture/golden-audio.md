@@ -209,10 +209,11 @@ scratch storage, so those dependency types do not enter the public API. Output b
 before user processing, and callback errors publish fixed atomic codes for control-side inspection;
 callbacks do not allocate, format, log, or destroy control-owned state.
 
-The ordinary `desktop` feature uses the native OS host. Platform qualification features add ASIO,
-JACK, native PipeWire, and real-time DBus support without changing application dependencies. The
-backend probe enumerates hosts and devices but does not open a stream. The separate smoke example
-opens the default output, writes silence for 100 ms, and closes it.
+The reusable crate's ordinary `desktop` feature uses the native OS host. Chataigne's default
+feature set additionally enables ASIO on Windows. Platform qualification features add JACK, native
+PipeWire, and real-time DBus support without changing application dependencies. The backend probe
+enumerates hosts and devices but does not open a stream. The separate smoke example opens the
+default output, writes silence for 100 ms, and closes it.
 
 ## Chataigne runtime integration
 

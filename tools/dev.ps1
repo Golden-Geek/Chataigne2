@@ -3,7 +3,6 @@ param(
     [switch] $SetupOnly,
     [switch] $SkipUiInstall,
     [switch] $SkipWindowsBuildTools,
-    [switch] $Asio,
     [switch] $FullAudioHosts,
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -96,12 +95,12 @@ function Ensure-WindowsBuildTools {
 
 function Ensure-AudioBuildTools {
     Write-Step "Audio host build tools"
-    if (-not $Asio -and -not $FullAudioHosts) {
-        Write-Host "WASAPI is ready. Use -Asio or -FullAudioHosts for optional audio hosts."
-        return
-    }
     & (Join-Path $Root "tools\asio.ps1") -SetupOnly
-    Write-Host "ASIO and dynamically loaded JACK are ready to compile."
+    if ($FullAudioHosts) {
+        Write-Host "ASIO, dynamically loaded JACK, and Windows real-time priority are ready to compile."
+    } else {
+        Write-Host "Default WASAPI and ASIO hosts are ready to compile."
+    }
 }
 
 function Activate-CanonicalToolchain {
@@ -152,10 +151,8 @@ if (-not $SetupOnly) {
     if ($FullAudioHosts) {
         $audioFeatureArguments = @(
             "--features",
-            "golden_audio/asio,golden_audio/jack,golden_audio/realtime"
+            "golden_audio/jack,golden_audio/realtime"
         )
-    } elseif ($Asio) {
-        $audioFeatureArguments = @("--features", "golden_audio/asio")
     }
     Invoke-External "cargo" (@("run") + $audioFeatureArguments + $CargoArgs)
 }

@@ -317,11 +317,12 @@ The private native-host layer now provides:
 - a three-platform CI host job, bounded non-checkout ASIO SDK cache, and matching Linux
   release/product-gate packages.
 
-Normal desktop builds intentionally keep the native OS host as the default. Enabling ASIO by
-default would make an otherwise clean Windows checkout fail before bootstrap when LLVM/Clang is
-absent. The official full host set is therefore a named qualification feature exercised by CI and
-release gates; application code still has one ordinary `golden_audio` dependency and never selects
-CPAL features.
+The reusable `golden_audio` crate keeps the native OS host as its portable default. Chataigne now
+enables the app-agnostic `golden_audio/asio` feature in its own default feature set, so ordinary
+Windows product builds expose WASAPI and ASIO while other operating systems remain target-gated.
+The Windows bootstrap, build CI, product gate, and release gate all configure the same pinned
+external SDK and LLVM environment. Application code still has one `golden_audio` dependency and
+never selects CPAL features directly.
 
 ## Phase 6 implementation
 
@@ -712,6 +713,7 @@ macOS, and Linux remain `NOT RUN`.
 | Phase 5 toolchain/script/workflow validation | PASS - JSON, PowerShell parse, normalized shell syntax, and all workflow YAML |
 | Root and Golden Core formatting plus `--check` after Phase 5 | PASS |
 | Windows ASIO local compile/runtime | PARTIAL - pinned SDK checkout, 134 ASIO-feature tests, strict all-target Clippy, Chataigne consumer check, ASIO/WASAPI discovery, and the ASIO 48 kHz output smoke PASS; recovery and package qualification remain NOT RUN |
+| Chataigne default ASIO integration | PASS - Cargo metadata resolves `default = ["asio"]`, the Windows integration test sees a compiled ASIO host, normal bootstrap configures the pinned SDK, and Linux/macOS target graphs exclude `asio-sys` |
 | macOS CoreAudio/JACK qualification | NOT RUN - no exact-commit remote result yet |
 | Linux ALSA/JACK/native-PipeWire/realtime-DBus qualification | NOT RUN - no exact-commit remote result yet |
 | `cargo test -p golden_audio --no-default-features` after Phase 6 | PASS - 74 tests (68 unit, 6 integration), 0 failed |

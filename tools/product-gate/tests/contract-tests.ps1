@@ -6,7 +6,9 @@ $ErrorActionPreference = "Stop"
 
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
 $scripts = @(
+    "tools/asio.ps1",
     "tools/bootstrap/bootstrap.ps1",
+    "tools/bootstrap/configure-asio-sdk.ps1",
     "tools/bootstrap/install-rust-toolchain.ps1",
     "tools/bootstrap/verify-toolchain.ps1",
     "tools/workspace-hygiene.ps1",
@@ -36,6 +38,11 @@ if ($bootstrapSource -match 'install-node|install-rust-toolchain|target\\toolcha
 $toolchainManifest = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/bootstrap/toolchain.json"))
 if ($toolchainManifest -match 'base_url|distributions|sha256') {
     throw "The toolchain manifest must describe system prerequisites, not downloadable runtimes."
+}
+$appManifest = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "apps/chataigne/Cargo.toml"))
+if ($appManifest -notmatch '(?m)^default\s*=\s*\["asio"\]\s*$' -or
+    $appManifest -notmatch '(?m)^asio\s*=\s*\["golden_audio/asio"\]\s*$') {
+    throw "Ordinary Chataigne builds must enable the app-agnostic ASIO host feature."
 }
 $editorSettings = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot ".vscode/settings.json")) | ConvertFrom-Json
 if ($editorSettings.'rust-analyzer.cargo.targetDir' -ne $false -or

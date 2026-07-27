@@ -41,6 +41,15 @@ if ([string]$manifest.audio.asio_sdk.repository -ne
 if (@($manifest.audio.asio_sdk.required_paths).Count -eq 0) {
     throw "The ASIO SDK contract must declare its required paths."
 }
+$windowsDefaultHosts = @($manifest.audio.windows.application_default_hosts)
+if ($windowsDefaultHosts.Count -ne 2 -or
+    $windowsDefaultHosts -notcontains "wasapi" -or
+    $windowsDefaultHosts -notcontains "asio") {
+    throw "Windows application defaults must contain exactly WASAPI and ASIO."
+}
+if (@($manifest.audio.windows.optional_hosts) -contains "asio") {
+    throw "ASIO is a Windows application default and must not be listed as optional."
+}
 $platformKeys = @("windows_x64", "windows_arm64", "macos_x64", "macos_arm64", "linux_x64", "linux_arm64")
 foreach ($platformKey in $platformKeys) {
     $hostTriple = [string]$manifest.rust.hosts.$platformKey

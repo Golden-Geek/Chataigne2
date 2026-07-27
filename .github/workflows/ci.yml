@@ -198,6 +198,20 @@ jobs:
         run: |
           sh ./tools/bootstrap/install-rust-toolchain.sh
           rustup target add ${{ matrix.target }}
+      - name: Cache default Windows ASIO SDK
+        if: runner.os == 'Windows'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/chataigne-tool-cache/asio-sdk
+          key: asio-sdk-${{ hashFiles('tools/bootstrap/toolchain.json') }}
+      - name: Configure default Windows ASIO
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $cache = Join-Path $env:RUNNER_TEMP "chataigne-tool-cache/asio-sdk"
+          $asio = ./tools/asio.ps1 -CacheRoot $cache -SetupOnly -PassThru
+          "CPAL_ASIO_DIR=$($asio.sdk_path)" >> $env:GITHUB_ENV
+          "LIBCLANG_PATH=$($asio.libclang_path)" >> $env:GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
         with:
           key: build-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}

@@ -41,6 +41,11 @@ if asio_sdk["repository"] != "https://github.com/audiosdk/asio.git":
     raise SystemExit("The ASIO SDK repository must be the supported audiosdk/asio source.")
 if not asio_sdk["repository"] or not asio_sdk["license_mode"] or not asio_sdk["required_paths"]:
     raise SystemExit("The ASIO SDK contract is incomplete.")
+windows_audio = manifest["audio"]["windows"]
+if set(windows_audio["application_default_hosts"]) != {"wasapi", "asio"}:
+    raise SystemExit("Windows application defaults must contain exactly WASAPI and ASIO.")
+if "asio" in windows_audio["optional_hosts"]:
+    raise SystemExit("ASIO is a Windows application default and must not be listed as optional.")
 
 rust_version = (root / manifest["consumers"]["rust_version"]).read_text(encoding="utf-8").strip()
 node_version = (root / manifest["consumers"]["node_version"]).read_text(encoding="utf-8").strip()

@@ -47,8 +47,11 @@
     "qualification_feature": "full-desktop",
     "windows": {
       "native_host": "wasapi",
+      "application_default_hosts": [
+        "wasapi",
+        "asio"
+      ],
       "optional_hosts": [
-        "asio",
         "jack"
       ],
       "asio_sdk_environment": "CPAL_ASIO_DIR",

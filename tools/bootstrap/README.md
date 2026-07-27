@@ -62,8 +62,9 @@ by default. Pass a custom command after PowerShell's `--` parameter terminator:
 ./tools/asio.ps1 -- cargo test -p golden_audio --features asio
 ```
 
-`./tools/dev.ps1 -Asio` does the same for Chataigne; `-FullAudioHosts` additionally enables JACK
-and Windows real-time priority support. No SDK files are written into the checkout.
+Ordinary Windows Chataigne builds include ASIO, so `./tools/dev.ps1` performs this setup by default.
+`-FullAudioHosts` additionally enables JACK and Windows real-time priority support. No SDK files
+are written into the checkout.
 
 CI and the product gate also use `-CheckInstalled`/`--check-installed`, which rejects a different Rust, Cargo, Node, npm, or Python version instead of silently testing another toolchain.
 

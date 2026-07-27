@@ -24,7 +24,7 @@ system package manager, or downloads a portable SDK into the checkout.
 
 ### Windows ASIO
 
-ASIO development additionally requires Visual Studio C++ Build Tools and LLVM/Clang with
+Ordinary Windows development therefore requires Visual Studio C++ Build Tools and LLVM/Clang with
 `libclang.dll`. With those system prerequisites installed, the local probe is one command:
 
 ```powershell
@@ -42,14 +42,16 @@ other commands by placing them after PowerShell's `--` parameter terminator:
 .\tools\asio.ps1 -- cargo check -p Chataigne2 --features golden_audio/asio
 ```
 
-Launch Chataigne with ASIO compiled in through the ordinary bootstrap:
+ASIO is compiled into ordinary Windows Chataigne builds. Launch through the bootstrap so the build
+uses the pinned SDK:
 
 ```powershell
-.\tools\dev.ps1 -Asio
+.\tools\dev.ps1
 ```
 
 An installed vendor ASIO driver is a runtime requirement for devices, not for compilation. Missing
-drivers remain a recoverable `MissingDriver` backend state.
+drivers remain a recoverable `MissingDriver` backend state. A deliberately constrained Windows
+build can opt out with `cargo run --no-default-features`.
 
 ## Root Commands
 

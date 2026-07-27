@@ -64,8 +64,9 @@ cargo run -- --dev
 Use `.\tools\dev.ps1 -SetupOnly` or `bash ./tools/dev.sh --setup-only` when you only want to prepare
 the machine without launching the app.
 
-Windows developers with Visual Studio C++ Build Tools and LLVM installed can compile ASIO support
-locally with `.\tools\dev.ps1 -Asio`. Run `.\tools\asio.ps1` for a build-only backend probe.
+Ordinary Windows Chataigne builds include WASAPI and ASIO. With Visual Studio C++ Build Tools and
+LLVM installed, `.\tools\dev.ps1` prepares the pinned ASIO SDK and launches the app. Run
+`.\tools\asio.ps1` for a build-only backend probe.
 
 ## Repository Map
 

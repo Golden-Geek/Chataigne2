@@ -105,6 +105,22 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Cache default Windows ASIO SDK
+        if: runner.os == 'Windows'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/chataigne-tool-cache/asio-sdk
+          key: asio-sdk-${{ hashFiles('tools/bootstrap/toolchain.json') }}
+
+      - name: Configure default Windows ASIO
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $cache = Join-Path $env:RUNNER_TEMP "chataigne-tool-cache/asio-sdk"
+          $asio = ./tools/asio.ps1 -CacheRoot $cache -SetupOnly -PassThru
+          "CPAL_ASIO_DIR=$($asio.sdk_path)" >> $env:GITHUB_ENV
+          "LIBCLANG_PATH=$($asio.libclang_path)" >> $env:GITHUB_ENV
+
       - name: Verify Windows Tauri prerequisites
         if: runner.os == 'Windows'
         shell: pwsh

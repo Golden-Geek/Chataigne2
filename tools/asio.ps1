@@ -3,6 +3,7 @@ param(
     [string] $SdkPath,
     [string] $CacheRoot,
     [switch] $SetupOnly,
+    [switch] $PassThru,
 
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]] $Command
@@ -93,6 +94,12 @@ Write-Host "LIBCLANG_PATH=$env:LIBCLANG_PATH"
 
 if ($SetupOnly) {
     Write-Host "ASIO local setup is ready. tools/asio.ps1 keeps these variables scoped to each build."
+    if ($PassThru) {
+        [pscustomobject]@{
+            sdk_path = $env:CPAL_ASIO_DIR
+            libclang_path = $env:LIBCLANG_PATH
+        }
+    }
     return
 }
 
