@@ -26,10 +26,11 @@ backend remains `NOT RUN`.
 
 ## Current status
 
-- Current phase: Phase 14 - performance, robustness, and product evidence.
-- Status: deterministic implementation, local qualification, the Windows WASAPI real-device
-  endurance gate, bundled release headless startup, and nonblocking Sound Card runtime creation are
-  complete; mounted browser inspection and cross-platform results remain outstanding.
+- Current phase: Phase 15 - cross-platform release qualification and documentation.
+- Status: the implementation, deterministic/local qualification, Windows WASAPI endurance,
+  asynchronous Sound Card startup, strict workspace lint/dependency gates, and unsigned
+  cross-platform package workflow are complete. Mounted browser inspection and mandatory
+  real-backend rows that require unavailable hardware remain outstanding.
 - Phase 9 checkpoint: `de2bfdf5` (`feat(chataigne): add persistent Sound Card module model`).
 - Phase 10 checkpoint: `ddf380a5` (`feat(chataigne): connect Sound Card nodes to golden_audio`).
 - Phase 11 checkpoint: `2b66ee79` (`feat(chataigne): expose Sound Card commands and scripting`).
@@ -43,8 +44,9 @@ backend remains `NOT RUN`.
 - Phase 14 bundled-host checkpoints: `85e6cc36`
   (`fix(host): preserve discovery routes with bundled UI`) and `a245641b`
   (`fix(host): avoid bundled headless self-probe`).
-- Stop boundary: Phase 14 cannot be marked fully complete until mounted normal/narrow browser
-  inspection and cross-platform runs have exact-commit evidence.
+- Stop boundary: Phase 15 cannot be marked complete until mounted normal/narrow browser inspection
+  and every mandatory real-backend row has exact-commit evidence. Certificates, code signing, and
+  notarization are launch-only concerns and are never validation gates.
 
 ## Decisions
 
@@ -138,20 +140,20 @@ Decision:
 | ASIO requires LLVM, Visual C++, SDK material, GPLv3 source compliance, and trademark/package verification | Bootstrap checks; external cache; no vendored SDK; retain notices and ship Corresponding Source | Open |
 | JACK library/server absent | Preserve dynamic loading; report `Unavailable`; app startup must pass without JACK | Open |
 | Native PipeWire headers/linkage/package runtime | CPAL native backend remains internal; bootstrap and CI install explicit prerequisites; package evidence required | Open |
-| macOS microphone permission and signing | Add usage description/entitlements and test denied/allowed signed package | NOT RUN |
+| macOS microphone permission | Add usage description/entitlements and test denied/allowed behavior in the unsigned validation package | NOT RUN |
 | Final render-plan destruction on callback | One-pending-plan acknowledged exchange plus retained retired-plan slot; allocation/deallocation guard | Mitigated; deterministic ownership qualification PASS |
 | Independent input/output clock drift | Bounded ring, adaptive ASRC, PI controller, discontinuity fade, drift/bridge observations | Mitigated; backend-neutral qualification PASS |
 | Decoder completion after stop/replacement | Monotonic command sequence and cancellation generation watermarks; stale worker results discarded off callback | Mitigated; deterministic ordering suite PASS |
 | Large meter/matrix/spectrum UI | Packed latest-only telemetry, Canvas, viewport virtualization, bounded refresh, teardown tests | Open |
 | Native host probing freezes Sound Card creation | Side-effect-free backend identity plus a Chataigne lifecycle worker for engine startup, replacement, and retirement; gated blocked-initializer regression | Mitigated; deterministic responsiveness qualification PASS |
-| Default Sound Card graph blocks UI acknowledgement | Coalesce lifecycle descendants into one completed subtree UI transaction, honor snapshot-free lifecycle batches, and repair derived structure once per event frame | Mitigated; exact UI-intent creation inside a 10,000-node graph PASS under the 500 ms debug ceiling |
+| Default Sound Card graph blocks UI acknowledgement | Coalesce lifecycle descendants into one completed subtree UI transaction, use stage-specific lifecycle snapshots and static catalog fast paths, initialize native audio asynchronously, and defer the redundant fresh-structure rescan | Mitigated; exact UI-intent creation inside a 10,000-node graph PASS under the 250 ms debug ceiling (about 65-70 ms locally) |
 | Legacy unmapped gitlinks | Do not use or modify them; record pre-existing tooling failure | Open, unrelated |
 
 ## Backend qualification
 
 | Platform | Backend | Build | Discovery | Stream I/O | Recovery | Package/startup |
 | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PASS - exact `f6661d6c` release build sustained the medium workload for one hour through 5 planned stop/reopen cycles with 0 warnings, XRuns, deadline misses, bridge pressure, playback failures, or analysis drops | PARTIAL - exact `a245641b` unsigned release bundled-headless startup passed; desktop launch and signed install/uninstall remain `NOT RUN` |
+| Windows x64 | WASAPI | PASS | PASS | PASS - default-output open/start/100 ms silence/stop smoke | PASS - exact `f6661d6c` release build sustained the medium workload for one hour through 5 planned stop/reopen cycles with 0 warnings, XRuns, deadline misses, bridge pressure, playback failures, or analysis drops | PARTIAL - exact `a245641b` unsigned release bundled-headless startup passed; unsigned install/desktop launch/uninstall remain `NOT RUN` |
 | Windows x64 | ASIO | PASS - pinned `audiosdk/asio` source compiled through CPAL 0.18.1 / `asio-sys` 0.3.0 | PASS - local probe reports ASIO available alongside WASAPI | PASS - default 2-channel output opened, started at 48 kHz, rendered silence for 100 ms, and stopped | NOT RUN | NOT RUN |
 | Windows x64 | JACK | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Windows arm64 | WASAPI | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
@@ -639,7 +641,7 @@ without warnings or error markers. `/api/ui/health` reported both backend and en
 ready, `/.well-known/chataigne` returned the correct relative discovery document,
 `/api/ui/ws` returned the expected HTTP 426 without an upgrade, `/evidence/sound-card` returned
 HTTP 200, and its referenced JavaScript asset returned HTTP 200. The local binary is intentionally
-unsigned; installed-package, signing, desktop-window, and uninstall qualification remain release
+unsigned; installed-package, desktop-window, and uninstall qualification remain release
 environment gates.
 
 The configured browser surface again reported no browser, so mounted normal/narrow visual
@@ -834,13 +836,15 @@ macOS, and Linux remain `NOT RUN`.
 | Phase 14 mounted normal/narrow browser inspection | NOT RUN - the configured browser surface reported no available browser; no unsupported fallback automation was used |
 | Phase 14 one-hour real-device workload and recovery soak | PASS - exact `f6661d6c` WASAPI release report, strict `golden-audio-managed-device-soak.v1` contract |
 | Continued Phase 14 backend identity regression | PASS - backend registration and validation use `AudioBackend::id` without invoking descriptor or device discovery |
-| Continued Phase 14 Sound Card creation responsiveness | PASS - blocked runtime startup and worker drop stay under their 250 ms caller ceilings; the exact Module Manager `CreateUserItem` path starts from 10,003 existing nodes, materializes the 580-node Sound Card subtree as one insertion, and remains under a 500 ms debug ceiling |
+| Continued Phase 14 Sound Card creation responsiveness | PASS - blocked runtime startup and worker drop stay under their 250 ms caller ceilings; the exact Module Manager `CreateUserItem` path starts from more than 10,000 existing nodes, publishes one completed Sound Card subtree, and remains under a strict 250 ms debug ceiling (about 65-70 ms locally) |
 | Continued Golden Audio suite | PASS - 135 tests (119 unit, 16 integration), 0 failed; strict all-target Clippy passed |
 | Continued Golden Engine suite | PASS - 369 tests passed, 1 stress benchmark ignored, and 7 doctests passed |
 | Continued Chataigne suite | PASS - 471 unit tests plus the default-ASIO integration, 0 failed; strict app all-target Clippy with `--no-deps -D warnings` passed |
 | Continued root UI checks | PASS - 0 reusable/app Svelte diagnostics, generated-contract drift clean, 21 reusable tests, and 36 app tests |
 | Continued local unsigned package check | PASS - current production UI and Tauri custom-protocol release executable built successfully at `target/release/Chataigne2.exe` |
-| Golden Engine workspace strict Clippy | FAIL - 123 existing lint findings across the engine/script backlog (including existing argument-count, collapsible-if, and test-only lint classes); the owning Chataigne and Golden Audio strict gates pass |
+| Golden Engine workspace strict Clippy | PASS - the prior 123-finding engine/script backlog was resolved; `cargo clippy --workspace --all-targets -- -D warnings` is clean |
+| Workspace unused dependencies | PASS - `cargo machete` reports no unused dependencies; generated app-registry consumers are documented as explicit false-positive ignores |
+| Unsigned cross-platform package workflow | PASS at exact `2c0b9810` - Windows, macOS, and Linux package build/install-or-extract/browser exercise/cleanup completed without signing credentials |
 | Product run modes | PARTIAL - exact `a245641b` bundled headless release startup passed; mounted desktop, browser session, and installed package remain `NOT RUN` |
 | Cross-platform backend/hardware matrix | NOT RUN |
 
@@ -1066,10 +1070,9 @@ Phase 14:
 
 ## Remaining work
 
-Phase 14 local implementation, deterministic qualification, and the Windows WASAPI one-hour
-real-device workload/recovery gate are complete. Windows ASIO source acquisition, compilation,
-tests, discovery, and short real output stream smoke now also pass locally against the pinned SDK;
-ASIO recovery and installed-package qualification remain external gates. Phase 14 otherwise
-remains open for mounted normal/narrow visual inspection and exact-commit cross-platform backend
-results. Phase 15 owns final documentation, release, and packaging gates after those external
-qualification results exist.
+Phase 14 implementation and deterministic qualification are complete, including the Windows WASAPI
+one-hour real-device workload/recovery gate. Phase 15 documentation and unsigned package automation
+are implemented. The remaining evidence is environmental: mounted normal/narrow browser
+inspection, macOS input-permission behavior, and mandatory real-device/backend recovery rows on
+hardware that is not currently available. Certificates, signing, notarization, and timestamp
+services are explicitly outside validation and cannot block Sound Card completion.

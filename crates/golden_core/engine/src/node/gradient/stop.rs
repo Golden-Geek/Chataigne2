@@ -9,6 +9,12 @@ pub struct GradientStopNode {
     default_interpolation: GradientInterpolation,
 }
 
+impl Default for GradientStopNode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GradientStopNode {
     /// Creates one stop node defaulting to opaque black at position `0`.
     pub fn new() -> Self {

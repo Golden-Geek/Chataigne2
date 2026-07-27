@@ -54,6 +54,14 @@ struct ExpressionControlConfig {
     expression: String,
 }
 
+struct ExpressionScriptContext {
+    consumer: NodeId,
+    local_node: Option<NodeId>,
+    tree_snapshot: Arc<ProcessTreeSnapshot>,
+    time_seconds: f64,
+    delta_seconds: f64,
+}
+
 const EXPRESSION_EXPORT_NAME: &str = "__gc_eval_expression";
 const EXPRESSION_RUNTIME_SOURCE_NAME: &str = "expression_control.js";
 const CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX: &str = "control-diagnostic:";
@@ -1283,16 +1291,19 @@ impl<T: Node> Engine<T> {
         let (symbols, dependencies) =
             self.expression_symbols_and_dependencies(consumer, config.expression.as_str(), param_snapshots);
         let continuous = expression_should_run_continuously(config.expression.as_str());
+        let script_context = ExpressionScriptContext {
+            consumer,
+            local_node,
+            tree_snapshot,
+            time_seconds,
+            delta_seconds,
+        };
 
         let script_runtime = match self.ensure_expression_script_runtime(
-            consumer,
+            &script_context,
             config.expression.as_str(),
             previous_runtime.script_runtime.clone(),
             previous_runtime.source_expression.as_str(),
-            local_node,
-            tree_snapshot.clone(),
-            time_seconds,
-            delta_seconds,
         ) {
             Ok(runtime) => runtime,
             Err(message) => {
@@ -1301,15 +1312,7 @@ impl<T: Node> Engine<T> {
             }
         };
 
-        let value = match self.evaluate_expression_script(
-            consumer,
-            local_node,
-            tree_snapshot,
-            script_runtime.clone(),
-            symbols,
-            time_seconds,
-            delta_seconds,
-        ) {
+        let value = match self.evaluate_expression_script(&script_context, script_runtime.clone(), symbols) {
             Ok(value) => value,
             Err(message) => {
                 diagnostics.push(expression_error_diagnostic(ExpressionErrorStage::Evaluation, message));
@@ -1554,19 +1557,15 @@ impl<T: Node> Engine<T> {
 
     fn ensure_expression_script_runtime(
         &self,
-        consumer: NodeId,
+        context: &ExpressionScriptContext,
         expression: &str,
         existing_runtime: Option<Arc<Mutex<Box<dyn ScriptRuntime>>>>,
         previous_expression: &str,
-        local_node: Option<NodeId>,
-        tree_snapshot: Arc<ProcessTreeSnapshot>,
-        time_seconds: f64,
-        delta_seconds: f64,
     ) -> Result<Arc<Mutex<Box<dyn ScriptRuntime>>>, String> {
-        if let Some(runtime) = existing_runtime {
-            if expression == previous_expression {
-                return Ok(runtime);
-            }
+        if let Some(runtime) = existing_runtime
+            && expression == previous_expression
+        {
+            return Ok(runtime);
         }
 
         let mut runtime: Box<dyn ScriptRuntime> = Box::new(
@@ -1574,9 +1573,14 @@ impl<T: Node> Engine<T> {
                 .map_err(|error| format!("failed to create QuickJS runtime: {error}"))?,
         );
         let source = build_expression_runtime_source(expression);
-        let source_name = format!("{EXPRESSION_RUNTIME_SOURCE_NAME}#{}", consumer.0);
-        let mut host =
-            ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
+        let source_name = format!("{EXPRESSION_RUNTIME_SOURCE_NAME}#{}", context.consumer.0);
+        let mut host = ExpressionScriptHostBridge::new(
+            context.consumer,
+            context.local_node,
+            Arc::clone(&context.tree_snapshot),
+            context.time_seconds,
+            context.delta_seconds,
+        );
         runtime
             .load(source.as_str(), source_name.as_str(), Some(&mut host))
             .map_err(|error| format!("failed to compile expression: {error}"))?;
@@ -1586,16 +1590,17 @@ impl<T: Node> Engine<T> {
 
     fn evaluate_expression_script(
         &self,
-        consumer: NodeId,
-        local_node: Option<NodeId>,
-        tree_snapshot: Arc<ProcessTreeSnapshot>,
+        context: &ExpressionScriptContext,
         runtime: Arc<Mutex<Box<dyn ScriptRuntime>>>,
         symbols: JsonMap<String, JsonValue>,
-        time_seconds: f64,
-        delta_seconds: f64,
     ) -> Result<ParamValue, String> {
-        let mut host =
-            ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
+        let mut host = ExpressionScriptHostBridge::new(
+            context.consumer,
+            context.local_node,
+            Arc::clone(&context.tree_snapshot),
+            context.time_seconds,
+            context.delta_seconds,
+        );
         let mut runtime_guard = runtime
             .lock()
             .map_err(|_| "expression runtime lock poisoned".to_string())?;

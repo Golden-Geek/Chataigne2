@@ -33,8 +33,43 @@ impl<T: Node> Engine<T> {
 
     /// Returns all catalog-creatable items for `parent` (built-ins + blueprints).
     pub fn catalog_creatable_items(&self, parent: NodeId) -> Vec<UserCreatableItem> {
+        if !self.catalog_creatable_items_require_tree_snapshot(parent) {
+            return self.catalog_creatable_items_without_snapshot(parent);
+        }
         let snapshot = self.build_process_tree_snapshot();
         self.catalog_creatable_items_with_snapshot(parent, snapshot.as_ref())
+    }
+
+    pub(crate) fn catalog_creatable_items_require_tree_snapshot(&self, parent: NodeId) -> bool {
+        self.catalog_factory_node(parent)
+            .and_then(|factory_node_id| self.nodes.get(factory_node_id))
+            .is_some_and(|factory_node| factory_node.user_creatable_items_require_tree_snapshot())
+    }
+
+    pub(crate) fn catalog_creatable_items_without_snapshot(&self, parent: NodeId) -> Vec<UserCreatableItem> {
+        let Some(factory_node_id) = self.catalog_factory_node(parent) else {
+            return Vec::new();
+        };
+        let Some(factory_node) = self.nodes.get(factory_node_id) else {
+            return Vec::new();
+        };
+
+        let mut items = Vec::<UserCreatableItem>::new();
+        for item in factory_node.user_creatable_items() {
+            if factory_node.user_container_accepts_item(&item.node_type, &item.item_kind) {
+                if parent != factory_node_id && self.item_requires_direct_catalog_host(&item) {
+                    continue;
+                }
+                items.push(item);
+            }
+        }
+
+        for item in self.blueprints.creatable_items() {
+            if self.parent_accepts_catalog_item_kind(parent, item.item_kind.as_str()) {
+                items.push(item);
+            }
+        }
+        items
     }
 
     pub(crate) fn catalog_creatable_items_with_snapshot(

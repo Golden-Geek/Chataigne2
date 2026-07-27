@@ -304,11 +304,11 @@ fn normalize_curve_fit_points(points: &[CurveFitPoint]) -> Vec<CurveFitPoint> {
 
     let mut deduplicated = Vec::<CurveFitPoint>::with_capacity(normalized.len());
     for point in normalized {
-        if let Some(existing) = deduplicated.last_mut() {
-            if (existing.position - point.position).abs() <= CURVE_EPSILON {
-                *existing = point;
-                continue;
-            }
+        if let Some(existing) = deduplicated.last_mut()
+            && (existing.position - point.position).abs() <= CURVE_EPSILON
+        {
+            *existing = point;
+            continue;
         }
         deduplicated.push(point);
     }
@@ -373,8 +373,7 @@ fn max_curve_fit_error(points: &[CurveFitPoint], start_index: usize, end_index: 
     let mut max_error = 0.0;
     let mut split_index = None;
 
-    for index in (start_index + 1)..end_index {
-        let point = points[index];
+    for (index, point) in points.iter().copied().enumerate().take(end_index).skip(start_index + 1) {
         let fitted = sample_hermite_segment(start, end, start_slope, end_slope, point.position);
         let error = (fitted - point.value).abs();
         if error > max_error {
@@ -620,12 +619,12 @@ impl Curve {
         }
 
         let index = self.keys.partition_point(|existing| existing.position < key.position);
-        if let Some(existing) = self.keys.get(index) {
-            if (existing.position - key.position).abs() <= CURVE_EPSILON {
-                self.keys[index] = key;
-                self.compiled_segments = OnceCell::new();
-                return index;
-            }
+        if let Some(existing) = self.keys.get(index)
+            && (existing.position - key.position).abs() <= CURVE_EPSILON
+        {
+            self.keys[index] = key;
+            self.compiled_segments = OnceCell::new();
+            return index;
         }
 
         self.keys.insert(index, key);
@@ -1141,12 +1140,11 @@ fn sample_compiled_segment(
                 linear_value,
             };
 
-            if let Some(script_sampler) = script_sampler.as_deref_mut() {
-                if let Some(sampled) = script_sampler.sample(source.as_str(), context) {
-                    if sampled.is_finite() {
-                        return sampled;
-                    }
-                }
+            if let Some(script_sampler) = script_sampler.as_deref_mut()
+                && let Some(sampled) = script_sampler.sample(source.as_str(), context)
+                && sampled.is_finite()
+            {
+                return sampled;
             }
 
             linear_value
@@ -1192,11 +1190,11 @@ fn normalize_keys(keys: &mut Vec<CurveKey>) {
 
     let mut deduplicated = Vec::<CurveKey>::with_capacity(keys.len());
     for key in keys.drain(..) {
-        if let Some(last) = deduplicated.last_mut() {
-            if (last.position - key.position).abs() <= CURVE_EPSILON {
-                *last = key;
-                continue;
-            }
+        if let Some(last) = deduplicated.last_mut()
+            && (last.position - key.position).abs() <= CURVE_EPSILON
+        {
+            *last = key;
+            continue;
         }
 
         deduplicated.push(key);

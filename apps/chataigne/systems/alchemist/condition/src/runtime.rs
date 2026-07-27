@@ -164,12 +164,14 @@ impl ConditionRuntime {
                             .map(|operand| resolve_operand(operand, frame.inputs))
                             .transpose()?;
                         evaluate_leaf(
-                            actual,
-                            *projection,
-                            *comparator,
-                            &expected,
-                            expected_max.as_ref(),
-                            *behavior,
+                            LeafEvaluation {
+                                actual,
+                                projection: *projection,
+                                comparator: *comparator,
+                                expected: &expected,
+                                expected_max: expected_max.as_ref(),
+                                behavior: *behavior,
+                            },
                             &mut states[*state_slot],
                             frame,
                         )?
@@ -196,12 +198,14 @@ impl ConditionRuntime {
                             .map(|operand| resolve_operand(operand, frame.inputs))
                             .transpose()?;
                         evaluate_leaf(
-                            actual,
-                            *projection,
-                            *comparator,
-                            &expected,
-                            expected_max.as_ref(),
-                            *behavior,
+                            LeafEvaluation {
+                                actual,
+                                projection: *projection,
+                                comparator: *comparator,
+                                expected: &expected,
+                                expected_max: expected_max.as_ref(),
+                                behavior: *behavior,
+                            },
                             &mut states[*state_slot],
                             frame,
                         )?
@@ -255,25 +259,29 @@ fn resolve_operand(
     }
 }
 
-fn evaluate_leaf(
+struct LeafEvaluation<'a> {
     actual: Value,
     projection: ConditionProjection,
     comparator: TypedComparator,
-    expected: &Value,
-    expected_max: Option<&Value>,
+    expected: &'a Value,
+    expected_max: Option<&'a Value>,
     behavior: ConditionBehavior,
+}
+
+fn evaluate_leaf(
+    evaluation: LeafEvaluation<'_>,
     state: &mut ConditionState,
     frame: &ConditionEvaluationFrame<'_>,
 ) -> Result<bool, ConditionEvaluationError> {
-    let projected = project(actual, projection, state, frame.delta_time)?;
+    let projected = project(evaluation.actual, evaluation.projection, state, frame.delta_time)?;
     let level = compare(
         &projected,
-        comparator,
-        expected,
-        expected_max,
+        evaluation.comparator,
+        evaluation.expected,
+        evaluation.expected_max,
         state.previous_value.as_ref(),
     )?;
-    let result = apply_behavior(level, behavior, state, frame.logical_tick, frame.delta_time);
+    let result = apply_behavior(level, evaluation.behavior, state, frame.logical_tick, frame.delta_time);
     state.previous_value = Some(projected);
     Ok(result)
 }

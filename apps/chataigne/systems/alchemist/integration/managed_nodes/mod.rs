@@ -893,6 +893,10 @@ impl Node for OutputsManager {
             .collect()
     }
 
+    fn user_creatable_items_require_tree_snapshot(&self) -> bool {
+        true
+    }
+
     fn user_creatable_items_with_context(
         &self,
         snapshot: &ProcessTreeSnapshot,
@@ -1080,6 +1084,10 @@ impl Node for OutputGroup {
             .into_iter()
             .chain(std::iter::once(output_group_item()))
             .collect()
+    }
+
+    fn user_creatable_items_require_tree_snapshot(&self) -> bool {
+        true
     }
 
     fn user_creatable_items_with_context(

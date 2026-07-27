@@ -139,24 +139,27 @@ impl LoggerState {
         origin: Option<NodeId>,
         message: String,
     ) -> LogRecord {
-        if let Some(last) = self.retained.back_mut() {
-            if last.level == level && last.tag == tag && last.message == message && last.origin == origin {
-                last.timestamp_ms = timestamp_ms;
-                last.repeat_count = last.repeat_count.saturating_add(1);
-                let updated = last.clone();
+        if let Some(last) = self.retained.back_mut()
+            && last.level == level
+            && last.tag == tag
+            && last.message == message
+            && last.origin == origin
+        {
+            last.timestamp_ms = timestamp_ms;
+            last.repeat_count = last.repeat_count.saturating_add(1);
+            let updated = last.clone();
 
-                if let Some(pending_tail) = self.pending.back_mut() {
-                    if pending_tail.id == updated.id {
-                        *pending_tail = updated.clone();
-                    } else {
-                        self.pending.push_back(updated.clone());
-                    }
+            if let Some(pending_tail) = self.pending.back_mut() {
+                if pending_tail.id == updated.id {
+                    *pending_tail = updated.clone();
                 } else {
                     self.pending.push_back(updated.clone());
                 }
-
-                return updated;
+            } else {
+                self.pending.push_back(updated.clone());
             }
+
+            return updated;
         }
 
         let record = LogRecord {

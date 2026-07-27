@@ -5,6 +5,10 @@ and npm workspace.
 
 ## Backend
 
+`crates/golden_audio/` is a sibling reusable foundation: it owns the app-agnostic audio engine,
+native host adapters, playback, analysis, and qualification harnesses. It does not depend on
+Golden Core or Chataigne.
+
 ```text
 crates/
 ├── golden_core/                 public facade and reusable backend framework
@@ -57,6 +61,9 @@ apps/chataigne/
 
 `apps/chataigne/build.rs` generates the app node registry and embeds bundled UI/formula assets.
 Desktop capabilities, icons, permissions, and Tauri configuration remain directly under the app.
+The persistent Sound Card model and product policy live under
+`apps/chataigne/src/module/modules/audio/sound_card/`; reusable device/status presentation lives in
+`packages/golden-audio-ui/`.
 
 Within every Rust crate and UI source area, unit tests live in a local `tests/` directory directly
 under the feature they exercise. A crate's top-level `tests/` directory is reserved for crate-wide

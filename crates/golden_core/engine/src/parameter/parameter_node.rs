@@ -328,7 +328,7 @@ impl Parameter {
         if self.event_behaviour != baseline.event_behaviour {
             data.insert(
                 "event_behaviour".to_string(),
-                serde_json::to_value(&self.event_behaviour)
+                serde_json::to_value(self.event_behaviour)
                     .map_err(|err| format!("failed to encode 'event_behaviour' field: {err}"))?,
             );
         }
@@ -469,7 +469,7 @@ impl Node for Parameter {
         if self.event_behaviour != baseline.event_behaviour {
             data.insert(
                 "event_behaviour".to_string(),
-                serde_json::to_value(&self.event_behaviour)
+                serde_json::to_value(self.event_behaviour)
                     .map_err(|err| format!("failed to encode 'event_behaviour' field: {err}"))?,
             );
         }

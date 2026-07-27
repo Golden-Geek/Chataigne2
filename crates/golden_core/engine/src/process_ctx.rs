@@ -208,10 +208,10 @@ impl ProcessTreeSnapshot {
                 decl_ids
                     .entry(child.decl_id.clone().into_boxed_str())
                     .or_insert(*child_id);
-                if let Some(short_decl_id) = child.decl_id.rsplit('/').next() {
-                    if short_decl_id != child.decl_id {
-                        decl_ids.entry(short_decl_id.into()).or_insert(*child_id);
-                    }
+                if let Some(short_decl_id) = child.decl_id.rsplit('/').next()
+                    && short_decl_id != child.decl_id
+                {
+                    decl_ids.entry(short_decl_id.into()).or_insert(*child_id);
                 }
             }
 
@@ -241,10 +241,10 @@ impl ProcessTreeSnapshot {
     pub fn with_param_values(&self, values: impl IntoIterator<Item = (NodeId, ParamValue)>) -> Self {
         let mut snapshot = self.clone();
         for (node_id, value) in values {
-            if let Some(node) = snapshot.nodes.get_mut(&node_id) {
-                if node.param_value.is_some() {
-                    node.param_value = Some(value);
-                }
+            if let Some(node) = snapshot.nodes.get_mut(&node_id)
+                && node.param_value.is_some()
+            {
+                node.param_value = Some(value);
             }
         }
         snapshot

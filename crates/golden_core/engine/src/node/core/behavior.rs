@@ -60,7 +60,7 @@ enum InboxDispatchEvent {
     ParamConstraintsChanged {
         param: NodeId,
         old_constraints: ParameterConstraints,
-        new_constraints: ParameterConstraints,
+        new_constraints: Box<ParameterConstraints>,
     },
     ChildAdded {
         parent: NodeId,
@@ -194,6 +194,11 @@ pub trait Node: Send + Any {
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         Vec::new()
+    }
+
+    /// Returns `true` when the creatable-item catalog depends on the current tree.
+    fn user_creatable_items_require_tree_snapshot(&self) -> bool {
+        false
     }
 
     fn user_creatable_items_with_context(
@@ -392,16 +397,15 @@ pub trait Node: Send + Any {
                             .tree_snapshot()
                             .and_then(|snapshot| snapshot.node(existing_node))
                             .map(|snapshot| snapshot.label.clone())
+                            && existing_label != label
                         {
-                            if existing_label != label {
-                                ctx.patch_node_meta(
-                                    existing_node,
-                                    NodeMetaPatch {
-                                        label: Some(label),
-                                        ..Default::default()
-                                    },
-                                );
-                            }
+                            ctx.patch_node_meta(
+                                existing_node,
+                                NodeMetaPatch {
+                                    label: Some(label),
+                                    ..Default::default()
+                                },
+                            );
                         }
                         return Ok(true);
                     }
@@ -440,11 +444,12 @@ pub trait Node: Send + Any {
                             )
                         });
 
-                    if let Some((is_parameter, node_type, _, _)) = existing_snapshot {
-                        if is_parameter && lookup.primary_matches_type && node_type.eq_ignore_ascii_case(expected_type)
-                        {
-                            return Ok(true);
-                        }
+                    if let Some((is_parameter, node_type, _, _)) = existing_snapshot
+                        && is_parameter
+                        && lookup.primary_matches_type
+                        && node_type.eq_ignore_ascii_case(expected_type)
+                    {
+                        return Ok(true);
                     }
 
                     let mut parameter =
@@ -547,16 +552,15 @@ pub trait Node: Send + Any {
                                 .tree_snapshot()
                                 .and_then(|snapshot| snapshot.node(existing_node))
                                 .map(|snapshot| snapshot.label.clone())
+                                && existing_label != label
                             {
-                                if existing_label != label {
-                                    ctx.patch_node_meta(
-                                        existing_node,
-                                        NodeMetaPatch {
-                                            label: Some(label),
-                                            ..Default::default()
-                                        },
-                                    );
-                                }
+                                ctx.patch_node_meta(
+                                    existing_node,
+                                    NodeMetaPatch {
+                                        label: Some(label),
+                                        ..Default::default()
+                                    },
+                                );
                             }
                             return Ok(true);
                         }
@@ -589,22 +593,23 @@ pub trait Node: Send + Any {
                                 )
                             });
 
-                        if let Some((is_parameter, existing_label, param_value)) = existing_snapshot {
-                            if is_parameter && lookup.primary_matches_type {
-                                if existing_label != label {
-                                    ctx.patch_node_meta(
-                                        existing_node,
-                                        NodeMetaPatch {
-                                            label: Some(label.clone()),
-                                            ..Default::default()
-                                        },
-                                    );
-                                }
-                                if param_value.as_ref() != Some(&default_value) {
-                                    ctx.set_param(existing_node, default_value);
-                                }
-                                return Ok(true);
+                        if let Some((is_parameter, existing_label, param_value)) = existing_snapshot
+                            && is_parameter
+                            && lookup.primary_matches_type
+                        {
+                            if existing_label != label {
+                                ctx.patch_node_meta(
+                                    existing_node,
+                                    NodeMetaPatch {
+                                        label: Some(label.clone()),
+                                        ..Default::default()
+                                    },
+                                );
                             }
+                            if param_value.as_ref() != Some(&default_value) {
+                                ctx.set_param(existing_node, default_value);
+                            }
+                            return Ok(true);
                         }
 
                         let mut parameter =
@@ -632,16 +637,15 @@ pub trait Node: Send + Any {
                             .tree_snapshot()
                             .and_then(|snapshot| snapshot.node(existing_node))
                             .map(|snapshot| snapshot.label.clone())
+                            && existing_label != label
                         {
-                            if existing_label != label {
-                                ctx.patch_node_meta(
-                                    existing_node,
-                                    NodeMetaPatch {
-                                        label: Some(label),
-                                        ..Default::default()
-                                    },
-                                );
-                            }
+                            ctx.patch_node_meta(
+                                existing_node,
+                                NodeMetaPatch {
+                                    label: Some(label),
+                                    ..Default::default()
+                                },
+                            );
                         }
                         return Ok(true);
                     }
@@ -772,6 +776,21 @@ pub trait Node: Send + Any {
     /// walk the tree keep the snapshot. Mirrors [`Self::inbox_requires_tree_snapshot`].
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
         self.engine_param_snapshot().is_none()
+    }
+
+    /// Returns `true` when [`Self::engine_on_attached`] requires a tree snapshot.
+    fn attached_requires_tree_snapshot(&self) -> bool {
+        self.lifecycle_requires_tree_snapshot()
+    }
+
+    /// Returns `true` when [`Self::init`] requires a tree snapshot.
+    fn init_requires_tree_snapshot(&self) -> bool {
+        self.lifecycle_requires_tree_snapshot()
+    }
+
+    /// Returns `true` when [`Self::on_node_ready`] requires a tree snapshot.
+    fn ready_requires_tree_snapshot(&self) -> bool {
+        self.lifecycle_requires_tree_snapshot()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -1004,7 +1023,7 @@ pub trait Node: Send + Any {
                     old_constraints,
                     new_constraints,
                 } => {
-                    self.on_param_constraints_changed(ctx, param, old_constraints, new_constraints);
+                    self.on_param_constraints_changed(ctx, param, old_constraints, *new_constraints);
                 }
                 InboxDispatchEvent::ChildAdded { parent, child, decl_id } => {
                     self.on_child_added_decl(ctx, parent, child, &decl_id);

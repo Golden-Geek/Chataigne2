@@ -110,26 +110,26 @@ pub(super) fn read_range_constraint_from_key_param_constraints(
             continue;
         }
 
-        if x_bounds.is_none() {
-            if let Some(position_param) = snapshot.find_child(child_id, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID) {
-                x_bounds = read_uniform_constraint_bounds(
-                    snapshot
-                        .node(position_param)
-                        .and_then(|entry| entry.param_constraints.as_ref())
-                        .and_then(|constraints| constraints.range.as_ref()),
-                );
-            }
+        if x_bounds.is_none()
+            && let Some(position_param) = snapshot.find_child(child_id, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID)
+        {
+            x_bounds = read_uniform_constraint_bounds(
+                snapshot
+                    .node(position_param)
+                    .and_then(|entry| entry.param_constraints.as_ref())
+                    .and_then(|constraints| constraints.range.as_ref()),
+            );
         }
 
-        if y_bounds.is_none() {
-            if let Some(value_param) = snapshot.find_child(child_id, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID) {
-                y_bounds = read_uniform_constraint_bounds(
-                    snapshot
-                        .node(value_param)
-                        .and_then(|entry| entry.param_constraints.as_ref())
-                        .and_then(|constraints| constraints.range.as_ref()),
-                );
-            }
+        if y_bounds.is_none()
+            && let Some(value_param) = snapshot.find_child(child_id, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID)
+        {
+            y_bounds = read_uniform_constraint_bounds(
+                snapshot
+                    .node(value_param)
+                    .and_then(|entry| entry.param_constraints.as_ref())
+                    .and_then(|constraints| constraints.range.as_ref()),
+            );
         }
 
         if x_bounds.is_some() && y_bounds.is_some() {

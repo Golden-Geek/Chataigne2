@@ -148,7 +148,7 @@ pub enum EventKind {
         /// Previous constraint state.
         old_constraints: ParameterConstraints,
         /// New constraint state.
-        new_constraints: ParameterConstraints,
+        new_constraints: Box<ParameterConstraints>,
     },
 
     /// A child node was attached under a parent.
@@ -250,6 +250,12 @@ impl EventKind {
 pub struct Inbox {
     /// Stored events in emission order.
     pub events: Vec<Event>,
+}
+
+impl Default for Inbox {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Shared event bundle visible to one callback frame.

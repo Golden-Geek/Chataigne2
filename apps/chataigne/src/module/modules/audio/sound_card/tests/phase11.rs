@@ -66,6 +66,11 @@ fn command_nodes_execute_manual_auto_and_external_requests() {
         .unwrap()
     );
     assert_admitted_results(&engine, 1);
+    assert_eq!(
+        param_value(&engine, module, "parameters/master_volume_db"),
+        Some(&ParamValue::Float(-6.0)),
+        "the command must update the authored master-volume parameter",
+    );
 
     engine.clear_ui_event_log();
     set_param(&mut engine, auto_trigger, ParamValue::Bool(true));
@@ -75,6 +80,10 @@ fn command_nodes_execute_manual_auto_and_external_requests() {
     flush_command_flow(&mut engine);
     assert_eq!(command_requests(&engine).len(), 1);
     assert_admitted_results(&engine, 1);
+    assert_eq!(
+        param_value(&engine, module, "parameters/master_volume_db"),
+        Some(&ParamValue::Float(-9.0)),
+    );
 
     engine.add_node(
         SoundCardStopAllFilesCommand::create().into(),

@@ -2012,7 +2012,7 @@ fn handle_ws_client_message(
                 .send(WsHubCommand::Intent {
                     client_id,
                     request_id,
-                    intent: Box::new(intent),
+                    intent,
                     include_self_events,
                 })
                 .is_ok()

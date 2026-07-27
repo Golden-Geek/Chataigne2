@@ -53,13 +53,18 @@ fn ui_sound_card_creation_is_immediately_acknowledged() {
         initial_params: Vec::new(),
     });
     let elapsed = started.elapsed();
+    eprintln!(
+        "Sound Card creation acknowledgement: {elapsed:?}, graph nodes: {}, UI events: {}",
+        engine.nodes.len(),
+        engine.ui_event_log().len()
+    );
 
     assert!(
         acknowledgement.success,
         "Sound Card creation failed: {acknowledgement:?}"
     );
     assert!(
-        elapsed < Duration::from_millis(500),
+        elapsed < Duration::from_millis(250),
         "Sound Card creation acknowledgement blocked for {elapsed:?} while materializing {} nodes and {} UI events",
         engine.nodes.len(),
         engine.ui_event_log().len(),

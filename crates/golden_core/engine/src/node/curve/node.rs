@@ -14,13 +14,19 @@ use super::range::{
 };
 use super::snapshot::{curve_from_snapshot, parse_key_from_snapshot};
 
-/// Internal node hosting one animation-curve key list.
+/// Node hosting one animation-curve key list.
 pub struct CurveNode {
     node_data: NodeData,
     user_can_edit_range: bool,
     code_range_constraint: Option<CurveRangeConstraint>,
     range_node: Option<NodeId>,
     default_keys_seeded: bool,
+}
+
+impl Default for CurveNode {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CurveNode {
@@ -485,25 +491,16 @@ impl CurveNode {
         new_value: &ParamValue,
         range: CurveRangeConstraint,
     ) -> Option<(NodeId, f64)> {
-        let Some(param_snapshot) = snapshot.node(param) else {
-            return None;
-        };
-        let Some(key_node) = param_snapshot.parent else {
-            return None;
-        };
-        let Some(key_snapshot) = snapshot.node(key_node) else {
-            return None;
-        };
+        let param_snapshot = snapshot.node(param)?;
+        let key_node = param_snapshot.parent?;
+        let key_snapshot = snapshot.node(key_node)?;
         if key_snapshot.parent != Some(self.id()) || key_snapshot.node_type != PARAMETER_ANIMATION_KEY_NODE_TYPE {
             return None;
         }
 
-        let Some(raw_value) = new_value
+        let raw_value = new_value
             .as_float()
-            .or_else(|| new_value.as_int().map(|int_value| int_value as f64))
-        else {
-            return None;
-        };
+            .or_else(|| new_value.as_int().map(|int_value| int_value as f64))?;
 
         let clamped = if param_snapshot.decl_id == PARAMETER_ANIMATION_KEY_POSITION_DECL_ID {
             range.clamp_position(raw_value)
@@ -534,22 +531,19 @@ impl CurveNode {
                 continue;
             }
 
-            if let Some(position_param) = snapshot.find_child(child, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID) {
-                if let Some(new_value) = snapshot
+            if let Some(position_param) = snapshot.find_child(child, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID)
+                && let Some(new_value) = snapshot
                     .node(position_param)
                     .and_then(|entry| entry.param_value.as_ref())
-                {
-                    if let Some(update) = self.clamped_key_param_update(snapshot, position_param, new_value, range) {
-                        updates.push(update);
-                    }
-                }
+                && let Some(update) = self.clamped_key_param_update(snapshot, position_param, new_value, range)
+            {
+                updates.push(update);
             }
-            if let Some(value_param) = snapshot.find_child(child, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID) {
-                if let Some(new_value) = snapshot.node(value_param).and_then(|entry| entry.param_value.as_ref()) {
-                    if let Some(update) = self.clamped_key_param_update(snapshot, value_param, new_value, range) {
-                        updates.push(update);
-                    }
-                }
+            if let Some(value_param) = snapshot.find_child(child, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID)
+                && let Some(new_value) = snapshot.node(value_param).and_then(|entry| entry.param_value.as_ref())
+                && let Some(update) = self.clamped_key_param_update(snapshot, value_param, new_value, range)
+            {
+                updates.push(update);
             }
         }
         updates
@@ -828,11 +822,11 @@ impl Node for CurveNode {
                                 remove_children.push(*child);
                                 continue;
                             }
-                            if let Some(existing) = self.range_node {
-                                if existing != *child {
-                                    remove_children.push(*child);
-                                    continue;
-                                }
+                            if let Some(existing) = self.range_node
+                                && existing != *child
+                            {
+                                remove_children.push(*child);
+                                continue;
                             }
                             tracked_range_node = Some(*child);
                             editable_range_enabled = snapshot.node(*child).is_some_and(|node| node.enabled);
@@ -862,11 +856,11 @@ impl Node for CurveNode {
                                 remove_children.push(*new);
                                 continue;
                             }
-                            if let Some(existing) = self.range_node {
-                                if existing != *new {
-                                    remove_children.push(*new);
-                                    continue;
-                                }
+                            if let Some(existing) = self.range_node
+                                && existing != *new
+                            {
+                                remove_children.push(*new);
+                                continue;
                             }
                             tracked_range_node = Some(*new);
                             editable_range_enabled = snapshot.node(*new).is_some_and(|node| node.enabled);
@@ -903,86 +897,78 @@ impl Node for CurveNode {
                         should_reorder_keys = true;
                     }
                     EventKind::ParamChanged { param, new_value, .. } => {
-                        if let Some(param_snapshot) = snapshot.node(*param) {
-                            if let Some(key_node) = param_snapshot.parent {
-                                if let Some(key_snapshot) = snapshot.node(key_node) {
-                                    if key_snapshot.parent == Some(self.id())
-                                        && key_snapshot.node_type == PARAMETER_ANIMATION_KEY_NODE_TYPE
-                                    {
-                                        let decl_id = param_snapshot.decl_id.as_str();
-                                        if decl_id == PARAMETER_ANIMATION_KEY_POSITION_DECL_ID
-                                            || decl_id == PARAMETER_ANIMATION_KEY_VALUE_DECL_ID
-                                        {
-                                            if let Some(raw_value) = new_value
-                                                .as_float()
-                                                .or_else(|| new_value.as_int().map(|int_value| int_value as f64))
-                                            {
-                                                pending_key_param_values.insert(*param, raw_value);
-                                            }
-                                        }
-                                        if decl_id == PARAMETER_ANIMATION_KEY_POSITION_DECL_ID {
-                                            should_reorder_keys = true;
-                                        }
-                                    }
-                                }
+                        if let Some(param_snapshot) = snapshot.node(*param)
+                            && let Some(key_node) = param_snapshot.parent
+                            && let Some(key_snapshot) = snapshot.node(key_node)
+                            && key_snapshot.parent == Some(self.id())
+                            && key_snapshot.node_type == PARAMETER_ANIMATION_KEY_NODE_TYPE
+                        {
+                            let decl_id = param_snapshot.decl_id.as_str();
+                            if (decl_id == PARAMETER_ANIMATION_KEY_POSITION_DECL_ID
+                                || decl_id == PARAMETER_ANIMATION_KEY_VALUE_DECL_ID)
+                                && let Some(raw_value) = new_value
+                                    .as_float()
+                                    .or_else(|| new_value.as_int().map(|int_value| int_value as f64))
+                            {
+                                pending_key_param_values.insert(*param, raw_value);
+                            }
+                            if decl_id == PARAMETER_ANIMATION_KEY_POSITION_DECL_ID {
+                                should_reorder_keys = true;
                             }
                         }
 
                         if let (true, Some(range_node), Some(param_snapshot)) =
                             (self.user_can_edit_range, tracked_range_node, snapshot.node(*param))
+                            && param_snapshot.parent == Some(range_node)
                         {
-                            if param_snapshot.parent == Some(range_node) {
-                                if param_snapshot.decl_id == PARAMETER_ANIMATION_RANGE_X_DECL_ID {
-                                    editable_x_bounds = new_value.as_vec2().map(|bounds| (bounds.0, bounds.1));
-                                    range_constraint = Self::editable_range_constraint(
-                                        editable_range_enabled,
-                                        editable_x_bounds,
-                                        editable_y_bounds,
-                                    );
-                                    enforce_all = true;
-                                } else if param_snapshot.decl_id == PARAMETER_ANIMATION_RANGE_Y_DECL_ID {
-                                    editable_y_bounds = new_value.as_vec2().map(|bounds| (bounds.0, bounds.1));
-                                    range_constraint = Self::editable_range_constraint(
-                                        editable_range_enabled,
-                                        editable_x_bounds,
-                                        editable_y_bounds,
-                                    );
-                                    enforce_all = true;
-                                }
+                            if param_snapshot.decl_id == PARAMETER_ANIMATION_RANGE_X_DECL_ID {
+                                editable_x_bounds = new_value.as_vec2().map(|bounds| (bounds.0, bounds.1));
+                                range_constraint = Self::editable_range_constraint(
+                                    editable_range_enabled,
+                                    editable_x_bounds,
+                                    editable_y_bounds,
+                                );
+                                enforce_all = true;
+                            } else if param_snapshot.decl_id == PARAMETER_ANIMATION_RANGE_Y_DECL_ID {
+                                editable_y_bounds = new_value.as_vec2().map(|bounds| (bounds.0, bounds.1));
+                                range_constraint = Self::editable_range_constraint(
+                                    editable_range_enabled,
+                                    editable_x_bounds,
+                                    editable_y_bounds,
+                                );
+                                enforce_all = true;
                             }
                         }
-                        if let Some(range) = range_constraint {
-                            if let Some(update) = self.clamped_key_param_update(snapshot, *param, new_value, range) {
-                                clamp_updates.insert(update.0, update.1);
-                            }
+                        if let Some(range) = range_constraint
+                            && let Some(update) = self.clamped_key_param_update(snapshot, *param, new_value, range)
+                        {
+                            clamp_updates.insert(update.0, update.1);
                         }
                     }
-                    EventKind::MetaChanged { node, patch } => {
-                        if self.user_can_edit_range && Some(*node) == tracked_range_node && patch.enabled.is_some() {
-                            editable_range_enabled = patch.enabled.unwrap_or(editable_range_enabled);
-                            range_constraint = Self::editable_range_constraint(
-                                editable_range_enabled,
-                                editable_x_bounds,
-                                editable_y_bounds,
-                            );
-                            enforce_all = true;
-                        }
+                    EventKind::MetaChanged { node, patch }
+                        if self.user_can_edit_range && Some(*node) == tracked_range_node && patch.enabled.is_some() =>
+                    {
+                        editable_range_enabled = patch.enabled.unwrap_or(editable_range_enabled);
+                        range_constraint = Self::editable_range_constraint(
+                            editable_range_enabled,
+                            editable_x_bounds,
+                            editable_y_bounds,
+                        );
+                        enforce_all = true;
                     }
                     _ => {}
                 }
             }
 
-            if enforce_all {
-                if let Some(range) = range_constraint {
-                    for (param, value) in self.collect_range_clamp_updates_for_all_keys(snapshot, range) {
-                        clamp_updates.insert(param, value);
-                    }
-                    for (param, raw_value) in pending_key_param_values {
-                        if let Some(update) =
-                            self.clamped_key_param_update(snapshot, param, &ParamValue::Float(raw_value), range)
-                        {
-                            clamp_updates.insert(update.0, update.1);
-                        }
+            if enforce_all && let Some(range) = range_constraint {
+                for (param, value) in self.collect_range_clamp_updates_for_all_keys(snapshot, range) {
+                    clamp_updates.insert(param, value);
+                }
+                for (param, raw_value) in pending_key_param_values {
+                    if let Some(update) =
+                        self.clamped_key_param_update(snapshot, param, &ParamValue::Float(raw_value), range)
+                    {
+                        clamp_updates.insert(update.0, update.1);
                     }
                 }
             }

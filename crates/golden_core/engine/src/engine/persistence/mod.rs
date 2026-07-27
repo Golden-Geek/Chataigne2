@@ -27,6 +27,11 @@ enum LoadedReadyMode {
     Deferred,
 }
 
+pub(crate) struct DuplicateDispatchOptions {
+    pub(crate) label_override: Option<String>,
+    pub(crate) dispatch_structure_events: bool,
+}
+
 fn default_project_file_version() -> String {
     PROJECT_FILE_VERSION.to_string()
 }
@@ -157,15 +162,21 @@ impl ProjectNodeMeta {
                 .then_some(self.can_be_disabled)
                 .flatten(),
             label: (self.label != baseline.label).then(|| self.label.clone()).flatten(),
-            description: (self.description != baseline.description)
-                .then(|| self.description.clone())
-                .unwrap_or_default(),
-            declared_description_key: (self.declared_description_key != baseline.declared_description_key)
-                .then(|| self.declared_description_key.clone())
-                .unwrap_or_default(),
-            declared_description: (self.declared_description != baseline.declared_description)
-                .then(|| self.declared_description.clone())
-                .unwrap_or_default(),
+            description: if self.description != baseline.description {
+                self.description.clone()
+            } else {
+                Default::default()
+            },
+            declared_description_key: if self.declared_description_key != baseline.declared_description_key {
+                self.declared_description_key.clone()
+            } else {
+                Default::default()
+            },
+            declared_description: if self.declared_description != baseline.declared_description {
+                self.declared_description.clone()
+            } else {
+                Default::default()
+            },
             tags: (self.tags != baseline.tags).then(|| self.tags.clone()).flatten(),
             user_permissions: (self.user_permissions != baseline.user_permissions)
                 .then(|| self.user_permissions.clone())
@@ -622,8 +633,10 @@ impl<T: Node> Engine<T> {
             source,
             new_parent,
             new_prev_sibling,
-            label_override,
-            true,
+            DuplicateDispatchOptions {
+                label_override,
+                dispatch_structure_events: true,
+            },
             encode_data,
             decode_node,
         )
@@ -634,8 +647,7 @@ impl<T: Node> Engine<T> {
         source: NodeId,
         new_parent: NodeId,
         new_prev_sibling: Option<NodeId>,
-        label_override: Option<String>,
-        dispatch_structure_events: bool,
+        options: DuplicateDispatchOptions,
         mut encode_data: Encode,
         mut decode_node: Decode,
     ) -> Result<NodeId, ProjectPersistenceError>
@@ -651,7 +663,8 @@ impl<T: Node> Engine<T> {
             .map(str::trim)
             .filter(|label| !label.is_empty())
             .unwrap_or(record.node_type.as_str());
-        let preferred_label = label_override
+        let preferred_label = options
+            .label_override
             .as_deref()
             .map(str::trim)
             .filter(|label| !label.is_empty())
@@ -678,7 +691,7 @@ impl<T: Node> Engine<T> {
             LoadedReadyMode::Immediate,
         )?;
         let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
-        if dispatch_structure_events {
+        if options.dispatch_structure_events {
             self.queue_loaded_subtree_structure_events(&[duplicated_root])?;
         }
         self.sync_missing_reference_warnings_for_nodes_silent(duplicated_node_ids.as_slice());
@@ -817,16 +830,16 @@ impl<T: Node> Engine<T> {
                 .ok_or(ProjectPersistenceError::MissingNode(*node))?;
             let index = parent.and_then(|parent| self.ui_child_index(parent, *node));
             ops.push(UiGraphOp::NodeCreated {
-                snapshot,
+                snapshot: Box::new(snapshot),
                 parent,
                 index,
             });
         }
 
-        if let Some(parent) = root_parent {
-            if let Some(children) = self.ui_direct_children(parent) {
-                ops.push(UiGraphOp::ChildrenReordered { parent, children });
-            }
+        if let Some(parent) = root_parent
+            && let Some(children) = self.ui_direct_children(parent)
+        {
+            ops.push(UiGraphOp::ChildrenReordered { parent, children });
         }
 
         self.push_ui_graph_transaction(ops);

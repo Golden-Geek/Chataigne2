@@ -1,16 +1,37 @@
 use super::*;
 
+struct PendingTreeInsertion<'a, T: Node> {
+    edit_index: usize,
+    operation: &'static str,
+    tree: PendingNodeTree<T>,
+    parent: NodeId,
+    prev_sibling: Option<NodeId>,
+    user_role: UserNodeRole,
+    inserted: &'a mut Vec<InsertedNode>,
+}
+
+struct AddNodeRequest {
+    edit_index: usize,
+    operation: &'static str,
+    node: Box<dyn Node>,
+    parent: NodeId,
+    prev_sibling: Option<NodeId>,
+    user_role: UserNodeRole,
+    validate_as_user_item: bool,
+    creation_context: Option<NodeCreationContext>,
+}
+
 impl<T: Node> Engine<T> {
-    pub(super) fn insert_pending_node_tree(
-        &mut self,
-        edit_index: usize,
-        operation: &'static str,
-        mut tree: PendingNodeTree<T>,
-        parent: NodeId,
-        prev_sibling: Option<NodeId>,
-        user_role: UserNodeRole,
-        inserted: &mut Vec<InsertedNode>,
-    ) -> Result<NodeId, EngineEditError> {
+    fn insert_pending_node_tree(&mut self, insertion: PendingTreeInsertion<'_, T>) -> Result<NodeId, EngineEditError> {
+        let PendingTreeInsertion {
+            edit_index,
+            operation,
+            mut tree,
+            parent,
+            prev_sibling,
+            user_role,
+            inserted,
+        } = insertion;
         self.prepare_node_for_insert(&mut tree.node, parent, user_role);
         let node_id = self.nodes.insert(tree.node);
         self.register_node_uuid(node_id);
@@ -36,32 +57,32 @@ impl<T: Node> Engine<T> {
 
         let mut child_prev_sibling = None;
         for child in tree.children {
-            let child_id = self.insert_pending_node_tree(
+            let child_id = self.insert_pending_node_tree(PendingTreeInsertion {
                 edit_index,
                 operation,
-                child,
-                node_id,
-                child_prev_sibling,
-                UserNodeRole::Regular,
+                tree: child,
+                parent: node_id,
+                prev_sibling: child_prev_sibling,
+                user_role: UserNodeRole::Regular,
                 inserted,
-            )?;
+            })?;
             child_prev_sibling = Some(child_id);
         }
 
         Ok(node_id)
     }
 
-    fn apply_add_node_with_role(
-        &mut self,
-        edit_index: usize,
-        operation: &'static str,
-        node: Box<dyn Node>,
-        parent: NodeId,
-        prev_sibling: Option<NodeId>,
-        user_role: UserNodeRole,
-        validate_as_user_item: bool,
-        creation_context: Option<NodeCreationContext>,
-    ) -> Result<AddNodeEffect, EngineEditError> {
+    fn apply_add_node_with_role(&mut self, request: AddNodeRequest) -> Result<AddNodeEffect, EngineEditError> {
+        let AddNodeRequest {
+            edit_index,
+            operation,
+            node,
+            parent,
+            prev_sibling,
+            user_role,
+            validate_as_user_item,
+            creation_context,
+        } = request;
         if !self.nodes.contains(parent) {
             return Err(EngineEditError::ParentNotFound {
                 edit_index,
@@ -130,7 +151,7 @@ impl<T: Node> Engine<T> {
         let needs_tree_snapshot = self
             .nodes
             .get(child_id)
-            .is_some_and(|node| node.lifecycle_requires_tree_snapshot());
+            .is_some_and(|node| node.attached_requires_tree_snapshot());
         let child_tree_snapshot = needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("attached-single", 1));
 
         // Allow newly attached nodes to request deterministic follow-up structure before app init.
@@ -186,16 +207,16 @@ impl<T: Node> Engine<T> {
         prev_sibling: Option<NodeId>,
         creation_context: Option<NodeCreationContext>,
     ) -> Result<AddNodeEffect, EngineEditError> {
-        self.apply_add_node_with_role(
+        self.apply_add_node_with_role(AddNodeRequest {
             edit_index,
-            "AddNode",
+            operation: "AddNode",
             node,
             parent,
             prev_sibling,
-            UserNodeRole::Regular,
-            false,
+            user_role: UserNodeRole::Regular,
+            validate_as_user_item: false,
             creation_context,
-        )
+        })
     }
 
     /// Applies an add-node-tree edit and returns history data for the inserted root.
@@ -219,15 +240,15 @@ impl<T: Node> Engine<T> {
 
         let tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
         let mut inserted = Vec::new();
-        let root_id = self.insert_pending_node_tree(
+        let root_id = self.insert_pending_node_tree(PendingTreeInsertion {
             edit_index,
-            OP,
+            operation: OP,
             tree,
             parent,
             prev_sibling,
-            UserNodeRole::Regular,
-            &mut inserted,
-        )?;
+            user_role: UserNodeRole::Regular,
+            inserted: &mut inserted,
+        })?;
 
         let (attached_prev_sibling, attached_next_sibling) = {
             let attached_data = self
@@ -316,15 +337,15 @@ impl<T: Node> Engine<T> {
         let mut root_prev_sibling = prev_sibling;
         for (edit_index, tree) in trees.into_iter().enumerate() {
             let tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
-            let root_id = self.insert_pending_node_tree(
+            let root_id = self.insert_pending_node_tree(PendingTreeInsertion {
                 edit_index,
-                OP,
+                operation: OP,
                 tree,
                 parent,
-                root_prev_sibling,
-                UserNodeRole::Regular,
-                &mut inserted,
-            )?;
+                prev_sibling: root_prev_sibling,
+                user_role: UserNodeRole::Regular,
+                inserted: &mut inserted,
+            })?;
             root_prev_sibling = Some(root_id);
         }
 
@@ -376,15 +397,15 @@ impl<T: Node> Engine<T> {
         let label = self.next_unique_child_label(parent, tree.node.node_data().meta.label.as_str());
         tree.node.node_data_mut().meta.label = label;
         let mut inserted = Vec::new();
-        let root_id = self.insert_pending_node_tree(
+        let root_id = self.insert_pending_node_tree(PendingTreeInsertion {
             edit_index,
-            OP,
+            operation: OP,
             tree,
             parent,
             prev_sibling,
-            UserNodeRole::ItemRoot,
-            &mut inserted,
-        )?;
+            user_role: UserNodeRole::ItemRoot,
+            inserted: &mut inserted,
+        })?;
 
         let (attached_prev_sibling, attached_next_sibling) = {
             let attached_data = self
@@ -446,16 +467,16 @@ impl<T: Node> Engine<T> {
     ) -> Result<AddNodeEffect, EngineEditError> {
         let label = self.next_unique_child_label(parent, node.node_data().meta.label.as_str());
         node.node_data_mut().meta.label = label;
-        self.apply_add_node_with_role(
+        self.apply_add_node_with_role(AddNodeRequest {
             edit_index,
-            "AddUserItem",
+            operation: "AddUserItem",
             node,
             parent,
             prev_sibling,
-            UserNodeRole::ItemRoot,
-            true,
+            user_role: UserNodeRole::ItemRoot,
+            validate_as_user_item: true,
             creation_context,
-        )
+        })
     }
 
     fn queue_added_subtree_ui_events(&mut self, root: NodeId) {
@@ -501,7 +522,10 @@ impl<T: Node> Engine<T> {
     fn push_added_subtree_ui_events(&mut self, root: NodeId, root_parent: NodeId) {
         let node_ids = self.collect_subtree_node_ids(root);
         let parent_children_after = self.ui_direct_children(root_parent).unwrap_or_default();
-        let catalog_snapshot = self.build_process_tree_snapshot();
+        let catalog_snapshot = node_ids
+            .iter()
+            .any(|node_id| self.catalog_creatable_items_require_tree_snapshot(*node_id))
+            .then(|| self.build_process_tree_snapshot());
 
         // Above this threshold, a single SubtreeInserted op replaces N NodeCreated + ChildrenReordered.
         // This avoids the O(N²) ui_child_index scan that the NodeCreated path needs for `index`.
@@ -510,9 +534,13 @@ impl<T: Node> Engine<T> {
         if node_ids.len() > SUBTREE_COMPACT_THRESHOLD {
             let mut nodes = Vec::with_capacity(node_ids.len());
             for node_id in &node_ids {
-                if let Some(snapshot) =
-                    self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot.as_ref())
-                {
+                let snapshot = match catalog_snapshot.as_deref() {
+                    Some(catalog_snapshot) => {
+                        self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot)
+                    }
+                    None => self.ui_node_dto_for_event_without_catalog_snapshot(*node_id),
+                };
+                if let Some(snapshot) = snapshot {
                     nodes.push(snapshot);
                 }
             }
@@ -527,14 +555,18 @@ impl<T: Node> Engine<T> {
             let mut ops = Vec::with_capacity(node_ids.len() + 1);
             for node_id in &node_ids {
                 let parent = self.nodes.get(*node_id).and_then(|n| n.node_data().parent);
-                let Some(snapshot) =
-                    self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot.as_ref())
-                else {
+                let snapshot = match catalog_snapshot.as_deref() {
+                    Some(catalog_snapshot) => {
+                        self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot)
+                    }
+                    None => self.ui_node_dto_for_event_without_catalog_snapshot(*node_id),
+                };
+                let Some(snapshot) = snapshot else {
                     continue;
                 };
                 let index = parent.and_then(|p| self.ui_child_index(p, *node_id));
                 ops.push(UiGraphOp::NodeCreated {
-                    snapshot,
+                    snapshot: Box::new(snapshot),
                     parent,
                     index,
                 });

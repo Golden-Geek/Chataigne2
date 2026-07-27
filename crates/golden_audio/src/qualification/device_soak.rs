@@ -23,6 +23,13 @@ const DEFAULT_READINESS_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_STALL_TOLERANCE: Duration = Duration::from_secs(2);
 const DEFAULT_RECOVERY_INTERVAL: Duration = Duration::from_secs(10 * 60);
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeadlineMissAcceptance {
+    RequireZero,
+    RecordOnly,
+}
+
 #[derive(Clone, Debug)]
 pub struct ManagedDeviceSoakOptions {
     pub duration: Duration,
@@ -30,6 +37,7 @@ pub struct ManagedDeviceSoakOptions {
     pub readiness_timeout: Duration,
     pub stall_tolerance: Duration,
     pub recovery_interval: Option<Duration>,
+    pub deadline_miss_acceptance: DeadlineMissAcceptance,
     pub workload: ReferenceWorkload,
     pub playback_gain: GainDb,
     pub revision: String,
@@ -43,6 +51,7 @@ impl Default for ManagedDeviceSoakOptions {
             readiness_timeout: DEFAULT_READINESS_TIMEOUT,
             stall_tolerance: DEFAULT_STALL_TOLERANCE,
             recovery_interval: Some(DEFAULT_RECOVERY_INTERVAL),
+            deadline_miss_acceptance: DeadlineMissAcceptance::RequireZero,
             workload: ReferenceWorkload::Medium,
             playback_gain: GainDb::new(-96.0).expect("the default qualification gain is valid"),
             revision: "unlabeled".to_owned(),
@@ -133,6 +142,7 @@ pub struct ManagedDeviceSoakReport {
     pub output_global_max_rms: f32,
     pub dropped_analysis_frames: u64,
     pub stale_analysis_frames: u64,
+    pub deadline_miss_acceptance: DeadlineMissAcceptance,
     pub runtime: RenderRuntimeObservation,
     pub readiness_transitions: Vec<ManagedDeviceReadinessTransition>,
     pub passed: bool,
@@ -426,6 +436,7 @@ pub fn run_managed_device_soak_with_progress(
         output_global_max_rms,
         dropped_analysis_frames,
         stale_analysis_frames,
+        deadline_miss_acceptance: options.deadline_miss_acceptance,
         runtime,
         readiness_transitions: transitions,
         passed: failures.is_empty(),
@@ -745,7 +756,7 @@ fn qualify(
     if !output_global_max_rms.is_finite() || output_global_max_rms <= 0.0 {
         failures.push("the managed workload produced no finite non-silent output observation".to_owned());
     }
-    if runtime.deadline_miss_count > 0 {
+    if options.deadline_miss_acceptance == DeadlineMissAcceptance::RequireZero && runtime.deadline_miss_count > 0 {
         failures.push(format!(
             "{} managed render deadline misses were observed",
             runtime.deadline_miss_count

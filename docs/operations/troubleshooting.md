@@ -47,6 +47,17 @@ warnings, and reconnect state before changing engine timing. Linux controller fa
 need udev/device permissions; network modules need a reachable bind/interface and firewall rule.
 Use deterministic adapter tests to separate protocol/runtime behavior from physical hardware.
 
+For Sound Card failures, run `cargo run -p golden_audio --example backend_probe` first. A missing
+ASIO driver, JACK server, PipeWire host, or physical device must be reported as an unavailable or
+recovering backend without blocking module creation. Use `backend_smoke` only when opening the
+system default output is safe. Microphone denial is a normal structured input-permission state;
+output and the rest of the app must remain usable. Device removal must preserve the authored
+selection and routes so reconnect can restore them.
+
+If creating a Sound Card stalls the UI, run the Phase 14 acknowledgement regression. It creates the
+module inside a graph with 10,000 existing nodes and enforces a 250 ms debug acknowledgement
+ceiling. Native probing and worker joins do not belong on that path.
+
 ## Qualification failures
 
 Open the JSON report first: required checks are `PASS`, `FAIL`, `BLOCKED`, or `NOT_RUN`, and every

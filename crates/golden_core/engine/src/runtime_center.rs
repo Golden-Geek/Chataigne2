@@ -463,9 +463,7 @@ impl<T: Node> ProductionState<T> {
                 }
                 dirty.clear();
             });
-        if let Err(error) = tick_result {
-            return Err(error);
-        }
+        tick_result?;
         if has_structural_events_since(&self.engine, previous_event_time) {
             self.request_compilation("runtime.structure");
         }

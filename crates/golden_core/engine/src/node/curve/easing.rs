@@ -102,6 +102,28 @@ use super::prelude::*;
 )]
 pub struct CurveEasingNode {}
 
+struct CurveEasingDefaults {
+    kind: &'static str,
+    out_position: f64,
+    out_value: f64,
+    in_position: f64,
+    in_value: f64,
+    step_mode: &'static str,
+    step_size: f64,
+    num_steps: i32,
+    shape: &'static str,
+    amplitude: f64,
+    phase_mode: &'static str,
+    frequency: f64,
+    num_phases: f64,
+    fade_in: f64,
+    fade_out: f64,
+    octaves: i32,
+    phase: f64,
+    seed: i32,
+    script_source: String,
+}
+
 impl CurveEasingNode {
     /// Creates one easing node with explicit default easing values.
     pub fn new_with_easing(label: impl Into<String>, default_easing: CurveEasing) -> Self {
@@ -109,75 +131,33 @@ impl CurveEasingNode {
         node_data.meta.can_be_disabled = false;
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_EASING_DECL_ID.to_string());
 
-        let (
-            kind,
-            out_position,
-            out_value,
-            in_position,
-            in_value,
-            step_mode,
-            step_size,
-            num_steps,
-            shape,
-            amplitude,
-            phase_mode,
-            frequency,
-            num_phases,
-            fade_in,
-            fade_out,
-            octaves,
-            phase,
-            seed,
-            script_source,
-        ) = Self::defaults_from_easing(&default_easing);
+        let defaults = Self::defaults_from_easing(&default_easing);
 
         Self {
             node_data,
-            kind: crate::node::ParameterHandle::new(kind.into()),
-            out_position: crate::node::ParameterHandle::new(out_position),
-            out_value: crate::node::ParameterHandle::new(out_value),
-            in_position: crate::node::ParameterHandle::new(in_position),
-            in_value: crate::node::ParameterHandle::new(in_value),
-            step_mode: crate::node::ParameterHandle::new(step_mode.into()),
-            step_size: crate::node::ParameterHandle::new(step_size),
-            num_steps: crate::node::ParameterHandle::new(num_steps),
-            shape: crate::node::ParameterHandle::new(shape.into()),
-            amplitude: crate::node::ParameterHandle::new(amplitude),
-            phase_mode: crate::node::ParameterHandle::new(phase_mode.into()),
-            frequency: crate::node::ParameterHandle::new(frequency),
-            num_phases: crate::node::ParameterHandle::new(num_phases),
-            fade_in: crate::node::ParameterHandle::new(fade_in),
-            fade_out: crate::node::ParameterHandle::new(fade_out),
-            octaves: crate::node::ParameterHandle::new(octaves),
-            phase: crate::node::ParameterHandle::new(phase),
-            seed: crate::node::ParameterHandle::new(seed),
-            script_source: crate::node::ParameterHandle::new(script_source),
+            kind: crate::node::ParameterHandle::new(defaults.kind.into()),
+            out_position: crate::node::ParameterHandle::new(defaults.out_position),
+            out_value: crate::node::ParameterHandle::new(defaults.out_value),
+            in_position: crate::node::ParameterHandle::new(defaults.in_position),
+            in_value: crate::node::ParameterHandle::new(defaults.in_value),
+            step_mode: crate::node::ParameterHandle::new(defaults.step_mode.into()),
+            step_size: crate::node::ParameterHandle::new(defaults.step_size),
+            num_steps: crate::node::ParameterHandle::new(defaults.num_steps),
+            shape: crate::node::ParameterHandle::new(defaults.shape.into()),
+            amplitude: crate::node::ParameterHandle::new(defaults.amplitude),
+            phase_mode: crate::node::ParameterHandle::new(defaults.phase_mode.into()),
+            frequency: crate::node::ParameterHandle::new(defaults.frequency),
+            num_phases: crate::node::ParameterHandle::new(defaults.num_phases),
+            fade_in: crate::node::ParameterHandle::new(defaults.fade_in),
+            fade_out: crate::node::ParameterHandle::new(defaults.fade_out),
+            octaves: crate::node::ParameterHandle::new(defaults.octaves),
+            phase: crate::node::ParameterHandle::new(defaults.phase),
+            seed: crate::node::ParameterHandle::new(defaults.seed),
+            script_source: crate::node::ParameterHandle::new(defaults.script_source),
         }
     }
 
-    fn defaults_from_easing(
-        easing: &CurveEasing,
-    ) -> (
-        &'static str,
-        f64,
-        f64,
-        f64,
-        f64,
-        &'static str,
-        f64,
-        i32,
-        &'static str,
-        f64,
-        &'static str,
-        f64,
-        f64,
-        f64,
-        f64,
-        i32,
-        f64,
-        i32,
-        String,
-    ) {
+    fn defaults_from_easing(easing: &CurveEasing) -> CurveEasingDefaults {
         let kind = curve_easing_kind_id(easing);
         let out_position = match easing {
             CurveEasing::Bezier { out_handle, .. } => out_handle.position,
@@ -258,7 +238,7 @@ impl CurveEasingNode {
             _ => String::new(),
         };
 
-        (
+        CurveEasingDefaults {
             kind,
             out_position,
             out_value,
@@ -278,7 +258,7 @@ impl CurveEasingNode {
             phase,
             seed,
             script_source,
-        )
+        }
     }
 }
 

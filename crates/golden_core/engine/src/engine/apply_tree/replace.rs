@@ -64,7 +64,7 @@ impl<T: Node> Engine<T> {
         if let Some(snapshot) = self.ui_node_dto_for_event(node) {
             let index = self.ui_child_index(parent, node);
             self.push_ui_graph_transaction(vec![UiGraphOp::NodeCreated {
-                snapshot,
+                snapshot: Box::new(snapshot),
                 parent: Some(parent),
                 index,
             }]);

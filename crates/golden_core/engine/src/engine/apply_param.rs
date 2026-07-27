@@ -654,7 +654,7 @@ impl<T: Node> Engine<T> {
         self.emit_event(EventKind::ParamConstraintsChanged {
             param: node,
             old_constraints,
-            new_constraints,
+            new_constraints: Box::new(new_constraints),
         });
     }
 }

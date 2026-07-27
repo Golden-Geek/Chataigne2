@@ -50,6 +50,7 @@ const VIRTUAL_INPUTS_PATH: &str = "parameters/virtual_inputs";
 const VIRTUAL_OUTPUTS_PATH: &str = "parameters/virtual_outputs";
 const INPUT_PROFILES_PATH: &str = "parameters/device_profiles/input_profiles";
 const OUTPUT_PROFILES_PATH: &str = "parameters/device_profiles/output_profiles";
+const PLAYBACK_ROUTES_PATH: &str = "parameters/playback_routes";
 const ANALYSIS_PATH: &str = "parameters/analysis";
 const INPUT_LEVELS_PATH: &str = "values/input_levels";
 const OUTPUT_LEVELS_PATH: &str = "values/output_levels";
@@ -194,6 +195,7 @@ pub struct SoundCardModule {
     runtime_request: Option<runtime::SoundCardRuntimeRequest>,
     runtime_retry: ReconnectBackoff,
     runtime_retry_at: Option<(golden_audio::SampleRate, Instant)>,
+    skip_initial_structure_sync: bool,
     configuration_dirty: bool,
     active_runtime_warnings: HashSet<(NodeId, String)>,
     runtime_error_node: Option<NodeId>,
@@ -208,6 +210,7 @@ impl SoundCardModule {
             None,
             ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(8)),
             None,
+            false,
             true,
             HashSet::new(),
             None,
@@ -253,6 +256,19 @@ impl SoundCardModule {
         }
 
         self.add_default_profiles(ctx, snapshot, inputs.as_slice(), outputs.as_slice());
+        if let Some(parent) = find_path(snapshot, self.id(), PLAYBACK_ROUTES_PATH) {
+            for (index, output) in outputs.iter().enumerate() {
+                let channel = index + 1;
+                let mut route =
+                    SoundCardPlaybackRoute::with_target(channel as i32, output.clone());
+                set_authored_identity(
+                    &mut route,
+                    format!("Playback {channel}"),
+                    format!("playback_route_{channel}"),
+                );
+                ctx.add_child_tree(parent, NodeTree::new(route), None);
+            }
+        }
         self.add_default_analyzers(ctx, snapshot, &inputs[0]);
         self.add_default_meter_projections(ctx, snapshot, inputs.as_slice(), outputs.as_slice());
     }
@@ -427,6 +443,7 @@ impl Node for SoundCardModule {
         };
         if context == NodeCreationContext::Fresh {
             self.initialize_fresh_defaults(ctx, snapshot.as_ref());
+            self.skip_initial_structure_sync = true;
         } else {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
         }
@@ -440,6 +457,9 @@ impl Node for SoundCardModule {
         self.request_runtime_start(ctx);
         if self.configuration_dirty && self.runtime_matches_requested_sample_rate() {
             if let Some(snapshot) = ctx.tree_snapshot_arc() {
+                if std::mem::take(&mut self.skip_initial_structure_sync) {
+                    self.synchronize_derived_structure(ctx, snapshot.as_ref());
+                }
                 self.refresh_configuration(ctx, snapshot.as_ref());
             }
         }
@@ -459,6 +479,14 @@ impl Node for SoundCardModule {
 
     fn update_requires_tree_snapshot(&self) -> bool {
         self.configuration_dirty && self.runtime_matches_requested_sample_rate()
+    }
+
+    fn attached_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn init_requires_tree_snapshot(&self) -> bool {
+        false
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -502,9 +530,11 @@ impl Node for SoundCardModule {
                     .as_ref()
                     .is_some_and(|runtime| runtime.bindings().is_runtime_value(*param)),
                 EventKind::ChildAdded { .. }
-                    | EventKind::ChildRemoved { .. }
-                    | EventKind::ChildReplaced { .. }
-                    | EventKind::MetaChanged { .. } => true,
+                | EventKind::ChildRemoved { .. }
+                | EventKind::ChildReplaced { .. }
+                | EventKind::MetaChanged { .. } => {
+                    !self.skip_initial_structure_sync || self.runtime.is_some()
+                }
                 EventKind::Custom(custom) => {
                     custom.topic
                         == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
@@ -543,6 +573,10 @@ impl Node for SoundCardModule {
 
     fn on_structure_changed(&mut self, ctx: &mut ProcessCtx) {
         self.configuration_dirty = true;
+        if self.skip_initial_structure_sync && self.runtime.is_none() {
+            return;
+        }
+        self.skip_initial_structure_sync = false;
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.synchronize_derived_structure(ctx, snapshot.as_ref());
         }

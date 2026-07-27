@@ -236,37 +236,35 @@ impl<T: Node> Engine<T> {
                     .nodes
                     .get(*node_id)
                     .is_some_and(|node| node.inbox_requires_tree_snapshot(events));
-                if requires {
-                    if let Some(snapshot_requesters) = snapshot_requesters.as_mut() {
-                        let node_type = self
-                            .nodes
-                            .get(*node_id)
-                            .map(|node| node.get_type().to_owned())
-                            .unwrap_or_else(|| "<missing>".to_owned());
-                        let event_kinds = events
-                            .iter()
-                            .take(4)
-                            .map(|event| match &event.kind {
-                                EventKind::ParamChanged { .. } => "ParamChanged",
-                                EventKind::ParamControlChanged { .. } => "ParamControlChanged",
-                                EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged",
-                                EventKind::ChildAdded { .. } => "ChildAdded",
-                                EventKind::ChildRemoved { .. } => "ChildRemoved",
-                                EventKind::ChildReplaced { .. } => "ChildReplaced",
-                                EventKind::ChildMoved { .. } => "ChildMoved",
-                                EventKind::ChildReordered { .. } => "ChildReordered",
-                                EventKind::NodeCreated { .. } => "NodeCreated",
-                                EventKind::NodeDeleted { .. } => "NodeDeleted",
-                                EventKind::MetaChanged { .. } => "MetaChanged",
-                                EventKind::GraphTransaction { .. } => "GraphTransaction",
-                                EventKind::Custom(_) => "Custom",
-                            })
-                            .collect::<Vec<_>>()
-                            .join("+");
-                        *snapshot_requesters
-                            .entry(format!("{node_type}[{event_kinds}]"))
-                            .or_default() += 1;
-                    }
+                if requires && let Some(snapshot_requesters) = snapshot_requesters.as_mut() {
+                    let node_type = self
+                        .nodes
+                        .get(*node_id)
+                        .map(|node| node.get_type().to_owned())
+                        .unwrap_or_else(|| "<missing>".to_owned());
+                    let event_kinds = events
+                        .iter()
+                        .take(4)
+                        .map(|event| match &event.kind {
+                            EventKind::ParamChanged { .. } => "ParamChanged",
+                            EventKind::ParamControlChanged { .. } => "ParamControlChanged",
+                            EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged",
+                            EventKind::ChildAdded { .. } => "ChildAdded",
+                            EventKind::ChildRemoved { .. } => "ChildRemoved",
+                            EventKind::ChildReplaced { .. } => "ChildReplaced",
+                            EventKind::ChildMoved { .. } => "ChildMoved",
+                            EventKind::ChildReordered { .. } => "ChildReordered",
+                            EventKind::NodeCreated { .. } => "NodeCreated",
+                            EventKind::NodeDeleted { .. } => "NodeDeleted",
+                            EventKind::MetaChanged { .. } => "MetaChanged",
+                            EventKind::GraphTransaction { .. } => "GraphTransaction",
+                            EventKind::Custom(_) => "Custom",
+                        })
+                        .collect::<Vec<_>>()
+                        .join("+");
+                    *snapshot_requesters
+                        .entry(format!("{node_type}[{event_kinds}]"))
+                        .or_default() += 1;
                 }
                 requires
             });
@@ -328,10 +326,10 @@ impl<T: Node> Engine<T> {
                         parameter_values.insert(*param, new_value.clone());
                     }
                     EventKind::NodeCreated { node } => {
-                        if let Some(n) = self.nodes.get(*node) {
-                            if let Some(snapshot) = n.engine_param_snapshot() {
-                                parameter_values.insert(*node, snapshot.value);
-                            }
+                        if let Some(n) = self.nodes.get(*node)
+                            && let Some(snapshot) = n.engine_param_snapshot()
+                        {
+                            parameter_values.insert(*node, snapshot.value);
                         }
                     }
                     EventKind::NodeDeleted { node } => {
@@ -351,7 +349,7 @@ impl<T: Node> Engine<T> {
             let elapsed_ms = start.elapsed().as_millis();
             if elapsed_ms > 0 {
                 let mut entries: Vec<_> = trace_by_type.into_iter().collect();
-                entries.sort_by(|left, right| right.1.2.cmp(&left.1.2));
+                entries.sort_by_key(|entry| std::cmp::Reverse(entry.1.2));
                 let summary = entries
                     .into_iter()
                     .take(8)
@@ -361,7 +359,7 @@ impl<T: Node> Engine<T> {
                     .collect::<Vec<_>>()
                     .join(" | ");
                 let mut snapshot_requesters: Vec<_> = snapshot_requesters.into_iter().collect();
-                snapshot_requesters.sort_by(|left, right| right.1.cmp(&left.1));
+                snapshot_requesters.sort_by_key(|entry| std::cmp::Reverse(entry.1));
                 let snapshot_requesters = snapshot_requesters
                     .into_iter()
                     .take(8)
@@ -455,11 +453,7 @@ impl<T: Node> Engine<T> {
         let mut depth = 0u32;
         let mut remaining_bubble = 0u32;
 
-        loop {
-            let Some(node) = self.nodes.get(current) else {
-                break;
-            };
-
+        while let Some(node) = self.nodes.get(current) {
             let effective_interest_depth = node
                 .child_event_interest_depth(event)
                 .max(node.engine_child_event_interest_depth(event));
@@ -498,9 +492,7 @@ impl<T: Node> Engine<T> {
                 break;
             }
 
-            if remaining_bubble > 0 {
-                remaining_bubble -= 1;
-            }
+            remaining_bubble = remaining_bubble.saturating_sub(1);
 
             current = parent;
             depth = next_depth;

@@ -27,16 +27,10 @@ use crate::parameter::{
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 
 /// Script-host policy for one node type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ScriptHostPolicy {
     /// Whether script hosting is enabled for this node.
     pub enabled: bool,
-}
-
-impl Default for ScriptHostPolicy {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
 }
 
 impl ScriptHostPolicy {
@@ -164,10 +158,10 @@ fn template_candidate_basenames(host_node_type: &str) -> Vec<String> {
     if !raw.is_empty() {
         basenames.push(raw);
     }
-    if let Some(normalized) = normalized_template_key(host_node_type) {
-        if !basenames.iter().any(|candidate| candidate == &normalized) {
-            basenames.push(normalized);
-        }
+    if let Some(normalized) = normalized_template_key(host_node_type)
+        && !basenames.iter().any(|candidate| candidate == &normalized)
+    {
+        basenames.push(normalized);
     }
     basenames.push("default".to_string());
     basenames
@@ -317,7 +311,7 @@ fn resolve_template_for_host_in_dir(host_node_type: &str, root_dir: &Path) -> Op
                 continue;
             }
 
-            match read_template_from_path(&path, &root_dir) {
+            match read_template_from_path(&path, root_dir) {
                 Ok(source) => {
                     return Some(ScriptTemplateResolved { source });
                 }
@@ -1163,8 +1157,8 @@ impl QuickJsRuntime {
                     return Ok(Some(metadata.to_string()));
                 }
 
-                if let Some(child_id) = snapshot.find_child(node_id, trimmed_key) {
-                    if let Some(child) = snapshot.node(child_id) {
+                if let Some(child_id) = snapshot.find_child(node_id, trimmed_key)
+                    && let Some(child) = snapshot.node(child_id) {
                         if let Some(value) = child.param_value.as_ref() {
                             let encoded = QuickJsRuntime::param_value_to_tree_json(value);
                             return Ok(Some(serde_json::json!({ "kind": "value", "value": encoded }).to_string()));
@@ -1178,7 +1172,6 @@ impl QuickJsRuntime {
                             .to_string(),
                         ));
                     }
-                }
 
                 if let Some(value) = node.script_property(trimmed_key) {
                     return Ok(Some(serde_json::json!({ "kind": "value", "value": QuickJsRuntime::param_value_to_tree_json(value.as_ref()) }).to_string()));
@@ -1211,18 +1204,14 @@ impl QuickJsRuntime {
                 let mut target_node = NodeId(node_id);
                 let mut target_property = property.to_string();
                 let state = tree_set_property_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
-                if let Some(snapshot) = state.snapshot.as_ref() {
-                    if let Some(node_snapshot) = snapshot.node(NodeId(node_id)) {
-                        if node_snapshot.script_property(property).is_none() {
-                            if let Some(child_id) = snapshot.find_child(NodeId(node_id), property) {
-                                if snapshot.node(child_id).is_some_and(|child| child.is_parameter()) {
+                if let Some(snapshot) = state.snapshot.as_ref()
+                    && let Some(node_snapshot) = snapshot.node(NodeId(node_id))
+                        && node_snapshot.script_property(property).is_none()
+                            && let Some(child_id) = snapshot.find_child(NodeId(node_id), property)
+                                && snapshot.node(child_id).is_some_and(|child| child.is_parameter()) {
                                     target_node = child_id;
                                     target_property = "value".to_string();
                                 }
-                            }
-                        }
-                    }
-                }
                 drop(state);
 
                 let mut guard = tree_set_property_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
@@ -2027,37 +2016,37 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
             let indent_len = line.len().saturating_sub(trimmed.len());
             let indent = &line[..indent_len];
 
-            if let Some(rest) = trimmed.strip_prefix("export function ") {
-                if let Some(name) = Self::parse_exported_function_name(rest) {
-                    if !exported_names.iter().any(|existing| existing == name) {
-                        exported_names.push(name.to_string());
-                    }
-                    transformed.push_str(indent);
-                    transformed.push_str("function ");
-                    transformed.push_str(rest);
-                    transformed.push_str(line_break);
-                    continue;
+            if let Some(rest) = trimmed.strip_prefix("export function ")
+                && let Some(name) = Self::parse_exported_function_name(rest)
+            {
+                if !exported_names.iter().any(|existing| existing == name) {
+                    exported_names.push(name.to_string());
                 }
+                transformed.push_str(indent);
+                transformed.push_str("function ");
+                transformed.push_str(rest);
+                transformed.push_str(line_break);
+                continue;
             }
 
-            if let Some(rest) = trimmed.strip_prefix("export async function ") {
-                if let Some(name) = Self::parse_exported_function_name(rest) {
-                    if !exported_names.iter().any(|existing| existing == name) {
-                        exported_names.push(name.to_string());
-                    }
-                    transformed.push_str(indent);
-                    transformed.push_str("async function ");
-                    transformed.push_str(rest);
-                    transformed.push_str(line_break);
-                    continue;
+            if let Some(rest) = trimmed.strip_prefix("export async function ")
+                && let Some(name) = Self::parse_exported_function_name(rest)
+            {
+                if !exported_names.iter().any(|existing| existing == name) {
+                    exported_names.push(name.to_string());
                 }
+                transformed.push_str(indent);
+                transformed.push_str("async function ");
+                transformed.push_str(rest);
+                transformed.push_str(line_break);
+                continue;
             }
 
             transformed.push_str(segment);
         }
 
         if !exported_names.is_empty() {
-            transformed.push_str("\n");
+            transformed.push('\n');
             transformed.push_str("// Auto-registered exported functions.\n");
             for name in exported_names {
                 transformed.push_str("globalThis.__gc_script_exports[\"");
@@ -2100,10 +2089,10 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         globals: &QuickJsObject<'js>,
         export_name: &str,
     ) -> Result<Option<QuickJsFunction<'js>>, QuickJsError> {
-        if let Some(export_table) = globals.get::<_, Option<QuickJsObject>>("__gc_script_exports")? {
-            if let Some(callback) = export_table.get::<_, Option<QuickJsFunction>>(export_name)? {
-                return Ok(Some(callback));
-            }
+        if let Some(export_table) = globals.get::<_, Option<QuickJsObject>>("__gc_script_exports")?
+            && let Some(callback) = export_table.get::<_, Option<QuickJsFunction>>(export_name)?
+        {
+            return Ok(Some(callback));
         }
         Ok(None)
     }
@@ -2122,16 +2111,16 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         globals: &QuickJsObject<'js>,
         value: &JsonValue,
     ) -> Result<QuickJsValue<'js>, ScriptRuntimeError> {
-        if let Some(node_id) = Self::script_callback_arg_node_id(value) {
-            if let Some(gc) = globals.get::<_, Option<QuickJsObject>>("gc")? {
-                let factory = if let Some(factory) = gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")? {
-                    Some(factory)
-                } else {
-                    gc.get::<_, Option<QuickJsFunction>>("__nodeHandle")?
-                };
-                if let Some(factory) = factory {
-                    return Ok(factory.call::<_, QuickJsValue>((node_id as f64,))?);
-                }
+        if let Some(node_id) = Self::script_callback_arg_node_id(value)
+            && let Some(gc) = globals.get::<_, Option<QuickJsObject>>("gc")?
+        {
+            let factory = if let Some(factory) = gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")? {
+                Some(factory)
+            } else {
+                gc.get::<_, Option<QuickJsFunction>>("__nodeHandle")?
+            };
+            if let Some(factory) = factory {
+                return Ok(factory.call::<_, QuickJsValue>((node_id as f64,))?);
             }
         }
 
@@ -2168,7 +2157,7 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         Ok(js_value)
     }
 
-    fn from_quickjs_value<'js>(
+    fn quickjs_value_to_script<'js>(
         &self,
         ctx: &QuickJsCtx<'js>,
         value: QuickJsValue<'js>,
@@ -2207,16 +2196,16 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
     }
 
     fn js_value_to_text<'js>(ctx: &QuickJsCtx<'js>, value: &QuickJsValue<'js>) -> Option<String> {
-        if value.is_string() {
-            if let Ok(text) = value.get::<String>() {
-                return Some(text);
-            }
+        if value.is_string()
+            && let Ok(text) = value.get::<String>()
+        {
+            return Some(text);
         }
 
-        if let Ok(Some(raw)) = ctx.json_stringify(value) {
-            if let Ok(text) = raw.to_string() {
-                return Some(text);
-            }
+        if let Ok(Some(raw)) = ctx.json_stringify(value)
+            && let Ok(text) = raw.to_string()
+        {
+            return Some(text);
         }
 
         None
@@ -2312,7 +2301,7 @@ impl ScriptRuntime for QuickJsRuntime {
         &mut self,
         source: &str,
         source_name: &str,
-        mut host: Option<&mut dyn ScriptHostBridge>,
+        host: Option<&mut dyn ScriptHostBridge>,
     ) -> Result<ScriptManifest, ScriptRuntimeError> {
         self.entrypoints = QuickJsEntrypoints::default();
         self.manifest = None;
@@ -2540,7 +2529,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
             result.map_err(|error| Self::quickjs_error_with_context(&ctx, "script load", error))
         })?;
 
-        if let Some(host_ref) = host.as_deref_mut() {
+        if let Some(host_ref) = host {
             self.flush_host_ops(host_ref)?;
         }
 
@@ -2596,7 +2585,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                         call_args.push_arg(self.to_quickjs_value(&ctx, argument)?)?;
                     }
                     let return_value = callback.call_arg::<QuickJsValue>(call_args)?;
-                    self.from_quickjs_value(&ctx, return_value)
+                    self.quickjs_value_to_script(&ctx, return_value)
                 })();
                 result.map_err(|error| Self::enrich_runtime_error_with_context(&ctx, "export callback", error))
             })
@@ -2683,57 +2672,56 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
                     let globals = ctx.globals();
 
-                    if let Some(invocation) = custom_callback_invocation.as_ref() {
-                        if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(invocation.name.as_str())? {
-                            let mut call_args = QuickJsArgs::new(ctx.clone(), invocation.args.len());
-                            for arg in &invocation.args {
-                                call_args.push_arg(Self::callback_arg_to_quickjs_value(&ctx, &globals, arg)?)?;
-                            }
-                            callback.call_arg::<()>(call_args)?;
+                    if let Some(invocation) = custom_callback_invocation.as_ref()
+                        && let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(invocation.name.as_str())?
+                    {
+                        let mut call_args = QuickJsArgs::new(ctx.clone(), invocation.args.len());
+                        for arg in &invocation.args {
+                            call_args.push_arg(Self::callback_arg_to_quickjs_value(&ctx, &globals, arg)?)?;
                         }
+                        callback.call_arg::<()>(call_args)?;
                     }
 
-                    if let Some(callback_name) = param_changed_callback_name.as_deref() {
-                        if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)? {
-                            let param_value = if let Some(param_node) = event.origin {
-                                if let Some(gc) = globals.get::<_, Option<QuickJsObject>>("gc")? {
-                                    let factory = if let Some(factory) =
-                                        gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")?
-                                    {
+                    if let Some(callback_name) = param_changed_callback_name.as_deref()
+                        && let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)?
+                    {
+                        let param_value = if let Some(param_node) = event.origin {
+                            if let Some(gc) = globals.get::<_, Option<QuickJsObject>>("gc")? {
+                                let factory =
+                                    if let Some(factory) = gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")? {
                                         Some(factory)
                                     } else {
                                         gc.get::<_, Option<QuickJsFunction>>("__nodeHandle")?
                                     };
-                                    if let Some(factory) = factory {
-                                        factory.call::<_, QuickJsValue>((param_node.0 as f64,))?
-                                    } else {
-                                        ctx.json_parse("null")?
-                                    }
+                                if let Some(factory) = factory {
+                                    factory.call::<_, QuickJsValue>((param_node.0 as f64,))?
                                 } else {
                                     ctx.json_parse("null")?
                                 }
                             } else {
                                 ctx.json_parse("null")?
-                            };
-                            let old_value_payload = event
-                                .old_value
-                                .as_ref()
-                                .map(Self::param_value_to_tree_json)
-                                .unwrap_or(JsonValue::Null);
-                            let old_value_json = serde_json::to_string(&old_value_payload).map_err(|err| {
-                                ScriptRuntimeError::InvalidManifest(format!("failed to encode oldValue payload: {err}"))
-                            })?;
-                            let old_value_value = ctx.json_parse(old_value_json.as_str())?;
-                            let event_value = ctx.json_parse(event_payload.as_str())?;
-                            callback.call::<_, ()>((param_value, old_value_value, event_value))?;
-                        }
+                            }
+                        } else {
+                            ctx.json_parse("null")?
+                        };
+                        let old_value_payload = event
+                            .old_value
+                            .as_ref()
+                            .map(Self::param_value_to_tree_json)
+                            .unwrap_or(JsonValue::Null);
+                        let old_value_json = serde_json::to_string(&old_value_payload).map_err(|err| {
+                            ScriptRuntimeError::InvalidManifest(format!("failed to encode oldValue payload: {err}"))
+                        })?;
+                        let old_value_value = ctx.json_parse(old_value_json.as_str())?;
+                        let event_value = ctx.json_parse(event_payload.as_str())?;
+                        callback.call::<_, ()>((param_value, old_value_value, event_value))?;
                     }
 
-                    if let Some(callback_name) = event_callback_name.as_deref() {
-                        if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)? {
-                            let event_value = ctx.json_parse(event_payload.as_str())?;
-                            callback.call::<_, ()>((event_value,))?;
-                        }
+                    if let Some(callback_name) = event_callback_name.as_deref()
+                        && let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)?
+                    {
+                        let event_value = ctx.json_parse(event_payload.as_str())?;
+                        callback.call::<_, ()>((event_value,))?;
                     }
                     Ok(())
                 })();
@@ -2899,9 +2887,11 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
             None => default_param_value(value_type),
         };
 
-        let mut constraints = ParameterConstraints::default();
-        constraints.step = json_object_get(entry, &["step"]).and_then(JsonValue::as_f64);
-        constraints.step_base = json_object_get(entry, &["stepBase"]).and_then(JsonValue::as_f64);
+        let mut constraints = ParameterConstraints {
+            step: json_object_get(entry, &["step"]).and_then(JsonValue::as_f64),
+            step_base: json_object_get(entry, &["stepBase"]).and_then(JsonValue::as_f64),
+            ..ParameterConstraints::default()
+        };
         if let Some(policy_label) = entry.get("policy").and_then(JsonValue::as_str) {
             constraints.policy = match policy_label.trim().to_ascii_lowercase().as_str() {
                 "clampadapt" | "clamp_adapt" | "clamp-adapt" => ParameterConstraintPolicy::ClampAdapt,
@@ -3293,12 +3283,11 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     }
 
     fn call_node_script_method(&mut self, node: NodeId, method: String, args: Vec<ParamValue>) -> Result<(), String> {
-        if let Some(load_declared_children) = self.load_declared_children.as_deref_mut() {
-            if let Some(managed_child) = managed_child_from_script_call(node, method.as_str(), args.as_slice()) {
-                if !load_declared_children.contains(&managed_child) {
-                    load_declared_children.push(managed_child);
-                }
-            }
+        if let Some(load_declared_children) = self.load_declared_children.as_deref_mut()
+            && let Some(managed_child) = managed_child_from_script_call(node, method.as_str(), args.as_slice())
+            && !load_declared_children.contains(&managed_child)
+        {
+            load_declared_children.push(managed_child);
         }
 
         self.ctx.call_node_script_method(node, method, args);
@@ -3795,97 +3784,96 @@ impl Node for ScriptNode {
             }
         }
 
-        if self.runtime.is_none() {
-            if let Err(error) = self.load_or_reload_internal(ctx, false) {
-                self.handle_runtime_error(ctx, &error);
-                return;
-            }
+        if self.runtime.is_none()
+            && let Err(error) = self.load_or_reload_internal(ctx, false)
+        {
+            self.handle_runtime_error(ctx, &error);
+            return;
         }
 
-        if let Some(declared) = self.pending_manifest_apply.take() {
-            if let Some(snapshot) = ctx.tree_snapshot_arc() {
-                let mut prev_sibling = None;
-                for declared_child in declared {
-                    let mut found_id = None;
-                    let mut child = snapshot.node(declared_child.parent).and_then(|node| node.first_child);
-                    while let Some(child_id) = child {
-                        let Some(child_snapshot) = snapshot.node(child_id) else {
-                            break;
-                        };
-                        if managed_child_key_matches(child_snapshot, declared_child.key.as_str()) {
-                            found_id = Some(child_id);
-                            break;
-                        }
-                        child = child_snapshot.next_sibling;
+        if let Some(declared) = self.pending_manifest_apply.take()
+            && let Some(snapshot) = ctx.tree_snapshot_arc()
+        {
+            let mut prev_sibling = None;
+            for declared_child in declared {
+                let mut found_id = None;
+                let mut child = snapshot.node(declared_child.parent).and_then(|node| node.first_child);
+                while let Some(child_id) = child {
+                    let Some(child_snapshot) = snapshot.node(child_id) else {
+                        break;
+                    };
+                    if managed_child_key_matches(child_snapshot, declared_child.key.as_str()) {
+                        found_id = Some(child_id);
+                        break;
                     }
+                    child = child_snapshot.next_sibling;
+                }
 
-                    if let Some(child_id) = found_id {
-                        ctx.edits.push(crate::edit::Edit::MoveNode {
-                            node: child_id,
-                            new_parent: declared_child.parent,
-                            new_prev_sibling: prev_sibling,
-                        });
-                        prev_sibling = Some(child_id);
+                if let Some(child_id) = found_id {
+                    ctx.edits.push(crate::edit::Edit::MoveNode {
+                        node: child_id,
+                        new_parent: declared_child.parent,
+                        new_prev_sibling: prev_sibling,
+                    });
+                    prev_sibling = Some(child_id);
 
-                        if let Some(manifest) = &self.manifest {
-                            for spec in &manifest.parameters {
-                                if spec.decl_id.0 == declared_child.key || spec.name == declared_child.key {
-                                    let mut meta_patch = crate::node::NodeMetaPatch::default();
-                                    let mut needs_patch = false;
+                    if let Some(manifest) = &self.manifest {
+                        for spec in &manifest.parameters {
+                            if spec.decl_id.0 == declared_child.key || spec.name == declared_child.key {
+                                let mut meta_patch = crate::node::NodeMetaPatch::default();
+                                let mut needs_patch = false;
 
-                                    if let Some(child_snapshot) = snapshot.node(child_id) {
-                                        if let Some(label) = &spec.label {
-                                            if label != &child_snapshot.label {
-                                                meta_patch.label = Some(label.clone());
-                                                needs_patch = true;
-                                            }
-                                        }
-
-                                        if child_snapshot.param_constraints.as_ref() != Some(&spec.constraints) {
-                                            ctx.edits.push(crate::edit::Edit::SetParamConstraints {
-                                                node: child_id,
-                                                constraints: spec.constraints.clone(),
-                                            });
-                                        }
+                                if let Some(child_snapshot) = snapshot.node(child_id) {
+                                    if let Some(label) = &spec.label
+                                        && label != &child_snapshot.label
+                                    {
+                                        meta_patch.label = Some(label.clone());
+                                        needs_patch = true;
                                     }
 
-                                    if needs_patch {
-                                        ctx.patch_node_meta(child_id, meta_patch);
+                                    if child_snapshot.param_constraints.as_ref() != Some(&spec.constraints) {
+                                        ctx.edits.push(crate::edit::Edit::SetParamConstraints {
+                                            node: child_id,
+                                            constraints: spec.constraints.clone(),
+                                        });
                                     }
+                                }
 
-                                    let hints = spec.ui_hints.clone();
-                                    let read_only = spec.read_only;
-                                    let new_default = spec.default_value.clone();
-                                    ctx.edits.push(crate::edit::Edit::CallNodeMutation {
-                                        node: child_id,
-                                        // Leaf param-spec sync: the callback only mutates the
-                                        // parameter and queues follow-up edits.
-                                        needs_tree_snapshot: false,
-                                        callback: Box::new(move |node_dyn, ctx| {
-                                            if let Some(param) =
-                                                node_dyn.as_any_mut().downcast_mut::<crate::parameter::Parameter>()
-                                            {
-                                                param.ui_hints = hints;
-                                                param.read_only = read_only;
+                                if needs_patch {
+                                    ctx.patch_node_meta(child_id, meta_patch);
+                                }
 
-                                                if param.default_value != new_default {
-                                                    let is_at_default = param.value == param.default_value;
-                                                    param.default_value = new_default.clone();
+                                let hints = spec.ui_hints.clone();
+                                let read_only = spec.read_only;
+                                let new_default = spec.default_value.clone();
+                                ctx.edits.push(crate::edit::Edit::CallNodeMutation {
+                                    node: child_id,
+                                    // Leaf param-spec sync: the callback only mutates the
+                                    // parameter and queues follow-up edits.
+                                    needs_tree_snapshot: false,
+                                    callback: Box::new(move |node_dyn, ctx| {
+                                        if let Some(param) =
+                                            node_dyn.as_any_mut().downcast_mut::<crate::parameter::Parameter>()
+                                        {
+                                            param.ui_hints = hints;
+                                            param.read_only = read_only;
 
-                                                    if is_at_default && param.value != new_default {
-                                                        ctx.edits.push(crate::edit::Edit::SetParam {
-                                                            node: child_id,
-                                                            value: new_default,
-                                                            behaviour:
-                                                                crate::parameter::ParameterEventBehaviour::Coalesce,
-                                                        });
-                                                    }
+                                            if param.default_value != new_default {
+                                                let is_at_default = param.value == param.default_value;
+                                                param.default_value = new_default.clone();
+
+                                                if is_at_default && param.value != new_default {
+                                                    ctx.edits.push(crate::edit::Edit::SetParam {
+                                                        node: child_id,
+                                                        value: new_default,
+                                                        behaviour: crate::parameter::ParameterEventBehaviour::Coalesce,
+                                                    });
                                                 }
                                             }
-                                            Ok(())
-                                        }),
-                                    });
-                                }
+                                        }
+                                        Ok(())
+                                    }),
+                                });
                             }
                         }
                     }

@@ -12,6 +12,12 @@ pub struct CurveKeyNode {
     default_easing: CurveEasing,
 }
 
+impl Default for CurveKeyNode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CurveKeyNode {
     /// Creates one key node with default position/value set to `0`.
     pub fn new() -> Self {

@@ -22,7 +22,8 @@ divergence.
 - Define queue capacity and overflow semantics. Coalesce replaceable values; preserve ordered
   triggers, commands, and effects.
 - Provide reconnect with capped backoff and recovery after endpoint or device replacement.
-- Stop, unpark, and join owned workers during node teardown.
+- Stop and unpark owned workers during node teardown. Retire potentially blocking joins through a
+  runtime/host reaper; never join a device, decoder, or initialization worker on the engine thread.
 
 Prefer a maintained protocol crate for MIDI, OSC, serial, HID, WebSocket, or similar wire formats.
 
@@ -39,5 +40,8 @@ Cover catalog creation, runtime semantics, command effects, callback payloads, s
 and expansion, sparse save/reload, diagnostics, bounded overload, reconnect, and deterministic
 adapter/device recovery. Add an app-owned icon and rendered UI evidence for custom editors. Then
 run the focused module suite and the complete product gate.
+
+The Sound Card module is the reference for asynchronous native initialization, stable authored
+device topology, bounded runtime observation, and teardown that does not block graph edits.
 
 The generic node declaration and controller paging rules are in [adding-a-node.md](adding-a-node.md).

@@ -180,8 +180,10 @@ impl AlchemistGraphDomain {
 
     #[must_use]
     pub fn new_document_with_identity(id: AlchemistGraphId, label: impl Into<String>) -> AlchemistGraphDocument {
-        let mut metadata = GraphMetadata::default();
-        metadata.label = label.into();
+        let metadata = GraphMetadata {
+            label: label.into(),
+            ..GraphMetadata::default()
+        };
         GraphDocumentData {
             id: GraphId::from_uuid(id.as_uuid()),
             revision: GraphRevision::default(),

@@ -24,8 +24,8 @@ use crate::{
 
 mod device_soak;
 pub use device_soak::{
-    ManagedDeviceReadinessTransition, ManagedDeviceSoakOptions, ManagedDeviceSoakProgress, ManagedDeviceSoakReport,
-    run_managed_device_soak, run_managed_device_soak_with_progress, write_reference_wave,
+    DeadlineMissAcceptance, ManagedDeviceReadinessTransition, ManagedDeviceSoakOptions, ManagedDeviceSoakProgress,
+    ManagedDeviceSoakReport, run_managed_device_soak, run_managed_device_soak_with_progress, write_reference_wave,
 };
 
 #[cfg(test)]

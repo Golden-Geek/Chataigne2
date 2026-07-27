@@ -77,7 +77,7 @@ fn set_param_constraints_emits_events_and_supports_undo_redo() {
                 new_constraints,
             } if *changed_param == param
                 && *old_constraints == ParameterConstraints::default()
-                && *new_constraints == constraints
+                && **new_constraints == constraints
         )),
         "expected a constraints change event"
     );

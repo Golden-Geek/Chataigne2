@@ -827,6 +827,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn user_creatable_items_require_tree_snapshot(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, user_creatable_items_require_tree_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
             fn user_creatable_items_with_context(
                 &self,
                 snapshot: &$crate::process_ctx::ProcessTreeSnapshot,
@@ -999,6 +1004,21 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn lifecycle_requires_tree_snapshot(&self) -> bool {
                 $crate::__dispatch_node_enum!(self, lifecycle_requires_tree_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn attached_requires_tree_snapshot(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, attached_requires_tree_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn init_requires_tree_snapshot(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, init_requires_tree_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn ready_requires_tree_snapshot(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, ready_requires_tree_snapshot; $($variant),*)
             }
 
             #[inline(always)]

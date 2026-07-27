@@ -18,7 +18,7 @@ use golden_core::{
 use super::{
     meter_uuid, runtime, SoundCardModule, ANALYSIS_PATH, INPUT_LEVELS_PATH,
     INPUT_PROFILES_PATH, OUTPUT_LEVELS_PATH, OUTPUT_PROFILES_PATH,
-    PITCH_RESULTS_PATH, SPECTRUM_RESULTS_PATH, VIRTUAL_INPUTS_PATH,
+    PITCH_RESULTS_PATH, PLAYBACK_ROUTES_PATH, SPECTRUM_RESULTS_PATH, VIRTUAL_INPUTS_PATH,
     VIRTUAL_OUTPUTS_PATH,
 };
 use crate::app::{
@@ -103,6 +103,32 @@ fn fresh_module_materializes_authored_defaults_and_derived_values() {
     let outputs = typed_children(&engine, module, VIRTUAL_OUTPUTS_PATH, SoundCardVirtualOutput::NODE_TYPE);
     assert_eq!(inputs.len(), 2);
     assert_eq!(outputs.len(), 2);
+    let playback_routes =
+        find_path(&engine, module, PLAYBACK_ROUTES_PATH).expect("playback routes");
+    assert_eq!(
+        direct_children_of_type(
+            &engine,
+            playback_routes,
+            SoundCardPlaybackRoute::NODE_TYPE,
+        )
+        .len(),
+        2,
+        "fresh stereo playback must be routed to the two default outputs",
+    );
+    let built = runtime::build_configuration(
+        &engine.process_tree_snapshot(),
+        module,
+        &fresh_null_audio_inspector(),
+    )
+    .expect("fresh Sound Card should compile");
+    let mut playback_sources = built
+        .configuration
+        .playback_patch
+        .iter()
+        .map(|route| route.source_channel)
+        .collect::<Vec<_>>();
+    playback_sources.sort_unstable();
+    assert_eq!(playback_sources, vec![0, 1]);
     let module_permissions = &engine
         .nodes
         .get(module)
@@ -244,6 +270,8 @@ fn sparse_round_trip_preserves_authored_identity_routes_and_missing_device() {
     });
     let playback =
         find_path(&engine, module, "parameters/playback_routes").expect("playback routes");
+    let default_playback_route_count =
+        direct_children_of_type(&engine, playback, SoundCardPlaybackRoute::NODE_TYPE).len();
     let playback_source =
         fixture_index(&fixture, "playback_route", "source_channel") as i32;
     let playback_output = fixture_index(&fixture, "playback_route", "output");
@@ -333,7 +361,7 @@ fn sparse_round_trip_preserves_authored_identity_routes_and_missing_device() {
         find_path(&loaded, loaded_module, "parameters/playback_routes").expect("playback routes");
     assert_eq!(
         direct_children_of_type(&loaded, loaded_playback, SoundCardPlaybackRoute::NODE_TYPE).len(),
-        1
+        default_playback_route_count + 1,
     );
 
     let loaded_device =
@@ -685,6 +713,19 @@ fn direct_children_of_type(
 
 fn first_child(engine: &crate::app::AppEngine, parent: NodeId) -> Option<NodeId> {
     engine.nodes.get(parent)?.node_data().first_child
+}
+
+fn fresh_null_audio_inspector() -> AudioDeviceInspectorState {
+    AudioDeviceInspectorState {
+        backends: vec![AudioBackendStatus {
+            backend: NullBackend::backend_id(),
+            label: "Null / Offline".to_owned(),
+            state: AudioBackendState::Available,
+            detail: None,
+        }],
+        devices: NullBackend.discover().expect("null device"),
+        ..AudioDeviceInspectorState::default()
+    }
 }
 
 fn child_count(engine: &crate::app::AppEngine, module: NodeId, path: &str) -> usize {

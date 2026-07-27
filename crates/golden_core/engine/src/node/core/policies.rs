@@ -21,22 +21,13 @@ impl IntoScriptHostPolicyOption for Option<ScriptHostPolicy> {
 }
 
 /// User-context host policy for one node type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct UserContextHostPolicy {
     /// Whether `UserContextNode` creation is enabled for this node.
     pub enabled: bool,
     /// Whether multiplex authoring is enabled inside this node's context scope.
     #[serde(default)]
     pub multiplex_enabled: bool,
-}
-
-impl Default for UserContextHostPolicy {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            multiplex_enabled: false,
-        }
-    }
 }
 
 impl UserContextHostPolicy {

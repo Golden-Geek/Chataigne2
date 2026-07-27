@@ -125,10 +125,10 @@ fn snapshot_find_descendant_by_decl(
     parent: NodeId,
     decl_id: &str,
 ) -> Option<NodeId> {
-    if decl_id.contains('/') {
-        if let Some(node_id) = snapshot.resolve_path_from(parent, decl_id) {
-            return Some(node_id);
-        }
+    if decl_id.contains('/')
+        && let Some(node_id) = snapshot.resolve_path_from(parent, decl_id)
+    {
+        return Some(node_id);
     }
 
     let mut stack = vec![parent];

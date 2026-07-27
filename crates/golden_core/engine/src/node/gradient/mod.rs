@@ -1,6 +1,6 @@
-mod gradient;
 mod helpers;
 mod model;
+mod node;
 mod snapshot;
 mod stop;
 
@@ -23,8 +23,8 @@ mod prelude {
     };
 }
 
-pub use gradient::GradientNode;
 pub use model::{Gradient, GradientInterpolation, GradientStop};
+pub use node::GradientNode;
 pub use snapshot::gradient_from_snapshot;
 pub use stop::GradientStopNode;
 

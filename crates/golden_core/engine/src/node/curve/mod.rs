@@ -1,8 +1,8 @@
-mod curve;
 mod easing;
 mod helpers;
 mod key;
 mod model;
+mod node;
 mod range;
 mod snapshot;
 
@@ -39,13 +39,13 @@ mod prelude {
     };
 }
 
-pub use curve::CurveNode;
 pub use easing::CurveEasingNode;
 pub use key::CurveKeyNode;
 pub use model::{
     Curve, CurveBezierFitOptions, CurveCursor, CurveEasing, CurveFitPoint, CurveHandle, CurveKey, CurvePhaseMode,
     CurveShape, CurveStepMode,
 };
+pub use node::CurveNode;
 pub use range::{CurveRangeConstraint, CurveRangeNode};
 pub use snapshot::curve_from_snapshot;
 

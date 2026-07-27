@@ -42,14 +42,20 @@ device and playback warm-up, fails on callback XRuns, backend runtime warnings, 
 queue pressure, analysis drops, non-silent-signal loss, or incomplete recovery, and removes the
 fixture on exit.
 
+Real-device qualification uses the default `RequireZero` deadline-miss acceptance. Deterministic
+null-backend tests may select `RecordOnly` because a shared test runner cannot provide realtime
+scheduling; the report still records every miss, and this mode is not valid hardware evidence.
+
 ASIO, JACK, native PipeWire, and real-time DBus integration are exposed through platform
 qualification features documented in the
 [toolchain policy](../../docs/reference/toolchain.md#native-audio-prerequisites). Applications
 depend on `golden_audio`; they do not import or configure CPAL directly.
 
-Chataigne deliberately enables the `asio` feature in its own default feature set, so ordinary
-Windows product builds include both WASAPI and ASIO while other `golden_audio` consumers retain the
-external-prerequisite-free native default.
+Chataigne deliberately enables the `asio` and `realtime` features in its default feature set.
+Ordinary Windows product builds therefore include WASAPI and ASIO, promote CPAL device callbacks,
+and promote the managed Golden Audio render worker through the operating system's audio scheduling
+API. Priority refusal is nonfatal and produces a structured diagnostic. Other `golden_audio`
+consumers retain the external-prerequisite-free native default.
 
 On Windows, the repository wrapper prepares the pinned external ASIO SDK and LLVM environment, then
 runs the host probe by default:
@@ -65,6 +71,10 @@ runs the host probe by default:
 worker pool probes and decodes files, resamples them to the engine rate, and either inserts a small
 immutable asset into the resident cache or primes a bounded streaming ring. The audio callback only
 reads preallocated resident or streamed voice state.
+
+Decoder workers own independent bounded inboxes; an idle worker cannot block another stream's
+refill. Full stream rings park their decoder worker until the render side consumes frames. File IO,
+decoding, resampling, rendering, and device callbacks never run on the application's engine thread.
 
 External audio hosts can take the `PlaybackVoiceRenderer` once and invoke it from their
 authoritative render callback. Ready-to-run product adapters instead opt into

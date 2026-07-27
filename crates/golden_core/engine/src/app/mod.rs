@@ -1632,7 +1632,7 @@ where
                 node_type: node_type.clone(),
                 message: "baseline parent did not materialize".to_string(),
             })?;
-        temp.add_user_item(recreated.into(), Some(temp_parent));
+        temp.add_user_item(recreated, Some(temp_parent));
     } else {
         temp.add_node(recreated, None);
     }
@@ -1773,20 +1773,20 @@ where
         .ok_or(ProjectPersistenceError::MissingNode(node_id))?;
     let node_type = current.get_type().to_string();
 
-    if current.node_data().user_role == UserNodeRole::ItemRoot {
-        if let Some(parent_id) = current.node_data().parent {
-            let parent = engine
-                .nodes
-                .get(parent_id)
-                .ok_or(ProjectPersistenceError::MissingNode(parent_id))?;
-            if let Some(node) = parent.create_user_item(node_type.as_str()) {
-                return T::from_boxed_node(node)
-                    .ok_or_else(|| ProjectPersistenceError::Codec {
-                        node_type,
-                        message: "parent item factory returned a node outside the engine node enum".to_string(),
-                    })
-                    .map(Some);
-            }
+    if current.node_data().user_role == UserNodeRole::ItemRoot
+        && let Some(parent_id) = current.node_data().parent
+    {
+        let parent = engine
+            .nodes
+            .get(parent_id)
+            .ok_or(ProjectPersistenceError::MissingNode(parent_id))?;
+        if let Some(node) = parent.create_user_item(node_type.as_str()) {
+            return T::from_boxed_node(node)
+                .ok_or_else(|| ProjectPersistenceError::Codec {
+                    node_type,
+                    message: "parent item factory returned a node outside the engine node enum".to_string(),
+                })
+                .map(Some);
         }
     }
 

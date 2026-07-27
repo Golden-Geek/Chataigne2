@@ -228,25 +228,25 @@ impl ParameterAnimationControlNode {
         if self.waveform_param == Some(param) {
             self.waveform = parse_waveform(value);
         }
-        if self.frequency_param == Some(param) {
-            if let Some(parsed) = value.as_float() {
-                self.frequency_hz = parsed;
-            }
+        if self.frequency_param == Some(param)
+            && let Some(parsed) = value.as_float()
+        {
+            self.frequency_hz = parsed;
         }
-        if self.amplitude_param == Some(param) {
-            if let Some(parsed) = value.as_float() {
-                self.amplitude = parsed;
-            }
+        if self.amplitude_param == Some(param)
+            && let Some(parsed) = value.as_float()
+        {
+            self.amplitude = parsed;
         }
-        if self.offset_param == Some(param) {
-            if let Some(parsed) = value.as_float() {
-                self.offset = parsed;
-            }
+        if self.offset_param == Some(param)
+            && let Some(parsed) = value.as_float()
+        {
+            self.offset = parsed;
         }
-        if self.phase_param == Some(param) {
-            if let Some(parsed) = value.as_float() {
-                self.phase = parsed;
-            }
+        if self.phase_param == Some(param)
+            && let Some(parsed) = value.as_float()
+        {
+            self.phase = parsed;
         }
         if self.update_rate_param == Some(param) {
             self.update_rate_hz = parse_update_rate_hz(value);
@@ -254,10 +254,10 @@ impl ParameterAnimationControlNode {
     }
 
     fn sync_bound_value(&mut self, param: Option<NodeId>, resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {
-        if let Some(param) = param {
-            if let Some(value) = resolve(param) {
-                self.sync_child_value(param, &value);
-            }
+        if let Some(param) = param
+            && let Some(value) = resolve(param)
+        {
+            self.sync_child_value(param, &value);
         }
     }
 

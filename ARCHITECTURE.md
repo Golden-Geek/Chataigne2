@@ -20,6 +20,18 @@ Its internal workspace crates are grouped by role:
 Applications normally depend on the facade at `crates/golden_core/`, not on those implementation
 crates directly.
 
+### Golden Audio
+
+`crates/golden_audio/` is the reusable, app-agnostic audio engine. It owns device discovery,
+backend supervision, render plans, routing, playback, analysis, observations, and deterministic
+null/mock/offline qualification. Native backends and codec/DSP dependencies stay private.
+
+Chataigne's persistent Sound Card model, defaults, commands, scripts, and product policy live under
+`apps/chataigne/src/module/modules/audio/sound_card/`. Reusable device/status UI and Rust-generated
+audio contracts live in `packages/golden-audio-ui/`. See
+[Golden Audio Architecture](docs/architecture/golden-audio.md) for the realtime and recovery
+boundaries.
+
 ### Golden Graph
 
 `crates/golden_graph/` is the app-agnostic graph document and transaction system.

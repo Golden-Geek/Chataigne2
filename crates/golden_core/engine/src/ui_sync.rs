@@ -5,7 +5,7 @@ use ts_rs::TS;
 
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
-use crate::engine::{Engine, EngineTime, ProjectLoadRecoveryReport, ProjectPersistenceError};
+use crate::engine::{DuplicateDispatchOptions, Engine, EngineTime, ProjectLoadRecoveryReport, ProjectPersistenceError};
 use crate::events::{CustomEventRetention, Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
@@ -248,7 +248,7 @@ pub enum UiClientMessage {
         /// Client-generated request identifier.
         request_id: String,
         /// Typed edit intent.
-        intent: UiEditIntent,
+        intent: Box<UiEditIntent>,
         /// Whether resulting events are echoed to the sender.
         #[serde(default)]
         include_self_events: bool,
@@ -721,7 +721,7 @@ pub enum UiNodeDataDto {
     /// Parameter node payload.
     Parameter {
         /// Parameter details.
-        param: UiParamDto,
+        param: Box<UiParamDto>,
     },
     /// Non-parameter node summary.
     Node {
@@ -1119,7 +1119,7 @@ pub enum UiGraphOp {
     /// Inserts a node that did not exist in the client's graph.
     NodeCreated {
         /// Full UI snapshot for the created node.
-        snapshot: UiNodeDto,
+        snapshot: Box<UiNodeDto>,
         /// Parent receiving the node, if attached.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         parent: Option<NodeId>,
@@ -1256,7 +1256,7 @@ pub enum UiEventKind {
         /// Previous constraints.
         old_constraints: ParameterConstraints,
         /// New constraints.
-        new_constraints: ParameterConstraints,
+        new_constraints: Box<ParameterConstraints>,
     },
     /// Child added.
     ChildAdded {
@@ -1319,7 +1319,7 @@ pub enum UiEventKind {
         node: NodeId,
         /// Node snapshot for incremental UI insertion when the node is still live.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        snapshot: Option<UiNodeDto>,
+        snapshot: Option<Box<UiNodeDto>>,
     },
     /// Node deleted.
     NodeDeleted {
@@ -1846,7 +1846,7 @@ impl<T: Node> Engine<T> {
                 };
                 let mut dto = UiParamDto::from(param);
                 dto.enum_options_id = enum_options_id;
-                UiNodeDataDto::Parameter { param: dto }
+                UiNodeDataDto::Parameter { param: Box::new(dto) }
             } else {
                 UiNodeDataDto::Node {
                     node_type: node.get_type().to_string(),
@@ -2222,12 +2222,12 @@ impl<T: Node> Engine<T> {
 
     fn ui_find_created_item_param_node(&self, created_child: NodeId, decl_id: &str) -> Option<NodeId> {
         let snapshot = self.build_process_tree_snapshot();
-        if decl_id.contains('/') {
-            if let Some(node_id) = snapshot.resolve_path_from(created_child, decl_id) {
-                return snapshot
-                    .node(node_id)
-                    .and_then(|node| node.is_parameter().then_some(node_id));
-            }
+        if decl_id.contains('/')
+            && let Some(node_id) = snapshot.resolve_path_from(created_child, decl_id)
+        {
+            return snapshot
+                .node(node_id)
+                .and_then(|node| node.is_parameter().then_some(node_id));
         }
 
         let mut stack = vec![created_child];
@@ -2806,8 +2806,10 @@ impl<T: Node> Engine<T> {
                 source,
                 spec.new_parent,
                 spec.new_prev_sibling,
-                None,
-                false,
+                DuplicateDispatchOptions {
+                    label_override: None,
+                    dispatch_structure_events: false,
+                },
                 &mut encode_data,
                 &mut decode_node,
             )?;
@@ -3562,8 +3564,12 @@ impl<T: Node> Engine<T> {
     /// to serialize a node (or subtree, by walking `.children` recursively)
     /// outside the normal UI sync/event pipeline.
     pub fn ui_node_dto_for_event(&self, node_id: NodeId) -> Option<UiNodeDto> {
-        let catalog_snapshot = self.build_process_tree_snapshot();
-        self.ui_node_dto_for_event_with_catalog_snapshot(node_id, catalog_snapshot.as_ref())
+        if self.catalog_creatable_items_require_tree_snapshot(node_id) {
+            let catalog_snapshot = self.build_process_tree_snapshot();
+            self.ui_node_dto_for_event_impl(node_id, Some(catalog_snapshot.as_ref()))
+        } else {
+            self.ui_node_dto_for_event_impl(node_id, None)
+        }
     }
 
     /// As `ui_node_dto_for_event`, reusing an already-built snapshot — use
@@ -3573,6 +3579,18 @@ impl<T: Node> Engine<T> {
         node_id: NodeId,
         catalog_snapshot: &ProcessTreeSnapshot,
     ) -> Option<UiNodeDto> {
+        self.ui_node_dto_for_event_impl(node_id, Some(catalog_snapshot))
+    }
+
+    pub(crate) fn ui_node_dto_for_event_without_catalog_snapshot(&self, node_id: NodeId) -> Option<UiNodeDto> {
+        self.ui_node_dto_for_event_impl(node_id, None)
+    }
+
+    fn ui_node_dto_for_event_impl(
+        &self,
+        node_id: NodeId,
+        catalog_snapshot: Option<&ProcessTreeSnapshot>,
+    ) -> Option<UiNodeDto> {
         let node = self.nodes.get(node_id)?;
         let node_data = node.node_data();
         let node_type = node.get_type().to_string();
@@ -3580,7 +3598,7 @@ impl<T: Node> Engine<T> {
 
         let data = if let Some(param) = node.engine_param_snapshot() {
             UiNodeDataDto::Parameter {
-                param: UiParamDto::from(param),
+                param: Box::new(UiParamDto::from(param)),
             }
         } else {
             UiNodeDataDto::Node {
@@ -3595,10 +3613,12 @@ impl<T: Node> Engine<T> {
 
         let mut creatable_user_items = Vec::new();
         if can_query_creatable_items {
-            for item in self
-                .catalog_creatable_items_with_snapshot(node_id, catalog_snapshot)
-                .into_iter()
-            {
+            let items = if self.catalog_creatable_items_require_tree_snapshot(node_id) {
+                self.catalog_creatable_items_with_snapshot(node_id, catalog_snapshot?)
+            } else {
+                self.catalog_creatable_items_without_snapshot(node_id)
+            };
+            for item in items {
                 creatable_user_items.push(UiCreatableUserItemDto::from(item));
             }
         }
@@ -3726,7 +3746,7 @@ impl<T: Node> Engine<T> {
             },
             EventKind::NodeCreated { node } => UiEventKind::NodeCreated {
                 node: *node,
-                snapshot: self.ui_node_dto_for_event(*node),
+                snapshot: self.ui_node_dto_for_event(*node).map(Box::new),
             },
             EventKind::NodeDeleted { node } => UiEventKind::NodeDeleted { node: *node },
             EventKind::MetaChanged { node, patch } => UiEventKind::MetaChanged {

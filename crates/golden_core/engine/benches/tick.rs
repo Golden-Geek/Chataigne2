@@ -134,7 +134,8 @@ fn bench_tick_20k_passive(c: &mut Criterion) {
 fn bench_tick_20k_sparse_active(c: &mut Criterion) {
     let mut group = c.benchmark_group("tick_20k_sparse_active");
 
-    for active_count in [200usize] {
+    {
+        let active_count = 200usize;
         let mut engine = build_sparse_active_engine(20_000, active_count);
         let elapsed = Duration::from_millis(5); // 200 Hz step
 

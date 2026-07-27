@@ -7,10 +7,16 @@ use super::stop::GradientStopNode;
 
 const STOP_ORDER_POSITION_EPSILON: f64 = 1e-10;
 
-/// Internal node hosting one gradient color-stop list.
+/// Node hosting one gradient color-stop list.
 pub struct GradientNode {
     node_data: NodeData,
     default_stops_seeded: bool,
+}
+
+impl Default for GradientNode {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GradientNode {
@@ -281,17 +287,14 @@ impl Node for GradientNode {
                         should_reorder_stops = true;
                     }
                     EventKind::ParamChanged { param, .. } => {
-                        if let Some(param_snapshot) = snapshot.node(*param) {
-                            if let Some(stop_node) = param_snapshot.parent {
-                                if let Some(stop_snapshot) = snapshot.node(stop_node) {
-                                    if stop_snapshot.parent == Some(self.id())
-                                        && stop_snapshot.node_type == GRADIENT_STOP_NODE_TYPE
-                                        && param_snapshot.decl_id == GRADIENT_STOP_POSITION_DECL_ID
-                                    {
-                                        should_reorder_stops = true;
-                                    }
-                                }
-                            }
+                        if let Some(param_snapshot) = snapshot.node(*param)
+                            && let Some(stop_node) = param_snapshot.parent
+                            && let Some(stop_snapshot) = snapshot.node(stop_node)
+                            && stop_snapshot.parent == Some(self.id())
+                            && stop_snapshot.node_type == GRADIENT_STOP_NODE_TYPE
+                            && param_snapshot.decl_id == GRADIENT_STOP_POSITION_DECL_ID
+                        {
+                            should_reorder_stops = true;
                         }
                     }
                     _ => {}

@@ -47,7 +47,7 @@ impl SoundCardModule {
             let snapshot = ctx
                 .tree_snapshot_arc()
                 .ok_or_else(|| format!("{method} requires a tree snapshot"))?;
-            self.admit_request(snapshot.as_ref(), request)
+            self.admit_and_apply_request(ctx, snapshot.as_ref(), request)
                 .map(|_| ())
                 .map_err(|error| format!("Sound Card {method} was not admitted: {error}"))
         }))

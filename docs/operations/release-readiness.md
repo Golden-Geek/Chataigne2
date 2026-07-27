@@ -12,8 +12,12 @@ It builds the production UI and invokes the workspace-pinned Tauri CLI against
 without producing installers. Platform bundles are created on their native runners by
 `.github/workflows/release.yml` and uploaded as workflow artifacts.
 
-Local packages may be unsigned. Release qualification sets `GC_REQUIRE_SIGNING=1`, which makes the
-preflight fail before compilation unless the platform credentials are present:
+Release qualification always uses unsigned native packages. Certificates, notarization credentials,
+and timestamp services are launch-time distribution concerns; they never block validation,
+cross-platform package smoke, or Sound Card completion.
+
+When a launch candidate is ready to publish, signing can be enabled separately with
+`GC_REQUIRE_SIGNING=1` and the platform credentials:
 
 - Windows: import the certificate into `Cert:\CurrentUser\My`, then provide
   `WINDOWS_CERTIFICATE_THUMBPRINT` and the issuer-approved `WINDOWS_TIMESTAMP_URL`. The checked-in
@@ -24,9 +28,10 @@ preflight fail before compilation unless the platform credentials are present:
 - Linux: provide `SIGN_KEY` for AppImage signing. RPM signing can additionally use
   `TAURI_SIGNING_RPM_KEY` and `TAURI_SIGNING_RPM_KEY_PASSPHRASE` when RPM is selected.
 
-Secrets never belong in repository configuration or generated artifacts. A release candidate is
-not qualified until its native bundle is installed on a clean environment, launched, connected to
-the engine, exercised through the canonical save/reload workflow, and removed cleanly.
+Secrets never belong in repository configuration or generated artifacts. An unsigned validation
+candidate is not qualified until its native bundle is installed on a clean environment, launched,
+connected to the engine, exercised through the canonical save/reload workflow, and removed cleanly.
+Signing and notarization are required only for the later act of public distribution.
 
 The native workflow performs that qualification with:
 

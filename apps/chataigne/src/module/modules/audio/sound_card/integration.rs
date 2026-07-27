@@ -351,7 +351,7 @@ impl SoundCardModule {
             let snapshot = ctx.tree_snapshot_arc().ok_or_else(|| {
                 command_error("Sound Card command admission requires a tree snapshot")
             })?;
-            self.admit_request(snapshot.as_ref(), request)
+            self.admit_and_apply_request(ctx, snapshot.as_ref(), request)
         });
 
         let response = match result {
@@ -423,6 +423,20 @@ impl SoundCardModule {
             },
         };
         runtime.admit(command)
+    }
+
+    pub(super) fn admit_and_apply_request(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        request: SoundCardCommandRequest,
+    ) -> Result<CommandSequence, AudioError> {
+        let authored_change = authored_gain_change(snapshot, self.id(), &request)?;
+        let sequence = self.admit_request(snapshot, request)?;
+        if let Some((parameter, value)) = authored_change {
+            ctx.set_param(parameter, value);
+        }
+        Ok(sequence)
     }
 
     fn sync_live_device_choices(
@@ -553,6 +567,20 @@ fn resolve_virtual_output(
     module: NodeId,
     reference: &NodeReference,
 ) -> Result<golden_audio::AudioChannelId, AudioError> {
+    let target = resolve_virtual_output_node(snapshot, module, reference)?;
+    let target_state = snapshot
+        .node(target)
+        .ok_or_else(|| command_error("Sound Card virtual output disappeared"))?;
+    Ok(golden_audio::AudioChannelId::from_uuid(
+        target_state.uuid.0,
+    ))
+}
+
+fn resolve_virtual_output_node(
+    snapshot: &ProcessTreeSnapshot,
+    module: NodeId,
+    reference: &NodeReference,
+) -> Result<NodeId, AudioError> {
     let target = reference
         .cached_id()
         .filter(|target| {
@@ -582,9 +610,39 @@ fn resolve_virtual_output(
             "Sound Card channel volume target belongs to another module",
         ));
     }
-    Ok(golden_audio::AudioChannelId::from_uuid(
-        target_state.uuid.0,
-    ))
+    Ok(target)
+}
+
+fn authored_gain_change(
+    snapshot: &ProcessTreeSnapshot,
+    module: NodeId,
+    request: &SoundCardCommandRequest,
+) -> Result<Option<(NodeId, ParamValue)>, AudioError> {
+    match request {
+        SoundCardCommandRequest::SetMasterVolume { gain } => {
+            let parameter = find_path(snapshot, module, "parameters/master_volume_db")
+                .ok_or_else(|| command_error("Sound Card master-volume parameter is missing"))?;
+            Ok(Some((
+                parameter,
+                ParamValue::Float(f64::from(gain.get())),
+            )))
+        }
+        SoundCardCommandRequest::SetChannelVolume {
+            virtual_output,
+            gain,
+        } => {
+            let output =
+                resolve_virtual_output_node(snapshot, module, virtual_output)?;
+            let parameter = find_path(snapshot, output, "volume_db").ok_or_else(|| {
+                command_error("Sound Card virtual-output volume parameter is missing")
+            })?;
+            Ok(Some((
+                parameter,
+                ParamValue::Float(f64::from(gain.get())),
+            )))
+        }
+        _ => Ok(None),
+    }
 }
 
 fn command_error(message: impl Into<String>) -> AudioError {

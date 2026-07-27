@@ -2,10 +2,17 @@ use std::{fs, time::Duration};
 
 use crate::{GainDb, NullBackend, SampleRate};
 
-use super::super::{ManagedDeviceSoakOptions, ReferenceWorkload, run_managed_device_soak, write_reference_wave};
+use super::super::{
+    DeadlineMissAcceptance, ManagedDeviceSoakOptions, ReferenceWorkload, run_managed_device_soak, write_reference_wave,
+};
 
 #[test]
 fn managed_soak_options_reject_offline_and_unbounded_timing_shapes() {
+    assert_eq!(
+        ManagedDeviceSoakOptions::default().deadline_miss_acceptance,
+        DeadlineMissAcceptance::RequireZero
+    );
+
     let zero_duration = ManagedDeviceSoakOptions {
         duration: Duration::ZERO,
         ..ManagedDeviceSoakOptions::default()
@@ -51,6 +58,7 @@ fn null_backend_soak_advances_signal_and_completes_planned_recovery() {
         poll_interval: Duration::from_millis(25),
         readiness_timeout: Duration::from_secs(2),
         recovery_interval: Some(Duration::from_millis(200)),
+        deadline_miss_acceptance: DeadlineMissAcceptance::RecordOnly,
         workload: ReferenceWorkload::Medium,
         playback_gain: GainDb::new(-48.0).unwrap(),
         revision: "null-backend-test".to_owned(),
@@ -62,6 +70,7 @@ fn null_backend_soak_advances_signal_and_completes_planned_recovery() {
     assert!(report.passed, "{:#?}", report.failures);
     assert!(report.runtime.rendered_frames > 0);
     assert!(report.output_global_max_rms > 0.0);
+    assert_eq!(report.deadline_miss_acceptance, DeadlineMissAcceptance::RecordOnly);
     assert!(report.playback_starts >= 32);
     assert!(report.attempted_recovery_cycles >= 2);
     assert_eq!(report.completed_recovery_cycles, report.attempted_recovery_cycles);

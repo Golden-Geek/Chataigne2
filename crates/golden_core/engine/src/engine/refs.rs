@@ -229,33 +229,36 @@ impl<T: Node> Engine<T> {
         let mut resolved = None;
         let mut resolved_but_rejected = false;
 
-        if let Some(candidate) = reference.cached_id() {
-            if self.nodes.contains(candidate) {
-                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
-                    resolved = Some(candidate);
-                } else {
-                    resolved_but_rejected = true;
-                }
+        if let Some(candidate) = reference.cached_id()
+            && self.nodes.contains(candidate)
+        {
+            if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                resolved = Some(candidate);
+            } else {
+                resolved_but_rejected = true;
             }
         }
 
-        if resolved.is_none() && !reference.uuid().is_nil() {
-            if let Some(candidate) = self.node_id_by_uuid(reference.uuid()) {
-                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
-                    resolved = Some(candidate);
-                } else {
-                    resolved_but_rejected = true;
-                }
+        if resolved.is_none()
+            && !reference.uuid().is_nil()
+            && let Some(candidate) = self.node_id_by_uuid(reference.uuid())
+        {
+            if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                resolved = Some(candidate);
+            } else {
+                resolved_but_rejected = true;
             }
         }
 
-        if resolved.is_none() && reference.uuid().is_nil() && !reference.relative_path_from_root().is_empty() {
-            if let Some(candidate) = self.resolve_relative_decl_path(root, reference.relative_path_from_root()) {
-                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
-                    resolved = Some(candidate);
-                } else {
-                    resolved_but_rejected = true;
-                }
+        if resolved.is_none()
+            && reference.uuid().is_nil()
+            && !reference.relative_path_from_root().is_empty()
+            && let Some(candidate) = self.resolve_relative_decl_path(root, reference.relative_path_from_root())
+        {
+            if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                resolved = Some(candidate);
+            } else {
+                resolved_but_rejected = true;
             }
         }
 
@@ -386,13 +389,10 @@ impl<T: Node> Engine<T> {
             return None;
         }
         let controlled_param = param_entry.node_data().parent?;
-        let Some(control_state) = self
+        let control_state = self
             .nodes
             .get(controlled_param)
-            .and_then(|node| node.engine_param_control_state())
-        else {
-            return None;
-        };
+            .and_then(|node| node.engine_param_control_state())?;
         if !matches!(
             control_state.mode,
             ParameterControlMode::Proxy | ParameterControlMode::Binding
@@ -426,10 +426,10 @@ impl<T: Node> Engine<T> {
             .filter_map(|allowed| default_param_value_for_type_id(allowed))
             .collect::<Vec<_>>();
 
-        if expected_values.is_empty() {
-            if let Some(control_reference_value) = self.control_reference_expected_value(param_node) {
-                expected_values.push(control_reference_value);
-            }
+        if expected_values.is_empty()
+            && let Some(control_reference_value) = self.control_reference_expected_value(param_node)
+        {
+            expected_values.push(control_reference_value);
         }
 
         expected_values

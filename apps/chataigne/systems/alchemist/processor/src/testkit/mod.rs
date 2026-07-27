@@ -27,6 +27,12 @@ pub struct TestGraph {
     edges: Vec<AEdge>,
 }
 
+impl Default for TestGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestGraph {
     pub fn new() -> Self {
         Self {

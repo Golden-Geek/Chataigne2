@@ -396,6 +396,10 @@ impl Node for ModuleCommandTester {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == "module_command_tester").then(Self::create_for_project_decode)
     }

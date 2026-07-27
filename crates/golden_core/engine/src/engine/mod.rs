@@ -54,6 +54,7 @@ use node_store::NodeStore;
 
 /// Error type returned when validating or applying edits.
 pub use error::EngineEditError;
+pub(crate) use persistence::DuplicateDispatchOptions;
 /// Current project file format version.
 pub use persistence::PROJECT_FILE_VERSION;
 /// Persisted project file DTO.

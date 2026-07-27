@@ -43,6 +43,10 @@ impl Node for SoundCardVirtualInputList {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[VIRTUAL_INPUT_ITEM_KIND]))
     }
@@ -80,6 +84,10 @@ impl Node for SoundCardVirtualOutputList {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -123,6 +131,10 @@ impl Node for SoundCardInputProfileList {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[INPUT_PROFILE_ITEM_KIND]))
     }
@@ -160,6 +172,10 @@ impl Node for SoundCardOutputProfileList {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -203,6 +219,10 @@ impl Node for SoundCardMonitorRouteList {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[MONITOR_ROUTE_ITEM_KIND]))
     }
@@ -243,6 +263,10 @@ impl Node for SoundCardPlaybackRouteList {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[PLAYBACK_ROUTE_ITEM_KIND]))
     }
@@ -280,6 +304,10 @@ impl Node for SoundCardAnalysisList {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -335,6 +363,10 @@ impl Node for SoundCardVirtualInput {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
@@ -356,6 +388,10 @@ impl Node for SoundCardVirtualOutput {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -394,6 +430,10 @@ impl Node for SoundCardInputProfile {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -453,6 +493,10 @@ impl Node for SoundCardOutputProfile {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -525,6 +569,10 @@ impl Node for SoundCardInputPatchRoute {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
@@ -570,6 +618,10 @@ impl Node for SoundCardOutputPatchRoute {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -625,6 +677,10 @@ impl Node for SoundCardMonitorRoute {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
@@ -648,7 +704,6 @@ impl Node for SoundCardMonitorRoute {
 pub struct SoundCardPlaybackRoute {}
 
 impl SoundCardPlaybackRoute {
-    #[cfg(test)]
     pub(crate) fn with_target(
         source_channel: i32,
         virtual_output: NodeReference,
@@ -671,6 +726,10 @@ impl Node for SoundCardPlaybackRoute {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -731,6 +790,10 @@ impl Node for SoundCardChannelMeter {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
@@ -782,6 +845,10 @@ impl Node for SoundCardPitchAnalyzer {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 
@@ -851,6 +918,10 @@ impl Node for SoundCardSpectrumAnalyzer {
         false
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
@@ -904,6 +975,10 @@ impl Node for SoundCardSpectrumBand {
     }
 
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
         false
     }
 

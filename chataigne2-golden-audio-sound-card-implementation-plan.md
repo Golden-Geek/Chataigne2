@@ -1345,7 +1345,8 @@ Tasks:
 - Run the full Windows, macOS, and Linux matrix at the exact commit.
 - Qualify package startup with optional servers/drivers missing.
 - Qualify required real hardware/backend combinations.
-- Verify macOS permissions and signed package behavior.
+- Verify macOS permissions and unsigned package behavior. Signing, notarization, and certificate
+  availability are launch-time distribution concerns and must never block validation.
 - Verify Linux packaged native-library behavior.
 - Verify ASIO/JACK/PipeWire availability reporting.
 - Run dependency, license, unused-dependency, formatting, Clippy, Rust tests, UI tests, package checks, and all run modes.

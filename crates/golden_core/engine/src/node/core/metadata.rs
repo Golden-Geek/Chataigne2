@@ -388,7 +388,7 @@ impl NodeMeta {
         self.presentation.set_child_warning_depth(max_depth)
     }
 
-    fn generate_short_name(label: &String) -> String {
+    fn generate_short_name(label: &str) -> String {
         let mut short_name = String::new();
         let mut capitalize_next = false;
         for c in label.chars() {

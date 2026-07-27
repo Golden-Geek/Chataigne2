@@ -563,7 +563,7 @@ fn apply_events_to_store(store: &mut HashMap<NodeId, UiNodeDto>, events: &[UiEve
 fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, op: &UiGraphOp) {
     match op {
         UiGraphOp::NodeCreated { snapshot, .. } => {
-            store.insert(snapshot.node_id, snapshot.clone());
+            store.insert(snapshot.node_id, snapshot.as_ref().clone());
         }
         UiGraphOp::SubtreeInserted {
             nodes,
@@ -607,17 +607,17 @@ fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, op: &UiGraphOp) {
             }
         }
         UiGraphOp::ParamPatched { param, patch, .. } => {
-            if let Some(dto) = store.get_mut(param) {
-                if let UiNodeDataDto::Parameter { param: param_dto } = &mut dto.data {
-                    if let Some(value) = &patch.value {
-                        param_dto.value = value.clone();
-                    }
-                    if let Some(control) = &patch.control {
-                        param_dto.control = control.clone();
-                    }
-                    if let Some(constraints) = &patch.constraints {
-                        param_dto.constraints = constraints.clone();
-                    }
+            if let Some(dto) = store.get_mut(param)
+                && let UiNodeDataDto::Parameter { param: param_dto } = &mut dto.data
+            {
+                if let Some(value) = &patch.value {
+                    param_dto.value = value.clone();
+                }
+                if let Some(control) = &patch.control {
+                    param_dto.control = control.clone();
+                }
+                if let Some(constraints) = &patch.constraints {
+                    param_dto.constraints = constraints.clone();
                 }
             }
         }
@@ -627,10 +627,10 @@ fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, op: &UiGraphOp) {
 }
 
 fn apply_children_order(store: &mut HashMap<NodeId, UiNodeDto>, patch: Option<&UiChildrenOrderPatch>) {
-    if let Some(patch) = patch {
-        if let Some(node) = store.get_mut(&patch.parent) {
-            node.children.clone_from(&patch.children);
-        }
+    if let Some(patch) = patch
+        && let Some(node) = store.get_mut(&patch.parent)
+    {
+        node.children.clone_from(&patch.children);
     }
 }
 
@@ -791,10 +791,10 @@ fn append_retained_ui_event(events: &mut VecDeque<UiEventDto>, store: &HashMap<N
     }
 
     let mut event = event;
-    if let Some(index) = previous_index {
-        if let Some(previous) = events.remove(index) {
-            preserve_ui_param_changed_old_value(&mut event.kind, previous.kind);
-        }
+    if let Some(index) = previous_index
+        && let Some(previous) = events.remove(index)
+    {
+        preserve_ui_param_changed_old_value(&mut event.kind, previous.kind);
     }
     events.push_back(event);
 }
@@ -821,9 +821,7 @@ fn coalescable_param_changed_event_param(store: &HashMap<NodeId, UiNodeDto>, eve
         return None;
     }
 
-    let Some(node) = store.get(param) else {
-        return None;
-    };
+    let node = store.get(param)?;
     let UiNodeDataDto::Parameter { param: param_dto } = &node.data else {
         return None;
     };
@@ -969,7 +967,7 @@ fn event_candidate_nodes(event: &UiEventDto) -> Vec<NodeId> {
         UiEventKind::NodeCreated { node, .. } => vec![*node],
         UiEventKind::NodeDeleted { node } => vec![*node],
         UiEventKind::MetaChanged { node, .. } => vec![*node],
-        UiEventKind::Custom { origin, .. } => origin.into_iter().copied().collect(),
+        UiEventKind::Custom { origin, .. } => origin.iter().copied().collect(),
     }
 }
 

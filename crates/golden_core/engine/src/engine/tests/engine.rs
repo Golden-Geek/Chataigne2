@@ -1153,10 +1153,10 @@ impl Node for SharedDeclaredDescriptionNode {}
 impl Node for ManualInboxParamsNode {
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         for event in &ctx.events {
-            if let EventKind::ParamChanged { param, .. } = &event.kind {
-                if *param == self.value.id() {
-                    self.observed_inbox_value = Some(self.value.get());
-                }
+            if let EventKind::ParamChanged { param, .. } = &event.kind
+                && *param == self.value.id()
+            {
+                self.observed_inbox_value = Some(self.value.get());
             }
         }
     }
@@ -7477,8 +7477,8 @@ fn ui_intents_manage_user_context_scope_and_entries() {
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert!(topics.iter().any(|topic| *topic == "__user_context.scope_changed"));
-    assert!(topics.iter().any(|topic| *topic == "__user_context.entry_changed"));
+    assert!(topics.contains(&"__user_context.scope_changed"));
+    assert!(topics.contains(&"__user_context.entry_changed"));
 }
 
 #[test]
@@ -13008,7 +13008,7 @@ fn param_cache_is_updated_incrementally_by_set_param_and_structural_changes() {
     );
 
     // AddNode of a param child → cache entry populated.
-    let child_param = Parameter::new("child_param", ParamValue::Float(3.14), ParameterChangeCheck::None);
+    let child_param = Parameter::new("child_param", ParamValue::Float(3.125), ParameterChangeCheck::None);
     engine.edits.push(Edit::AddNode {
         parent: root_id,
         node: Box::new(child_param),
@@ -13022,7 +13022,7 @@ fn param_cache_is_updated_incrementally_by_set_param_and_structural_changes() {
         .expect("child param should exist");
     assert_eq!(
         engine.parameter_values_cache.get(&child_id).cloned(),
-        Some(ParamValue::Float(3.14)),
+        Some(ParamValue::Float(3.125)),
         "cache should be populated after AddNode of a param node"
     );
 

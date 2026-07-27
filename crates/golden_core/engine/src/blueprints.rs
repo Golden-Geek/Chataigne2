@@ -225,12 +225,12 @@ impl<T: Node> BlueprintRegistry<T> {
 
     /// Registers one runtime instance root.
     pub fn register_instance(&mut self, root: NodeId, meta: BlueprintInstanceMeta) {
-        if let Some(previous) = self.instance_meta_by_root.remove(&root) {
-            if let Some(roots) = self.instances_by_blueprint.get_mut(&previous.blueprint_id) {
-                roots.retain(|candidate| *candidate != root);
-                if roots.is_empty() {
-                    self.instances_by_blueprint.remove(&previous.blueprint_id);
-                }
+        if let Some(previous) = self.instance_meta_by_root.remove(&root)
+            && let Some(roots) = self.instances_by_blueprint.get_mut(&previous.blueprint_id)
+        {
+            roots.retain(|candidate| *candidate != root);
+            if roots.is_empty() {
+                self.instances_by_blueprint.remove(&previous.blueprint_id);
             }
         }
 
