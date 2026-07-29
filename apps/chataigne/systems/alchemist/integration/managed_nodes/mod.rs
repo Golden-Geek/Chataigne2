@@ -1,28 +1,24 @@
-use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
 use golden_core::{
     engine::NodeExecutionRule,
     events::{Event, EventFrame, EventKind},
     item, node,
     node::{
-        Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions,
-        UserContainerRules, UserCreatableItem,
+        Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions, UserContainerRules,
+        UserCreatableItem,
     },
     parameter::{ParamValue, ReferenceTargetKind},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 const INPUT_ITEM_KIND: &str = "sm_input";
-use crate::app::module_command::{
-    self, ModuleCommandDeliveryPolicy, ModuleCommandInvocationId,
-    ModuleCommandParamOverrides,
-};
-use crate::app::systems_alchemist_generic_commands::{
-    GENERIC_COMMAND_ITEM_KIND, GENERIC_LOG_COMMAND_NODE_TYPE,
-    LOG_INVOCATION_CHANGE_MIN_TICKS, LOG_INVOCATION_KEEPALIVE_TICKS,
-    LOG_INVOCATION_RECENCY_TOUCH_TICKS, LOG_INVOCATION_STALE_TICKS,
-    MAX_LOG_INVOCATIONS, MAX_LOG_PRUNE_STEPS_PER_EVENT,
-};
+use crate::app::module_command;
+use crate::app::systems_alchemist_generic_commands::{GENERIC_COMMAND_ITEM_KIND, GENERIC_LOG_COMMAND_NODE_TYPE};
+
+mod schedule;
+
+pub(crate) use schedule::{OutputRuntimeTarget, OutputSchedule};
 const GENERIC_OUTPUT_MENU_PATH: &str = "Generic";
 
 // ─── Output scheduling (shared by OutputsManager and OutputGroup) ────────────
@@ -41,180 +37,6 @@ const OUTPUT_STAGGER_DECL: &str = "stagger";
 const OUTPUT_CANCEL_DECL: &str = "cancel_on_trigger";
 const OUTPUT_SCHEDULE_UPDATE_RATE_HZ: u32 = 60;
 
-/// Runtime-only queue of outputs waiting to fire (not persisted).
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
-pub(crate) struct OutputSchedule {
-    pending: Vec<PendingOutput>,
-    log_admission: OutputLogAdmissionCache,
-}
-
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-struct PendingOutput {
-    target: NodeId,
-    remaining: f64,
-    param_overrides: ModuleCommandParamOverrides,
-    invocation_id: Option<ModuleCommandInvocationId>,
-    delivery_policy: ModuleCommandDeliveryPolicy,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-struct OutputRuntimeTarget {
-    node: NodeId,
-    change_aware_log: bool,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-struct OutputLogInvocationKey {
-    target: NodeId,
-    invocation_id: ModuleCommandInvocationId,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
-struct OutputLogAdmissionCache {
-    records: HashMap<OutputLogInvocationKey, OutputLogAdmissionRecord>,
-    recency: VecDeque<(OutputLogInvocationKey, u64)>,
-    next_generation: u64,
-    budget_tick: Option<u64>,
-    emissions_this_tick: usize,
-}
-
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-struct OutputLogAdmissionRecord {
-    param_overrides: ModuleCommandParamOverrides,
-    emitted_tick: u64,
-    last_seen_tick: u64,
-    recency_tick: u64,
-    generation: u64,
-}
-
-impl OutputLogAdmissionCache {
-    fn should_emit(
-        &mut self,
-        key: OutputLogInvocationKey,
-        param_overrides: &ModuleCommandParamOverrides,
-        tick: u64,
-    ) -> bool {
-        if self.budget_tick != Some(tick) {
-            self.budget_tick = Some(tick);
-            self.emissions_this_tick = 0;
-        }
-        self.prune_stale(tick);
-
-        let mut touch_recency = false;
-        if let Some(previous) = self.records.get_mut(&key) {
-            previous.last_seen_tick = tick;
-            touch_recency = tick.saturating_sub(previous.recency_tick)
-                >= LOG_INVOCATION_RECENCY_TOUCH_TICKS;
-            let minimum_ticks = if previous.param_overrides == *param_overrides {
-                LOG_INVOCATION_KEEPALIVE_TICKS
-            } else {
-                LOG_INVOCATION_CHANGE_MIN_TICKS
-            };
-            if tick.saturating_sub(previous.emitted_tick) < minimum_ticks {
-                if touch_recency {
-                    self.touch(key, tick);
-                }
-                return false;
-            }
-        }
-
-        if self.emissions_this_tick >= 1 {
-            if touch_recency {
-                self.touch(key, tick);
-            }
-            return false;
-        }
-
-        self.emissions_this_tick += 1;
-        self.record_emission(key, param_overrides, tick);
-        true
-    }
-
-    fn record_emission(
-        &mut self,
-        key: OutputLogInvocationKey,
-        param_overrides: &ModuleCommandParamOverrides,
-        tick: u64,
-    ) {
-        if !self.records.contains_key(&key) {
-            self.make_room();
-        }
-        let generation = self.allocate_generation();
-        let record = self
-            .records
-            .entry(key)
-            .or_insert_with(|| OutputLogAdmissionRecord {
-                param_overrides: Vec::new(),
-                emitted_tick: tick,
-                last_seen_tick: tick,
-                recency_tick: tick,
-                generation,
-            });
-        record.param_overrides.clone_from(param_overrides);
-        record.emitted_tick = tick;
-        record.last_seen_tick = tick;
-        record.recency_tick = tick;
-        record.generation = generation;
-        self.recency.push_back((key, generation));
-    }
-
-    fn touch(&mut self, key: OutputLogInvocationKey, tick: u64) {
-        let generation = self.allocate_generation();
-        let Some(record) = self.records.get_mut(&key) else {
-            return;
-        };
-        record.recency_tick = tick;
-        record.generation = generation;
-        self.recency.push_back((key, generation));
-    }
-
-    fn allocate_generation(&mut self) -> u64 {
-        let generation = self.next_generation;
-        self.next_generation = self
-            .next_generation
-            .checked_add(1)
-            .expect("output log admission generation exhausted");
-        generation
-    }
-
-    fn prune_stale(&mut self, tick: u64) {
-        for _ in 0..MAX_LOG_PRUNE_STEPS_PER_EVENT {
-            let Some((key, generation)) = self.recency.front().copied() else {
-                break;
-            };
-            let Some(record) = self.records.get(&key) else {
-                self.recency.pop_front();
-                continue;
-            };
-            if record.generation != generation {
-                self.recency.pop_front();
-                continue;
-            }
-            if tick.saturating_sub(record.last_seen_tick) < LOG_INVOCATION_STALE_TICKS {
-                break;
-            }
-            self.recency.pop_front();
-            self.records.remove(&key);
-        }
-    }
-
-    fn make_room(&mut self) {
-        while self.records.len() >= MAX_LOG_INVOCATIONS {
-            let Some((key, generation)) = self.recency.pop_front() else {
-                self.records.clear();
-                return;
-            };
-            if self
-                .records
-                .get(&key)
-                .is_some_and(|record| record.generation == generation)
-            {
-                self.records.remove(&key);
-            }
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 struct OutputRuntimeCache {
     dirty: bool,
@@ -225,7 +47,7 @@ struct OutputRuntimeCache {
     delay: f64,
     stagger: f64,
     cancel_on_trigger: bool,
-    outputs: Vec<OutputRuntimeTarget>,
+    outputs: Arc<[OutputRuntimeTarget]>,
 }
 
 impl Default for OutputRuntimeCache {
@@ -239,99 +61,12 @@ impl Default for OutputRuntimeCache {
             delay: 0.0,
             stagger: 0.0,
             cancel_on_trigger: false,
-            outputs: Vec::new(),
+            outputs: Arc::default(),
         }
     }
 }
 
-impl OutputSchedule {
-    fn is_empty(&self) -> bool {
-        self.pending.is_empty()
-    }
-
-    fn on_trigger_cached(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        cache: &OutputRuntimeCache,
-        param_overrides: ModuleCommandParamOverrides,
-        invocation_id: Option<module_command::ModuleCommandInvocationId>,
-    ) {
-        if cache.cancel_on_trigger {
-            self.pending.clear();
-        }
-
-        for (index, target) in cache.outputs.iter().copied().enumerate() {
-            let child = target.node;
-            let delivery_policy = if let (true, Some(invocation_id)) =
-                (target.change_aware_log, invocation_id)
-            {
-                let key = OutputLogInvocationKey {
-                    target: child,
-                    invocation_id,
-                };
-                if !self
-                    .log_admission
-                    .should_emit(key, &param_overrides, ctx.time.tick)
-                {
-                    continue;
-                }
-                ModuleCommandDeliveryPolicy::ChangeAwareLogAdmitted
-            } else {
-                ModuleCommandDeliveryPolicy::Standard
-            };
-            let remaining = cache.delay + (index as f64) * cache.stagger;
-            if remaining <= f64::EPSILON {
-                let _ = module_command::emit_command_execute_with_invocation(
-                    ctx,
-                    child,
-                    param_overrides.clone(),
-                    invocation_id,
-                    delivery_policy,
-                );
-            } else {
-                self.pending.push(PendingOutput {
-                    target: child,
-                    remaining,
-                    param_overrides: param_overrides.clone(),
-                    invocation_id,
-                    delivery_policy,
-                });
-            }
-        }
-    }
-
-    /// Advances pending outputs by `delta_seconds` and fires the ones now due.
-    fn tick(&mut self, ctx: &mut ProcessCtx, delta_seconds: f64) {
-        if self.pending.is_empty() {
-            return;
-        }
-        let mut due: Vec<PendingOutput> = Vec::new();
-        self.pending.retain_mut(|pending| {
-            pending.remaining -= delta_seconds;
-            if pending.remaining <= f64::EPSILON {
-                due.push(pending.clone());
-                false
-            } else {
-                true
-            }
-        });
-        for pending in due {
-            let _ = module_command::emit_command_execute_with_invocation(
-                ctx,
-                pending.target,
-                pending.param_overrides,
-                pending.invocation_id,
-                pending.delivery_policy,
-            );
-        }
-    }
-}
-
-fn refresh_output_runtime_cache(
-    cache: &mut OutputRuntimeCache,
-    snapshot: &ProcessTreeSnapshot,
-    container: NodeId,
-) {
+fn refresh_output_runtime_cache(cache: &mut OutputRuntimeCache, snapshot: &ProcessTreeSnapshot, container: NodeId) {
     cache.trigger_param = snapshot.find_child_by_decl_id(container, OUTPUT_TRIGGER_DECL);
     cache.delay_param = output_advanced_child(snapshot, container, OUTPUT_DELAY_DECL);
     cache.stagger_param = output_advanced_child(snapshot, container, OUTPUT_STAGGER_DECL);
@@ -342,8 +77,7 @@ fn refresh_output_runtime_cache(
     cache.stagger = output_float_child(snapshot, container, OUTPUT_STAGGER_DECL)
         .unwrap_or(0.0)
         .max(0.0);
-    cache.cancel_on_trigger =
-        output_bool_child(snapshot, container, OUTPUT_CANCEL_DECL).unwrap_or(false);
+    cache.cancel_on_trigger = output_bool_child(snapshot, container, OUTPUT_CANCEL_DECL).unwrap_or(false);
     cache.outputs = snapshot
         .child_ids(container)
         .into_iter()
@@ -354,16 +88,17 @@ fn refresh_output_runtime_cache(
             change_aware_log: snapshot
                 .node(node)
                 .is_some_and(|node| node.node_type == GENERIC_LOG_COMMAND_NODE_TYPE),
+            batchable: snapshot
+                .node(node)
+                .is_some_and(|node| node.node_type == GENERIC_LOG_COMMAND_NODE_TYPE)
+                || is_output_container(snapshot, node),
         })
-        .collect();
+        .collect::<Vec<_>>()
+        .into();
     cache.dirty = false;
 }
 
-fn output_cache_requires_snapshot(
-    cache: &OutputRuntimeCache,
-    container: NodeId,
-    events: &EventFrame,
-) -> bool {
+fn output_cache_requires_snapshot(cache: &OutputRuntimeCache, container: NodeId, events: &EventFrame) -> bool {
     events.iter().any(|event| match &event.kind {
         EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } => true,
         EventKind::ParamChanged { param, .. } => {
@@ -373,10 +108,41 @@ fn output_cache_requires_snapshot(
                 || Some(*param) == cache.cancel_param
         }
         EventKind::Custom(custom) => {
-            cache.dirty && crate::app::module_command::is_command_execute_request(custom, container)
+            cache.dirty
+                && (crate::app::module_command::is_command_execute_request(custom, container)
+                    || crate::app::module_command::is_command_execute_batch_request(custom, container))
         }
         _ => true,
     })
+}
+
+fn handle_output_execute_event(
+    schedule: &mut OutputSchedule,
+    cache: &mut OutputRuntimeCache,
+    ctx: &mut ProcessCtx,
+    container: NodeId,
+    event: &golden_core::events::CustomEvent,
+) {
+    let execute = module_command::command_execute_request(event, container);
+    let execute_batch = execute
+        .is_none()
+        .then(|| module_command::command_execute_batch_requests(event, container))
+        .flatten();
+    if execute.is_none() && execute_batch.is_none() {
+        return;
+    }
+
+    if cache.dirty {
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            refresh_output_runtime_cache(cache, snapshot, container);
+        }
+    }
+
+    if let Some(execute) = execute {
+        schedule.on_trigger_cached(ctx, container, cache, execute.param_overrides, execute.invocation_id);
+    } else if let Some(executions) = execute_batch {
+        schedule.on_trigger_batch_cached(ctx, container, cache, executions);
+    }
 }
 
 /// `true` for nodes that behave as outputs: module commands, generic commands,
@@ -394,41 +160,25 @@ pub(crate) fn is_output_node(snapshot: &ProcessTreeSnapshot, node: NodeId) -> bo
 /// `true` when `node` is a container that schedules outputs (Outputs manager or
 /// Output group).
 pub(crate) fn is_output_container(snapshot: &ProcessTreeSnapshot, node: NodeId) -> bool {
-    snapshot.node(node).is_some_and(|node| {
-        node.node_type == OutputsManager::NODE_TYPE || node.node_type == OUTPUT_GROUP_NODE_TYPE
-    })
+    snapshot
+        .node(node)
+        .is_some_and(|node| node.node_type == OutputsManager::NODE_TYPE || node.node_type == OUTPUT_GROUP_NODE_TYPE)
 }
 
-fn output_float_child(
-    snapshot: &ProcessTreeSnapshot,
-    container: NodeId,
-    decl_id: &str,
-) -> Option<f64> {
+fn output_float_child(snapshot: &ProcessTreeSnapshot, container: NodeId, decl_id: &str) -> Option<f64> {
     output_child_param(snapshot, container, decl_id).and_then(|value| value.as_float())
 }
 
-fn output_bool_child(
-    snapshot: &ProcessTreeSnapshot,
-    container: NodeId,
-    decl_id: &str,
-) -> Option<bool> {
+fn output_bool_child(snapshot: &ProcessTreeSnapshot, container: NodeId, decl_id: &str) -> Option<bool> {
     output_child_param(snapshot, container, decl_id).and_then(|value| value.as_bool())
 }
 
-fn output_child_param(
-    snapshot: &ProcessTreeSnapshot,
-    container: NodeId,
-    decl_id: &str,
-) -> Option<ParamValue> {
+fn output_child_param(snapshot: &ProcessTreeSnapshot, container: NodeId, decl_id: &str) -> Option<ParamValue> {
     let child = output_advanced_child(snapshot, container, decl_id)?;
     snapshot.node(child).and_then(|node| node.param_value.clone())
 }
 
-fn output_advanced_child(
-    snapshot: &ProcessTreeSnapshot,
-    container: NodeId,
-    decl_id: &str,
-) -> Option<NodeId> {
+fn output_advanced_child(snapshot: &ProcessTreeSnapshot, container: NodeId, decl_id: &str) -> Option<NodeId> {
     let advanced = snapshot.find_child_by_decl_id(container, OUTPUT_ADVANCED_DECL)?;
     snapshot.find_child_by_decl_id(advanced, decl_id)
 }
@@ -437,27 +187,15 @@ fn sync_output_control_visibility(ctx: &mut ProcessCtx, container: NodeId) {
     sync_output_control_visibility_with_change(ctx, container, OutputChildChange::None);
 }
 
-fn sync_output_control_visibility_after_child_added(
-    ctx: &mut ProcessCtx,
-    container: NodeId,
-    child: NodeId,
-) {
+fn sync_output_control_visibility_after_child_added(ctx: &mut ProcessCtx, container: NodeId, child: NodeId) {
     sync_output_control_visibility_with_change(ctx, container, OutputChildChange::Added(child));
 }
 
-fn sync_output_control_visibility_after_child_removed(
-    ctx: &mut ProcessCtx,
-    container: NodeId,
-    child: NodeId,
-) {
+fn sync_output_control_visibility_after_child_removed(ctx: &mut ProcessCtx, container: NodeId, child: NodeId) {
     sync_output_control_visibility_with_change(ctx, container, OutputChildChange::Removed(child));
 }
 
-fn sync_output_control_visibility_with_change(
-    ctx: &mut ProcessCtx,
-    container: NodeId,
-    change: OutputChildChange,
-) {
+fn sync_output_control_visibility_with_change(ctx: &mut ProcessCtx, container: NodeId, change: OutputChildChange) {
     let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
         return;
     };
@@ -465,23 +203,10 @@ fn sync_output_control_visibility_with_change(
     let stagger_visible = output_item_count_after_change(snapshot, container, change) >= 2;
     let cancel_visible = output_float_child(snapshot, container, OUTPUT_DELAY_DECL)
         .is_some_and(|delay| delay > f64::EPSILON)
-        || output_float_child(snapshot, container, OUTPUT_STAGGER_DECL)
-            .is_some_and(|stagger| stagger > f64::EPSILON);
+        || output_float_child(snapshot, container, OUTPUT_STAGGER_DECL).is_some_and(|stagger| stagger > f64::EPSILON);
 
-    patch_output_control_visibility(
-        ctx,
-        snapshot,
-        container,
-        OUTPUT_STAGGER_DECL,
-        stagger_visible,
-    );
-    patch_output_control_visibility(
-        ctx,
-        snapshot,
-        container,
-        OUTPUT_CANCEL_DECL,
-        cancel_visible,
-    );
+    patch_output_control_visibility(ctx, snapshot, container, OUTPUT_STAGGER_DECL, stagger_visible);
+    patch_output_control_visibility(ctx, snapshot, container, OUTPUT_CANCEL_DECL, cancel_visible);
 }
 
 fn patch_output_control_visibility(
@@ -532,11 +257,7 @@ fn output_item_count_after_change(
     let adjusted = match change {
         OutputChildChange::None => count,
         OutputChildChange::Added(child) if !child_ids.contains(&child) => count + 1,
-        OutputChildChange::Removed(child)
-            if child_ids.contains(&child) && is_output_node(snapshot, child) =>
-        {
-            count - 1
-        }
+        OutputChildChange::Removed(child) if child_ids.contains(&child) && is_output_node(snapshot, child) => count - 1,
         _ => count,
     };
     adjusted.max(0) as usize
@@ -606,8 +327,7 @@ impl Node for ConditionManager {
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == "sm_condition"
-            && crate::app::declared_user_item_type_matches(item_type, "sm_condition")
+        item_kind == "sm_condition" && crate::app::declared_user_item_type_matches(item_type, "sm_condition")
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
@@ -634,8 +354,7 @@ impl Node for ConsequencesManager {
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == "sm_consequence"
-            && crate::app::declared_user_item_type_matches(item_type, "sm_consequence")
+        item_kind == "sm_consequence" && crate::app::declared_user_item_type_matches(item_type, "sm_consequence")
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
@@ -665,8 +384,7 @@ impl Node for InputsManager {
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == INPUT_ITEM_KIND
-            && crate::app::declared_user_item_type_matches(item_type, INPUT_ITEM_KIND)
+        item_kind == INPUT_ITEM_KIND && crate::app::declared_user_item_type_matches(item_type, INPUT_ITEM_KIND)
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
@@ -716,8 +434,7 @@ impl Node for FilterChainManager {
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == "sm_filter"
-            && crate::app::declared_user_item_type_matches(item_type, "sm_filter")
+        item_kind == "sm_filter" && crate::app::declared_user_item_type_matches(item_type, "sm_filter")
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
@@ -785,8 +502,7 @@ fn output_generic_items() -> Vec<UserCreatableItem> {
 }
 
 fn output_group_item() -> UserCreatableItem {
-    UserCreatableItem::new(OUTPUT_GROUP_NODE_TYPE, OUTPUT_GROUP_ITEM_KIND, "Group")
-        .with_select_when_created(false)
+    UserCreatableItem::new(OUTPUT_GROUP_NODE_TYPE, OUTPUT_GROUP_ITEM_KIND, "Group").with_select_when_created(false)
 }
 
 fn output_container_accepts_item(item_type: &str, item_kind: &str) -> bool {
@@ -803,10 +519,7 @@ fn output_container_accepts_item(item_type: &str, item_kind: &str) -> bool {
 fn output_container_create_item(node_type: &str) -> Option<Box<dyn Node>> {
     crate::app::create_declared_user_item(node_type, GENERIC_COMMAND_ITEM_KIND)
         .or_else(|| {
-            crate::app::create_declared_user_item(
-                node_type,
-                crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
-            )
+            crate::app::create_declared_user_item(node_type, crate::app::module_command::MODULE_COMMAND_ITEM_KIND)
         })
         .or_else(|| crate::app::create_declared_user_item(node_type, OUTPUT_GROUP_ITEM_KIND))
 }
@@ -818,10 +531,7 @@ fn collect_module_roots(snapshot: &ProcessTreeSnapshot) -> Vec<NodeId> {
         let Some(node) = snapshot.node(node_id) else {
             continue;
         };
-        if crate::app::declared_user_item_type_matches(
-            &node.node_type,
-            crate::app::module::MODULE_ITEM_KIND,
-        ) {
+        if crate::app::declared_user_item_type_matches(&node.node_type, crate::app::module::MODULE_ITEM_KIND) {
             modules.push(node_id);
         }
         let mut children = snapshot.child_ids(node_id);
@@ -841,8 +551,7 @@ fn output_module_command_items(
             let Some(module) = snapshot.node(module_id) else {
                 return Vec::new();
             };
-            let Some(command_tester) = snapshot.find_child_by_decl_id(module_id, "command_tester")
-            else {
+            let Some(command_tester) = snapshot.find_child_by_decl_id(module_id, "command_tester") else {
                 return Vec::new();
             };
             child_catalog(command_tester)
@@ -916,9 +625,7 @@ impl Node for OutputsManager {
 
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
-            EventKind::ChildAdded { .. }
-            | EventKind::ChildRemoved { .. }
-            | EventKind::ParamChanged { .. } => u32::MAX,
+            EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } | EventKind::ParamChanged { .. } => u32::MAX,
             _ => 0,
         }
     }
@@ -956,7 +663,7 @@ impl Node for OutputsManager {
         }
         if Some(param) == self.output_cache.trigger_param {
             self.schedule
-                .on_trigger_cached(ctx, &self.output_cache, Vec::new(), None);
+                .on_trigger_cached(ctx, id, &self.output_cache, Vec::new(), None);
         }
         if Some(param) == self.output_cache.delay_param
             || Some(param) == self.output_cache.stagger_param
@@ -973,19 +680,7 @@ impl Node for OutputsManager {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
-        if let Some(execute) = module_command::command_execute_request(&event, id) {
-            if self.output_cache.dirty {
-                if let Some(snapshot) = ctx.tree_snapshot() {
-                    refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
-                }
-            }
-            self.schedule.on_trigger_cached(
-                ctx,
-                &self.output_cache,
-                execute.param_overrides,
-                execute.invocation_id,
-            );
-        }
+        handle_output_execute_event(&mut self.schedule, &mut self.output_cache, ctx, id, &event);
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
@@ -1010,7 +705,6 @@ impl Node for OutputsManager {
         self.node_data_mut().meta.user_permissions = locked_manager_permissions();
         self.node_data_mut().meta.can_be_disabled = false;
     }
-
 }
 
 // ─── OutputGroup ─────────────────────────────────────────────────────────────
@@ -1109,9 +803,7 @@ impl Node for OutputGroup {
 
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
-            EventKind::ChildAdded { .. }
-            | EventKind::ChildRemoved { .. }
-            | EventKind::ParamChanged { .. } => u32::MAX,
+            EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } | EventKind::ParamChanged { .. } => u32::MAX,
             _ => 0,
         }
     }
@@ -1149,7 +841,7 @@ impl Node for OutputGroup {
         }
         if Some(param) == self.output_cache.trigger_param {
             self.schedule
-                .on_trigger_cached(ctx, &self.output_cache, Vec::new(), None);
+                .on_trigger_cached(ctx, id, &self.output_cache, Vec::new(), None);
         }
         if Some(param) == self.output_cache.delay_param
             || Some(param) == self.output_cache.stagger_param
@@ -1166,19 +858,7 @@ impl Node for OutputGroup {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
-        if let Some(execute) = module_command::command_execute_request(&event, id) {
-            if self.output_cache.dirty {
-                if let Some(snapshot) = ctx.tree_snapshot() {
-                    refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
-                }
-            }
-            self.schedule.on_trigger_cached(
-                ctx,
-                &self.output_cache,
-                execute.param_overrides,
-                execute.invocation_id,
-            );
-        }
+        handle_output_execute_event(&mut self.schedule, &mut self.output_cache, ctx, id, &event);
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
@@ -1202,7 +882,6 @@ impl Node for OutputGroup {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
     }
-
 }
 
 #[cfg(test)]

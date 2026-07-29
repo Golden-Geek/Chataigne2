@@ -122,7 +122,7 @@ fn replace_live_engine<T: ProjectLifecycle>(
     reason: &str,
     recover: bool,
 ) -> Result<ProjectLoadRecoveryReport, String> {
-    let project_file = runtime.read_model().current_snapshot().project_file.clone();
+    let project_file = runtime.read_model().current_project_file();
     let result = runtime.replace_project(ProjectReplacement {
         engine: next_engine,
         project_file,

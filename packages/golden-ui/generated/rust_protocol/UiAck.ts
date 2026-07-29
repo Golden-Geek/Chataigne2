@@ -28,6 +28,10 @@ error_message?: string | null,
  */
 earliest_event_time?: EngineTime | null,
 /**
+ * Optional completion boundary covering the final event produced by the intent.
+ */
+latest_event_time?: EngineTime | null,
+/**
  * Current undo/redo state after applying the intent.
  */
 history: UiHistoryState, };

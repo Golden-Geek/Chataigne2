@@ -4,15 +4,20 @@
 //! transports from owning or locking it directly. It is the application seam through which
 //! runtime planes can be selected independently.
 
+use std::collections::HashSet;
 use std::convert::Infallible;
 use std::sync::Arc;
+#[cfg(test)]
+use std::sync::Mutex;
+#[cfg(test)]
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use golden_application::{GraphEditing, HostLifecycle, Observation, Persistence, ProjectTransactions, RuntimeValues};
 use golden_runtime::{ControlActor, RuntimeMetrics, RuntimeMetricsSnapshot};
 
 use crate::app::{
-    ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime,
+    ProjectLifecycle, apply_preferences_runtime_limits, live_preferences_root, prepare_engine_for_runtime,
     prepare_engine_for_runtime_recovering, shutdown_engine_for_runtime, to_sparse_preferences_json_pretty,
     to_sparse_project_json_pretty_with_ui_state,
 };
@@ -23,10 +28,10 @@ use crate::parameter::ParamValue;
 pub use crate::runtime_center::ProductionInputPort;
 use crate::runtime_center::ProductionState;
 use crate::script::{ScriptUiConfig, ScriptUiState};
-use crate::ui_read_model::{UiReadModel, UiReadModelReplaceReason};
+use crate::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelReplaceReason};
 use crate::ui_sync::{
-    UiAck, UiAckStatus, UiEditIntent, UiEventBatch, UiHistoryState, UiParamControlInfoDto, UiProjectFileSpec,
-    UiReferenceTargetsDto, UiSnapshot, UiSubscriptionScope,
+    UiAck, UiAckStatus, UiEditIntent, UiEventBatch, UiEventKind, UiGraphOp, UiHistoryState, UiParamControlInfoDto,
+    UiProjectFileSpec, UiReferenceTargetsDto, UiSnapshot, UiSubscriptionScope,
 };
 
 /// Timing captured around one production-backed UI transaction.
@@ -36,7 +41,7 @@ pub struct ApplicationTransactionTiming {
     pub lock_wait: Duration,
     /// Time spent applying the authoritative transaction.
     pub apply: Duration,
-    /// Time spent collecting the immutable observation delta.
+    /// Time spent collecting and publishing the immutable observation delta.
     pub event_collect: Duration,
     /// End-to-end time through capture, excluding caller serialization.
     pub total: Duration,
@@ -47,8 +52,10 @@ pub struct ApplicationTransactionTiming {
 pub struct AppliedUiTransaction {
     /// Authoritative transaction acknowledgement.
     pub acknowledgement: UiAck,
-    /// Immutable observation delta published after releasing the engine adapter lock.
+    /// Immutable observation delta published in the same ordered control-actor turn as the mutation.
     pub events: UiEventBatch,
+    /// Whether the authoritative transaction changed the persisted Preferences subtree.
+    pub preferences_changed: bool,
     /// Adapter timing for performance and parity evidence.
     pub timing: ApplicationTransactionTiming,
 }
@@ -58,8 +65,163 @@ pub struct AppliedUiTransaction {
 pub struct AppliedUiTransactionBatch {
     /// Per-transaction results in request order.
     pub transactions: Vec<AppliedUiTransaction>,
+    /// Whether any transaction in the batch changed the persisted Preferences subtree.
+    pub preferences_changed: bool,
     /// Time spent waiting for the one batch lock acquisition.
     pub lock_wait: Duration,
+}
+
+fn preferences_subtree_node_ids<T: Node>(engine: &Engine<T>) -> HashSet<NodeId> {
+    live_preferences_root(engine)
+        .map(|root| engine.collect_subtree_node_ids(root).into_iter().collect())
+        .unwrap_or_default()
+}
+
+fn graph_op_changes_preferences(op: &UiGraphOp, preferences: &HashSet<NodeId>) -> bool {
+    match op {
+        UiGraphOp::NodeCreated { snapshot, parent, .. } => {
+            preferences.contains(&snapshot.node_id)
+                || parent.as_ref().is_some_and(|parent| preferences.contains(parent))
+        }
+        UiGraphOp::SubtreeInserted {
+            root, parent, nodes, ..
+        } => {
+            preferences.contains(root)
+                || preferences.contains(parent)
+                || nodes.iter().any(|node| preferences.contains(&node.node_id))
+        }
+        UiGraphOp::SubtreeRemoved {
+            root,
+            removed_ids,
+            parent_after,
+        } => {
+            preferences.contains(root)
+                || removed_ids.iter().any(|node| preferences.contains(node))
+                || parent_after
+                    .as_ref()
+                    .is_some_and(|patch| preferences.contains(&patch.parent))
+        }
+        UiGraphOp::NodeMoved {
+            node,
+            old_parent,
+            new_parent,
+            old_parent_after,
+            new_parent_after,
+        } => {
+            preferences.contains(node)
+                || old_parent.as_ref().is_some_and(|parent| preferences.contains(parent))
+                || new_parent.as_ref().is_some_and(|parent| preferences.contains(parent))
+                || old_parent_after
+                    .as_ref()
+                    .is_some_and(|patch| preferences.contains(&patch.parent))
+                || new_parent_after
+                    .as_ref()
+                    .is_some_and(|patch| preferences.contains(&patch.parent))
+        }
+        UiGraphOp::ChildrenReordered { parent, .. } => preferences.contains(parent),
+        UiGraphOp::NodeMetaPatched { node, .. } => preferences.contains(node),
+        UiGraphOp::ParamPatched { node, param, .. } => preferences.contains(node) || preferences.contains(param),
+        UiGraphOp::HistoryPatched { .. } | UiGraphOp::LoggerPatched { .. } => false,
+    }
+}
+
+fn event_batch_changes_preferences(batch: &UiEventBatch, preferences: &HashSet<NodeId>) -> bool {
+    if preferences.is_empty() {
+        return false;
+    }
+
+    batch.events.iter().any(|event| match &event.kind {
+        UiEventKind::GraphTransaction { transaction } => transaction
+            .ops
+            .iter()
+            .any(|op| graph_op_changes_preferences(op, preferences)),
+        UiEventKind::ParamChanged { param, .. }
+        | UiEventKind::ParamControlChanged { param, .. }
+        | UiEventKind::ParamConstraintsChanged { param, .. } => preferences.contains(param),
+        UiEventKind::ChildAdded { parent, child, .. } | UiEventKind::ChildRemoved { parent, child } => {
+            preferences.contains(parent) || preferences.contains(child)
+        }
+        UiEventKind::ChildReplaced { parent, old, new, .. } => {
+            preferences.contains(parent) || preferences.contains(old) || preferences.contains(new)
+        }
+        UiEventKind::ChildMoved {
+            child,
+            old_parent,
+            new_parent,
+            ..
+        } => preferences.contains(child) || preferences.contains(old_parent) || preferences.contains(new_parent),
+        UiEventKind::ChildReordered { parent, .. } => preferences.contains(parent),
+        UiEventKind::NodeCreated { node, .. }
+        | UiEventKind::NodeDeleted { node }
+        | UiEventKind::MetaChanged { node, .. } => preferences.contains(node),
+        UiEventKind::Custom { .. } => false,
+    })
+}
+
+fn event_batch_has_structural_graph_changes(batch: &UiEventBatch) -> bool {
+    batch.events.iter().any(|event| match &event.kind {
+        UiEventKind::GraphTransaction { transaction } => transaction.ops.iter().any(|op| {
+            matches!(
+                op,
+                UiGraphOp::NodeCreated { .. }
+                    | UiGraphOp::SubtreeInserted { .. }
+                    | UiGraphOp::SubtreeRemoved { .. }
+                    | UiGraphOp::NodeMoved { .. }
+            )
+        }),
+        UiEventKind::ChildAdded { .. }
+        | UiEventKind::ChildRemoved { .. }
+        | UiEventKind::ChildReplaced { .. }
+        | UiEventKind::ChildMoved { .. }
+        | UiEventKind::NodeCreated { .. }
+        | UiEventKind::NodeDeleted { .. } => true,
+        UiEventKind::ChildReordered { .. }
+        | UiEventKind::MetaChanged { .. }
+        | UiEventKind::ParamChanged { .. }
+        | UiEventKind::ParamControlChanged { .. }
+        | UiEventKind::ParamConstraintsChanged { .. }
+        | UiEventKind::Custom { .. } => false,
+    })
+}
+
+#[cfg(test)]
+pub(crate) type ReadModelPublicationCallback = Arc<dyn Fn() + Send + Sync + 'static>;
+
+#[derive(Clone, Default)]
+struct ReadModelPublicationHook {
+    #[cfg(test)]
+    callback: Arc<Mutex<Option<ReadModelPublicationCallback>>>,
+}
+
+impl ReadModelPublicationHook {
+    #[inline]
+    fn invoke(&self) {
+        #[cfg(test)]
+        {
+            let callback = self
+                .callback
+                .lock()
+                .expect("read-model publication hook poisoned")
+                .clone();
+            if let Some(callback) = callback {
+                callback();
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn set(&self, callback: Option<ReadModelPublicationCallback>) {
+        *self.callback.lock().expect("read-model publication hook poisoned") = callback;
+    }
+}
+
+fn publish_event_capture(
+    read_model: &UiReadModel,
+    publication_hook: &ReadModelPublicationHook,
+    capture: UiEventCapture,
+) -> UiEventBatch {
+    publication_hook.invoke();
+    read_model.apply_event_capture(capture)
 }
 
 /// Result of one runtime tick through the production facade.
@@ -132,7 +294,10 @@ pub struct RuntimeStartRequest {
 struct ProductionRuntimeInner<T: ProjectLifecycle> {
     control: ControlActor<ProductionState<T>>,
     read_model: Arc<UiReadModel>,
+    read_model_publication_hook: ReadModelPublicationHook,
     input_port: ProductionInputPort,
+    #[cfg(test)]
+    preferences_subtree_collection_count: Arc<AtomicUsize>,
 }
 
 /// Current production engine connected through stable application-facing operations.
@@ -165,7 +330,10 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             inner: Arc::new(ProductionRuntimeInner {
                 control,
                 read_model,
+                read_model_publication_hook: ReadModelPublicationHook::default(),
                 input_port,
+                #[cfg(test)]
+                preferences_subtree_collection_count: Arc::new(AtomicUsize::new(0)),
             }),
         }
     }
@@ -215,15 +383,20 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     ) -> AppliedUiTransactionBatch {
         let ui_client_instance_id = ui_client_instance_id.map(str::to_owned);
         let read_model = self.inner.read_model.clone();
+        let publication_hook = self.inner.read_model_publication_hook.clone();
+        #[cfg(test)]
+        let preferences_subtree_collection_count = self.inner.preferences_subtree_collection_count.clone();
         let receipt = self
             .inner
             .control
             .call(move |state| {
-                let engine = &mut state.engine;
                 let mut failed = false;
                 let mut opened_edit_session: Option<String> = None;
                 let mut pending = Vec::with_capacity(intents.len());
                 let mut runtime_compile_requested = false;
+                #[cfg(test)]
+                preferences_subtree_collection_count.fetch_add(1, Ordering::Relaxed);
+                let mut preferences_nodes = preferences_subtree_node_ids(&state.engine);
 
                 for intent in intents {
                     let intent_started = Instant::now();
@@ -232,12 +405,15 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                         |active_id| matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id),
                     );
                     if failed && stop_after_failure && !is_matching_end_edit {
+                        let capture = read_model.collect_event_batch(
+                            &state.engine,
+                            state.engine.ui_event_log().last().map(|event| event.time),
+                        );
+                        let events = publish_event_capture(&read_model, &publication_hook, capture);
                         pending.push((
-                            skipped_after_failed_batch_ack(engine),
-                            read_model.collect_event_batch(
-                                engine,
-                                engine.ui_event_log().last().map(|event| event.time),
-                            ),
+                            skipped_after_failed_batch_ack(&state.engine),
+                            events,
+                            false,
                             ApplicationTransactionTiming {
                                 lock_wait: Duration::ZERO,
                                 total: intent_started.elapsed(),
@@ -256,13 +432,25 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                         _ => None,
                     };
 
-                    let before_event_time = engine.ui_event_log().last().map(|event| event.time);
+                    let before_event_time = state.engine.ui_event_log().last().map(|event| event.time);
                     let apply_started = Instant::now();
                     let acknowledgement =
-                        apply_ui_intent_to_engine(engine, intent, ui_client_instance_id.as_deref());
+                        apply_ui_intent_to_engine(&mut state.engine, intent, ui_client_instance_id.as_deref());
                     let apply = apply_started.elapsed();
                     let event_collect_started = Instant::now();
-                    let capture = read_model.collect_event_batch(engine, before_event_time);
+                    let capture = read_model.collect_event_batch(&state.engine, before_event_time);
+                    let preferences_changed = if event_batch_has_structural_graph_changes(capture.batch()) {
+                        #[cfg(test)]
+                        preferences_subtree_collection_count.fetch_add(1, Ordering::Relaxed);
+                        let updated_preferences_nodes = preferences_subtree_node_ids(&state.engine);
+                        let changed = event_batch_changes_preferences(capture.batch(), &preferences_nodes)
+                            || event_batch_changes_preferences(capture.batch(), &updated_preferences_nodes);
+                        preferences_nodes = updated_preferences_nodes;
+                        changed
+                    } else {
+                        event_batch_changes_preferences(capture.batch(), &preferences_nodes)
+                    };
+                    let events = publish_event_capture(&read_model, &publication_hook, capture);
                     let event_collect = event_collect_started.elapsed();
                     if acknowledgement.success {
                         if let Some(client_edit_id) = begin_edit_id {
@@ -276,7 +464,8 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     runtime_compile_requested |= acknowledgement.success && requires_runtime_compile;
                     pending.push((
                         acknowledgement,
-                        capture,
+                        events,
+                        preferences_changed,
                         ApplicationTransactionTiming {
                             lock_wait: Duration::ZERO,
                             apply,
@@ -297,44 +486,65 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         let transactions = pending
             .into_iter()
             .enumerate()
-            .map(|(index, (acknowledgement, capture, mut timing))| {
+            .map(|(index, (acknowledgement, events, preferences_changed, mut timing))| {
                 if index == 0 {
                     timing.lock_wait = lock_wait;
                 }
                 timing.total = timing
                     .total
                     .saturating_add(if index == 0 { lock_wait } else { Duration::ZERO });
-                let events = self.inner.read_model.apply_event_capture(capture);
                 AppliedUiTransaction {
                     acknowledgement,
                     events,
+                    preferences_changed,
                     timing,
                 }
             })
-            .collect();
+            .collect::<Vec<_>>();
+        let preferences_changed = transactions.iter().any(|transaction| transaction.preferences_changed);
 
         AppliedUiTransactionBatch {
             transactions,
+            preferences_changed,
             lock_wait,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reset_preferences_subtree_collection_count(&self) {
+        self.inner
+            .preferences_subtree_collection_count
+            .store(0, Ordering::Relaxed);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn preferences_subtree_collection_count(&self) -> usize {
+        self.inner.preferences_subtree_collection_count.load(Ordering::Relaxed)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_read_model_publication_hook(&self, callback: Option<ReadModelPublicationCallback>) {
+        self.inner.read_model_publication_hook.set(callback);
     }
 
     /// Cancels one client's active edit session and publishes resulting events.
     pub fn cancel_ui_edit_session(&self, ui_client_instance_id: &str) -> UiEventBatch {
         let ui_client_instance_id = ui_client_instance_id.to_owned();
         let read_model = self.inner.read_model.clone();
-        let capture = self.call_engine(move |engine| {
+        let publication_hook = self.inner.read_model_publication_hook.clone();
+        self.call_engine(move |engine| {
             let before = engine.ui_event_log().last().map(|event| event.time);
             let _ = engine.cancel_active_ui_edit_session_for_client(&ui_client_instance_id);
-            read_model.collect_event_batch(engine, before)
-        });
-        self.inner.read_model.apply_event_capture(capture)
+            let capture = read_model.collect_event_batch(engine, before);
+            publish_event_capture(&read_model, &publication_hook, capture)
+        })
     }
 
     /// Runs one authoritative engine tick and publishes its observation delta.
     pub fn run_tick(&self, elapsed: Duration) -> Result<ApplicationTickResult, EngineRuntimeError> {
         let read_model = self.inner.read_model.clone();
-        let (capture, next_interval) = self
+        let publication_hook = self.inner.read_model_publication_hook.clone();
+        let (events, next_interval) = self
             .inner
             .control
             .call(move |state| {
@@ -344,11 +554,11 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 let capture = read_model.collect_event_batch(engine, before);
                 apply_preferences_runtime_limits(engine);
                 let next_interval = engine.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));
-                Ok::<_, EngineRuntimeError>((capture, next_interval))
+                let events = publish_event_capture(&read_model, &publication_hook, capture);
+                Ok::<_, EngineRuntimeError>((events, next_interval))
             })
             .expect("production control actor disconnected")
             .output?;
-        let events = self.inner.read_model.apply_event_capture(capture);
         Ok(ApplicationTickResult { events, next_interval })
     }
 
@@ -429,6 +639,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     pub fn replace_project(&self, request: ProjectReplacement<T>) -> Result<ProjectReplacementResult, String> {
         let started = Instant::now();
         let read_model = self.inner.read_model.clone();
+        let publication_hook = self.inner.read_model_publication_hook.clone();
         let receipt = self
             .inner
             .control
@@ -460,6 +671,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     None,
                     serde_json::json!({ "reason": request.reason }),
                 );
+                publication_hook.invoke();
                 read_model.replace_from_engine(engine, request.project_file, UiReadModelReplaceReason::ProjectReplaced);
                 read_model.publish_engine_events_since(engine, None);
                 Ok::<_, String>((recovery, node_count, shutdown, drop_previous, prepare))
@@ -479,7 +691,11 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
 
     /// Updates host-owned project-file metadata in the immutable observation model.
     pub fn set_project_file(&self, project_file: UiProjectFileSpec) {
-        self.inner.read_model.set_project_file(project_file);
+        let read_model = self.inner.read_model.clone();
+        self.inner
+            .control
+            .call(move |_state| read_model.set_project_file(project_file))
+            .expect("production control actor disconnected");
     }
 
     fn apply_engine_mutation<R>(&self, mutation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static) -> (R, UiEventBatch)
@@ -487,13 +703,14 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         R: Send + 'static,
     {
         let read_model = self.inner.read_model.clone();
-        let (result, capture) = self.call_engine(move |engine| {
+        let publication_hook = self.inner.read_model_publication_hook.clone();
+        self.call_engine(move |engine| {
             let before = engine.ui_event_log().last().map(|event| event.time);
             let result = mutation(engine);
             let capture = read_model.collect_event_batch(engine, before);
-            (result, capture)
-        });
-        (result, self.inner.read_model.apply_event_capture(capture))
+            let events = publish_event_capture(&read_model, &publication_hook, capture);
+            (result, events)
+        })
     }
 
     fn call_engine<R>(&self, operation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static) -> R
@@ -635,7 +852,7 @@ fn ui_intent_requires_runtime_compile(intent: &UiEditIntent) -> bool {
     )
 }
 
-fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
+pub(crate) fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
     engine: &mut Engine<T>,
     intent: UiEditIntent,
     ui_client_instance_id: Option<&str>,
@@ -648,20 +865,18 @@ fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
             new_parent,
             new_prev_sibling,
             initial_params,
-        } => match engine.duplicate_subtree_with(
+        } => match engine.duplicate_subtree_with_initial_params(
             source,
             new_parent,
             new_prev_sibling,
-            None,
+            initial_params
+                .into_iter()
+                .map(|initial_param| (initial_param.decl_id, initial_param.value))
+                .collect(),
             |node| node.project_encode_data(),
             |node_type, data, meta| T::project_decode_node(node_type, data, meta),
         ) {
-            Ok(duplicated_root) => {
-                match engine.ui_apply_initial_params_to_node(duplicated_root, initial_params, "DuplicateNode") {
-                    Ok(()) => applied_ack(engine, earliest_ui_event_time_since(engine, before_event_time)),
-                    Err(error) => rejected_ack(engine, "duplicate_node_failed", error.to_string()),
-                }
-            }
+            Ok(_) => applied_ack_since(engine, before_event_time),
             Err(error) => rejected_ack(engine, "duplicate_node_failed", error.to_string()),
         },
         UiEditIntent::DuplicateNodes {
@@ -676,7 +891,7 @@ fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
                 |node| node.project_encode_data(),
                 |node_type, data, meta| T::project_decode_node(node_type, data, meta),
             ) {
-                Ok(_) => applied_ack(engine, earliest_ui_event_time_since(engine, before_event_time)),
+                Ok(_) => applied_ack_since(engine, before_event_time),
                 Err(error) => rejected_ack(engine, "duplicate_nodes_failed", error.to_string()),
             }
         }
@@ -684,24 +899,17 @@ fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
     }
 }
 
-fn earliest_ui_event_time_since<T: Node>(
-    engine: &Engine<T>,
-    previous_event_time: Option<EngineTime>,
-) -> Option<EngineTime> {
-    engine
-        .ui_event_log()
-        .iter()
-        .find(|event| previous_event_time.is_none_or(|previous| event.time > previous))
-        .map(|event| event.time)
-}
+fn applied_ack_since<T: Node>(engine: &Engine<T>, previous_event_time: Option<EngineTime>) -> UiAck {
+    let start = engine.ui_event_log_start_index(previous_event_time);
+    let events = &engine.ui_event_log()[start..];
 
-fn applied_ack<T: Node>(engine: &Engine<T>, earliest_event_time: Option<EngineTime>) -> UiAck {
     UiAck {
         success: true,
         status: UiAckStatus::Applied,
         error_code: None,
         error_message: None,
-        earliest_event_time,
+        earliest_event_time: events.first().map(|event| event.time),
+        latest_event_time: events.last().map(|event| event.time),
         history: engine.ui_history_state(),
     }
 }
@@ -713,6 +921,7 @@ fn rejected_ack<T: Node>(engine: &Engine<T>, code: &str, message: String) -> UiA
         error_code: Some(code.to_string()),
         error_message: Some(message),
         earliest_event_time: None,
+        latest_event_time: None,
         history: engine.ui_history_state(),
     }
 }
@@ -724,6 +933,7 @@ fn skipped_after_failed_batch_ack<T: Node>(engine: &Engine<T>) -> UiAck {
         error_code: Some("intent_batch_cancelled".to_string()),
         error_message: Some("intent batch stopped after a previous failure".to_string()),
         earliest_event_time: None,
+        latest_event_time: None,
         history: engine.ui_history_state(),
     }
 }

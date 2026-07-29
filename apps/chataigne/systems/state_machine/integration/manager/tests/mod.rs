@@ -5,22 +5,21 @@ use std::{
 };
 
 use chataigne_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, AxisSet, CompileCtx,
-    ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId,
+    primitive_node_registry, ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, AxisSet,
+    CompileCtx, ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId,
     FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
-    RuntimeIntent, RuntimeOutput, RuntimeRegistries, SocketId, TriggerValue, ValueTypeRegistry,
-    primitive_node_registry,
+    RuntimeIntent, RuntimeOutput, RuntimeRegistries, SocketId, StableRef, TriggerValue, ValueTypeId, ValueTypeRegistry,
 };
 use chataigne_state_machine::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorContextProvider,
-    ProcessorDebugCapture, ProcessorId, ProcessorLaneInspectionDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
-    ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
-    StateMachineProcessorOverviewDto,
+    ProcessorDebugCapture, ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorId, ProcessorLaneInspectionDto,
+    ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorOverviewLaneSelectionDto, ProcessorRuntime,
+    ProcessorRuntimeOverviewDto, StateMachineProcessorOverviewDto,
 };
 use golden_core::{
     app::ProjectNode,
     edit::Edit,
-    engine::{DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, EngineTime},
+    engine::{EngineTime, DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ},
     node::{
         DashboardWidgetTargetDescriptor, DeclId, Folder, Node, NodeId, NodeUuid, PresentationHint,
         USER_CONTEXT_NODE_TYPE,
@@ -34,22 +33,28 @@ use golden_core::{
 use golden_values::Value as RuntimeValue;
 
 use super::{
-    ActivePreviewSelection, FormulaPreviewDemandLease, LaneParamResolver, PROCESSOR_MANAGER_DECL_ID,
-    ProcessorContextAxisRuntime, ProcessorContextListRuntime, ProcessorContextRuntime, ProcessorContextScopeCache,
-    FormulaDefaultPreviewState, ProcessorLanePreviewKey, ProcessorOverviewDemandLease,
-    RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor, STATE_ITEM_KIND,
-    STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC, SnapshotProcessorContextProvider, StateMachineManager,
     collect_processor_lane_parameter_inspection, compile_processor_runtime_for_cache_rebuild,
-    condition_manager_edge_previous, condition_manager_value, formula_default_output_preview_samples,
-    intern_runtime_command_invocation, latest_param_value, merge_output_preview_snapshot, output_preview_signature,
-    processor_formula_from_snapshot, processor_formula_source_ref, processor_overview_publish_due,
-    processor_overview_shard, processor_overview_topic, processor_override_value,
-    processor_preview_needs_hydration, processor_preview_plan, processor_requires_forced_recompute,
-    processor_should_evaluate, requested_inactive_processor_nodes, requested_processor_overviews,
-    resolve_multiplex_template_value, resolved_output_param_overrides,
-    retain_requested_preview_snapshots, runtime_invalidation_for_node, selected_context_includes_lane,
-    set_output_target_param, should_emit_runtime_log,
+    condition_manager_edge_previous, condition_manager_value, dispatch_command_intent,
+    formula_default_output_preview_samples, intern_runtime_command_invocation, latest_param_value,
+    merge_output_preview_snapshot, output_preview_signature, processor_formula_from_snapshot,
+    processor_formula_source_ref, processor_override_value, processor_overview_publish_due, processor_overview_shard,
+    processor_overview_topic, processor_preview_needs_hydration, processor_preview_plan,
+    processor_requires_forced_recompute, processor_should_evaluate, requested_inactive_processor_nodes,
+    requested_processor_overviews, resolve_multiplex_template_value, resolved_output_param_overrides,
+    retain_requested_preview_snapshots, runtime_invalidation_for_node, runtime_param_change_requires_snapshot,
+    selected_context_includes_lane, set_output_target_param, should_emit_runtime_log, sync_runtime_processor_warning,
+    ActivePreviewSelection, ContextKeyCardinalityError, FormulaDefaultPreviewState, FormulaPreviewDemandLease,
+    LaneParamResolver, PendingRuntimeCommandBatch, ProcessorContextAxisRuntime, ProcessorContextListRuntime,
+    ProcessorContextRuntime, ProcessorContextScopeCache, ProcessorLanePreviewKey, ProcessorOverviewDemandLease,
+    RuntimeCommandDispatch, RuntimeCommandDispatchAction, RuntimeCommandDispatchPlan, RuntimeCommandDispatchPlanCache,
+    RuntimeCommandTickBudget, RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor,
+    SnapshotProcessorContextProvider, StateMachineManager, CONTEXT_LANE_LIMIT_WARNING, MAX_CACHED_CONTEXT_KEY_SETS,
+    MAX_MATERIALIZED_CONTEXT_KEYS, MAX_RETAINED_CONTEXT_KEYS, MAX_RUNTIME_COMMAND_ACTIONS_PER_TICK,
+    PROCESSOR_MANAGER_DECL_ID, STATE_ITEM_KIND, STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
 };
+
+mod command_dispatch;
+mod context_cache;
 
 fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
     let default_item = items.first().cloned().expect("test context axes need an item");
@@ -313,6 +318,43 @@ fn processor_overview_demand_expires_without_enabling_debug_preview() {
 }
 
 #[test]
+fn runtime_and_overview_rebuilds_share_one_tick_scoped_formula_catalog() {
+    let root = NodeId(1);
+    let snapshot = Arc::new(ProcessTreeSnapshot::new(
+        root,
+        HashMap::from([(root, context_scope_test_node(root, None, None, None, "root"))]),
+    ));
+    let mut manager = StateMachineManager::new();
+    manager.runtime_cache.topology_dirty = true;
+    manager.runtime_cache.context_provider_dirty = true;
+    manager.runtime_cache.processor_overview_demands.insert(
+        "active-overview".to_owned(),
+        ProcessorOverviewDemandLease {
+            processor_ids: HashSet::from([ProcessorId::new()]),
+            expires_at: Duration::from_secs(1),
+        },
+    );
+    manager.runtime_cache.processor_overview_demand_dirty = true;
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+    ctx.set_tree_snapshot(snapshot);
+
+    manager.run_processors(&mut ctx);
+
+    assert_eq!(manager.runtime_cache.perf_stats.runtime_cache_rebuilds, 1);
+    assert_eq!(
+        manager.runtime_cache.perf_stats.formula_catalog_builds, 1,
+        "runtime and overview materialization in one tick must share the catalog"
+    );
+}
+
+#[test]
 fn processor_overview_demands_union_visible_processors_across_panels() {
     let shared = ProcessorId::new();
     let first_only = ProcessorId::new();
@@ -351,8 +393,13 @@ fn processor_overview_resolves_requested_inactive_processor_nodes_only() {
     let non_processor_id = ProcessorId::new();
     let mut active = context_scope_test_node(active_node, Some(root), None, Some(inactive_node), "state_processor");
     active.uuid = NodeUuid(active_id.as_uuid());
-    let mut inactive =
-        context_scope_test_node(inactive_node, Some(root), None, Some(non_processor_node), "state_processor");
+    let mut inactive = context_scope_test_node(
+        inactive_node,
+        Some(root),
+        None,
+        Some(non_processor_node),
+        "state_processor",
+    );
     inactive.uuid = NodeUuid(inactive_id.as_uuid());
     inactive.enabled = false;
     let mut non_processor = context_scope_test_node(non_processor_node, Some(root), None, None, "folder");
@@ -432,10 +479,7 @@ fn processor_overview_publication_emits_only_the_changed_shard() {
         .runtime_cache
         .processor_overview_snapshot
         .insert(processor_id, overview.clone());
-    manager
-        .runtime_cache
-        .dirty_processor_overview_shards
-        .insert(shard);
+    manager.runtime_cache.dirty_processor_overview_shards.insert(shard);
     let mut ctx = ProcessCtx::new(
         ExecutionPhase::EngineTick,
         EngineTime {
@@ -470,12 +514,9 @@ fn processor_overview_lane_selection_is_independent_from_formula_debug_demand() 
         processor_id: processor_id.to_string(),
         preview_index: Some(2),
     };
-    let event = golden_core::events::CustomEvent::from_payload(
-        STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
-        None,
-        &payload,
-    )
-    .expect("overview lane selection should serialize");
+    let event =
+        golden_core::events::CustomEvent::from_payload(STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC, None, &payload)
+            .expect("overview lane selection should serialize");
     let mut manager = StateMachineManager::new();
 
     manager.apply_processor_overview_lane_selection(event);
@@ -487,12 +528,10 @@ fn processor_overview_lane_selection_is_independent_from_formula_debug_demand() 
             .get(&processor_id),
         Some(&2)
     );
-    assert!(
-        manager
-            .runtime_cache
-            .dirty_processor_overview_lanes
-            .contains(&processor_id)
-    );
+    assert!(manager
+        .runtime_cache
+        .dirty_processor_overview_lanes
+        .contains(&processor_id));
     assert!(manager.runtime_cache.preview_demands.is_empty());
 }
 
@@ -580,223 +619,6 @@ fn states_do_not_accept_user_items() {
 }
 
 #[test]
-fn output_target_param_write_skips_unchanged_non_trigger_values() {
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(
-        Parameter::new("Target", ParamValue::Float(1.0), ParameterChangeCheck::ValueChange).into(),
-        None,
-    );
-    engine.apply_edits().expect("target parameter should attach");
-    let target = engine
-        .nodes
-        .iter()
-        .find(|(_, node)| node.node_data().meta.label == "Target")
-        .map(|(id, _)| id)
-        .expect("target parameter should exist");
-    let snapshot = engine.process_tree_snapshot();
-    let mut ctx = ProcessCtx::new(
-        ExecutionPhase::EngineTick,
-        EngineTime {
-            tick: 1,
-            micro: 0,
-            seq: 0,
-        },
-    );
-    ctx.set_tree_snapshot(snapshot.clone());
-
-    assert!(!set_output_target_param(
-        &mut ctx,
-        snapshot.as_ref(),
-        target,
-        ParamValue::Float(1.0)
-    ));
-    assert!(ctx.edits.pending.is_empty());
-    assert!(set_output_target_param(
-        &mut ctx,
-        snapshot.as_ref(),
-        target,
-        ParamValue::Trigger()
-    ));
-    assert_eq!(ctx.edits.pending.len(), 1);
-}
-
-#[test]
-fn output_param_overrides_resolve_context_links_per_lane() {
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-
-    engine.add_node(Folder::new("Command").into(), None);
-    engine.apply_edits().expect("command container should attach");
-    let command_id = engine
-        .nodes
-        .iter()
-        .find(|(_, node)| node.node_data().meta.label == "Command")
-        .map(|(id, _)| id)
-        .expect("command container should exist");
-    let axis = ContextAxisId::new("lane");
-
-    let mut message = Parameter::new(
-        "Message",
-        ParamValue::Str("original".to_owned()),
-        ParameterChangeCheck::ValueChange,
-    );
-    message.node_data_mut().meta.decl_id = DeclId("message".to_owned());
-    message
-        .engine_set_param_control_state(ParameterControlState::new(
-            ParameterControlMode::ContextLink,
-            ParameterControlSpec::ContextLink {
-                symbol: "msg".to_owned(),
-                projection: None,
-            },
-        ))
-        .expect("context link should be valid for string parameter");
-    engine.add_node(message.into(), Some(command_id));
-    let mut lane_number = Parameter::new(
-        "Lane Number",
-        ParamValue::Float(-1.0),
-        ParameterChangeCheck::ValueChange,
-    );
-    lane_number.node_data_mut().meta.decl_id = DeclId("lane_number".to_owned());
-    lane_number
-        .engine_set_param_control_state(ParameterControlState::new(
-            ParameterControlMode::ContextLink,
-            ParameterControlSpec::ContextLink {
-                symbol: golden_core::contexts::multiplex_index_context_link_symbol("lane", false),
-                projection: None,
-            },
-        ))
-        .expect("multiplex index link should be valid for a float parameter");
-    engine.add_node(lane_number.into(), Some(command_id));
-    let mut template = Parameter::new(
-        "Template",
-        ParamValue::Str("Lane {list:msg}".to_owned()),
-        ParameterChangeCheck::ValueChange,
-    );
-    template.node_data_mut().meta.decl_id = DeclId("template".to_owned());
-    template
-        .engine_set_param_control_state(ParameterControlState::new(
-            ParameterControlMode::TemplateText,
-            ParameterControlSpec::TemplateText {
-                template: "Lane {list:msg}".to_owned(),
-            },
-        ))
-        .expect("template text should be valid for a string parameter");
-    engine.add_node(template.into(), Some(command_id));
-    engine.apply_edits().expect("output parameters should attach");
-
-    let snapshot = engine.process_tree_snapshot();
-    let message_id = snapshot
-        .find_child_by_decl_id(command_id, "message")
-        .expect("message parameter should exist");
-    let lane_number_id = snapshot
-        .find_child_by_decl_id(command_id, "lane_number")
-        .expect("lane number parameter should exist");
-    let template_id = snapshot
-        .find_child_by_decl_id(command_id, "template")
-        .expect("template parameter should exist");
-    let processor_id = ProcessorId::new();
-    let left_item = ContextItemId::new("left");
-    let right_item = ContextItemId::new("right");
-    let provider = context_provider(
-        processor_id,
-        context_runtime(
-            vec![context_axis(
-                axis.clone(),
-                "Lane",
-                vec![left_item.clone(), right_item.clone()],
-            )],
-            vec![context_list(
-                axis.clone(),
-                "msg",
-                "messages",
-                [
-                    (left_item, RuntimeValue::String("left lane".into())),
-                    (right_item, RuntimeValue::String("right lane".into())),
-                ],
-            )],
-        ),
-    );
-
-    let left_key = ContextKey::single("lane", "left");
-    let left_resolver = LaneParamResolver {
-        processor_id,
-        context_key: &left_key,
-        context_provider: &provider,
-    };
-    let left_overrides = resolved_output_param_overrides(&snapshot, command_id, Some(&left_resolver));
-    assert_eq!(left_overrides.len(), 3);
-    assert_eq!(
-        &left_overrides
-            .iter()
-            .find(|override_value| override_value.param_id == message_id)
-            .expect("message override should exist")
-            .value,
-        &ParamValue::Str("left lane".to_owned())
-    );
-    assert_eq!(
-        &left_overrides
-            .iter()
-            .find(|override_value| override_value.param_id == lane_number_id)
-            .expect("lane number override should exist")
-            .value,
-        &ParamValue::Float(1.0)
-    );
-    assert_eq!(
-        &left_overrides
-            .iter()
-            .find(|override_value| override_value.param_id == template_id)
-            .expect("template override should exist")
-            .value,
-        &ParamValue::Str("Lane left lane".to_owned())
-    );
-
-    let right_key = ContextKey::single("lane", "right");
-    let right_resolver = LaneParamResolver {
-        processor_id,
-        context_key: &right_key,
-        context_provider: &provider,
-    };
-    let right_overrides = resolved_output_param_overrides(&snapshot, command_id, Some(&right_resolver));
-    assert_eq!(right_overrides.len(), 3);
-    assert_eq!(
-        &right_overrides
-            .iter()
-            .find(|override_value| override_value.param_id == message_id)
-            .expect("message override should exist")
-            .value,
-        &ParamValue::Str("right lane".to_owned())
-    );
-    assert_eq!(
-        &right_overrides
-            .iter()
-            .find(|override_value| override_value.param_id == lane_number_id)
-            .expect("lane number override should exist")
-            .value,
-        &ParamValue::Float(2.0)
-    );
-
-    let mut parameter_previews = Vec::new();
-    collect_processor_lane_parameter_inspection(&snapshot, command_id, Some(&right_resolver), &mut parameter_previews);
-    let preview_by_node = parameter_previews
-        .into_iter()
-        .map(|preview| (preview.node_id, preview.value))
-        .collect::<HashMap<_, _>>();
-    assert_eq!(
-        preview_by_node.get(&snapshot.node(message_id).unwrap().uuid.0.to_string()),
-        Some(&"right lane".to_owned())
-    );
-    assert_eq!(
-        preview_by_node.get(&snapshot.node(lane_number_id).unwrap().uuid.0.to_string()),
-        Some(&"2.000".to_owned())
-    );
-    assert_eq!(
-        preview_by_node.get(&snapshot.node(template_id).unwrap().uuid.0.to_string()),
-        Some(&"Lane right lane".to_owned())
-    );
-}
-
-#[test]
 fn multiplex_template_tokens_resolve_indexes_and_lists_across_named_axes() {
     let processor_id = ProcessorId::new();
     let primary_axis = ContextAxisId::new("primary-axis");
@@ -857,48 +679,6 @@ fn multiplex_template_tokens_resolve_indexes_and_lists_across_named_axes() {
 }
 
 #[test]
-fn multiplex_lane_count_uses_axis_cardinality_without_materializing_keys() {
-    let processor_id = ProcessorId::new();
-    let primary_axis = ContextAxisId::new("primary");
-    let secondary_axis = ContextAxisId::new("secondary");
-    let provider = context_provider(
-        processor_id,
-        context_runtime(
-            vec![
-                context_axis(
-                    primary_axis.clone(),
-                    "Primary",
-                    (0..1000)
-                        .map(|index| ContextItemId::new(format!("p{index}")))
-                        .collect(),
-                ),
-                context_axis(
-                    secondary_axis.clone(),
-                    "Secondary",
-                    (0..1000)
-                        .map(|index| ContextItemId::new(format!("s{index}")))
-                        .collect(),
-                ),
-            ],
-            Vec::new(),
-        ),
-    );
-    let axes = AxisSet::from_iter([primary_axis.clone(), secondary_axis.clone()]);
-    let valid = ContextKey::new([
-        chataigne_alchemist::ContextKeyPart::new(primary_axis, ContextItemId::new("p999")),
-        chataigne_alchemist::ContextKeyPart::new(secondary_axis, ContextItemId::new("s999")),
-    ]);
-
-    assert_eq!(provider.lane_count_for_axes(processor_id, &axes), 1_000_000);
-    assert!(provider.context_key_matches_axes(processor_id, &axes, &valid));
-    assert!(!provider.context_key_matches_axes(
-        processor_id,
-        &axes,
-        &ContextKey::single("primary", "missing")
-    ));
-}
-
-#[test]
 fn processor_preview_indexes_compose_multiplex_defaults_without_materializing_lanes() {
     let processor_id = ProcessorId::new();
     let primary_axis = ContextAxisId::new("primary");
@@ -911,16 +691,9 @@ fn processor_preview_indexes_compose_multiplex_defaults_without_materializing_la
     ];
     let mut primary = context_axis(primary_axis.clone(), "Primary", primary_items.to_vec());
     primary.default_item = primary_items[1].clone();
-    let mut secondary = context_axis(
-        secondary_axis.clone(),
-        "Secondary",
-        secondary_items.to_vec(),
-    );
+    let mut secondary = context_axis(secondary_axis.clone(), "Secondary", secondary_items.to_vec());
     secondary.default_item = secondary_items[2].clone();
-    let provider = context_provider(
-        processor_id,
-        context_runtime(vec![primary, secondary], Vec::new()),
-    );
+    let provider = context_provider(processor_id, context_runtime(vec![primary, secondary], Vec::new()));
     let axes = AxisSet::from_iter([primary_axis.clone(), secondary_axis.clone()]);
 
     let default_key = provider
@@ -953,18 +726,9 @@ fn processor_preview_lane_observes_conditions_on_axis_subsets() {
     let device_condition_lane = ContextKey::single("device", "right");
     let other_device_lane = ContextKey::single("device", "left");
 
-    assert!(selected_context_includes_lane(
-        &selected,
-        &device_condition_lane
-    ));
-    assert!(selected_context_includes_lane(
-        &selected,
-        &ContextKey::default_lane()
-    ));
-    assert!(!selected_context_includes_lane(
-        &selected,
-        &other_device_lane
-    ));
+    assert!(selected_context_includes_lane(&selected, &device_condition_lane));
+    assert!(selected_context_includes_lane(&selected, &ContextKey::default_lane()));
+    assert!(!selected_context_includes_lane(&selected, &other_device_lane));
 }
 
 #[test]
@@ -1099,10 +863,12 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
         RuntimeProcessor {
             processor,
             runtime,
+            compile_warning: None,
             formula,
             formula_node: None,
             formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
             formula_source_key: "test".to_owned(),
+            command_dispatch_plans: Default::default(),
         },
     )]));
 
@@ -1190,6 +956,191 @@ fn removed_formula_default_lease_prunes_continuous_runtime_while_other_demand_re
     assert!(manager.runtime_cache.formula_default_previews.is_empty());
     assert_eq!(manager.runtime_cache.continuous_formula_default_preview_count, 0);
     assert!(!manager.update_requires_tree_snapshot());
+}
+
+#[test]
+fn topology_rebuild_reuses_unchanged_compiled_formulas() {
+    let formula = continuous_formula();
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut manager = StateMachineManager::new();
+    let compiled_before = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("formula should compile");
+    manager.runtime_cache.formula_catalog_initialized = true;
+    manager.runtime_cache.topology_dirty = true;
+
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let engine = crate::app::AppEngine::new(root);
+    manager.refresh_formula_cache(&engine.process_tree_snapshot());
+
+    let compiled_after = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("cached formula should remain compiled");
+    assert!(Arc::ptr_eq(&compiled_before, &compiled_after));
+    assert_eq!(manager.runtime_cache.perf_stats.formula_compiles, 1);
+}
+
+#[test]
+fn project_formula_catalog_refresh_preserves_compiled_builtin_formulas() {
+    let formula = continuous_formula();
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut manager = StateMachineManager::new();
+    let compiled_before = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("formula should compile");
+    manager.runtime_cache.formula_catalog_initialized = true;
+    manager.runtime_cache.formula_catalog_dirty = true;
+
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let engine = crate::app::AppEngine::new(root);
+    manager.refresh_formula_cache(&engine.process_tree_snapshot());
+
+    let compiled_after = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("built-in formula should remain compiled");
+    assert!(Arc::ptr_eq(&compiled_before, &compiled_after));
+    assert_eq!(manager.runtime_cache.perf_stats.formula_compiles, 1);
+}
+
+#[test]
+fn deleted_state_uses_previous_snapshot_and_preserves_compiled_formulas() {
+    let formula = continuous_formula();
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut manager = StateMachineManager::new();
+    let compiled_before = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("formula should compile");
+    manager.runtime_cache.formula_catalog_initialized = true;
+    Arc::make_mut(&mut manager.runtime_cache.formulas).insert(NodeUuid::nil(), formula.clone());
+
+    let root = NodeId(100);
+    let manager_id = manager.id();
+    let state = NodeId(101);
+    let previous = ProcessTreeSnapshot::new(
+        root,
+        HashMap::from([
+            (
+                root,
+                context_scope_test_node(root, None, Some(manager_id), None, "root"),
+            ),
+            (
+                manager_id,
+                context_scope_test_node(
+                    manager_id,
+                    Some(root),
+                    Some(state),
+                    None,
+                    StateMachineManager::NODE_TYPE,
+                ),
+            ),
+            (
+                state,
+                context_scope_test_node(
+                    state,
+                    Some(manager_id),
+                    None,
+                    None,
+                    crate::app::StateMachineState::NODE_TYPE,
+                ),
+            ),
+        ]),
+    );
+    let current = ProcessTreeSnapshot::new(
+        root,
+        HashMap::from([
+            (
+                root,
+                context_scope_test_node(root, None, Some(manager_id), None, "root"),
+            ),
+            (
+                manager_id,
+                context_scope_test_node(manager_id, Some(root), None, None, StateMachineManager::NODE_TYPE),
+            ),
+        ]),
+    );
+    manager.runtime_cache.runtime_snapshot = Some(Arc::new(previous));
+
+    let invalidation = manager.runtime_invalidation_for_change(&current, state);
+    assert_eq!(invalidation, RuntimeInvalidation::Topology);
+    manager.apply_runtime_invalidation(invalidation);
+    assert!(!manager.runtime_cache.formula_catalog_dirty);
+    manager.refresh_formula_cache(&current);
+
+    let compiled_after = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("ordinary topology deletion must preserve compiled formulas");
+    assert!(Arc::ptr_eq(&compiled_before, &compiled_after));
+    assert_eq!(manager.runtime_cache.perf_stats.formula_compiles, 1);
+}
+
+#[test]
+fn deleted_formula_uses_previous_snapshot_and_evicts_its_compiled_program() {
+    let formula = continuous_formula();
+    let formula_uuid = NodeUuid(uuid::Uuid::from_u128(0xfeed));
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut manager = StateMachineManager::new();
+    let compiled_before = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("formula should compile");
+    manager.runtime_cache.formula_catalog_initialized = true;
+    Arc::make_mut(&mut manager.runtime_cache.formulas).insert(formula_uuid, formula.clone());
+
+    let root = NodeId(200);
+    let formula_node = NodeId(201);
+    let mut formula_snapshot = context_scope_test_node(formula_node, Some(root), None, None, "alchemist_formula");
+    formula_snapshot.uuid = formula_uuid;
+    let previous = ProcessTreeSnapshot::new(
+        root,
+        HashMap::from([
+            (
+                root,
+                context_scope_test_node(root, None, Some(formula_node), None, "root"),
+            ),
+            (formula_node, formula_snapshot),
+        ]),
+    );
+    let current = ProcessTreeSnapshot::new(
+        root,
+        HashMap::from([(root, context_scope_test_node(root, None, None, None, "root"))]),
+    );
+    manager.runtime_cache.runtime_snapshot = Some(Arc::new(previous));
+
+    let invalidation = manager.runtime_invalidation_for_change(&current, formula_node);
+    assert_eq!(invalidation, RuntimeInvalidation::Formula(formula_uuid));
+    manager.apply_runtime_invalidation(invalidation);
+    assert!(!manager.runtime_cache.formula_catalog_dirty);
+    manager.refresh_formula_cache(&current);
+
+    assert!(!manager.runtime_cache.formulas.contains_key(&formula_uuid));
+    let compiled_after = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("deleted formula should compile again if requested");
+    assert!(!Arc::ptr_eq(&compiled_before, &compiled_after));
+    assert_eq!(manager.runtime_cache.perf_stats.formula_compiles, 2);
 }
 
 #[test]

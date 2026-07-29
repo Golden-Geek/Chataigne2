@@ -14,6 +14,17 @@ pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request
 /// Topic for asking a specific command node to run once (state-machine outputs
 /// fire one event per lane, which the command turns into a module request).
 pub const MODULE_COMMAND_EXECUTE_TOPIC: &str = "chataigne.module.command.execute";
+/// Topic for an ordered chunk of executions targeting one command node.
+///
+/// This is an opt-in transient fast path. The single-execution topic remains
+/// supported for producers and consumers that do not benefit from batching.
+pub const MODULE_COMMAND_EXECUTE_BATCH_TOPIC: &str = "chataigne.module.command.execute_batch";
+/// Maximum executions serialized into one transient command-batch event.
+///
+/// Larger batches are emitted as consecutive ordered chunks so each serialized
+/// payload and routed event has a bounded size. The producer remains responsible
+/// for enforcing its overall per-tick work budget.
+pub(crate) const MODULE_COMMAND_EXECUTE_BATCH_MAX_EXECUTIONS: usize = 512;
 pub const MODULE_COMMAND_TESTER_LABEL: &str = "Command Tester";
 pub const MODULE_COMMAND_TESTER_DESCRIPTION: &str = "Create and trigger ad-hoc commands through this module.";
 pub const MODULE_COMMAND_TARGET_MODULE_PATH: &str = "target_module";
@@ -234,6 +245,25 @@ pub(crate) struct ModuleCommandExecuteEvent {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub(crate) struct ModuleCommandExecuteBatchEvent {
+    pub command_id: NodeId,
+    pub executions: Vec<ModuleCommandExecuteEvent>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct ModuleCommandExecuteBatchEmission {
+    pub event_count: usize,
+    pub execution_count: usize,
+    pub rejected_execution_count: usize,
+}
+
+#[derive(Serialize)]
+struct ModuleCommandExecuteBatchRef<'a> {
+    command_id: NodeId,
+    executions: &'a [ModuleCommandExecuteEvent],
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct ModuleCommandParamOverride {
     pub param_id: NodeId,
     pub value: ParamValue,
@@ -254,8 +284,59 @@ pub(crate) fn emit_command_execute_with_invocation(
         invocation_id,
         delivery_policy,
     };
+    if !command_execution_is_json_safe(&event) {
+        return Err(format!(
+            "module command execute for {command_id:?} contains a non-finite numeric parameter override"
+        ));
+    }
     ctx.emit_transient_custom_payload(MODULE_COMMAND_EXECUTE_TOPIC, Some(command_id), &event)
         .map_err(|error| format!("failed to emit module command execute: {error}"))
+}
+
+/// Emits ordered command executions through bounded transient custom events.
+///
+/// Every entry must target `command_id`; this keeps engine routing and the
+/// serialized payload in agreement. Consumers apply entries in vector order.
+/// Batches larger than [`MODULE_COMMAND_EXECUTE_BATCH_MAX_EXECUTIONS`] are
+/// serialized as sequential chunks without cloning their entries. Executions
+/// containing non-finite numeric overrides cannot round-trip through JSON, so
+/// they are rejected individually without dropping valid neighbors. The returned
+/// counts describe queued chunks, queued executions, and rejected executions.
+pub(crate) fn emit_command_execute_batch(
+    ctx: &mut ProcessCtx,
+    command_id: NodeId,
+    mut executions: Vec<ModuleCommandExecuteEvent>,
+) -> Result<ModuleCommandExecuteBatchEmission, String> {
+    if executions.is_empty() {
+        return Err("module command execute batch cannot be empty".to_string());
+    }
+    if executions.iter().any(|execution| execution.command_id != command_id) {
+        return Err(format!(
+            "module command execute batch contains an execution for a command other than {command_id:?}"
+        ));
+    }
+
+    let submitted_count = executions.len();
+    executions.retain(command_execution_is_json_safe);
+    let mut emission = ModuleCommandExecuteBatchEmission {
+        rejected_execution_count: submitted_count - executions.len(),
+        ..ModuleCommandExecuteBatchEmission::default()
+    };
+    for executions in executions.chunks(MODULE_COMMAND_EXECUTE_BATCH_MAX_EXECUTIONS) {
+        let event = ModuleCommandExecuteBatchRef { command_id, executions };
+        ctx.emit_transient_custom_payload(MODULE_COMMAND_EXECUTE_BATCH_TOPIC, Some(command_id), &event)
+            .map_err(|error| format!("failed to emit module command execute batch: {error}"))?;
+        emission.event_count += 1;
+        emission.execution_count += executions.len();
+    }
+    Ok(emission)
+}
+
+fn command_execution_is_json_safe(execution: &ModuleCommandExecuteEvent) -> bool {
+    execution
+        .param_overrides
+        .iter()
+        .all(|param| param.value.has_only_finite_numbers())
 }
 
 /// Returns `true` when `event` asks `command_id` to run.
@@ -263,11 +344,37 @@ pub(crate) fn is_command_execute_request(event: &CustomEvent, command_id: NodeId
     command_execute_request(event, command_id).is_some()
 }
 
+/// Returns `true` when `event` contains an ordered batch for `command_id`.
+pub(crate) fn is_command_execute_batch_request(event: &CustomEvent, command_id: NodeId) -> bool {
+    command_execute_batch_requests(event, command_id).is_some()
+}
+
 pub(crate) fn command_execute_request(event: &CustomEvent, command_id: NodeId) -> Option<ModuleCommandExecuteEvent> {
     (event.topic == MODULE_COMMAND_EXECUTE_TOPIC)
         .then(|| event.payload_as::<ModuleCommandExecuteEvent>().ok())
         .flatten()
         .filter(|decoded| decoded.command_id == command_id)
+}
+
+pub(crate) fn command_execute_batch_requests(
+    event: &CustomEvent,
+    command_id: NodeId,
+) -> Option<Vec<ModuleCommandExecuteEvent>> {
+    if event.topic != MODULE_COMMAND_EXECUTE_BATCH_TOPIC {
+        return None;
+    }
+    let execution_count = event.payload.get("executions")?.as_array()?.len();
+    if execution_count == 0 || execution_count > MODULE_COMMAND_EXECUTE_BATCH_MAX_EXECUTIONS {
+        return None;
+    }
+
+    let decoded = event.payload_as::<ModuleCommandExecuteBatchEvent>().ok()?;
+    (decoded.command_id == command_id
+        && decoded
+            .executions
+            .iter()
+            .all(|execution| execution.command_id == command_id))
+    .then_some(decoded.executions)
 }
 
 pub(crate) fn command_execute_param_overrides(

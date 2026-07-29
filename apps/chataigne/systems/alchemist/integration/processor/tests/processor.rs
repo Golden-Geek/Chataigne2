@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
 use golden_core::{
     edit::{Edit, NodeTree},
+    engine::EngineTime,
+    events::{CustomEvent, Event, EventFrame},
     node::{Folder, Node, NodeId, NodeMetaPatch, PresentationHint},
     parameter::{ParamValue, Parameter, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
@@ -552,6 +556,26 @@ fn legacy_builtin_processor_source_is_not_creatable() {
         processor.is_none(),
         "legacy built-in processor sources must fail at the creation boundary"
     );
+}
+
+#[test]
+fn processor_manager_custom_events_do_not_require_a_tree_snapshot() {
+    let manager = StateProcessorManager::new();
+    let event = CustomEvent::new(
+        "processor_manager_noop",
+        Some(manager.id()),
+        serde_json::Value::Null,
+    );
+    let frame = EventFrame::from_shared(vec![Arc::new(Event::custom(
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+        event,
+    ))]);
+
+    assert!(!manager.inbox_requires_tree_snapshot(&frame));
 }
 
 #[test]

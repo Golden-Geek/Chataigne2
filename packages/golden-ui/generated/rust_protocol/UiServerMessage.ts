@@ -42,9 +42,9 @@ batch: UiEventBatch, } | { "kind": "delta",
  */
 subscription_id: string,
 /**
- * Plane-specific delta.
+ * Plane-specific deltas staged together before the client may render.
  */
-delta: UiPlaneDelta, } | { "kind": "control",
+deltas: Array<UiPlaneDelta>, } | { "kind": "control",
 /**
  * Lifecycle update.
  */

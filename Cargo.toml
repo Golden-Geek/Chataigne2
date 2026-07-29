@@ -112,13 +112,21 @@ lto = true
 [profile.dev]
 debug = "line-tables-only"
 incremental = false
+opt-level = 3
 
+# The live graph runtime is intentionally optimized in development builds. Large
+# multiplex projects exercise these paths on every host tick, where opt-level 0
+# makes the development UI materially less responsive than the shipped runtime.
+# Optimizing dependencies is essential here: serialization, scripting, hashing,
+# and collection-heavy graph code all participate in the hot path.
 [profile.dev.package."*"]
 debug = false
 
 [profile.test]
 debug = "line-tables-only"
 incremental = false
+opt-level = 3
 
+# Keep performance guards representative of the development runtime.
 [profile.test.package."*"]
 debug = false

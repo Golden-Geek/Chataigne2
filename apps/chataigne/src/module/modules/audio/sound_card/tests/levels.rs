@@ -86,7 +86,10 @@ fn missing_runtime_clears_active_output_once() {
         first_events[0].topic,
         chataigne_sound_card_protocol::SOUND_CARD_OUTPUT_ACTIVITY_TOPIC
     );
-    assert_eq!(first_events[0].payload, serde_json::Value::Bool(false));
+    assert_eq!(
+        first_events[0].payload.as_ref(),
+        &serde_json::Value::Bool(false)
+    );
 
     let mut unchanged = test_process_ctx(2);
     module.synchronize_runtime_projection(&mut unchanged);

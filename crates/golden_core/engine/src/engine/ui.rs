@@ -44,6 +44,8 @@ impl<T: Node> Engine<T> {
     pub fn clear_ui_event_log(&mut self) {
         self.ui_event_log.clear();
         self.ui_event_log_start = 0;
+        self.ui_latest_event_times.clear();
+        self.ui_pending_param_event_times.clear();
     }
 
     /// Pushes a custom UI event into the replay log.
@@ -122,40 +124,56 @@ impl<T: Node> Engine<T> {
 
     pub(crate) fn push_ui_event_log(&mut self, event: Event) {
         if let Some((topic, origin)) = ui_latest_custom_event_key(&event) {
-            if let Some(index) = (self.ui_event_log_start..self.ui_event_log.len()).rev().find(|index| {
-                ui_latest_custom_event_key(&self.ui_event_log[*index]).is_some_and(|key| key == (topic, origin))
-            }) {
+            let key = (topic.to_owned(), origin);
+            self.ui_pending_param_event_times.clear();
+            let previous_index = self
+                .ui_latest_event_times
+                .get(&key)
+                .copied()
+                .and_then(|time| self.ui_event_log_index_at(time))
+                .filter(|index| {
+                    ui_latest_custom_event_key(&self.ui_event_log[*index])
+                        .is_some_and(|existing| existing == (key.0.as_str(), key.1))
+                });
+            if let Some(index) = previous_index {
                 self.ui_event_log.remove(index);
             }
+            self.ui_latest_event_times.insert(key, event.time);
             self.ui_event_log.push(event);
             self.trim_ui_event_log();
             return;
         }
 
         if let Some(param) = self.ui_coalescable_param_value_event(&event) {
-            let mut previous_index = None;
-            for index in (self.ui_event_log_start..self.ui_event_log.len()).rev() {
-                let Some(existing_param) = self.ui_coalescable_param_value_event(&self.ui_event_log[index]) else {
-                    break;
-                };
-                if existing_param == param {
-                    previous_index = Some(index);
-                    break;
-                }
-            }
-
+            let previous_index = self
+                .ui_pending_param_event_times
+                .get(&param)
+                .copied()
+                .and_then(|time| self.ui_event_log_index_at(time))
+                .filter(|index| self.ui_coalescable_param_value_event(&self.ui_event_log[*index]) == Some(param));
             let mut event = event;
             if let Some(index) = previous_index {
                 let previous = self.ui_event_log.remove(index);
                 preserve_param_changed_old_value(&mut event.kind, previous.kind);
             }
+            self.ui_pending_param_event_times.insert(param, event.time);
             self.ui_event_log.push(event);
             self.trim_ui_event_log();
             return;
         }
 
+        self.ui_pending_param_event_times.clear();
         self.ui_event_log.push(event);
         self.trim_ui_event_log();
+    }
+
+    fn ui_event_log_index_at(&self, time: EngineTime) -> Option<usize> {
+        let retained = self.ui_event_log();
+        let retained_index = retained.partition_point(|event| event.time < time);
+        retained
+            .get(retained_index)
+            .is_some_and(|event| event.time == time)
+            .then_some(self.ui_event_log_start + retained_index)
     }
 
     fn ui_coalescable_param_value_event(&self, event: &Event) -> Option<NodeId> {
@@ -174,6 +192,32 @@ impl<T: Node> Engine<T> {
         let retained_len = self.ui_event_log.len().saturating_sub(self.ui_event_log_start);
         if retained_len > self.ui_event_log_capacity {
             let overflow = retained_len - self.ui_event_log_capacity;
+            let eviction_end = self.ui_event_log_start + overflow;
+            for index in self.ui_event_log_start..eviction_end {
+                let event = &self.ui_event_log[index];
+                let time = event.time;
+                let latest_key = ui_latest_custom_event_key(event).map(|(topic, origin)| (topic.to_owned(), origin));
+                let param = match &event.kind {
+                    EventKind::ParamChanged { param, .. } => Some(*param),
+                    _ => None,
+                };
+                if let Some(key) = latest_key
+                    && self
+                        .ui_latest_event_times
+                        .get(&key)
+                        .is_some_and(|indexed| *indexed == time)
+                {
+                    self.ui_latest_event_times.remove(&key);
+                }
+                if let Some(param) = param
+                    && self
+                        .ui_pending_param_event_times
+                        .get(&param)
+                        .is_some_and(|indexed| *indexed == time)
+                {
+                    self.ui_pending_param_event_times.remove(&param);
+                }
+            }
             self.ui_event_log_start = self.ui_event_log_start.saturating_add(overflow);
         }
 
@@ -187,6 +231,14 @@ impl<T: Node> Engine<T> {
             self.ui_event_log.drain(0..self.ui_event_log_start);
             self.ui_event_log_start = 0;
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn ui_event_index_sizes_for_tests(&self) -> (usize, usize) {
+        (
+            self.ui_latest_event_times.len(),
+            self.ui_pending_param_event_times.len(),
+        )
     }
 }
 

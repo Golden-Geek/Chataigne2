@@ -5,14 +5,14 @@ use ts_rs::TS;
 
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
-use crate::engine::{DuplicateDispatchOptions, Engine, EngineTime, ProjectLoadRecoveryReport, ProjectPersistenceError};
+use crate::engine::{Engine, EngineTime, ProjectLoadRecoveryReport, ProjectPersistenceError};
 use crate::events::{CustomEventRetention, Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
     CurveBezierFitOptions, CurveFitPoint, CurveNode, DASHBOARD_GENERIC_WIDGET_NODE_TYPE,
     DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DeclId,
-    FOLDER_NODE_TYPE, Node, NodeId, NodeMeta, NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid,
-    PresentationHint, UserCreatableItem, UserCreatableItemInitialParam, UserNodeRole,
+    FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeId, NodeMeta, NodeMetaPatch, NodeReference, NodeUserPermissions,
+    NodeUuid, PresentationHint, UserCreatableItem, UserCreatableItemInitialParam, UserNodeRole,
 };
 use crate::parameter::{
     CssValue, ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
@@ -23,7 +23,7 @@ use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.3.0";
+pub const UI_PROTOCOL_VERSION: &str = "0.4.0";
 pub(crate) const UI_USER_CONTEXT_SCOPE_TOPIC: &str = "__user_context.scope_changed";
 pub(crate) const UI_USER_CONTEXT_ENTRY_TOPIC: &str = "__user_context.entry_changed";
 
@@ -41,6 +41,19 @@ fn is_default_event_behaviour(value: &ParameterEventBehaviour) -> bool {
 
 fn is_false(value: &bool) -> bool {
     !*value
+}
+
+fn duplicate_unique_label_base(label: &str) -> (&str, u64) {
+    let Some((base, suffix)) = label.rsplit_once(' ') else {
+        return (label, 2);
+    };
+    if base.trim().is_empty() {
+        return (label, 2);
+    }
+    match suffix.parse::<u64>() {
+        Ok(suffix) if suffix >= 2 => (base, suffix.saturating_add(1)),
+        _ => (label, 2),
+    }
 }
 
 fn is_empty_create_user_item_initial_params(value: &[UiCreateUserItemInitialParam]) -> bool {
@@ -292,12 +305,12 @@ pub enum UiServerMessage {
         /// Requested replay batch.
         batch: UiEventBatch,
     },
-    /// Delivers one independently flow-controlled delta.
+    /// Delivers one atomic set of plane deltas from a server replay pass.
     Delta {
         /// Matching client subscription identifier.
         subscription_id: String,
-        /// Plane-specific delta.
-        delta: UiPlaneDelta,
+        /// Plane-specific deltas staged together before the client may render.
+        deltas: Vec<UiPlaneDelta>,
     },
     /// Advances a control request lifecycle.
     Control {
@@ -1427,7 +1440,7 @@ impl From<Event> for UiEventDto {
             EventKind::Custom(custom) => UiEventKind::Custom {
                 topic: custom.topic,
                 origin: custom.origin,
-                payload: custom.payload,
+                payload: std::sync::Arc::unwrap_or_clone(custom.payload),
                 retention: custom.retention,
             },
         };
@@ -1764,6 +1777,9 @@ pub struct UiAck {
     /// Optional earliest resulting event timestamp.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub earliest_event_time: Option<EngineTime>,
+    /// Optional completion boundary covering the final event produced by the intent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_event_time: Option<EngineTime>,
     /// Current undo/redo state after applying the intent.
     pub history: UiHistoryState,
 }
@@ -1995,7 +2011,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        let to = events.last().map(|event| event.time);
+        let to = source_events.last().map(|event| event.time);
 
         UiEventBatch {
             from,
@@ -2796,90 +2812,266 @@ impl<T: Node> Engine<T> {
         Encode: FnMut(&T) -> Result<serde_json::Value, String>,
         Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        let mut copied_by_source = HashMap::<NodeId, NodeId>::new();
+        const OPERATION: &str = "DuplicateNodes";
+
+        let mut copied_by_source = HashMap::<NodeId, (NodeUuid, String)>::new();
+        let mut reserved_labels = HashMap::<NodeId, HashSet<String>>::new();
+        let catalog_labels_by_parent = self.ui_duplicate_catalog_labels(&created_items, &dependent_items);
+        let mut prepared_duplicates = Vec::with_capacity(nodes.len());
+        let mut prepared_created_items = Vec::with_capacity(created_items.len());
+        let mut prepared_dependent_items = Vec::with_capacity(dependent_items.len());
         let mut copied_roots = Vec::with_capacity(nodes.len() + created_items.len());
-        let mut duplicated_roots = Vec::with_capacity(nodes.len());
 
         for spec in nodes {
+            if copied_by_source.contains_key(&spec.source) {
+                return Err(Self::ui_duplicate_source_collision(spec.source));
+            }
+
             let source = spec.source;
-            let duplicated_root = self.duplicate_subtree_with_dispatch(
+            let mut prepared = self.prepare_duplicate_subtree_with(
                 source,
                 spec.new_parent,
                 spec.new_prev_sibling,
-                DuplicateDispatchOptions {
-                    label_override: None,
-                    dispatch_structure_events: false,
-                },
+                None,
                 &mut encode_data,
                 &mut decode_node,
             )?;
-            if !spec.initial_params.is_empty() {
-                self.ui_apply_initial_params_to_node(duplicated_root, spec.initial_params, "DuplicateNodes")
-                    .map_err(ProjectPersistenceError::Engine)?;
-            }
-            copied_by_source.insert(source, duplicated_root);
-            copied_roots.push(duplicated_root);
-            duplicated_roots.push(duplicated_root);
+            let resolved_label =
+                self.ui_reserve_duplicate_label(spec.new_parent, prepared.root_label(), &mut reserved_labels);
+            prepared.set_root_label(resolved_label.clone());
+            let prepared = self.prepare_project_subtree_initial_params(
+                prepared,
+                Self::ui_initial_param_pairs(spec.initial_params),
+                OPERATION,
+            )?;
+            copied_by_source.insert(source, (prepared.root_uuid(), resolved_label));
+            prepared_duplicates.push(prepared);
         }
 
         for spec in created_items {
+            if copied_by_source.contains_key(&spec.source) {
+                return Err(Self::ui_duplicate_source_collision(spec.source));
+            }
+
             let source = spec.source;
-            let created_root = self
-                .ui_apply_create_user_item_returning_node(spec.parent, spec.node_type, spec.label, spec.initial_params)
-                .map_err(ProjectPersistenceError::Engine)?;
-            copied_by_source.insert(source, created_root);
-            copied_roots.push(created_root);
+            let preferred_label = Self::ui_catalog_item_preferred_label(
+                &catalog_labels_by_parent,
+                spec.parent,
+                spec.node_type.as_str(),
+                spec.label,
+                OPERATION,
+            )?;
+            let resolved_label =
+                self.ui_reserve_duplicate_label(spec.parent, preferred_label.as_str(), &mut reserved_labels);
+            let prepared = self.prepare_prevalidated_catalog_item_subtree(
+                spec.parent,
+                None,
+                spec.node_type.as_str(),
+                resolved_label.clone(),
+                Self::ui_initial_param_pairs(spec.initial_params),
+                OPERATION,
+            )?;
+            copied_by_source.insert(source, (prepared.root_uuid(), resolved_label));
+            prepared_created_items.push(prepared);
         }
 
         for item in dependent_items {
             let initial_params =
                 self.ui_resolve_duplicate_dependent_initial_params(item.initial_params, &copied_by_source)?;
-            self.ui_apply_create_user_item_returning_node(item.parent, item.node_type, item.label, initial_params)
-                .map_err(ProjectPersistenceError::Engine)?;
+            let preferred_label = Self::ui_catalog_item_preferred_label(
+                &catalog_labels_by_parent,
+                item.parent,
+                item.node_type.as_str(),
+                item.label,
+                OPERATION,
+            )?;
+            let resolved_label =
+                self.ui_reserve_duplicate_label(item.parent, preferred_label.as_str(), &mut reserved_labels);
+            prepared_dependent_items.push(self.prepare_prevalidated_catalog_item_subtree(
+                item.parent,
+                None,
+                item.node_type.as_str(),
+                resolved_label,
+                Self::ui_initial_param_pairs(initial_params),
+                OPERATION,
+            )?);
         }
 
-        self.queue_loaded_subtree_structure_events(duplicated_roots.as_slice())?;
+        let committed_capacity =
+            prepared_duplicates.len() + prepared_created_items.len() + prepared_dependent_items.len();
+        let mut committed = Vec::with_capacity(committed_capacity);
+        let mut structure_roots = Vec::with_capacity(committed_capacity);
+        for prepared in prepared_duplicates {
+            let subtree =
+                self.commit_prepared_project_subtree(prepared, NodeCreationContext::Duplicate, false, OPERATION)?;
+            copied_roots.push(subtree.root);
+            structure_roots.push(subtree.root);
+            committed.push(subtree);
+        }
+        for prepared in prepared_created_items {
+            let subtree =
+                self.commit_prepared_project_subtree(prepared, NodeCreationContext::Fresh, false, OPERATION)?;
+            copied_roots.push(subtree.root);
+            structure_roots.push(subtree.root);
+            committed.push(subtree);
+        }
+        for prepared in prepared_dependent_items {
+            let subtree =
+                self.commit_prepared_project_subtree(prepared, NodeCreationContext::Fresh, false, OPERATION)?;
+            structure_roots.push(subtree.root);
+            committed.push(subtree);
+        }
 
+        self.queue_loaded_subtree_structure_events(structure_roots.as_slice())?;
+        self.finalize_committed_project_subtrees(committed)?;
         Ok(copied_roots)
     }
 
     fn ui_resolve_duplicate_dependent_initial_params(
         &self,
         initial_params: Vec<UiDuplicateDependentUserItemInitialParam>,
-        copied_by_source: &HashMap<NodeId, NodeId>,
+        copied_by_source: &HashMap<NodeId, (NodeUuid, String)>,
     ) -> Result<Vec<UiCreateUserItemInitialParam>, ProjectPersistenceError> {
         initial_params
             .into_iter()
             .map(|initial_param| {
-                let value =
-                    match initial_param.value {
-                        UiDuplicateDependentInitialParamValue::Literal { value } => value,
-                        UiDuplicateDependentInitialParamValue::DuplicatedNodeReference { source } => {
-                            let copied = copied_by_source.get(&source).copied().ok_or_else(|| {
-                                ProjectPersistenceError::Codec {
+                let value = match initial_param.value {
+                    UiDuplicateDependentInitialParamValue::Literal { value } => value,
+                    UiDuplicateDependentInitialParamValue::DuplicatedNodeReference { source } => {
+                        let (copied_uuid, copied_label) =
+                            copied_by_source
+                                .get(&source)
+                                .ok_or_else(|| ProjectPersistenceError::Codec {
                                     node_type: "duplicateNodes".to_string(),
                                     message: format!(
                                         "dependent item references source node {:?} that was not copied",
                                         source
                                     ),
-                                }
-                            })?;
-                            let node = self
-                                .nodes
-                                .get(copied)
-                                .ok_or(ProjectPersistenceError::MissingNode(copied))?;
-                            let node_data = node.node_data();
-                            let mut reference = NodeReference::with_cached_id(node_data.meta.uuid, Some(copied));
-                            reference.cached_name = Some(node_data.meta.label.clone());
-                            ParamValue::Reference(reference)
-                        }
-                    };
+                                })?;
+                        let mut reference = NodeReference::with_cached_id(*copied_uuid, None);
+                        reference.cached_name = Some(copied_label.clone());
+                        ParamValue::Reference(reference)
+                    }
+                };
                 Ok(UiCreateUserItemInitialParam {
                     decl_id: initial_param.decl_id,
                     value,
                 })
             })
             .collect()
+    }
+
+    fn ui_initial_param_pairs(initial_params: Vec<UiCreateUserItemInitialParam>) -> Vec<(DeclId, ParamValue)> {
+        initial_params
+            .into_iter()
+            .map(|initial_param| (initial_param.decl_id, initial_param.value))
+            .collect()
+    }
+
+    fn ui_duplicate_source_collision(source: NodeId) -> ProjectPersistenceError {
+        ProjectPersistenceError::Codec {
+            node_type: "duplicateNodes".to_string(),
+            message: format!(
+                "source node {:?} appears more than once in one duplication request",
+                source
+            ),
+        }
+    }
+
+    fn ui_duplicate_catalog_labels(
+        &self,
+        created_items: &[UiDuplicateCreateUserItemSpec],
+        dependent_items: &[UiDuplicateDependentUserItem],
+    ) -> HashMap<NodeId, HashMap<String, String>> {
+        let parents = created_items
+            .iter()
+            .map(|item| item.parent)
+            .chain(dependent_items.iter().map(|item| item.parent))
+            .collect::<HashSet<_>>();
+        let shared_snapshot = parents
+            .iter()
+            .copied()
+            .any(|parent| self.catalog_creatable_items_require_tree_snapshot(parent))
+            .then(|| self.build_process_tree_snapshot());
+
+        parents
+            .into_iter()
+            .map(|parent| {
+                let items = match shared_snapshot.as_deref() {
+                    Some(snapshot) if self.catalog_creatable_items_require_tree_snapshot(parent) => {
+                        self.catalog_creatable_items_with_snapshot(parent, snapshot)
+                    }
+                    _ => self.catalog_creatable_items_without_snapshot(parent),
+                };
+                let labels = items.into_iter().map(|item| (item.node_type, item.label)).collect();
+                (parent, labels)
+            })
+            .collect()
+    }
+
+    fn ui_catalog_item_preferred_label(
+        catalog_labels_by_parent: &HashMap<NodeId, HashMap<String, String>>,
+        parent: NodeId,
+        node_type: &str,
+        label: Option<String>,
+        operation: &'static str,
+    ) -> Result<String, ProjectPersistenceError> {
+        let catalog_label = catalog_labels_by_parent
+            .get(&parent)
+            .and_then(|labels| labels.get(node_type))
+            .ok_or_else(|| {
+                ProjectPersistenceError::Engine(crate::engine::EngineEditError::UserItemTypeUnavailable {
+                    edit_index: 0,
+                    operation,
+                    parent,
+                    node_type: node_type.to_string(),
+                })
+            })?;
+        Ok(label.unwrap_or_else(|| catalog_label.clone()))
+    }
+
+    fn ui_reserve_duplicate_label(
+        &self,
+        parent: NodeId,
+        preferred_label: &str,
+        reserved_labels: &mut HashMap<NodeId, HashSet<String>>,
+    ) -> String {
+        if !reserved_labels.contains_key(&parent) {
+            let mut labels = HashSet::new();
+            for child in self.ui_direct_children(parent).unwrap_or_default() {
+                if let Some(label) = self
+                    .nodes
+                    .get(child)
+                    .map(|node| node.node_data().meta.label.trim())
+                    .filter(|label| !label.is_empty())
+                {
+                    labels.insert(label.to_string());
+                }
+            }
+            reserved_labels.insert(parent, labels);
+        }
+
+        let labels = reserved_labels
+            .get_mut(&parent)
+            .expect("reserved duplicate labels should be initialized");
+        let preferred_label = preferred_label.trim();
+        let preferred_label = if preferred_label.is_empty() {
+            "Item"
+        } else {
+            preferred_label
+        };
+        if labels.insert(preferred_label.to_string()) {
+            return preferred_label.to_string();
+        }
+
+        let (base_label, mut suffix) = duplicate_unique_label_base(preferred_label);
+        loop {
+            let candidate = format!("{base_label} {suffix}");
+            if labels.insert(candidate.clone()) {
+                return candidate;
+            }
+            suffix = suffix.saturating_add(1);
+        }
     }
 
     /// Applies direct parameter initializers to an already-created user item root.
@@ -2927,7 +3119,7 @@ impl<T: Node> Engine<T> {
 
     /// Applies one UI edit intent while attributing any opened edit session to a stable client.
     pub fn apply_ui_intent_from_client(&mut self, intent: UiEditIntent, ui_client_instance_id: Option<&str>) -> UiAck {
-        let before_len = self.ui_event_log().len();
+        let before_event_time = self.ui_event_log().last().map(|event| event.time);
         // eprintln!("[gc-ui] intent recv: {intent:?} | undo_len={} redo_len={} active_session={}", self.undo_len(), self.redo_len(), self.has_active_edit_session());
 
         let ack = match intent {
@@ -2939,17 +3131,17 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id: ui_client_instance_id.map(str::to_owned),
                 });
                 let result = self.apply_edits();
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::EndEdit { client_edit_id } => {
                 self.edits.push(Edit::EndEditSession { client_edit_id });
                 let result = self.apply_edits();
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetParam { node, value, behaviour } => {
                 self.edits.push(Edit::SetParam { node, value, behaviour });
                 let result = self.apply_ui_stabilization_to_fixed_point(16);
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetTextParamSmart { node, value, behaviour } => {
                 let result = self.apply_implicit_ui_edit_session(
@@ -2958,26 +3150,26 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id,
                     |engine| engine.ui_apply_set_text_param_smart(node, value, behaviour),
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetParamControlState { node, state } => {
                 match self.apply_set_param_control_state(0, node, state.into()) {
                     Ok(Some(effect)) => {
                         self.record_set_param_control_state_history(effect);
-                        self.finish_ui_apply_now(before_len, Ok(()))
+                        self.finish_ui_apply_now(before_event_time, Ok(()))
                     }
-                    Ok(None) => self.finish_ui_apply_now(before_len, Ok(())),
-                    Err(err) => self.finish_ui_apply_now(before_len, Err(err)),
+                    Ok(None) => self.finish_ui_apply_now(before_event_time, Ok(())),
+                    Err(err) => self.finish_ui_apply_now(before_event_time, Err(err)),
                 }
             }
             UiEditIntent::SetParamConstraints { node, constraints } => {
                 match self.apply_set_param_constraints(0, node, constraints) {
                     Ok(Some(effect)) => {
                         self.record_set_param_constraints_history(effect);
-                        self.finish_ui_apply_now(before_len, Ok(()))
+                        self.finish_ui_apply_now(before_event_time, Ok(()))
                     }
-                    Ok(None) => self.finish_ui_apply_now(before_len, Ok(())),
-                    Err(err) => self.finish_ui_apply_now(before_len, Err(err)),
+                    Ok(None) => self.finish_ui_apply_now(before_event_time, Ok(())),
+                    Err(err) => self.finish_ui_apply_now(before_event_time, Err(err)),
                 }
             }
             UiEditIntent::MoveNode {
@@ -2991,7 +3183,7 @@ impl<T: Node> Engine<T> {
                     new_prev_sibling,
                 });
                 let result = self.apply_edits();
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::RemoveNode { node } => {
                 let result = self.apply_implicit_ui_edit_session(
@@ -3003,7 +3195,7 @@ impl<T: Node> Engine<T> {
                         engine.apply_ui_stabilization_to_fixed_point(16)
                     },
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::RemoveNodes { nodes } => {
                 let result = self.apply_implicit_ui_edit_session(
@@ -3020,7 +3212,7 @@ impl<T: Node> Engine<T> {
                         engine.apply_ui_stabilization_to_fixed_point(16)
                     },
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::CreateUserItem {
                 parent,
@@ -3035,7 +3227,7 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id,
                     |engine| engine.ui_apply_create_user_item(parent, node_type, label, initial_params),
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::CreateDashboardContainerWidget {
                 parent,
@@ -3060,7 +3252,7 @@ impl<T: Node> Engine<T> {
                             .map(|_| ())
                     },
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::CreateDashboardNodeWidget {
                 parent,
@@ -3078,7 +3270,7 @@ impl<T: Node> Engine<T> {
                             .map(|_| ())
                     },
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::CreateDashboardGenericWidget {
                 parent,
@@ -3096,7 +3288,7 @@ impl<T: Node> Engine<T> {
                             .map(|_| ())
                     },
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::BindDashboardNodeWidgetTarget { widget, target } => {
                 let result = self.apply_implicit_ui_edit_session(
@@ -3105,7 +3297,7 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id,
                     |engine| engine.ui_apply_bind_dashboard_node_widget_target(widget, target),
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::BindDashboardGenericWidgetTarget { widget, target } => {
                 let result = self.apply_implicit_ui_edit_session(
@@ -3114,7 +3306,7 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id,
                     |engine| engine.ui_apply_bind_dashboard_generic_widget_target(widget, target),
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::WrapDashboardWidgetInContainer {
                 widget,
@@ -3127,41 +3319,33 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id,
                     |engine| engine.ui_apply_wrap_dashboard_widget_in_container(widget, placement, layout_kind),
                 );
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::DuplicateNode {
                 source,
                 new_parent,
                 new_prev_sibling,
                 initial_params: _,
-            } => UiAck {
-                success: false,
-                status: UiAckStatus::Rejected,
-                error_code: Some("duplicate_node_transport_required".to_string()),
-                error_message: Some(format!(
+            } => self.rejected_ui_ack(
+                "duplicate_node_transport_required",
+                format!(
                     "duplicateNode requires transport-level project codec support (source={}, new_parent={}, new_prev_sibling={:?})",
                     source.0, new_parent.0, new_prev_sibling
-                )),
-                earliest_event_time: None,
-                history: self.ui_history_state(),
-            },
+                ),
+            ),
             UiEditIntent::DuplicateNodes {
                 nodes,
                 created_items,
                 dependent_items,
-            } => UiAck {
-                success: false,
-                status: UiAckStatus::Rejected,
-                error_code: Some("duplicate_nodes_transport_required".to_string()),
-                error_message: Some(format!(
+            } => self.rejected_ui_ack(
+                "duplicate_nodes_transport_required",
+                format!(
                     "duplicateNodes requires transport-level project codec support (nodes={}, created_items={}, dependent_items={})",
                     nodes.len(),
                     created_items.len(),
                     dependent_items.len()
-                )),
-                earliest_event_time: None,
-                history: self.ui_history_state(),
-            },
+                ),
+            ),
             UiEditIntent::FitAnimationCurvePath { curve, points, options } => {
                 self.edits.push(Edit::CallNodeMutation {
                     node: curve,
@@ -3175,12 +3359,12 @@ impl<T: Node> Engine<T> {
                     }),
                 });
                 let result = self.apply_edits_to_fixed_point(16);
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::PatchMeta { node, patch } => {
                 self.edits.push(Edit::PatchMeta { node, patch });
                 let result = self.apply_edits();
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::EnsureUserContextScope { owner } => match self.ensure_user_context_scope(owner) {
                 Ok(changed) => {
@@ -3194,23 +3378,9 @@ impl<T: Node> Engine<T> {
                             }),
                         );
                     }
-                    UiAck {
-                        success: true,
-                        status: UiAckStatus::Applied,
-                        error_code: None,
-                        error_message: None,
-                        earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                        history: self.ui_history_state(),
-                    }
+                    self.applied_ui_ack_since(before_event_time)
                 }
-                Err(message) => UiAck {
-                    success: false,
-                    status: UiAckStatus::Rejected,
-                    error_code: Some("user_context_scope_error".to_string()),
-                    error_message: Some(message),
-                    earliest_event_time: None,
-                    history: self.ui_history_state(),
-                },
+                Err(message) => self.rejected_ui_ack("user_context_scope_error", message),
             },
             UiEditIntent::RemoveUserContextScope { owner } => {
                 let removed = self.remove_user_context_scope(owner);
@@ -3224,14 +3394,7 @@ impl<T: Node> Engine<T> {
                         }),
                     );
                 }
-                UiAck {
-                    success: true,
-                    status: UiAckStatus::Applied,
-                    error_code: None,
-                    error_message: None,
-                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                    history: self.ui_history_state(),
-                }
+                self.applied_ui_ack_since(before_event_time)
             }
             UiEditIntent::UpsertUserContextEntry { owner, symbol, param } => {
                 match self.upsert_user_context_entry(owner, symbol.as_str(), param) {
@@ -3248,23 +3411,9 @@ impl<T: Node> Engine<T> {
                                 }),
                             );
                         }
-                        UiAck {
-                            success: true,
-                            status: UiAckStatus::Applied,
-                            error_code: None,
-                            error_message: None,
-                            earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                            history: self.ui_history_state(),
-                        }
+                        self.applied_ui_ack_since(before_event_time)
                     }
-                    Err(message) => UiAck {
-                        success: false,
-                        status: UiAckStatus::Rejected,
-                        error_code: Some("user_context_entry_error".to_string()),
-                        error_message: Some(message),
-                        earliest_event_time: None,
-                        history: self.ui_history_state(),
-                    },
+                    Err(message) => self.rejected_ui_ack("user_context_entry_error", message),
                 }
             }
             UiEditIntent::RemoveUserContextEntry { owner, symbol } => {
@@ -3280,14 +3429,7 @@ impl<T: Node> Engine<T> {
                         }),
                     );
                 }
-                UiAck {
-                    success: true,
-                    status: UiAckStatus::Applied,
-                    error_code: None,
-                    error_message: None,
-                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                    history: self.ui_history_state(),
-                }
+                self.applied_ui_ack_since(before_event_time)
             }
             UiEditIntent::SendNodeEvent { node, topic, payload } => {
                 let result = if !self.nodes.contains(node) {
@@ -3304,24 +3446,17 @@ impl<T: Node> Engine<T> {
                     )));
                     self.apply_ui_stabilization_to_fixed_point(16)
                 };
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::ReevaluateGraph => {
                 self.edits.push(Edit::ReevaluateGraph);
                 let result = self.apply_edits();
-                self.finish_ui_apply_now(before_len, result)
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::ClearLogs => {
                 crate::logger::clear();
                 self.push_ui_custom_event(crate::logger::UI_LOG_CLEARED_TOPIC, None, serde_json::json!({}));
-                UiAck {
-                    success: true,
-                    status: UiAckStatus::Applied,
-                    error_code: None,
-                    error_message: None,
-                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                    history: self.ui_history_state(),
-                }
+                self.applied_ui_ack_since(before_event_time)
             }
             UiEditIntent::SetLogMaxEntries { max_entries } => {
                 let applied_max_entries = crate::logger::set_max_entries(max_entries);
@@ -3330,50 +3465,15 @@ impl<T: Node> Engine<T> {
                     None,
                     serde_json::json!({ "max_entries": applied_max_entries }),
                 );
-                UiAck {
-                    success: true,
-                    status: UiAckStatus::Applied,
-                    error_code: None,
-                    error_message: None,
-                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                    history: self.ui_history_state(),
-                }
+                self.applied_ui_ack_since(before_event_time)
             }
             UiEditIntent::Undo => match self.undo() {
-                Ok(_) => UiAck {
-                    success: true,
-                    status: UiAckStatus::Applied,
-                    error_code: None,
-                    error_message: None,
-                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                    history: self.ui_history_state(),
-                },
-                Err(err) => UiAck {
-                    success: false,
-                    status: UiAckStatus::Rejected,
-                    error_code: Some(ui_error_code(&err).to_string()),
-                    error_message: Some(err.to_string()),
-                    earliest_event_time: None,
-                    history: self.ui_history_state(),
-                },
+                Ok(_) => self.applied_ui_ack_since(before_event_time),
+                Err(err) => self.rejected_ui_ack(ui_error_code(&err), err.to_string()),
             },
             UiEditIntent::Redo => match self.redo() {
-                Ok(_) => UiAck {
-                    success: true,
-                    status: UiAckStatus::Applied,
-                    error_code: None,
-                    error_message: None,
-                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                    history: self.ui_history_state(),
-                },
-                Err(err) => UiAck {
-                    success: false,
-                    status: UiAckStatus::Rejected,
-                    error_code: Some(ui_error_code(&err).to_string()),
-                    error_message: Some(err.to_string()),
-                    earliest_event_time: None,
-                    history: self.ui_history_state(),
-                },
+                Ok(_) => self.applied_ui_ack_since(before_event_time),
+                Err(err) => self.rejected_ui_ack(ui_error_code(&err), err.to_string()),
             },
         };
 
@@ -3416,24 +3516,40 @@ impl<T: Node> Engine<T> {
         end_result
     }
 
-    fn finish_ui_apply_now(&self, before_len: usize, result: Result<(), crate::engine::EngineEditError>) -> UiAck {
+    fn applied_ui_ack_since(&self, previous_event_time: Option<EngineTime>) -> UiAck {
+        let start = self.ui_event_log_start_index(previous_event_time);
+        let events = &self.ui_event_log()[start..];
+        UiAck {
+            success: true,
+            status: UiAckStatus::Applied,
+            error_code: None,
+            error_message: None,
+            earliest_event_time: events.first().map(|event| event.time),
+            latest_event_time: events.last().map(|event| event.time),
+            history: self.ui_history_state(),
+        }
+    }
+
+    fn rejected_ui_ack(&self, error_code: &str, error_message: String) -> UiAck {
+        UiAck {
+            success: false,
+            status: UiAckStatus::Rejected,
+            error_code: Some(error_code.to_string()),
+            error_message: Some(error_message),
+            earliest_event_time: None,
+            latest_event_time: None,
+            history: self.ui_history_state(),
+        }
+    }
+
+    fn finish_ui_apply_now(
+        &self,
+        previous_event_time: Option<EngineTime>,
+        result: Result<(), crate::engine::EngineEditError>,
+    ) -> UiAck {
         match result {
-            Ok(()) => UiAck {
-                success: true,
-                status: UiAckStatus::Applied,
-                error_code: None,
-                error_message: None,
-                earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
-                history: self.ui_history_state(),
-            },
-            Err(err) => UiAck {
-                success: false,
-                status: UiAckStatus::Rejected,
-                error_code: Some(ui_error_code(&err).to_string()),
-                error_message: Some(err.to_string()),
-                earliest_event_time: None,
-                history: self.ui_history_state(),
-            },
+            Ok(()) => self.applied_ui_ack_since(previous_event_time),
+            Err(err) => self.rejected_ui_ack(ui_error_code(&err), err.to_string()),
         }
     }
 
@@ -3759,7 +3875,7 @@ impl<T: Node> Engine<T> {
             EventKind::Custom(custom) => UiEventKind::Custom {
                 topic: custom.topic.clone(),
                 origin: custom.origin,
-                payload: custom.payload.clone(),
+                payload: custom.payload.as_ref().clone(),
                 retention: custom.retention,
             },
         };

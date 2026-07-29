@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use golden_engine::node::Folder;
+use golden_engine::node::{Folder, NodeId};
+use golden_engine::parameter::ParamValue;
 use serde_json::json;
 
 use super::runtime_pacer::DeadlineSchedule;
@@ -173,9 +174,7 @@ fn client_with_subscription_count(count: usize) -> WsClientState {
                     interest: UiInterest::workbench(format!("view-{index}"), UiSubscriptionScope::WholeGraph),
                     cursor: None,
                     last_runtime_stats: None,
-                    pending_value_from: None,
-                    pending_value_to: None,
-                    pending_value_events: Vec::new(),
+                    pending_value_events: PendingValueEvents::default(),
                 },
             )
         })
@@ -194,10 +193,11 @@ fn outbound_queue_supersedes_latest_wins_plane_for_the_same_view() {
     assert_eq!(queue.push(observation_message(2)), QueuePushResult::Superseded);
     assert_eq!(queue.len(), 1);
 
-    let Some(WsOutbound::Message(WsServerMessage::Delta { delta, .. })) = queue.pop() else {
+    let Some(WsOutbound::Message(WsServerMessage::Delta { deltas, .. })) = queue.pop() else {
         panic!("expected observation delta");
     };
-    assert_eq!(delta.batch.to.unwrap().tick, 2);
+    assert_eq!(deltas.len(), 1);
+    assert_eq!(deltas[0].batch.to.unwrap().tick, 2);
 }
 
 #[test]
@@ -207,6 +207,129 @@ fn outbound_queue_never_silently_drops_reliable_messages() {
     assert_eq!(queue.push(reliable_message(2)), QueuePushResult::Queued);
     assert_eq!(queue.push(reliable_message(3)), QueuePushResult::Full);
     assert_eq!(queue.len(), 2);
+}
+
+#[test]
+fn outbound_queue_treats_multi_plane_delta_envelopes_as_reliable() {
+    let queue = WsOutboundQueue::new(1);
+    assert_eq!(queue.push(multi_plane_message(1)), QueuePushResult::Queued);
+    assert_eq!(queue.push(observation_message(2)), QueuePushResult::Full);
+    assert_eq!(queue.len(), 1);
+}
+
+#[test]
+fn outbound_queue_never_merges_latest_wins_events_across_a_reliable_barrier() {
+    let queue = WsOutboundQueue::new(3);
+    assert_eq!(queue.push(observation_message(1)), QueuePushResult::Queued);
+    assert_eq!(queue.push(multi_plane_message(2)), QueuePushResult::Queued);
+    assert_eq!(queue.push(observation_message(3)), QueuePushResult::Queued);
+    assert_eq!(queue.len(), 3);
+
+    let Some(WsOutbound::Message(WsServerMessage::Delta { deltas, .. })) = queue.pop() else {
+        panic!("expected first observation envelope");
+    };
+    assert_eq!(deltas[0].batch.to.map(|time| time.tick), Some(1));
+    let Some(WsOutbound::Message(WsServerMessage::Delta { deltas, .. })) = queue.pop() else {
+        panic!("expected reliable multi-plane barrier");
+    };
+    assert_eq!(deltas.len(), 2);
+    assert_eq!(deltas[0].batch.to.map(|time| time.tick), Some(2));
+    let Some(WsOutbound::Message(WsServerMessage::Delta { deltas, .. })) = queue.pop() else {
+        panic!("expected final observation envelope");
+    };
+    assert_eq!(deltas[0].batch.to.map(|time| time.tick), Some(3));
+}
+
+#[test]
+fn outbound_queue_treats_resync_as_a_subscription_ordering_barrier() {
+    let queue = WsOutboundQueue::new(3);
+    assert_eq!(queue.push(observation_message(1)), QueuePushResult::Queued);
+    assert_eq!(
+        queue.push(WsOutbound::Message(WsServerMessage::ResyncRequired {
+            subscription_id: "workbench".to_string(),
+            plane: None,
+            reason: "test_barrier".to_string(),
+        })),
+        QueuePushResult::Queued
+    );
+    assert_eq!(queue.push(observation_message(3)), QueuePushResult::Queued);
+
+    let Some(WsOutbound::Message(WsServerMessage::Delta { deltas, .. })) = queue.pop() else {
+        panic!("expected first observation envelope");
+    };
+    assert_eq!(deltas[0].batch.to.map(|time| time.tick), Some(1));
+    let Some(WsOutbound::Message(WsServerMessage::ResyncRequired { reason, .. })) = queue.pop() else {
+        panic!("expected resync barrier");
+    };
+    assert_eq!(reason, "test_barrier");
+    let Some(WsOutbound::Message(WsServerMessage::Delta { deltas, .. })) = queue.pop() else {
+        panic!("expected final observation envelope");
+    };
+    assert_eq!(deltas[0].batch.to.map(|time| time.tick), Some(3));
+}
+
+#[test]
+fn pending_value_events_coalesce_large_stream_with_amortized_linear_work() {
+    const PARAM_COUNT: usize = 8_192;
+    const REPLACEMENT_ROUNDS: usize = 8;
+
+    let from = EngineTime {
+        tick: 0,
+        micro: 0,
+        seq: 0,
+    };
+    let mut pending = PendingValueEvents::default();
+    pending.queue(
+        Some(from),
+        (0..PARAM_COUNT)
+            .map(|param| param_value_event(param, param + 1, 0))
+            .collect(),
+    );
+
+    for round in 1..=REPLACEMENT_ROUNDS {
+        let tick_base = round * PARAM_COUNT;
+        pending.queue(
+            Some(EngineTime {
+                tick: tick_base as u64,
+                micro: 0,
+                seq: 0,
+            }),
+            (0..PARAM_COUNT)
+                .rev()
+                .enumerate()
+                .map(|(offset, param)| param_value_event(param, tick_base + offset + 1, round as i32))
+                .collect(),
+        );
+        assert!(
+            pending.storage_len() <= PARAM_COUNT * 2,
+            "stale slots must be compacted instead of growing with update count"
+        );
+    }
+
+    let queued_event_count = PARAM_COUNT * (REPLACEMENT_ROUNDS + 1);
+    assert!(
+        pending.operation_count() <= queued_event_count * 3,
+        "indexed replacement and bounded compaction must remain amortized linear"
+    );
+
+    let batch = pending.take_batch().expect("latest parameter values");
+    assert_eq!(batch.from, Some(from));
+    assert_eq!(
+        batch.to,
+        Some(EngineTime {
+            tick: queued_event_count as u64,
+            micro: 0,
+            seq: 0,
+        })
+    );
+    assert_eq!(batch.events.len(), PARAM_COUNT);
+    for (index, event) in batch.events.into_iter().enumerate() {
+        let UiEventKind::ParamChanged { param, new_value, .. } = event.kind else {
+            panic!("expected parameter event");
+        };
+        assert_eq!(param, NodeId((PARAM_COUNT - index - 1) as u64));
+        assert_eq!(new_value, ParamValue::Int(REPLACEMENT_ROUNDS as i32));
+    }
 }
 
 #[test]
@@ -229,6 +352,100 @@ fn slow_client_is_removed_when_only_reliable_messages_fill_its_queue() {
     );
 
     assert!(!clients.contains_key(&7));
+}
+
+#[test]
+fn websocket_intent_queues_received_control_before_hub_handoff() {
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
+    let hub = WsHubHandle {
+        cmd_tx,
+        readiness: Arc::new(UiSessionReadiness::default()),
+    };
+    let outbound = Arc::new(WsOutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY));
+
+    assert!(handle_ws_client_message(
+        WsClientMessage::Intent {
+            request_id: "intent-request".to_string(),
+            intent: Box::new(UiEditIntent::Undo),
+            include_self_events: true,
+        },
+        7,
+        &hub,
+        &outbound,
+    ));
+
+    assert_received_control(&outbound, "intent-request");
+    let command = cmd_rx.try_recv().expect("intent handed to websocket hub");
+    let WsHubCommand::Intent {
+        client_id,
+        request_id,
+        intent,
+        include_self_events,
+    } = command
+    else {
+        panic!("expected intent command");
+    };
+    assert_eq!(client_id, 7);
+    assert_eq!(request_id, "intent-request");
+    assert_eq!(*intent, UiEditIntent::Undo);
+    assert!(include_self_events);
+}
+
+#[test]
+fn websocket_intent_batch_queues_received_control_before_hub_handoff() {
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
+    let hub = WsHubHandle {
+        cmd_tx,
+        readiness: Arc::new(UiSessionReadiness::default()),
+    };
+    let outbound = Arc::new(WsOutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY));
+
+    assert!(handle_ws_client_message(
+        WsClientMessage::IntentBatch {
+            request_id: "batch-request".to_string(),
+            intents: vec![UiEditIntent::Undo, UiEditIntent::Redo],
+            include_self_events: false,
+        },
+        11,
+        &hub,
+        &outbound,
+    ));
+
+    assert_received_control(&outbound, "batch-request");
+    let command = cmd_rx.try_recv().expect("intent batch handed to websocket hub");
+    let WsHubCommand::IntentBatch {
+        client_id,
+        request_id,
+        intents,
+        include_self_events,
+    } = command
+    else {
+        panic!("expected intent batch command");
+    };
+    assert_eq!(client_id, 11);
+    assert_eq!(request_id, "batch-request");
+    assert_eq!(intents, vec![UiEditIntent::Undo, UiEditIntent::Redo]);
+    assert!(!include_self_events);
+}
+
+fn assert_received_control(outbound: &WsOutboundQueue, expected_request_id: &str) {
+    let Some(WsOutbound::Message(WsServerMessage::Control { update })) = outbound.pop() else {
+        panic!("expected received control update before hub command");
+    };
+    assert_eq!(update.request_id, expected_request_id);
+    assert_eq!(update.phase, UiControlPhase::Received);
+    assert!(
+        update.acknowledgement.is_none(),
+        "received phase must not acknowledge a single intent"
+    );
+    assert!(
+        update.acknowledgements.is_empty(),
+        "received phase must not acknowledge a batch"
+    );
+    assert!(
+        outbound.pop().is_none(),
+        "message parsing must not emit a final acknowledgement"
+    );
 }
 
 #[test]
@@ -315,8 +532,6 @@ fn cursor_resync_advances_past_the_replacement_marker() {
 
 #[test]
 fn custom_event_data_plane_uses_explicit_retention_not_topic_text() {
-    let engine = Engine::new(Folder::new("root".to_string()));
-    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
     let time = EngineTime {
         tick: 1,
         micro: 0,
@@ -341,14 +556,14 @@ fn custom_event_data_plane_uses_explicit_retention_not_topic_text() {
         },
     };
 
-    assert_eq!(ui_data_plane(&read_model, &replay_event), UiDataPlane::Trigger);
-    assert_eq!(ui_data_plane(&read_model, &latest_event), UiDataPlane::Preview);
+    assert_eq!(ui_data_plane(&replay_event), UiDataPlane::Trigger);
+    assert_eq!(ui_data_plane(&latest_event), UiDataPlane::Preview);
 }
 
 fn observation_message(tick: u64) -> WsOutbound {
     WsOutbound::Message(WsServerMessage::Delta {
         subscription_id: "workbench".to_string(),
-        delta: UiPlaneDelta {
+        deltas: vec![UiPlaneDelta {
             plane: UiDataPlane::Observation,
             batch: UiEventBatch {
                 from: None,
@@ -356,7 +571,44 @@ fn observation_message(tick: u64) -> WsOutbound {
                 runtime: None,
                 events: Vec::new(),
             },
+        }],
+    })
+}
+
+fn param_value_event(param: usize, tick: usize, new_value: i32) -> UiEventDto {
+    UiEventDto {
+        time: EngineTime {
+            tick: tick as u64,
+            micro: 0,
+            seq: 0,
         },
+        kind: UiEventKind::ParamChanged {
+            param: NodeId(param as u64),
+            old_value: ParamValue::Int(new_value.saturating_sub(1)),
+            new_value: ParamValue::Int(new_value),
+        },
+    }
+}
+
+fn multi_plane_message(tick: u64) -> WsOutbound {
+    let batch = UiEventBatch {
+        from: None,
+        to: Some(EngineTime { tick, micro: 0, seq: 0 }),
+        runtime: None,
+        events: Vec::new(),
+    };
+    WsOutbound::Message(WsServerMessage::Delta {
+        subscription_id: "workbench".to_string(),
+        deltas: vec![
+            UiPlaneDelta {
+                plane: UiDataPlane::Structure,
+                batch: batch.clone(),
+            },
+            UiPlaneDelta {
+                plane: UiDataPlane::Observation,
+                batch,
+            },
+        ],
     })
 }
 

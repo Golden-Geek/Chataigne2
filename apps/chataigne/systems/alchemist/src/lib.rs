@@ -58,7 +58,8 @@ pub use runtime::{
     ContextKeyPart, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, EvaluationCtx,
     EvaluationFrame, LaneRuntimePool, NodeEvaluation, OutputPreviewHistory, OutputPreviewStatus, RuntimeContextFrame,
     RuntimeDiagnostic, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput, RuntimePropertyFrame,
-    RuntimePropertyFrameError, RuntimeRegistries, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
+    RuntimePropertyFrameError, RuntimeRegistries, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
+    evaluate_compiled_graph_stateless,
 };
 pub use typing::{
     ResolvedANode, ResolvedANodeSignature, ResolvedGraph, ResolvedSocket, TypeBinding, TypeBindingConflict,

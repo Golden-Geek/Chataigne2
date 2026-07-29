@@ -28,7 +28,7 @@ use super::{
     FORMULA_FOLDER_ITEM_KIND, FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
     FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FormulaLibrary, PROPERTIES_DECL_ID,
     PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX, formula_from_snapshot,
-    anode_from_snapshot, param_to_runtime_value,
+    anode_from_snapshot, param_to_runtime_value, runtime_value_to_param,
 };
 use crate::app::{AppEngine, AppNode};
 
@@ -52,6 +52,26 @@ fn boolean_trigger_parameter_materializes_fired() {
             ..TriggerValue::default()
         })
     );
+}
+
+#[test]
+fn non_finite_runtime_numbers_do_not_cross_into_parameter_state() {
+    for value in [
+        RuntimeValue::Float(f64::NAN),
+        RuntimeValue::Vec2([1.0, f64::INFINITY]),
+        RuntimeValue::Vec3([1.0, 2.0, f64::NEG_INFINITY]),
+        RuntimeValue::Color(golden_values::ColorValue {
+            red: 1.0,
+            green: f64::NAN,
+            blue: 0.0,
+            alpha: 1.0,
+        }),
+    ] {
+        assert!(
+            runtime_value_to_param(&value).is_err(),
+            "non-finite compute values must be rejected before JSON-backed parameter delivery"
+        );
+    }
 }
 
 #[test]

@@ -283,6 +283,27 @@ impl From<NodeUuid> for ParamValue {
 }
 
 impl ParamValue {
+    /// Returns whether every floating-point component can cross JSON and UI protocol boundaries.
+    ///
+    /// Alchemist and other compute domains may use NaN or infinity internally, but authored
+    /// parameter state is serialized as JSON and therefore accepts only finite numeric values.
+    pub fn has_only_finite_numbers(&self) -> bool {
+        match self {
+            ParamValue::Float(value) => value.is_finite(),
+            ParamValue::CssValue(value) => value.value.is_finite(),
+            ParamValue::Vec2(x, y) => x.is_finite() && y.is_finite(),
+            ParamValue::Vec3(x, y, z) => x.is_finite() && y.is_finite() && z.is_finite(),
+            ParamValue::Color(r, g, b, a) => r.is_finite() && g.is_finite() && b.is_finite() && a.is_finite(),
+            ParamValue::Trigger()
+            | ParamValue::Int(_)
+            | ParamValue::Str(_)
+            | ParamValue::File(_)
+            | ParamValue::Enum(_)
+            | ParamValue::Bool(_)
+            | ParamValue::Reference(_) => true,
+        }
+    }
+
     /// Coerces this value into an integer, when possible.
     pub fn as_int(&self) -> Option<i32> {
         match self {

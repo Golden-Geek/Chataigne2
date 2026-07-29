@@ -37,14 +37,20 @@ impl WsOutboundQueue {
             return QueuePushResult::Queued;
         }
 
-        if let Some(key) = latest_wins_key(&outbound)
-            && let Some(existing) = queue
-                .iter_mut()
-                .rev()
-                .find(|queued| latest_wins_key(queued) == Some(key.clone()))
-        {
-            merge_latest(existing, outbound);
-            return QueuePushResult::Superseded;
+        if let Some(key) = latest_wins_key(&outbound) {
+            for queued in queue.iter_mut().rev() {
+                if outbound_subscription_id(queued).is_none_or(|subscription_id| subscription_id != key.0.as_str()) {
+                    continue;
+                }
+                if latest_wins_key(queued) == Some(key.clone()) {
+                    merge_latest(queued, outbound);
+                    return QueuePushResult::Superseded;
+                }
+                // Any intervening delta for this subscription is an ordering
+                // barrier. Merging newer events into an older queue slot would
+                // make the browser receive them before this message.
+                break;
+            }
         }
 
         if queue.len() < self.capacity {
@@ -78,8 +84,24 @@ fn is_latest_wins(outbound: &WsOutbound) -> bool {
     latest_wins_key(outbound).is_some() || matches!(outbound, WsOutbound::Ping(_))
 }
 
+fn outbound_subscription_id(outbound: &WsOutbound) -> Option<&str> {
+    match outbound {
+        WsOutbound::Message(
+            UiServerMessage::Delta { subscription_id, .. } | UiServerMessage::ResyncRequired { subscription_id, .. },
+        ) => Some(subscription_id),
+        _ => None,
+    }
+}
+
 fn latest_wins_key(outbound: &WsOutbound) -> Option<(String, UiDataPlane)> {
-    let WsOutbound::Message(UiServerMessage::Delta { subscription_id, delta }) = outbound else {
+    let WsOutbound::Message(UiServerMessage::Delta {
+        subscription_id,
+        deltas,
+    }) = outbound
+    else {
+        return None;
+    };
+    let [delta] = deltas.as_slice() else {
         return None;
     };
     delta
@@ -90,19 +112,25 @@ fn latest_wins_key(outbound: &WsOutbound) -> Option<(String, UiDataPlane)> {
 
 fn merge_latest(existing: &mut WsOutbound, replacement: WsOutbound) {
     let WsOutbound::Message(UiServerMessage::Delta {
-        delta: existing_delta, ..
+        deltas: existing_deltas,
+        ..
     }) = existing
     else {
         *existing = replacement;
         return;
     };
-    let WsOutbound::Message(UiServerMessage::Delta {
-        delta: replacement_delta,
-        ..
-    }) = replacement
-    else {
+    let WsOutbound::Message(UiServerMessage::Delta { mut deltas, .. }) = replacement else {
         return;
     };
+    let [existing_delta] = existing_deltas.as_mut_slice() else {
+        return;
+    };
+    let Some(replacement_delta) = deltas.pop() else {
+        return;
+    };
+    if !deltas.is_empty() {
+        return;
+    }
 
     if existing_delta.plane == UiDataPlane::Preview {
         merge_keyed_preview_events(existing_delta, replacement_delta);

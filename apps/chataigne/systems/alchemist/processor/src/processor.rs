@@ -3,13 +3,13 @@ use std::{fmt, sync::Arc};
 use uuid::Uuid;
 
 use chataigne_alchemist::{
-    ANodeId, AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
-    ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin,
-    EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
-    FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame,
-    RuntimeDiagnostic, RuntimeInputSnapshot, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError,
-    RuntimeSubscription, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
-    evaluate_compiled_graph_stateless,
+    ANodeId, AlchemistFormula, AlchemistFormulaInstance, AlchemistMemory, AxisSet, CompileCtx,
+    CompiledAlchemistFormula, ContextAxisId, ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink,
+    DebugValueSample, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis,
+    FormulaId, FormulaPropertyId, FormulaRef, FormulaSurface, LaneRuntimePool, ManagedRegionInstances,
+    OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeInputSnapshot, RuntimeOutput,
+    RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription, SocketId, SurfaceItemId, ValueTypeId,
+    compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
 };
 use chataigne_condition::{
     CompiledConditionProgram, ConditionDefinition, ConditionEvaluationFrame, ConditionInputProvider, ConditionRuntime,
@@ -94,6 +94,7 @@ pub enum ProcessorLifecycleEvent {
 pub trait ProcessorContextProvider {
     fn available_axes(&self, processor_id: ProcessorId) -> AxisSet;
 
+    /// Iterates each available lane exactly once in stable axis order.
     fn iter_context_keys<'a>(
         &'a self,
         processor_id: ProcessorId,
@@ -341,6 +342,7 @@ pub struct ProcessorRuntime {
     pub compiled_condition: Option<Arc<CompiledConditionProgram>>,
     pub condition_runtimes: IndexMap<ContextKey, ConditionRuntime>,
     pub lanes: LaneRuntimePool,
+    stateless_scratch: Option<AlchemistMemory>,
     pub active: bool,
     pub dirty: ProcessorDirtyFlags,
     pub subscriptions: Vec<RuntimeSubscription>,
@@ -430,6 +432,7 @@ impl ProcessorRuntime {
             compiled_condition: None,
             condition_runtimes: IndexMap::new(),
             lanes: LaneRuntimePool::default(),
+            stateless_scratch: None,
             active: false,
             dirty: ProcessorDirtyFlags {
                 graph: true,
@@ -438,6 +441,13 @@ impl ProcessorRuntime {
             subscriptions: Vec::new(),
             diagnostics: Vec::new(),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn stateless_scratch_address(&self) -> Option<usize> {
+        self.stateless_scratch
+            .as_ref()
+            .map(|memory| std::ptr::from_ref(memory).addr())
     }
 
     pub fn compile(&mut self, processor: &Processor, formula: &AlchemistFormula, ctx: &CompileCtx<'_>) -> bool {
@@ -583,6 +593,12 @@ impl ProcessorRuntime {
         if !(preserve_compatible_lanes && self.lanes.is_compatible_with_graph(&compiled.graph)) {
             self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
         }
+        if self.lanes.is_stateless() {
+            self.stateless_scratch
+                .get_or_insert_with(|| AlchemistMemory::for_graph(&compiled.graph));
+        } else {
+            self.stateless_scratch = None;
+        }
         self.diagnostics = compiled.diagnostics.clone();
         self.plan = Some(ProcessorExecutionPlan::analyze(
             processor.id,
@@ -603,6 +619,7 @@ impl ProcessorRuntime {
         self.compiled_condition = None;
         self.condition_runtimes.clear();
         self.lanes = LaneRuntimePool::default();
+        self.stateless_scratch = None;
         self.subscriptions.clear();
     }
 
@@ -819,8 +836,10 @@ impl ProcessorRuntime {
                                 capture_unchanged_outputs,
                             },
                         ),
-                        None => evaluate_compiled_graph_stateless(
+                        None => evaluate_compiled_graph_fresh_reusing(
                             &compiled.graph,
+                            self.stateless_scratch
+                                .get_or_insert_with(|| AlchemistMemory::for_graph(&compiled.graph)),
                             EvaluationFrame {
                                 ctx,
                                 properties: &properties,
@@ -852,23 +871,27 @@ impl ProcessorRuntime {
         });
         let mut context_keys = context_provider
             .iter_context_keys(self.id, &plan.required_eval_axes)
-            .collect::<IndexSet<_>>();
-        if context_keys.is_empty() && plan.required_eval_axes.is_empty() {
-            context_keys.insert(ContextKey::default_lane());
-        }
-        let memory_keys = context_keys
-            .iter()
-            .map(|context_key| context_key.project(&plan.required_memory_axes))
-            .collect::<IndexSet<_>>();
-        self.lanes.retain_keys(&memory_keys);
-
-        let context_keys = context_keys
-            .into_iter()
-            .filter(|context_key| self.condition_passes(ctx, context_provider, context_key))
             .collect::<Vec<_>>();
-        let active_condition_keys = context_keys.iter().cloned().collect::<IndexSet<_>>();
-        self.condition_runtimes
-            .retain(|context_key, _| active_condition_keys.contains(context_key));
+        if context_keys.is_empty() && plan.required_eval_axes.is_empty() {
+            context_keys.push(ContextKey::default_lane());
+        }
+        let stateless = self.lanes.is_stateless();
+        if !stateless {
+            let memory_keys = context_keys
+                .iter()
+                .map(|context_key| context_key.project(&plan.required_memory_axes))
+                .collect::<IndexSet<_>>();
+            self.lanes.retain_keys(&memory_keys);
+        }
+
+        if self.compiled_condition.is_some() {
+            context_keys.retain(|context_key| self.condition_passes(ctx, context_provider, context_key));
+            let active_condition_keys = context_keys.iter().cloned().collect::<IndexSet<_>>();
+            self.condition_runtimes
+                .retain(|context_key, _| active_condition_keys.contains(context_key));
+        } else {
+            self.condition_runtimes.clear();
+        }
 
         context_keys
             .into_iter()
@@ -886,9 +909,27 @@ impl ProcessorRuntime {
                         };
                     }
                 };
-                let memory_key = context_key.project(&plan.required_memory_axes);
-                let output = match self.lanes.memory_for_key(memory_key, &compiled.graph) {
-                    Some(memory) => evaluate_compiled_graph(
+                let output = if stateless {
+                    evaluate_compiled_graph_fresh_reusing(
+                        &compiled.graph,
+                        self.stateless_scratch
+                            .get_or_insert_with(|| AlchemistMemory::for_graph(&compiled.graph)),
+                        EvaluationFrame {
+                            ctx,
+                            properties: &properties,
+                            context: &context,
+                            debug: &mut debug,
+                            force_process_unchanged_inputs,
+                            capture_unchanged_outputs,
+                        },
+                    )
+                } else {
+                    let memory_key = context_key.project(&plan.required_memory_axes);
+                    let memory = self
+                        .lanes
+                        .memory_for_key(memory_key, &compiled.graph)
+                        .expect("stateful lane pools materialize memory for every active key");
+                    evaluate_compiled_graph(
                         &compiled.graph,
                         memory,
                         EvaluationFrame {
@@ -899,18 +940,7 @@ impl ProcessorRuntime {
                             force_process_unchanged_inputs,
                             capture_unchanged_outputs,
                         },
-                    ),
-                    None => evaluate_compiled_graph_stateless(
-                        &compiled.graph,
-                        EvaluationFrame {
-                            ctx,
-                            properties: &properties,
-                            context: &context,
-                            debug: &mut debug,
-                            force_process_unchanged_inputs,
-                            capture_unchanged_outputs,
-                        },
-                    ),
+                    )
                 };
                 ProcessorLaneOutput {
                     context_key: (!context_key.is_default_lane()).then_some(context_key),

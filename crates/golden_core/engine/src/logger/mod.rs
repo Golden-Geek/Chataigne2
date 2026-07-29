@@ -249,9 +249,15 @@ pub fn records() -> Vec<LogRecord> {
 /// returned again with a higher `repeat_count`.
 pub fn records_since_cursor(last_id: u64, last_repeat_count: u32) -> Vec<LogRecord> {
     let state = lock_logger_state();
+    records_since_cursor_in_state(&state, last_id, last_repeat_count)
+}
+
+fn records_since_cursor_in_state(state: &LoggerState, last_id: u64, last_repeat_count: u32) -> Vec<LogRecord> {
+    let start = state.retained.partition_point(|record| record.id < last_id);
     state
         .retained
         .iter()
+        .skip(start)
         .filter(|record| record.id > last_id || (record.id == last_id && record.repeat_count > last_repeat_count))
         .cloned()
         .collect()

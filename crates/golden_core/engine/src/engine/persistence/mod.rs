@@ -12,11 +12,14 @@ use crate::node::{
     DeclId, Node, NodeCreationContext, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
     PresentationHint, SemanticsHint, UserNodeRole, user_context_multiplex_list_value_type,
 };
-use crate::process_ctx::ExecutionPhase;
+use crate::process_ctx::{ExecutionPhase, ProcessTreeSnapshot};
 use crate::ui_sync::UiGraphOp;
 
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
+
+mod duplicate;
+use duplicate::DecodedProjectTree;
 
 /// Version tag emitted in project files created by this engine.
 pub const PROJECT_FILE_VERSION: &str = "1.0";
@@ -25,11 +28,6 @@ pub const PROJECT_FILE_VERSION: &str = "1.0";
 enum LoadedReadyMode {
     Immediate,
     Deferred,
-}
-
-pub(crate) struct DuplicateDispatchOptions {
-    pub(crate) label_override: Option<String>,
-    pub(crate) dispatch_structure_events: bool,
 }
 
 fn default_project_file_version() -> String {
@@ -615,108 +613,6 @@ impl<T: Node> Engine<T> {
         Self::from_project_json_with(&json, decode_node)
     }
 
-    /// Duplicates a persisted subtree by round-tripping through the project codec hooks.
-    pub fn duplicate_subtree_with<Encode, Decode>(
-        &mut self,
-        source: NodeId,
-        new_parent: NodeId,
-        new_prev_sibling: Option<NodeId>,
-        label_override: Option<String>,
-        encode_data: Encode,
-        decode_node: Decode,
-    ) -> Result<NodeId, ProjectPersistenceError>
-    where
-        Encode: FnMut(&T) -> Result<serde_json::Value, String>,
-        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
-    {
-        self.duplicate_subtree_with_dispatch(
-            source,
-            new_parent,
-            new_prev_sibling,
-            DuplicateDispatchOptions {
-                label_override,
-                dispatch_structure_events: true,
-            },
-            encode_data,
-            decode_node,
-        )
-    }
-
-    pub(crate) fn duplicate_subtree_with_dispatch<Encode, Decode>(
-        &mut self,
-        source: NodeId,
-        new_parent: NodeId,
-        new_prev_sibling: Option<NodeId>,
-        options: DuplicateDispatchOptions,
-        mut encode_data: Encode,
-        mut decode_node: Decode,
-    ) -> Result<NodeId, ProjectPersistenceError>
-    where
-        Encode: FnMut(&T) -> Result<serde_json::Value, String>,
-        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
-    {
-        let mut record = self.encode_node_record_with(source, &mut encode_data)?;
-        let source_label = record
-            .meta
-            .label
-            .as_deref()
-            .map(str::trim)
-            .filter(|label| !label.is_empty())
-            .unwrap_or(record.node_type.as_str());
-        let preferred_label = options
-            .label_override
-            .as_deref()
-            .map(str::trim)
-            .filter(|label| !label.is_empty())
-            .unwrap_or(source_label);
-        let label = self.next_unique_child_label(new_parent, preferred_label);
-        let short_name = generate_short_name(&label);
-        record.meta.label = Some(label);
-        record.meta.short_name = Some(short_name.clone());
-        record.meta.decl_id = Some(DeclId(short_name));
-
-        let mut uuid_map = HashMap::<NodeUuid, NodeUuid>::new();
-        remap_record_uuids(&mut record, &mut uuid_map);
-
-        let duplicated_root = self.insert_duplicate_record_subtree_with(
-            new_parent,
-            new_prev_sibling,
-            &record,
-            &uuid_map,
-            &mut decode_node,
-        )?;
-        self.replay_loaded_subtree_lifecycle(
-            duplicated_root,
-            NodeCreationContext::Duplicate,
-            LoadedReadyMode::Immediate,
-        )?;
-        let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
-        if options.dispatch_structure_events {
-            self.queue_loaded_subtree_structure_events(&[duplicated_root])?;
-        }
-        self.sync_missing_reference_warnings_for_nodes_silent(duplicated_node_ids.as_slice());
-        self.rebuild_user_context_registry_from_nodes();
-        self.mark_user_context_graph_changed();
-        self.push_loaded_subtree_ui_events(duplicated_node_ids.as_slice())?;
-        self.record_single_history_step(
-            AddNodeEffect {
-                node: duplicated_root,
-                parent: new_parent,
-                prev_sibling: self
-                    .nodes
-                    .get(duplicated_root)
-                    .and_then(|node| node.node_data().prev_sibling),
-                next_sibling: self
-                    .nodes
-                    .get(duplicated_root)
-                    .and_then(|node| node.node_data().next_sibling),
-            }
-            .into(),
-        );
-
-        Ok(duplicated_root)
-    }
-
     /// Inserts one persisted node hierarchy beneath an existing parent.
     ///
     /// Imported UUIDs are remapped as one unit, so internal references remain
@@ -737,15 +633,22 @@ impl<T: Node> Engine<T> {
                 expected: PROJECT_FILE_VERSION,
             });
         }
-        if !self.nodes.contains(parent) {
-            return Err(ProjectPersistenceError::MissingNode(parent));
-        }
+        self.validate_persisted_subtree_destination(parent, prev_sibling, "InsertProjectSubtree")?;
 
         let mut record = project.root;
         let mut uuid_map = HashMap::<NodeUuid, NodeUuid>::new();
         remap_record_uuids(&mut record, &mut uuid_map);
+        let decoded_tree = {
+            let parent_node = self
+                .nodes
+                .get(parent)
+                .ok_or(ProjectPersistenceError::MissingNode(parent))?;
+            Self::decode_project_record_tree_with(parent_node, &record, &uuid_map, &mut decode_node)?
+        };
+        drop(record);
+        drop(uuid_map);
         let imported_root =
-            self.insert_duplicate_record_subtree_with(parent, prev_sibling, &record, &uuid_map, &mut decode_node)?;
+            self.insert_decoded_project_tree(parent, prev_sibling, decoded_tree, "InsertProjectSubtree")?;
         self.replay_loaded_subtree_lifecycle(
             imported_root,
             NodeCreationContext::Duplicate,
@@ -776,16 +679,28 @@ impl<T: Node> Engine<T> {
     }
 
     fn push_loaded_subtree_ui_events(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
+        let catalog_snapshot = node_ids
+            .iter()
+            .any(|node_id| self.catalog_creatable_items_require_tree_snapshot(*node_id))
+            .then(|| self.build_process_tree_snapshot());
+        let ops = self.loaded_subtree_ui_ops(node_ids, catalog_snapshot.as_deref())?;
+        self.push_ui_graph_transaction(ops);
+        Ok(())
+    }
+
+    fn loaded_subtree_ui_ops(
+        &self,
+        node_ids: &[NodeId],
+        catalog_snapshot: Option<&ProcessTreeSnapshot>,
+    ) -> Result<Vec<UiGraphOp>, ProjectPersistenceError> {
         let mut ops = Vec::<UiGraphOp>::with_capacity(node_ids.len().saturating_add(1));
         let mut root_parent = None;
-        let catalog_snapshot = self.build_process_tree_snapshot();
-
         // Match the normal add-node path: large loaded/duplicated subtrees should
         // reach the UI as one transaction instead of many indexed inserts.
         const SUBTREE_COMPACT_THRESHOLD: usize = 8;
         if node_ids.len() > SUBTREE_COMPACT_THRESHOLD {
             let Some(root) = node_ids.first().copied() else {
-                return Ok(());
+                return Ok(ops);
             };
             let parent = self
                 .nodes
@@ -796,19 +711,23 @@ impl<T: Node> Engine<T> {
             if let Some(parent) = parent {
                 let mut nodes = Vec::with_capacity(node_ids.len());
                 for node in node_ids {
-                    let snapshot = self
-                        .ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot.as_ref())
-                        .ok_or(ProjectPersistenceError::MissingNode(*node))?;
+                    let snapshot = match catalog_snapshot {
+                        Some(catalog_snapshot) => {
+                            self.ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot)
+                        }
+                        None => self.ui_node_dto_for_event_without_catalog_snapshot(*node),
+                    }
+                    .ok_or(ProjectPersistenceError::MissingNode(*node))?;
                     nodes.push(snapshot);
                 }
                 let parent_children_after = self.ui_direct_children(parent).unwrap_or_default();
-                self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeInserted {
+                ops.push(UiGraphOp::SubtreeInserted {
                     root,
                     parent,
                     nodes,
                     parent_children_after,
-                }]);
-                return Ok(());
+                });
+                return Ok(ops);
             }
         }
 
@@ -825,9 +744,11 @@ impl<T: Node> Engine<T> {
                 root_parent = parent;
             }
 
-            let snapshot = self
-                .ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot.as_ref())
-                .ok_or(ProjectPersistenceError::MissingNode(*node))?;
+            let snapshot = match catalog_snapshot {
+                Some(catalog_snapshot) => self.ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot),
+                None => self.ui_node_dto_for_event_without_catalog_snapshot(*node),
+            }
+            .ok_or(ProjectPersistenceError::MissingNode(*node))?;
             let index = parent.and_then(|parent| self.ui_child_index(parent, *node));
             ops.push(UiGraphOp::NodeCreated {
                 snapshot: Box::new(snapshot),
@@ -842,9 +763,7 @@ impl<T: Node> Engine<T> {
             ops.push(UiGraphOp::ChildrenReordered { parent, children });
         }
 
-        self.push_ui_graph_transaction(ops);
-
-        Ok(())
+        Ok(ops)
     }
 
     fn replay_loaded_subtree_lifecycle(
@@ -1248,40 +1167,83 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    fn insert_duplicate_record_subtree_with<F>(
-        &mut self,
+    fn validate_persisted_subtree_destination(
+        &self,
         parent: NodeId,
         prev_sibling: Option<NodeId>,
+        operation: &'static str,
+    ) -> Result<(), ProjectPersistenceError> {
+        if !self.nodes.contains(parent) {
+            return Err(ProjectPersistenceError::MissingNode(parent));
+        }
+
+        let Some(prev_sibling) = prev_sibling else {
+            return Ok(());
+        };
+        let sibling_parent = self
+            .nodes
+            .get(prev_sibling)
+            .ok_or(EngineEditError::SiblingNotFound {
+                edit_index: 0,
+                operation,
+                sibling: prev_sibling,
+            })?
+            .node_data()
+            .parent;
+        if sibling_parent != Some(parent) {
+            return Err(EngineEditError::InvalidSiblingParent {
+                edit_index: 0,
+                operation,
+                parent,
+                sibling: prev_sibling,
+                sibling_parent,
+            }
+            .into());
+        }
+
+        Ok(())
+    }
+
+    fn decode_project_record_tree_with<F>(
+        parent: &T,
         record: &ProjectNodeRecord,
         uuid_map: &HashMap<NodeUuid, NodeUuid>,
         decode_node: &mut F,
-    ) -> Result<NodeId, ProjectPersistenceError>
+    ) -> Result<DecodedProjectTree<T>, ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        let mut node = {
-            let parent_node = self
-                .nodes
-                .get(parent)
-                .ok_or(ProjectPersistenceError::MissingNode(parent))?;
-            Self::decode_node_record_with(Some(parent_node), record, decode_node)?
-        };
+        let mut node = Self::decode_node_record_with(Some(parent), record, decode_node)?;
         remap_node_references(&mut node, uuid_map);
 
-        let node_id = self.nodes.insert(node);
-        self.register_node_uuid(node_id);
-        self.attach_node(0, "DuplicateNode", node_id, parent, prev_sibling)?;
-        self.populate_param_cache_entry(node_id);
-
-        let mut child_prev_sibling = None;
+        let mut children = Vec::with_capacity(record.children.len());
         for child_record in &record.children {
-            let child_id = self.insert_duplicate_record_subtree_with(
-                node_id,
-                child_prev_sibling,
+            children.push(Self::decode_project_record_tree_with(
+                &node,
                 child_record,
                 uuid_map,
                 decode_node,
-            )?;
+            )?);
+        }
+
+        Ok(DecodedProjectTree { node, children })
+    }
+
+    fn insert_decoded_project_tree(
+        &mut self,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        tree: DecodedProjectTree<T>,
+        operation: &'static str,
+    ) -> Result<NodeId, ProjectPersistenceError> {
+        let node_id = self.nodes.insert(tree.node);
+        self.register_node_uuid(node_id);
+        self.attach_node(0, operation, node_id, parent, prev_sibling)?;
+        self.populate_param_cache_entry(node_id);
+
+        let mut child_prev_sibling = None;
+        for child in tree.children {
+            let child_id = self.insert_decoded_project_tree(node_id, child_prev_sibling, child, operation)?;
             child_prev_sibling = Some(child_id);
         }
 

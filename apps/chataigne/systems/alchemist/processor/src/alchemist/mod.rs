@@ -1,6 +1,9 @@
 //! Chataigne-specific value types and nodes for `chataigne_alchemist`.
 
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::Debug,
+    sync::{Arc, OnceLock},
+};
 
 use chataigne_alchemist::{
     ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature, ANodeTypeId,
@@ -136,16 +139,34 @@ pub fn register_nodes(registry: &mut ANodeRegistry) -> Result<(), RegistryError>
 
 #[must_use]
 pub fn value_type_registry() -> ValueTypeRegistry {
-    let mut registry = ValueTypeRegistry::with_primitives();
-    register_value_types(&mut registry).expect("Chataigne value type IDs must be unique");
-    registry
+    shared_value_type_registry().clone()
+}
+
+/// Returns the immutable Chataigne value registry shared by runtime hot paths.
+#[must_use]
+pub fn shared_value_type_registry() -> &'static ValueTypeRegistry {
+    static REGISTRY: OnceLock<ValueTypeRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(|| {
+        let mut registry = ValueTypeRegistry::with_primitives();
+        register_value_types(&mut registry).expect("Chataigne value type IDs must be unique");
+        registry
+    })
 }
 
 #[must_use]
 pub fn node_registry() -> ANodeRegistry {
-    let mut registry = chataigne_alchemist::primitive_node_registry();
-    register_nodes(&mut registry).expect("Chataigne ANode IDs must be unique");
-    registry
+    shared_node_registry().clone()
+}
+
+/// Returns the immutable Chataigne node registry shared by runtime hot paths.
+#[must_use]
+pub fn shared_node_registry() -> &'static ANodeRegistry {
+    static REGISTRY: OnceLock<ANodeRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(|| {
+        let mut registry = chataigne_alchemist::primitive_node_registry();
+        register_nodes(&mut registry).expect("Chataigne ANode IDs must be unique");
+        registry
+    })
 }
 
 fn register_ref(

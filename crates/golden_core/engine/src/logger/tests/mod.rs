@@ -152,6 +152,43 @@ fn logger_max_entries_counts_collapsed_runs() {
 }
 
 #[test]
+fn logger_cursor_lookup_handles_trimmed_and_collapsed_records() {
+    let mut state = LoggerState::with_defaults();
+    state.max_entries = 4;
+
+    for index in 0..8 {
+        state.push_message(
+            index,
+            LogLevel::Info,
+            "cursor".to_string(),
+            None,
+            format!("record-{index}"),
+        );
+    }
+
+    let retained = state.retained.iter().cloned().collect::<Vec<_>>();
+    assert_eq!(
+        retained.iter().map(|record| record.id).collect::<Vec<_>>(),
+        vec![5, 6, 7, 8]
+    );
+    assert_eq!(records_since_cursor_in_state(&state, 0, 0), retained);
+    assert_eq!(
+        records_since_cursor_in_state(&state, 6, 1)
+            .iter()
+            .map(|record| record.id)
+            .collect::<Vec<_>>(),
+        vec![7, 8]
+    );
+    assert!(records_since_cursor_in_state(&state, 8, 1).is_empty());
+    assert!(records_since_cursor_in_state(&state, u64::MAX, 0).is_empty());
+
+    let updated = state.push_message(9, LogLevel::Info, "cursor".to_string(), None, "record-7".to_string());
+    assert_eq!(updated.id, 8);
+    assert_eq!(updated.repeat_count, 2);
+    assert_eq!(records_since_cursor_in_state(&state, 8, 1), vec![updated]);
+}
+
+#[test]
 fn process_output_prefix_includes_origin_when_present() {
     assert_eq!(
         process_output_prefix(LogLevel::Warning, "script", Some(NodeId(7))),

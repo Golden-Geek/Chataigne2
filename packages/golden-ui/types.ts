@@ -722,6 +722,10 @@ export type UiEditIntent =
 			options: UiAnimationCurveBezierFitOptions;
 	  }
 	| { kind: 'patchMeta'; node: NodeId; patch: Partial<UiNodeMetaDto> }
+	| { kind: 'ensureUserContextScope'; owner: NodeId }
+	| { kind: 'removeUserContextScope'; owner: NodeId }
+	| { kind: 'upsertUserContextEntry'; owner: NodeId; symbol: string; param: NodeId }
+	| { kind: 'removeUserContextEntry'; owner: NodeId; symbol: string }
 	| { kind: 'sendNodeEvent'; node: NodeId; topic: string; payload: unknown }
 	| { kind: 'reevaluateGraph' }
 	| { kind: 'clearLogs' }
@@ -735,6 +739,7 @@ export interface UiAck {
 	error_code?: string;
 	error_message?: string;
 	earliest_event_time?: EventTime;
+	latest_event_time?: EventTime;
 	history?: UiHistoryState;
 }
 

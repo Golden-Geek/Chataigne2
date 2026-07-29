@@ -252,6 +252,11 @@ fn live_child_by_decl<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str
     None
 }
 
+/// Returns the live Preferences root without building a whole-tree snapshot.
+pub(crate) fn live_preferences_root<T: Node>(engine: &Engine<T>) -> Option<NodeId> {
+    live_child_by_decl(engine, engine.root, PREFERENCES_DECL_ID)
+}
+
 /// Returns the Preferences root id from a tree snapshot.
 pub fn preferences_root_from_snapshot(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
     child_by_decl(snapshot, snapshot.root(), PREFERENCES_DECL_ID)
@@ -315,7 +320,7 @@ fn preferences_engine_frequency_hz<T: Node>(
     decl_id: &str,
     default_hz: NodeUpdateRate,
 ) -> NodeUpdateRate {
-    let Some(preferences) = live_child_by_decl(engine, engine.root, PREFERENCES_DECL_ID) else {
+    let Some(preferences) = live_preferences_root(engine) else {
         return default_hz;
     };
     let Some(engine_preferences) = live_child_by_decl(engine, preferences, PREFERENCES_ENGINE_DECL_ID) else {

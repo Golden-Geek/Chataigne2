@@ -253,7 +253,11 @@ impl RuntimeInputSnapshot {
             contextual_values.axes.clone_from(axes);
             contextual_values.values.clear();
         }
-        let context_key = context_key_projected_in_axis_order(&context_key, axes);
+        let context_key = if context_key.iter().map(|part| &part.axis).eq(axes.iter()) {
+            context_key
+        } else {
+            context_key_projected_in_axis_order(&context_key, axes)
+        };
         contextual_values.values.insert(context_key, value)
     }
 
@@ -487,6 +491,30 @@ impl AlchemistMemory {
     #[must_use]
     pub fn is_stateless(&self) -> bool {
         self.states.is_empty()
+    }
+
+    /// Restores reusable evaluation scratch to the semantics of newly allocated memory.
+    ///
+    /// Fresh multiplex lanes execute sequentially, so retaining these buffers avoids rebuilding
+    /// seven heap-backed memory tables per lane without sharing values, node state, or change
+    /// detection history between evaluations.
+    pub fn reset_for_fresh_evaluation(&mut self, compiled: &CompiledAlchemistGraph) {
+        if !self.is_compatible_with_graph(compiled) {
+            *self = Self::for_graph(compiled);
+            return;
+        }
+        self.values.fill(RuntimeValue::Unit);
+        self.value_initialized.fill(false);
+        self.value_revisions.fill(0);
+        self.states.fill(RuntimeValue::Unit);
+        for inputs in &mut self.node_inputs {
+            if let Some(inputs) = inputs {
+                inputs.clear();
+            }
+        }
+        self.node_initialized.fill(false);
+        self.dirty_nodes.fill(false);
+        self.last_executed_nodes.clear();
     }
 
     #[must_use]
@@ -882,7 +910,12 @@ pub fn evaluate_compiled_graph(
             }
         }
         if let Some(previous_inputs) = memory.node_inputs.get_mut(exec_id.index()) {
-            *previous_inputs = Some(change_inputs);
+            if let Some(retained) = previous_inputs {
+                retained.clear();
+                retained.extend(change_inputs);
+            } else {
+                *previous_inputs = Some(change_inputs);
+            }
         }
         memory.node_initialized[exec_id.index()] = true;
         memory.last_executed_nodes.push(*exec_id);
@@ -1175,6 +1208,15 @@ pub fn evaluate_compiled_graph_stateless(
 ) -> RuntimeOutput {
     let mut memory = AlchemistMemory::for_graph(compiled);
     evaluate_compiled_graph(compiled, &mut memory, frame)
+}
+
+pub fn evaluate_compiled_graph_fresh_reusing(
+    compiled: &CompiledAlchemistGraph,
+    memory: &mut AlchemistMemory,
+    frame: EvaluationFrame<'_, '_>,
+) -> RuntimeOutput {
+    memory.reset_for_fresh_evaluation(compiled);
+    evaluate_compiled_graph(compiled, memory, frame)
 }
 
 fn runtime_input_value(

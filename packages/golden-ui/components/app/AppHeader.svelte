@@ -58,6 +58,26 @@
 		].join(' · ');
 	});
 
+	let userActionPhaseLabel = $derived.by((): string => {
+		switch (session.userActionCurrentPhase) {
+			case 'queued':
+				return 'Queued';
+			case 'received':
+				return 'Received';
+			case 'accepted':
+				return 'Processing';
+			case 'applied':
+				return 'Finishing';
+			case 'rejected':
+				return 'Failed';
+			default:
+				return 'Processing';
+		}
+	});
+	let userActionStatusLabel = $derived(
+		`${session.userActionCurrentLabel ?? 'Applying change'} — ${userActionPhaseLabel}`
+	);
+
 	const refreshMaximizeState = async (): Promise<void> => {
 		const maximized = await invokeDesktopCommand(
 			'window_is_maximized',
@@ -194,6 +214,27 @@
 		onkeydown={() => {}}>
 	</div>
 	<div class="controls">
+		{#if session.userActionPendingCount > 0}
+			<div
+				class="user-action-activity"
+				role="status"
+				aria-live="polite"
+				aria-label={userActionStatusLabel}
+				title={userActionStatusLabel}
+				data-phase={session.userActionCurrentPhase}
+				data-no-drag>
+				<span class="user-action-spinner" aria-hidden="true"></span>
+				<span class="user-action-label">{session.userActionCurrentLabel ?? 'Applying change'}</span>
+				<span class="user-action-phase">{userActionPhaseLabel}</span>
+				{#if session.userActionPendingCount > 1}
+					<span
+						class="user-action-count"
+						aria-label={`${session.userActionPendingCount} pending actions`}>
+						{session.userActionPendingCount}
+					</span>
+				{/if}
+			</div>
+		{/if}
 		<div class="history-actions">
 			<button
 				type="button"
@@ -326,6 +367,85 @@
 	.controls {
 		display: flex;
 		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.user-action-activity {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.38rem;
+		max-width: min(28vw, 18rem);
+		padding: 0.24rem 0.52rem;
+		border: 0.05rem solid rgb(from var(--gc-color-accent) r g b / 32%);
+		border-radius: 999rem;
+		color: rgb(from var(--gc-color-text) r g b / 88%);
+		background-color: rgb(from var(--gc-color-accent) r g b / 13%);
+		font-size: 0.66rem;
+		font-weight: 650;
+		line-height: 1;
+		pointer-events: none;
+		-webkit-app-region: no-drag;
+	}
+
+	.user-action-spinner {
+		flex: 0 0 auto;
+		width: 0.58rem;
+		height: 0.58rem;
+		border: 0.1rem solid rgb(from var(--gc-color-accent) r g b / 30%);
+		border-top-color: var(--gc-color-accent);
+		border-radius: 50%;
+		animation: user-action-spin 0.8s linear infinite;
+	}
+
+	.user-action-label {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.user-action-phase {
+		flex: 0 0 auto;
+		color: rgb(from var(--gc-color-text) r g b / 55%);
+		font-weight: 550;
+	}
+
+	.user-action-count {
+		display: inline-grid;
+		flex: 0 0 auto;
+		min-width: 1.05rem;
+		height: 1.05rem;
+		padding-inline: 0.24rem;
+		place-items: center;
+		border-radius: 999rem;
+		color: var(--gc-color-background);
+		background-color: var(--gc-color-accent);
+		font-size: 0.58rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.user-action-activity[data-phase='rejected'] {
+		border-color: rgb(from var(--gc-color-error) r g b / 38%);
+		color: var(--gc-color-error);
+		background-color: rgb(from var(--gc-color-error) r g b / 13%);
+	}
+
+	.user-action-activity[data-phase='rejected'] .user-action-spinner {
+		animation: none;
+		border-color: var(--gc-color-error);
+	}
+
+	@keyframes user-action-spin {
+		to {
+			transform: rotate(1turn);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.user-action-spinner {
+			animation: none;
+			border-color: var(--gc-color-accent);
+			opacity: 0.75;
+		}
 	}
 
 	.history-actions {
@@ -345,7 +465,7 @@
 
 	.clear-ui {
 		background-color: rgb(200 200 200 / 20%);
-		border: 1px solid rgb(from var(--gc-color-text) r g b / 20%);
+		border: 0.05rem solid rgb(from var(--gc-color-text) r g b / 20%);
 		border-radius: 0.25rem;
 		padding: 0.25rem 0.5rem;
 		transition: opacity 0.2s;

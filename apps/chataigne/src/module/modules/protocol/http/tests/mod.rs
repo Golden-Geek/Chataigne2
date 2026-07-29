@@ -411,7 +411,7 @@ fn response_received_callback_payload(engine: &crate::app::AppEngine) -> Option<
             .get("callback")
             .and_then(serde_json::Value::as_str)
             == Some("responseReceived"))
-        .then_some(&custom.payload)
+        .then_some(custom.payload.as_ref())
     })
 }
 

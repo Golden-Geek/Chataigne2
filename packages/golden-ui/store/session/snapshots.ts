@@ -1,4 +1,4 @@
-import type { UiSnapshot } from "../../types";
+import type { EventTime, UiSnapshot } from "../../types";
 
 export interface WorkbenchSnapshotControllerOptions {
   requestSnapshot(): Promise<UiSnapshot>;
@@ -18,7 +18,7 @@ export interface WorkbenchSnapshotController {
   request(): Promise<UiSnapshot>;
   refresh(): Promise<boolean>;
   refreshAfterCurrent(): Promise<boolean>;
-  resync(successMessage?: string): Promise<void>;
+  resync(successMessage?: string): Promise<EventTime | null>;
   beginSynchronization(): () => void;
   waitForIdle(): Promise<void>;
 }
@@ -28,7 +28,7 @@ export const createWorkbenchSnapshotController = (
 ): WorkbenchSnapshotController => {
   let requestInFlight: Promise<UiSnapshot> | null = null;
   let synchronizationsInFlight = 0;
-  let resyncInFlight = false;
+  let resyncInFlight: Promise<EventTime | null> | null = null;
   let resyncQueued = false;
   const idleWaiters: Array<() => void> = [];
 
@@ -102,37 +102,51 @@ export const createWorkbenchSnapshotController = (
     return refresh();
   };
 
-  const resync = async (successMessage?: string): Promise<void> => {
-    if (resyncInFlight) {
+  const resync = (successMessage?: string): Promise<EventTime | null> => {
+    if (resyncInFlight !== null) {
       resyncQueued = true;
-      return;
+      return resyncInFlight;
     }
-    resyncInFlight = true;
-    resyncQueued = false;
-    const endSynchronization = beginSynchronization();
-    const releaseIntentDispatch = options.suspendIntentDispatch();
-    try {
-      const snapshot = await request();
-      const applyStartedAt = options.nowMs();
-      options.applySnapshot(snapshot);
-      options.snapshotApplied();
-      if (successMessage) {
-        options.appendTransportLog("info", successMessage);
+
+    const run = async (): Promise<EventTime | null> => {
+      const endSynchronization = beginSynchronization();
+      const releaseIntentDispatch = options.suspendIntentDispatch();
+      let latestBoundary: EventTime | null = null;
+      try {
+        do {
+          resyncQueued = false;
+          try {
+            const snapshot = await request();
+            const applyStartedAt = options.nowMs();
+            options.applySnapshot(snapshot);
+            options.snapshotApplied();
+            latestBoundary = snapshot.at;
+            if (successMessage) {
+              options.appendTransportLog("info", successMessage);
+            }
+            options.logSnapshotTiming("resync", snapshot, applyStartedAt);
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : "unknown resync error";
+            options.appendTransportLog("error", `Resync failed: ${message}`);
+            latestBoundary = null;
+          }
+        } while (resyncQueued);
+        return latestBoundary;
+      } finally {
+        releaseIntentDispatch();
+        endSynchronization();
       }
-      options.logSnapshotTiming("resync", snapshot, applyStartedAt);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "unknown resync error";
-      options.appendTransportLog("error", `Resync failed: ${message}`);
-    } finally {
-      resyncInFlight = false;
-      if (resyncQueued) {
-        resyncQueued = false;
-        void resync(successMessage);
+    };
+
+    let tracked: Promise<EventTime | null>;
+    tracked = run().finally(() => {
+      if (resyncInFlight === tracked) {
+        resyncInFlight = null;
       }
-      releaseIntentDispatch();
-      endSynchronization();
-    }
+    });
+    resyncInFlight = tracked;
+    return tracked;
   };
 
   return {

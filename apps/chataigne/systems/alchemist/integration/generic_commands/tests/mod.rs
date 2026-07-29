@@ -5,6 +5,7 @@ use golden_core::{
     events::{CustomEvent, Event, EventFrame},
     node::{Node, NodeId},
     parameter::ParamValue,
+    process_ctx::{ExecutionPhase, ProcessCtx},
 };
 
 use super::{
@@ -12,8 +13,8 @@ use super::{
     command_string_param_override,
 };
 use crate::app::module_command::{
-    MODULE_COMMAND_EXECUTE_TOPIC, ModuleCommandDeliveryPolicy, ModuleCommandExecuteEvent, ModuleCommandInvocationId,
-    ModuleCommandParamOverride,
+    MODULE_COMMAND_EXECUTE_BATCH_TOPIC, MODULE_COMMAND_EXECUTE_TOPIC, ModuleCommandDeliveryPolicy,
+    ModuleCommandExecuteBatchEvent, ModuleCommandExecuteEvent, ModuleCommandInvocationId, ModuleCommandParamOverride,
 };
 
 #[test]
@@ -59,6 +60,56 @@ fn cached_log_command_resolves_overrides_without_tree_snapshot() {
         command_string_param_override(&execute.param_overrides, message_param),
         Some("lane message".to_owned())
     );
+}
+
+#[test]
+fn log_command_consumes_every_batched_execution_in_order() {
+    let mut command = GenericLogCommand::create();
+    let message_param = NodeId(42);
+    command.cached_message_param = Some(message_param);
+    let command_id = command.id();
+    let before_id = golden_core::logger::records().last().map_or(0, |record| record.id);
+    let messages = [
+        "generic-batch-consumption-first",
+        "generic-batch-consumption-second",
+        "generic-batch-consumption-third",
+    ];
+    let executions = messages
+        .iter()
+        .map(|message| ModuleCommandExecuteEvent {
+            command_id,
+            param_overrides: vec![ModuleCommandParamOverride {
+                param_id: message_param,
+                value: ParamValue::Str((*message).to_owned()),
+            }],
+            invocation_id: None,
+            delivery_policy: ModuleCommandDeliveryPolicy::ChangeAwareLogAdmitted,
+        })
+        .collect();
+    let event = CustomEvent::transient(
+        MODULE_COMMAND_EXECUTE_BATCH_TOPIC,
+        Some(command_id),
+        serde_json::to_value(ModuleCommandExecuteBatchEvent { command_id, executions })
+            .expect("execute batch should serialize"),
+    );
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+
+    command.on_custom_event(&mut ctx, event);
+
+    let recorded = golden_core::logger::records()
+        .into_iter()
+        .filter(|record| record.id > before_id && record.origin == Some(command_id))
+        .map(|record| record.message)
+        .filter(|message| message.starts_with("generic-batch-consumption-"))
+        .collect::<Vec<_>>();
+    assert_eq!(recorded, messages);
 }
 
 #[test]

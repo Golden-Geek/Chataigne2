@@ -7,10 +7,11 @@ use std::path::{Path, PathBuf};
 
 use golden_graph::GraphRevision;
 use golden_protocol::{
-    UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto,
-    UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto,
-    UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest,
-    UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSnapshot, UiSnapshotRequest,
+    UI_PROTOCOL_VERSION, UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiEventBatch,
+    UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto,
+    UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
+    UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSnapshot,
+    UiSnapshotRequest,
 };
 use golden_script::ScriptUiState;
 use ts_rs::{Config, TS};
@@ -144,6 +145,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiProjectLoadProblemDto>(&config, "UiProjectLoadProblemDto");
     export_binding::<UiProjectLoadRecoveryDto>(&config, "UiProjectLoadRecoveryDto");
     export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
+    write_ui_protocol_version(out_dir);
     normalize_generated_typescript_bindings(out_dir);
 }
 
@@ -201,6 +203,15 @@ pub fn run_cli() -> Result<(), String> {
 
 fn export_binding<T: TS + 'static>(config: &Config, name: &str) {
     T::export_all(config).unwrap_or_else(|err| panic!("failed to export {name}: {err}"));
+}
+
+fn write_ui_protocol_version(out_dir: &Path) {
+    let path = out_dir.join("protocol-version.ts");
+    let source = format!(
+        "// Generated from golden_protocol::UI_PROTOCOL_VERSION. Do not edit manually.\n\
+         export const UI_PROTOCOL_VERSION = {UI_PROTOCOL_VERSION:?} as const;\n"
+    );
+    fs::write(&path, source).unwrap_or_else(|err| panic!("failed to write {}: {}", path.display(), err));
 }
 
 fn normalize_generated_typescript_bindings(out_dir: &Path) {

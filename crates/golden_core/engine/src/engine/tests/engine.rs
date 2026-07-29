@@ -6624,7 +6624,37 @@ fn ui_send_node_event_is_ephemeral_and_bypasses_edit_history() {
         engine.ui_event_log().is_empty(),
         "ephemeral UI/runtime coordination must not enter replay retention",
     );
+    assert_eq!(ack.earliest_event_time, None);
+    assert_eq!(ack.latest_event_time, None);
     assert_eq!(engine.undo_len(), 0, "node event must not create edit history");
+}
+
+#[test]
+fn ui_ack_completion_boundary_covers_every_event_emitted_by_one_intent() {
+    let root = RoutingNode::with_policy("root", 0, 0, EventPropagation::Notify);
+    let mut engine = Engine::new(root);
+    let root = engine.root;
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SendNodeEvent {
+        node: root,
+        topic: "test.emit_ack_completion_events".to_string(),
+        payload: serde_json::Value::Null,
+    });
+
+    assert!(ack.success, "node event should be delivered: {ack:?}");
+    assert_eq!(engine.ui_event_log().len(), 2);
+    assert_eq!(
+        ack.earliest_event_time,
+        engine.ui_event_log().first().map(|event| event.time)
+    );
+    assert_eq!(
+        ack.latest_event_time,
+        engine.ui_event_log().last().map(|event| event.time)
+    );
+    assert_ne!(
+        ack.earliest_event_time, ack.latest_event_time,
+        "the completion boundary must cover the full multi-event suffix"
+    );
 }
 
 #[test]
@@ -11382,8 +11412,20 @@ impl Node for RoutingNode {
         self.observed_child_added += 1;
     }
 
-    fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
         self.observed_custom_events += 1;
+        if event.topic == "test.emit_ack_completion_events" {
+            ctx.emit_custom_event(CustomEvent::new(
+                "test.ack_completion.first",
+                event.origin,
+                serde_json::json!({ "order": 1 }),
+            ));
+            ctx.emit_custom_event(CustomEvent::new(
+                "test.ack_completion.last",
+                event.origin,
+                serde_json::json!({ "order": 2 }),
+            ));
+        }
     }
 }
 

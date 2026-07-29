@@ -712,22 +712,19 @@ fn runtime_to_param_value(value: &RuntimeValue, current: Option<&ParamValue>) ->
     }
 }
 
-fn has_structural_events_since<T: Node>(engine: &Engine<T>, previous: Option<EngineTime>) -> bool {
-    engine
-        .ui_event_log()
-        .iter()
-        .filter(|event| previous.is_none_or(|time| event.time > time))
-        .any(|event| {
-            matches!(
-                event.kind,
-                EventKind::ChildAdded { .. }
-                    | EventKind::ChildRemoved { .. }
-                    | EventKind::ChildReplaced { .. }
-                    | EventKind::ChildMoved { .. }
-                    | EventKind::ChildReordered { .. }
-                    | EventKind::NodeCreated { .. }
-                    | EventKind::NodeDeleted { .. }
-                    | EventKind::GraphTransaction { .. }
-            )
-        })
+pub(crate) fn has_structural_events_since<T: Node>(engine: &Engine<T>, previous: Option<EngineTime>) -> bool {
+    let start_index = engine.ui_event_log_start_index(previous);
+    engine.ui_event_log()[start_index..].iter().any(|event| {
+        matches!(
+            event.kind,
+            EventKind::ChildAdded { .. }
+                | EventKind::ChildRemoved { .. }
+                | EventKind::ChildReplaced { .. }
+                | EventKind::ChildMoved { .. }
+                | EventKind::ChildReordered { .. }
+                | EventKind::NodeCreated { .. }
+                | EventKind::NodeDeleted { .. }
+                | EventKind::GraphTransaction { .. }
+        )
+    })
 }

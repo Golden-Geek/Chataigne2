@@ -207,7 +207,9 @@ impl Node for GenericLogCommand {
         events.iter().any(|event| match &event.kind {
             EventKind::ParamChanged { .. } => true,
             EventKind::Custom(custom) => {
-                self.cached_message_param.is_none() && module_command::is_command_execute_request(custom, self.id())
+                self.cached_message_param.is_none()
+                    && (module_command::is_command_execute_request(custom, self.id())
+                        || module_command::is_command_execute_batch_request(custom, self.id()))
             }
             _ => false,
         })
@@ -234,9 +236,21 @@ impl Node for GenericLogCommand {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        let Some(execute) = module_command::command_execute_request(&event, self.id()) else {
+        if let Some(execute) = module_command::command_execute_request(&event, self.id()) {
+            self.run_command_execute(ctx, &execute);
+            return;
+        }
+        let Some(executions) = module_command::command_execute_batch_requests(&event, self.id()) else {
             return;
         };
+        for execute in &executions {
+            self.run_command_execute(ctx, execute);
+        }
+    }
+}
+
+impl GenericLogCommand {
+    fn run_command_execute(&mut self, ctx: &mut ProcessCtx, execute: &module_command::ModuleCommandExecuteEvent) {
         if let Some(message) = self
             .cached_message_param
             .and_then(|param_id| command_string_param_override(&execute.param_overrides, param_id))
@@ -262,9 +276,7 @@ impl Node for GenericLogCommand {
             message.as_str(),
         );
     }
-}
 
-impl GenericLogCommand {
     fn run(&self) {
         self.run_message(self.cached_message.as_str());
     }

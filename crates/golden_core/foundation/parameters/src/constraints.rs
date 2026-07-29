@@ -365,6 +365,9 @@ impl fmt::Display for ParameterConstraints {
 impl ParameterConstraints {
     /// Normalizes or validates an incoming value according to constraint policy.
     pub fn normalize(&self, incoming: ParamValue) -> Result<ParamValue, String> {
+        if !incoming.has_only_finite_numbers() {
+            return Err("parameter values must contain only finite numbers".to_string());
+        }
         let mut normalized = match incoming {
             ParamValue::Int(value) => self.normalize_int(value)?,
             ParamValue::Float(value) => self.normalize_float(value)?,

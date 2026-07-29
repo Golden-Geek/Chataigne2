@@ -54,7 +54,6 @@ use node_store::NodeStore;
 
 /// Error type returned when validating or applying edits.
 pub use error::EngineEditError;
-pub(crate) use persistence::DuplicateDispatchOptions;
 /// Current project file format version.
 pub use persistence::PROJECT_FILE_VERSION;
 /// Persisted project file DTO.
@@ -132,7 +131,7 @@ pub struct Engine<T: Node> {
     external_edits_tx: Sender<Edit>,
     /// Cross-thread receiver drained by the engine before edit application.
     external_edits_rx: Receiver<Edit>,
-    /// Runtime listener subscriptions — two-way index for O(tree_depth) routing.
+    /// Runtime listener subscriptions - two-way index for O(tree_depth) routing.
     pub(crate) event_listeners: listener_index::ListenerIndex,
     /// App-registered reference filters keyed by `ReferenceConstraints.custom_filter_key`.
     reference_filters: HashMap<String, Box<ReferenceFilterFn<T>>>,
@@ -148,6 +147,10 @@ pub struct Engine<T: Node> {
     ui_event_log_start: usize,
     /// Maximum number of events retained in `ui_event_log`.
     ui_event_log_capacity: usize,
+    /// Latest-wins custom event key -> retained event time.
+    ui_latest_event_times: HashMap<(String, Option<NodeId>), EngineTime>,
+    /// Coalescable parameter -> event time in the current uninterrupted value run.
+    ui_pending_param_event_times: HashMap<NodeId, EngineTime>,
     /// Project epoch used by UI graph transactions.
     ui_epoch: u64,
     /// Next UI graph transaction id within `ui_epoch`.
@@ -283,6 +286,8 @@ impl<T: Node> Engine<T> {
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,
             ui_event_log_capacity: ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
+            ui_latest_event_times: HashMap::new(),
+            ui_pending_param_event_times: HashMap::new(),
             ui_epoch: 0,
             next_ui_tx_id: 1,
             ui_graph_version: 0,

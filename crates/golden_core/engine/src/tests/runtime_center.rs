@@ -6,7 +6,8 @@ use golden_runtime::RuntimeMetrics;
 use crate::engine::Engine;
 use crate::node::Node;
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck};
-use crate::runtime_center::ProductionState;
+use crate::runtime_center::{ProductionState, has_structural_events_since};
+use crate::ui_sync::UiEditIntent;
 
 fn parameter(label: &str, value: i32) -> Parameter {
     Parameter::new(label, ParamValue::Int(value), ParameterChangeCheck::ValueChange)
@@ -94,4 +95,31 @@ fn generation_swap_rebinds_new_parameter_inputs_without_dropping_the_old_generat
     let snapshot = metrics.snapshot();
     assert!(snapshot.compilation_applied >= 1);
     assert!(snapshot.generation_id >= 2);
+}
+
+#[test]
+fn structural_runtime_invalidation_ignores_retained_events_before_the_tick_cursor() {
+    let mut engine = Engine::new(parameter("root", 0));
+    let root = engine.root;
+    engine.add_node(parameter("existing", 1), Some(root));
+    engine.apply_edits().expect("existing parameter should attach");
+    let cursor = engine
+        .ui_event_log()
+        .last()
+        .map(|event| event.time)
+        .expect("structural setup should emit an event");
+
+    assert!(!has_structural_events_since(&engine, Some(cursor)));
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: root,
+        value: ParamValue::Int(2),
+        behaviour: Default::default(),
+    });
+    assert!(ack.success);
+    assert!(!has_structural_events_since(&engine, Some(cursor)));
+
+    engine.add_node(parameter("new", 3), Some(root));
+    engine.apply_edits().expect("new parameter should attach");
+    assert!(has_structural_events_since(&engine, Some(cursor)));
 }

@@ -14,8 +14,9 @@ use chataigne_condition::{ConditionDefinition, ConditionKind, TypedComparator};
 use golden_values::Value as RuntimeValue;
 
 use crate::{
-    DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorContextProvider,
-    ProcessorDebugCapture, ProcessorExecutionStrategy, ProcessorId, ProcessorLifecycleEvent, ProcessorRuntime,
+    DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorContextPropertyBinding,
+    ProcessorContextProvider, ProcessorDebugCapture, ProcessorExecutionStrategy, ProcessorId, ProcessorLifecycleEvent,
+    ProcessorRuntime,
 };
 
 fn formula() -> AlchemistFormula {
@@ -49,6 +50,30 @@ fn property_formula(property_id: &str, default_value: RuntimeValue) -> Alchemist
     property.config.set(
         "property_id",
         RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), property_id)),
+    );
+    graph.add_node(property).unwrap();
+    let mut formula = formula_with_graph(graph);
+    formula.properties.insert(FormulaPropertyDecl {
+        id: FormulaPropertyId::new(property_id),
+        label: "Amount".into(),
+        description: None,
+        value_type: ValueTypeId::new("float"),
+        default_value,
+        ui: chataigne_alchemist::PropertyUiHints::default(),
+    });
+    formula
+}
+
+fn always_process_property_formula(property_id: &str, default_value: RuntimeValue) -> AlchemistFormula {
+    let mut graph = TestGraph::new();
+    let mut property = ANodeInstance::new(ANodeTypeId::new("property"), "Property");
+    property.config.set(
+        "property_id",
+        RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), property_id)),
+    );
+    property.config.set(
+        chataigne_alchemist::PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
+        RuntimeValue::Bool(false),
     );
     graph.add_node(property).unwrap();
     let mut formula = formula_with_graph(graph);
@@ -132,6 +157,57 @@ impl ProcessorContextProvider for TestContextProvider {
         _path: &ContextValuePath,
     ) -> Option<RuntimeValue> {
         None
+    }
+}
+
+#[derive(Clone, Debug)]
+struct LanePropertyContextProvider {
+    keys: Vec<ContextKey>,
+    axes: AxisSet,
+}
+
+impl LanePropertyContextProvider {
+    fn new() -> Self {
+        let mut axes = AxisSet::new();
+        axes.insert(ContextAxisId::new("device"));
+        Self {
+            keys: vec![ContextKey::single("device", "a"), ContextKey::single("device", "b")],
+            axes,
+        }
+    }
+}
+
+impl ProcessorContextProvider for LanePropertyContextProvider {
+    fn available_axes(&self, _processor_id: ProcessorId) -> AxisSet {
+        self.axes.clone()
+    }
+
+    fn iter_context_keys<'a>(
+        &'a self,
+        _processor_id: ProcessorId,
+        axes: &'a AxisSet,
+    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+        if axes.is_empty() {
+            Box::new(std::iter::once(ContextKey::default_lane()))
+        } else {
+            Box::new(self.keys.clone().into_iter())
+        }
+    }
+
+    fn resolve_context_value(
+        &self,
+        key: &ContextKey,
+        axis: &ContextAxisId,
+        path: &ContextValuePath,
+    ) -> Option<RuntimeValue> {
+        if axis.as_str() != "device" || path.segments.first()?.as_str() != "value" {
+            return None;
+        }
+        match key.iter().find(|part| &part.axis == axis)?.item.as_str() {
+            "a" => Some(RuntimeValue::Float(2.0)),
+            "b" => Some(RuntimeValue::Float(9.0)),
+            _ => None,
+        }
     }
 }
 
@@ -315,6 +391,83 @@ fn override_change_rebuilds_property_frame_not_formula() {
     assert_eq!(first_float(&second), Some(7.5));
     assert!(Arc::ptr_eq(&compiled, runtime.compiled.as_ref().unwrap()));
     assert_eq!(runtime.lanes.memory_count(), 1);
+}
+
+#[test]
+fn reusable_stateless_scratch_keeps_sequential_ticks_lane_fresh() {
+    let formula = always_process_property_formula("amount", RuntimeValue::Float(1.0));
+    let (mut processor, mut runtime) = compile_active_runtime(&formula);
+    assert_eq!(runtime.lanes.memory_count(), 0);
+    let scratch_address = runtime
+        .stateless_scratch_address()
+        .expect("stateless compilation should allocate one reusable scratch");
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+
+    let first = evaluate_default_lane_with_capture(&mut runtime, &processor, &evaluation_ctx(1, &inputs, &registries));
+    assert_eq!(first_float(&first), Some(1.0));
+
+    processor
+        .formula_instance
+        .overrides
+        .values
+        .insert(SurfaceItemId::new("amount"), RuntimeValue::Float(7.5));
+    let second = evaluate_default_lane_with_capture(&mut runtime, &processor, &evaluation_ctx(2, &inputs, &registries));
+
+    assert_eq!(first_float(&second), Some(7.5));
+    assert_eq!(
+        runtime.stateless_scratch_address(),
+        Some(scratch_address),
+        "sequential fresh-lane evaluations should reuse the same allocation"
+    );
+    assert_eq!(runtime.lanes.memory_count(), 0);
+}
+
+#[test]
+fn reusable_stateless_scratch_keeps_multiplex_lanes_independent() {
+    let formula = always_process_property_formula("amount", RuntimeValue::Float(1.0));
+    let (mut processor, mut runtime) = compile_active_runtime(&formula);
+    processor.context_property_bindings.insert(
+        SurfaceItemId::new("amount"),
+        ProcessorContextPropertyBinding {
+            axis: ContextAxisId::new("device"),
+            path: ContextValuePath::new(["value"]),
+        },
+    );
+    let provider = LanePropertyContextProvider::new();
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            property_axes: provider.available_axes(processor.id),
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
+    let scratch_address = runtime
+        .stateless_scratch_address()
+        .expect("stateless compilation should allocate one reusable scratch");
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+
+    let outputs = runtime.evaluate_processor_with_context_provider_and_capture(
+        &processor,
+        &evaluation_ctx(1, &inputs, &registries),
+        &provider,
+        &capture_all(),
+    );
+
+    assert_eq!(outputs.len(), 2);
+    assert_eq!(outputs[0].context_key, Some(ContextKey::single("device", "a")));
+    assert_eq!(first_float(&outputs[0].output), Some(2.0));
+    assert_eq!(outputs[1].context_key, Some(ContextKey::single("device", "b")));
+    assert_eq!(first_float(&outputs[1].output), Some(9.0));
+    assert_eq!(runtime.stateless_scratch_address(), Some(scratch_address));
+    assert_eq!(runtime.lanes.memory_count(), 0);
 }
 
 #[test]

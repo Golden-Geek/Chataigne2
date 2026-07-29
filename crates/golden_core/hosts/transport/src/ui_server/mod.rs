@@ -15,7 +15,6 @@ use golden_engine::app::{
 use golden_engine::application::{AppliedUiTransaction, ProductionRuntime};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::events::CustomEventRetention;
-use golden_engine::node::NodeId;
 use golden_engine::ui_read_model::UiReadModel;
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiClientMessage as WsClientMessage,
@@ -43,9 +42,11 @@ use tokio_tungstenite::{
 use crate::project_host;
 
 mod outbound_queue;
+mod pending_value_events;
 mod runtime_pacer;
 
 use outbound_queue::{DEFAULT_OUTBOUND_CAPACITY, QueuePushResult, WsOutboundQueue};
+use pending_value_events::PendingValueEvents;
 use runtime_pacer::RuntimeLoopPacer;
 
 const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
@@ -295,12 +296,12 @@ fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
     );
 }
 
-fn save_preferences_after_success<T: ProjectLifecycle>(
+fn save_preferences_after_change<T: ProjectLifecycle>(
     runtime: &ProductionRuntime<T>,
     preferences: Option<&UiPreferencesConfig>,
-    success: bool,
+    preferences_changed: bool,
 ) {
-    if !success {
+    if !preferences_changed {
         return;
     }
     let Some(preferences) = preferences else {
@@ -372,7 +373,7 @@ impl UiSessionReadiness {
             engine_read_model_ready: true,
             active_websocket_clients: self.active_websocket_clients.load(Ordering::Acquire),
             active_subscribed_websocket_clients: self.active_subscribed_websocket_clients.load(Ordering::Acquire),
-            read_model_revision: read_model.current_snapshot().at,
+            read_model_revision: read_model.current_revision(),
         }
     }
 }
@@ -394,56 +395,19 @@ struct WsSubscriptionState {
     interest: UiInterest,
     cursor: Option<EngineTime>,
     last_runtime_stats: Option<UiRuntimeStatsDto>,
-    pending_value_from: Option<EngineTime>,
-    pending_value_to: Option<EngineTime>,
-    pending_value_events: Vec<UiEventDto>,
+    pending_value_events: PendingValueEvents,
 }
 
 impl WsSubscriptionState {
     fn queue_value_events(&mut self, from: Option<EngineTime>, events: Vec<UiEventDto>) {
-        if events.is_empty() {
-            return;
-        }
-
-        if self.pending_value_events.is_empty() {
-            self.pending_value_from = from;
-        }
-
-        for event in events {
-            if let Some(param) = value_plane_param(&event)
-                && let Some(index) = self
-                    .pending_value_events
-                    .iter()
-                    .position(|pending| value_plane_param(pending) == Some(param))
-            {
-                self.pending_value_events.remove(index);
-            }
-            self.pending_value_to = Some(event.time);
-            self.pending_value_events.push(event);
-        }
+        self.pending_value_events.queue(from, events);
     }
 
     fn take_value_batch(&mut self) -> Option<UiEventBatch> {
-        if self.pending_value_events.is_empty() {
-            return None;
-        }
-
-        let events = std::mem::take(&mut self.pending_value_events);
-        let to = self
-            .pending_value_to
-            .take()
-            .or_else(|| events.last().map(|event| event.time));
-        Some(UiEventBatch {
-            from: self.pending_value_from.take(),
-            to,
-            runtime: None,
-            events,
-        })
+        self.pending_value_events.take_batch()
     }
 
     fn clear_pending_value_events(&mut self) {
-        self.pending_value_from = None;
-        self.pending_value_to = None;
         self.pending_value_events.clear();
     }
 }
@@ -790,9 +754,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                             interest,
                             cursor: from,
                             last_runtime_stats: None,
-                            pending_value_from: None,
-                            pending_value_to: None,
-                            pending_value_events: Vec::new(),
+                            pending_value_events: PendingValueEvents::default(),
                         },
                     )
                     .is_some();
@@ -858,10 +820,10 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 .get(&client_id)
                 .and_then(|client| client.client_instance_id.as_deref());
             let result = context.runtime.apply_ui_transaction(*intent, client_instance_id);
-            save_preferences_after_success(
+            save_preferences_after_change(
                 &context.runtime,
                 context.preferences.as_ref(),
-                result.acknowledgement.success,
+                result.preferences_changed,
             );
             let timing = ui_intent_timing_from_application(kind, &result);
             log_ui_intent_timing("ui-ws", &timing);
@@ -914,8 +876,11 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             let batch = context
                 .runtime
                 .apply_ui_transaction_batch(intents, client_instance_id, true);
-            let any_success = batch.transactions.iter().any(|result| result.acknowledgement.success);
-            save_preferences_after_success(&context.runtime, context.preferences.as_ref(), any_success);
+            save_preferences_after_change(
+                &context.runtime,
+                context.preferences.as_ref(),
+                batch.preferences_changed,
+            );
             let mut produced_times = Vec::<EngineTime>::new();
             let mut acks = Vec::<UiAck>::with_capacity(batch.transactions.len());
             let mut timing_rows = Vec::<UiIntentTiming>::with_capacity(batch.transactions.len());
@@ -969,13 +934,6 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
     context.readiness.update(clients);
 }
 
-fn value_plane_param(event: &UiEventDto) -> Option<NodeId> {
-    let UiEventKind::ParamChanged { param, .. } = &event.kind else {
-        return None;
-    };
-    Some(*param)
-}
-
 fn dispatch_ws_batches(
     read_model: &Arc<UiReadModel>,
     clients: &mut HashMap<u64, WsClientState>,
@@ -988,10 +946,7 @@ fn dispatch_ws_batches(
     let mut events_count = 0;
     let mut subscriptions_count = 0;
     let collect_started = Instant::now();
-    let snapshot_time = read_model.current_snapshot().at;
-    let server_time = read_model
-        .current_event_time()
-        .map_or(snapshot_time, |event_time| event_time.max(snapshot_time));
+    let server_time = read_model.current_revision();
     let first_retained = read_model.first_retained_event_time();
     let last_evicted = read_model.last_evicted_event_time();
 
@@ -1055,17 +1010,16 @@ fn dispatch_ws_batches(
                     visible_events.push(event);
                 }
             }
-            visible_events = read_model.coalesce_ui_feedback_events(visible_events);
-
-            let mut values = Vec::new();
+            let partition = read_model.partition_ui_feedback_events(visible_events);
+            let values = partition.values;
             let mut structure = Vec::new();
             let mut triggers = Vec::new();
             let mut catalogs = Vec::new();
             let mut previews = Vec::new();
             let mut observations = Vec::new();
-            for event in visible_events {
-                match ui_data_plane(read_model, &event) {
-                    UiDataPlane::Value => values.push(event),
+            for event in partition.other {
+                match ui_data_plane(&event) {
+                    UiDataPlane::Value => unreachable!("value events are partitioned by the read model"),
                     UiDataPlane::Structure => structure.push(event),
                     UiDataPlane::Trigger => triggers.push(event),
                     UiDataPlane::Catalog => catalogs.push(event),
@@ -1074,107 +1028,88 @@ fn dispatch_ws_batches(
                 }
             }
 
-            let contains_reliable = !structure.is_empty() || !triggers.is_empty() || !catalogs.is_empty();
-            if !values.is_empty() {
+            if !values.is_empty() && subscription.interest.includes(UiDataPlane::Value) {
                 subscription.queue_value_events(batch.from, values);
             }
+            let mut deltas = Vec::new();
 
-            if contains_reliable
+            if !structure.is_empty() && subscription.interest.includes(UiDataPlane::Structure) {
+                events_count += structure.len();
+                deltas.push(UiPlaneDelta {
+                    plane: UiDataPlane::Structure,
+                    batch: UiEventBatch {
+                        from: batch.from,
+                        to: batch.to,
+                        runtime: None,
+                        events: structure,
+                    },
+                });
+            }
+
+            if !triggers.is_empty() && subscription.interest.includes(UiDataPlane::Trigger) {
+                events_count += triggers.len();
+                deltas.push(UiPlaneDelta {
+                    plane: UiDataPlane::Trigger,
+                    batch: UiEventBatch {
+                        from: batch.from,
+                        to: batch.to,
+                        runtime: None,
+                        events: triggers,
+                    },
+                });
+            }
+
+            for (plane, events) in [(UiDataPlane::Catalog, catalogs), (UiDataPlane::Preview, previews)] {
+                if events.is_empty() || !subscription.interest.includes(plane) {
+                    continue;
+                }
+                events_count += events.len();
+                deltas.push(UiPlaneDelta {
+                    plane,
+                    batch: UiEventBatch {
+                        from: batch.from,
+                        to: batch.to,
+                        runtime: None,
+                        events,
+                    },
+                });
+            }
+
+            if subscription.interest.includes(UiDataPlane::Observation) && (!observations.is_empty() || runtime_changed)
+            {
+                events_count += observations.len();
+                deltas.push(UiPlaneDelta {
+                    plane: UiDataPlane::Observation,
+                    batch: UiEventBatch {
+                        from: batch.from,
+                        to: batch.to,
+                        runtime: if runtime_changed { batch.runtime } else { None },
+                        events: observations,
+                    },
+                });
+            }
+
+            if !deltas.is_empty()
                 && subscription.interest.includes(UiDataPlane::Value)
                 && let Some(value_batch) = subscription.take_value_batch()
             {
                 events_count += value_batch.events.len();
                 flushed_value_plane = true;
-                pending.push((
-                    *client_id,
-                    WsServerMessage::Delta {
-                        subscription_id: subscription_id.clone(),
-                        delta: UiPlaneDelta {
-                            plane: UiDataPlane::Value,
-                            batch: value_batch,
-                        },
+                deltas.insert(
+                    0,
+                    UiPlaneDelta {
+                        plane: UiDataPlane::Value,
+                        batch: value_batch,
                     },
-                ));
+                );
             }
 
-            if !structure.is_empty() && subscription.interest.includes(UiDataPlane::Structure) {
-                events_count += structure.len();
+            if !deltas.is_empty() {
                 pending.push((
                     *client_id,
                     WsServerMessage::Delta {
                         subscription_id: subscription_id.clone(),
-                        delta: UiPlaneDelta {
-                            plane: UiDataPlane::Structure,
-                            batch: UiEventBatch {
-                                from: batch.from,
-                                to: batch.to,
-                                runtime: None,
-                                events: structure,
-                            },
-                        },
-                    },
-                ));
-            }
-
-            if !triggers.is_empty() && subscription.interest.includes(UiDataPlane::Trigger) {
-                events_count += triggers.len();
-                pending.push((
-                    *client_id,
-                    WsServerMessage::Delta {
-                        subscription_id: subscription_id.clone(),
-                        delta: UiPlaneDelta {
-                            plane: UiDataPlane::Trigger,
-                            batch: UiEventBatch {
-                                from: batch.from,
-                                to: batch.to,
-                                runtime: None,
-                                events: triggers,
-                            },
-                        },
-                    },
-                ));
-            }
-
-            for (plane, events) in [
-                (UiDataPlane::Catalog, catalogs),
-                (UiDataPlane::Preview, previews),
-                (UiDataPlane::Observation, observations),
-            ] {
-                if events.is_empty() || !subscription.interest.includes(plane) {
-                    continue;
-                }
-                events_count += events.len();
-                pending.push((
-                    *client_id,
-                    WsServerMessage::Delta {
-                        subscription_id: subscription_id.clone(),
-                        delta: UiPlaneDelta {
-                            plane,
-                            batch: UiEventBatch {
-                                from: batch.from,
-                                to: batch.to,
-                                runtime: None,
-                                events,
-                            },
-                        },
-                    },
-                ));
-            }
-
-            if runtime_changed && subscription.interest.includes(UiDataPlane::Observation) {
-                pending.push((
-                    *client_id,
-                    WsServerMessage::Delta {
-                        subscription_id: subscription_id.clone(),
-                        delta: UiPlaneDelta {
-                            plane: UiDataPlane::Observation,
-                            batch: UiEventBatch {
-                                from: batch.from,
-                                to: batch.to,
-                                runtime: batch.runtime,
-                                events: Vec::new(),
-                            },
-                        },
+                        deltas,
                     },
                 ));
             }
@@ -1197,10 +1132,10 @@ fn dispatch_ws_batches(
                     *client_id,
                     WsServerMessage::Delta {
                         subscription_id: subscription_id.clone(),
-                        delta: UiPlaneDelta {
+                        deltas: vec![UiPlaneDelta {
                             plane: UiDataPlane::Value,
                             batch,
-                        },
+                        }],
                     },
                 ));
             }
@@ -1237,10 +1172,7 @@ fn dispatch_ws_batches(
     flushed_value_plane
 }
 
-fn ui_data_plane(read_model: &UiReadModel, event: &UiEventDto) -> UiDataPlane {
-    if read_model.event_is_coalescable_value(event) {
-        return UiDataPlane::Value;
-    }
+fn ui_data_plane(event: &UiEventDto) -> UiDataPlane {
     match &event.kind {
         UiEventKind::ParamChanged { .. } => UiDataPlane::Trigger,
         UiEventKind::Custom {
@@ -1327,8 +1259,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             write_json(stream, "200 OK", &state.ws_hub.readiness.snapshot(&state.read_model))?;
         }
         ("GET", "/api/ui/user-contexts") => {
-            let snapshot = state.read_model.current_snapshot();
-            write_json(stream, "200 OK", &snapshot.user_contexts)?;
+            write_json(stream, "200 OK", &state.read_model.current_user_contexts())?;
         }
         ("POST", "/api/ui/snapshot") => {
             let request_started = Instant::now();
@@ -1505,7 +1436,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             match project_host::save_project(&state.runtime, &payload.path, payload.ui_state) {
                 Ok(path) => {
                     state.project_file.set_current_path(path);
-                    state.read_model.set_project_file(state.project_file.snapshot());
+                    state.runtime.set_project_file(state.project_file.snapshot());
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
@@ -1574,11 +1505,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let result = state
                 .runtime
                 .apply_ui_transaction(intent, client_instance_id.as_deref());
-            save_preferences_after_success(
-                &state.runtime,
-                state.preferences.as_ref(),
-                result.acknowledgement.success,
-            );
+            save_preferences_after_change(&state.runtime, state.preferences.as_ref(), result.preferences_changed);
             let timing = ui_intent_timing_from_application(kind, &result);
             log_ui_intent_timing("ui-http", &timing);
 
@@ -1593,8 +1520,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let batch = state
                 .runtime
                 .apply_ui_transaction_batch(intents, client_instance_id.as_deref(), true);
-            let any_success = batch.transactions.iter().any(|result| result.acknowledgement.success);
-            save_preferences_after_success(&state.runtime, state.preferences.as_ref(), any_success);
+            save_preferences_after_change(&state.runtime, state.preferences.as_ref(), batch.preferences_changed);
             let mut total_events = 0usize;
             let mut acks = Vec::<UiAck>::with_capacity(batch.transactions.len());
             let mut timing_rows = Vec::<UiIntentTiming>::with_capacity(batch.transactions.len());

@@ -5,6 +5,8 @@ use crate::node::{Node, NodeMetaPatch};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
 use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope};
+use std::collections::HashSet;
+use std::sync::{Arc, Barrier};
 
 fn apply_param_change(engine: &mut Engine<Parameter>, value: i32) {
     let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
@@ -96,6 +98,78 @@ fn retained_ui_event_logs_keep_latest_only_for_coalescable_value_params() {
 }
 
 #[test]
+fn engine_ui_retention_indexes_preserve_barriers_and_recover_after_trim() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+
+    apply_param_change(&mut engine, 1);
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::new("test.barrier", None, serde_json::Value::Null),
+    });
+    engine.apply_edits().expect("replay barrier should apply");
+    apply_param_change(&mut engine, 2);
+    assert_eq!(
+        engine
+            .ui_event_log()
+            .iter()
+            .filter_map(|event| match &event.kind {
+                crate::events::EventKind::ParamChanged {
+                    new_value: ParamValue::Int(value),
+                    ..
+                } => Some(*value),
+                _ => None,
+            })
+            .collect::<Vec<_>>(),
+        vec![1, 2],
+        "a reliable barrier must end the coalescable parameter run"
+    );
+
+    engine.clear_ui_event_log();
+    engine.set_ui_event_log_capacity(1);
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::latest("test.preview", None, serde_json::json!({ "generation": 1 })),
+    });
+    engine.apply_edits().expect("latest event should apply");
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::new("test.reliable", None, serde_json::Value::Null),
+    });
+    engine.apply_edits().expect("reliable event should evict the preview");
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::latest("test.preview", None, serde_json::json!({ "generation": 2 })),
+    });
+    engine
+        .apply_edits()
+        .expect("a stale latest-event index should recover lazily");
+
+    let [retained] = engine.ui_event_log() else {
+        panic!("capacity-one log should retain exactly one event");
+    };
+    let crate::events::EventKind::Custom(retained) = &retained.kind else {
+        panic!("latest preview should be retained");
+    };
+    assert_eq!(retained.topic, "test.preview");
+    assert_eq!(
+        retained.payload.get("generation").and_then(serde_json::Value::as_i64),
+        Some(2)
+    );
+
+    for generation in 3..=32 {
+        engine.edits.push(Edit::EmitCustomEvent {
+            event: CustomEvent::latest(
+                format!("test.preview.{generation}"),
+                None,
+                serde_json::json!({ "generation": generation }),
+            ),
+        });
+        engine.apply_edits().expect("dynamic latest event should apply");
+    }
+    assert_eq!(
+        engine.ui_event_index_sizes_for_tests(),
+        (1, 0),
+        "retention indexes must discard dynamic keys with their evicted events"
+    );
+}
+
+#[test]
 fn read_model_retains_only_latest_explicit_latest_custom_event() {
     let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
     let root = engine.root;
@@ -164,6 +238,24 @@ fn replay_before_the_first_new_event_does_not_require_resync_without_eviction() 
             UiEventKind::Custom { topic, .. } if topic == "__transport.resync_required"
         )
     }));
+}
+
+#[test]
+fn replay_seeks_directly_to_the_suffix_after_a_near_tail_cursor() {
+    let mut root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    root.event_behaviour = ParameterEventBehaviour::Append;
+    let mut engine = Engine::new(root);
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+
+    for value in 1..=256 {
+        apply_param_change(&mut engine, value);
+    }
+    let published = read_model.publish_engine_events_since(&engine, None);
+    let cursor = published.events[254].time;
+
+    let replay = read_model.replay(Some(cursor), UiSubscriptionScope::WholeGraph);
+    assert_eq!(batch_param_values(&replay), vec![256]);
+    assert_eq!(replay.to, published.to);
 }
 
 #[test]
@@ -334,6 +426,11 @@ fn scoped_replay_filters_unrelated_graph_transactions() {
         left_replay.events.is_empty(),
         "unrelated sibling transaction should not fan out to left subtree"
     );
+    assert_eq!(
+        left_replay.to,
+        read_model.current_event_time(),
+        "an out-of-scope suffix must still advance the subscription cursor"
+    );
 
     let right_replay = read_model.replay(
         None,
@@ -347,6 +444,19 @@ fn scoped_replay_filters_unrelated_graph_transactions() {
         panic!("right subtree should receive a graph transaction");
     };
     assert_eq!(transaction.ops.len(), 1);
+
+    let caught_up_left = read_model.replay(
+        left_replay.to,
+        UiSubscriptionScope::Subtree {
+            root: left,
+            max_depth: u32::MAX,
+        },
+    );
+    assert!(caught_up_left.events.is_empty());
+    assert_eq!(
+        caught_up_left.to, None,
+        "a caught-up scoped replay must not repeatedly scan the same retained suffix"
+    );
 }
 
 #[test]
@@ -530,4 +640,178 @@ fn user_context_custom_events_refresh_the_read_model_snapshot() {
     let snapshot = read_model.current_snapshot();
     assert_eq!(snapshot.user_contexts.scopes.len(), 1);
     assert_eq!(snapshot.user_contexts.scopes[0].owner, engine.root);
+}
+
+#[test]
+fn structural_publication_defers_whole_graph_snapshot_materialization() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    assert!(!read_model.snapshot_cache_is_dirty_for_tests());
+
+    let cursor = read_model.current_event_time();
+    let root = engine.root;
+    engine.add_node(
+        Parameter::new("child", ParamValue::Int(1), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine.apply_edits().expect("child should attach");
+    let batch = read_model.publish_engine_events_since(&engine, cursor);
+
+    assert!(!batch.events.is_empty());
+    assert!(
+        read_model.snapshot_cache_is_dirty_for_tests(),
+        "structural publication must only invalidate the immutable snapshot cache"
+    );
+
+    let replay = read_model.replay(cursor, UiSubscriptionScope::WholeGraph);
+    assert!(!replay.events.is_empty());
+    assert!(
+        read_model.snapshot_cache_is_dirty_for_tests(),
+        "normal replay must not materialize a whole-graph snapshot"
+    );
+
+    let scoped = read_model.snapshot_for_scope(UiSubscriptionScope::Subtree { root, max_depth: 0 });
+    assert_eq!(scoped.nodes.len(), 1);
+    assert!(
+        read_model.snapshot_cache_is_dirty_for_tests(),
+        "a bounded subtree snapshot must scale with its scope"
+    );
+
+    let whole = read_model.snapshot_for_scope(UiSubscriptionScope::WholeGraph);
+    assert_eq!(whole.nodes.len(), 2);
+    assert!(!read_model.snapshot_cache_is_dirty_for_tests());
+}
+
+#[test]
+fn concurrent_snapshot_consumers_share_one_lazy_materialization() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let read_model = Arc::new(UiReadModel::from_engine(&engine, UiProjectFileSpec::default()));
+    let cursor = read_model.current_event_time();
+    let root = engine.root;
+    engine.add_node(
+        Parameter::new("child", ParamValue::Int(1), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine.apply_edits().expect("child should attach");
+    read_model.publish_engine_events_since(&engine, cursor);
+    assert!(read_model.snapshot_cache_is_dirty_for_tests());
+
+    let worker_count = 8;
+    let barrier = Arc::new(Barrier::new(worker_count));
+    let workers: Vec<_> = (0..worker_count)
+        .map(|_| {
+            let read_model = read_model.clone();
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                read_model.current_snapshot()
+            })
+        })
+        .collect();
+    let snapshots: Vec<_> = workers
+        .into_iter()
+        .map(|worker| worker.join().expect("snapshot worker should finish"))
+        .collect();
+
+    assert!(snapshots.iter().all(|snapshot| snapshot.nodes.len() == 2));
+    assert!(
+        snapshots
+            .iter()
+            .skip(1)
+            .all(|snapshot| Arc::ptr_eq(&snapshots[0], snapshot)),
+        "concurrent readers should reuse the same cached immutable snapshot"
+    );
+}
+
+#[test]
+fn scoped_replay_parent_index_tracks_node_moves() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let root = engine.root;
+    engine.add_node(
+        Parameter::new("left", ParamValue::Int(0), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine.add_node(
+        Parameter::new("right", ParamValue::Int(0), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine.apply_edits().expect("branches should attach");
+
+    let initial = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
+    let root_node = initial
+        .nodes
+        .iter()
+        .find(|node| node.node_id == root)
+        .expect("root should exist");
+    let left = root_node.children[0];
+    let right = root_node.children[1];
+    engine.add_node(
+        Parameter::new("leaf", ParamValue::Int(0), ParameterChangeCheck::None),
+        Some(left),
+    );
+    engine.apply_edits().expect("leaf should attach");
+    let leaf = engine
+        .ui_snapshot(UiSubscriptionScope::Subtree {
+            root: left,
+            max_depth: 1,
+        })
+        .nodes
+        .into_iter()
+        .find(|node| node.node_id != left)
+        .expect("leaf should exist")
+        .node_id;
+
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let move_cursor = read_model.current_event_time();
+    let move_ack = engine.apply_ui_intent(UiEditIntent::MoveNode {
+        node: leaf,
+        new_parent: right,
+        new_prev_sibling: None,
+    });
+    assert!(move_ack.success, "leaf move should apply: {:?}", move_ack.error_message);
+    read_model.publish_engine_events_since(&engine, move_cursor);
+
+    let value_cursor = read_model.current_event_time();
+    let value_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: leaf,
+        value: ParamValue::Int(9),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(
+        value_ack.success,
+        "leaf value should apply: {:?}",
+        value_ack.error_message
+    );
+    read_model.publish_engine_events_since(&engine, value_cursor);
+
+    let left_replay = read_model.replay(
+        value_cursor,
+        UiSubscriptionScope::Subtree {
+            root: left,
+            max_depth: u32::MAX,
+        },
+    );
+    assert!(batch_param_values(&left_replay).is_empty());
+
+    let right_replay = read_model.replay(
+        value_cursor,
+        UiSubscriptionScope::Subtree {
+            root: right,
+            max_depth: u32::MAX,
+        },
+    );
+    assert_eq!(batch_param_values(&right_replay), vec![9]);
+
+    let right_snapshot = read_model.snapshot_for_scope(UiSubscriptionScope::Subtree {
+        root: right,
+        max_depth: 1,
+    });
+    assert_eq!(
+        right_snapshot
+            .nodes
+            .iter()
+            .map(|node| node.node_id)
+            .collect::<HashSet<_>>(),
+        HashSet::from([right, leaf])
+    );
 }

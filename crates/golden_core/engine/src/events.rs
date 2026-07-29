@@ -38,9 +38,9 @@ pub struct CustomEvent {
     pub topic: String,
     /// Node that originated the event, if known.
     pub origin: Option<NodeId>,
-    /// Arbitrary JSON payload for custom data.
+    /// Arbitrary JSON payload for custom data, shared across routing copies.
     #[serde(default)]
-    pub payload: serde_json::Value,
+    pub payload: Arc<serde_json::Value>,
     /// UI replay retention policy.
     #[serde(default)]
     pub retention: CustomEventRetention,
@@ -52,7 +52,7 @@ impl CustomEvent {
         Self {
             topic: topic.into(),
             origin,
-            payload,
+            payload: Arc::new(payload),
             retention: CustomEventRetention::Replay,
         }
     }
@@ -62,7 +62,7 @@ impl CustomEvent {
         Self {
             topic: topic.into(),
             origin,
-            payload,
+            payload: Arc::new(payload),
             retention: CustomEventRetention::Latest,
         }
     }
@@ -72,7 +72,7 @@ impl CustomEvent {
         Self {
             topic: topic.into(),
             origin,
-            payload,
+            payload: Arc::new(payload),
             retention: CustomEventRetention::Transient,
         }
     }
@@ -106,7 +106,7 @@ impl CustomEvent {
 
     /// Deserializes the JSON payload into a typed value.
     pub fn payload_as<T: DeserializeOwned>(&self) -> serde_json::Result<T> {
-        T::deserialize(&self.payload)
+        T::deserialize(self.payload.as_ref())
     }
 }
 

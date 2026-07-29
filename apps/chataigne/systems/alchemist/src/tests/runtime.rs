@@ -11,7 +11,7 @@ use crate::{
     OutputSocketRef, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, RuntimeContextFrame, RuntimeInputSnapshot, RuntimeOutput,
     RuntimePropertyFrame, RuntimeRegistries, RuntimeValue, SocketId, StableRef, TriggerValue, TypeBindingSource,
     TypeVar, ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry, compile_graph,
-    evaluate_compiled_graph, formula_input_value_ref, primitive_node_registry,
+    evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing, formula_input_value_ref, primitive_node_registry,
 };
 
 fn node(type_id: &str) -> ANodeInstance {
@@ -566,6 +566,66 @@ fn evaluate_compiled_graph_uses_supplied_memory() {
     assert!(first_trigger.fired);
     assert!(second.debug_samples.is_empty());
     assert_eq!(first_debug.samples(), first.debug_samples.as_slice());
+}
+
+#[test]
+fn fresh_reusing_evaluation_resets_stateful_graph_memory() {
+    let mut graph = TestGraph::new();
+    let source = graph.add_node(constant(RuntimeValue::Bool(true))).unwrap();
+    let edge = graph.add_node(node("trigger_on_off")).unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(source, "value"),
+            InputSocketRef::new(edge, "value"),
+        )
+        .unwrap();
+    let compiled = compile_with_properties(&graph, &FormulaPropertySchema::default());
+    let mut memory = AlchemistMemory::for_graph(&compiled);
+    assert!(memory.state_len() > 0);
+    let properties = RuntimePropertyFrame::from_defaults(&compiled.properties);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let context = RuntimeContextFrame::default_lane();
+    let mut evaluate_fresh = |logical_tick| {
+        let ctx = EvaluationCtx {
+            logical_tick,
+            delta_time: Duration::from_millis(16),
+            events: &[],
+            inputs: &inputs,
+            registries: &registries,
+        };
+        let mut debug = DebugCaptureSink::new(DebugCaptureMode::All { history_len: 64 });
+        evaluate_compiled_graph_fresh_reusing(
+            &compiled,
+            &mut memory,
+            EvaluationFrame {
+                ctx: &ctx,
+                properties: &properties,
+                context: &context,
+                debug: &mut debug,
+                force_process_unchanged_inputs: false,
+                capture_unchanged_outputs: false,
+            },
+        )
+    };
+
+    let first = evaluate_fresh(1);
+    let second = evaluate_fresh(2);
+
+    for output in [&first, &second] {
+        let trigger = output
+            .debug_samples
+            .iter()
+            .find_map(|sample| match sample.value {
+                RuntimeValue::Trigger(trigger) => Some(trigger),
+                _ => None,
+            })
+            .expect("fresh evaluation should capture the trigger output");
+        assert!(trigger.fired, "fresh evaluation must not retain prior node state");
+    }
 }
 
 #[test]

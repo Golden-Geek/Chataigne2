@@ -226,12 +226,12 @@ fn parameter_value_color(value: &ParamValue) -> Color {
     value_type_color(parameter_node_type(value))
 }
 
-fn registry() -> chataigne_alchemist::ANodeRegistry {
-    chataigne_state_machine::alchemist::node_registry()
+fn registry() -> &'static chataigne_alchemist::ANodeRegistry {
+    chataigne_state_machine::alchemist::shared_node_registry()
 }
 
-fn value_types() -> chataigne_alchemist::ValueTypeRegistry {
-    chataigne_state_machine::alchemist::value_type_registry()
+fn value_types() -> &'static chataigne_alchemist::ValueTypeRegistry {
+    chataigne_state_machine::alchemist::shared_value_type_registry()
 }
 
 fn formula_container_rules() -> UserContainerRules {
@@ -561,7 +561,7 @@ fn config_field_trees_for_instance(
 ) -> Vec<NodeTree> {
     let value_types = value_types();
     let signature_ctx = SignatureCtx {
-        value_types: &value_types,
+        value_types,
         properties: None,
     };
     let config_signature = declaration.signature(
@@ -645,7 +645,7 @@ fn anode_tree_for_declaration(
 
     let value_types = value_types();
     let signature_ctx = SignatureCtx {
-        value_types: &value_types,
+        value_types,
         properties: None,
     };
     let signature =
@@ -714,7 +714,7 @@ fn parameter_node_type(value: &ParamValue) -> &'static str {
 }
 
 pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue, String> {
-    Ok(match value {
+    let value = match value {
         RuntimeValue::Unit => ParamValue::Str(String::new()),
         RuntimeValue::Bool(value) => ParamValue::Bool(*value),
         RuntimeValue::Trigger(_) => ParamValue::Trigger(),
@@ -763,7 +763,11 @@ pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue,
                 .map(|byte| format!("{byte:02x}"))
                 .collect(),
         ),
-    })
+    };
+    if !value.has_only_finite_numbers() {
+        return Err("runtime value contains a non-finite number that cannot cross the parameter protocol".to_string());
+    }
+    Ok(value)
 }
 
 fn default_runtime_value(
@@ -1480,7 +1484,7 @@ pub(crate) fn anode_from_snapshot(
         existing_or_default_config(snapshot, anode, declaration.as_ref())?;
     let value_types = value_types();
     let signature_ctx = SignatureCtx {
-        value_types: &value_types,
+        value_types,
         properties: None,
     };
     let signature = declaration.signature(
@@ -1600,8 +1604,8 @@ pub(crate) fn formula_from_snapshot(
         &mut anodes,
     )?;
     let domain = chataigne_alchemist::AlchemistGraphDomain::new(
-        registry(),
-        value_types(),
+        (*registry()).clone(),
+        (*value_types()).clone(),
         Some(properties.clone()),
     );
     let mut graph =
@@ -2012,7 +2016,7 @@ impl AlchemistANode {
 
         let value_types = value_types();
         let signature_ctx = SignatureCtx {
-            value_types: &value_types,
+            value_types,
             properties: None,
         };
         let mut instance =
@@ -4419,13 +4423,13 @@ impl AlchemistFormulaDefinition {
         let solved = solve_document_types(
             &formula.graph,
             &TypeSolveCtx {
-                value_types: &value_types,
-                nodes: &nodes,
+                value_types,
+                nodes,
                 properties: Some(&formula.properties),
             },
         );
         let signature_ctx = SignatureCtx {
-            value_types: &value_types,
+            value_types,
             properties: Some(&formula.properties),
         };
 
@@ -4623,8 +4627,8 @@ impl AlchemistFormulaDefinition {
             compile_graph(
                 &formula.graph,
                 &CompileCtx {
-                    value_types: &value_types,
-                    nodes: &nodes,
+                    value_types,
+                    nodes,
                     properties: Some(&formula.properties),
                 },
             )
@@ -4873,6 +4877,9 @@ impl Node for FormulaLibrary {
     ) {
         self.reconcile_shared_formula_dir_parameter(ctx);
         self.ensure_shared_formula_watcher(ctx);
+        if take_shared_formula_watcher_pending() {
+            self.sync_shared_formula_files(ctx);
+        }
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {

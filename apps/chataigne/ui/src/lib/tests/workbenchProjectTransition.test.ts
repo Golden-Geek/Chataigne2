@@ -1,5 +1,6 @@
 import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
+import { UI_PROTOCOL_VERSION } from '../../../../../../packages/golden-ui/generated/rust_protocol/protocol-version';
 import { createWorkbenchIntentPipeline } from '../../../../../../packages/golden-ui/store/session/intent-pipeline';
 import { createWorkbenchSession } from '../../../../../../packages/golden-ui/store/workbench.svelte';
 import type {
@@ -47,7 +48,7 @@ const node = (nodeId: number): UiNodeDto =>
 
 const snapshot = (nodeId: number, seq: number): UiSnapshot =>
 	({
-		protocol_version: '0.3.0',
+		protocol_version: UI_PROTOCOL_VERSION,
 		scope: { kind: 'wholeGraph' },
 		at: { tick: 1, micro: 0, seq },
 		nodes: [node(nodeId)],

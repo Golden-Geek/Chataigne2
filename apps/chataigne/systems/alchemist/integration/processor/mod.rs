@@ -800,6 +800,12 @@ impl Node for StateProcessorManager {
     fn on_child_removed(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
         self.refresh_formula_items(ctx);
     }
+
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        events
+            .iter()
+            .any(|event| !matches!(event.kind, EventKind::Custom(_)))
+    }
 }
 
 const PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC: &str =

@@ -210,14 +210,21 @@ pub trait Node: Send + Any {
         self.user_creatable_items()
     }
 
+    /// Creates a detached user item from `node_type` and this node's intrinsic configuration.
+    ///
+    /// Persistence may call this factory while decoding a detached subtree, before the parent has
+    /// a live [`NodeId`] or structural links. Implementations must not depend on `id()`, parent or
+    /// sibling links, or live child ids. Use lifecycle hooks for behavior that needs the live graph.
     fn create_user_item(&self, _node_type: &str) -> Option<Box<dyn Node>> {
         None
     }
 
+    /// Creates a detached user-item subtree under the same constraints as [`Self::create_user_item`].
     fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
         self.create_user_item(node_type).map(NodeTree::boxed)
     }
 
+    /// Creates a detached hosted user item under the same constraints as [`Self::create_user_item`].
     fn create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
         let _ = host_node_type;
         self.create_user_item(node_type)

@@ -18,6 +18,24 @@ fn extracted_constraints_preserve_normalization_behavior() {
 }
 
 #[test]
+fn parameter_constraints_reject_non_finite_protocol_values() {
+    let constraints = ParameterConstraints::default();
+
+    for value in [
+        ParamValue::Float(f64::NAN),
+        ParamValue::CssValue(CssValue::new(f64::INFINITY, CssUnit::Rem)),
+        ParamValue::Vec2(1.0, f64::NEG_INFINITY),
+        ParamValue::Vec3(1.0, f64::NAN, 3.0),
+        ParamValue::Color(1.0, 0.0, f64::INFINITY, 1.0),
+    ] {
+        assert!(
+            constraints.normalize(value).is_err(),
+            "non-finite numbers cannot round-trip through the parameter protocol"
+        );
+    }
+}
+
+#[test]
 fn extracted_projection_preserves_vector_component_behavior() {
     assert_eq!(
         coerce_param_value_for_target(

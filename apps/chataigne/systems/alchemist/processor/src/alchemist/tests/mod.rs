@@ -14,7 +14,8 @@ use golden_values::Value as RuntimeValue;
 use crate::alchemist::{
     CONDITIONS_MANAGER_TYPE, ChataigneNodeKind, ConditionManagerValue, FILTERS_MANAGER_TYPE, INPUTS_MANAGER_TYPE,
     MANAGER_PROPERTY_FIELD, MODULE_TYPE, OUTPUTS_MANAGER_TYPE, ROUTING_TYPE, TRIGGER_ON_VALUES_SIGNAL_FIELD,
-    VALUE_SET_TYPE, node_registry, register_nodes, register_value_types,
+    VALUE_SET_TYPE, node_registry, register_nodes, register_value_types, shared_node_registry,
+    shared_value_type_registry,
 };
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry};
 
@@ -35,6 +36,12 @@ fn app_anode_catalog_extends_every_primitive_with_every_app_declaration() {
         .collect::<Vec<_>>();
 
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn immutable_runtime_registries_are_initialized_once() {
+    assert!(std::ptr::eq(shared_value_type_registry(), shared_value_type_registry()));
+    assert!(std::ptr::eq(shared_node_registry(), shared_node_registry()));
 }
 
 #[test]

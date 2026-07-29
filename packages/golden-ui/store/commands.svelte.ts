@@ -261,6 +261,30 @@ export const handleCommandShortcut = async (event: KeyboardEvent): Promise<boole
 	return executeCommand(commandId, { source: 'keyboard', event });
 };
 
+const isEditableShortcutTarget = (target: EventTarget | null): boolean => {
+	if (!(target instanceof HTMLElement)) {
+		return false;
+	}
+	if (target.isContentEditable) {
+		return true;
+	}
+	const tagName = target.tagName;
+	return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+};
+
+export const registerGlobalCommandShortcuts = (enabled: boolean): (() => void) => {
+	if (!enabled || typeof window === 'undefined') {
+		return () => {};
+	}
+	const onKeydown = (event: KeyboardEvent): void => {
+		if (!isEditableShortcutTarget(event.target)) {
+			void handleCommandShortcut(event);
+		}
+	};
+	window.addEventListener('keydown', onKeydown, true);
+	return () => window.removeEventListener('keydown', onKeydown, true);
+};
+
 const shortcutLabel = (shortcut: Shortcut): string => {
 	const parts: string[] = [];
 	if (shortcut.mod) {
