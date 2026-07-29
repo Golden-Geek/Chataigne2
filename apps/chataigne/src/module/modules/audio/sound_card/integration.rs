@@ -201,7 +201,7 @@ impl SoundCardModule {
         Ok(())
     }
 
-    fn rename_channel(
+    pub(super) fn rename_channel(
         &self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
@@ -244,7 +244,7 @@ impl SoundCardModule {
             ));
         }
         let mut reference = NodeReference::with_cached_id(uuid, Some(channel));
-        reference.set_cached_name(Some(state.label.clone()));
+        reference.set_cached_name(Some(structure::channel_name(state)));
         Ok((channel, reference))
     }
 
@@ -349,6 +349,11 @@ impl SoundCardModule {
 
     pub(super) fn drive_runtime(&mut self, ctx: &mut ProcessCtx) {
         self.poll_runtime_worker(ctx);
+        if self.configuration_dirty {
+            if let Some(snapshot) = ctx.tree_snapshot_arc() {
+                self.synchronize_derived_structure(ctx, snapshot.as_ref());
+            }
+        }
         self.request_runtime_start(ctx);
         self.poll_runtime(ctx);
 
@@ -357,7 +362,6 @@ impl SoundCardModule {
         }
         if self.runtime_matches_requested_sample_rate() {
             if let Some(snapshot) = ctx.tree_snapshot_arc() {
-                self.synchronize_derived_structure(ctx, snapshot.as_ref());
                 self.refresh_configuration(ctx, snapshot.as_ref());
                 if self.configuration_dirty && !self.runtime_matches_requested_sample_rate() {
                     self.request_runtime_start(ctx);
@@ -393,6 +397,7 @@ impl SoundCardModule {
                 self.retire_runtime(runtime);
             }
             self.configuration_dirty = false;
+            self.clear_device_connection_warnings(ctx);
             self.clear_runtime_error(ctx);
             return;
         }
@@ -520,6 +525,7 @@ impl SoundCardModule {
                     self.set_runtime_error(ctx, self.id(), error.as_str());
                     return;
                 }
+                self.clear_device_connection_warnings(ctx);
                 if let Some(previous) = self.runtime.replace(runtime) {
                     self.retire_runtime(previous);
                 }
@@ -694,14 +700,7 @@ impl SoundCardModule {
             ctx,
             crate::app::module::ModuleDataCapabilities::new(input_ready, output_ready),
         );
-        let inventory_changed = events.iter().any(|event| {
-            matches!(
-                event,
-                golden_audio::AudioEvent::BackendStatusChanged(_)
-                    | golden_audio::AudioEvent::DeviceStatusChanged(_)
-                    | golden_audio::AudioEvent::DeviceInventoryChanged { .. }
-            )
-        });
+        let inventory_changed = events.iter().any(runtime_event_changes_inventory);
         if inventory_changed {
             self.sync_live_device_choices(ctx, &observation.device);
         }
@@ -709,13 +708,18 @@ impl SoundCardModule {
             self.emit_telemetry(ctx, &telemetry);
         }
         for event in &events {
-            if matches!(
-                event,
-                golden_audio::AudioEvent::BackendStatusChanged(_)
-                    | golden_audio::AudioEvent::DeviceStatusChanged(_)
-                    | golden_audio::AudioEvent::DeviceInventoryChanged { .. }
-            ) {
+            if runtime_event_changes_inventory(event) {
                 self.configuration_dirty = true;
+            }
+            if let golden_audio::AudioEvent::DeviceStatusChanged(status) = event {
+                self.apply_device_connection_feedback(ctx, status);
+            }
+            if self.base.log_outgoing_enabled() {
+                if let Some(message) =
+                    super::traffic_logging::outgoing_audio_log_message(event)
+                {
+                    golden_core::log!(origin = self.id(); message);
+                }
             }
             self.emit_audio_event_callback(ctx, event);
         }
@@ -790,9 +794,16 @@ impl SoundCardModule {
             .as_ref()
             .ok_or_else(|| command_error("Sound Card runtime is not available"))?;
         let command = match request {
-            SoundCardCommandRequest::PlayFile { path, playback_id } => {
-                AudioCommand::PlayFile(PlayFileRequest::new(path, playback_id))
-            }
+            SoundCardCommandRequest::PlayFile {
+                path,
+                playback_id,
+                start_offset,
+                force_restart,
+            } => AudioCommand::PlayFile(
+                PlayFileRequest::new(path, playback_id)
+                    .with_start_offset(start_offset)
+                    .with_force_restart(force_restart),
+            ),
             SoundCardCommandRequest::StopFile { playback_id } => AudioCommand::StopFile { playback_id },
             SoundCardCommandRequest::StopAllFiles => AudioCommand::StopAllFiles,
             SoundCardCommandRequest::SetMasterVolume { gain } => AudioCommand::SetMasterGain { gain },
@@ -923,6 +934,13 @@ impl SoundCardModule {
         }
         self.runtime_worker = None;
     }
+}
+
+pub(super) fn runtime_event_changes_inventory(event: &golden_audio::AudioEvent) -> bool {
+    matches!(
+        event,
+        golden_audio::AudioEvent::DeviceInventoryChanged { .. }
+    )
 }
 
 pub(super) fn any_direction_connected(state: &golden_audio::AudioDeviceInspectorState) -> bool {

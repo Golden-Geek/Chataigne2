@@ -8,12 +8,37 @@ pub fn sine_wave_file(channels: u16, sample_rate: u32, frames: u32) -> NamedTemp
     file
 }
 
+pub fn ramp_wave_file(channels: u16, sample_rate: u32, frames: u32) -> NamedTempFile {
+    let mut file = Builder::new().suffix(".wav").tempfile().unwrap();
+    write_wave_header(file.as_file_mut(), channels, sample_rate, frames);
+    for frame in 0..frames {
+        let sample = i16::try_from(frame).unwrap();
+        for _ in 0..channels {
+            file.as_file_mut().write_all(&sample.to_le_bytes()).unwrap();
+        }
+    }
+    file.as_file_mut().flush().unwrap();
+    file
+}
+
 pub fn rewrite_sine_wave(path: &Path, channels: u16, sample_rate: u32, frames: u32) {
     let mut file = std::fs::File::create(path).unwrap();
     write_sine_wave(&mut file, channels, sample_rate, frames);
 }
 
 fn write_sine_wave(writer: &mut impl Write, channels: u16, sample_rate: u32, frames: u32) {
+    write_wave_header(writer, channels, sample_rate, frames);
+    for frame in 0..frames {
+        let phase = frame as f32 * 440.0 * std::f32::consts::TAU / sample_rate as f32;
+        let sample = (phase.sin() * 16_000.0) as i16;
+        for _ in 0..channels {
+            writer.write_all(&sample.to_le_bytes()).unwrap();
+        }
+    }
+    writer.flush().unwrap();
+}
+
+fn write_wave_header(writer: &mut impl Write, channels: u16, sample_rate: u32, frames: u32) {
     let bits_per_sample = 16_u16;
     let bytes_per_sample = u32::from(bits_per_sample / 8);
     let data_bytes = frames
@@ -40,12 +65,4 @@ fn write_sine_wave(writer: &mut impl Write, channels: u16, sample_rate: u32, fra
     writer.write_all(&bits_per_sample.to_le_bytes()).unwrap();
     writer.write_all(b"data").unwrap();
     writer.write_all(&data_bytes.to_le_bytes()).unwrap();
-    for frame in 0..frames {
-        let phase = frame as f32 * 440.0 * std::f32::consts::TAU / sample_rate as f32;
-        let sample = (phase.sin() * 16_000.0) as i16;
-        for _ in 0..channels {
-            writer.write_all(&sample.to_le_bytes()).unwrap();
-        }
-    }
-    writer.flush().unwrap();
 }

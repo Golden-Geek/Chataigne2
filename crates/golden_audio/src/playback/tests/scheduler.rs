@@ -10,7 +10,7 @@ use super::{
         PlaybackPreparation, PlaybackPreparationResult, PlaybackScheduler, PlaybackSchedulerConfig,
         PlaybackSchedulerRequest,
     },
-    fixtures::{rewrite_sine_wave, sine_wave_file},
+    fixtures::{ramp_wave_file, rewrite_sine_wave, sine_wave_file},
 };
 
 #[test]
@@ -150,6 +150,72 @@ fn large_source_uses_bounded_stream_read_ahead_and_recovers_after_consumption() 
 }
 
 #[test]
+fn forced_streaming_seeks_and_trims_before_priming_the_reader() {
+    const SAMPLE_RATE: u32 = 8_000;
+    const START_FRAME: u32 = 87;
+    let file = ramp_wave_file(1, SAMPLE_RATE, 2_048);
+    let mut scheduler_config = config();
+    scheduler_config.engine_sample_rate = SampleRate::new(SAMPLE_RATE).unwrap();
+    scheduler_config.resident_asset_threshold_bytes = 1;
+    scheduler_config.stream_ring_frames = 64;
+    let mut scheduler = PlaybackScheduler::new(scheduler_config).unwrap();
+    let id = PlaybackId::new("seeked-stream").unwrap();
+    let mut scheduled = request(1, id.clone(), file.path());
+    scheduled.request.start_offset = Duration::from_micros(u64::from(START_FRAME) * 1_000_000 / u64::from(SAMPLE_RATE));
+    scheduler.try_schedule(scheduled).unwrap();
+
+    let result = wait_result(&mut scheduler);
+    let mut reader = match result {
+        PlaybackPreparationResult::Prepared {
+            preparation: PlaybackPreparation::Stream { reader, .. },
+            ..
+        } => reader,
+        _ => panic!("threshold-forced source should stream"),
+    };
+    let mut samples = [0.0_f32; 16];
+    assert_eq!(reader.read_interleaved(&mut samples), samples.len());
+    let expected = START_FRAME as f32 / 32_768.0;
+    assert!(
+        (samples[0] - expected).abs() < 1.0e-6,
+        "stream started at {}, expected frame {START_FRAME} ({expected})",
+        samples[0],
+    );
+
+    reader.cancel();
+    assert!(scheduler.stop(&id));
+    scheduler.shutdown().unwrap();
+}
+
+#[test]
+fn start_offset_at_or_after_eof_fails_before_resident_or_stream_selection() {
+    const SAMPLE_RATE: u32 = 8_000;
+    const SOURCE_FRAMES: u32 = 512;
+    let file = ramp_wave_file(1, SAMPLE_RATE, SOURCE_FRAMES);
+    let source_duration = Duration::from_millis(64);
+
+    for (name, resident_threshold) in [("resident", 1024 * 1024), ("stream", 1)] {
+        let mut scheduler_config = config();
+        scheduler_config.resident_asset_threshold_bytes = resident_threshold;
+        let mut scheduler = PlaybackScheduler::new(scheduler_config).unwrap();
+        let id = PlaybackId::new(format!("eof-{name}")).unwrap();
+        let mut scheduled = request(1, id, file.path());
+        scheduled.request.start_offset = source_duration;
+        scheduler.try_schedule(scheduled).unwrap();
+
+        let result = wait_result(&mut scheduler);
+        let PlaybackPreparationResult::Failed(failure) = result else {
+            panic!("{name} playback should reject an offset at EOF before preparation");
+        };
+        assert_eq!(failure.error.category, crate::AudioErrorCategory::InvalidConfiguration);
+        assert_eq!(
+            failure.error.message,
+            "playback start offset must be before the end of the audio source",
+        );
+        scheduler.shutdown().unwrap();
+    }
+}
+
+#[test]
 fn two_workers_sustain_forced_streaming_without_starvation() {
     const SOURCE_FRAMES: u32 = 16_384;
     const RING_FRAMES: usize = 1_024;
@@ -237,6 +303,8 @@ fn request(sequence: u64, playback_id: PlaybackId, path: &std::path::Path) -> Pl
             path: path.to_path_buf(),
             playback_id,
             gain: GainDb::UNITY,
+            start_offset: Duration::ZERO,
+            force_restart: true,
         },
     }
 }

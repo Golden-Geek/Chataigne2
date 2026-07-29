@@ -162,7 +162,7 @@ const appChannelEndpoints = (
 			) ?? [];
 	return channels.map((channel) => ({
 		id: channel.uuid,
-		label: channel.meta.label,
+		label: channel.meta.short_name,
 		editable: true
 	}));
 };

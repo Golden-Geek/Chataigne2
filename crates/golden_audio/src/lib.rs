@@ -54,8 +54,9 @@ pub use config::{
 };
 pub use control::{
     AudioCommand, AudioControl, AudioEngine, AudioEngineBuilder, AudioEvent, AudioEventReceiver,
-    AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, PlayFileRequest, PlaybackFailure, PlaybackInfo,
-    PlaybackObservation, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent, RenderRuntimeObservation,
+    AudioObservationReader, AudioObservationSnapshot, AudioQueueKind, PlayFileRequest, PlaybackCommandIgnored,
+    PlaybackCommandIgnoredReason, PlaybackCommandKind, PlaybackFailure, PlaybackInfo, PlaybackObservation,
+    PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent, RenderRuntimeObservation,
 };
 pub use device::{
     AudioBackendState, AudioBackendStatus, AudioBufferPolicy, AudioDeviceCatalogEntry, AudioDeviceDescriptor,

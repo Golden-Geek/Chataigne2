@@ -54,9 +54,9 @@ system default output is safe. Microphone denial is a normal structured input-pe
 output and the rest of the app must remain usable. Device removal must preserve the authored
 selection and routes so reconnect can restore them.
 
-If creating a Sound Card stalls the UI, run the Phase 14 acknowledgement regression. It creates the
-module inside a graph with 10,000 existing nodes and enforces a 250 ms debug acknowledgement
-ceiling. Native probing and worker joins do not belong on that path.
+If creating a Sound Card stalls the UI, run `cargo test -p Chataigne2 sound_card` and verify that
+the selected driver is initialized by the runtime worker. Native probing and worker joins do not
+belong on the module-creation path.
 
 ## Qualification failures
 

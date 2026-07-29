@@ -1,4 +1,7 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    time::Duration,
+};
 
 use chataigne_sound_card_protocol::{SoundCardPlaybackVoiceDto, SoundCardUiTelemetryDto};
 use golden_audio::{
@@ -21,11 +24,10 @@ use uuid::Uuid;
 use super::{
     ASIO_AUDIO_DRIVER, AUTOMATIC_CONFIGURATION, INPUT_CHANNELS_PATH, INPUT_ROUTES_PATH, MAX_PLAYBACK_SOURCE_CHANNELS,
     NO_AUDIO_DEVICE, NO_AUDIO_DRIVER, OUTPUT_CHANNELS_PATH, OUTPUT_ROUTES_PATH, PITCH_VALUES_PATH,
-    SPECTRAL_VALUES_PATH, SYSTEM_DEFAULT_DEVICE, find_path,
+    SYSTEM_DEFAULT_DEVICE, LEVELS_UPDATE_RATE_DEFAULT_HZ, LEVELS_UPDATE_RATE_MAX_HZ,
+    LEVELS_UPDATE_RATE_MIN_HZ, find_path,
 };
-use crate::app::module_modules_audio_sound_card_schema::{
-    SoundCardInputRoute, SoundCardOutputRoute, SoundCardSpectrumBand,
-};
+use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, SoundCardOutputRoute};
 
 mod capabilities;
 mod events;
@@ -42,7 +44,32 @@ pub(super) use capabilities::{
     selected_probe_targets,
     supported_buffer_sizes, supported_sample_rates, supports_system_default,
 };
-use observation::{collect_bindings, telemetry_from_observation, values_nearly_equal};
+use observation::{collect_bindings, playback_status_updates, telemetry_from_observation, values_nearly_equal};
+#[cfg(test)]
+pub(super) fn collect_bindings_for_test(
+    snapshot: &ProcessTreeSnapshot,
+    module: NodeId,
+) -> SoundCardValueBindings {
+    collect_bindings(snapshot, module)
+}
+
+#[cfg(test)]
+pub(super) fn playback_status_updates_for_test(
+    bindings: &SoundCardValueBindings,
+    playback: golden_audio::PlaybackObservation,
+) -> [(Option<NodeId>, ParamValue); 2] {
+    playback_status_updates(bindings, playback)
+}
+
+#[cfg(test)]
+pub(super) fn output_channel_names_for_test(
+    snapshot: &ProcessTreeSnapshot,
+    module: NodeId,
+) -> Result<Vec<String>, ConfigurationError> {
+    collect_output_channels(snapshot, module)
+        .map(|channels| channels.into_iter().map(|channel| channel.label).collect())
+}
+
 use snapshot::*;
 pub(super) use wake::{RuntimeWakeSender, SOUND_CARD_RUNTIME_WAKE_TOPIC};
 pub(super) use worker::{
@@ -50,6 +77,31 @@ pub(super) use worker::{
     retire_detached,
 };
 pub(super) const OBSERVATION_EPSILON: f64 = 0.000_01;
+pub(super) const OUTPUT_ACTIVITY_RMS_THRESHOLD: f32 = 0.01;
+
+pub(super) fn levels_update_rate_hz(value: i32) -> u32 {
+    value
+        .clamp(LEVELS_UPDATE_RATE_MIN_HZ, LEVELS_UPDATE_RATE_MAX_HZ)
+        .try_into()
+        .unwrap_or(LEVELS_UPDATE_RATE_DEFAULT_HZ as u32)
+}
+
+pub(super) fn bounded_levels_update_rate_hz(value: u32) -> u32 {
+    value.clamp(
+        LEVELS_UPDATE_RATE_MIN_HZ as u32,
+        LEVELS_UPDATE_RATE_MAX_HZ as u32,
+    )
+}
+
+pub(super) fn levels_update_interval(rate_hz: u32) -> Duration {
+    Duration::from_secs_f64(1.0 / f64::from(bounded_levels_update_rate_hz(rate_hz)))
+}
+
+pub(super) fn has_output_activity(enabled: bool, output_global_max_rms: f32) -> bool {
+    enabled
+        && output_global_max_rms.is_finite()
+        && output_global_max_rms >= OUTPUT_ACTIVITY_RMS_THRESHOLD
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct RuntimeWarning {
@@ -83,22 +135,14 @@ struct PitchBinding {
     cents: NodeId,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct SpectrumBandBinding {
-    low_hz: NodeId,
-    center_hz: NodeId,
-    high_hz: NodeId,
-    linear_amplitude: NodeId,
-    dbfs: NodeId,
-}
-
 #[derive(Clone, Debug, Default)]
 pub(super) struct SoundCardValueBindings {
     input_master_level: Option<NodeId>,
     output_master_level: Option<NodeId>,
+    active_voices: Option<NodeId>,
+    loading_voices: Option<NodeId>,
     channel_levels: HashMap<AudioChannelId, NodeId>,
     pitch: HashMap<AnalysisTapId, PitchBinding>,
-    spectrum: HashMap<AnalysisTapId, Vec<SpectrumBandBinding>>,
     runtime_values: HashSet<NodeId>,
 }
 
@@ -118,11 +162,14 @@ pub(crate) struct SoundCardRuntime {
     sample_rate: SampleRate,
     driver: Option<BackendId>,
     probe_interests: Vec<AudioDeviceTargetId>,
+    levels_update_rate_hz: u32,
     bindings: SoundCardValueBindings,
     last_values: HashMap<NodeId, ParamValue>,
     active_playback_voices: HashMap<PlaybackId, SoundCardPlaybackVoiceDto>,
     last_telemetry: Option<SoundCardUiTelemetryDto>,
     last_error: Option<String>,
+    outgoing_activity: Option<bool>,
+    pending_outgoing_activity: Option<bool>,
 }
 
 impl SoundCardRuntime {
@@ -157,11 +204,14 @@ impl SoundCardRuntime {
             sample_rate,
             driver: Some(driver),
             probe_interests: Vec::new(),
+            levels_update_rate_hz: LEVELS_UPDATE_RATE_DEFAULT_HZ as u32,
             bindings: SoundCardValueBindings::default(),
             last_values: HashMap::new(),
             active_playback_voices: HashMap::new(),
             last_telemetry: None,
             last_error: None,
+            outgoing_activity: None,
+            pending_outgoing_activity: None,
         })
     }
 
@@ -204,8 +254,24 @@ impl SoundCardRuntime {
             .events
             .take()
             .ok_or_else(|| "Sound Card audio event receiver is unavailable".to_owned())?;
-        self.event_bridge = Some(events::SoundCardRuntimeEvents::spawn(events, wake)?);
+        self.event_bridge = Some(events::SoundCardRuntimeEvents::spawn(
+            events,
+            wake,
+            self.levels_update_rate_hz,
+        )?);
         Ok(())
+    }
+
+    pub(super) fn set_levels_update_rate_hz(&mut self, rate_hz: u32) {
+        let rate_hz = bounded_levels_update_rate_hz(rate_hz);
+        self.levels_update_rate_hz = rate_hz;
+        if let Some(event_bridge) = &self.event_bridge {
+            event_bridge.set_refresh_rate_hz(rate_hz);
+        }
+    }
+
+    pub(super) fn take_outgoing_activity_change(&mut self) -> Option<bool> {
+        self.pending_outgoing_activity.take()
     }
 
     pub(super) fn submit(
@@ -265,6 +331,12 @@ impl SoundCardRuntime {
             self.observe_event(event);
         }
         let observation = self.observations.latest();
+        let outgoing_activity =
+            has_output_activity(observation.enabled, observation.output_global_max_rms);
+        if self.outgoing_activity != Some(outgoing_activity) {
+            self.outgoing_activity = Some(outgoing_activity);
+            self.pending_outgoing_activity = Some(outgoing_activity);
+        }
         self.apply_observation_values(ctx, &observation);
         let mut playback_voices = self.active_playback_voices.values().cloned().collect::<Vec<_>>();
         playback_voices.sort_by(|left, right| left.playback_id.cmp(&right.playback_id));
@@ -290,6 +362,9 @@ impl SoundCardRuntime {
             self.bindings.output_master_level,
             observation.output_global_max_rms,
         );
+        for (node, value) in playback_status_updates(&self.bindings, observation.playback) {
+            self.set_value(ctx, node, value);
+        }
         for channel in observation.inputs.iter().chain(&observation.outputs) {
             self.set_float(
                 ctx,
@@ -315,18 +390,7 @@ impl SoundCardRuntime {
                 self.set_value(ctx, Some(binding.note_name), ParamValue::Str(value.note_name.clone()));
                 self.set_float(ctx, Some(binding.cents), value.cents);
             }
-            Some(AnalysisResult::Spectrum(value)) => {
-                let Some(bindings) = self.bindings.spectrum.get(&tap.tap).cloned() else {
-                    return;
-                };
-                for (binding, band) in bindings.into_iter().zip(&value.bands) {
-                    self.set_float(ctx, Some(binding.low_hz), band.low_hz);
-                    self.set_float(ctx, Some(binding.center_hz), band.center_hz);
-                    self.set_float(ctx, Some(binding.high_hz), band.high_hz);
-                    self.set_float(ctx, Some(binding.linear_amplitude), band.amplitude_linear);
-                    self.set_float(ctx, Some(binding.dbfs), band.amplitude_dbfs);
-                }
-            }
+            Some(AnalysisResult::Spectrum(_)) => {}
             None => {}
         }
     }
@@ -372,16 +436,14 @@ pub(super) fn build_configuration(
     };
     let (input_value, output_value, input_parameter, output_parameter) =
         if uses_duplex_device {
-            let value = child_enum(snapshot, connection, "device", NO_AUDIO_DEVICE);
-            let parameter = child_id(snapshot, connection, "device");
+            let (parameter, value) = required_child_enum(snapshot, connection, "device")?;
             (value.clone(), value, parameter, parameter)
         } else {
-            (
-                child_enum(snapshot, connection, "input_device", NO_AUDIO_DEVICE),
-                child_enum(snapshot, connection, "output_device", SYSTEM_DEFAULT_DEVICE),
-                child_id(snapshot, connection, "input_device"),
-                child_id(snapshot, connection, "output_device"),
-            )
+            let (input_parameter, input_value) =
+                required_child_enum(snapshot, connection, "input_device")?;
+            let (output_parameter, output_value) =
+                required_child_enum(snapshot, connection, "output_device")?;
+            (input_value, output_value, input_parameter, output_parameter)
         };
     let input_selection = resolve_selection(driver.as_ref(), inspector, input_value.as_str(), AudioDirection::Input)?;
     let output_selection = resolve_selection(
@@ -652,11 +714,7 @@ fn collect_analysis(
         .and_then(|node| node.param_value.as_ref())
         .and_then(ParamValue::as_bool)
         .unwrap_or(false);
-    let spectral_enabled = find_path(snapshot, module, "parameters/processing/spectral_analysis")
-        .and_then(|node| snapshot.node(node))
-        .and_then(|node| node.param_value.as_ref())
-        .and_then(ParamValue::as_bool)
-        .unwrap_or(false);
+    let spectral_enabled = super::structure::spectral_analysis_enabled(snapshot, module);
     let mut taps = Vec::with_capacity(2);
     if pitch_enabled {
         taps.push(AnalysisTapConfiguration {

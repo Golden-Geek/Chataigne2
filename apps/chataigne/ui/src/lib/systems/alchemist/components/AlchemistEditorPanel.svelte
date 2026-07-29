@@ -599,6 +599,7 @@
 	};
 
 	$effect(() => {
+		void session?.graphTransitionRevision;
 		publishPreviewDemand(previewSessionModel.mode);
 	});
 	let incomingOutputPreviews = $derived.by(() =>

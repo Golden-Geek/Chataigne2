@@ -122,6 +122,7 @@ const SPATIALIZER_FUNCTION_DOCS: &[&str] = &["Spatializer module values", "local
 const SOUND_CARD_FUNCTION_DOCS: &[&str] = &[
     "Sound Card module functions",
     "local.playFile(path, playbackId)",
+    "local.playFile(path, playbackId, startOffsetSeconds, forceRestart)",
     "local.setChannelVolume(channel, volumeDb)",
 ];
 

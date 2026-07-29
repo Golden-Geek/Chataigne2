@@ -23,6 +23,11 @@ panel, node renderer, context-menu action, or dashboard widget. Register the imp
 the app root. Do not add product-name branches to a Golden package or import a package's private
 file path.
 
+The node-inspector registry resolves explicit node-type registrations first, followed by app-owned
+matchers, built-in node types, and user item kinds. Use a named matcher when an app needs a custom
+inspector for one declared container whose runtime node type remains generic, such as a `folder`;
+keep both the predicate and component registration in the app layer.
+
 Chataigne module editors use the app-owned descriptor registry in
 `module-editor-registry.ts`. Add the descriptor to `module-editor-setup.ts`; the same descriptor
 then drives the module-inspector action, stable per-module panel identity, title, icon, and

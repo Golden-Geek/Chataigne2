@@ -124,6 +124,7 @@ fn stale_configuration_generation_cannot_replace_the_newest_plan() {
 #[test]
 fn applied_configuration_drives_null_device_readiness_and_channel_observations() {
     let mut engine = AudioEngineBuilder::default().build().unwrap();
+    let events = engine.take_event_receiver().unwrap();
     let first = AudioChannelId::new();
     let second = AudioChannelId::new();
     let mut configuration = AudioConfiguration::empty();
@@ -163,9 +164,35 @@ fn applied_configuration_drives_null_device_readiness_and_channel_observations()
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration),
+            config: Box::new(configuration.clone()),
         })
         .unwrap();
+
+    let mut output_readiness = Vec::new();
+    loop {
+        match events.recv_timeout(Duration::from_secs(1)).unwrap() {
+            Some(AudioEvent::DeviceStatusChanged(status)) if status.direction == AudioDirection::Output => {
+                output_readiness.push(status.readiness);
+            }
+            Some(AudioEvent::ConfigurationApplied { generation: applied }) if applied == generation => break,
+            Some(_) => {}
+            None => panic!("timed out waiting for the audio configuration to be applied"),
+        }
+    }
+    let discovering = output_readiness
+        .iter()
+        .position(|readiness| *readiness == AudioDeviceReadiness::Discovering)
+        .expect("device discovery should be observable before native driver work");
+    let preparing = output_readiness
+        .iter()
+        .position(|readiness| *readiness == AudioDeviceReadiness::Preparing)
+        .expect("device preparation should be observable before the stream is opened");
+    let ready = output_readiness
+        .iter()
+        .position(|readiness| *readiness == AudioDeviceReadiness::Ready)
+        .expect("ready device status");
+    assert!(discovering < preparing);
+    assert!(preparing < ready);
 
     let mut latest = engine.observations().latest();
     for _ in 0..100 {
@@ -180,6 +207,32 @@ fn applied_configuration_drives_null_device_readiness_and_channel_observations()
     assert_eq!(
         latest.outputs.iter().map(|channel| channel.channel).collect::<Vec<_>>(),
         [first, second]
+    );
+
+    let reapplied = ConfigGeneration::new(2);
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation: reapplied,
+            config: Box::new(configuration),
+        })
+        .unwrap();
+    let mut reapplied_statuses = Vec::new();
+    loop {
+        match events.recv_timeout(Duration::from_secs(1)).unwrap() {
+            Some(AudioEvent::DeviceStatusChanged(status)) if status.direction == AudioDirection::Output => {
+                reapplied_statuses.push(status.readiness);
+            }
+            Some(AudioEvent::ConfigurationApplied { generation: applied }) if applied == reapplied => {
+                break;
+            }
+            Some(_) => {}
+            None => panic!("timed out waiting for the repeated audio configuration"),
+        }
+    }
+    assert!(
+        reapplied_statuses.is_empty(),
+        "an unchanged device stream contract must not reconnect: {reapplied_statuses:?}",
     );
     engine.shutdown().unwrap();
 }

@@ -17,8 +17,8 @@ use golden_audio::{
     PhysicalChannelKey, PlaybackRoute, StreamRequest, VirtualInputChannel, VirtualOutputChannel,
 };
 use golden_audio::{
-    AudioCommand, AudioEngine, AudioEngineBuilder, AudioEvent, PlanarBuffer, PlayFileRequest, PlaybackId,
-    PlaybackObservation, PlaybackStopReason,
+    AudioCommand, AudioEngine, AudioEngineBuilder, AudioEvent, PlanarBuffer, PlayFileRequest, PlaybackCommandIgnored,
+    PlaybackCommandIgnoredReason, PlaybackCommandKind, PlaybackId, PlaybackObservation, PlaybackStopReason,
 };
 #[cfg(feature = "analysis")]
 use std::{
@@ -29,6 +29,8 @@ use std::{
     thread::JoinHandle,
 };
 use tempfile::{Builder, NamedTempFile};
+
+mod playback_ordering_cases;
 
 #[cfg(feature = "analysis")]
 #[test]

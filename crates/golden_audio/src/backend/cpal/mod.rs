@@ -19,7 +19,7 @@ use crate::{
 };
 
 use self::{
-    discovery::{descriptor_for_device, descriptor_for_exact_device, discover_host},
+    discovery::{descriptor_for_device, descriptor_for_exact_device, discover_host_inventory},
     error::{backend_state_for, map_cpal_error},
     stream::open_cpal_stream,
 };
@@ -239,7 +239,7 @@ impl AudioBackend for CpalBackend {
         if is_asio_host(self.host_id) {
             return Ok(asio::lightweight_inventory(&self.backend_id()));
         }
-        discover_host(self.host_id, &self.host()?).map(AudioDeviceInventory::from_devices)
+        discover_host_inventory(self.host_id, &self.host()?)
     }
 
     fn probe_device(&self, target: &AudioDeviceTargetId) -> Result<Option<AudioDeviceDescriptor>, AudioError> {
@@ -256,11 +256,15 @@ impl AudioBackend for CpalBackend {
             self.cache_device(target.clone(), device)?;
             return Ok(Some(descriptor));
         }
-        Ok(self
-            .device_inventory()?
-            .devices
-            .into_iter()
-            .find(|device| device.target == *target))
+        let AudioDeviceTargetId::Device { .. } = target else {
+            return Ok(None);
+        };
+        let host = self.host()?;
+        let native_id = native_device_id(self.host_id, target)?;
+        let Some(device) = host.device_by_id(&native_id) else {
+            return Ok(None);
+        };
+        descriptor_for_device(self.host_id, &host, &device).map(Some)
     }
 
     fn open_stream(&self, request: &StreamRequest) -> Result<Box<dyn AudioStream>, AudioError> {

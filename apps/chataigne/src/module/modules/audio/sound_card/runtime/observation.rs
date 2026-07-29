@@ -2,8 +2,10 @@ use super::*;
 
 pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -> SoundCardValueBindings {
     let mut bindings = SoundCardValueBindings {
-        input_master_level: find_path(snapshot, module, "values/input/master_level"),
-        output_master_level: find_path(snapshot, module, "values/output/master_level"),
+        input_master_level: find_path(snapshot, module, "values/levels/input/master_level"),
+        output_master_level: find_path(snapshot, module, "values/levels/output/master_level"),
+        active_voices: find_path(snapshot, module, "values/playback_status/active_voices"),
+        loading_voices: find_path(snapshot, module, "values/playback_status/loading_voices"),
         ..SoundCardValueBindings::default()
     };
 
@@ -47,22 +49,13 @@ pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -
             },
         );
     }
-    if let Some(result) = find_path(snapshot, module, SPECTRAL_VALUES_PATH) {
-        let bands = typed_children(snapshot, Some(result), SoundCardSpectrumBand::NODE_TYPE)
-            .into_iter()
-            .map(|band| SpectrumBandBinding {
-                low_hz: child_id(snapshot, band, "low_hz"),
-                center_hz: child_id(snapshot, band, "center_hz"),
-                high_hz: child_id(snapshot, band, "high_hz"),
-                linear_amplitude: child_id(snapshot, band, "linear_amplitude"),
-                dbfs: child_id(snapshot, band, "dbfs"),
-            })
-            .collect();
-        bindings.spectrum.insert(spectral_tap_id(module_uuid), bands);
-    }
-
     bindings.runtime_values.extend(
-        [bindings.input_master_level, bindings.output_master_level]
+        [
+            bindings.input_master_level,
+            bindings.output_master_level,
+            bindings.active_voices,
+            bindings.loading_voices,
+        ]
             .into_iter()
             .flatten(),
     );
@@ -79,16 +72,23 @@ pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -
             pitch.cents,
         ]);
     }
-    for band in bindings.spectrum.values().flatten() {
-        bindings.runtime_values.extend([
-            band.low_hz,
-            band.center_hz,
-            band.high_hz,
-            band.linear_amplitude,
-            band.dbfs,
-        ]);
-    }
     bindings
+}
+
+pub(super) fn playback_status_updates(
+    bindings: &SoundCardValueBindings,
+    playback: golden_audio::PlaybackObservation,
+) -> [(Option<NodeId>, ParamValue); 2] {
+    [
+        (
+            bindings.active_voices,
+            ParamValue::Int(i32::from(playback.active_voices)),
+        ),
+        (
+            bindings.loading_voices,
+            ParamValue::Int(i32::from(playback.loading_voices)),
+        ),
+    ]
 }
 
 pub(super) fn telemetry_from_observation(

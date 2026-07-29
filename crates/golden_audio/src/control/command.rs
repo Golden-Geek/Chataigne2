@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +9,10 @@ pub struct PlayFileRequest {
     pub path: PathBuf,
     pub playback_id: PlaybackId,
     pub gain: GainDb,
+    #[serde(default)]
+    pub start_offset: Duration,
+    #[serde(default = "default_force_restart")]
+    pub force_restart: bool,
 }
 
 impl PlayFileRequest {
@@ -18,8 +22,32 @@ impl PlayFileRequest {
             path: path.into(),
             playback_id,
             gain: GainDb::UNITY,
+            start_offset: Duration::ZERO,
+            force_restart: default_force_restart(),
         }
     }
+
+    #[must_use]
+    pub fn with_gain(mut self, gain: GainDb) -> Self {
+        self.gain = gain;
+        self
+    }
+
+    #[must_use]
+    pub fn with_start_offset(mut self, start_offset: Duration) -> Self {
+        self.start_offset = start_offset;
+        self
+    }
+
+    #[must_use]
+    pub fn with_force_restart(mut self, force_restart: bool) -> Self {
+        self.force_restart = force_restart;
+        self
+    }
+}
+
+const fn default_force_restart() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

@@ -4,6 +4,7 @@
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import type { GraphState } from 'golden_ui/store/graph.svelte';
 	import type { NodeId, UiNodeDto } from 'golden_ui/types';
+	import { SOUND_CARD_OUTPUT_ACTIVITY_TOPIC } from '$lib/modules/audio/sound-card/generated';
 	import connectedIcon from '../../assets/icons/module/connected.svg';
 	import disconnectedIcon from '../../assets/icons/module/disconnected.svg';
 	import incomingIcon from '../../assets/icons/module/incoming.svg';
@@ -114,6 +115,12 @@
 	);
 	let outgoingTrafficSequence = $derived(
 		session?.getCustomEventSequence(MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC, liveNode.node_id) ?? 0
+	);
+	let outgoingActivityActive = $derived(
+		session?.getCustomEventPayload<boolean>(
+			SOUND_CARD_OUTPUT_ACTIVITY_TOPIC,
+			liveNode.node_id
+		) === true
 	);
 	let connectionLabel = $derived.by(() => {
 		if (connectionState === true) {
@@ -308,6 +315,7 @@
 			class="module-status-icon module-traffic-icon traffic-outgoing"
 			class:logging={logOutgoingEnabled}
 			class:flashing={outgoingFlashActive}
+			class:active={outgoingActivityActive}
 			title={outgoingLoggingLabel}
 			aria-label={outgoingLoggingLabel}
 			aria-pressed={logOutgoingEnabled}
@@ -316,6 +324,7 @@
 				<img
 					class="module-traffic-image"
 					class:flashing={outgoingFlashActive}
+					class:active={outgoingActivityActive}
 					src={outgoingIcon}
 					alt=""
 					aria-hidden="true" />
@@ -421,6 +430,11 @@
 
 	.module-traffic-image.flashing {
 		animation: module-traffic-flash 0.1s ease-out;
+	}
+
+	.module-traffic-image.active {
+		animation: none;
+		filter: brightness(1) grayscale(0);
 	}
 
 	@keyframes module-traffic-flash {

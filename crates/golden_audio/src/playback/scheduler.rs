@@ -16,8 +16,8 @@ use crate::{
 
 use super::{
     AssetCache, AudioFileProbe, AudioSourceFingerprint, ResidentAssetKey, ResidentAudioAsset, StreamPlaybackReader,
-    StreamPlaybackWriter, decoder::DecodingSession, decoder::decode_session_cancellable, resample::StreamingResampler,
-    streaming_playback_ring,
+    StreamPlaybackWriter, decoder::DecodingSession, decoder::decode_session_cancellable, frame_at_or_after,
+    resample::StreamingResampler, streaming_playback_ring,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -443,10 +443,13 @@ fn prepare_request(
         Ok(source) => source,
         Err(error) => return WorkerPreparation::Result(failure(&request.scheduled, error)),
     };
-    let session = match DecodingSession::open(&path) {
+    let mut session = match DecodingSession::open(&path) {
         Ok(session) => session,
         Err(error) => return WorkerPreparation::Result(failure(&request.scheduled, error)),
     };
+    if let Err(error) = validate_start_offset(&session.probe, request.scheduled.request.start_offset) {
+        return WorkerPreparation::Result(failure(&request.scheduled, error));
+    }
     let key = ResidentAssetKey {
         source: source.clone(),
         track: session.probe.track,
@@ -483,6 +486,9 @@ fn prepare_request(
             Err(error) => WorkerPreparation::Result(failure(&request.scheduled, error)),
         }
     } else {
+        if let Err(error) = session.seek_to(request.scheduled.request.start_offset) {
+            return WorkerPreparation::Result(failure(&request.scheduled, error));
+        }
         match ActiveStream::new(config, request, session) {
             Ok(stream) => WorkerPreparation::Stream(stream),
             Err(error) => {
@@ -500,6 +506,26 @@ fn failure(scheduled: &PlaybackSchedulerRequest, error: AudioError) -> PlaybackP
         path: scheduled.request.path.clone(),
         error,
     })
+}
+
+fn validate_start_offset(probe: &AudioFileProbe, offset: std::time::Duration) -> Result<(), AudioError> {
+    let start_frame = frame_at_or_after(offset, probe.sample_rate)?;
+    let outside_source = probe
+        .source_frames
+        .is_some_and(|source_frames| start_frame >= source_frames)
+        || (probe.source_frames.is_none()
+            && probe
+                .duration_seconds
+                .is_some_and(|duration_seconds| offset.as_secs_f64() >= duration_seconds));
+    if outside_source {
+        return Err(AudioError::new(
+            AudioErrorCategory::InvalidConfiguration,
+            "playback start offset must be before the end of the audio source",
+        )
+        .with_context("path", probe.path.display().to_string())
+        .with_context("start_offset_seconds", offset.as_secs_f64().to_string()));
+    }
+    Ok(())
 }
 
 #[derive(Debug)]

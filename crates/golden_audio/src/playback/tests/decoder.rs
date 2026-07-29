@@ -1,13 +1,14 @@
-use std::io::Write;
+use std::{io::Write, time::Duration};
 
 use tempfile::Builder;
 
 use crate::{AudioErrorCategory, SampleRate};
 
 use super::{
+    super::decoder::DecodingSession,
     super::{decode_audio_file, probe_audio_file, supported_audio_extensions},
     encoded_fixtures::encoded_fixture,
-    fixtures::sine_wave_file,
+    fixtures::{ramp_wave_file, sine_wave_file},
 };
 
 #[test]
@@ -59,4 +60,26 @@ fn unsupported_corrupt_and_truncated_sources_fail_without_panicking() {
     truncated.flush().unwrap();
     let error = decode_audio_file(truncated.path(), SampleRate::default()).unwrap_err();
     assert_eq!(error.category, AudioErrorCategory::DecodeFailed);
+}
+
+#[test]
+fn accurate_seek_trims_decoded_wave_frames_before_returning_audio() {
+    const SAMPLE_RATE: u32 = 8_000;
+    const START_FRAME: u32 = 87;
+    let file = ramp_wave_file(1, SAMPLE_RATE, 512);
+    let mut session = DecodingSession::open(file.path()).unwrap();
+
+    session
+        .seek_to(Duration::from_micros(
+            u64::from(START_FRAME) * 1_000_000 / u64::from(SAMPLE_RATE),
+        ))
+        .unwrap();
+    let chunk = session.next_planar_chunk().unwrap().unwrap();
+
+    let expected = START_FRAME as f32 / 32_768.0;
+    assert!(
+        (chunk[0][0] - expected).abs() < 1.0e-6,
+        "seek returned {}, expected the exact source frame {START_FRAME} ({expected})",
+        chunk[0][0],
+    );
 }

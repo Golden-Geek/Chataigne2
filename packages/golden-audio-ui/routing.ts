@@ -39,6 +39,14 @@ export interface AudioRoutingPatchSelectionResult {
   } | null;
 }
 
+export interface AudioRoutingPatchSnapTarget {
+  readonly side: AudioRoutingPatchSide;
+  readonly endpointId: string;
+  readonly endpointIndex: number;
+  readonly x: number;
+  readonly y: number;
+}
+
 export const emptyAudioRoutingPatchSelection =
   (): AudioRoutingPatchSelection => ({
     sourceId: null,
@@ -93,6 +101,56 @@ export const audioRoutingPreviewCurvePath = (
   return side === "source"
     ? `M 1 ${endpointY} C 38 ${endpointY}, 62 ${pointerY}, ${pointerX} ${pointerY}`
     : `M ${pointerX} ${pointerY} C 38 ${pointerY}, 62 ${endpointY}, 99 ${endpointY}`;
+};
+
+export const findAudioRoutingPatchSnapTarget = (
+  originSide: AudioRoutingPatchSide,
+  pointerX: number,
+  pointerY: number,
+  sources: readonly AudioRoutingPatchEndpoint[],
+  destinations: readonly AudioRoutingPatchEndpoint[],
+  horizontalDistance: number,
+  verticalDistance: number,
+): AudioRoutingPatchSnapTarget | null => {
+  if (
+    !Number.isFinite(pointerX) ||
+    !Number.isFinite(pointerY) ||
+    !Number.isFinite(horizontalDistance) ||
+    !Number.isFinite(verticalDistance) ||
+    horizontalDistance <= 0 ||
+    verticalDistance <= 0
+  ) {
+    return null;
+  }
+
+  const side: AudioRoutingPatchSide =
+    originSide === "source" ? "destination" : "source";
+  const endpoints = side === "source" ? sources : destinations;
+  if (endpoints.length === 0) return null;
+
+  const x = side === "source" ? 1 : 99;
+  const endpointIndex = Math.max(
+    0,
+    Math.min(endpoints.length - 1, Math.round(pointerY - 0.5)),
+  );
+  const y = endpointIndex + 0.5;
+  const normalizedHorizontalDelta = (pointerX - x) / horizontalDistance;
+  const normalizedVerticalDelta = (pointerY - y) / verticalDistance;
+  if (
+    normalizedHorizontalDelta * normalizedHorizontalDelta +
+      normalizedVerticalDelta * normalizedVerticalDelta >
+    1
+  ) {
+    return null;
+  }
+
+  return {
+    side,
+    endpointId: endpoints[endpointIndex].id,
+    endpointIndex,
+    x,
+    y,
+  };
 };
 
 export const isAudioRoutingActivationKey = (key: string): boolean =>

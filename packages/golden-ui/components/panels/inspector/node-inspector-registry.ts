@@ -36,6 +36,13 @@ export interface NodeInspectorEntry {
 }
 
 export type NodeInspectorRegistry = Record<string, NodeInspectorEntry>;
+export type NodeInspectorMatcher = (node: UiNodeDto) => boolean;
+
+interface NodeInspectorMatcherEntry {
+	key: string;
+	matcher: NodeInspectorMatcher;
+	entry: NodeInspectorEntry;
+}
 
 const builtinNodeInspectorRegistry: NodeInspectorRegistry = {
 	script: { component: ScriptNodeInspector },
@@ -44,6 +51,7 @@ const builtinNodeInspectorRegistry: NodeInspectorRegistry = {
 };
 
 const customNodeInspectorRegistry = new Map<string, NodeInspectorEntry>();
+const customNodeInspectorMatchers: NodeInspectorMatcherEntry[] = [];
 
 const normalizeInspectorKey = (key: string): string => key.trim();
 
@@ -61,12 +69,43 @@ export const registerNodeInspectors = (entries: NodeInspectorRegistry): void => 
 	}
 };
 
+export const registerNodeInspectorMatcher = (
+	key: string,
+	matcher: NodeInspectorMatcher,
+	entry: NodeInspectorEntry
+): void => {
+	const normalizedKey = normalizeInspectorKey(key);
+	if (!normalizedKey) {
+		throw new Error('Node inspector matcher registration requires a non-empty key.');
+	}
+	const existingIndex = customNodeInspectorMatchers.findIndex(
+		(candidate) => candidate.key === normalizedKey
+	);
+	const registration = { key: normalizedKey, matcher, entry };
+	if (existingIndex >= 0) {
+		customNodeInspectorMatchers[existingIndex] = registration;
+		return;
+	}
+	customNodeInspectorMatchers.push(registration);
+};
+
 export const unregisterNodeInspector = (key: string): void => {
 	customNodeInspectorRegistry.delete(normalizeInspectorKey(key));
 };
 
+export const unregisterNodeInspectorMatcher = (key: string): void => {
+	const normalizedKey = normalizeInspectorKey(key);
+	const existingIndex = customNodeInspectorMatchers.findIndex(
+		(candidate) => candidate.key === normalizedKey
+	);
+	if (existingIndex >= 0) {
+		customNodeInspectorMatchers.splice(existingIndex, 1);
+	}
+};
+
 export const clearCustomNodeInspectors = (): void => {
 	customNodeInspectorRegistry.clear();
+	customNodeInspectorMatchers.splice(0);
 };
 
 export const resolveNodeInspector = (nodeOrType: UiNodeDto | string): NodeInspectorEntry | null => {
@@ -78,8 +117,13 @@ export const resolveNodeInspector = (nodeOrType: UiNodeDto | string): NodeInspec
 	}
 	const normalizedItemKind =
 		typeof nodeOrType === 'string' ? '' : normalizeInspectorKey(nodeOrType.user_item_kind);
+	const matchedInspector =
+		typeof nodeOrType === 'string'
+			? null
+			: (customNodeInspectorMatchers.find(({ matcher }) => matcher(nodeOrType))?.entry ?? null);
 	return (
 		customNodeInspectorRegistry.get(normalizedNodeType) ??
+		matchedInspector ??
 		builtinNodeInspectorRegistry[normalizedNodeType] ??
 		(normalizedItemKind ? customNodeInspectorRegistry.get(normalizedItemKind) : null) ??
 		null

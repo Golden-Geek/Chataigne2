@@ -326,7 +326,7 @@ impl Node for SoundCardOutputChannelList {
 
 #[node("sound_card_input_values", label = "Input")]
 #[children(
-    master_level: f64 = 0.0 (
+    master_level: f64 = 0.0 [0.0..1.0] (
         label = "Master Input Level",
         read_only = true
     );
@@ -357,7 +357,7 @@ impl Node for SoundCardInputValues {
 
 #[node("sound_card_output_values", label = "Output")]
 #[children(
-    master_level: f64 = 0.0 (
+    master_level: f64 = 0.0 [0.0..1.0] (
         label = "Master Output Level",
         read_only = true
     );
@@ -461,62 +461,6 @@ pub struct SoundCardSpectralValues {}
 
 #[node("sound_card_spectral_values", from_struct)]
 impl Node for SoundCardSpectralValues {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_backend_owned(self);
-    }
-
-    fn lifecycle_requires_tree_snapshot(&self) -> bool {
-        false
-    }
-
-    fn inbox_requires_tree_snapshot(&self, _events: &golden_core::events::EventFrame) -> bool {
-        false
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("sound_card_spectrum_band", label = "Spectrum Band")]
-#[children(
-    index: i32 = 0 (
-        label = "Index",
-        read_only = true
-    );
-    low_hz: f64 = 0.0 (
-        label = "Low Frequency",
-        read_only = true
-    );
-    center_hz: f64 = 0.0 (
-        label = "Center Frequency",
-        read_only = true
-    );
-    high_hz: f64 = 0.0 (
-        label = "High Frequency",
-        read_only = true
-    );
-    linear_amplitude: f64 = 0.0 (
-        label = "Linear Amplitude",
-        read_only = true
-    );
-    dbfs: f64 = -120.0 (
-        label = "dBFS",
-        read_only = true
-    );
-)]
-pub struct SoundCardSpectrumBand {}
-
-impl SoundCardSpectrumBand {
-    pub(crate) fn for_index(index: usize) -> Self {
-        let mut band = Self::new();
-        band.index.apply_runtime_value(&ParamValue::Int(index as i32));
-        band
-    }
-}
-
-#[node("sound_card_spectrum_band", from_struct)]
-impl Node for SoundCardSpectrumBand {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         initialize_backend_owned(self);
     }

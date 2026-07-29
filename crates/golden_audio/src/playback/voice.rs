@@ -144,6 +144,24 @@ impl PlaybackVoice {
         }
     }
 
+    pub fn with_start_frame(mut self, start_frame: usize) -> Result<Self, AudioError> {
+        match &self.source {
+            PlaybackVoiceSource::Resident(asset) if start_frame >= asset.frames() => {
+                return Err(AudioError::invalid_configuration(
+                    "playback start offset is at or beyond the end of the resident audio asset",
+                ));
+            }
+            PlaybackVoiceSource::Stream { .. } if start_frame != 0 => {
+                return Err(AudioError::invalid_configuration(
+                    "stream playback must seek before constructing its realtime voice",
+                ));
+            }
+            PlaybackVoiceSource::Resident(_) | PlaybackVoiceSource::Stream { .. } => {}
+        }
+        self.playhead = start_frame;
+        Ok(self)
+    }
+
     #[must_use]
     pub const fn playback_id(&self) -> &PlaybackId {
         &self.playback_id

@@ -50,4 +50,4 @@ export type { SoundCardPlaybackLifecycle } from './SoundCardPlaybackLifecycle';
 export type { SoundCardPlaybackVoiceDto } from './SoundCardPlaybackVoiceDto';
 export type { SoundCardUiControlRequest } from './SoundCardUiControlRequest';
 export type { SoundCardUiTelemetryDto } from './SoundCardUiTelemetryDto';
-export { SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC } from './SoundCardTopics';
+export { SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC, SOUND_CARD_OUTPUT_ACTIVITY_TOPIC } from './SoundCardTopics';

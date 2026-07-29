@@ -5,6 +5,7 @@ import {
   audioRoutingCurvePath,
   audioRoutingPreviewCurvePath,
   emptyAudioRoutingPatchSelection,
+  findAudioRoutingPatchSnapTarget,
   isAudioRoutingActivationKey,
   selectAudioRoutingPatchEndpoint,
   type AudioRoutingPatchBinding,
@@ -121,5 +122,80 @@ describe("AudioRoutingPatchBay", () => {
     expect(audioRoutingPreviewCurvePath("destination", 5, 28, 3.25)).toBe(
       "M 28 3.25 C 38 3.25, 62 5.5, 99 5.5",
     );
+  });
+
+  it("magnetizes a dragged route to the nearest opposite connector", () => {
+    const sources = [
+      { id: "source-1", label: "Source 1" },
+      { id: "source-2", label: "Source 2" },
+    ];
+    const destinations = [
+      { id: "destination-1", label: "Destination 1" },
+      { id: "destination-2", label: "Destination 2" },
+      { id: "destination-3", label: "Destination 3" },
+    ];
+
+    expect(
+      findAudioRoutingPatchSnapTarget(
+        "source",
+        104,
+        2.62,
+        sources,
+        destinations,
+        12,
+        0.7,
+      ),
+    ).toEqual({
+      side: "destination",
+      endpointId: "destination-3",
+      endpointIndex: 2,
+      x: 99,
+      y: 2.5,
+    });
+    expect(
+      findAudioRoutingPatchSnapTarget(
+        "destination",
+        -3,
+        1.42,
+        sources,
+        destinations,
+        12,
+        0.7,
+      ),
+    ).toEqual({
+      side: "source",
+      endpointId: "source-2",
+      endpointIndex: 1,
+      x: 1,
+      y: 1.5,
+    });
+  });
+
+  it("does not snap to a connector outside its magnetic capture area", () => {
+    const sources = [{ id: "source-1", label: "Source 1" }];
+    const destinations = [{ id: "destination-1", label: "Destination 1" }];
+
+    expect(
+      findAudioRoutingPatchSnapTarget(
+        "source",
+        70,
+        0.5,
+        sources,
+        destinations,
+        12,
+        0.7,
+      ),
+    ).toBeNull();
+    expect(
+      findAudioRoutingPatchSnapTarget(
+        "source",
+        99,
+        1.3,
+        sources,
+        destinations,
+        12,
+        0.7,
+      ),
+    ).toBeNull();
   });
 });

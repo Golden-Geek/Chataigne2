@@ -3,6 +3,7 @@
     audioRoutingCurvePath,
     audioRoutingPreviewCurvePath,
     emptyAudioRoutingPatchSelection,
+    findAudioRoutingPatchSnapTarget,
     isAudioRoutingActivationKey,
     selectAudioRoutingPatchEndpoint,
     type AudioRoutingPatchBinding,
@@ -10,7 +11,12 @@
     type AudioRoutingPatchEndpoint,
     type AudioRoutingPatchSelection,
     type AudioRoutingPatchSide,
+    type AudioRoutingPatchSnapTarget,
   } from "./routing";
+
+  const SNAP_HORIZONTAL_ROWS = 1.15;
+  const SNAP_HORIZONTAL_VIEWBOX_LIMIT = 32;
+  const SNAP_VERTICAL_ROWS = 0.7;
 
   let {
     sources,
@@ -44,6 +50,7 @@
     endpointId: string;
   } | null>(null);
   let pointerPosition = $state<{ x: number; y: number } | null>(null);
+  let pointerSnap = $state<AudioRoutingPatchSnapTarget | null>(null);
   let connectionLayer = $state<SVGSVGElement | null>(null);
 
   let rowCount = $derived(Math.max(1, sources.length, destinations.length));
@@ -151,26 +158,43 @@
   const clearPointerRoute = (): void => {
     pointerRoute = null;
     pointerPosition = null;
+    pointerSnap = null;
     selection = emptyAudioRoutingPatchSelection();
   };
 
   const updatePointerRoute = (event: PointerEvent): void => {
-    if (pointerRoute?.pointerId !== event.pointerId || !connectionLayer) return;
+    const route = pointerRoute;
+    if (route?.pointerId !== event.pointerId || !connectionLayer) return;
     const bounds = connectionLayer.getBoundingClientRect();
-    if (bounds.width <= 0 || bounds.height <= 0) return;
-    pointerPosition = {
-      x: Math.max(
-        0,
-        Math.min(100, ((event.clientX - bounds.left) / bounds.width) * 100),
-      ),
-      y: Math.max(
-        0,
-        Math.min(
-          rowCount,
-          ((event.clientY - bounds.top) / bounds.height) * rowCount,
-        ),
-      ),
-    };
+    if (bounds.width <= 0 || bounds.height <= 0) {
+      pointerPosition = null;
+      pointerSnap = null;
+      return;
+    }
+    const x = ((event.clientX - bounds.left) / bounds.width) * 100;
+    const y = ((event.clientY - bounds.top) / bounds.height) * rowCount;
+    const rowHeight = bounds.height / rowCount;
+    // Scale the capture area with the rows without magnetizing the whole
+    // routing canvas at narrow inspector widths.
+    const horizontalSnapDistance = Math.min(
+      SNAP_HORIZONTAL_VIEWBOX_LIMIT,
+      (rowHeight / bounds.width) * 100 * SNAP_HORIZONTAL_ROWS,
+    );
+    pointerSnap = findAudioRoutingPatchSnapTarget(
+      route.side,
+      x,
+      y,
+      sources,
+      destinations,
+      horizontalSnapDistance,
+      SNAP_VERTICAL_ROWS,
+    );
+    pointerPosition = pointerSnap
+      ? { x: pointerSnap.x, y: pointerSnap.y }
+      : {
+          x: Math.max(0, Math.min(100, x)),
+          y: Math.max(0, Math.min(rowCount, y)),
+        };
   };
 
   const beginPointerRoute = (
@@ -202,6 +226,21 @@
     const sourceId = origin.side === "source" ? origin.endpointId : endpointId;
     const destinationId =
       origin.side === "destination" ? origin.endpointId : endpointId;
+    void connectEndpoints(sourceId, destinationId);
+  };
+
+  const finishPointerRouteAtPointer = (event: PointerEvent): void => {
+    const origin = pointerRoute;
+    if (!origin || origin.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    updatePointerRoute(event);
+    const snap = pointerSnap;
+    clearPointerRoute();
+    if (!snap) return;
+    const sourceId =
+      origin.side === "source" ? origin.endpointId : snap.endpointId;
+    const destinationId =
+      origin.side === "destination" ? origin.endpointId : snap.endpointId;
     void connectEndpoints(sourceId, destinationId);
   };
 
@@ -254,9 +293,7 @@
 
 <svelte:window
   onpointermove={updatePointerRoute}
-  onpointerup={(event) => {
-    if (pointerRoute?.pointerId === event.pointerId) clearPointerRoute();
-  }}
+  onpointerup={finishPointerRouteAtPointer}
   onpointercancel={(event) => {
     if (pointerRoute?.pointerId === event.pointerId) clearPointerRoute();
   }}
@@ -265,7 +302,7 @@
 <section
   class="audio-routing-patch-bay"
   aria-label="{sourceLabel} to {destinationLabel} routing"
-  onpointerup={clearPointerRoute}
+  onpointerup={finishPointerRouteAtPointer}
   onpointercancel={clearPointerRoute}
   onpointerleave={(event) => {
     if (event.buttons === 0) clearPointerRoute();
@@ -302,6 +339,8 @@
             class:selected={selection.sourceId === endpoint.id}
             class:dragging={pointerRoute?.side === "source" &&
               pointerRoute.endpointId === endpoint.id}
+            class:snap-target={pointerSnap?.side === "source" &&
+              pointerSnap.endpointId === endpoint.id}
             class="endpoint"
             aria-label="Drag {endpoint.label} from {sourceLabel}"
             aria-pressed={selection.sourceId === endpoint.id}
@@ -352,6 +391,7 @@
       {#if pointerPreviewPath}
         <path
           class="connection-preview"
+          class:snapped={pointerSnap !== null}
           d={pointerPreviewPath}
           aria-hidden="true"
         ></path>
@@ -369,6 +409,8 @@
             class:selected={selection.destinationId === endpoint.id}
             class:dragging={pointerRoute?.side === "destination" &&
               pointerRoute.endpointId === endpoint.id}
+            class:snap-target={pointerSnap?.side === "destination" &&
+              pointerSnap.endpointId === endpoint.id}
             class="endpoint"
             aria-label="Drag {endpoint.label} from {destinationLabel}"
             aria-pressed={selection.destinationId === endpoint.id}
@@ -523,9 +565,16 @@
 
   .endpoint:hover span,
   .endpoint.selected span,
-  .endpoint.dragging span {
+  .endpoint.dragging span,
+  .endpoint.snap-target span {
     transform: scale(1.2);
     background: var(--audio-ui-focus, #70b7ff);
+  }
+
+  .endpoint.snap-target span {
+    transform: scale(1.4);
+    box-shadow: 0 0 0 0.22rem
+      color-mix(in srgb, var(--audio-ui-focus, #70b7ff) 30%, transparent);
   }
 
   .endpoint:disabled {
@@ -574,6 +623,11 @@
     stroke-width: 0.13rem;
     stroke-dasharray: 0.35rem 0.22rem;
     pointer-events: none;
+  }
+
+  .connection-preview.snapped {
+    stroke-width: 0.16rem;
+    stroke-dasharray: none;
   }
 
   .endpoint:focus-visible,

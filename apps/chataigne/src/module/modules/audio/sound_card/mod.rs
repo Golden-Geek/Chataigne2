@@ -1,8 +1,10 @@
+mod connection_feedback;
 mod integration;
 mod runtime;
 mod script;
 mod settings;
 mod structure;
+mod traffic_logging;
 #[cfg(test)]
 mod tests;
 
@@ -36,19 +38,21 @@ pub(crate) const ASIO_AUDIO_DRIVER: &str = "asio";
 pub(crate) const NO_AUDIO_DEVICE: &str = "none";
 pub(crate) const SYSTEM_DEFAULT_DEVICE: &str = "system_default";
 pub(crate) const AUTOMATIC_CONFIGURATION: &str = "automatic";
-pub(crate) const DEFAULT_SPECTRUM_BANDS: usize = 64;
 pub(crate) const MAX_PLAYBACK_SOURCE_CHANNELS: u16 = 256;
+pub(crate) const LEVELS_UPDATE_RATE_MIN_HZ: i32 = 1;
+pub(crate) const LEVELS_UPDATE_RATE_DEFAULT_HZ: i32 = 5;
+pub(crate) const LEVELS_UPDATE_RATE_MAX_HZ: i32 = 30;
 
 pub(crate) const INPUT_CHANNELS_PATH: &str = "parameters/input/channels";
 pub(crate) const OUTPUT_CHANNELS_PATH: &str = "parameters/output/channels";
 pub(crate) const INPUT_ROUTES_PATH: &str = "connection/input_routing/routes";
 pub(crate) const OUTPUT_ROUTES_PATH: &str = "connection/output_routing/routes";
 pub(crate) const PITCH_VALUES_PATH: &str = "values/pitch_detection";
-pub(crate) const SPECTRAL_VALUES_PATH: &str = "values/spectral_analysis";
 
 #[node("sound_card_module", label = "Sound Card")]
 #[children(
     folder(connection) {
+        [base_children];
         audio_driver: Enum = default_audio_driver() (
             label = "Audio Driver",
             enum_options = backend_options(),
@@ -84,7 +88,6 @@ pub(crate) const SPECTRAL_VALUES_PATH: &str = "values/spectral_analysis";
         node output_routing: SoundCardOutputRouting = SoundCardOutputRouting::new() (
             label = "Output Routing"
         );
-        [base_children];
     }
     folder(parameters) {
         node input: SoundCardInputParameters = SoundCardInputParameters::new() (
@@ -94,16 +97,29 @@ pub(crate) const SPECTRAL_VALUES_PATH: &str = "values/spectral_analysis";
             label = "Output"
         );
         folder(processing, label = "Processing") {
+            levels_update_rate_hz: i32 = LEVELS_UPDATE_RATE_DEFAULT_HZ [LEVELS_UPDATE_RATE_MIN_HZ..LEVELS_UPDATE_RATE_MAX_HZ] (
+                label = "Levels Update Rate",
+                description = "Rate in hertz used to publish audio levels and output activity.",
+                widget = "text"
+            );
             pitch_detection: bool = false (
                 label = "Pitch Detection"
-            );
-            spectral_analysis: bool = false (
-                label = "Spectral Analysis"
             );
         }
         [base_children];
     }
     folder(values) {
+        folder(levels, label = "Levels") {}
+        folder(playback_status, label = "Playback Status") {
+            active_voices: i32 = 0 [0..2147483647] (
+                label = "Active Voices",
+                read_only = true
+            );
+            loading_voices: i32 = 0 [0..2147483647] (
+                label = "Loading Voices",
+                read_only = true
+            );
+        }
         [base_children];
     }
 )]
@@ -121,6 +137,7 @@ pub struct SoundCardModule {
     input_route_reset_pending: bool,
     output_route_reset_pending: bool,
     configuration_dirty: bool,
+    outgoing_activity_active: bool,
     active_runtime_warnings: HashSet<(NodeId, String)>,
     runtime_error_node: Option<NodeId>,
 }
@@ -141,6 +158,7 @@ impl SoundCardModule {
             false,
             false,
             true,
+            false,
             HashSet::new(),
             None,
         )
@@ -193,6 +211,31 @@ impl SoundCardModule {
             vec![self.input_device.id(), self.output_device.id()]
         }
     }
+
+    fn synchronize_runtime_projection(&mut self, ctx: &mut ProcessCtx) {
+        let rate_hz = runtime::levels_update_rate_hz(self.levels_update_rate_hz.get());
+        let outgoing_activity = match self.runtime.as_mut() {
+            Some(runtime) => {
+                runtime.set_levels_update_rate_hz(rate_hz);
+                runtime.take_outgoing_activity_change()
+            }
+            None => Some(false),
+        };
+        if let Some(active) = outgoing_activity {
+            if active != self.outgoing_activity_active {
+                self.outgoing_activity_active = active;
+                self.emit_outgoing_activity(ctx, active);
+            }
+        }
+    }
+
+    fn emit_outgoing_activity(&self, ctx: &mut ProcessCtx, active: bool) {
+        ctx.emit_custom_event(CustomEvent::latest(
+            chataigne_sound_card_protocol::SOUND_CARD_OUTPUT_ACTIVITY_TOPIC,
+            Some(self.id()),
+            serde_json::Value::Bool(active),
+        ));
+    }
 }
 
 #[golden_core::item(
@@ -232,6 +275,7 @@ impl Node for SoundCardModule {
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.drive_runtime(ctx);
+        self.synchronize_runtime_projection(ctx);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -316,6 +360,13 @@ impl Node for SoundCardModule {
         {
             return;
         }
+        if param == self.audio_driver.id() || param == self.device.id() {
+            self.clear_device_connection_warnings(ctx);
+        } else if param == self.input_device.id() {
+            self.clear_device_connection_warning(ctx, golden_audio::AudioDirection::Input);
+        } else if param == self.output_device.id() {
+            self.clear_device_connection_warning(ctx, golden_audio::AudioDirection::Output);
+        }
         if [
             self.audio_driver.id(),
             self.device.id(),
@@ -339,7 +390,11 @@ impl Node for SoundCardModule {
             self.output_default_routes_pending = true;
             self.output_route_reset_pending = true;
         }
-        self.configuration_dirty = true;
+        if param == self.levels_update_rate_hz.id() {
+            self.synchronize_runtime_projection(ctx);
+        } else {
+            self.configuration_dirty = true;
+        }
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             if param == self.audio_driver.id() {
                 self.sync_device_choices(ctx, snapshot.as_ref());
@@ -362,7 +417,7 @@ impl Node for SoundCardModule {
     }
 
     fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, patch: NodeMetaPatch) {
-        if patch.label.is_none() {
+        if patch.label.is_none() && patch.enabled.is_none() {
             return;
         }
         self.configuration_dirty = true;
@@ -410,6 +465,7 @@ impl Node for SoundCardModule {
         self.dispatch_inbox(ctx);
         if drive_runtime {
             self.drive_runtime(ctx);
+            self.synchronize_runtime_projection(ctx);
         }
     }
 

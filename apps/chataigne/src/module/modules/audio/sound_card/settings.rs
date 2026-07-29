@@ -7,7 +7,7 @@ pub(crate) const NO_AUDIO_DRIVER: &str = "none";
 pub(crate) fn default_audio_driver() -> String {
     #[cfg(test)]
     {
-        return "null".to_owned();
+        "null".to_owned()
     }
     #[cfg(not(test))]
     {

@@ -428,6 +428,7 @@
 	let visibleProcessorDemandKey = $derived(visibleProcessorIds.join('\u0000'));
 
 	$effect(() => {
+		void session?.graphTransitionRevision;
 		publishProcessorOverviewDemand(
 			visibleProcessorDemandKey === '' ? [] : visibleProcessorDemandKey.split('\u0000')
 		);

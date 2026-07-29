@@ -6,24 +6,47 @@ use cpal::{
 };
 
 use crate::{
-    AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceId, AudioDeviceTargetId, AudioDirection, AudioError,
-    AudioSampleFormat, BackendId, PhysicalChannelDescriptor, PhysicalChannelKey, SupportedBufferFrames,
-    SupportedStreamConfiguration, profile_key_for,
+    AudioDeviceCatalogEntry, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceId, AudioDeviceInventory,
+    AudioDeviceTargetId, AudioDirection, AudioError, AudioSampleFormat, BackendId, PhysicalChannelDescriptor,
+    PhysicalChannelKey, SupportedBufferFrames, SupportedStreamConfiguration, profile_key_for,
 };
 
 use super::{backend_id_for_host, error::map_cpal_error};
 
-pub(super) fn discover_host(host_id: HostId, host: &Host) -> Result<Vec<AudioDeviceDescriptor>, AudioError> {
+pub(super) fn discover_host_inventory(host_id: HostId, host: &Host) -> Result<AudioDeviceInventory, AudioError> {
     let default_input = default_id(host.default_input_device());
     let default_output = default_id(host.default_output_device());
     let devices = host
         .devices()
         .map_err(|error| map_cpal_error(error, "enumerate audio devices", Some(backend_id_for_host(host_id))))?;
-    devices
-        .map(|device| {
-            descriptor_for_device_with_defaults(host_id, &device, default_input.as_deref(), default_output.as_deref())
-        })
-        .collect()
+    let mut inventory = AudioDeviceInventory::default();
+    for device in devices {
+        match descriptor_for_device_with_defaults(host_id, &device, default_input.as_deref(), default_output.as_deref())
+        {
+            Ok(descriptor) => {
+                inventory.catalog.push(AudioDeviceCatalogEntry::from(&descriptor));
+                inventory.devices.push(descriptor);
+            }
+            Err(_) => {
+                if let Some(entry) = catalog_entry_for_device(host_id, &device) {
+                    inventory.catalog.push(entry);
+                }
+            }
+        }
+    }
+    Ok(inventory)
+}
+
+fn catalog_entry_for_device(host_id: HostId, device: &Device) -> Option<AudioDeviceCatalogEntry> {
+    let target = AudioDeviceTargetId::Device {
+        backend: backend_id_for_host(host_id),
+        device: AudioDeviceId::new(device.id().ok()?.to_string()).ok()?,
+    };
+    let label = device
+        .description()
+        .ok()
+        .map_or_else(|| device.to_string(), |value| value.name().to_owned());
+    Some(AudioDeviceCatalogEntry { target, label })
 }
 
 pub(super) fn descriptor_for_device(

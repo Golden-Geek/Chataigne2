@@ -10,6 +10,8 @@ mod resample;
 #[cfg(feature = "playback")]
 mod scheduler;
 mod streaming;
+#[cfg(feature = "playback")]
+mod timing;
 mod voice;
 
 pub use asset::{AudioSourceFingerprint, ResidentAssetKey, ResidentAudioAsset};
@@ -29,6 +31,8 @@ pub use streaming::{
     StreamPlaybackReader, StreamPlaybackState, StreamPlaybackWriter, StreamWriteError, StreamWriteResult,
     streaming_playback_ring,
 };
+#[cfg(feature = "playback")]
+pub(crate) use timing::{frame_at_or_after, frames_for_nanos_at_or_after};
 pub use voice::{
     DefaultPlaybackRoute, PlaybackRenderEvent, PlaybackRenderMetrics, PlaybackRendererRetirement, PlaybackVoice,
     PlaybackVoiceController, PlaybackVoiceRenderer, PlaybackVoiceSource, default_playback_routes, playback_voice_pool,

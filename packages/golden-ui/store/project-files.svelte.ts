@@ -431,7 +431,6 @@ const loadProjectAtPath = async (
   path: string,
 ): Promise<boolean> => {
   const startedAt = nowMs();
-  const snapshotGeneration = session.snapshotGeneration;
   const displayName = projectFileDisplayName(path);
   const loading = startProjectLoading(
     session,
@@ -440,86 +439,90 @@ const loadProjectAtPath = async (
     path,
   );
   try {
-    loading.update({
-      activeStep: "runtime",
-      title: "Opening project",
-      message: "Loading project into the runtime",
-      detail: displayName,
-      progress: 0.34,
-    });
-    const loadStartedAt = nowMs();
-    const loadResult = await loadWithRecoveryPrompt(
-      session,
-      displayName,
-      loading,
-      (recover) => session.client.projectLoad(path, { recover }),
-    );
-    if (!loadResult) {
-      loading.fail({
-        activeStep: "runtime",
-        title: "Project load cancelled",
-        message: "The project was not loaded",
-        detail: displayName,
-        progress: 0.34,
-      });
-      return false;
-    }
-    const loadedPath = loadResult.path;
-    restoreProjectUiState(loadResult.ui_state);
-    appendRecoveryDiagnostics(session, loadResult.recovery, loadedPath);
-    const loadMs = nowMs() - loadStartedAt;
-    loading.update({
-      activeStep: "snapshot",
-      title: "Refreshing workspace",
-      message: "Requesting the updated graph",
-      detail: displayName,
-      progress: 0.62,
-    });
-    const refreshStartedAt = nowMs();
-    const refreshed =
-      session.snapshotGeneration !== snapshotGeneration ||
-      (await session.refreshSnapshot());
-    const refreshMs = nowMs() - refreshStartedAt;
-    if (!refreshed) {
-      loading.fail({
-        activeStep: "snapshot",
-        title: "Project load failed",
-        message: "Could not refresh the workspace graph",
-        detail: displayName,
-        progress: 0.62,
-      });
-      return false;
-    }
-    loading.update({
-      activeStep: "workspace",
-      title: "Rebuilding workspace",
-      message: "Restoring panels and selections",
-      detail: displayName,
-      progress: 0.86,
-    });
-    setCurrentProjectPath(loadedPath);
-    rememberLastOpenedPath(loadedPath);
-    markProjectStateClean(0);
-    recordPerformanceSample(
-      "info",
-      "project.open",
-      `Opened project: ${loadedPath}`,
-      {
-        path: loadedPath,
-        loadMs,
-        refreshMs,
-        totalMs: nowMs() - startedAt,
+    return await session.runProjectGraphTransition(
+      async ({ markRuntimeGraphReplaced }) => {
+        loading.update({
+          activeStep: "runtime",
+          title: "Opening project",
+          message: "Loading project into the runtime",
+          detail: displayName,
+          progress: 0.34,
+        });
+        const loadStartedAt = nowMs();
+        const loadResult = await loadWithRecoveryPrompt(
+          session,
+          displayName,
+          loading,
+          (recover) => session.client.projectLoad(path, { recover }),
+        );
+        if (!loadResult) {
+          loading.fail({
+            activeStep: "runtime",
+            title: "Project load cancelled",
+            message: "The project was not loaded",
+            detail: displayName,
+            progress: 0.34,
+          });
+          return false;
+        }
+        markRuntimeGraphReplaced();
+        const loadedPath = loadResult.path;
+        appendRecoveryDiagnostics(session, loadResult.recovery, loadedPath);
+        const loadMs = nowMs() - loadStartedAt;
+        loading.update({
+          activeStep: "snapshot",
+          title: "Refreshing workspace",
+          message: "Requesting the updated graph",
+          detail: displayName,
+          progress: 0.62,
+        });
+        const refreshStartedAt = nowMs();
+        const refreshed =
+          await session.refreshSnapshotAfterCurrentSynchronization();
+        const refreshMs = nowMs() - refreshStartedAt;
+        if (!refreshed) {
+          loading.fail({
+            activeStep: "snapshot",
+            title: "Project load failed",
+            message: "Could not refresh the workspace graph",
+            detail: displayName,
+            progress: 0.62,
+          });
+          return false;
+        }
+        restoreProjectUiState(loadResult.ui_state);
+        loading.update({
+          activeStep: "workspace",
+          title: "Rebuilding workspace",
+          message: "Restoring panels and selections",
+          detail: displayName,
+          progress: 0.86,
+        });
+        setCurrentProjectPath(loadedPath);
+        rememberLastOpenedPath(loadedPath);
+        markProjectStateClean(0);
+        recordPerformanceSample(
+          "info",
+          "project.open",
+          `Opened project: ${loadedPath}`,
+          {
+            path: loadedPath,
+            loadMs,
+            refreshMs,
+            totalMs: nowMs() - startedAt,
+          },
+        );
+        appendProjectFileLog(session, "info", `Opened project: ${loadedPath}`);
+        loading.finish({
+          title: loadResult.recovery
+            ? "Project loaded with recovery"
+            : "Project loaded",
+          message: displayName,
+          detail: loadedPath,
+        });
+        return true;
       },
     );
-    appendProjectFileLog(session, "info", `Opened project: ${loadedPath}`);
-    loading.finish({
-      title: loadResult.recovery
-        ? "Project loaded with recovery"
-        : "Project loaded",
-      message: displayName,
-      detail: loadedPath,
-    });
-    return true;
   } catch (error) {
     const message = toProjectFileErrorMessage(
       `Failed to open project "${path}"`,
@@ -547,8 +550,7 @@ export const createNewProjectFile = async (): Promise<boolean> => {
   let loading: WorkbenchLoadingOperation | null = null;
   try {
     const { session } = operation;
-    const snapshotGeneration = session.snapshotGeneration;
-    loading = session.startLoadingOperation({
+    const projectLoading = session.startLoadingOperation({
       stepDefinitions: NEW_PROJECT_STEP_DEFINITIONS,
       activeStep: "runtime",
       title: "Creating new project",
@@ -556,43 +558,48 @@ export const createNewProjectFile = async (): Promise<boolean> => {
       detail: null,
       progress: 0.28,
     });
-    await session.client.projectNew();
-    loading.update({
-      activeStep: "snapshot",
-      title: "Refreshing workspace",
-      message: "Requesting the empty project graph",
-      detail: null,
-      progress: 0.62,
-    });
-    const refreshed =
-      session.snapshotGeneration !== snapshotGeneration ||
-      (await session.refreshSnapshot());
-    if (!refreshed) {
-      loading.fail({
-        activeStep: "snapshot",
-        title: "New project failed",
-        message: "Could not refresh the workspace graph",
-        detail: null,
-        progress: 0.62,
-      });
-      return false;
-    }
-    loading.update({
-      activeStep: "workspace",
-      title: "Rebuilding workspace",
-      message: "Preparing the new project interface",
-      detail: null,
-      progress: 0.86,
-    });
-    setCurrentProjectPath(null);
-    projectFileState.lastRecovery = null;
-    markProjectStateClean(0);
-    loading.finish({
-      title: "New project ready",
-      message: UNTITLED_PROJECT_LABEL,
-      detail: null,
-    });
-    return true;
+    loading = projectLoading;
+    return await session.runProjectGraphTransition(
+      async ({ markRuntimeGraphReplaced }) => {
+        await session.client.projectNew();
+        markRuntimeGraphReplaced();
+        projectLoading.update({
+          activeStep: "snapshot",
+          title: "Refreshing workspace",
+          message: "Requesting the empty project graph",
+          detail: null,
+          progress: 0.62,
+        });
+        const refreshed =
+          await session.refreshSnapshotAfterCurrentSynchronization();
+        if (!refreshed) {
+          projectLoading.fail({
+            activeStep: "snapshot",
+            title: "New project failed",
+            message: "Could not refresh the workspace graph",
+            detail: null,
+            progress: 0.62,
+          });
+          return false;
+        }
+        projectLoading.update({
+          activeStep: "workspace",
+          title: "Rebuilding workspace",
+          message: "Preparing the new project interface",
+          detail: null,
+          progress: 0.86,
+        });
+        setCurrentProjectPath(null);
+        projectFileState.lastRecovery = null;
+        markProjectStateClean(0);
+        projectLoading.finish({
+          title: "New project ready",
+          message: UNTITLED_PROJECT_LABEL,
+          detail: null,
+        });
+        return true;
+      },
+    );
   } catch (error) {
     const message = toProjectFileErrorMessage(
       "Failed to create a new project",
@@ -749,73 +756,76 @@ export const uploadProjectFileAndLoad = async (
   );
   try {
     const { session } = operation;
-    const snapshotGeneration = session.snapshotGeneration;
     const contents = await file.text();
-    loading.update({
-      activeStep: "runtime",
-      title: "Opening uploaded project",
-      message: "Sending project to the runtime",
-      detail: file.name,
-      progress: 0.38,
-    });
-    const loadResult = await loadWithRecoveryPrompt(
-      session,
-      file.name,
-      loading,
-      (recover) =>
-        session.client.projectUploadLoad(file.name, contents, { recover }),
+    return await session.runProjectGraphTransition(
+      async ({ markRuntimeGraphReplaced }) => {
+        loading.update({
+          activeStep: "runtime",
+          title: "Opening uploaded project",
+          message: "Sending project to the runtime",
+          detail: file.name,
+          progress: 0.38,
+        });
+        const loadResult = await loadWithRecoveryPrompt(
+          session,
+          file.name,
+          loading,
+          (recover) =>
+            session.client.projectUploadLoad(file.name, contents, { recover }),
+        );
+        if (!loadResult) {
+          loading.fail({
+            activeStep: "runtime",
+            title: "Project load cancelled",
+            message: "The uploaded project was not loaded",
+            detail: file.name,
+            progress: 0.38,
+          });
+          return false;
+        }
+        markRuntimeGraphReplaced();
+        const path = loadResult.path;
+        appendRecoveryDiagnostics(session, loadResult.recovery, path);
+        loading.update({
+          activeStep: "snapshot",
+          title: "Refreshing workspace",
+          message: "Requesting the updated graph",
+          detail: projectFileDisplayName(path),
+          progress: 0.64,
+        });
+        const refreshed =
+          await session.refreshSnapshotAfterCurrentSynchronization();
+        if (!refreshed) {
+          loading.fail({
+            activeStep: "snapshot",
+            title: "Project load failed",
+            message: "Could not refresh the workspace graph",
+            detail: file.name,
+            progress: 0.64,
+          });
+          return false;
+        }
+        restoreProjectUiState(loadResult.ui_state);
+        loading.update({
+          activeStep: "workspace",
+          title: "Rebuilding workspace",
+          message: "Restoring panels and selections",
+          detail: projectFileDisplayName(path),
+          progress: 0.86,
+        });
+        setCurrentProjectPath(path);
+        rememberLastOpenedPath(path);
+        markProjectStateClean(0);
+        loading.finish({
+          title: loadResult.recovery
+            ? "Project loaded with recovery"
+            : "Project loaded",
+          message: projectFileDisplayName(path),
+          detail: path,
+        });
+        return true;
+      },
     );
-    if (!loadResult) {
-      loading.fail({
-        activeStep: "runtime",
-        title: "Project load cancelled",
-        message: "The uploaded project was not loaded",
-        detail: file.name,
-        progress: 0.38,
-      });
-      return false;
-    }
-    const path = loadResult.path;
-    restoreProjectUiState(loadResult.ui_state);
-    appendRecoveryDiagnostics(session, loadResult.recovery, path);
-    loading.update({
-      activeStep: "snapshot",
-      title: "Refreshing workspace",
-      message: "Requesting the updated graph",
-      detail: projectFileDisplayName(path),
-      progress: 0.64,
-    });
-    const refreshed =
-      session.snapshotGeneration !== snapshotGeneration ||
-      (await session.refreshSnapshot());
-    if (!refreshed) {
-      loading.fail({
-        activeStep: "snapshot",
-        title: "Project load failed",
-        message: "Could not refresh the workspace graph",
-        detail: file.name,
-        progress: 0.64,
-      });
-      return false;
-    }
-    loading.update({
-      activeStep: "workspace",
-      title: "Rebuilding workspace",
-      message: "Restoring panels and selections",
-      detail: projectFileDisplayName(path),
-      progress: 0.86,
-    });
-    setCurrentProjectPath(path);
-    rememberLastOpenedPath(path);
-    markProjectStateClean(0);
-    loading.finish({
-      title: loadResult.recovery
-        ? "Project loaded with recovery"
-        : "Project loaded",
-      message: projectFileDisplayName(path),
-      detail: path,
-    });
-    return true;
   } catch (error) {
     const message = toProjectFileErrorMessage(
       `Failed to load uploaded project "${file.name}"`,

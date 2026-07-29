@@ -65,9 +65,11 @@ impl DeviceRuntime {
             &mut ManagedRenderRuntime,
         >,
     ) {
+        let input_stream_changed = self.direction_stream_changed(configuration, crate::AudioDirection::Input);
+        let output_stream_changed = self.direction_stream_changed(configuration, crate::AudioDirection::Output);
         self.configuration = Some((configuration.clone(), plan));
         self.enabled = configuration.enabled;
-        self.apply_direction_configuration();
+        self.apply_direction_configuration(input_stream_changed, output_stream_changed);
         self.refresh(
             event_sender,
             observation,
@@ -88,8 +90,9 @@ impl DeviceRuntime {
             &mut ManagedRenderRuntime,
         >,
     ) {
+        let changed = self.enabled != enabled;
         self.enabled = enabled;
-        self.apply_direction_configuration();
+        self.apply_direction_configuration(changed, changed);
         self.refresh(
             event_sender,
             observation,
@@ -158,20 +161,41 @@ impl DeviceRuntime {
         Ok(())
     }
 
-    fn apply_direction_configuration(&mut self) {
+    fn direction_stream_changed(&self, next: &AudioConfiguration, direction: crate::AudioDirection) -> bool {
+        let Some((current, _)) = &self.configuration else {
+            return true;
+        };
+        if self.enabled != next.enabled {
+            return true;
+        }
+        match direction {
+            crate::AudioDirection::Input => {
+                current.input != next.input || current.physical_inputs != next.physical_inputs
+            }
+            crate::AudioDirection::Output => {
+                current.output != next.output || current.physical_outputs != next.physical_outputs
+            }
+        }
+    }
+
+    fn apply_direction_configuration(&mut self, input_changed: bool, output_changed: bool) {
         let Some((configuration, _)) = &self.configuration else {
             return;
         };
-        self.supervisor.input.configure(
-            self.enabled && configuration.input.enabled,
-            configuration.input.device.clone(),
-            configuration.input.recovery_policy,
-        );
-        self.supervisor.output.configure(
-            self.enabled && configuration.output.enabled,
-            configuration.output.device.clone(),
-            configuration.output.recovery_policy,
-        );
+        if input_changed {
+            self.supervisor.input.configure(
+                self.enabled && configuration.input.enabled,
+                configuration.input.device.clone(),
+                configuration.input.recovery_policy,
+            );
+        }
+        if output_changed {
+            self.supervisor.output.configure(
+                self.enabled && configuration.output.enabled,
+                configuration.output.device.clone(),
+                configuration.output.recovery_policy,
+            );
+        }
         if !self.enabled || !configuration.input.enabled {
             stop_stream(&mut self.input_stream);
         }
@@ -208,6 +232,9 @@ impl DeviceRuntime {
         {
             return;
         }
+        // Discovery and capability probing can also enter native driver code.
+        // Publish the discovering/recovering state before starting that work.
+        self.publish_state(event_sender, observation);
         self.last_discovery = Some(now);
         self.evict_unstable_configured_probes();
         let probe_targets = self.desired_probe_targets();
@@ -221,6 +248,10 @@ impl DeviceRuntime {
         );
         self.supervisor
             .observe_discovery(elapsed_millis(), statuses, catalog, discovered);
+        // Opening a native audio stream can block for several seconds. Publish
+        // the prepared state first so hosts can surface connection progress
+        // while the backend call is still in flight.
+        self.publish_state(event_sender, observation);
         self.reconcile_streams(
             backends,
             #[cfg(all(feature = "analysis", feature = "playback"))]
@@ -383,7 +414,7 @@ impl DeviceRuntime {
         self.input_handler_active = false;
         self.output_handler_active = false;
         self.enabled = false;
-        self.apply_direction_configuration();
+        self.apply_direction_configuration(true, true);
         self.publish_state(event_sender, observation);
     }
 }
@@ -707,9 +738,9 @@ pub(super) fn discover_backend_inventory(
     Vec<AudioDeviceCatalogEntry>,
     Vec<AudioDeviceDescriptor>,
 ) {
-    let previous = observation
+    let previous_state = observation
         .read()
-        .map(|snapshot| snapshot.device.backends.clone())
+        .map(|snapshot| snapshot.device.clone())
         .unwrap_or_default();
     let mut statuses = Vec::with_capacity(backends.len());
     let mut catalog = Vec::new();
@@ -731,10 +762,18 @@ pub(super) fn discover_backend_inventory(
                 Err(error) => {
                     status.state = AudioBackendState::Failed;
                     status.detail = Some(error.to_string());
+                    preserve_backend_catalog(&mut catalog, &previous_state.device_catalog, &status.backend);
                 }
             }
+        } else {
+            preserve_backend_catalog(&mut catalog, &previous_state.device_catalog, &status.backend);
         }
-        if previous.iter().find(|candidate| candidate.backend == status.backend) != Some(&status) {
+        if previous_state
+            .backends
+            .iter()
+            .find(|candidate| candidate.backend == status.backend)
+            != Some(&status)
+        {
             publish_event(
                 event_sender,
                 observation,
@@ -754,6 +793,13 @@ pub(super) fn discover_backend_inventory(
         if !catalog_contains(&catalog, target) {
             probed_devices.remove(target);
             probe_failures.remove(target);
+            continue;
+        }
+        if statuses
+            .iter()
+            .find(|status| status.backend == *target.backend())
+            .is_none_or(|status| status.state != AudioBackendState::Available)
+        {
             continue;
         }
         if let Some(device) = probed_devices.get(target) {
@@ -832,6 +878,21 @@ fn extend_unique_catalog(destination: &mut Vec<AudioDeviceCatalogEntry>, source:
             destination.push(entry);
         }
     }
+}
+
+fn preserve_backend_catalog(
+    destination: &mut Vec<AudioDeviceCatalogEntry>,
+    previous: &[AudioDeviceCatalogEntry],
+    backend: &crate::BackendId,
+) {
+    extend_unique_catalog(
+        destination,
+        previous
+            .iter()
+            .filter(|entry| entry.target.backend() == backend)
+            .cloned()
+            .collect(),
+    );
 }
 
 fn extend_unique_devices(destination: &mut Vec<AudioDeviceDescriptor>, source: Vec<AudioDeviceDescriptor>) {

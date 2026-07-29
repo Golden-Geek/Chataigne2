@@ -2,15 +2,17 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 use symphonia::{
     core::{
         codecs::audio::{AudioDecoder, AudioDecoderOptions},
         errors::Error as SymphoniaError,
-        formats::{FormatOptions, FormatReader, TrackType, probe::Hint},
+        formats::{FormatOptions, FormatReader, SeekMode, SeekTo, TrackType, probe::Hint},
         io::{MediaSourceStream, MediaSourceStreamOptions},
         meta::MetadataOptions,
+        units::{Time, TimeBase},
     },
     default::{get_codecs, get_probe},
 };
@@ -19,7 +21,7 @@ use crate::{AudioError, AudioErrorCategory, SampleRate, assert_not_realtime};
 
 use super::{
     AudioFileFormat, AudioSourceFingerprint, ResidentAssetKey, ResidentAudioAsset, asset::decode_error,
-    audio_file_format_for_extension, resample::resample_planar,
+    audio_file_format_for_extension, frames_for_nanos_at_or_after, resample::resample_planar,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -137,6 +139,8 @@ pub(crate) struct DecodingSession {
     format: Box<dyn FormatReader>,
     decoder: Box<dyn AudioDecoder>,
     track_id: u32,
+    track_time_base: TimeBase,
+    seek_trim_frames: u64,
 }
 
 impl std::fmt::Debug for DecodingSession {
@@ -187,6 +191,10 @@ impl DecodingSession {
                 .sample_rate
                 .ok_or_else(|| decode_error("audio track does not declare a sample rate", path))?,
         )?;
+        let track_time_base = track
+            .time_base
+            .or_else(|| TimeBase::try_from_recip(sample_rate.get()))
+            .ok_or_else(|| decode_error("audio track does not declare a usable time base", path))?;
         let channels = codec_parameters
             .channels
             .as_ref()
@@ -221,7 +229,53 @@ impl DecodingSession {
             format,
             decoder,
             track_id,
+            track_time_base,
+            seek_trim_frames: 0,
         })
+    }
+
+    pub fn seek_to(&mut self, offset: Duration) -> Result<(), AudioError> {
+        if offset.is_zero() {
+            self.seek_trim_frames = 0;
+            return Ok(());
+        }
+        let time = Time::try_from_nanos_u128(offset.as_nanos())
+            .ok_or_else(|| decode_error("audio start offset is too large to seek", &self.probe.path))?;
+        let seeked = self
+            .format
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time,
+                    track_id: Some(self.track_id),
+                },
+            )
+            .map_err(|error| symphonia_error("failed to seek audio source", &self.probe.path, error))?;
+        if seeked.track_id != self.track_id || seeked.actual_ts > seeked.required_ts {
+            return Err(decode_error(
+                "accurate audio seek returned an invalid track position",
+                &self.probe.path,
+            ));
+        }
+        self.decoder.reset();
+        let actual_time = self
+            .track_time_base
+            .calc_time(seeked.actual_ts)
+            .ok_or_else(|| decode_error("accurate audio seek position exceeds supported time", &self.probe.path))?;
+        let requested_nanos = i128::try_from(offset.as_nanos())
+            .map_err(|_| decode_error("audio start offset is too large to trim", &self.probe.path))?;
+        let trim_nanos = requested_nanos
+            .checked_sub(actual_time.as_nanos())
+            .filter(|nanos| *nanos >= 0)
+            .and_then(|nanos| u128::try_from(nanos).ok())
+            .ok_or_else(|| {
+                decode_error(
+                    "accurate audio seek returned a position after the requested time",
+                    &self.probe.path,
+                )
+            })?;
+        self.seek_trim_frames = frames_for_nanos_at_or_after(trim_nanos, self.probe.sample_rate)?;
+        Ok(())
     }
 
     pub fn next_planar_chunk(&mut self) -> Result<Option<Vec<Vec<f32>>>, AudioError> {
@@ -248,6 +302,28 @@ impl DecodingSession {
             }
             let mut planes = Vec::new();
             decoded.copy_to_vecs_planar::<f32>(&mut planes);
+            let frames = planes.first().map_or(0, Vec::len);
+            if planes.iter().any(|plane| plane.len() != frames) {
+                return Err(decode_error(
+                    "decoded audio channel lengths are inconsistent",
+                    &self.probe.path,
+                ));
+            }
+            if self.seek_trim_frames > 0 {
+                let trim = usize::try_from(self.seek_trim_frames).unwrap_or(usize::MAX).min(frames);
+                self.seek_trim_frames = self
+                    .seek_trim_frames
+                    .saturating_sub(u64::try_from(trim).unwrap_or(u64::MAX));
+                if trim == frames {
+                    continue;
+                }
+                for plane in &mut planes {
+                    plane.drain(..trim);
+                }
+            }
+            if planes.first().is_some_and(Vec::is_empty) {
+                continue;
+            }
             return Ok(Some(planes));
         }
     }

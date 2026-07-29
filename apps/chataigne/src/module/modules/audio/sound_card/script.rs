@@ -8,7 +8,7 @@ use golden_core::{
 };
 
 use super::SoundCardModule;
-use crate::app::module_modules_audio_sound_card_commands::SoundCardCommandRequest;
+use crate::app::module_modules_audio_sound_card_commands::{SoundCardCommandRequest, playback_start_offset};
 
 pub(super) const SOUND_CARD_SCRIPT_METHODS: &[&str] = &[
     "playFile",
@@ -110,7 +110,7 @@ impl SoundCardModule {
 
 fn script_request(method: &str, args: &[ParamValue]) -> Option<Result<SoundCardCommandRequest, String>> {
     let result = match method {
-        "playFile" => exact_args(method, args, 2).and_then(|()| {
+        "playFile" => arg_count_range(method, args, 2, 4).and_then(|()| {
             let path = string_arg(method, args, 0, "path")?;
             if path.trim().is_empty() {
                 return Err("playFile path cannot be empty".to_string());
@@ -118,6 +118,8 @@ fn script_request(method: &str, args: &[ParamValue]) -> Option<Result<SoundCardC
             Ok(SoundCardCommandRequest::PlayFile {
                 path: PathBuf::from(path),
                 playback_id: playback_id_arg(method, args, 1)?,
+                start_offset: optional_start_offset_arg(method, args, 2)?,
+                force_restart: optional_bool_arg(method, args, 3, "forceRestart", true)?,
             })
         }),
         "stopFile" => exact_args(method, args, 1).and_then(|()| {
@@ -142,6 +144,17 @@ fn script_request(method: &str, args: &[ParamValue]) -> Option<Result<SoundCardC
     Some(result)
 }
 
+fn arg_count_range(method: &str, args: &[ParamValue], minimum: usize, maximum: usize) -> Result<(), String> {
+    if (minimum..=maximum).contains(&args.len()) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{method} expects {minimum} to {maximum} argument(s), received {}",
+            args.len()
+        ))
+    }
+}
+
 fn exact_args(method: &str, args: &[ParamValue], expected: usize) -> Result<(), String> {
     if args.len() == expected {
         Ok(())
@@ -162,6 +175,31 @@ fn string_arg(method: &str, args: &[ParamValue], index: usize, name: &str) -> Re
 fn playback_id_arg(method: &str, args: &[ParamValue], index: usize) -> Result<golden_audio::PlaybackId, String> {
     golden_audio::PlaybackId::new(string_arg(method, args, index, "playbackId")?)
         .map_err(|error| format!("{method} received an invalid playbackId: {error}"))
+}
+
+fn optional_start_offset_arg(method: &str, args: &[ParamValue], index: usize) -> Result<std::time::Duration, String> {
+    let Some(value) = args.get(index) else {
+        return Ok(std::time::Duration::ZERO);
+    };
+    let seconds = value
+        .as_float()
+        .ok_or_else(|| format!("{method} expects startOffsetSeconds to be numeric"))?;
+    playback_start_offset(seconds).map_err(|error| format!("{method} received an invalid startOffsetSeconds: {error}"))
+}
+
+fn optional_bool_arg(
+    method: &str,
+    args: &[ParamValue],
+    index: usize,
+    name: &str,
+    default: bool,
+) -> Result<bool, String> {
+    let Some(value) = args.get(index) else {
+        return Ok(default);
+    };
+    value
+        .as_bool()
+        .ok_or_else(|| format!("{method} expects {name} to be boolean"))
 }
 
 fn gain_arg(method: &str, args: &[ParamValue], index: usize) -> Result<golden_audio::GainDb, String> {
@@ -197,3 +235,6 @@ fn json_value(value: &impl serde::Serialize) -> serde_json::Value {
         })
     })
 }
+
+#[cfg(test)]
+mod tests;

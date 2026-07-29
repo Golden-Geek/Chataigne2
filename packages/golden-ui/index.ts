@@ -105,7 +105,9 @@ export { default as DashboardViewer } from './components/panels/dashboard/Dashbo
 export {
 	registerNodeInspector,
 	registerNodeInspectors,
+	registerNodeInspectorMatcher,
 	unregisterNodeInspector,
+	unregisterNodeInspectorMatcher,
 	clearCustomNodeInspectors,
 	resolveNodeInspector
 } from './components/panels/inspector/node-inspector-registry';
@@ -113,6 +115,7 @@ export type {
 	NodeInspectorChildFilter,
 	NodeInspectorComponentProps,
 	NodeInspectorEntry,
+	NodeInspectorMatcher,
 	NodeInspectorOrder,
 	NodeInspectorPanelHeaderComponentProps,
 	NodeInspectorRegistry

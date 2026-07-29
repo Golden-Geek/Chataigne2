@@ -505,11 +505,9 @@ pub fn write_reference_wave(path: &Path, duration: Duration, sample_rate: Sample
 
 fn schedule_voices(control: &crate::AudioControl, path: &Path, voices: u16, gain: GainDb) -> Result<(), AudioError> {
     for index in 0..voices {
-        control.submit(AudioCommand::PlayFile(PlayFileRequest {
-            path: path.to_owned(),
-            playback_id: playback_id(index),
-            gain,
-        }))?;
+        control.submit(AudioCommand::PlayFile(
+            PlayFileRequest::new(path, playback_id(index)).with_gain(gain),
+        ))?;
     }
     Ok(())
 }
@@ -521,11 +519,9 @@ fn replay_finished(
     finished: Vec<PlaybackId>,
 ) -> Result<(), AudioError> {
     for playback_id in finished {
-        control.submit(AudioCommand::PlayFile(PlayFileRequest {
-            path: path.to_owned(),
-            playback_id,
-            gain,
-        }))?;
+        control.submit(AudioCommand::PlayFile(
+            PlayFileRequest::new(path, playback_id).with_gain(gain),
+        ))?;
     }
     Ok(())
 }

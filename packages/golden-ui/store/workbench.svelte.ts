@@ -9,7 +9,6 @@ import {
 import type {
   EventTime,
   NodeId,
-  ParamValue,
   UiNodeDto,
   UiClient,
   UiEditIntent,
@@ -38,6 +37,26 @@ import { createWorkbenchCustomEventStore } from "./session/custom-events.svelte"
 import { createWorkbenchFooterHoverStore } from "./session/footer-hover.svelte";
 import { createWorkbenchHistoryStore } from "./session/history.svelte";
 import { createWorkbenchLoggerStore } from "./session/logger.svelte";
+import {
+  createWorkbenchIntentPipeline,
+  type WorkbenchIntentPipeline,
+} from "./session/intent-pipeline";
+import {
+  createWorkbenchLoadingController,
+  type WorkbenchLoadingOperation,
+  type WorkbenchLoadingState,
+  type WorkbenchLoadingStateRequest,
+} from "./session/loading.svelte";
+import {
+  createProjectGraphTransitionController,
+  type ProjectGraphTransitionControl,
+  type ProjectGraphTransitionController,
+} from "./session/project-graph-transition.svelte";
+import { engineLowFrequencyFromGraph } from "./session/runtime-settings";
+import {
+  createWorkbenchSnapshotController,
+  type WorkbenchSnapshotController,
+} from "./session/snapshots";
 import { createWorkbenchSelectionStore } from "./session/selection.svelte";
 import { createWorkbenchWarningStore } from "./session/warnings.svelte";
 import { createWorkbenchCommandSuite } from "./session/commands.svelte";
@@ -55,6 +74,19 @@ export type {
   WorkbenchToast,
   WorkbenchToastLevel,
 } from "./session/types";
+export type {
+  WorkbenchLoadingFinishRequest,
+  WorkbenchLoadingOperation,
+  WorkbenchLoadingState,
+  WorkbenchLoadingStateOptions,
+  WorkbenchLoadingStateRequest,
+  WorkbenchLoadingStep,
+  WorkbenchLoadingStepDefinition,
+  WorkbenchLoadingStepId,
+  WorkbenchLoadingStepStatus,
+  WorkbenchLoadingTone,
+} from "./session/loading.svelte";
+export type { ProjectGraphTransitionControl } from "./session/project-graph-transition.svelte";
 
 export { appState } from "./app-state.svelte";
 
@@ -69,76 +101,6 @@ export interface WorkbenchSessionOptions {
 
 export type WorkbenchConnectionStatus =
   "disconnected" | "connecting" | "connected";
-export type WorkbenchLoadingTone = "busy" | "attention" | "ready";
-export type WorkbenchLoadingStepStatus =
-  "pending" | "active" | "complete" | "attention";
-
-export type WorkbenchLoadingStepId = string;
-
-export interface WorkbenchLoadingStepDefinition {
-  id: WorkbenchLoadingStepId;
-  label: string;
-}
-
-const WORKBENCH_LOADING_STEP_DEFINITIONS: readonly WorkbenchLoadingStepDefinition[] =
-  [
-    { id: "session", label: "Prepare interface" },
-    { id: "transport", label: "Connect runtime" },
-    { id: "snapshot", label: "Load graph" },
-    { id: "apply", label: "Build workspace" },
-    { id: "subscribe", label: "Start live updates" },
-    { id: "ready", label: "Ready" },
-  ] as const;
-
-export interface WorkbenchLoadingStep {
-  id: WorkbenchLoadingStepId;
-  label: string;
-  status: WorkbenchLoadingStepStatus;
-}
-
-export interface WorkbenchLoadingState {
-  visible: boolean;
-  title: string;
-  message: string;
-  detail: string | null;
-  progress: number;
-  tone: WorkbenchLoadingTone;
-  steps: WorkbenchLoadingStep[];
-}
-
-export interface WorkbenchLoadingStateRequest {
-  activeStep: WorkbenchLoadingStepId;
-  title: string;
-  message: string;
-  detail?: string | null;
-  progress: number;
-  visible?: boolean;
-  tone?: WorkbenchLoadingTone;
-  stepDefinitions?: readonly WorkbenchLoadingStepDefinition[];
-}
-
-export interface WorkbenchLoadingStateOptions {
-  preserveProgress?: boolean;
-}
-
-export interface WorkbenchLoadingFinishRequest {
-  activeStep?: WorkbenchLoadingStepId;
-  title?: string;
-  message?: string;
-  detail?: string | null;
-  progress?: number;
-  tone?: WorkbenchLoadingTone;
-}
-
-export interface WorkbenchLoadingOperation {
-  update(
-    next: WorkbenchLoadingStateRequest,
-    options?: WorkbenchLoadingStateOptions,
-  ): void;
-  finish(next?: WorkbenchLoadingFinishRequest): void;
-  fail(next: WorkbenchLoadingFinishRequest): void;
-  cancel(): void;
-}
 
 export interface WorkbenchSession {
   readonly graph: GraphStore;
@@ -151,6 +113,8 @@ export interface WorkbenchSession {
   readonly runtimeStats: UiRuntimeStats | null;
   /** Monotonic count of full snapshots applied by this session. */
   readonly snapshotGeneration: number;
+  /** Monotonic signal emitted after a project graph transition barrier releases. */
+  readonly graphTransitionRevision: number;
   readonly engineLowFrequencyHz: number;
   readonly selectedNodesIds: NodeId[];
   readonly selectedNodeId: NodeId | null;
@@ -195,20 +159,14 @@ export interface WorkbenchSession {
   undo(): Promise<void>;
   redo(): Promise<void>;
   refreshSnapshot(): Promise<boolean>;
+  refreshSnapshotAfterCurrentSynchronization(): Promise<boolean>;
+  runProjectGraphTransition<T>(
+    operation: (control: ProjectGraphTransitionControl) => Promise<T>,
+  ): Promise<T>;
   startLoadingOperation(
     initial: WorkbenchLoadingStateRequest,
   ): WorkbenchLoadingOperation;
   mount(): () => void;
-}
-
-interface IntentWaiter {
-  resolve: () => void;
-  reject: (reason?: unknown) => void;
-}
-
-interface QueuedIntent {
-  intent: UiEditIntent;
-  waiters: IntentWaiter[];
 }
 
 const DEFAULT_RETRY_MS = 1000;
@@ -216,63 +174,8 @@ const MIN_INITIAL_LOADING_VISIBLE_MS = 650;
 const UI_LOG_TAG_INTENT = "intent";
 const UI_LOG_TAG_TRANSPORT = "transport";
 const UI_PERF_SLOW_SNAPSHOT_MS = 100;
-const PREFERENCES_DECL_ID = "preferences";
-const PREFERENCES_ENGINE_DECL_ID = "engine";
-const PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID = "engine_low_frequency";
-const DEFAULT_ENGINE_LOW_FREQUENCY_HZ = 60;
 
 const defaultEventTime: EventTime = { tick: 0, micro: 0, seq: 0 };
-
-const childByDeclId = (
-  graph: GraphStore,
-  parent: UiNodeDto | null | undefined,
-  declId: string,
-): UiNodeDto | null => {
-  if (!parent) {
-    return null;
-  }
-  for (const childId of parent.children) {
-    const child = graph.state.nodesById.get(childId);
-    if (child?.decl_id === declId) {
-      return child;
-    }
-  }
-  return null;
-};
-
-const paramFrequencyValue = (value: ParamValue, fallback: number): number => {
-  let frequency: number | null = null;
-  if (value.kind === "int" || value.kind === "float") {
-    frequency = Math.round(value.value);
-  } else if (value.kind === "str") {
-    frequency = Number.parseInt(value.value.trim(), 10);
-  }
-  return frequency !== null && Number.isFinite(frequency) && frequency > 0
-    ? frequency
-    : fallback;
-};
-
-const engineLowFrequencyFromGraph = (graph: GraphStore): number => {
-  const rootId = graph.state.rootId;
-  if (rootId === null) {
-    return DEFAULT_ENGINE_LOW_FREQUENCY_HZ;
-  }
-  const root = graph.state.nodesById.get(rootId);
-  const preferences = childByDeclId(graph, root, PREFERENCES_DECL_ID);
-  const engine = childByDeclId(graph, preferences, PREFERENCES_ENGINE_DECL_ID);
-  const lowFrequency = childByDeclId(
-    graph,
-    engine,
-    PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
-  );
-  if (!lowFrequency || lowFrequency.data.kind !== "parameter") {
-    return DEFAULT_ENGINE_LOW_FREQUENCY_HZ;
-  }
-  return paramFrequencyValue(
-    lowFrequency.data.param.value,
-    DEFAULT_ENGINE_LOW_FREQUENCY_HZ,
-  );
-};
 
 const toConnectionStatus = (
   transportState: UiTransportConnectionState,
@@ -285,53 +188,6 @@ const toConnectionStatus = (
     return "connecting";
   }
   return "disconnected";
-};
-
-const clampProgress = (value: number): number =>
-  Math.min(1, Math.max(0, value));
-
-const loadingStepIndex = (
-  stepDefinitions: readonly WorkbenchLoadingStepDefinition[],
-  stepId: WorkbenchLoadingStepId,
-): number => stepDefinitions.findIndex((step) => step.id === stepId);
-
-const lastLoadingStepId = (
-  stepDefinitions: readonly WorkbenchLoadingStepDefinition[],
-): WorkbenchLoadingStepId =>
-  stepDefinitions[stepDefinitions.length - 1]?.id ?? "ready";
-
-const createWorkbenchLoadingState = ({
-  activeStep,
-  title,
-  message,
-  detail = null,
-  progress,
-  visible = true,
-  tone = "busy",
-  stepDefinitions = WORKBENCH_LOADING_STEP_DEFINITIONS,
-}: WorkbenchLoadingStateRequest): WorkbenchLoadingState => {
-  const activeIndex = loadingStepIndex(stepDefinitions, activeStep);
-  return {
-    visible,
-    title,
-    message,
-    detail,
-    progress: clampProgress(progress),
-    tone,
-    steps: stepDefinitions.map((step, index) => {
-      let status: WorkbenchLoadingStepStatus = "pending";
-      if (index < activeIndex) {
-        status = "complete";
-      } else if (index === activeIndex) {
-        status = tone === "attention" ? "attention" : "active";
-      }
-      return {
-        id: step.id,
-        label: step.label,
-        status,
-      };
-    }),
-  };
 };
 
 const controlStateEquals = (
@@ -393,18 +249,9 @@ export const createWorkbenchSession = (
     typeof performance !== "undefined" ? performance.now() : Date.now();
 
   let status = $state<WorkbenchConnectionStatus>("connecting");
-  let initialLoadingStartedAt = nowMs();
-  let loadingHideTimer: ReturnType<typeof setTimeout> | null = null;
-  let nextLoadingOperationId = 0;
-  let activeLoadingOperationId: number | null = null;
-  let loading = $state<WorkbenchLoadingState>(
-    createWorkbenchLoadingState({
-      activeStep: "session",
-      title: "Opening workspace",
-      message: "Preparing the interface",
-      detail: null,
-      progress: 0.06,
-    }),
+  const loading = createWorkbenchLoadingController(
+    nowMs,
+    MIN_INITIAL_LOADING_VISIBLE_MS,
   );
   const selection = createWorkbenchSelectionStore(graph);
   const warnings = createWorkbenchWarningStore(graph);
@@ -417,18 +264,14 @@ export const createWorkbenchSession = (
   const logger = createWorkbenchLoggerStore();
 
   let mountedCleanup: (() => void) | null = null;
-  let resyncInFlight = false;
-  let resyncQueued = false;
-  let snapshotRequestInFlight: Promise<UiSnapshot> | null = null;
   let hasLoadedSnapshot = false;
   let snapshotGeneration = 0;
   let connectionState: UiTransportConnectionState = "connecting";
   let engineHz = $state<number | null>(null);
   let runtimeStats = $state<UiRuntimeStats | null>(null);
-  const pendingIntentQueue: QueuedIntent[] = [];
-  let intentQueueProcessing = false;
-  // Keep batch payloads bounded while still reducing setParam fan-out.
-  const MAX_SET_PARAM_BATCH_SIZE = 512;
+  let intentPipeline: WorkbenchIntentPipeline;
+  let snapshots: WorkbenchSnapshotController;
+  let projectGraphTransitions: ProjectGraphTransitionController;
 
   const getNodeDescription = (
     node: UiNodeDto | null | undefined,
@@ -454,155 +297,6 @@ export const createWorkbenchSession = (
 
   const getFooterHoverInfo = (): FooterHoverInfo | null => {
     return footerHover.getFooterHoverInfo();
-  };
-
-  const clearLoadingHideTimer = (): void => {
-    if (loadingHideTimer === null) {
-      return;
-    }
-    clearTimeout(loadingHideTimer);
-    loadingHideTimer = null;
-  };
-
-  const setLoadingState = (
-    next: WorkbenchLoadingStateRequest,
-    options: WorkbenchLoadingStateOptions = {},
-  ): void => {
-    clearLoadingHideTimer();
-    const progress =
-      options.preserveProgress === false
-        ? next.progress
-        : Math.max(loading.progress, next.progress);
-    loading = createWorkbenchLoadingState({
-      ...next,
-      progress,
-    });
-  };
-
-  const scheduleLoadingHide = (
-    startedAt: number,
-    minimumVisibleMs: number,
-  ): void => {
-    const visibleElapsedMs = nowMs() - startedAt;
-    const delayMs = Math.max(120, minimumVisibleMs - visibleElapsedMs);
-    loadingHideTimer = setTimeout(() => {
-      loadingHideTimer = null;
-      loading = {
-        ...loading,
-        visible: false,
-      };
-    }, delayMs);
-  };
-
-  const completeInitialLoading = (): void => {
-    clearLoadingHideTimer();
-    loading = createWorkbenchLoadingState({
-      activeStep: "ready",
-      title: "Workspace ready",
-      message: "Live updates are running",
-      detail: null,
-      progress: 1,
-      tone: "ready",
-    });
-    scheduleLoadingHide(
-      initialLoadingStartedAt,
-      MIN_INITIAL_LOADING_VISIBLE_MS,
-    );
-  };
-
-  const resetInitialLoading = (): void => {
-    clearLoadingHideTimer();
-    activeLoadingOperationId = null;
-    initialLoadingStartedAt = nowMs();
-    loading = createWorkbenchLoadingState({
-      activeStep: "session",
-      title: "Opening workspace",
-      message: "Preparing the interface",
-      detail: null,
-      progress: 0.06,
-    });
-  };
-
-  const startLoadingOperation = (
-    initial: WorkbenchLoadingStateRequest,
-  ): WorkbenchLoadingOperation => {
-    nextLoadingOperationId += 1;
-    const operationId = nextLoadingOperationId;
-    activeLoadingOperationId = operationId;
-    const startedAt = nowMs();
-    let stepDefinitions =
-      initial.stepDefinitions ?? WORKBENCH_LOADING_STEP_DEFINITIONS;
-
-    const isActiveOperation = (): boolean =>
-      activeLoadingOperationId === operationId;
-    const withOperationSteps = (
-      next: WorkbenchLoadingStateRequest,
-    ): WorkbenchLoadingStateRequest => {
-      stepDefinitions = next.stepDefinitions ?? stepDefinitions;
-      return {
-        ...next,
-        stepDefinitions,
-      };
-    };
-
-    setLoadingState(withOperationSteps(initial), { preserveProgress: false });
-
-    return {
-      update: (
-        next: WorkbenchLoadingStateRequest,
-        options: WorkbenchLoadingStateOptions = {},
-      ): void => {
-        if (!isActiveOperation()) {
-          return;
-        }
-        setLoadingState(withOperationSteps(next), options);
-      },
-      finish: (next: WorkbenchLoadingFinishRequest = {}): void => {
-        if (!isActiveOperation()) {
-          return;
-        }
-        activeLoadingOperationId = null;
-        clearLoadingHideTimer();
-        loading = createWorkbenchLoadingState({
-          stepDefinitions,
-          activeStep: next.activeStep ?? lastLoadingStepId(stepDefinitions),
-          title: next.title ?? "Done",
-          message: next.message ?? "Operation complete",
-          detail: next.detail ?? null,
-          progress: next.progress ?? 1,
-          tone: next.tone ?? "ready",
-        });
-        scheduleLoadingHide(startedAt, MIN_INITIAL_LOADING_VISIBLE_MS);
-      },
-      fail: (next: WorkbenchLoadingFinishRequest): void => {
-        if (!isActiveOperation()) {
-          return;
-        }
-        activeLoadingOperationId = null;
-        clearLoadingHideTimer();
-        loading = createWorkbenchLoadingState({
-          stepDefinitions,
-          activeStep: next.activeStep ?? lastLoadingStepId(stepDefinitions),
-          title: next.title ?? "Operation failed",
-          message: next.message ?? "The requested operation could not finish",
-          detail: next.detail ?? null,
-          progress: next.progress ?? loading.progress,
-          tone: next.tone ?? "attention",
-        });
-        scheduleLoadingHide(startedAt, 1800);
-      },
-      cancel: (): void => {
-        if (!isActiveOperation()) {
-          return;
-        }
-        activeLoadingOperationId = null;
-        clearLoadingHideTimer();
-        loading = {
-          ...loading,
-          visible: false,
-        };
-      },
-    };
   };
 
   const dismissToast = (toastId: number): void => {
@@ -645,7 +339,7 @@ export const createWorkbenchSession = (
       return;
     }
     if (state === "connected") {
-      setLoadingState({
+      loading.setState({
         activeStep: "snapshot",
         title: "Runtime connected",
         message: "Requesting the workspace graph",
@@ -655,7 +349,7 @@ export const createWorkbenchSession = (
       return;
     }
     if (state === "reconnecting") {
-      setLoadingState(
+      loading.setState(
         {
           activeStep: "transport",
           title: "Reconnecting to runtime",
@@ -669,7 +363,7 @@ export const createWorkbenchSession = (
       return;
     }
     if (state === "disconnected") {
-      setLoadingState(
+      loading.setState(
         {
           activeStep: "transport",
           title: "Runtime unavailable",
@@ -682,7 +376,7 @@ export const createWorkbenchSession = (
       );
       return;
     }
-    setLoadingState({
+    loading.setState({
       activeStep: "transport",
       title: "Connecting to runtime",
       message: "Opening the live transport",
@@ -706,7 +400,7 @@ export const createWorkbenchSession = (
         UI_LOG_TAG_TRANSPORT,
         `Runtime requested a scoped resync${planeDetail}: ${reason}`,
       );
-      void resyncSnapshot("Live runtime state resynchronized.");
+      void snapshots.resync("Live runtime state resynchronized.");
     },
   };
   const client = (options.transportFactory ?? createDefaultUiClient)(
@@ -782,69 +476,16 @@ export const createWorkbenchSession = (
     });
   };
 
-  const requestSnapshot = (): Promise<UiSnapshot> => {
-    if (snapshotRequestInFlight) {
-      return snapshotRequestInFlight;
-    }
-    const inFlight = client.snapshot(scope);
-    snapshotRequestInFlight = inFlight.finally(() => {
-      snapshotRequestInFlight = null;
-    });
-    return snapshotRequestInFlight;
-  };
-
-  const refreshSnapshot = async (): Promise<boolean> => {
-    try {
-      const snapshot = await requestSnapshot();
-      const applyStartedAt =
-        typeof performance !== "undefined" ? performance.now() : Date.now();
-      applySnapshotToState(snapshot);
-      logSnapshotTiming("refresh", snapshot, applyStartedAt);
-      return true;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "unknown refresh error";
-      appendUiLogRecord(
-        "error",
-        UI_LOG_TAG_TRANSPORT,
-        `Snapshot refresh failed: ${message}`,
-      );
-      return false;
-    }
-  };
-
-  const resyncSnapshot = async (successMessage?: string): Promise<void> => {
-    if (resyncInFlight) {
-      resyncQueued = true;
-      return;
-    }
-    resyncInFlight = true;
-    resyncQueued = false;
-    try {
-      const snapshot = await requestSnapshot();
-      const applyStartedAt =
-        typeof performance !== "undefined" ? performance.now() : Date.now();
-      applySnapshotToState(snapshot);
-      if (successMessage) {
-        appendUiLogRecord("info", UI_LOG_TAG_TRANSPORT, successMessage);
-      }
-      logSnapshotTiming("resync", snapshot, applyStartedAt);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "unknown resync error";
-      appendUiLogRecord(
-        "error",
-        UI_LOG_TAG_TRANSPORT,
-        `Resync failed: ${message}`,
-      );
-    } finally {
-      resyncInFlight = false;
-      if (resyncQueued) {
-        resyncQueued = false;
-        void resyncSnapshot(successMessage);
-      }
-    }
-  };
+  snapshots = createWorkbenchSnapshotController({
+    requestSnapshot: () => client.snapshot(scope),
+    applySnapshot: applySnapshotToState,
+    logSnapshotTiming,
+    appendTransportLog: (level, message) =>
+      appendUiLogRecord(level, UI_LOG_TAG_TRANSPORT, message),
+    suspendIntentDispatch: () => intentPipeline.suspendDispatch(),
+    snapshotApplied: () => projectGraphTransitions.snapshotApplied(),
+    nowMs,
+  });
 
   const applyBatch = (batch: UiEventBatch): void => {
     const applyStartedAt = nowMs();
@@ -875,7 +516,7 @@ export const createWorkbenchSession = (
       }
       selection.reconcileSelection();
       if (graph.state.requiresResync) {
-        void resyncSnapshot();
+        void snapshots.resync();
       }
     }
     const totalMs = nowMs() - applyStartedAt;
@@ -931,7 +572,7 @@ export const createWorkbenchSession = (
       }
 
       if (graph.state.requiresResync) {
-        await resyncSnapshot("Snapshot resynced.");
+        await snapshots.resync("Snapshot resynced.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
@@ -975,7 +616,7 @@ export const createWorkbenchSession = (
         throw new Error(message);
       }
       if (graph.state.requiresResync) {
-        await resyncSnapshot("Snapshot resynced.");
+        await snapshots.resync("Snapshot resynced.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
@@ -986,131 +627,30 @@ export const createWorkbenchSession = (
     }
   };
 
-  const findQueuedSetParamIndex = (node: NodeId): number => {
-    for (let index = pendingIntentQueue.length - 1; index >= 0; index -= 1) {
-      const queued = pendingIntentQueue[index];
-      if (queued?.intent.kind === "setParam" && queued.intent.node === node) {
-        return index;
-      }
-    }
-    return -1;
-  };
+  intentPipeline = createWorkbenchIntentPipeline({
+    getSnapshotGeneration: () => snapshotGeneration,
+    dispatchIntent: runIntent,
+    dispatchIntents: runIntentBatch,
+  });
 
-  const drainLeadingSetParamIntents = (): QueuedIntent[] => {
-    const drained: QueuedIntent[] = [];
-    while (
-      drained.length < MAX_SET_PARAM_BATCH_SIZE &&
-      pendingIntentQueue.length > 0
-    ) {
-      const next = pendingIntentQueue[0];
-      if (!next || next.intent.kind !== "setParam") {
-        break;
-      }
-      const queued = pendingIntentQueue.shift();
-      if (queued) {
-        drained.push(queued);
-      }
-    }
-    return drained;
-  };
+  projectGraphTransitions = createProjectGraphTransitionController({
+    runIntentBarrier: (operation) =>
+      intentPipeline.runProjectGraphTransition(operation),
+    blockIntentDispatch: (reason) => intentPipeline.blockDispatch(reason),
+    rejectPendingIntents: (reason) => intentPipeline.rejectPending(reason),
+    waitForSnapshotIdle: () => snapshots.waitForIdle(),
+    afterTransitionOperation: () => tick(),
+  });
 
-  const resolveQueuedIntents = (queuedIntents: QueuedIntent[]): void => {
-    for (const queued of queuedIntents) {
-      for (const waiter of queued.waiters) {
-        waiter.resolve();
-      }
-    }
-  };
+  const sendIntent = (intent: UiEditIntent): Promise<void> =>
+    intentPipeline.sendIntent(intent);
 
-  const rejectQueuedIntentsBatch = (
-    queuedIntents: QueuedIntent[],
-    error: unknown,
-  ): void => {
-    for (const queued of queuedIntents) {
-      for (const waiter of queued.waiters) {
-        waiter.reject(error);
-      }
-    }
-  };
+  const sendIntents = (intents: UiEditIntent[]): Promise<void> =>
+    intentPipeline.sendIntents(intents);
 
-  const processIntentQueue = async (): Promise<void> => {
-    if (intentQueueProcessing) {
-      return;
-    }
-    intentQueueProcessing = true;
-    try {
-      while (pendingIntentQueue.length > 0) {
-        const next = pendingIntentQueue[0];
-        if (next?.intent.kind === "setParam") {
-          const queued_batch = drainLeadingSetParamIntents();
-          if (queued_batch.length === 0) {
-            continue;
-          }
-          try {
-            await runIntentBatch(queued_batch.map((entry) => entry.intent));
-            resolveQueuedIntents(queued_batch);
-          } catch (error) {
-            rejectQueuedIntentsBatch(queued_batch, error);
-          }
-          continue;
-        }
-
-        const queued = pendingIntentQueue.shift();
-        if (!queued) {
-          continue;
-        }
-        try {
-          await runIntent(queued.intent);
-          resolveQueuedIntents([queued]);
-        } catch (error) {
-          rejectQueuedIntentsBatch([queued], error);
-        }
-      }
-    } finally {
-      intentQueueProcessing = false;
-      if (pendingIntentQueue.length > 0) {
-        void processIntentQueue();
-      }
-    }
-  };
-
-  const rejectQueuedIntents = (reason: Error): void => {
-    while (pendingIntentQueue.length > 0) {
-      const queued = pendingIntentQueue.shift();
-      if (!queued) {
-        continue;
-      }
-      for (const waiter of queued.waiters) {
-        waiter.reject(reason);
-      }
-    }
-  };
-
-  const sendIntent = (intent: UiEditIntent): Promise<void> => {
-    return new Promise<void>((resolve, reject) => {
-      if (intent.kind === "setParam") {
-        const queuedSetParamIndex = findQueuedSetParamIndex(intent.node);
-        if (queuedSetParamIndex >= 0) {
-          const queued = pendingIntentQueue[queuedSetParamIndex];
-          if (queued) {
-            queued.intent = intent;
-            queued.waiters.push({ resolve, reject });
-            void processIntentQueue();
-            return;
-          }
-        }
-      }
-      pendingIntentQueue.push({
-        intent,
-        waiters: [{ resolve, reject }],
-      });
-      void processIntentQueue();
-    });
-  };
-
-  const sendIntents = async (intents: UiEditIntent[]): Promise<void> => {
-    await runIntentBatch(intents);
-  };
+  const runProjectGraphTransition = <T>(
+    operation: (control: ProjectGraphTransitionControl) => Promise<T>,
+  ): Promise<T> => projectGraphTransitions.run(operation);
 
   const undo = (): Promise<void> => {
     return history.undo(() => sendIntent({ kind: "undo" }));
@@ -1152,7 +692,7 @@ export const createWorkbenchSession = (
       return mountedCleanup;
     }
     if (!hasLoadedSnapshot) {
-      resetInitialLoading();
+      loading.resetInitial();
     }
 
     let stopped = false;
@@ -1177,7 +717,7 @@ export const createWorkbenchSession = (
       const delay = retryDelayMs;
       retryDelayMs = Math.min(10000, Math.max(retryMs, retryDelayMs * 2));
       if (!hasLoadedSnapshot) {
-        setLoadingState(
+        loading.setState(
           {
             activeStep: "transport",
             title: "Runtime unavailable",
@@ -1201,8 +741,9 @@ export const createWorkbenchSession = (
       }
 
       bootstrapInFlight = true;
+      const endSnapshotSynchronization = snapshots.beginSynchronization();
       try {
-        setLoadingState({
+        loading.setState({
           activeStep: "snapshot",
           title: "Loading workspace graph",
           message: "Requesting the initial snapshot",
@@ -1211,7 +752,7 @@ export const createWorkbenchSession = (
         });
         const fetchStartedAt =
           typeof performance !== "undefined" ? performance.now() : Date.now();
-        const snapshot = await requestSnapshot();
+        const snapshot = await snapshots.request();
         const fetchElapsedMs =
           (typeof performance !== "undefined"
             ? performance.now()
@@ -1219,7 +760,7 @@ export const createWorkbenchSession = (
         if (stopped) {
           return;
         }
-        setLoadingState({
+        loading.setState({
           activeStep: "apply",
           title: "Building workspace",
           message: "Applying the project graph",
@@ -1229,6 +770,7 @@ export const createWorkbenchSession = (
         const applyStartedAt =
           typeof performance !== "undefined" ? performance.now() : Date.now();
         applySnapshotToState(snapshot);
+        projectGraphTransitions.snapshotApplied();
         const applyElapsedMs =
           (typeof performance !== "undefined"
             ? performance.now()
@@ -1238,7 +780,7 @@ export const createWorkbenchSession = (
             1,
           )} nodes=${snapshot.nodes.length}`,
         );
-        setLoadingState({
+        loading.setState({
           activeStep: "subscribe",
           title: "Starting live updates",
           message: "Subscribing to runtime events",
@@ -1263,7 +805,7 @@ export const createWorkbenchSession = (
         subscribed = true;
         clearRetry();
         retryDelayMs = retryMs;
-        completeInitialLoading();
+        loading.completeInitial();
       } catch (error) {
         if (stopped) {
           return;
@@ -1272,7 +814,7 @@ export const createWorkbenchSession = (
           error instanceof Error ? error.message : "unknown connection error";
         connectionState = "disconnected";
         syncConnectionStatus();
-        setLoadingState(
+        loading.setState(
           {
             activeStep: "transport",
             title: "Runtime unavailable",
@@ -1291,6 +833,7 @@ export const createWorkbenchSession = (
         scheduleRetry();
       } finally {
         bootstrapInFlight = false;
+        endSnapshotSynchronization();
       }
     };
 
@@ -1310,8 +853,8 @@ export const createWorkbenchSession = (
     mountedCleanup = (): void => {
       stopped = true;
       clearRetry();
-      clearLoadingHideTimer();
-      rejectQueuedIntents(new Error("workbench session unmounted"));
+      loading.clearHideTimer();
+      intentPipeline.rejectPending(new Error("workbench session unmounted"));
       if (enableGlobalShortcuts && typeof window !== "undefined") {
         window.removeEventListener("keydown", onWindowKeydown, true);
       }
@@ -1332,7 +875,7 @@ export const createWorkbenchSession = (
       engineHz = null;
       runtimeStats = null;
       syncConnectionStatus();
-      resetInitialLoading();
+      loading.resetInitial();
       mountedCleanup = null;
     };
 
@@ -1347,7 +890,7 @@ export const createWorkbenchSession = (
       return client;
     },
     get loading(): WorkbenchLoadingState {
-      return loading;
+      return loading.state;
     },
     get logRecords(): UiLogRecord[] {
       return logger.logRecords;
@@ -1366,6 +909,9 @@ export const createWorkbenchSession = (
     },
     get snapshotGeneration(): number {
       return snapshotGeneration;
+    },
+    get graphTransitionRevision(): number {
+      return projectGraphTransitions.revision;
     },
     get engineLowFrequencyHz(): number {
       return engineLowFrequencyFromGraph(graph);
@@ -1426,8 +972,14 @@ export const createWorkbenchSession = (
     dismissToast,
     undo,
     redo,
-    refreshSnapshot,
-    startLoadingOperation,
+    refreshSnapshot: () => snapshots.refresh(),
+    refreshSnapshotAfterCurrentSynchronization: async () => {
+      const success = await snapshots.refreshAfterCurrent();
+      projectGraphTransitions.requiredSnapshotFinished(success);
+      return success;
+    },
+    runProjectGraphTransition,
+    startLoadingOperation: (initial) => loading.startOperation(initial),
     mount,
   };
 };

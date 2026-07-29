@@ -3,64 +3,32 @@ use std::sync::Arc;
 use golden_audio::{
     AudioDeviceCatalogEntry, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceId,
     AudioDeviceInspectorState, AudioDeviceReadiness, AudioDeviceSelection, AudioDeviceTargetId, AudioDirection,
-    AudioSampleFormat, BackendId, PhysicalChannelDescriptor, PhysicalChannelKey, SampleRate, SupportedBufferFrames,
-    SupportedStreamConfiguration, profile_key_for,
+    AudioErrorCategory, AudioInspectorError, AudioSampleFormat, AudioStreamStatus, BackendId,
+    PhysicalChannelDescriptor, PhysicalChannelKey, SampleRate, SupportedBufferFrames, SupportedStreamConfiguration,
+    profile_key_for,
 };
 use golden_core::{
+    edit::Edit,
     engine::EngineTime,
     events::{CustomEvent, Event, EventFrame},
-    node::{Folder, Node, NodeId},
-    parameter::ParamValue,
-    process_ctx::{ExecutionPhase, ProcessCtx},
+    node::{DeclId, Folder, Node, NodeId, NodeMetaPatch},
+    parameter::{
+        ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour,
+    },
+    process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeSnapshot},
 };
 
-use super::{NO_AUDIO_DEVICE, SoundCardModule, find_path, integration, runtime};
+use super::{
+    NO_AUDIO_DEVICE, SYSTEM_DEFAULT_DEVICE, SoundCardModule, connection_feedback, find_path, integration, runtime,
+    structure,
+};
 
-#[test]
-fn nested_connection_paths_and_flat_channel_parameters_materialize() {
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(SoundCardModule::create().into(), None);
-    for _ in 0..8 {
-        engine
-            .apply_edits()
-            .expect("Sound Card declarations should materialize");
-    }
+mod hierarchy;
+mod connection;
+mod levels;
+mod playback_status;
+mod traffic_logging;
 
-    let module = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("Sound Card module");
-    let snapshot = engine.process_tree_snapshot();
-    assert!(
-        find_path(
-            &snapshot,
-            module,
-            "connection/input_routing/routes"
-        )
-        .is_some()
-    );
-    assert!(
-        find_path(
-            &snapshot,
-            module,
-            "connection/output_routing/routes"
-        )
-        .is_some()
-    );
-
-    for path in ["parameters/input/channels", "parameters/output/channels"] {
-        let channels = find_path(&snapshot, module, path).expect("channel container");
-        let channel_ids = snapshot.child_ids_slice(channels);
-        assert_eq!(channel_ids.len(), 2);
-        for channel in channel_ids {
-            let channel = snapshot.node(*channel).expect("channel gain");
-            assert!(matches!(channel.param_value, Some(ParamValue::Float(_))));
-            assert!(snapshot.child_ids_slice(channel.id).is_empty());
-        }
-    }
-}
 
 #[test]
 fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
@@ -77,6 +45,12 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
         .get(engine.root)
         .and_then(|root| root.node_data().first_child)
         .expect("Sound Card module");
+    select_enum_parameter(
+        &mut engine,
+        module,
+        "connection/input_device",
+        SYSTEM_DEFAULT_DEVICE,
+    );
     let input_channels = channels("input", 2)
         .into_iter()
         .map(|channel| channel.key)
@@ -122,7 +96,11 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
         "connection/output_routing/routes",
     ] {
         let routes = find_path(&snapshot, module, path).expect("route container");
-        assert_eq!(snapshot.child_ids_slice(routes).len(), 2);
+        assert_eq!(
+            snapshot.child_ids_slice(routes).len(),
+            2,
+            "{path} should contain exactly the two default routes",
+        );
     }
 
     let mut reset_ctx = ProcessCtx::new(
@@ -217,6 +195,12 @@ fn authored_routes_survive_sparse_project_save_and_load() {
         .get(engine.root)
         .and_then(|root| root.node_data().first_child)
         .expect("Sound Card module");
+    select_enum_parameter(
+        &mut engine,
+        module,
+        "connection/input_device",
+        SYSTEM_DEFAULT_DEVICE,
+    );
     let snapshot = engine.process_tree_snapshot();
     let mut ctx = test_process_ctx(1);
     let sound_card = engine
@@ -587,6 +571,103 @@ fn catalog_choices_are_available_before_probe_and_keep_friendly_authored_labels(
     };
     assert!(!runtime::probe_targets_are_pending(&exact_state, &pending));
 }
+
+fn create_sound_card() -> (crate::app::AppEngine, NodeId) {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(SoundCardModule::create().into(), None);
+    for _ in 0..8 {
+        engine
+            .apply_edits()
+            .expect("Sound Card declarations should materialize");
+    }
+    let module = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("Sound Card module");
+    (engine, module)
+}
+
+fn stabilize_sound_card(engine: &mut crate::app::AppEngine) {
+    for _ in 0..8 {
+        engine
+            .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
+            .expect("Sound Card inbox should stabilize");
+        engine
+            .apply_edits()
+            .expect("Sound Card structural edits should stabilize");
+    }
+}
+
+fn select_enum_parameter(
+    engine: &mut crate::app::AppEngine,
+    module: NodeId,
+    path: &str,
+    value: &str,
+) {
+    let snapshot = engine.process_tree_snapshot();
+    let node = find_path(&snapshot, module, path).expect("enum parameter");
+    let mut constraints = snapshot
+        .node(node)
+        .and_then(|state| state.param_constraints.clone())
+        .expect("enum constraints");
+    if !constraints
+        .enum_options
+        .iter()
+        .any(|option| option.variant_id == value)
+    {
+        constraints.enum_options.push(ParameterEnumOption {
+            variant_id: value.to_owned(),
+            value: ParamValue::Enum(value.to_owned()),
+            label: value.to_owned(),
+            tags: Vec::new(),
+            ordering: None,
+        });
+        engine
+            .edits
+            .push(Edit::SetParamConstraints { node, constraints });
+        engine
+            .apply_edits()
+            .expect("enum test option should be accepted");
+    }
+    set_param_value(engine, node, ParamValue::Enum(value.to_owned()));
+    stabilize_sound_card(engine);
+}
+
+fn set_param_value(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
+    engine.edits.push(Edit::SetParam {
+        node,
+        value,
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("parameter edit should apply");
+}
+
+fn patch_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: bool) {
+    engine.edits.push(Edit::PatchMeta {
+        node,
+        patch: NodeMetaPatch {
+            enabled: Some(enabled),
+            ..NodeMetaPatch::default()
+        },
+    });
+    engine.apply_edits().expect("enabled edit should apply");
+}
+
+fn assert_selector_value(
+    snapshot: &ProcessTreeSnapshot,
+    module: NodeId,
+    path: &str,
+    expected: &str,
+) {
+    let actual = find_path(snapshot, module, path)
+        .and_then(|node| snapshot.node(node))
+        .and_then(|state| state.param_value.as_ref())
+        .and_then(ParamValue::as_enum);
+    assert_eq!(actual.as_deref(), Some(expected));
+}
+
 
 fn target(backend: &BackendId, id: &str) -> AudioDeviceTargetId {
     AudioDeviceTargetId::Device {

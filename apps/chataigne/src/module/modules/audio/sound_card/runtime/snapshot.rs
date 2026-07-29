@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::module_modules_audio_sound_card::find_child_by_key;
+use crate::app::module_modules_audio_sound_card::{find_child_by_key, structure::channel_name};
 
 #[derive(Clone, Debug)]
 pub(super) struct InputChannel {
@@ -28,7 +28,7 @@ pub(super) fn collect_input_channels(
         Ok(InputChannel {
             node,
             id: AudioChannelId::from_uuid(state.uuid.0),
-            label: state.label.clone(),
+            label: channel_name(state),
         })
     })
     .collect()
@@ -46,7 +46,7 @@ pub(super) fn collect_output_channels(
             node,
             uuid: state.uuid,
             id: AudioChannelId::from_uuid(state.uuid.0),
-            label: state.label.clone(),
+            label: channel_name(state),
             gain: gain_at_node(snapshot, node)?,
         })
     })
@@ -129,6 +129,25 @@ pub(super) fn child_enum(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &s
     child_param(snapshot, parent, key)
         .and_then(ParamValue::as_enum)
         .unwrap_or_else(|| default.to_owned())
+}
+
+pub(super) fn required_child_enum(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    key: &str,
+) -> Result<(NodeId, String), ConfigurationError> {
+    let node = required_path(snapshot, parent, key)?;
+    let value = snapshot
+        .node(node)
+        .and_then(|state| state.param_value.as_ref())
+        .and_then(ParamValue::as_enum)
+        .ok_or_else(|| {
+            configuration_error(
+                node,
+                format!("Sound Card selector '{key}' is missing an enum value"),
+            )
+        })?;
+    Ok((node, value))
 }
 
 pub(super) fn child_reference(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &str) -> Option<NodeReference> {

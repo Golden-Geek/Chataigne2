@@ -10,14 +10,15 @@ const node = (
 	children: NodeId[] = [],
 	declId = nodeType,
 	value?: ParamValue,
-	uuid = `uuid-${id}`
+	uuid = `uuid-${id}`,
+	shortName = declId.split('/').at(-1) ?? declId
 ): UiNodeDto =>
 	({
 		node_id: id,
 		uuid,
 		decl_id: declId,
 		node_type: nodeType,
-		meta: { label, short_name: declId.split('/').at(-1) ?? declId },
+		meta: { label, short_name: shortName },
 		data: value
 			? {
 					kind: 'parameter',
@@ -96,11 +97,12 @@ describe('Sound Card routing projection', () => {
 		const channel = node(
 			9,
 			'float',
-			'Microphone',
+			'Microphone Gain',
 			[],
 			'input_1',
 			{ kind: 'float', value: 0 },
-			'input-channel'
+			'input-channel',
+			'Microphone'
 		);
 		const physical = node(10, 'string', 'Physical Channel', [], 'physical_channel', {
 			kind: 'str',

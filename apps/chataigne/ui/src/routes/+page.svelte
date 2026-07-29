@@ -3,10 +3,13 @@
 	import {
 		MainWindow,
 		registerNodeInspector,
+		registerNodeInspectorMatcher,
 		registerOutlinerRowSupplement,
 		type PanelSpawnRequest,
+		type UiNodeDto,
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
+	import { appState } from 'golden_ui/store/workbench.svelte';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
 	import { resolveRuntimeEndpoints } from '$lib/runtimeEndpoints';
 	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
@@ -29,6 +32,7 @@
 	import { registerSharedFormulaRemovalGuard } from '$lib/systems/alchemist/sharedFormulaRemoval';
 	import { registerProcessorLaneParameterPreviews } from '$lib/systems/alchemist/preview/processorLaneInspection.svelte';
 	import SoundCardDirectionParametersInspector from '$lib/modules/audio/sound-card/SoundCardDirectionParametersInspector.svelte';
+	import SoundCardConnectionInspector from '$lib/modules/audio/sound-card/SoundCardConnectionInspector.svelte';
 	import SoundCardRoutingInspector from '$lib/modules/audio/sound-card/SoundCardRoutingInspector.svelte';
 
 	registerSharedFormulaRemovalGuard();
@@ -70,6 +74,23 @@
 	registerNodeInspector('sound_card_output_parameters', {
 		component: SoundCardDirectionParametersInspector
 	});
+	registerNodeInspectorMatcher(
+		'sound-card-connection',
+		(node: UiNodeDto): boolean => {
+			const declaredKey = node.decl_id.split('/').at(-1) ?? node.decl_id;
+			if (declaredKey !== 'connection') return false;
+
+			const session = appState.session;
+			let current: UiNodeDto | undefined = node;
+			while (current && session) {
+				if (current.node_type === 'sound_card_module') return true;
+				const parentId = session.graph.state.parentById.get(current.node_id);
+				current = parentId === undefined ? undefined : session.graph.state.nodesById.get(parentId);
+			}
+			return false;
+		},
+		{ component: SoundCardConnectionInspector }
+	);
 
 	registerNodeInspector('state_processor', {
 		component: ProcessorFormulaInspector,

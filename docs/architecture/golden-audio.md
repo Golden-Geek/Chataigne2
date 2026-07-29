@@ -121,16 +121,24 @@ File playback is a three-stage ownership pipeline:
    streaming rings, applies bounded start/stop ramps and explicit routes, and returns completed
    ownership for control-thread destruction.
 
-Playback-ID cancellation watermarks make a late decoder result stale. Reusing an ID therefore
-replaces its pending or active generation without allowing an older load to start. Stop-all advances
-a global watermark and cancels every pending worker request. Worker and result queues are bounded;
-capacity pressure is a structured failure rather than a new thread or unbounded allocation.
+Playback-ID cancellation watermarks make a late decoder result stale. Reusing an ID replaces its
+pending or active generation by default without allowing an older load to start. A play request may
+disable Force Restart, in which case an occupied ID remains untouched and the control worker emits
+a typed no-effect event. Missing-ID stop and empty stop-all requests use the same explicit outcome
+instead of silently disappearing. Stop-all advances a global watermark and cancels every pending
+worker request. Worker and result queues are bounded; capacity pressure is a structured failure
+rather than a new thread or unbounded allocation.
 
 Resident assets are immutable `Arc`-owned planar buffers keyed by canonical path metadata, track,
 and engine sample rate. Cache lookup, insertion, invalidation, and eviction happen only on decoder
 or control threads. Large files use bounded read-ahead and emit silence on starvation without
 blocking the callback. Both source forms advance against the same engine sample timeline, including
 while the null clock owns output, so reconnect never restarts a voice.
+
+Play requests carry a typed non-negative start offset. Resident assets keep their full-file cache
+identity and begin at the corresponding engine-rate frame. Streamed sources perform an accurate
+container seek on the decoder worker, reset codec state, and trim only the pre-target decoded
+frames before priming the ring.
 
 The advertised file-extension table is authored once in Rust and emitted into the generated
 TypeScript contract. Symphonia remains an optional private implementation dependency behind the
@@ -256,19 +264,28 @@ The module tree presents three small sections:
    direct Input Routing / Output Routing containers. No Device Profile concept is exposed or
    persisted as an editable user model. Routing nodes remain structurally stable for persistence,
    while their custom inspectors are absent when that direction's device is `None`.
-2. **Parameters** contains master and per-channel input/output volumes plus a Processing container.
-   Direction parameter roots remain stable and are hidden by their inspectors while unused. Pitch
-   Detection and Spectral Analysis are booleans, disabled by default.
-3. **Values** mirrors active input/output master and channel levels. Pitch Detection and Spectral
-   Analysis value containers exist only while their corresponding processing booleans are enabled;
-   unused direction Value roots are removed from the tree.
+2. **Parameters** contains ranged master and per-channel input/output gains plus a Processing
+   container. Every channel gain is labeled `<semantic channel name> Gain` and follows the user's
+   exact free-form channel name. Processing owns the 5 Hz default Levels Update Rate, configurable
+   from 1 through 30 Hz. Direction parameter roots remain stable and are hidden by their inspectors
+   while unused. Pitch Detection is disabled by default. Spectral Analysis is a disabled-by-default
+   container rather than a boolean; it is empty until it owns spectral-band definitions.
+3. **Values** contains a Levels folder whose conditional direction children are ordered Input then
+   Output. Every master and channel level is read-only and ranged. Pitch Detection and Spectral
+   Analysis are each represented by one value container, materialized only while the corresponding
+   processing feature is enabled; Spectral Analysis has no per-band descendants yet. Values has no
+   duplicate Input Levels, Output Levels, or Global Levels roots and no Diagnostics folder. Playback
+   Status remains present, and its Active Voices and Loading Voices counters update from the
+   coalesced playback observation.
 
 The user authors Input Channels and Output Channels through ordinary parameter edits. The backend
 owns stable channel identities, default labels, descendant reconciliation, route validation and
-cleanup, and topology materialization. One stabilized edit batch reconciles a count change, and
-newly available stereo endpoints receive default one-to-one left/right routing. The UI may edit a
-channel label and request a route, but it does not allocate nodes, labels, IDs, or hidden route
-parameters.
+cleanup, and topology materialization. A channel's exact free-form human name, such as `Input 1` or
+`Output 1`, is the semantic label presented by routing and gain UI; internal declaration IDs such
+as `input_1` or `output_1` never become user-facing labels. One stabilized edit batch reconciles a
+count change, and newly available stereo endpoints receive default one-to-one left/right routing.
+The UI may edit a channel label and request a route, but it does not allocate nodes, labels, IDs, or
+hidden route parameters.
 
 ## Chataigne runtime integration
 
@@ -315,10 +332,16 @@ exchanges and retire back to the control thread. Callback handlers only convert 
 preallocated samples and update atomic pressure counters; they do not lock, allocate, decode,
 compile, log, or destroy final owners.
 
-Chataigne polls the coalesced observation at 30 Hz, updates cached value-node IDs only when values
-move beyond the configured epsilon, and publishes one latest-only app telemetry envelope. Missing
-explicit device selections remain persisted; unresolved local routes remain authored and receive
-visible warnings so removal and undo stay atomic.
+Chataigne projects the coalesced observation at the Sound Card's app-owned Levels Update Rate,
+configurable from 1 through 30 Hz with a 5 Hz default. It updates cached value-node IDs only when
+values move beyond the configured epsilon and publishes one latest-only app telemetry envelope.
+Missing explicit device selections remain persisted; unresolved local routes remain authored and
+receive visible warnings so removal and undo stay atomic.
+
+Post-gain output RMS at or above 0.01 linear publishes a latest-only outgoing-activity state, so the
+module traffic icon remains lit until the signal falls below the threshold. With outgoing traffic
+logging enabled, authoritative playback started, finished, stopped, failed, and no-effect events are
+logged at the Sound Card module origin.
 
 The app-owned Svelte adapter maps Sound Card connection paths and typed routing requests to public
 backend intents. `golden_audio_ui` owns generic driver/device presentation, status/error
@@ -332,7 +355,9 @@ per authored route, so DOM/SVG work is `O(endpoints + routes)`, never the Cartes
 channel sets. Connect, disconnect, rename, and channel-count operations cross the public UI boundary
 as typed Sound Card intents. The backend applies each accepted operation atomically and owns route
 identity, validation, stereo defaults, and cleanup; acknowledgement-keyed optimistic presentation
-rolls back on rejection.
+rolls back on rejection. During pointer routing, the preview cable snaps to a nearby compatible
+connector using a row-scaled capture area; releasing while snapped submits that route and both the
+connector and cable provide visible snap feedback.
 
 ## Public surface
 
@@ -355,9 +380,6 @@ No native backend, codec, or DSP implementation type appears in a public signatu
 With a hardware driver selected, Input Device starts at `None` and Output Device starts at that
 host's system default. Input and output each start with two user-facing Channels and compatible
 physical endpoints receive parallel left/right routing. Master and channel gains start at 0 dB.
-Sample Rate and Buffer Size start at `Automatic`; Pitch Detection and Spectral Analysis start
-disabled and therefore have no Values containers. These are backend-owned Chataigne defaults, not
-policy recreated in reusable UI code.
-
-See the implementation and evidence ledger in
-[Golden Audio and Sound Card progress](../progress/golden-audio-sound-card.md).
+Sample Rate and Buffer Size start at `Automatic`; Pitch Detection and the Spectral Analysis
+container start disabled and therefore have no corresponding Values containers. These are
+backend-owned Chataigne defaults, not policy recreated in reusable UI code.

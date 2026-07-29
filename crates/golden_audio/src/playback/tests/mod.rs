@@ -9,4 +9,6 @@ mod format;
 #[cfg(feature = "playback")]
 mod scheduler;
 mod streaming;
+#[cfg(feature = "playback")]
+mod timing;
 mod voice;

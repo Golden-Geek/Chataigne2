@@ -29,7 +29,7 @@
 	};
 
 	$effect(() => {
-		session;
+		void session?.graphTransitionRevision;
 		node.uuid;
 		publishDemand(true);
 	});

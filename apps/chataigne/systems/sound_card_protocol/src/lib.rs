@@ -9,6 +9,7 @@ use ts_rs::{Config, TS};
 
 pub const SOUND_CARD_TELEMETRY_TOPIC: &str = "chataigne.sound_card.telemetry";
 pub const SOUND_CARD_UI_CONTROL_TOPIC: &str = "chataigne.sound_card.ui.control";
+pub const SOUND_CARD_OUTPUT_ACTIVITY_TOPIC: &str = "chataigne.sound_card.output.activity";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -90,7 +91,8 @@ pub fn export_sound_card_contract(output_dir: impl AsRef<Path>) -> Result<(), Bo
         output_dir.join("SoundCardTopics.ts"),
         format!(
             "export const SOUND_CARD_TELEMETRY_TOPIC = {SOUND_CARD_TELEMETRY_TOPIC:?} as const;\n\
-             export const SOUND_CARD_UI_CONTROL_TOPIC = {SOUND_CARD_UI_CONTROL_TOPIC:?} as const;\n"
+             export const SOUND_CARD_UI_CONTROL_TOPIC = {SOUND_CARD_UI_CONTROL_TOPIC:?} as const;\n\
+             export const SOUND_CARD_OUTPUT_ACTIVITY_TOPIC = {SOUND_CARD_OUTPUT_ACTIVITY_TOPIC:?} as const;\n"
         ),
     )?;
 
@@ -102,7 +104,7 @@ pub fn export_sound_card_contract(output_dir: impl AsRef<Path>) -> Result<(), Bo
              export type {{ SoundCardPlaybackVoiceDto }} from './SoundCardPlaybackVoiceDto';\n\
              export type {{ SoundCardUiControlRequest }} from './SoundCardUiControlRequest';\n\
              export type {{ SoundCardUiTelemetryDto }} from './SoundCardUiTelemetryDto';\n\
-             export {{ SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC }} from './SoundCardTopics';\n"
+             export {{ SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC, SOUND_CARD_OUTPUT_ACTIVITY_TOPIC }} from './SoundCardTopics';\n"
         ),
     )?;
     Ok(())
