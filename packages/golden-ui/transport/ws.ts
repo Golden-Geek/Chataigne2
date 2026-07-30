@@ -5,7 +5,9 @@ import type {
 	UiControlLifecycle,
 	UiEditIntent,
 	UiEventBatch,
+	UiEventBatchHandler,
 	UiSnapshot,
+	UiSubscriptionBatchOptions,
 	UiSubscriptionScope
 } from '../types';
 import type { UiClientMessage as WsClientMessage } from '../generated/rust_protocol/UiClientMessage';
@@ -85,7 +87,7 @@ interface PendingReplay {
 
 interface SubscriptionState extends SubscriptionResyncState {
 	interest: UiInterest;
-	onBatch: (batch: UiEventBatch) => void;
+	onBatch: UiEventBatchHandler;
 }
 
 interface SocketOpenAttempt {
@@ -299,10 +301,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		console.warn(`[ui ws] disconnected (${reason}); reconnecting in ${delayMs}ms`);
 	};
 
-	const sendRawOnSocketGeneration = (
-		message: WsClientMessage,
-		generation: number
-	): boolean => {
+	const sendRawOnSocketGeneration = (message: WsClientMessage, generation: number): boolean => {
 		if (
 			!socket ||
 			!WebSocketImpl ||
@@ -320,11 +319,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		state: SubscriptionState,
 		generation: number
 	): void => {
-		if (
-			state.closed ||
-			state.resyncing ||
-			state.subscribedSocketGeneration === generation
-		) {
+		if (state.closed || state.resyncing || state.subscribedSocketGeneration === generation) {
 			return;
 		}
 		if (
@@ -424,14 +419,15 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 					return;
 				}
 				const convertStartedAt = nowMs();
-				const batches = message.deltas.map((delta) => fromRustEventBatch(delta.batch));
+				const batches = message.deltas.map((delta) => ({
+					batch: fromRustEventBatch(delta.batch),
+					plane: delta.plane
+				}));
 				const convertMs = nowMs() - convertStartedAt;
 				const applyStartedAt = nowMs();
-				for (const batch of batches) {
-					state.stagedFrames.stage(batch);
-				}
+				state.stagedFrames.stageEnvelope(batches);
 				const applyMs = nowMs() - applyStartedAt;
-				const eventCount = batches.reduce((count, batch) => count + batch.events.length, 0);
+				const eventCount = batches.reduce((count, delta) => count + delta.batch.events.length, 0);
 				const totalMs = timing ? nowMs() - timing.receivedAtMs : convertMs + applyMs;
 				logUiPerf(
 					`[ui] ws_batch subscription=${message.subscription_id} planes=${batches.length} events=${eventCount} bytes=${
@@ -604,11 +600,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		openAttempt = attempt;
 
 		currentSocket.onopen = () => {
-			if (
-				socket !== currentSocket ||
-				socketGeneration !== generation ||
-				openAttempt !== attempt
-			) {
+			if (socket !== currentSocket || socketGeneration !== generation || openAttempt !== attempt) {
 				return;
 			}
 			openAttempt = null;
@@ -697,15 +689,26 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		interest: UiInterest,
 		scope: UiSubscriptionScope,
 		from: EventTime | undefined,
-		onBatch: (batch: UiEventBatch) => void
+		onBatch: UiEventBatchHandler,
+		batchOptions?: UiSubscriptionBatchOptions
 	): (() => void) => {
 		const subscriptionId = nextId('sub');
 		let state: SubscriptionState;
 		const stagedFrames = createStagedFrameBatchScheduler({
-			onBatch,
+			onBatch: (batch) => {
+				onBatch(batch, {
+					requestResync: (reason) => {
+						handleResyncRequired(subscriptionId, undefined, reason);
+					}
+				});
+			},
 			onOrderingViolation: () => {
 				handleResyncRequired(subscriptionId, undefined, 'out_of_order_plane_delta');
 			},
+			onBacklogOverflow: () => {
+				handleResyncRequired(subscriptionId, undefined, 'staged_backlog_overflow');
+			},
+			createEventWork: batchOptions?.createEventWork,
 			isClosed: () => state.closed,
 			getCursor: () => state.cursor,
 			setCursor: (cursor) => {
@@ -789,7 +792,8 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		subscribe(
 			scope: UiSubscriptionScope,
 			from: EventTime | undefined,
-			onBatch: (batch: UiEventBatch) => void
+			onBatch: UiEventBatchHandler,
+			batchOptions?: UiSubscriptionBatchOptions
 		): () => void {
 			return subscribeWithInterest(
 				{
@@ -799,7 +803,8 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				},
 				scope,
 				from,
-				onBatch
+				onBatch,
+				batchOptions
 			);
 		},
 
@@ -808,13 +813,15 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			scope: UiSubscriptionScope,
 			planes: UiDataPlane[],
 			from: EventTime | undefined,
-			onBatch: (batch: UiEventBatch) => void
+			onBatch: UiEventBatchHandler,
+			batchOptions?: UiSubscriptionBatchOptions
 		): () => void {
 			return subscribeWithInterest(
 				{ view_id: viewId, scope: toRustScope(scope), planes },
 				scope,
 				from,
-				onBatch
+				onBatch,
+				batchOptions
 			);
 		},
 

@@ -16,6 +16,7 @@ import type {
 	UiRuntimeStats,
 	UiLogRecord,
 	UiAck,
+	UiSubscriptionBatchControl,
 	UiSnapshot,
 	UiSubscriptionScope
 } from '../types';
@@ -438,7 +439,10 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		nowMs
 	});
 
-	const applyBatch = (batch: UiEventBatch): void => {
+	const applyBatch = (
+		batch: UiEventBatch,
+		subscriptionControl?: UiSubscriptionBatchControl
+	): void => {
 		const applyStartedAt = nowMs();
 		if (batch.runtime) {
 			engineHz = batch.runtime.engine_hz;
@@ -469,7 +473,11 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 				}
 				selection.reconcileSelection();
 				if (graph.state.requiresResync) {
-					void snapshots.resync();
+					if (subscriptionControl) {
+						subscriptionControl.requestResync('graph_projection_invalidated');
+					} else {
+						void snapshots.resync();
+					}
 				}
 			}
 		}
@@ -753,8 +761,12 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 						scope,
 						['structure', 'value', 'trigger', 'observation', 'catalog', 'preview'],
 						snapshot.at,
-						applyBatch
-					) ?? client.subscribe(scope, snapshot.at, applyBatch);
+						applyBatch,
+						{ createEventWork: (event) => graph.createEventWork(event) }
+					) ??
+					client.subscribe(scope, snapshot.at, applyBatch, {
+						createEventWork: (event) => graph.createEventWork(event)
+					});
 				subscribed = true;
 				clearRetry();
 				retryDelayMs = retryMs;

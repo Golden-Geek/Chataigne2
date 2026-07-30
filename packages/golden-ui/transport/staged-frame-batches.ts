@@ -1,4 +1,5 @@
-import type { EventTime, UiEventBatch, UiEventDto, UiGraphOp } from '../types';
+import type { UiDataPlane } from '../generated/rust_protocol/UiDataPlane';
+import type { EventTime, UiEventBatch, UiEventDto, UiGraphOp, UiStagedEventWork } from '../types';
 
 const DEFAULT_MAX_WORK_PER_FRAME = 512;
 const DEFAULT_MAX_BACKLOG_EVENTS = 8_192;
@@ -11,21 +12,6 @@ const ESTIMATED_ID_BYTES = 8;
 export interface StagedEventCost {
 	work: number;
 	estimatedBytes: number;
-}
-
-export interface StagedEventWorkResult {
-	workUsed: number;
-	done: boolean;
-}
-
-/**
- * Detached work for one event that is too expensive to execute atomically in a
- * frame. `advance` must not publish partial state. The scheduler emits the
- * original event only after `done` so its consumer can commit prepared state.
- */
-export interface StagedEventWork {
-	advance(maxWork: number): StagedEventWorkResult;
-	cancel?(): void;
 }
 
 export interface StagedFrameBatchLimits {
@@ -46,6 +32,7 @@ export interface StagedBacklogOverflow {
 
 interface StagedQueuedEvent {
 	event: UiEventDto;
+	plane: UiDataPlane | undefined;
 	cost: StagedEventCost;
 	order: number;
 	latestKey?: string;
@@ -60,14 +47,14 @@ interface StagedEventRun {
 
 interface ActiveEventWork {
 	entry: StagedQueuedEvent;
-	work: StagedEventWork;
+	work: UiStagedEventWork;
 }
 
 export interface StagedFrameBatchSchedulerOptions {
 	onBatch: (batch: UiEventBatch) => void;
 	onOrderingViolation: (replayFrom: EventTime | undefined) => void;
 	onBacklogOverflow?: (overflow: StagedBacklogOverflow) => void;
-	createEventWork?: (event: UiEventDto) => StagedEventWork | undefined;
+	createEventWork?: (event: UiEventDto) => UiStagedEventWork | undefined;
 	estimateEventCost?: (event: UiEventDto) => StagedEventCost;
 	limits?: Partial<StagedFrameBatchLimits>;
 	isClosed: () => boolean;
@@ -75,8 +62,14 @@ export interface StagedFrameBatchSchedulerOptions {
 	setCursor: (cursor: EventTime) => void;
 }
 
+export interface StagedFrameBatchDelta {
+	batch: UiEventBatch;
+	plane?: UiDataPlane;
+}
+
 export interface StagedFrameBatchScheduler {
-	stage(batch: UiEventBatch): void;
+	stage(batch: UiEventBatch, plane?: UiDataPlane): void;
+	stageEnvelope(deltas: StagedFrameBatchDelta[]): void;
 	reset(): void;
 }
 
@@ -101,8 +94,7 @@ const graphOpCost = (op: UiGraphOp): StagedEventCost => {
 		case 'nodeCreated':
 			return {
 				work: 1 + op.snapshot.children.length,
-				estimatedBytes:
-					ESTIMATED_NODE_BYTES + op.snapshot.children.length * ESTIMATED_ID_BYTES
+				estimatedBytes: ESTIMATED_NODE_BYTES + op.snapshot.children.length * ESTIMATED_ID_BYTES
 			};
 		case 'subtreeInserted':
 			return {
@@ -118,8 +110,7 @@ const graphOpCost = (op: UiGraphOp): StagedEventCost => {
 				work: 1 + op.removed_ids.length + (op.parent_after?.children.length ?? 0),
 				estimatedBytes:
 					DEFAULT_EVENT_BYTES +
-					(op.removed_ids.length + (op.parent_after?.children.length ?? 0)) *
-						ESTIMATED_ID_BYTES
+					(op.removed_ids.length + (op.parent_after?.children.length ?? 0)) * ESTIMATED_ID_BYTES
 			};
 		case 'nodeMoved':
 			return {
@@ -194,22 +185,22 @@ const normalizeLimits = (
 	maxBacklogBytes: Math.max(1, Math.floor(limits?.maxBacklogBytes ?? DEFAULT_MAX_BACKLOG_BYTES))
 });
 
-const latestEventKey = (event: UiEventDto): string | undefined => {
-	switch (event.kind.kind) {
-		case 'paramChanged':
-			return `param-value:${event.kind.param}`;
-		case 'paramControlChanged':
-			return `param-control:${event.kind.param}`;
-		case 'paramConstraintsChanged':
-			return `param-constraints:${event.kind.param}`;
-		case 'custom':
-			return event.kind.retention === 'latest'
-				? `custom:${event.kind.topic}:${event.kind.origin ?? ''}`
-				: undefined;
-		default:
-			return undefined;
+const latestEventKey = (
+	event: UiEventDto,
+	plane: UiDataPlane | undefined,
+	reliableSuffix: number
+): string | undefined => {
+	if (plane === 'value' && event.kind.kind === 'paramChanged') {
+		return `${reliableSuffix}:param-value:${event.kind.param}`;
 	}
+	if (plane === 'preview' && event.kind.kind === 'custom') {
+		return `${reliableSuffix}:custom:${event.kind.topic}:${event.kind.origin ?? ''}`;
+	}
+	return undefined;
 };
+
+const isLatestWinsPlane = (plane: UiDataPlane | undefined): boolean =>
+	plane === 'value' || plane === 'preview';
 
 const compareEntries = (left: StagedQueuedEvent, right: StagedQueuedEvent): number => {
 	const timeOrder = compareEventTime(left.event.time, right.event.time);
@@ -282,6 +273,7 @@ export const createStagedFrameBatchScheduler = (
 	let queuedBytes = 0;
 	let retainedSupersededEntries = 0;
 	let activeWork: ActiveEventWork | undefined;
+	let reliableSuffix = 0;
 
 	const cancelActiveWork = (): void => {
 		activeWork?.work.cancel?.();
@@ -301,6 +293,7 @@ export const createStagedFrameBatchScheduler = (
 		queuedWork = 0;
 		queuedBytes = 0;
 		retainedSupersededEntries = 0;
+		reliableSuffix = 0;
 		generation += 1;
 	};
 
@@ -367,12 +360,7 @@ export const createStagedFrameBatchScheduler = (
 		for (let index = 1; index <= entries.length; index += 1) {
 			const previous = entries[index - 1];
 			const current = entries[index];
-			if (
-				index < entries.length &&
-				previous &&
-				current &&
-				compareEntries(previous, current) <= 0
-			) {
+			if (index < entries.length && previous && current && compareEntries(previous, current) <= 0) {
 				continue;
 			}
 			if (runStart < index) {
@@ -434,11 +422,7 @@ export const createStagedFrameBatchScheduler = (
 				cancelActiveWork();
 			}
 			const earlierEntry = peekNextQueuedEntry();
-			if (
-				activeWork &&
-				earlierEntry &&
-				compareEntries(earlierEntry, activeWork.entry) < 0
-			) {
+			if (activeWork && earlierEntry && compareEntries(earlierEntry, activeWork.entry) < 0) {
 				const interrupted = activeWork.entry;
 				cancelActiveWork();
 				requeueEntry(interrupted);
@@ -501,21 +485,6 @@ export const createStagedFrameBatchScheduler = (
 				runtime,
 				events
 			};
-			if (shouldPublish) {
-				runtime = undefined;
-			}
-			if (nextCursor) {
-				options.setCursor(nextCursor);
-			}
-
-			if (drained) {
-				nextEventOrder = 0;
-				from = undefined;
-				hasBatch = runtime !== undefined;
-			} else if (nextCursor) {
-				from = nextCursor;
-			}
-
 			const continueScheduling = (): void => {
 				// A projected graph event is an atomic barrier. Publishing it before
 				// preparing the next event lets the graph store establish the exact
@@ -528,11 +497,33 @@ export const createStagedFrameBatchScheduler = (
 				continueScheduling();
 				return;
 			}
+			const publishGeneration = generation;
 			try {
 				options.onBatch(batch);
-			} finally {
-				continueScheduling();
+			} catch (error) {
+				console.error('[ui ws] staged batch application failed', error);
+				if (generation === publishGeneration) {
+					reset();
+					options.onOrderingViolation(cursor);
+				}
+				return;
 			}
+			if (generation !== publishGeneration) {
+				return;
+			}
+			runtime = undefined;
+			if (nextCursor) {
+				options.setCursor(nextCursor);
+			}
+
+			if (drained) {
+				nextEventOrder = 0;
+				from = undefined;
+				hasBatch = false;
+			} else if (nextCursor) {
+				from = nextCursor;
+			}
+			continueScheduling();
 		};
 		if (typeof requestAnimationFrame === 'function') {
 			requestAnimationFrame(flush);
@@ -541,29 +532,47 @@ export const createStagedFrameBatchScheduler = (
 		}
 	};
 
-	const stage = (batch: UiEventBatch): void => {
+	const stageEnvelope = (deltas: StagedFrameBatchDelta[]): void => {
 		const cursor = options.getCursor();
 		// Distinct planes can arrive after an earlier plane has already painted.
 		// Applying an unseen older event would violate global EngineTime ordering,
 		// while dropping it would silently lose a reliable event. Rewind the
 		// reconnect cursor to the source group's safe boundary and require a full
 		// snapshot recovery instead.
-		if (cursor && batch.events.some((event) => compareEventTime(event.time, cursor) <= 0)) {
+		if (
+			cursor &&
+			deltas.some((delta) =>
+				delta.batch.events.some((event) => compareEventTime(event.time, cursor) <= 0)
+			)
+		) {
 			reset();
-			options.onOrderingViolation(batch.from);
+			options.onOrderingViolation(deltas[0]?.batch.from);
 			return;
 		}
-		if (batch.events.length === 0 && !batch.runtime) {
+		const effectiveDeltas = deltas.filter(
+			(delta) => delta.batch.events.length > 0 || delta.batch.runtime !== undefined
+		);
+		if (effectiveDeltas.length === 0) {
 			return;
 		}
 
-		const incoming = batch.events.map<StagedQueuedEvent>((event) => ({
-			event,
-			cost: normalizeCost((options.estimateEventCost ?? estimateStagedEventCost)(event)),
-			order: nextEventOrder++,
-			latestKey: latestEventKey(event),
-			superseded: false
-		}));
+		const incoming = effectiveDeltas.flatMap((delta) =>
+			delta.batch.events.map<StagedQueuedEvent>((event) => ({
+				event,
+				plane: delta.plane,
+				cost: normalizeCost((options.estimateEventCost ?? estimateStagedEventCost)(event)),
+				order: nextEventOrder++,
+				superseded: false
+			}))
+		);
+		let nextReliableSuffix = reliableSuffix;
+		for (const entry of [...incoming].sort(compareEntries)) {
+			if (isLatestWinsPlane(entry.plane)) {
+				entry.latestKey = latestEventKey(entry.event, entry.plane, nextReliableSuffix);
+			} else {
+				nextReliableSuffix += 1;
+			}
+		}
 		const incomingLatest = new Map<string, StagedQueuedEvent>();
 		for (const entry of incoming) {
 			if (!entry.latestKey) {
@@ -614,7 +623,7 @@ export const createStagedFrameBatchScheduler = (
 			projectedBytes > limits.maxBacklogBytes;
 		if (overflow) {
 			const overflowState: StagedBacklogOverflow = {
-				replayFrom: cursor ?? from ?? batch.from,
+				replayFrom: cursor ?? from ?? effectiveDeltas[0]?.batch.from,
 				queuedEvents: projectedEvents,
 				queuedWork: projectedWork,
 				queuedBytes: projectedBytes,
@@ -632,6 +641,7 @@ export const createStagedFrameBatchScheduler = (
 			}
 			return;
 		}
+		reliableSuffix = nextReliableSuffix;
 
 		for (const entry of replaced) {
 			entry.superseded = true;
@@ -651,17 +661,23 @@ export const createStagedFrameBatchScheduler = (
 
 		if (!hasBatch) {
 			hasBatch = true;
-			from = laterEventTime(cursor, batch.from);
-		} else if (!from && batch.from) {
-			from = batch.from;
+			from = laterEventTime(cursor, effectiveDeltas[0]?.batch.from);
+		} else if (!from && effectiveDeltas[0]?.batch.from) {
+			from = effectiveDeltas[0].batch.from;
 		}
-		if (batch.runtime) {
-			runtime = batch.runtime;
+		for (const delta of effectiveDeltas) {
+			if (delta.batch.runtime) {
+				runtime = delta.batch.runtime;
+			}
 		}
 		stageRuns(liveIncoming);
 		compactSupersededRuns();
 		schedule();
 	};
 
-	return { stage, reset };
+	const stage = (batch: UiEventBatch, plane?: UiDataPlane): void => {
+		stageEnvelope([{ batch, plane }]);
+	};
+
+	return { stage, stageEnvelope, reset };
 };

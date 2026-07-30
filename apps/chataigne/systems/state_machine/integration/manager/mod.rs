@@ -596,7 +596,7 @@ impl SnapshotProcessorContextProvider {
         let Some(runtime) = self.processors.get(&processor_id) else {
             return 0;
         };
-        runtime.bounded_context_key_cardinality(axes).unwrap_or(0)
+        runtime.context_key_cardinality(axes).unwrap_or(0)
     }
 
     fn context_key_limit_exceeded(&self, processor_id: ProcessorId, axes: &AxisSet) -> bool {
@@ -632,7 +632,7 @@ impl SnapshotProcessorContextProvider {
             return Some(ContextKey::default_lane());
         }
         let runtime = self.processors.get(&processor_id)?;
-        if runtime.bounded_context_key_cardinality(axes).ok()? == 0 {
+        if runtime.context_key_cardinality(axes).ok()? == 0 {
             return None;
         }
         axes.iter()
@@ -654,7 +654,7 @@ impl SnapshotProcessorContextProvider {
             return Some(ContextKey::default_lane());
         }
         let runtime = self.processors.get(&processor_id)?;
-        let lane_count = runtime.bounded_context_key_cardinality(axes).ok()?;
+        let lane_count = runtime.context_key_cardinality(axes).ok()?;
         if lane_count == 0 {
             return None;
         }
@@ -682,7 +682,7 @@ impl SnapshotProcessorContextProvider {
             return Some(1);
         }
         let runtime = self.processors.get(&processor_id)?;
-        if runtime.bounded_context_key_cardinality(axes).ok()? == 0 {
+        if runtime.context_key_cardinality(axes).ok()? == 0 {
             return None;
         }
         let mut zero_based = 0usize;
@@ -822,6 +822,14 @@ impl ProcessorContextRuntime {
     }
 
     fn bounded_context_key_cardinality(&self, axes: &AxisSet) -> Result<usize, ContextKeyCardinalityError> {
+        let cardinality = self.context_key_cardinality(axes)?;
+        if cardinality > MAX_MATERIALIZED_CONTEXT_KEYS {
+            return Err(ContextKeyCardinalityError::MaterializationLimitExceeded);
+        }
+        Ok(cardinality)
+    }
+
+    fn context_key_cardinality(&self, axes: &AxisSet) -> Result<usize, ContextKeyCardinalityError> {
         let mut cardinality = 1usize;
         for axis in axes {
             let runtime_axis = self.axis(axis).ok_or(ContextKeyCardinalityError::Unavailable)?;
@@ -831,9 +839,6 @@ impl ProcessorContextRuntime {
             cardinality = cardinality
                 .checked_mul(runtime_axis.items.len())
                 .ok_or(ContextKeyCardinalityError::MaterializationLimitExceeded)?;
-            if cardinality > MAX_MATERIALIZED_CONTEXT_KEYS {
-                return Err(ContextKeyCardinalityError::MaterializationLimitExceeded);
-            }
         }
         Ok(cardinality)
     }

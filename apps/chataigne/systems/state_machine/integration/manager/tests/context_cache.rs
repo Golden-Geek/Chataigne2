@@ -5,24 +5,22 @@ fn multiplex_lane_count_uses_axis_cardinality_without_materializing_keys() {
     let processor_id = ProcessorId::new();
     let primary_axis = ContextAxisId::new("primary");
     let secondary_axis = ContextAxisId::new("secondary");
-    let provider = context_provider(
-        processor_id,
-        context_runtime(
-            vec![
-                context_axis(
-                    primary_axis.clone(),
-                    "Primary",
-                    (0..1000).map(|index| ContextItemId::new(format!("p{index}"))).collect(),
-                ),
-                context_axis(
-                    secondary_axis.clone(),
-                    "Secondary",
-                    (0..1000).map(|index| ContextItemId::new(format!("s{index}"))).collect(),
-                ),
-            ],
-            Vec::new(),
-        ),
+    let runtime = context_runtime(
+        vec![
+            context_axis(
+                primary_axis.clone(),
+                "Primary",
+                (0..1000).map(|index| ContextItemId::new(format!("p{index}"))).collect(),
+            ),
+            context_axis(
+                secondary_axis.clone(),
+                "Secondary",
+                (0..1000).map(|index| ContextItemId::new(format!("s{index}"))).collect(),
+            ),
+        ],
+        Vec::new(),
     );
+    let provider = context_provider(processor_id, Arc::clone(&runtime));
     let axes = AxisSet::from_iter([primary_axis.clone(), secondary_axis.clone()]);
     let valid = ContextKey::new([
         chataigne_alchemist::ContextKeyPart::new(primary_axis, ContextItemId::new("p999")),
@@ -30,8 +28,25 @@ fn multiplex_lane_count_uses_axis_cardinality_without_materializing_keys() {
     ]);
 
     assert_eq!(provider.lane_count_for_axes(processor_id, &axes), 1_000_000);
+    assert_eq!(
+        provider.context_key_at_preview_index(processor_id, &axes, 1_000_000),
+        Some(valid.clone())
+    );
+    assert_eq!(
+        provider.preview_index_for_context_key(processor_id, &axes, &valid),
+        Some(1_000_000)
+    );
     assert!(provider.context_key_matches_axes(processor_id, &axes, &valid));
     assert!(!provider.context_key_matches_axes(processor_id, &axes, &ContextKey::single("primary", "missing")));
+    assert!(
+        runtime
+            .context_key_cache
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .by_axes
+            .is_empty(),
+        "cardinality and indexed preview lookup must not materialize the Cartesian product"
+    );
 }
 
 #[test]
@@ -235,7 +250,10 @@ fn context_key_materialization_rejects_oversized_cartesian_products_before_alloc
         runtime.bounded_context_key_cardinality(&requested),
         Err(ContextKeyCardinalityError::MaterializationLimitExceeded)
     );
-    assert_eq!(provider.lane_count_for_axes(processor_id, &requested), 0);
+    assert_eq!(
+        provider.lane_count_for_axes(processor_id, &requested),
+        axis_width * axis_width
+    );
     assert!(provider.context_key_limit_exceeded(processor_id, &requested));
     assert_eq!(provider.iter_context_keys(processor_id, &requested).count(), 0);
     assert!(CONTEXT_LANE_LIMIT_WARNING.contains("65,536-lane safety limit"));

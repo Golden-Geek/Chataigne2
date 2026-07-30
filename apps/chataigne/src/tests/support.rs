@@ -1,24 +1,27 @@
 use std::{
-    ffi::OsString,
-    path::Path,
+    cell::RefCell,
+    path::{Path, PathBuf},
     sync::{Mutex, MutexGuard},
 };
 
-const SHARED_FORMULA_DIR_ENV: &str = "CHATAIGNE_SHARED_FORMULAS_DIR";
 static SHARED_FORMULA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
 
+thread_local! {
+    static SHARED_FORMULA_DIR_OVERRIDE: RefCell<Option<Option<PathBuf>>> =
+        const { RefCell::new(None) };
+}
+
 pub(crate) struct ScopedSharedFormulaDir {
-    previous: Option<OsString>,
+    previous: Option<Option<PathBuf>>,
     _lock: MutexGuard<'static, ()>,
     _temporary_directory: Option<tempfile::TempDir>,
 }
 
 impl Drop for ScopedSharedFormulaDir {
     fn drop(&mut self) {
-        match self.previous.take() {
-            Some(value) => unsafe { std::env::set_var(SHARED_FORMULA_DIR_ENV, value) },
-            None => unsafe { std::env::remove_var(SHARED_FORMULA_DIR_ENV) },
-        }
+        SHARED_FORMULA_DIR_OVERRIDE.with(|slot| {
+            slot.replace(self.previous.take());
+        });
     }
 }
 
@@ -26,11 +29,7 @@ pub(crate) fn scoped_shared_formula_dir(path: Option<&Path>) -> ScopedSharedForm
     let lock = SHARED_FORMULA_DIR_ENV_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let previous = std::env::var_os(SHARED_FORMULA_DIR_ENV);
-    match path {
-        Some(path) => unsafe { std::env::set_var(SHARED_FORMULA_DIR_ENV, path) },
-        None => unsafe { std::env::remove_var(SHARED_FORMULA_DIR_ENV) },
-    }
+    let previous = SHARED_FORMULA_DIR_OVERRIDE.with(|slot| slot.replace(Some(path.map(Path::to_path_buf))));
     ScopedSharedFormulaDir {
         previous,
         _lock: lock,
@@ -43,11 +42,15 @@ pub(crate) fn scoped_empty_shared_formula_dir() -> ScopedSharedFormulaDir {
     let lock = SHARED_FORMULA_DIR_ENV_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let previous = std::env::var_os(SHARED_FORMULA_DIR_ENV);
-    unsafe { std::env::set_var(SHARED_FORMULA_DIR_ENV, temporary_directory.path()) };
+    let previous =
+        SHARED_FORMULA_DIR_OVERRIDE.with(|slot| slot.replace(Some(Some(temporary_directory.path().to_path_buf()))));
     ScopedSharedFormulaDir {
         previous,
         _lock: lock,
         _temporary_directory: Some(temporary_directory),
     }
+}
+
+pub(crate) fn shared_formula_dir_override() -> Option<Option<PathBuf>> {
+    SHARED_FORMULA_DIR_OVERRIDE.with(|slot| slot.borrow().clone())
 }

@@ -216,9 +216,7 @@ describe('websocket resync and socket-generation barriers', () => {
 		expect(
 			applied.flatMap((batch) =>
 				batch.events.map((event) =>
-					event.kind.kind === 'custom'
-						? (event.kind.payload as { tick: number }).tick
-						: -1
+					event.kind.kind === 'custom' ? (event.kind.payload as { tick: number }).tick : -1
 				)
 			)
 		).toEqual([...burst.slice(0, 512), 2_001]);
@@ -388,6 +386,100 @@ describe('websocket resync and socket-generation barriers', () => {
 		await flushMicrotasks();
 		expect(messages(firstSocket, 'subscribe')).toHaveLength(0);
 		expect(messages(secondSocket, 'subscribe')).toHaveLength(1);
+		unsubscribe();
+	});
+
+	it('requests a coordinated snapshot instead of dropping an overflowing reliable backlog', async () => {
+		const onResyncRequired = vi.fn(() => time(9_000));
+		const applied: UiEventBatch[] = [];
+		const client = createWebSocketUiClient({
+			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
+			onResyncRequired
+		});
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (batch) =>
+			applied.push(batch)
+		);
+		const socket = FakeWebSocket.instances[0];
+		if (!socket) {
+			throw new Error('websocket was not created');
+		}
+		socket.open();
+		await flushMicrotasks();
+		const subscriptionId = messages(socket, 'subscribe')[0]?.subscription_id;
+		if (!subscriptionId) {
+			throw new Error('subscription id is missing');
+		}
+
+		socket.receive({
+			kind: 'delta',
+			subscription_id: subscriptionId,
+			deltas: [
+				{
+					plane: 'structure',
+					batch: {
+						from: time(0),
+						to: time(8_193),
+						runtime: null,
+						events: Array.from({ length: 8_193 }, (_, index) => ({
+							time: time(index + 1),
+							kind: 'custom',
+							topic: 'test.reliable.latest-labelled',
+							origin: null,
+							payload: { index },
+							retention: 'latest'
+						}))
+					}
+				}
+			]
+		});
+		await flushMicrotasks();
+
+		expect(applied).toHaveLength(0);
+		expect(frames).toHaveLength(0);
+		expect(messages(socket, 'unsubscribe')).toHaveLength(1);
+		expect(onResyncRequired).toHaveBeenCalledTimes(1);
+		expect(onResyncRequired).toHaveBeenCalledWith(
+			{ kind: 'wholeGraph' },
+			undefined,
+			'staged_backlog_overflow'
+		);
+		expect(messages(socket, 'subscribe')).toHaveLength(2);
+		expect(messages(socket, 'subscribe')[1].from).toEqual(time(9_000));
+		unsubscribe();
+	});
+
+	it('lets a batch consumer invalidate only its subscription before the cursor commits', async () => {
+		const onResyncRequired = vi.fn(() => time(100));
+		const client = createWebSocketUiClient({
+			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
+			onResyncRequired
+		});
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (_batch, control) =>
+			control?.requestResync('graph_projection_invalidated')
+		);
+		const socket = FakeWebSocket.instances[0];
+		if (!socket) {
+			throw new Error('websocket was not created');
+		}
+		socket.open();
+		await flushMicrotasks();
+		const subscriptionId = messages(socket, 'subscribe')[0]?.subscription_id;
+		if (!subscriptionId) {
+			throw new Error('subscription id is missing');
+		}
+
+		receiveDelta(socket, subscriptionId, time(0), [1]);
+		runFrame();
+		await flushMicrotasks();
+
+		expect(onResyncRequired).toHaveBeenCalledWith(
+			{ kind: 'wholeGraph' },
+			undefined,
+			'graph_projection_invalidated'
+		);
+		expect(messages(socket, 'unsubscribe')).toHaveLength(1);
+		expect(messages(socket, 'subscribe')).toHaveLength(2);
+		expect(messages(socket, 'subscribe')[1].from).toEqual(time(100));
 		unsubscribe();
 	});
 });

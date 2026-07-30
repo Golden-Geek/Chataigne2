@@ -724,7 +724,12 @@ export type UiEditIntent =
 	| { kind: 'patchMeta'; node: NodeId; patch: Partial<UiNodeMetaDto> }
 	| { kind: 'ensureUserContextScope'; owner: NodeId }
 	| { kind: 'removeUserContextScope'; owner: NodeId }
-	| { kind: 'upsertUserContextEntry'; owner: NodeId; symbol: string; param: NodeId }
+	| {
+			kind: 'upsertUserContextEntry';
+			owner: NodeId;
+			symbol: string;
+			param: NodeId;
+	  }
 	| { kind: 'removeUserContextEntry'; owner: NodeId; symbol: string }
 	| { kind: 'sendNodeEvent'; node: NodeId; topic: string; payload: unknown }
 	| { kind: 'reevaluateGraph' }
@@ -762,19 +767,48 @@ export interface UiProjectLoadOptions {
 	recover?: boolean;
 }
 
+export interface UiStagedEventWorkResult {
+	workUsed: number;
+	done: boolean;
+}
+
+/**
+ * Detached preparation for an event that is too expensive to apply in one frame.
+ * Partial work must remain unpublished until `advance` reports completion.
+ */
+export interface UiStagedEventWork {
+	advance(maxWork: number): UiStagedEventWorkResult;
+	cancel?(): void;
+}
+
+export interface UiSubscriptionBatchOptions {
+	createEventWork?: (event: UiEventDto) => UiStagedEventWork | undefined;
+}
+
+export interface UiSubscriptionBatchControl {
+	requestResync(reason: string): void;
+}
+
+export type UiEventBatchHandler = (
+	batch: UiEventBatch,
+	control?: UiSubscriptionBatchControl
+) => void;
+
 export interface UiClient {
 	snapshot(scope?: UiSubscriptionScope): Promise<UiSnapshot>;
 	subscribe(
 		scope: UiSubscriptionScope,
 		from: EventTime | undefined,
-		onBatch: (batch: UiEventBatch) => void
+		onBatch: UiEventBatchHandler,
+		batchOptions?: UiSubscriptionBatchOptions
 	): () => void;
 	subscribeInterest?(
 		viewId: string,
 		scope: UiSubscriptionScope,
 		planes: UiDataPlane[],
 		from: EventTime | undefined,
-		onBatch: (batch: UiEventBatch) => void
+		onBatch: UiEventBatchHandler,
+		batchOptions?: UiSubscriptionBatchOptions
 	): () => void;
 	sendIntent(
 		intent: UiEditIntent,

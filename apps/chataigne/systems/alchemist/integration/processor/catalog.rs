@@ -39,6 +39,7 @@ pub(super) const PROCESSOR_CREATE_PREFIX: &str = "state_processor:";
 const PROCESSOR_PROJECT_CREATE_PREFIX: &str = "state_processor:project:";
 const BUILTIN_FORMULA_DIR_ENV: &str = "CHATAIGNE_BUILTIN_FORMULAS_DIR";
 const SHARED_FORMULA_DIR_ENV: &str = "CHATAIGNE_SHARED_FORMULAS_DIR";
+#[cfg(not(test))]
 const SHARED_FORMULA_APP_DATA_DIR: &str = "Chataigne";
 const SHARED_FORMULA_SUBDIR: &str = "formulas";
 const EXPORTED_NODE_TREE_KIND: &str = "golden-ui.node-tree";
@@ -687,12 +688,28 @@ pub(crate) fn shared_formula_dir_from_snapshot(snapshot: &ProcessTreeSnapshot) -
         .or_else(default_shared_formula_dir)
 }
 
+#[cfg(not(test))]
 fn configured_shared_formula_dir() -> Option<PathBuf> {
     std::env::var_os(SHARED_FORMULA_DIR_ENV).map(PathBuf::from)
 }
 
+#[cfg(test)]
+fn configured_shared_formula_dir() -> Option<PathBuf> {
+    crate::test_support::shared_formula_dir_override()
+        .unwrap_or_else(|| std::env::var_os(SHARED_FORMULA_DIR_ENV).map(PathBuf::from))
+}
+
+#[cfg(not(test))]
 fn default_shared_formula_dir() -> Option<PathBuf> {
     dirs::data_dir().map(|dir| dir.join(SHARED_FORMULA_APP_DATA_DIR).join(SHARED_FORMULA_SUBDIR))
+}
+
+#[cfg(test)]
+fn default_shared_formula_dir() -> Option<PathBuf> {
+    // Tests must never discover or mutate the developer's real shared formula
+    // directory. Cases that exercise shared files provide an explicit scoped
+    // directory or a Preferences data folder.
+    None
 }
 
 /// Sorted list of `.json` files directly inside `shared_dir` (a missing

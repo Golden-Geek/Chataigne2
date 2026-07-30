@@ -33,6 +33,11 @@ pub enum NodeCreationContext {
     ProjectLoadAugmentation,
     /// Node recreated while duplicating/copy-pasting a persisted subtree.
     Duplicate,
+    /// Duplicate whose caller supplied explicit initial parameter values.
+    ///
+    /// App lifecycle code may use this to avoid applying a default duplicate
+    /// adjustment over a value the higher-level operation already resolved.
+    DuplicateWithInitialParams,
 }
 
 impl NodeCreationContext {

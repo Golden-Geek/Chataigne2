@@ -4838,6 +4838,14 @@ fn take_shared_formula_watcher_pending() -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(test)]
+pub(crate) fn reset_shared_formula_watcher_for_test() {
+    let mut state = shared_formula_watcher_state()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *state = None;
+}
+
 #[node("alchemist_formula_library", from_struct)]
 impl Node for FormulaLibrary {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
@@ -4877,9 +4885,6 @@ impl Node for FormulaLibrary {
     ) {
         self.reconcile_shared_formula_dir_parameter(ctx);
         self.ensure_shared_formula_watcher(ctx);
-        if take_shared_formula_watcher_pending() {
-            self.sync_shared_formula_files(ctx);
-        }
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {

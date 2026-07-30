@@ -29,6 +29,7 @@ pub(crate) struct PreparedProjectSubtree<T> {
     prev_sibling: Option<NodeId>,
     tree: DecodedProjectTree<T>,
     blueprint_meta: Option<BlueprintInstanceMeta>,
+    has_explicit_initial_params: bool,
 }
 
 pub(crate) struct CommittedProjectSubtree {
@@ -166,6 +167,7 @@ impl<T: Node> Engine<T> {
             prev_sibling: new_prev_sibling,
             tree: decoded_tree,
             blueprint_meta: self.blueprints.instance_meta(source).cloned(),
+            has_explicit_initial_params: false,
         })
     }
 
@@ -179,7 +181,9 @@ impl<T: Node> Engine<T> {
             return Ok(prepared);
         }
 
+        let has_explicit_initial_params = !initial_params.is_empty();
         prepared.tree = Self::stage_tree_with_initial_params(prepared.tree, initial_params, operation)?;
+        prepared.has_explicit_initial_params = has_explicit_initial_params;
         Ok(prepared)
     }
 
@@ -212,6 +216,7 @@ impl<T: Node> Engine<T> {
             }
             self.validate_prepared_user_item(parent, &node, operation)?;
             Self::prepare_detached_user_item_root(&mut node);
+            let has_explicit_initial_params = !initial_params.is_empty();
             let tree = Self::stage_tree_with_initial_params(
                 DecodedProjectTree {
                     node,
@@ -229,6 +234,7 @@ impl<T: Node> Engine<T> {
                     blueprint_version,
                     HashMap::new(),
                 )),
+                has_explicit_initial_params,
             });
         }
 
@@ -268,6 +274,7 @@ impl<T: Node> Engine<T> {
         tree.node.node_data_mut().meta.label = resolved_label;
         self.validate_prepared_user_item(parent, &tree.node, operation)?;
         Self::prepare_detached_user_item_root(&mut tree.node);
+        let has_explicit_initial_params = !initial_params.is_empty();
         let tree = Self::stage_tree_with_initial_params(tree, initial_params, operation)?;
 
         Ok(PreparedProjectSubtree {
@@ -275,6 +282,7 @@ impl<T: Node> Engine<T> {
             prev_sibling,
             tree,
             blueprint_meta: None,
+            has_explicit_initial_params,
         })
     }
 
@@ -521,7 +529,13 @@ impl<T: Node> Engine<T> {
             prev_sibling,
             tree,
             blueprint_meta,
+            has_explicit_initial_params,
         } = prepared;
+        let creation_context = if creation_context == NodeCreationContext::Duplicate && has_explicit_initial_params {
+            NodeCreationContext::DuplicateWithInitialParams
+        } else {
+            creation_context
+        };
         let root = self.insert_decoded_project_tree(parent, prev_sibling, tree, operation)?;
         self.replay_loaded_subtree_lifecycle(root, creation_context, LoadedReadyMode::Immediate)?;
         let node_ids = self.collect_loaded_subtree_node_ids(root)?;

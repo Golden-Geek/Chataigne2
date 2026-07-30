@@ -1,4 +1,4 @@
-import type { UiEventDto, UiGraphOp, UiNodeDto } from '../types';
+import type { UiEventDto, UiGraphOp, UiNodeDto, UiStagedEventWork } from '../types';
 import type { GraphState } from './graph.svelte';
 
 type SubtreeInsertedOp = Extract<UiGraphOp, { kind: 'subtreeInserted' }>;
@@ -8,8 +8,7 @@ export interface GraphEventProjectionResult {
 	done: boolean;
 }
 
-export interface GraphEventProjectionWork {
-	advance(maxWork: number): GraphEventProjectionResult;
+export interface GraphEventProjectionWork extends UiStagedEventWork {
 	cancel(): void;
 }
 
@@ -84,10 +83,7 @@ const advanceNodeTask = (state: GraphState, task: NodeProjectionTask): boolean =
 	if (task.phase === 'removePrevious') {
 		const child = task.previousChildren[task.previousIndex];
 		if (child !== undefined) {
-			if (
-				!task.nextChildren.has(child) &&
-				state.parentById.get(child) === task.node.node_id
-			) {
+			if (!task.nextChildren.has(child) && state.parentById.get(child) === task.node.node_id) {
 				state.parentById.delete(child);
 			}
 			task.previousIndex += 1;
@@ -110,10 +106,7 @@ const advanceNodeTask = (state: GraphState, task: NodeProjectionTask): boolean =
 	return true;
 };
 
-const createParentTask = (
-	state: GraphState,
-	op: SubtreeInsertedOp
-): ParentProjectionTask => ({
+const createParentTask = (state: GraphState, op: SubtreeInsertedOp): ParentProjectionTask => ({
 	parent: op.parent,
 	children: [],
 	nextChildren: new Set(),

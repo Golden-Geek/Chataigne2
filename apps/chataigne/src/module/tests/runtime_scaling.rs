@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use golden_core::node::{Folder, Node};
+use golden_core::node::Folder;
 
 use crate::app::{AppNode, GamepadModule, MidiModule};
 

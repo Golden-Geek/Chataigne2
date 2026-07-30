@@ -852,9 +852,10 @@ fn catalog_with_shared_and_project_formulas(
     // shared formulas folder, so point one there (the file itself doesn't
     // need to exist for classification/palette-grouping purposes).
     let _shared_dir_guard = shared_formula_dir_test_override();
-    let shared_dir = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR")
-        .expect("guard should set CHATAIGNE_SHARED_FORMULAS_DIR");
-    let shared_path = std::path::Path::new(&shared_dir).join("shared_formula.json");
+    let shared_dir = crate::test_support::shared_formula_dir_override()
+        .flatten()
+        .expect("guard should set a shared-formula directory override");
+    let shared_path = shared_dir.join("shared_formula.json");
 
     let mut engine = engine_with_builtin_formula_library();
     let library_id = formula_library_id(&engine);

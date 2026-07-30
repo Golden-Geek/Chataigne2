@@ -62,6 +62,8 @@ struct PendingOutput {
     delivery_policy: ModuleCommandDeliveryPolicy,
     #[serde(default)]
     batchable: bool,
+    #[serde(default)]
+    preserve_batch: bool,
 }
 
 /// Compact continuation for the execution-major Cartesian traversal of one
@@ -79,6 +81,13 @@ struct PendingOutputFanout {
     cancel_on_trigger: bool,
     trigger_elapsed_seconds: f64,
     trigger_tick: u64,
+    preserve_batch: bool,
+}
+
+struct PendingCommandBatch {
+    command_id: NodeId,
+    executions: Vec<ModuleCommandExecuteEvent>,
+    preserve_batch: bool,
 }
 
 impl PendingOutputFanout {
@@ -332,6 +341,7 @@ impl OutputSchedule {
                 invocation_id,
                 delivery_policy: ModuleCommandDeliveryPolicy::Standard,
             }],
+            false,
         );
         self.drain_fanout(ctx);
     }
@@ -346,7 +356,7 @@ impl OutputSchedule {
         cache: &OutputRuntimeCache,
         executions: Vec<ModuleCommandExecuteEvent>,
     ) {
-        self.enqueue_fanout(ctx, owner, cache, executions);
+        self.enqueue_fanout(ctx, owner, cache, executions, true);
         self.drain_fanout(ctx);
     }
 
@@ -356,6 +366,7 @@ impl OutputSchedule {
         owner: NodeId,
         cache: &OutputRuntimeCache,
         executions: Vec<ModuleCommandExecuteEvent>,
+        preserve_batch: bool,
     ) {
         if executions.is_empty() {
             return;
@@ -416,12 +427,13 @@ impl OutputSchedule {
             cancel_on_trigger: cache.cancel_on_trigger,
             trigger_elapsed_seconds: self.elapsed_seconds,
             trigger_tick: ctx.time.tick,
+            preserve_batch,
         });
     }
 
     fn drain_fanout(&mut self, ctx: &mut ProcessCtx) {
         self.reset_work_budget(ctx.time.tick);
-        let mut pending_batch: Option<(NodeId, Vec<ModuleCommandExecuteEvent>)> = None;
+        let mut pending_batch: Option<PendingCommandBatch> = None;
 
         while self.remaining_work_budget() > 0 {
             let Some(mut fanout) = self.pending_fanout.pop_front() else {
@@ -469,6 +481,7 @@ impl OutputSchedule {
                                 execution.invocation_id,
                                 delivery_policy,
                                 target.batchable,
+                                target.batchable || fanout.preserve_batch,
                             );
                         }
                     } else {
@@ -479,7 +492,12 @@ impl OutputSchedule {
                             delivery_policy,
                         };
                         if target.batchable {
-                            append_command_batch(ctx, &mut pending_batch, forwarded);
+                            append_command_batch(
+                                ctx,
+                                &mut pending_batch,
+                                forwarded,
+                                fanout.preserve_batch,
+                            );
                         } else {
                             flush_command_batch(ctx, &mut pending_batch);
                             let _ = module_command::emit_command_execute_with_invocation(
@@ -557,6 +575,7 @@ impl OutputSchedule {
         invocation_id: Option<ModuleCommandInvocationId>,
         delivery_policy: ModuleCommandDeliveryPolicy,
         batchable: bool,
+        preserve_batch: bool,
     ) {
         let sequence = self.next_sequence;
         self.next_sequence = self
@@ -571,6 +590,7 @@ impl OutputSchedule {
             invocation_id,
             delivery_policy,
             batchable,
+            preserve_batch,
         });
     }
 
@@ -618,7 +638,7 @@ impl OutputSchedule {
         self.reset_work_budget(ctx.time.tick);
         self.drain_fanout(ctx);
 
-        let mut pending_batch: Option<(NodeId, Vec<ModuleCommandExecuteEvent>)> = None;
+        let mut pending_batch: Option<PendingCommandBatch> = None;
         while self.remaining_work_budget() > 0 {
             if !self
                 .pending
@@ -635,7 +655,12 @@ impl OutputSchedule {
                     invocation_id: pending.invocation_id,
                     delivery_policy: pending.delivery_policy,
                 };
-                append_command_batch(ctx, &mut pending_batch, execution);
+                append_command_batch(
+                    ctx,
+                    &mut pending_batch,
+                    execution,
+                    pending.preserve_batch,
+                );
             } else {
                 flush_command_batch(ctx, &mut pending_batch);
                 let _ = module_command::emit_command_execute_with_invocation(
@@ -654,22 +679,55 @@ impl OutputSchedule {
 
 fn append_command_batch(
     ctx: &mut ProcessCtx,
-    pending: &mut Option<(NodeId, Vec<ModuleCommandExecuteEvent>)>,
+    pending: &mut Option<PendingCommandBatch>,
     execution: ModuleCommandExecuteEvent,
+    preserve_batch: bool,
 ) {
     match pending.as_mut() {
-        Some((target, executions)) if *target == execution.command_id => executions.push(execution),
+        Some(batch) if batch.command_id == execution.command_id => {
+            batch.executions.push(execution);
+            batch.preserve_batch |= preserve_batch;
+        }
         Some(_) => {
             flush_command_batch(ctx, pending);
-            *pending = Some((execution.command_id, vec![execution]));
+            *pending = Some(PendingCommandBatch {
+                command_id: execution.command_id,
+                executions: vec![execution],
+                preserve_batch,
+            });
         }
-        None => *pending = Some((execution.command_id, vec![execution])),
+        None => {
+            *pending = Some(PendingCommandBatch {
+                command_id: execution.command_id,
+                executions: vec![execution],
+                preserve_batch,
+            });
+        }
     }
 }
 
-fn flush_command_batch(ctx: &mut ProcessCtx, pending: &mut Option<(NodeId, Vec<ModuleCommandExecuteEvent>)>) {
-    let Some((command_id, executions)) = pending.take() else {
+fn flush_command_batch(ctx: &mut ProcessCtx, pending: &mut Option<PendingCommandBatch>) {
+    let Some(PendingCommandBatch {
+        command_id,
+        executions,
+        preserve_batch,
+    }) = pending.take()
+    else {
         return;
     };
+    if executions.len() == 1 && !preserve_batch {
+        let execution = executions
+            .into_iter()
+            .next()
+            .expect("singleton command batch must contain one execution");
+        let _ = module_command::emit_command_execute_with_invocation(
+            ctx,
+            command_id,
+            execution.param_overrides,
+            execution.invocation_id,
+            execution.delivery_policy,
+        );
+        return;
+    }
     let _ = module_command::emit_command_execute_batch(ctx, command_id, executions);
 }

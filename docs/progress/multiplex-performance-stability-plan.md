@@ -7,6 +7,57 @@ to a stable 100 Hz-or-better development runtime, keeps processor/state
 manipulation bounded, and gives every explicit user action immediate,
 truthful progress feedback.
 
+## Completion Result — 2026-07-30
+
+Status: complete.
+
+- Websocket staging is plane-aware and preserves reliable ordering barriers.
+  Structure and trigger work cannot be silently coalesced or dropped.
+- Subscription-scoped overflow and graph-projection invalidation use one
+  coordinated snapshot/resubscribe path. Stale socket, subscription, and
+  projection generations cannot commit.
+- Large graph transactions are projected incrementally into detached state,
+  then published atomically. The replay cursor advances only after the
+  consumer commits the complete batch.
+- Latest-wins value/preview events coalesce only inside a safe reliable-event
+  suffix.
+- Multiplex cardinality and indexed preview lookup no longer materialize large
+  Cartesian lane sets; full expansion remains capped at 65,536 keys.
+- Duplicate initial parameters are staged before insertion and are no longer
+  overwritten by app-owned duplicate offsets. Ordinary duplicates retain
+  their existing offset behavior.
+- Output batching preserves singleton command shape, explicit batch shape,
+  mixed-event order, delayed batching, and the existing bounded work limits.
+- Shared-formula tests use scoped overrides and reset watcher state, avoiding
+  developer-file access and parallel-test snapshot interference.
+- The pre-existing sample and backup files remained untouched.
+
+Validation completed:
+
+- `cargo test -p golden_parameters`: 5 passed.
+- `cargo test -p golden_engine --lib`: 390 passed, 1 ignored benchmark.
+- `cargo test -p golden_transport_server --lib`: 27 passed.
+- `cargo test -p Chataigne2`: 514 unit tests and 1 integration test passed.
+- `cargo check --workspace`: passed.
+- UI: 22 files / 73 tests passed; Svelte check reported 0 errors and
+  0 warnings.
+- Explicit Prettier check passed for every changed UI file.
+- Repository UI lint still reports only the pre-existing
+  `ModuleIndicators.svelte` formatting issue documented below.
+
+Warm serial performance evidence:
+
+- Dirty engine runtime: 4,460 us average, 6,285 us p95, 6,636 us p99,
+  7,175 us maximum, 0 deadline misses, 0 snapshot builds, 0 provider rebuilds,
+  and 0 command-budget rejections.
+- Production runtime with publication: 4,846 us average, 6,724 us p95,
+  7,169 us p99, 8,451 us maximum, and 0 deadline misses.
+- Engine duplication: 44-node processor in 18 ms with a 10 ms rebuild tick;
+  534-node state in 29 ms with a 28 ms rebuild tick.
+- Production duplication: processor transaction 19 ms (18,582 us apply,
+  98 us publish) with a 12 ms rebuild tick; state transaction 33 ms
+  (31,411 us apply, 1,009 us publish) with a 26 ms rebuild tick.
+
 This file records the exact stop point on 2026-07-29. No implementation or
 validation after this point should be assumed complete without rerunning the
 checks below.
@@ -127,11 +178,11 @@ checks below.
   - `apps/chataigne/src/module/tests/multiplex.rs`
   - `apps/chataigne/src/module/tests/runtime_scaling.rs`
 
-## Incomplete Work at the Stop Point
+## Historical Incomplete Work at the Stop Point
 
 The active agents were interrupted at the user's request. Their filesystem
-edits are present, but these two areas must be treated as incomplete and
-unvalidated.
+edits were present, and the following two areas were incomplete and
+unvalidated at that time. Both are complete in the result recorded above.
 
 ### 1. Websocket resync and socket-generation state machine
 
