@@ -1,7 +1,20 @@
-#[derive(Debug)]
 pub(crate) struct AudioThreadPriorityGuard {
     #[cfg(feature = "realtime")]
     handle: Option<audio_thread_priority::RtPriorityHandle>,
+}
+
+impl std::fmt::Debug for AudioThreadPriorityGuard {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[cfg(feature = "realtime")]
+        let promoted = self.handle.is_some();
+        #[cfg(not(feature = "realtime"))]
+        let promoted = false;
+
+        formatter
+            .debug_struct("AudioThreadPriorityGuard")
+            .field("promoted", &promoted)
+            .finish_non_exhaustive()
+    }
 }
 
 impl AudioThreadPriorityGuard {

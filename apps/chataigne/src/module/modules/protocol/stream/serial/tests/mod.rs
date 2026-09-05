@@ -77,7 +77,7 @@ fn serial_module_script_descriptor_advertises_stream_send_methods() {
 #[test]
 fn serial_module_script_template_scaffolds_stream_callbacks_only() {
     let config = crate::app::module::script_api::module_script_config(SerialModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("serial module script template should resolve to inline source");
     };
 

@@ -1,5 +1,6 @@
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    num::NonZeroUsize,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc,
@@ -7,7 +8,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use golden_io::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{pending_channel, PendingDrain, PendingReceiver, PendingSender};
 
 use mio::{net::UdpSocket, Events, Interest, Poll, Token, Waker};
 use rosc::{decoder, encoder};
@@ -43,6 +44,8 @@ pub(crate) struct OscTransportHandle {
 
 const OSC_SOCKET_TOKEN: Token = Token(0);
 const OSC_WAKE_TOKEN: Token = Token(1);
+const OSC_EVENT_DRAIN_BUDGET: NonZeroUsize =
+    NonZeroUsize::new(1_024).expect("OSC event drain budget must be nonzero");
 
 impl OscTransportHandle {
     pub(crate) fn spawn(config: OscTransportConfig) -> Result<Self, String> {
@@ -88,16 +91,12 @@ impl OscTransportHandle {
             .map_err(|error| format!("failed to wake OSC worker: {error}"))
     }
 
-    pub(crate) fn try_recv(&self) -> Result<OscWorkerEvent, mpsc::TryRecvError> {
-        self.event_rx.try_recv()
+    pub(crate) fn drain_events(&self, events: &mut Vec<OscWorkerEvent>) -> PendingDrain {
+        self.event_rx.drain_into(events, OSC_EVENT_DRAIN_BUDGET)
     }
 
     pub(crate) fn has_pending(&self) -> bool {
         self.event_rx.has_pending()
-    }
-
-    pub(crate) fn clear_pending(&self) {
-        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {

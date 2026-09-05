@@ -3,7 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -107,8 +111,8 @@ jobs:
       - name: Run tests (single-threaded to avoid flaky logger test)
         run: cargo test -p golden_engine -- --test-threads=1
 
-  buildui:
-    name: Build UI
+  ui_quality:
+    name: UI quality
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -125,6 +129,19 @@ jobs:
       - name: UI check
         working-directory: apps/chataigne/ui
         run: npm run check
+
+  buildui:
+    name: Build UI artifact
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install UI deps
+        run: npm ci
       - name: UI build
         working-directory: apps/chataigne/ui
         run: npm run build

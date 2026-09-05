@@ -23,7 +23,7 @@ use golden_audio::{
 #[cfg(feature = "analysis")]
 use std::{
     sync::{
-        Arc,
+        Arc, Condvar, Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread::JoinHandle,
@@ -210,18 +210,14 @@ fn managed_streaming_continues_while_the_host_thread_is_stalled() {
     );
     wait_until(|| continuity.observed_signal.load(Ordering::Acquire));
 
-    let callbacks_before_stall = callback_count.load(Ordering::Acquire);
+    let callbacks_before_stall = continuity.callback_count();
     continuity.monitor.store(true, Ordering::Release);
-    let stall_deadline = Instant::now() + Duration::from_millis(350);
-    while Instant::now() < stall_deadline {
-        std::hint::spin_loop();
-    }
+    assert!(
+        continuity.wait_for_callbacks(callbacks_before_stall + 50, Duration::from_secs(3)),
+        "the device callback stopped progressing while the host thread was blocked"
+    );
     continuity.monitor.store(false, Ordering::Release);
 
-    assert!(
-        callback_count.load(Ordering::Acquire) >= callbacks_before_stall + 50,
-        "the device callback stopped progressing with the host thread"
-    );
     assert_eq!(
         continuity.silent_callbacks.load(Ordering::Acquire),
         0,
@@ -629,6 +625,28 @@ fn wait_event(events: &golden_audio::AudioEventReceiver, predicate: impl Fn(&Aud
     }
 }
 
+fn wait_event_while_rendering(
+    events: &golden_audio::AudioEventReceiver,
+    renderer: &mut golden_audio::PlaybackVoiceRenderer,
+    predicate: impl Fn(&AudioEvent) -> bool,
+) -> AudioEvent {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut destination = PlanarBuffer::new(256, 128).unwrap();
+    loop {
+        while let Some(event) = events.try_recv() {
+            if predicate(&event) {
+                return event;
+            }
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for playback event while advancing the renderer"
+        );
+        renderer.render(&mut destination, 128).unwrap();
+        thread::yield_now();
+    }
+}
+
 fn wait_playback(engine: &AudioEngine, predicate: impl Fn(PlaybackObservation) -> bool) -> PlaybackObservation {
     let deadline = Instant::now() + Duration::from_secs(3);
     loop {
@@ -678,6 +696,8 @@ struct OutputContinuity {
     observed_signal: AtomicBool,
     monitor: AtomicBool,
     silent_callbacks: AtomicU64,
+    callback_count: Mutex<u64>,
+    callback_progress: Condvar,
 }
 
 #[cfg(feature = "analysis")]
@@ -688,6 +708,23 @@ impl OutputContinuity {
         } else if self.observed_signal.load(Ordering::Acquire) && self.monitor.load(Ordering::Acquire) {
             self.silent_callbacks.fetch_add(1, Ordering::Relaxed);
         }
+
+        let mut callback_count = self.callback_count.lock().unwrap();
+        *callback_count += 1;
+        self.callback_progress.notify_all();
+    }
+
+    fn callback_count(&self) -> u64 {
+        *self.callback_count.lock().unwrap()
+    }
+
+    fn wait_for_callbacks(&self, target: u64, timeout: Duration) -> bool {
+        let callback_count = self.callback_count.lock().unwrap();
+        let (callback_count, _) = self
+            .callback_progress
+            .wait_timeout_while(callback_count, timeout, |count| *count < target)
+            .unwrap();
+        *callback_count >= target
     }
 }
 

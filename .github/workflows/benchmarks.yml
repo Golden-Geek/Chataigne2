@@ -3,7 +3,11 @@ name: Benchmarks
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,6 +22,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Read canonical toolchain manifest
+        id: pins
+        shell: pwsh
+        run: |
+          $pins = Get-Content tools/bootstrap/toolchain.json -Raw | ConvertFrom-Json
+          "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
       - name: Activate repository-pinned Rust toolchain
         run: sh ./tools/bootstrap/install-rust-toolchain.sh
       - uses: Swatinem/rust-cache@v2
@@ -27,56 +40,123 @@ jobs:
         run: bash tools/core/check_tick_path.sh
       - name: Run tests (single-threaded to avoid flaky logger test)
         run: cargo test -p golden_engine -- --test-threads=1
+      - name: Validate benchmark evidence contracts
+        run: python -m unittest tools.qualification.tests.test_bench_compare -v
 
   bench:
     name: Benchmark regression check
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    env:
+      BENCH_EVIDENCE_DIR: ${{ runner.temp }}\bench-evidence
     steps:
       - uses: actions/checkout@v6
         with:
-          # Need full history to diff baseline against main
           fetch-depth: 0
 
+      - name: Read canonical toolchain manifest
+        id: pins
+        shell: pwsh
+        run: |
+          $pins = Get-Content tools/bootstrap/toolchain.json -Raw | ConvertFrom-Json
+          "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
       - name: Activate repository-pinned Rust toolchain
-        run: sh ./tools/bootstrap/install-rust-toolchain.sh
+        shell: pwsh
+        run: ./tools/bootstrap/install-rust-toolchain.ps1
       - uses: Swatinem/rust-cache@v2
         with:
           key: benchmarks-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
 
-      # Run benchmarks and capture output in bencher format.
-      # Short measurement time keeps CI fast; numbers are still regression-detectable.
-      - name: Run tick benchmarks
+      - name: Capture benchmark fingerprint
+        shell: pwsh
         run: |
-          cargo bench --bench tick -p golden_engine \
-            -- --output-format bencher --warm-up-time 2 --measurement-time 5 \
-            2>/dev/null | tee /tmp/bench_tick.txt
+          New-Item -ItemType Directory -Force -Path $env:BENCH_EVIDENCE_DIR | Out-Null
+          $cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1 -ExpandProperty Name).Trim()
+          $fingerprint = @{
+            schema_version = 1
+            fingerprint = @{
+              host = "github-hosted/$env:ImageOS/$env:ImageVersion/$env:RUNNER_ARCH/$cpu"
+              toolchain = (& rustc --version).Trim()
+              profile = "bench"
+              features = @("golden_engine/default")
+            }
+          }
+          $fingerprint | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 `
+            (Join-Path $env:BENCH_EVIDENCE_DIR 'fingerprint.json')
+
+      - name: Run tick benchmarks
+        id: tick
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:BENCH_EVIDENCE_DIR 'tick.log'
+          & cargo bench --bench tick -p golden_engine `
+            -- --output-format bencher --warm-up-time 2 --measurement-time 5 2>&1 |
+            Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run dispatch benchmarks
+        id: dispatch
+        continue-on-error: true
+        shell: pwsh
         run: |
-          cargo bench --bench dispatch -p golden_engine \
-            -- --output-format bencher --warm-up-time 2 --measurement-time 5 \
-            2>/dev/null | tee /tmp/bench_dispatch.txt
+          $log = Join-Path $env:BENCH_EVIDENCE_DIR 'dispatch.log'
+          & cargo bench --bench dispatch -p golden_engine `
+            -- --output-format bencher --warm-up-time 2 --measurement-time 5 2>&1 |
+            Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      # Combine results into one file.
       - name: Combine results
-        run: cat /tmp/bench_tick.txt /tmp/bench_dispatch.txt > /tmp/bench_results.txt
-
-      # Compare against baseline stored in crates/golden_core/engine/benches/baseline.json.
-      # Fails the job when any scenario regresses beyond its threshold.
-      - name: Check regressions
+        if: always()
+        shell: pwsh
         run: |
-          python3 tools/core/bench_compare.py \
-            --results /tmp/bench_results.txt \
-            --baseline crates/golden_core/engine/benches/baseline.json \
-            --output /tmp/bench_summary.md
+          $combined = Join-Path $env:BENCH_EVIDENCE_DIR 'results.txt'
+          $lines = foreach ($name in @('tick.log', 'dispatch.log')) {
+            $path = Join-Path $env:BENCH_EVIDENCE_DIR $name
+            if (Test-Path $path) { Get-Content $path }
+          }
+          [System.IO.File]::WriteAllLines($combined, [string[]]$lines)
+
+      - name: Check regressions
+        id: comparison
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python tools/core/bench_compare.py `
+            --results (Join-Path $env:BENCH_EVIDENCE_DIR 'results.txt') `
+            --baseline crates/golden_core/engine/benches/baseline.json `
+            --fingerprint (Join-Path $env:BENCH_EVIDENCE_DIR 'fingerprint.json') `
+            --output (Join-Path $env:BENCH_EVIDENCE_DIR 'summary.md')
 
       - name: Publish benchmark summary
-        run: cat /tmp/bench_summary.md >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+        shell: pwsh
+        run: |
+          $summary = Join-Path $env:BENCH_EVIDENCE_DIR 'summary.md'
+          if (Test-Path $summary) {
+            Get-Content $summary | Add-Content $env:GITHUB_STEP_SUMMARY
+          } else {
+            '## Benchmark evidence missing' | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
 
-      # Store fresh results as an artifact for a reviewed baseline update.
       - name: Upload benchmark results
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: bench-results-${{ github.sha }}
-          path: /tmp/bench_results.txt
+          path: ${{ env.BENCH_EVIDENCE_DIR }}
+          if-no-files-found: error
           retention-days: 90
+
+      - name: Enforce benchmark outcomes
+        if: always()
+        shell: pwsh
+        run: |
+          $failures = @()
+          if ('${{ steps.tick.outcome }}' -ne 'success') { $failures += 'tick benchmark command failed' }
+          if ('${{ steps.dispatch.outcome }}' -ne 'success') { $failures += 'dispatch benchmark command failed' }
+          if ('${{ steps.comparison.outcome }}' -ne 'success') { $failures += 'benchmark evidence comparison failed' }
+          if ($failures.Count -gt 0) { throw ($failures -join '; ') }

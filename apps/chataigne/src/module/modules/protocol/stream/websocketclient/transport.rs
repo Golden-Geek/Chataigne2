@@ -1,5 +1,6 @@
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, Sender},
@@ -14,7 +15,9 @@ use tokio::runtime::{Builder, Runtime};
 use tokio::time::timeout;
 use tokio_tungstenite::{client_async_with_config, tungstenite::protocol::Message, WebSocketStream};
 
-use golden_io::{pending_channel, PendingReceiver, PendingSender, ReconnectBackoff};
+use golden_io::{
+    pending_channel, PendingDrain, PendingReceiver, PendingSender, ReconnectBackoff,
+};
 use crate::app::module::common::streaming::commands::StreamingSendFrameKind;
 use crate::app::module::common::streaming::websocket::{
     websocket_client_url, websocket_config, websocket_message,
@@ -25,6 +28,8 @@ const WEBSOCKET_RECONNECT_BASE_DELAY: Duration = Duration::from_millis(250);
 const WEBSOCKET_RECONNECT_MAX_DELAY: Duration = Duration::from_secs(5);
 const WEBSOCKET_WORKER_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(3);
+const WEBSOCKET_CLIENT_EVENT_DRAIN_BUDGET: NonZeroUsize =
+    NonZeroUsize::new(1_024).expect("WebSocket client event drain budget must be nonzero");
 
 type ClientWebSocketStream = WebSocketStream<tokio::net::TcpStream>;
 
@@ -91,16 +96,13 @@ impl WebSocketClientTransportHandle {
             .map_err(|_| "WebSocket client worker is no longer running".to_string())
     }
 
-    pub(crate) fn try_recv(&self) -> Result<StreamingWorkerEvent, mpsc::TryRecvError> {
-        self.event_rx.try_recv()
+    pub(crate) fn drain_events(&self, events: &mut Vec<StreamingWorkerEvent>) -> PendingDrain {
+        self.event_rx
+            .drain_into(events, WEBSOCKET_CLIENT_EVENT_DRAIN_BUDGET)
     }
 
     pub(crate) fn has_pending(&self) -> bool {
         self.event_rx.has_pending()
-    }
-
-    pub(crate) fn clear_pending(&self) {
-        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {

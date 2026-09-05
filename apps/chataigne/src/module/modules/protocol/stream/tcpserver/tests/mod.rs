@@ -21,7 +21,7 @@ use super::{
 #[test]
 fn tcp_server_script_template_scaffolds_server_stream_callbacks() {
     let config = crate::app::module::script_api::module_script_config(TcpServerModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("tcp server module script template should resolve to inline source");
     };
 
@@ -238,14 +238,19 @@ fn wait_for_connected_clients(
 
 fn wait_for_client_connected(transport: &TcpServerTransportHandle) {
     for _ in 0..40 {
-        match transport.try_recv() {
-            Ok(TcpServerWorkerEvent::ClientConnected { .. }) => return,
-            Ok(_) => {}
-            Err(std::sync::mpsc::TryRecvError::Empty) => {}
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                panic!("TCP server transport worker should stay alive while waiting for the client")
-            }
+        let mut events = Vec::new();
+        let drain = transport.drain_events(&mut events);
+        if events
+            .iter()
+            .any(|event| matches!(event, TcpServerWorkerEvent::ClientConnected { .. }))
+        {
+            return;
         }
+        assert_ne!(
+            drain.state,
+            golden_io::PendingDrainState::Disconnected,
+            "TCP server transport worker should stay alive while waiting for the client"
+        );
         wait_for_transport_io();
     }
 

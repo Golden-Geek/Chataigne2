@@ -1,11 +1,15 @@
 use std::{
     net::{SocketAddr, ToSocketAddrs, UdpSocket},
+    num::NonZeroUsize,
     sync::mpsc::{self, Receiver, Sender},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
-use golden_io::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{pending_channel, PendingDrain, PendingReceiver, PendingSender};
+
+const UDP_EVENT_DRAIN_BUDGET: NonZeroUsize =
+    NonZeroUsize::new(1_024).expect("UDP event drain budget must be nonzero");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct UdpStreamingTransportConfig {
@@ -64,16 +68,12 @@ impl UdpStreamingTransportHandle {
             .map_err(|_| "UDP worker is no longer running".to_string())
     }
 
-    pub(crate) fn try_recv(&self) -> Result<StreamingWorkerEvent, mpsc::TryRecvError> {
-        self.event_rx.try_recv()
+    pub(crate) fn drain_events(&self, events: &mut Vec<StreamingWorkerEvent>) -> PendingDrain {
+        self.event_rx.drain_into(events, UDP_EVENT_DRAIN_BUDGET)
     }
 
     pub(crate) fn has_pending(&self) -> bool {
         self.event_rx.has_pending()
-    }
-
-    pub(crate) fn clear_pending(&self) {
-        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {

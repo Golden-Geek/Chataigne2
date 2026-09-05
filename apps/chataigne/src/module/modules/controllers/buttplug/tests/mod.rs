@@ -36,7 +36,7 @@ fn buttplug_module_is_a_module_item() {
 #[test]
 fn buttplug_script_template_scaffolds_buttplug_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(ButtplugModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("Buttplug module script template should resolve to inline source");
     };
 

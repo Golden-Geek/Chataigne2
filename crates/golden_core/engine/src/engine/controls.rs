@@ -1315,6 +1315,7 @@ impl<T: Node> Engine<T> {
         let value = match self.evaluate_expression_script(&script_context, script_runtime.clone(), symbols) {
             Ok(value) => value,
             Err(message) => {
+                self.clear_expression_runtime(consumer);
                 diagnostics.push(expression_error_diagnostic(ExpressionErrorStage::Evaluation, message));
                 return None;
             }

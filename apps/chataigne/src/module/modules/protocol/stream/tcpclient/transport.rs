@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Write},
     net::{Shutdown, SocketAddr, TcpStream, ToSocketAddrs},
+    num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, Sender},
@@ -10,13 +11,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use golden_io::{pending_channel, PendingReceiver, PendingSender, ReconnectBackoff};
+use golden_io::{
+    pending_channel, PendingDrain, PendingReceiver, PendingSender, ReconnectBackoff,
+};
 
 const TCP_CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
 const TCP_RECONNECT_BASE_DELAY: Duration = Duration::from_millis(250);
 const TCP_RECONNECT_MAX_DELAY: Duration = Duration::from_secs(5);
 const TCP_WORKER_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const TCP_HEALTH_CHECK_INTERVAL: Duration = Duration::from_millis(250);
+const TCP_CLIENT_EVENT_DRAIN_BUDGET: NonZeroUsize =
+    NonZeroUsize::new(1_024).expect("TCP client event drain budget must be nonzero");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct TcpStreamingTransportConfig {
@@ -78,16 +83,13 @@ impl TcpStreamingTransportHandle {
             .map_err(|_| "TCP worker is no longer running".to_string())
     }
 
-    pub(crate) fn try_recv(&self) -> Result<StreamingWorkerEvent, mpsc::TryRecvError> {
-        self.event_rx.try_recv()
+    pub(crate) fn drain_events(&self, events: &mut Vec<StreamingWorkerEvent>) -> PendingDrain {
+        self.event_rx
+            .drain_into(events, TCP_CLIENT_EVENT_DRAIN_BUDGET)
     }
 
     pub(crate) fn has_pending(&self) -> bool {
         self.event_rx.has_pending()
-    }
-
-    pub(crate) fn clear_pending(&self) {
-        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {

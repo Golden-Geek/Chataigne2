@@ -18,7 +18,7 @@ const MODEL_KEYS: usize = 6;
 fn streamdeck_script_template_scaffolds_functions_and_callbacks() {
     let config =
         crate::app::module::script_api::module_script_config(StreamDeckModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("Stream Deck module script template should resolve to inline source");
     };
 

@@ -260,7 +260,7 @@ fn metronome_tick_callback_payload_preserves_multiplicity_count_and_timing() {
 #[test]
 fn metronomes_script_template_scaffolds_generator_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(MetronomesModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("Metronomes module script template should resolve to inline source");
     };
 

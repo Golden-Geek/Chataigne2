@@ -48,10 +48,31 @@ visible, and rendered node counts.
 
 ## Regression workflow
 
-Use `cargo bench -p golden_engine` for local investigation. A meaningful regression above five
-percent requires investigation against the same toolchain and fixture; do not raise timeouts,
-reduce preview frequency, disable preview, or replace the full-workbench gate with a headless-only
-benchmark.
+Use `cargo bench -p golden_engine` for local investigation. The benchmark workflow is the
+authoritative regression gate because it records the runner image, CPU, Rust toolchain, Cargo
+profile, and feature set beside the raw stdout and stderr. A baseline is comparable only when all
+of those fields match and every explicitly expected scenario has exactly one positive finite
+`ns/iter` measurement. Missing, malformed, duplicate, truncated, extra, or mismatched evidence is
+an invalid qualification, never a pass.
+
+The executable warning and failure thresholds live beside each scenario in
+`crates/golden_core/engine/benches/baseline.json`. The tick scenarios warn above five percent and
+fail above ten percent; dispatch warns above ten percent and fails above fifteen percent. The
+comparator can be run against a downloaded workflow artifact with:
+
+```text
+python tools/core/bench_compare.py \
+  --results target/benchmark-evidence/results.txt \
+  --baseline crates/golden_core/engine/benches/baseline.json \
+  --fingerprint target/benchmark-evidence/fingerprint.json \
+  --output target/benchmark-evidence/summary.md
+```
+
+Only change a baseline to `qualified` using a complete, explained run from the same reference
+hardware and fingerprint used by the gate. Never refresh it automatically after a slowdown or a
+missing case. A meaningful regression above the recorded warning threshold requires investigation;
+do not raise timeouts, reduce preview frequency, disable preview, or replace the full-workbench gate
+with a headless-only benchmark.
 
 The five-minute multi-client soak is documented in
 [release-readiness.md](release-readiness.md). Longer endurance runs may be selected for a release

@@ -6,6 +6,7 @@ use std::{
 
 use tokio::runtime::Builder;
 use tokio_tungstenite::accept_async;
+use golden_io::PendingDrainState;
 
 use super::transport::{
     StreamingWorkerEvent, WebSocketClientConnectionStatus, WebSocketClientTransportConfig,
@@ -51,18 +52,25 @@ fn websocket_transport_client_connects_to_server() {
     .expect("spawn websocket client transport");
 
     let deadline = Instant::now() + Duration::from_secs(2);
-    loop {
-        match handle.try_recv() {
-            Ok(StreamingWorkerEvent::Status(WebSocketClientConnectionStatus::Connected { .. })) => break,
-            Ok(StreamingWorkerEvent::Error(error)) => {
-                panic!("websocket client transport emitted unexpected error: {error}");
-            }
-            Ok(_) => {}
-            Err(std::sync::mpsc::TryRecvError::Empty) => {}
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                panic!("websocket client transport event channel disconnected unexpectedly");
+    'waiting: loop {
+        let mut events = Vec::new();
+        let drain = handle.drain_events(&mut events);
+        for event in events {
+            match event {
+                StreamingWorkerEvent::Status(WebSocketClientConnectionStatus::Connected { .. }) => {
+                    break 'waiting;
+                }
+                StreamingWorkerEvent::Error(error) => {
+                    panic!("websocket client transport emitted unexpected error: {error}");
+                }
+                _ => {}
             }
         }
+        assert_ne!(
+            drain.state,
+            PendingDrainState::Disconnected,
+            "websocket client transport event channel disconnected unexpectedly"
+        );
 
         if Instant::now() >= deadline {
             panic!("timed out waiting for websocket client connected status");

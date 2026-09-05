@@ -710,7 +710,7 @@ fn spatializer_supported_scale_uses_sparse_delaunay_topology() {
 #[test]
 fn spatializer_script_template_documents_value_matrix_surface() {
     let config = crate::app::module::script_api::module_script_config(SpatializerModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("Spatializer module script template should resolve to inline source");
     };
 

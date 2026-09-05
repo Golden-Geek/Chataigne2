@@ -8,6 +8,8 @@ use serde_json::json;
 
 use super::ScriptEvent;
 
+mod runtime_recovery;
+
 #[test]
 fn custom_event_payload_can_target_named_script_callback() {
     let event = ScriptEvent {

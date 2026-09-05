@@ -1,42 +1,9 @@
-use std::{
-    sync::mpsc::TryRecvError,
-    thread,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use crate::testkit::{TestTransportSendError, test_transport_pair};
-use crate::{BoundedQueue, ReconnectBackoff, WorkerTask, pending_channel};
+use crate::{BoundedQueue, ReconnectBackoff, WorkerTask};
 
-#[test]
-fn pending_signal_tracks_worker_events_without_polling() {
-    let (sender, receiver) = pending_channel();
-    assert!(!receiver.has_pending());
-
-    sender.send(7_u8).expect("receiver is alive");
-    assert!(receiver.has_pending());
-
-    receiver.clear_pending();
-    assert_eq!(receiver.try_recv(), Ok(7));
-    assert!(!receiver.has_pending());
-    assert_eq!(receiver.try_recv(), Err(TryRecvError::Empty));
-}
-
-#[test]
-fn event_arriving_during_a_drain_remains_observable() {
-    let (sender, receiver) = pending_channel();
-    sender.send(1_u8).expect("receiver is alive");
-
-    receiver.clear_pending();
-    assert_eq!(receiver.try_recv(), Ok(1));
-
-    thread::spawn(move || sender.send(2_u8).expect("receiver is alive"))
-        .join()
-        .expect("worker exits cleanly");
-
-    assert!(receiver.has_pending());
-    receiver.clear_pending();
-    assert_eq!(receiver.try_recv(), Ok(2));
-}
+mod pending;
 
 #[test]
 fn reconnect_backoff_is_capped_and_resets_after_success() {

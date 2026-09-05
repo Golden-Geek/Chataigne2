@@ -37,7 +37,7 @@ fn osc_module_script_descriptor_advertises_message_send_method() {
 fn osc_module_script_template_scaffolds_osc_callbacks_only() {
     let osc_module_type = <GenericOscModule as golden_core::node::DeclaredUserItemNode>::ITEM_NODE_TYPE;
     let config = crate::app::module::script_api::module_script_config(osc_module_type);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("osc module script template should resolve to inline source");
     };
 

@@ -55,7 +55,7 @@ fn mouse_events_update_values() {
 #[test]
 fn mouse_script_template_scaffolds_mouse_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(MouseModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("mouse module script template should resolve to inline source");
     };
 

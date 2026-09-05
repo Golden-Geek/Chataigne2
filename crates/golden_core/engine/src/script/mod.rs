@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -45,8 +45,14 @@ impl ScriptHostPolicy {
 pub struct ScriptBudgets {
     /// Maximum VM instruction target for one callback.
     pub max_instructions_per_callback: u64,
+    /// Maximum VM instruction target while loading source and manifest state.
+    #[serde(default = "default_script_load_instruction_budget")]
+    pub max_instructions_per_load: u64,
     /// Maximum callback wall time in microseconds.
     pub max_wall_time_us_per_callback: u64,
+    /// Maximum source-load wall time in microseconds.
+    #[serde(default = "default_script_load_wall_time_us")]
+    pub max_wall_time_us_per_load: u64,
     /// Maximum runtime memory target in bytes.
     pub max_memory_bytes: usize,
     /// Maximum host API calls per callback.
@@ -61,7 +67,9 @@ impl Default for ScriptBudgets {
     fn default() -> Self {
         Self {
             max_instructions_per_callback: 200_000,
+            max_instructions_per_load: default_script_load_instruction_budget(),
             max_wall_time_us_per_callback: 50_000,
+            max_wall_time_us_per_load: default_script_load_wall_time_us(),
             max_memory_bytes: 16 * 1024 * 1024,
             max_host_calls_per_callback: 1_024,
             max_emitted_edits_per_tick: 512,
@@ -70,30 +78,44 @@ impl Default for ScriptBudgets {
     }
 }
 
+const fn default_script_load_instruction_budget() -> u64 {
+    1_000_000
+}
+
+const fn default_script_load_wall_time_us() -> u64 {
+    250_000
+}
+
 /// Script source selection.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ScriptSource {
     /// Inline source text stored in node state.
-    Inline(String),
+    Inline {
+        /// Inline script text.
+        text: String,
+    },
     /// Project-relative file path.
-    ProjectFile(String),
+    ProjectFile {
+        /// Project-relative script path.
+        path: String,
+    },
 }
 
 impl ScriptSource {
     /// Resolves this source to an on-disk path when file-backed.
     pub fn resolve_path(&self) -> Option<PathBuf> {
         match self {
-            Self::Inline(_) => None,
-            Self::ProjectFile(path) => Some(PathBuf::from(path)),
+            Self::Inline { .. } => None,
+            Self::ProjectFile { path } => Some(PathBuf::from(path)),
         }
     }
 
     /// Loads source text from configured source.
     pub fn load_text(&self) -> Result<String, ScriptRuntimeError> {
         match self {
-            Self::Inline(text) => Ok(text.clone()),
-            Self::ProjectFile(path) => {
+            Self::Inline { text } => Ok(text.clone()),
+            Self::ProjectFile { path } => {
                 let resolved = self.resolve_path().unwrap_or_else(|| PathBuf::from(path));
                 std::fs::read_to_string(&resolved).map_err(|err| {
                     ScriptRuntimeError::Io(format!("failed to read script file '{}': {err}", resolved.display()))
@@ -103,14 +125,14 @@ impl ScriptSource {
     }
 
     fn is_file_backed(&self) -> bool {
-        matches!(self, Self::ProjectFile(_))
+        matches!(self, Self::ProjectFile { .. })
     }
 
     fn runtime_source_name(&self) -> String {
         match self {
-            Self::Inline(_) => "inline_script.js".to_string(),
-            Self::ProjectFile(path) if !path.trim().is_empty() => path.clone(),
-            Self::ProjectFile(_) => "script_file.js".to_string(),
+            Self::Inline { .. } => "inline_script.js".to_string(),
+            Self::ProjectFile { path } if !path.trim().is_empty() => path.clone(),
+            Self::ProjectFile { .. } => "script_file.js".to_string(),
         }
     }
 }
@@ -123,6 +145,10 @@ const SCRIPT_TEMPLATE_DEFAULT_SOURCE: &str = include_str!("templates/default.js"
 const SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ: u32 = 60;
 const SCRIPT_FILE_RELOAD_POLL_HZ: u32 = 30;
 const SCRIPT_HOST_CALL_BUDGET_MESSAGE: &str = "script host-call budget exceeded in current callback";
+const SCRIPT_MAX_STACK_BYTES: usize = 512 * 1024;
+const SCRIPT_MAX_HOST_LABEL_BYTES: usize = 1_024;
+const SCRIPT_MAX_HOST_MESSAGE_BYTES: usize = 64 * 1_024;
+const SCRIPT_MAX_HOST_JSON_BYTES: usize = 1_024 * 1_024;
 
 struct ScriptTemplateResolved {
     source: String,
@@ -353,7 +379,7 @@ impl ScriptNodeConfig {
     pub fn for_host_node_type(host_node_type: &str) -> Self {
         let template = resolve_template_for_host(host_node_type);
         Self {
-            source: ScriptSource::Inline(template.source),
+            source: ScriptSource::Inline { text: template.source },
         }
     }
 
@@ -364,7 +390,7 @@ impl ScriptNodeConfig {
     ) -> Option<Self> {
         let template = resolve_template_for_host_in_dir(host_node_type, template_dir.as_ref())?;
         Some(Self {
-            source: ScriptSource::Inline(template.source),
+            source: ScriptSource::Inline { text: template.source },
         })
     }
 
@@ -387,7 +413,7 @@ impl ScriptNodeConfig {
             return Ok(());
         }
 
-        let ScriptSource::ProjectFile(raw_path) = &self.source else {
+        let ScriptSource::ProjectFile { path: raw_path } = &self.source else {
             return Ok(());
         };
         Err(ScriptRuntimeError::InvalidManifest(format!(
@@ -421,8 +447,8 @@ pub enum ScriptUiSource {
 impl From<&ScriptSource> for ScriptUiSource {
     fn from(value: &ScriptSource) -> Self {
         match value {
-            ScriptSource::Inline(text) => Self::Inline { text: text.clone() },
-            ScriptSource::ProjectFile(path) => Self::ProjectFile { path: path.clone() },
+            ScriptSource::Inline { text } => Self::Inline { text: text.clone() },
+            ScriptSource::ProjectFile { path } => Self::ProjectFile { path: path.clone() },
         }
     }
 }
@@ -430,8 +456,8 @@ impl From<&ScriptSource> for ScriptUiSource {
 impl From<ScriptUiSource> for ScriptSource {
     fn from(value: ScriptUiSource) -> Self {
         match value {
-            ScriptUiSource::Inline { text } => Self::Inline(text),
-            ScriptUiSource::ProjectFile { path } => Self::ProjectFile(path),
+            ScriptUiSource::Inline { text } => Self::Inline { text },
+            ScriptUiSource::ProjectFile { path } => Self::ProjectFile { path },
         }
     }
 }
@@ -985,9 +1011,177 @@ struct QuickJsEntrypoints {
     exports: Vec<String>,
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ScriptInterruptReason {
+    None = 0,
+    Cancelled = 1,
+    Deadline = 2,
+    InstructionBudget = 3,
+}
+
+impl ScriptInterruptReason {
+    fn from_raw(value: u8) -> Self {
+        match value {
+            1 => Self::Cancelled,
+            2 => Self::Deadline,
+            3 => Self::InstructionBudget,
+            _ => Self::None,
+        }
+    }
+
+    fn description(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Cancelled => "was cancelled",
+            Self::Deadline => "exceeded its monotonic wall-time deadline",
+            Self::InstructionBudget => "exceeded its VM instruction target",
+        }
+    }
+}
+
+struct ScriptInterruptState {
+    clock_origin: Instant,
+    active_depth: AtomicU32,
+    deadline_ns: AtomicU64,
+    instruction_budget: AtomicU64,
+    interrupt_checks: AtomicU64,
+    cancelled: AtomicBool,
+    reason: AtomicU8,
+    poisoned: AtomicBool,
+}
+
+impl ScriptInterruptState {
+    fn new() -> Self {
+        Self {
+            clock_origin: Instant::now(),
+            active_depth: AtomicU32::new(0),
+            deadline_ns: AtomicU64::new(0),
+            instruction_budget: AtomicU64::new(0),
+            interrupt_checks: AtomicU64::new(0),
+            cancelled: AtomicBool::new(false),
+            reason: AtomicU8::new(ScriptInterruptReason::None as u8),
+            poisoned: AtomicBool::new(false),
+        }
+    }
+
+    fn now_ns(&self) -> u64 {
+        u64::try_from(self.clock_origin.elapsed().as_nanos()).unwrap_or(u64::MAX)
+    }
+
+    fn begin(self: &Arc<Self>, wall_time: Duration, instruction_budget: u64) -> ScriptInvocationGuard {
+        let previous_deadline = self.deadline_ns.load(Ordering::Acquire);
+        let previous_instruction_budget = self.instruction_budget.load(Ordering::Acquire);
+        let depth = self.active_depth.fetch_add(1, Ordering::AcqRel);
+        let proposed_deadline = self
+            .now_ns()
+            .saturating_add(u64::try_from(wall_time.as_nanos()).unwrap_or(u64::MAX))
+            .max(1);
+        let proposed_instruction_budget = instruction_budget.max(1);
+
+        if depth == 0 {
+            self.cancelled.store(false, Ordering::Release);
+            self.reason.store(ScriptInterruptReason::None as u8, Ordering::Release);
+            self.interrupt_checks.store(0, Ordering::Release);
+            self.deadline_ns.store(proposed_deadline, Ordering::Release);
+            self.instruction_budget
+                .store(proposed_instruction_budget, Ordering::Release);
+        } else {
+            self.deadline_ns
+                .store(previous_deadline.min(proposed_deadline), Ordering::Release);
+            self.instruction_budget.store(
+                previous_instruction_budget.min(proposed_instruction_budget),
+                Ordering::Release,
+            );
+        }
+
+        ScriptInvocationGuard {
+            state: Arc::clone(self),
+            previous_deadline,
+            previous_instruction_budget,
+        }
+    }
+
+    fn request_cancel(&self) {
+        if self.active_depth.load(Ordering::Acquire) > 0 {
+            self.cancelled.store(true, Ordering::Release);
+        }
+    }
+
+    fn record_reason(&self, reason: ScriptInterruptReason) -> bool {
+        let _ = self.reason.compare_exchange(
+            ScriptInterruptReason::None as u8,
+            reason as u8,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        );
+        true
+    }
+
+    fn should_interrupt(&self) -> bool {
+        if self.active_depth.load(Ordering::Acquire) == 0 {
+            return false;
+        }
+        if self.cancelled.load(Ordering::Acquire) {
+            return self.record_reason(ScriptInterruptReason::Cancelled);
+        }
+
+        let deadline = self.deadline_ns.load(Ordering::Acquire);
+        if deadline != 0 && self.now_ns() >= deadline {
+            return self.record_reason(ScriptInterruptReason::Deadline);
+        }
+
+        let checks = self.interrupt_checks.fetch_add(1, Ordering::Relaxed) + 1;
+        let budget = self.instruction_budget.load(Ordering::Acquire);
+        if budget != 0 && checks > budget {
+            return self.record_reason(ScriptInterruptReason::InstructionBudget);
+        }
+        false
+    }
+
+    fn interrupt_reason(&self) -> ScriptInterruptReason {
+        ScriptInterruptReason::from_raw(self.reason.load(Ordering::Acquire))
+    }
+}
+
+struct ScriptInvocationGuard {
+    state: Arc<ScriptInterruptState>,
+    previous_deadline: u64,
+    previous_instruction_budget: u64,
+}
+
+impl Drop for ScriptInvocationGuard {
+    fn drop(&mut self) {
+        let previous_depth = self.state.active_depth.fetch_sub(1, Ordering::AcqRel);
+        if previous_depth <= 1 {
+            self.state.deadline_ns.store(0, Ordering::Release);
+            self.state.instruction_budget.store(0, Ordering::Release);
+            self.state.cancelled.store(false, Ordering::Release);
+        } else {
+            self.state.deadline_ns.store(self.previous_deadline, Ordering::Release);
+            self.state
+                .instruction_budget
+                .store(self.previous_instruction_budget, Ordering::Release);
+        }
+    }
+}
+
+/// Thread-safe cancellation handle for the currently active JavaScript entry.
+#[derive(Clone)]
+pub struct ScriptCancellationHandle {
+    state: Arc<ScriptInterruptState>,
+}
+
+impl ScriptCancellationHandle {
+    /// Requests interruption of the currently active entry. Calling this while idle is a no-op.
+    pub fn cancel(&self) {
+        self.state.request_cancel();
+    }
+}
+
 /// QuickJS-backed script runtime.
 pub struct QuickJsRuntime {
-    _runtime: QuickJsRuntimeHandle,
+    runtime: QuickJsRuntimeHandle,
     context: QuickJsContext,
     budgets: ScriptBudgets,
     entrypoints: QuickJsEntrypoints,
@@ -995,6 +1189,7 @@ pub struct QuickJsRuntime {
     host_ops: Arc<Mutex<Vec<ScriptHostOp>>>,
     host_call_counter: Arc<AtomicU32>,
     tree_bridge_state: Arc<Mutex<QuickJsTreeBridgeState>>,
+    interrupt_state: Arc<ScriptInterruptState>,
 }
 
 impl QuickJsRuntime {
@@ -1002,13 +1197,17 @@ impl QuickJsRuntime {
     pub fn new(budgets: ScriptBudgets) -> Result<Self, ScriptRuntimeError> {
         let runtime = QuickJsRuntimeHandle::new()?;
         runtime.set_memory_limit(budgets.max_memory_bytes);
+        runtime.set_max_stack_size(SCRIPT_MAX_STACK_BYTES);
+        let interrupt_state = Arc::new(ScriptInterruptState::new());
+        let handler_state = Arc::clone(&interrupt_state);
+        runtime.set_interrupt_handler(Some(Box::new(move || handler_state.should_interrupt())));
         let context = QuickJsContext::full(&runtime)?;
         let host_ops = Arc::new(Mutex::new(Vec::new()));
         let host_call_counter = Arc::new(AtomicU32::new(0));
         let tree_bridge_state = Arc::new(Mutex::new(QuickJsTreeBridgeState::default()));
 
-        let mut runtime = Self {
-            _runtime: runtime,
+        let runtime = Self {
+            runtime,
             context,
             budgets,
             entrypoints: QuickJsEntrypoints::default(),
@@ -1016,12 +1215,31 @@ impl QuickJsRuntime {
             host_ops,
             host_call_counter,
             tree_bridge_state,
+            interrupt_state,
         };
-        runtime.install_host_api()?;
+        runtime.load_timed("host API bootstrap", || runtime.install_host_api())?;
         Ok(runtime)
     }
 
-    fn install_host_api(&mut self) -> Result<(), ScriptRuntimeError> {
+    /// Returns a handle that can cancel an entry from a watchdog or owning runtime.
+    pub fn cancellation_handle(&self) -> ScriptCancellationHandle {
+        ScriptCancellationHandle {
+            state: Arc::clone(&self.interrupt_state),
+        }
+    }
+
+    fn validate_host_input_size(value: &str, label: &str, max_bytes: usize) -> Result<(), QuickJsError> {
+        if value.len() <= max_bytes {
+            return Ok(());
+        }
+        Err(QuickJsError::new_from_js_message(
+            "script",
+            "host",
+            format!("script host {label} exceeds {max_bytes} bytes"),
+        ))
+    }
+
+    fn install_host_api(&self) -> Result<(), ScriptRuntimeError> {
         let max_host_calls = self.budgets.max_host_calls_per_callback.max(1);
         let shared_host_ops = Arc::clone(&self.host_ops);
         let shared_host_call_counter = Arc::clone(&self.host_call_counter);
@@ -1036,6 +1254,11 @@ impl QuickJsRuntime {
                 if call_count > max_host_calls {
                     return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
                 }
+                QuickJsRuntime::validate_host_input_size(
+                    message.as_str(),
+                    "log message",
+                    SCRIPT_MAX_HOST_MESSAGE_BYTES,
+                )?;
 
                 let level = ScriptLogLevel::from_manifest_label(&level_label).ok_or_else(|| QuickJsError::new_from_js_message("string", "scriptLogLevel", format!("invalid log level '{level_label}'")))?;
                 let mut guard = log_host_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
@@ -1050,6 +1273,19 @@ impl QuickJsRuntime {
                 let call_count = emit_host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if call_count > max_host_calls {
                     return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+
+                QuickJsRuntime::validate_host_input_size(
+                    topic.as_str(),
+                    "event topic",
+                    SCRIPT_MAX_HOST_LABEL_BYTES,
+                )?;
+                if let Some(payload_json) = payload_json.as_deref() {
+                    QuickJsRuntime::validate_host_input_size(
+                        payload_json,
+                        "event payload",
+                        SCRIPT_MAX_HOST_JSON_BYTES,
+                    )?;
                 }
 
                 let payload_json = serde_json::from_str::<JsonValue>(payload_json.as_deref().unwrap_or("null")).unwrap_or(JsonValue::Null);
@@ -1127,6 +1363,11 @@ impl QuickJsRuntime {
                 if call_count > max_host_calls {
                     return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
                 }
+                QuickJsRuntime::validate_host_input_size(
+                    key.as_str(),
+                    "tree key",
+                    SCRIPT_MAX_HOST_LABEL_BYTES,
+                )?;
 
                 let node_id = u64::try_from(node_id_raw).map_err(|_| QuickJsError::new_from_js_message("number", "nodeId", "node id must be a non-negative integer"))?;
                 let state = tree_get_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
@@ -1193,6 +1434,18 @@ impl QuickJsRuntime {
                 if call_count > max_host_calls {
                     return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
                 }
+                QuickJsRuntime::validate_host_input_size(
+                    property.as_str(),
+                    "property name",
+                    SCRIPT_MAX_HOST_LABEL_BYTES,
+                )?;
+                if let Some(value_json) = value_json.as_deref() {
+                    QuickJsRuntime::validate_host_input_size(
+                        value_json,
+                        "property value",
+                        SCRIPT_MAX_HOST_JSON_BYTES,
+                    )?;
+                }
                 let node_id = u64::try_from(node_id_raw).map_err(|_| QuickJsError::new_from_js_message("number", "nodeId", "node id must be a non-negative integer"))?;
                 let property = property.trim();
                 if property.is_empty() {
@@ -1227,6 +1480,18 @@ impl QuickJsRuntime {
                 let call_count = tree_call_method_counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if call_count > max_host_calls {
                     return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                QuickJsRuntime::validate_host_input_size(
+                    method.as_str(),
+                    "method name",
+                    SCRIPT_MAX_HOST_LABEL_BYTES,
+                )?;
+                if let Some(args_json) = args_json.as_deref() {
+                    QuickJsRuntime::validate_host_input_size(
+                        args_json,
+                        "method arguments",
+                        SCRIPT_MAX_HOST_JSON_BYTES,
+                    )?;
                 }
                 let node_id = u64::try_from(node_id_raw).map_err(|_| QuickJsError::new_from_js_message("number", "nodeId", "node id must be a non-negative integer"))?;
                 let method = method.trim();
@@ -1893,21 +2158,110 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         Ok(())
     }
 
+    fn discard_host_ops(&self) -> Result<(), ScriptRuntimeError> {
+        self.host_ops
+            .lock()
+            .map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?
+            .clear();
+        Ok(())
+    }
+
+    fn finish_host_invocation<T>(
+        &self,
+        result: Result<T, ScriptRuntimeError>,
+        host: Option<&mut dyn ScriptHostBridge>,
+    ) -> Result<T, ScriptRuntimeError> {
+        let value = match result {
+            Ok(value) => value,
+            Err(error) => {
+                self.discard_host_ops()?;
+                self.interrupt_state.poisoned.store(true, Ordering::Release);
+                return Err(error);
+            }
+        };
+
+        let commit_result = match host {
+            Some(host) => self.flush_host_ops(host),
+            None => self.discard_host_ops(),
+        };
+        if commit_result.is_err() {
+            self.interrupt_state.poisoned.store(true, Ordering::Release);
+        }
+        commit_result?;
+        Ok(value)
+    }
+
     fn callback_timed<T, F>(&self, phase_label: &str, callback: F) -> Result<T, ScriptRuntimeError>
     where
         F: FnOnce() -> Result<T, ScriptRuntimeError>,
     {
+        self.invocation_timed(
+            phase_label,
+            self.budgets.max_wall_time_us_per_callback,
+            self.budgets.max_instructions_per_callback,
+            callback,
+        )
+    }
+
+    fn load_timed<T, F>(&self, phase_label: &str, callback: F) -> Result<T, ScriptRuntimeError>
+    where
+        F: FnOnce() -> Result<T, ScriptRuntimeError>,
+    {
+        self.invocation_timed(
+            phase_label,
+            self.budgets.max_wall_time_us_per_load,
+            self.budgets.max_instructions_per_load,
+            callback,
+        )
+    }
+
+    fn invocation_timed<T, F>(
+        &self,
+        phase_label: &str,
+        wall_time_us: u64,
+        instruction_budget: u64,
+        callback: F,
+    ) -> Result<T, ScriptRuntimeError>
+    where
+        F: FnOnce() -> Result<T, ScriptRuntimeError>,
+    {
+        if self.interrupt_state.poisoned.load(Ordering::Acquire) {
+            return Err(ScriptRuntimeError::QuickJs(
+                "script runtime is quarantined after a failed invocation; reload is required".to_string(),
+            ));
+        }
+
+        let elapsed_limit = Duration::from_micros(wall_time_us.max(1));
+        let invocation_guard = self.interrupt_state.begin(elapsed_limit, instruction_budget);
         let started_at = Instant::now();
-        let output = callback()?;
+        let mut output = callback();
+        if output.is_ok() && self.runtime.is_job_pending() {
+            output = Err(ScriptRuntimeError::BudgetViolation(format!(
+                "{phase_label} queued asynchronous jobs, which are unsupported by the synchronous script host"
+            )));
+        }
         let elapsed = started_at.elapsed();
-        let elapsed_limit = Duration::from_micros(self.budgets.max_wall_time_us_per_callback.max(1));
-        if elapsed > elapsed_limit {
+        let interrupt_reason = self.interrupt_state.interrupt_reason();
+        drop(invocation_guard);
+
+        if interrupt_reason != ScriptInterruptReason::None {
+            self.interrupt_state.poisoned.store(true, Ordering::Release);
             return Err(ScriptRuntimeError::BudgetViolation(format!(
-                "{phase_label} callback exceeded wall-time budget: {:?} > {:?}",
+                "{phase_label} {}",
+                interrupt_reason.description()
+            )));
+        }
+        if elapsed > elapsed_limit {
+            self.interrupt_state.poisoned.store(true, Ordering::Release);
+            return Err(ScriptRuntimeError::BudgetViolation(format!(
+                "{phase_label} exceeded wall-time budget: {:?} > {:?}",
                 elapsed, elapsed_limit
             )));
         }
-        Ok(output)
+        if output.is_err() {
+            self.interrupt_state.poisoned.store(true, Ordering::Release);
+        }
+        output
     }
 
     fn param_value_from_json(value: &JsonValue) -> Result<ParamValue, String> {
@@ -2490,52 +2844,59 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
 
         let source_name = source_name.to_string();
         let preprocessed_source = Self::preprocess_source_for_exported_functions(source);
-        let (entrypoints, manifest_json) = self.context.with(|ctx| -> Result<(QuickJsEntrypoints, String), ScriptRuntimeError> {
-            let result = (|| -> Result<(QuickJsEntrypoints, String), QuickJsError> {
-                let mut bootstrap_options = QuickJsEvalOptions::default();
-                bootstrap_options.filename = Some(format!("{source_name}#bootstrap"));
-                ctx.eval_with_options::<(), _>(bootstrap, bootstrap_options)?;
+        let load_result = self.load_timed("script load", || {
+            self.context
+                .with(|ctx| -> Result<(QuickJsEntrypoints, String), ScriptRuntimeError> {
+                    let result = (|| -> Result<(QuickJsEntrypoints, String), QuickJsError> {
+                        let mut bootstrap_options = QuickJsEvalOptions::default();
+                        bootstrap_options.filename = Some(format!("{source_name}#bootstrap"));
+                        ctx.eval_with_options::<(), _>(bootstrap, bootstrap_options)?;
 
-                let mut eval_options = QuickJsEvalOptions::default();
-                eval_options.filename = Some(source_name.clone());
-                ctx.eval_with_options::<(), _>(preprocessed_source.as_str(), eval_options)?;
+                        let mut eval_options = QuickJsEvalOptions::default();
+                        eval_options.filename = Some(source_name.clone());
+                        ctx.eval_with_options::<(), _>(preprocessed_source.as_str(), eval_options)?;
 
-                let globals = ctx.globals();
-                let root_value: QuickJsValue = globals.get("__gc_script_manifest")?;
-                if root_value.is_null() || root_value.is_undefined() || !root_value.is_object() {
-                    return Err(QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object"));
-                }
-                let _root = root_value.into_object().ok_or_else(|| QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object"))?;
+                        let globals = ctx.globals();
+                        let root_value: QuickJsValue = globals.get("__gc_script_manifest")?;
+                        if root_value.is_null() || root_value.is_undefined() || !root_value.is_object() {
+                            return Err(QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object"));
+                        }
+                        let _root = root_value.into_object().ok_or_else(|| QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object"))?;
 
-                let init = Self::first_function_name(&globals, &["init"])?;
-                let update = Self::first_function_name(&globals, &["update"])?;
-                let event = Self::first_function_name(&globals, &["event"])?;
-                let param_changed = Self::first_function_name(&globals, &["paramChanged"])?;
-                let destroy = Self::first_function_name(&globals, &["destroy"])?;
+                        let init = Self::first_function_name(&globals, &["init"])?;
+                        let update = Self::first_function_name(&globals, &["update"])?;
+                        let event = Self::first_function_name(&globals, &["event"])?;
+                        let param_changed = Self::first_function_name(&globals, &["paramChanged"])?;
+                        let destroy = Self::first_function_name(&globals, &["destroy"])?;
 
-                let mut exports = Vec::new();
-                if let Some(export_table) = globals.get::<_, Option<QuickJsObject>>("__gc_script_exports")? {
-                    exports.extend(Self::collect_export_names(&export_table)?);
-                }
-                exports.sort();
-                exports.dedup();
+                        let mut exports = Vec::new();
+                        if let Some(export_table) = globals.get::<_, Option<QuickJsObject>>("__gc_script_exports")? {
+                            exports.extend(Self::collect_export_names(&export_table)?);
+                        }
+                        exports.sort();
+                        exports.dedup();
 
-                let manifest_json = ctx
-                    .eval::<Option<String>, _>("JSON.stringify(globalThis.__gc_script_manifest ?? {}, (key, value) => typeof value === 'function' ? undefined : value)")?
-                    .ok_or_else(|| QuickJsError::new_from_js_message("object", "string", "failed to stringify script manifest"))?;
+                        let manifest_json = ctx
+                            .eval::<Option<String>, _>("JSON.stringify(globalThis.__gc_script_manifest ?? {}, (key, value) => typeof value === 'function' ? undefined : value)")?
+                            .ok_or_else(|| QuickJsError::new_from_js_message("object", "string", "failed to stringify script manifest"))?;
 
-                Ok((QuickJsEntrypoints { init, update, event, param_changed, destroy, exports }, manifest_json))
-            })();
-            result.map_err(|error| Self::quickjs_error_with_context(&ctx, "script load", error))
-        })?;
+                        Ok((QuickJsEntrypoints { init, update, event, param_changed, destroy, exports }, manifest_json))
+                    })();
+                    result.map_err(|error| Self::quickjs_error_with_context(&ctx, "script load", error))
+                })
+        });
+        let (entrypoints, manifest_json) = match load_result {
+            Ok(value) => value,
+            Err(error) => {
+                self.discard_host_ops()?;
+                return Err(error);
+            }
+        };
 
-        if let Some(host_ref) = host {
-            self.flush_host_ops(host_ref)?;
-        }
-
-        let manifest_payload = serde_json::from_str::<JsonValue>(&manifest_json)
-            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse manifest JSON: {err}")))?;
-        let manifest = parse_manifest_from_json(&manifest_payload, entrypoints.exports.clone())?;
+        let manifest_result = serde_json::from_str::<JsonValue>(&manifest_json)
+            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse manifest JSON: {err}")))
+            .and_then(|manifest_payload| parse_manifest_from_json(&manifest_payload, entrypoints.exports.clone()));
+        let manifest = self.finish_host_invocation(manifest_result, host)?;
 
         self.entrypoints = entrypoints;
         self.manifest = Some(manifest.clone());
@@ -2590,9 +2951,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 result.map_err(|error| Self::enrich_runtime_error_with_context(&ctx, "export callback", error))
             })
         });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
+        self.finish_host_invocation(result, Some(host))
     }
 
     fn call_on_init(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
@@ -2614,9 +2973,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 result.map_err(|error| Self::enrich_runtime_error_with_context(&ctx, "on_init callback", error))
             })
         });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
+        self.finish_host_invocation(result, Some(host))
     }
 
     fn call_on_update(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
@@ -2639,9 +2996,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 result.map_err(|error| Self::enrich_runtime_error_with_context(&ctx, "on_update callback", error))
             })
         });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
+        self.finish_host_invocation(result, Some(host))
     }
 
     fn call_on_event(
@@ -2728,9 +3083,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 result.map_err(|error| Self::enrich_runtime_error_with_context(&ctx, "on_event callback", error))
             })
         });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
+        self.finish_host_invocation(result, Some(host))
     }
 
     fn call_on_destroy(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
@@ -2752,9 +3105,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 result.map_err(|error| Self::enrich_runtime_error_with_context(&ctx, "on_destroy callback", error))
             })
         });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
+        self.finish_host_invocation(result, Some(host))
     }
 
     fn has_on_update(&self) -> bool {
@@ -3591,8 +3942,8 @@ impl ScriptNode {
         };
 
         match &self.config.source {
-            ScriptSource::Inline(source) => Ok(hash_source_text(source) != last_stamp.source_hash),
-            ScriptSource::ProjectFile(_) => {
+            ScriptSource::Inline { text } => Ok(hash_source_text(text) != last_stamp.source_hash),
+            ScriptSource::ProjectFile { .. } => {
                 let current_modified = self.source_file_modified();
                 if current_modified.is_some() && current_modified == last_stamp.file_modified {
                     return Ok(false);
@@ -3672,6 +4023,12 @@ impl ScriptNode {
             format!("Script runtime error: {error}"),
             None,
         );
+    }
+
+    fn quarantine_runtime_after_error(&mut self) {
+        self.runtime = None;
+        self.source_stamp = None;
+        self.reload_requested = true;
     }
 }
 
@@ -3898,6 +4255,7 @@ impl Node for ScriptNode {
             }
         }
         if let Some(error) = runtime_error {
+            self.quarantine_runtime_after_error();
             self.handle_runtime_error(ctx, &error);
         }
     }
@@ -3931,6 +4289,7 @@ impl Node for ScriptNode {
             }
         }
         if let Some(error) = runtime_error {
+            self.quarantine_runtime_after_error();
             self.handle_runtime_error(ctx, &error);
         }
     }

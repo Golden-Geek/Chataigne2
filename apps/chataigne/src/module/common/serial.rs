@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     io::{Read, Write},
+    num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, Sender},
@@ -11,7 +12,8 @@ use std::{
 };
 
 use golden_io::{
-    pending_channel, BoundedQueue, PendingReceiver, PendingSender, ReconnectBackoff, WorkerTask,
+    pending_channel, BoundedQueue, PendingDrain, PendingReceiver, PendingSender, ReconnectBackoff,
+    WorkerTask,
 };
 
 #[cfg(not(windows))]
@@ -32,6 +34,8 @@ const SERIAL_RECONNECT_BASE_DELAY: Duration = Duration::from_millis(250);
 const SERIAL_RECONNECT_MAX_DELAY: Duration = Duration::from_secs(5);
 const SERIAL_PENDING_WRITE_LIMIT: usize = 256;
 const SERIAL_PENDING_WRITE_BYTES_LIMIT: usize = 256 * 1024;
+const SERIAL_EVENT_DRAIN_BUDGET: NonZeroUsize =
+    NonZeroUsize::new(1_024).expect("serial event drain budget must be nonzero");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DiscoveredSerialPort {
@@ -229,16 +233,12 @@ impl SerialConnectionHandle {
             .map_err(|_| "serial connection is no longer running".to_string())
     }
 
-    pub(crate) fn try_recv(&self) -> Result<SerialConnectionEvent, mpsc::TryRecvError> {
-        self.event_rx.try_recv()
+    pub(crate) fn drain_events(&self, events: &mut Vec<SerialConnectionEvent>) -> PendingDrain {
+        self.event_rx.drain_into(events, SERIAL_EVENT_DRAIN_BUDGET)
     }
 
     pub(crate) fn has_pending(&self) -> bool {
         self.event_rx.has_pending()
-    }
-
-    pub(crate) fn clear_pending(&self) {
-        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {

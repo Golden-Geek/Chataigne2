@@ -284,7 +284,7 @@ fn signal_cycle_callback_payload_preserves_cycle_multiplicity_and_details() {
 #[test]
 fn signals_script_template_scaffolds_generator_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(SignalsModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("Signals module script template should resolve to inline source");
     };
 

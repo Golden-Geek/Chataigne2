@@ -11,6 +11,7 @@ use golden_core::{
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use golden_io::PendingDrainState;
 
 use self::osc_runtime::{
     resolve_socket_addr, OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscWorkerEvent,
@@ -295,10 +296,8 @@ impl OscModuleBase {
             return;
         };
 
-        transport.clear_pending();
-        while let Ok(event) = transport.try_recv() {
-            worker_events.push(event);
-        }
+        let worker_disconnected =
+            transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
 
         let mut received_message = false;
         for event in worker_events {
@@ -315,6 +314,13 @@ impl OscModuleBase {
 
         if received_message {
             self.base.emit_incoming_traffic(ctx);
+        }
+
+        if worker_disconnected {
+            logerror!("OSC transport worker disconnected");
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.transport_dirty = true;
         }
     }
 

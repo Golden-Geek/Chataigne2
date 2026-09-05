@@ -91,7 +91,7 @@ fn watched_app_configuration_changes_drive_app_control_tick_need() {
 #[test]
 fn app_control_script_template_scaffolds_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(AppControlModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("App Control module script template should resolve to inline source");
     };
 

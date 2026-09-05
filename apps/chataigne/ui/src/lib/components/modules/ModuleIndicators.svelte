@@ -117,10 +117,8 @@
 		session?.getCustomEventSequence(MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC, liveNode.node_id) ?? 0
 	);
 	let outgoingActivityActive = $derived(
-		session?.getCustomEventPayload<boolean>(
-			SOUND_CARD_OUTPUT_ACTIVITY_TOPIC,
-			liveNode.node_id
-		) === true
+		session?.getCustomEventPayload<boolean>(SOUND_CARD_OUTPUT_ACTIVITY_TOPIC, liveNode.node_id) ===
+			true
 	);
 	let connectionLabel = $derived.by(() => {
 		if (connectionState === true) {

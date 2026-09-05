@@ -89,7 +89,7 @@ fn midi_module_script_descriptor_advertises_send_methods() {
 #[test]
 fn midi_module_script_template_scaffolds_midi_callbacks_only() {
     let config = crate::app::module::script_api::module_script_config(MidiModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("midi module script template should resolve to inline source");
     };
 

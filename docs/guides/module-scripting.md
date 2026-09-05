@@ -11,6 +11,31 @@ its own template file, such as `midi_module.js`, `mqtt_module.js`, `osc_module.j
 Reusable JS documentation snippets in `src/module/script_templates/snippets/` are comment-only
 quick references for the functions available on `local`, the module host proxy.
 
+## Runtime Containment
+
+Every script load, reload, export, lifecycle callback, and teardown runs with a monotonic deadline,
+an interrupt target, and external cancellation support. The default callback allowance is 50 ms and
+200,000 interrupt checks; loads receive 250 ms and 1,000,000 checks. Each runtime is also limited to
+16 MiB of memory, a 512 KiB stack, and 1,024 host calls per callback. These are configurable safety
+allowances, not realtime scheduling guarantees.
+
+The current host is synchronous. Scripts that leave queued Promise jobs are rejected instead of
+silently running asynchronous work outside an invocation budget. Native host functions exposed to
+scripts must remain nonblocking; blocking device or network work belongs behind the owning runtime's
+bounded command queue.
+
+Host-visible logs, custom events, listener changes, property writes, and method calls are staged for
+the invocation. They are admitted in order only after JavaScript and manifest validation succeed.
+An exception, cancellation, or budget violation discards the staged operations. This prevents
+uncommitted effects from escaping but cannot roll back physical I/O after an admitted host command.
+
+A failed context is quarantined because its JavaScript heap may be partially mutated. The script
+node reports a diagnostic and requests a clean runtime on a later tick; unrelated edits, project
+serialization, and engine work continue. Inline sources persist as `{ "kind": "inline", "text":
+"..." }`, and file sources as `{ "kind": "projectFile", "path": "..." }`. This repairs the prior
+internally tagged newtype declaration, which could not serialize a script source, so there is no
+successfully encoded prior representation requiring migration.
+
 ## Common Callbacks
 
 All scriptable modules expose parameter-change callbacks for their standard module folders:

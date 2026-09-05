@@ -11,6 +11,7 @@ use golden_core::{
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use golden_io::PendingDrainState;
 
 use crate::app::{
     module::common::streaming::{
@@ -139,10 +140,8 @@ impl TcpServerModule {
             return;
         };
 
-        transport.clear_pending();
-        while let Ok(event) = transport.try_recv() {
-            worker_events.push(event);
-        }
+        let worker_disconnected =
+            transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
 
         let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
@@ -228,6 +227,13 @@ impl TcpServerModule {
 
         if received_bytes {
             self.stream.emit_incoming_traffic(ctx);
+        }
+
+        if worker_disconnected {
+            logerror!("TCP server transport worker disconnected");
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.transport_dirty = true;
         }
     }
 

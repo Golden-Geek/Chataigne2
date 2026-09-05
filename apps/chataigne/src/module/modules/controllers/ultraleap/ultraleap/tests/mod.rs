@@ -209,7 +209,7 @@ fn ultraleap_disconnect_resets_tracking_outputs() {
 #[test]
 fn ultraleap_script_template_resolves_to_inline_module_template() {
     let config = crate::app::module::script_api::module_script_config(UltraleapModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("ultraleap module script template should resolve to inline source");
     };
 

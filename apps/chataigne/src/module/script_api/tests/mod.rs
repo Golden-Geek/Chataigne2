@@ -216,7 +216,7 @@ fn module_script_templates_document_available_functions_for_each_module() {
 
 fn inline_source_for(host_node_type: &str) -> String {
     let config = super::module_script_config(host_node_type);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("module script config should resolve to inline source for {host_node_type}");
     };
     source

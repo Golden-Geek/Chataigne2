@@ -130,7 +130,7 @@ fn hand_metrics_compute_distance_rotation_and_speed() {
 #[test]
 fn kinect2_script_template_resolves_to_inline_module_template() {
     let config = crate::app::module::script_api::module_script_config(Kinect2Module::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("kinect2 module script template should resolve to inline source");
     };
 

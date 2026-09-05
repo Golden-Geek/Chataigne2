@@ -1,12 +1,16 @@
 use std::{
     io::{Read, Write},
     net::{Shutdown, SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
+    num::NonZeroUsize,
     sync::mpsc::{self, Receiver, Sender},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
-use golden_io::{pending_channel, PendingReceiver, PendingSender};
+use golden_io::{pending_channel, PendingDrain, PendingReceiver, PendingSender};
+
+const TCP_SERVER_EVENT_DRAIN_BUDGET: NonZeroUsize =
+    NonZeroUsize::new(1_024).expect("TCP server event drain budget must be nonzero");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct TcpServerTransportConfig {
@@ -61,16 +65,13 @@ impl TcpServerTransportHandle {
             .map_err(|_| "TCP server worker is no longer running".to_string())
     }
 
-    pub(crate) fn try_recv(&self) -> Result<TcpServerWorkerEvent, mpsc::TryRecvError> {
-        self.event_rx.try_recv()
+    pub(crate) fn drain_events(&self, events: &mut Vec<TcpServerWorkerEvent>) -> PendingDrain {
+        self.event_rx
+            .drain_into(events, TCP_SERVER_EVENT_DRAIN_BUDGET)
     }
 
     pub(crate) fn has_pending(&self) -> bool {
         self.event_rx.has_pending()
-    }
-
-    pub(crate) fn clear_pending(&self) {
-        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {

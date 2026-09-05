@@ -3,6 +3,7 @@ name: Cross-platform Product Qualification
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
     inputs:
       native_platform:
@@ -37,7 +38,7 @@ permissions:
 jobs:
   product-gate:
     name: Product gate (${{ matrix.platform }})
-    if: github.event_name == 'push' || inputs.native_platform != 'none'
+    if: github.event_name != 'workflow_dispatch' || inputs.native_platform != 'none'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     env:
@@ -47,7 +48,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(
-          (github.event_name == 'push' || inputs.native_platform == 'all') &&
+          (github.event_name != 'workflow_dispatch' || inputs.native_platform == 'all') &&
           '[{"platform":"windows","runner":"windows-latest"},{"platform":"macos","runner":"macos-15"},{"platform":"linux","runner":"ubuntu-24.04"}]' ||
           inputs.native_platform == 'linux' &&
           '[{"platform":"linux","runner":"ubuntu-24.04"}]' ||
@@ -218,7 +219,7 @@ jobs:
 
   compatibility-build:
     name: Compatibility build (${{ matrix.platform }})
-    if: github.event_name == 'push' || inputs.run_compatibility == true
+    if: github.event_name != 'workflow_dispatch' || inputs.run_compatibility == true
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     env:
@@ -354,7 +355,7 @@ jobs:
 
   aggregate:
     name: Aggregate exact-commit reports
-    if: ${{ always() && (github.event_name == 'push' || (inputs.native_platform == 'all' && inputs.run_compatibility == true)) }}
+    if: ${{ always() && (github.event_name != 'workflow_dispatch' || (inputs.native_platform == 'all' && inputs.run_compatibility == true)) }}
     needs: [product-gate, compatibility-build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10

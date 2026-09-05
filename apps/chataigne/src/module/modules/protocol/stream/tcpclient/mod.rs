@@ -1,7 +1,5 @@
 mod transport;
 
-use std::sync::mpsc::TryRecvError;
-
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
@@ -10,6 +8,7 @@ use golden_core::{
     parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use golden_io::PendingDrainState;
 
 use crate::app::{
     module::common::streaming::{
@@ -128,19 +127,9 @@ impl TcpClientModule {
                 return;
             };
 
-            transport.clear_pending();
             let mut worker_events = Vec::new();
-            let mut worker_disconnected = false;
-            loop {
-                match transport.try_recv() {
-                    Ok(event) => worker_events.push(event),
-                    Err(TryRecvError::Empty) => break,
-                    Err(TryRecvError::Disconnected) => {
-                        worker_disconnected = true;
-                        break;
-                    }
-                }
-            }
+            let worker_disconnected =
+                transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
 
             (worker_events, worker_disconnected)
         };

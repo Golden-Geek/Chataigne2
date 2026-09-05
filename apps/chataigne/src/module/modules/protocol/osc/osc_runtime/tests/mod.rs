@@ -1,7 +1,8 @@
 use std::{io, net::UdpSocket, sync::Arc, time::Duration};
 
 use golden_core::parameter::ParamValue;
-use rosc::decoder;
+use golden_io::PendingDrainState;
+use rosc::{decoder, encoder, OscMessage, OscPacket, OscType};
 
 use super::{
     should_ignore_receive_error, OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscValuePayload,
@@ -55,6 +56,54 @@ fn worker_send_uses_waker_and_pre_resolved_remote_address() {
 
     assert_eq!(message.addr, "/test");
     assert_eq!(message.args, vec![rosc::OscType::Int(7)]);
+
+    handle.stop();
+}
+
+#[test]
+fn received_packet_publishes_pending_without_an_unrelated_wakeup() {
+    let reserved = UdpSocket::bind("127.0.0.1:0").expect("test port should be reservable");
+    let port = reserved
+        .local_addr()
+        .expect("reserved socket should expose its address")
+        .port();
+    drop(reserved);
+
+    let mut handle = OscTransportHandle::spawn(OscTransportConfig {
+        bind_interface_host: "127.0.0.1".to_string(),
+        bind_port: port,
+        receive_enabled: true,
+    })
+    .expect("OSC receiver should start");
+    let sender = UdpSocket::bind("127.0.0.1:0").expect("test sender should bind");
+    let packet = OscPacket::Message(OscMessage {
+        addr: "/pending/only-packet".to_string(),
+        args: vec![OscType::Int(17)],
+    });
+    let bytes = encoder::encode(&packet).expect("test OSC packet should encode");
+    sender
+        .send_to(bytes.as_slice(), ("127.0.0.1", port))
+        .expect("test OSC packet should send");
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while !handle.has_pending() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the only OSC packet must publish readiness without a second packet or command wakeup"
+        );
+        std::thread::yield_now();
+    }
+
+    let mut events = Vec::new();
+    let drain = handle.drain_events(&mut events);
+    assert_ne!(drain.state, PendingDrainState::Disconnected);
+    assert_eq!(
+        events,
+        vec![super::OscWorkerEvent::Message(super::OscDecodedMessage {
+            address: "/pending/only-packet".to_string(),
+            payload: OscValuePayload::Single(ParamValue::Int(17)),
+        })]
+    );
 
     handle.stop();
 }

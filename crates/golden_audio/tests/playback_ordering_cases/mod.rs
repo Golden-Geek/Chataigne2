@@ -63,11 +63,7 @@ fn force_restart_false_ignores_pending_and_active_duplicate_ids_without_replacem
             playback_id: playback_id.clone(),
         })
         .unwrap();
-    let mut destination = PlanarBuffer::new(256, 128).unwrap();
-    for _ in 0..6 {
-        renderer.render(&mut destination, 128).unwrap();
-    }
-    let stopped = wait_event(&events, |event| {
+    let stopped = wait_event_while_rendering(&events, &mut renderer, |event| {
         matches!(
             event,
             AudioEvent::PlaybackStopped(info)

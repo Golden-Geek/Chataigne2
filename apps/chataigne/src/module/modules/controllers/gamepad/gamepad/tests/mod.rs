@@ -121,7 +121,7 @@ fn selected_gamepad_events_update_values_after_axis_processing() {
 #[test]
 fn gamepad_script_template_scaffolds_gamepad_callbacks_only() {
     let config = crate::app::module::script_api::module_script_config(GamepadModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("gamepad module script template should resolve to inline source");
     };
 

@@ -133,7 +133,7 @@ fn joycon_module_script_descriptor_advertises_control_methods() {
 #[test]
 fn joycon_module_script_template_scaffolds_joycon_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(JoyConModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("joycon module script template should resolve to inline source");
     };
 

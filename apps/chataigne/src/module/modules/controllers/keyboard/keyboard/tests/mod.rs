@@ -62,7 +62,7 @@ fn keyboard_events_update_values() {
 #[test]
 fn keyboard_script_template_scaffolds_keyboard_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(KeyboardModule::NODE_TYPE);
-    let ScriptSource::Inline(source) = config.source else {
+    let ScriptSource::Inline { text: source } = config.source else {
         panic!("keyboard module script template should resolve to inline source");
     };
 

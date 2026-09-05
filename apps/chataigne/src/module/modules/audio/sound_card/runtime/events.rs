@@ -1,8 +1,8 @@
 use std::{
+    num::NonZeroUsize,
     sync::{
         Arc,
         atomic::{AtomicU32, Ordering},
-        mpsc::TryRecvError,
     },
     thread::{self, JoinHandle},
 };
@@ -74,16 +74,9 @@ impl SoundCardRuntimeEvents {
     }
 
     pub(super) fn drain(&self) -> Vec<AudioEvent> {
-        self.pending.clear_pending();
         let mut events = Vec::new();
-        loop {
-            match self.pending.try_recv() {
-                Ok(event) => events.push(event),
-                Err(TryRecvError::Empty | TryRecvError::Disconnected) => {
-                    return events;
-                }
-            }
-        }
+        self.pending.drain_into(&mut events, NonZeroUsize::MAX);
+        events
     }
 
     pub(super) fn join(&mut self) {

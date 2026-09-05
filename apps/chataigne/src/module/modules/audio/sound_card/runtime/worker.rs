@@ -1,12 +1,13 @@
 use std::{
     fmt,
-    sync::mpsc::{RecvTimeoutError, SendError, TryRecvError},
+    num::NonZeroUsize,
+    sync::mpsc::{RecvTimeoutError, SendError},
     thread,
     time::Duration,
 };
 
 use golden_audio::{BackendId, SampleRate};
-use golden_io::{PendingReceiver, WorkerTask, pending_channel};
+use golden_io::{PendingDrainState, PendingReceiver, WorkerTask, pending_channel};
 
 use super::{RuntimeWakeSender, SoundCardRuntime};
 
@@ -121,13 +122,14 @@ impl SoundCardRuntimeWorker {
         let Some(events) = self.events.as_ref() else {
             return SoundCardRuntimeWorkerPoll::Disconnected;
         };
-        if events.has_pending() {
-            events.clear_pending();
-        }
-        match events.try_recv() {
-            Ok(started) => SoundCardRuntimeWorkerPoll::Started(started),
-            Err(TryRecvError::Empty) => SoundCardRuntimeWorkerPoll::Pending,
-            Err(TryRecvError::Disconnected) => SoundCardRuntimeWorkerPoll::Disconnected,
+        let mut started = Vec::with_capacity(1);
+        let drain = events.drain_into(&mut started, NonZeroUsize::MIN);
+        match started.pop() {
+            Some(started) => SoundCardRuntimeWorkerPoll::Started(started),
+            None if drain.state == PendingDrainState::Disconnected => {
+                SoundCardRuntimeWorkerPoll::Disconnected
+            }
+            None => SoundCardRuntimeWorkerPoll::Pending,
         }
     }
 
