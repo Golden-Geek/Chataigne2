@@ -269,12 +269,15 @@ impl<T: Node> Engine<T> {
         let mut indegree: HashMap<NodeId, usize> = self.nodes.keys().map(|node_id| (node_id, 0usize)).collect(); // PERF-EXCEPTION: resolve only, gated by runtime_resolve_pending; never called in steady-state ticks.
         let mut outgoing: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
 
-        for (node_id, rule) in rules {
+        let mut rule_nodes = rules.keys().copied().collect::<Vec<_>>();
+        rule_nodes.sort_unstable_by_key(|node_id| self.schedule_order_key(*node_id));
+        for node_id in rule_nodes {
+            let rule = &rules[&node_id];
             let mut dedupe = HashSet::new();
             for dependency in &rule.dependencies {
                 if !indegree.contains_key(dependency) {
                     return Err(EngineRuntimeError::MissingDependency {
-                        node: *node_id,
+                        node: node_id,
                         dependency: *dependency,
                     });
                 }
@@ -282,25 +285,25 @@ impl<T: Node> Engine<T> {
                     continue;
                 }
 
-                outgoing.entry(*dependency).or_default().push(*node_id);
-                if let Some(indegree_value) = indegree.get_mut(node_id) {
+                outgoing.entry(*dependency).or_default().push(node_id);
+                if let Some(indegree_value) = indegree.get_mut(&node_id) {
                     *indegree_value += 1;
                 }
             }
         }
 
-        // Vec stack: initial ready set sorted descending so pop() yields ascending node-id order,
-        // preserving the same deterministic tiebreaker as the old BTreeSet approach.
-        // Nodes that become ready mid-traversal are pushed to the back and popped next (LIFO).
-        let mut ready: Vec<NodeId> = indegree
+        // Keep one globally ordered frontier. Newly ready nodes compete with every node already in
+        // the frontier, so HashMap/outgoing traversal and materialization order cannot affect ties.
+        let mut ready: BTreeSet<(u128, u64)> = indegree
             .iter()
-            .filter_map(|(node_id, &deg)| (deg == 0).then_some(*node_id))
+            .filter(|entry| *entry.1 == 0)
+            .map(|(node_id, _)| self.schedule_order_key(*node_id))
             .collect();
-        ready.sort_unstable_by_key(|node| std::cmp::Reverse(node.0));
 
         let mut sorted = Vec::with_capacity(indegree.len());
 
-        while let Some(node_id) = ready.pop() {
+        while let Some((_, raw_node_id)) = ready.pop_first() {
+            let node_id = NodeId(raw_node_id);
             sorted.push(node_id);
 
             if let Some(dependents) = outgoing.get(&node_id) {
@@ -308,7 +311,7 @@ impl<T: Node> Engine<T> {
                     if let Some(indegree_value) = indegree.get_mut(dependent) {
                         *indegree_value -= 1;
                         if *indegree_value == 0 {
-                            ready.push(*dependent);
+                            ready.insert(self.schedule_order_key(*dependent));
                         }
                     }
                 }
@@ -323,8 +326,21 @@ impl<T: Node> Engine<T> {
             .into_iter()
             .filter_map(|(node, indegree)| (indegree > 0).then_some(node))
             .collect();
-        cycle_nodes.sort_by_key(|node| node.0);
+        cycle_nodes.sort_unstable_by_key(|node_id| self.schedule_order_key(*node_id));
 
         Err(EngineRuntimeError::DependencyCycle { nodes: cycle_nodes })
+    }
+
+    fn schedule_order_key(&self, node_id: NodeId) -> (u128, u64) {
+        let stable_uuid = self
+            .nodes
+            .get(node_id)
+            .expect("schedule nodes must belong to the engine")
+            .node_data()
+            .meta
+            .uuid
+            .0
+            .as_u128();
+        (stable_uuid, node_id.0)
     }
 }

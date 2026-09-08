@@ -4,9 +4,9 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the T06 commit: `fe363d2033b0b7a95633acb0b2e33f2e96ebf0ab`
-is checked out with only the T06 implementation and evidence changes in the working tree. T00–T05
-are committed on `main`.
+Current SHA and patch state before the T07 commit: `036cca915d33e9db109bf2e88db848bc6e68289b`
+is checked out with only the T07 implementation and evidence changes in the working tree. T00–T06
+are committed and pushed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -20,22 +20,22 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T06 — restore the parameter cache on every recoverable exit — complete locally. T01's native
+Task: T07 — make topology and effect ordering deterministic — complete locally. T01's native
 qualification and T03's matching hosted reference baseline remain pending.
 
-Owning layers and files: engine scheduled-update and inbox-dispatch paths, runtime error contract,
-and focused cache-recovery tests.
+Owning layers and files: engine schedule compilation and public schedule contract, focused ordering
+and conflict tests, and the runtime performance contract.
 
-Invariant / implementation decision: the parameter cache remains engine-owned and in place while
-callbacks borrow it for binding resolution. Fallible scheduled work restores every extracted
-scratch allocation before propagating an error. A callback is budget-checked before it runs;
-already-admitted callbacks retain their queued edits for the next tick.
+Invariant / implementation decision: every ready-node tie uses one global ordered frontier keyed by
+persistent `NodeUuid`; `NodeId` is only a total-order fallback for malformed duplicate UUIDs. New
+ready nodes compete with the whole frontier. The result is compiled once during resolve and reused
+by buckets and production runtime scheduling without per-tick sorting.
 
-Result and remaining work: scheduled-update and inbox edit-absorption failures can no longer leave
-an empty parameter cache. The update limit rejects the first excess callback without executing it.
-Injected failures prove that unchanged and changed bindings, parameter values, node membership,
-cache contents, retained accepted edits, and later useful work remain coherent. Panic/unwind recovery
-is not claimed. T07 is the next dependency-ready task; T08 is now unblocked.
+Result and remaining work: equivalent graphs with fixed UUIDs now compile identical schedules under
+forward, reverse, and shuffled materialization. Fixtures cover a diamond, multiple initial and newly
+ready ties, disconnected components, cycles, and conflicting same-target values/triggers. A warmed
+20,000-independent-node resolve measured 7.25–8.20 ms over ten samples (7.57 ms median) in the local
+optimized test profile. T14/T18 still own cross-worker real-kernel determinism and scaling.
 
 ## Task status and dependencies
 
@@ -48,7 +48,7 @@ is not claimed. T07 is the next dependency-ready task; T08 is now unblocked.
 | T04  | T00                                           | complete                                                     |
 | T05  | T00                                           | complete                                                     |
 | T06  | T00                                           | complete                                                     |
-| T07  | T00                                           | pending                                                      |
+| T07  | T00                                           | complete                                                     |
 | T08  | T05, T06                                      | pending                                                      |
 | T09  | T08                                           | pending                                                      |
 | T10  | T00                                           | pending                                                      |
@@ -75,7 +75,7 @@ the current branch contains implementation and verification evidence.
 | F04 — project replacement          | open            | T08 pending                                                                                                                                                                                          | Prepare/commit/retire and fault-injection coverage are absent/unverified.                                                                                                                                                                          |
 | F05 — cache restoration            | fixed           | Scheduled updates and inbox dispatch borrow the cache in place; all fallible scheduled scratch extraction uses one restore boundary; excess callbacks are rejected before invocation                 | Injected budget and edit-absorption failures prove unchanged/changed bindings, node membership, cache contents, accepted-edit policy, and next-tick progress. Panic/unwind recovery is not claimed.                                                |
 | F06 — unbounded work/lifecycle     | open            | T11/T12 pending                                                                                                                                                                                      | Capacity, service-budget, and overload recovery evidence is missing.                                                                                                                                                                               |
-| F07 — topology ties                | open            | T07/T14/T18 pending                                                                                                                                                                                  | Equivalent insertion-order fixtures are missing.                                                                                                                                                                                                   |
+| F07 — topology ties                | partially fixed | T07 uses one UUID-ordered global ready frontier and compiles stable bucket/runtime order                                                                                                             | Equivalent-order, diamond, disconnected, cycle, and conflicting write/trigger fixtures pass. T14/T18 cross-worker real-kernel determinism remains pending.                                                                                         |
 | F08 — UI index copying             | open            | T13 pending                                                                                                                                                                                          | Delta-proportional work and browser action-to-paint evidence is missing.                                                                                                                                                                           |
 | F09 — identity work/full scans     | open            | T14/T18 pending                                                                                                                                                                                      | Sparse-selection and real-kernel measurements are missing.                                                                                                                                                                                         |
 | F10 — snapshots/encoding           | open            | T12/T15 pending                                                                                                                                                                                      | Actor capture/materialization scaling evidence is missing.                                                                                                                                                                                         |
@@ -129,6 +129,12 @@ the current branch contains implementation and verification evidence.
 | `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T06 patch | Windows x64                           | failed  | No T06 diagnostic; the same five pre-existing strict-lint findings recorded at T04/T05 remain in persistence duplication, UI sync, and UI read-model code.                                                                                                                       |
 | strict Golden Engine clippy with the five recorded lint classes allowed            | T06 patch | Windows x64                           | passed  | All targets pass after allowing only `unnecessary_lazy_evaluations`, `map_entry`, and `collapsible_if`, confirming no additional T06 warning.                                                                                                                                    |
 | `cargo fmt --all` (root and Golden Core workspaces)                                | T06 patch | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                          |
+| `cargo test --locked -p golden_engine schedule_ordering --no-fail-fast`            | T07 patch | Windows x64                           | passed  | Three deterministic fixtures pass; the explicit compilation measurement is ignored in ordinary suites.                                                                                                                                                                           |
+| 20,000-node canonical schedule resolve measurement                                 | T07 patch | Windows x64, optimized test profile   | passed  | Fixture `independent-uuid-ascending-v1`, source SHA-256 `6DC1F8CF…61EA5`; resolve-only samples in µs: 8195, 7789, 7577, 7411, 7252, 7634, 7658, 7557, 7349, 7394. Median 7567 µs; fixture construction excluded.                                                                 |
+| `cargo test --locked -p golden_engine --no-fail-fast`                              | T07 patch | Windows x64                           | passed  | 397 unit tests and 7 doctests pass; the existing stress benchmark and explicit schedule measurement remain ignored by default.                                                                                                                                                   |
+| `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T07 patch | Windows x64                           | failed  | No T07 diagnostic; the same five pre-existing strict-lint findings remain outside T07.                                                                                                                                                                                           |
+| strict Golden Engine clippy with the five recorded lint classes allowed            | T07 patch | Windows x64                           | passed  | All targets pass after allowing only the three known lint classes, confirming the T07 implementation and tests add no warning.                                                                                                                                                   |
+| `cargo fmt --all` (root and Golden Core workspaces)                                | T07 patch | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                          |
 
 ## Preservation and qualification inventory
 
@@ -143,7 +149,7 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready task: T07. T08 is also dependency-ready now that T05 and T06 are complete.
+Next dependency-ready task: T08.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

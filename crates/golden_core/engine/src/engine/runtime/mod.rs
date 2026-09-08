@@ -1,4 +1,4 @@
-pub(super) use std::collections::{BTreeMap, HashMap, HashSet};
+pub(super) use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 pub(super) use std::error::Error;
 pub(super) use std::fmt;
 pub(super) use std::sync::{Arc, LazyLock};
@@ -110,6 +110,10 @@ impl<T: Node> Engine<T> {
     }
 
     /// Returns the current global topological order used by runtime updates.
+    ///
+    /// Dependencies always precede their consumers. Ready-node ties use ascending persistent node
+    /// UUID, with the process-local node id only as a total-order fallback for malformed duplicate
+    /// UUIDs. This order is compiled during [`Self::resolve`] and is not sorted again on live ticks.
     pub fn schedule_topology(&self) -> &[NodeId] {
         self.runtime_schedule.topo_order()
     }

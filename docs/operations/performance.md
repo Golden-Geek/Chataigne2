@@ -11,6 +11,10 @@ nodes.
   IO.
 - Every periodic node declares a stable compiled-kernel identity. Production generation
   compilation rejects unnamed scheduled work.
+- Schedule compilation resolves every ready-node tie by ascending persistent `NodeUuid`, using the
+  process-local `NodeId` only as a total-order fallback for malformed duplicate UUIDs. The compiled
+  order governs same-target values, triggers, commands, and effects and is reused without sorting
+  on live ticks.
 - Value updates coalesce where the contract allows it. Triggers, commands, and effects preserve
   order and use bounded queues.
 - Structural edits use `NodeTree`/`AddNodeTree` for known subtrees and avoid repeated whole-tree
@@ -30,6 +34,13 @@ python tools/qualification/runtime_scale.py --output-dir target/qualification/ru
 
 The report records dense, one-percent-dirty sparse, and idle distributions for two 100,000-value
 partitions, determinism across 1/2/4/8 workers, missed deadlines, and output capacity.
+
+Measure canonical schedule compilation separately from fixture construction with:
+
+```text
+cargo test --locked -p golden_engine \
+  bench_canonical_schedule_resolve_twenty_thousand_nodes -- --ignored --nocapture
+```
 
 ## UI and graphs
 

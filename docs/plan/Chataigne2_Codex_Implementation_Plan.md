@@ -83,9 +83,10 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T04     | Complete                                                                                           |
 | T05     | Complete                                                                                           |
 | T06     | Complete                                                                                           |
-| T07–T19 | Not started                                                                                        |
+| T07     | Complete                                                                                           |
+| T08–T19 | Not started                                                                                        |
 
-The reviewed stop point is after T06. Resume at T07. Exact commands, evidence, and remaining
+The reviewed stop point is after T07. Resume at T08. Exact commands, evidence, and remaining
 qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 
 ### T00 — Reconcile the baseline and establish a resumable ledger
