@@ -227,8 +227,6 @@ impl<T: Node> Engine<T> {
         let dispatch_start = trace.then(Instant::now);
         let mut trace_by_type: Option<HashMap<String, (usize, usize, u128)>> = trace.then(HashMap::new);
 
-        // Take ownership to avoid borrow conflicts with the &mut self calls below.
-        let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let mut snapshot_requesters: Option<HashMap<String, usize>> = trace.then(HashMap::new);
         let needs_tree_snapshot = run_app_callbacks
             && per_node_events.iter().any(|(node_id, events)| {
@@ -302,6 +300,7 @@ impl<T: Node> Engine<T> {
             let events_before = self.inbox.events.len();
             if let Some(node) = self.nodes.get_mut(node_id) {
                 let node_start = trace.then(Instant::now);
+                let parameter_values = &self.parameter_values_cache;
                 crate::logger::with_node_origin(node_id, || {
                     node.engine_preprocess_inbox(&mut ctx);
                     let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
@@ -323,25 +322,22 @@ impl<T: Node> Engine<T> {
             for event in self.inbox.events.iter().skip(events_before) {
                 match &event.kind {
                     EventKind::ParamChanged { param, new_value, .. } => {
-                        parameter_values.insert(*param, new_value.clone());
+                        self.parameter_values_cache.insert(*param, new_value.clone());
                     }
                     EventKind::NodeCreated { node } => {
                         if let Some(n) = self.nodes.get(*node)
                             && let Some(snapshot) = n.engine_param_snapshot()
                         {
-                            parameter_values.insert(*node, snapshot.value);
+                            self.parameter_values_cache.insert(*node, snapshot.value);
                         }
                     }
                     EventKind::NodeDeleted { node } => {
-                        parameter_values.remove(node);
+                        self.parameter_values_cache.remove(node);
                     }
                     _ => {}
                 }
             }
         }
-
-        // Return the cache so it can be reused next call (same as run_scheduled_updates).
-        self.parameter_values_cache = parameter_values;
 
         if let (Some(start), Some(trace_by_type), Some(snapshot_requesters)) =
             (dispatch_start, trace_by_type, snapshot_requesters)

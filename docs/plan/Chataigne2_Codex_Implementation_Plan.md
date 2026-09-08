@@ -72,7 +72,7 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 
 ## 4. Implementation tasks
 
-### Progress checkpoint — 2026-09-05
+### Progress checkpoint — 2026-09-08
 
 | Task    | Progress                                                                                           |
 | ------- | -------------------------------------------------------------------------------------------------- |
@@ -82,9 +82,10 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T03     | Comparator/workflow complete locally; matching hosted reference baseline pending                   |
 | T04     | Complete                                                                                           |
 | T05     | Complete                                                                                           |
-| T06–T19 | Not started                                                                                        |
+| T06     | Complete                                                                                           |
+| T07–T19 | Not started                                                                                        |
 
-The reviewed stop point is after T05. Resume at T06. Exact commands, evidence, and remaining
+The reviewed stop point is after T06. Resume at T07. Exact commands, evidence, and remaining
 qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 
 ### T00 — Reconcile the baseline and establish a resumable ledger

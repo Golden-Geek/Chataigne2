@@ -4,10 +4,9 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the closeout commit: the starting SHA remains checked out with
-the T00–T05 implementation present only in the working tree. At T00 start, the only dirty-tree entry
-was the user-provided untracked `docs/plan/` directory. Its original plan file SHA-256 was
-`E1A1C32A24D844B8D9B45B83DC26EC101DCD539DD44D5C22D250BF1B6B199EBC`.
+Current SHA and patch state before the T06 commit: `fe363d2033b0b7a95633acb0b2e33f2e96ebf0ab`
+is checked out with only the T06 implementation and evidence changes in the working tree. T00–T05
+are committed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -21,25 +20,22 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T05 — interrupt scripts and define failure effects — complete locally. This session stops at
-the T05 boundary. T01's native qualification and T03's matching hosted reference baseline remain
-pending.
+Task: T06 — restore the parameter cache on every recoverable exit — complete locally. T01's native
+qualification and T03's matching hosted reference baseline remain pending.
 
-Owning layers and files: engine scripting runtime and source persistence contract, host-call
-boundary, public scripting guide, and script safety/recovery tests.
+Owning layers and files: engine scheduled-update and inbox-dispatch paths, runtime error contract,
+and focused cache-recovery tests.
 
-Invariant / implementation decision: every JavaScript entry has a monotonic, nesting-safe deadline,
-external cancellation, and an invocation-scoped effect journal. Failed or interrupted entries
-expose no staged host effects and quarantine the possibly mutated heap until a clean reload.
+Invariant / implementation decision: the parameter cache remains engine-owned and in place while
+callbacks borrow it for binding resolution. Fallible scheduled work restores every extracted
+scratch allocation before propagating an error. A callback is budget-checked before it runs;
+already-admitted callbacks retain their queued edits for the next tick.
 
-Result and remaining work: the locked `rquickjs` interrupt handler now covers load/reload, exports,
-init/update/event/destroy, nested calls, and external cancellation. Callback and load allowances,
-memory/stack limits, capped host inputs, synchronous-job rejection, effect journaling, and clean
-runtime recovery are explicit. Watchdog subprocesses prove infinite and excessive work terminate;
-engine recovery proves later ticks, edits, serialization, and reload progress. `ScriptSource` now
-uses the valid tagged `{ kind, text/path }` representation already used by the UI; the old tagged
-newtype could never serialize, so no prior encoded representation exists to migrate. T15 still owns
-extracting reusable VM/effect primitives into `golden_script`.
+Result and remaining work: scheduled-update and inbox edit-absorption failures can no longer leave
+an empty parameter cache. The update limit rejects the first excess callback without executing it.
+Injected failures prove that unchanged and changed bindings, parameter values, node membership,
+cache contents, retained accepted edits, and later useful work remain coherent. Panic/unwind recovery
+is not claimed. T07 is the next dependency-ready task; T08 is now unblocked.
 
 ## Task status and dependencies
 
@@ -51,7 +47,7 @@ extracting reusable VM/effect primitives into `golden_script`.
 | T03  | T00                                           | complete locally; matching hosted reference baseline pending |
 | T04  | T00                                           | complete                                                     |
 | T05  | T00                                           | complete                                                     |
-| T06  | T00                                           | pending                                                      |
+| T06  | T00                                           | complete                                                     |
 | T07  | T00                                           | pending                                                      |
 | T08  | T05, T06                                      | pending                                                      |
 | T09  | T08                                           | pending                                                      |
@@ -68,8 +64,8 @@ extracting reusable VM/effect primitives into `golden_script`.
 
 ## Finding status
 
-The checkout is the exact audited baseline, not a newer source revision. Therefore audit findings
-are not treated as already fixed merely because surrounding infrastructure exists.
+Work proceeds from the exact audited baseline recorded above. Findings are marked fixed only when
+the current branch contains implementation and verification evidence.
 
 | Finding                            | Status          | Implementation evidence                                                                                                                                                                              | Verification / gaps                                                                                                                                                                                                                                |
 | ---------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -77,7 +73,7 @@ are not treated as already fixed merely because surrounding infrastructure exist
 | F02 — pending readiness            | fixed           | Send publishes after enqueue; receiver-owned bounded drain clears and conservatively re-arms; all consumers migrated                                                                                 | Deterministic barrier cases cover the old interleaving, concurrent producers, enqueue during drain, partial/final drains, and disconnect. A one-packet OSC test needs no unrelated wakeup. T11 must preserve this invariant while adding capacity. |
 | F03 — script interruption/effects  | partially fixed | T05 installs nesting-safe monotonic interruption/cancellation, budgets and resource caps, input validation, success-only effect admission, heap quarantine, and clean reload; T15 extraction remains | Watchdog subprocesses and engine recovery pass. Physical I/O is not claimed rollback-safe after host admission; reusable VM/effect ownership remains pending.                                                                                      |
 | F04 — project replacement          | open            | T08 pending                                                                                                                                                                                          | Prepare/commit/retire and fault-injection coverage are absent/unverified.                                                                                                                                                                          |
-| F05 — cache restoration            | open            | T06 pending                                                                                                                                                                                          | Fallible `mem::take` paths require inspection and injected-failure tests.                                                                                                                                                                          |
+| F05 — cache restoration            | fixed           | Scheduled updates and inbox dispatch borrow the cache in place; all fallible scheduled scratch extraction uses one restore boundary; excess callbacks are rejected before invocation                 | Injected budget and edit-absorption failures prove unchanged/changed bindings, node membership, cache contents, accepted-edit policy, and next-tick progress. Panic/unwind recovery is not claimed.                                                |
 | F06 — unbounded work/lifecycle     | open            | T11/T12 pending                                                                                                                                                                                      | Capacity, service-budget, and overload recovery evidence is missing.                                                                                                                                                                               |
 | F07 — topology ties                | open            | T07/T14/T18 pending                                                                                                                                                                                  | Equivalent insertion-order fixtures are missing.                                                                                                                                                                                                   |
 | F08 — UI index copying             | open            | T13 pending                                                                                                                                                                                          | Delta-proportional work and browser action-to-paint evidence is missing.                                                                                                                                                                           |
@@ -128,6 +124,11 @@ are not treated as already fixed merely because surrounding infrastructure exist
 | `cargo test --locked -p golden_engine`                                             | T05 patch | Windows x64                           | passed  | 391 unit tests and 7 doctests pass; one stress benchmark remains intentionally ignored. Recovery coverage proves a failed script is quarantined while later tick, edit, project serialization, config replacement, and clean reload succeed.                                     |
 | `cargo test --locked -p Chataigne2`                                                | T05 patch | Windows x64                           | passed  | 515 app unit tests and the default Windows ASIO compile integration test pass with the corrected persisted script-source representation.                                                                                                                                         |
 | `cargo fmt --all` (root and Golden Core workspaces)                                | T05 patch | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                          |
+| `cargo test --locked -p golden_engine parameter_cache_recovery --no-fail-fast`     | T06 patch | Windows x64                           | passed  | Three focused tests inject an update-budget rejection plus scheduled-update and inbox edit-absorption failures, then prove cache, bindings, membership, accepted edits, and next-tick progress.                                                                                  |
+| `cargo test --locked -p golden_engine --no-fail-fast`                              | T06 patch | Windows x64                           | passed  | 394 unit tests and 7 doctests pass; the pre-existing manual stress benchmark remains ignored.                                                                                                                                                                                    |
+| `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T06 patch | Windows x64                           | failed  | No T06 diagnostic; the same five pre-existing strict-lint findings recorded at T04/T05 remain in persistence duplication, UI sync, and UI read-model code.                                                                                                                       |
+| strict Golden Engine clippy with the five recorded lint classes allowed            | T06 patch | Windows x64                           | passed  | All targets pass after allowing only `unnecessary_lazy_evaluations`, `map_entry`, and `collapsible_if`, confirming no additional T06 warning.                                                                                                                                    |
+| `cargo fmt --all` (root and Golden Core workspaces)                                | T06 patch | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                          |
 
 ## Preservation and qualification inventory
 
@@ -142,7 +143,7 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready task: T06. T08 remains blocked on T06 even though T05 is complete.
+Next dependency-ready task: T07. T08 is also dependency-ready now that T05 and T06 are complete.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

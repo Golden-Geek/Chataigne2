@@ -35,7 +35,7 @@ pub enum EngineRuntimeError {
     UpdateBudgetExceeded {
         /// The tick number where the budget was exceeded.
         tick: u64,
-        /// The number of update callbacks executed.
+        /// The callback ordinal that could not be admitted.
         callbacks: usize,
         /// The maximum number of update callbacks allowed.
         limit: usize,
