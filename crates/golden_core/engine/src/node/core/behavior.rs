@@ -167,6 +167,16 @@ pub trait Node: Send + Any {
         ))
     }
 
+    /// Validates runtime-only state while an engine is still a detached project candidate.
+    ///
+    /// Implementations must not acquire external resources or publish effects. This hook exists
+    /// primarily for nodes such as scripts whose fallible initialization happens before the
+    /// explicit `on_node_ready` activation boundary.
+    #[doc(hidden)]
+    fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        Ok(())
+    }
+
     #[doc(hidden)]
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
         Ok(serde_json::Value::Null)

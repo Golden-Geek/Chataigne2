@@ -3,6 +3,11 @@ use super::*;
 #[derive(Debug)]
 /// Errors that can occur during engine runtime execution.
 pub enum EngineRuntimeError {
+    /// The authored project remains available, but live resource activation failed during handoff.
+    ProjectPaused {
+        /// Actionable activation or publication error that caused the pause.
+        message: String,
+    },
     /// Wrapper for edit-application failures.
     Edit(EngineEditError),
     /// A node declared a dependency on a missing node id.
@@ -45,6 +50,7 @@ pub enum EngineRuntimeError {
 impl fmt::Display for EngineRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ProjectPaused { message } => write!(f, "project runtime is paused: {message}"),
             Self::Edit(err) => write!(f, "{err}"),
             Self::MissingDependency { node, dependency } => {
                 write!(f, "node {:?} depends on missing node {:?}", node, dependency)

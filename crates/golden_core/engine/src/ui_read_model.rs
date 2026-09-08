@@ -17,6 +17,7 @@ mod retained_events;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 
+use crate::app::ProjectGeneration;
 use crate::contexts::{UiUserContextsDto, UserContextValueType};
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
@@ -74,6 +75,15 @@ pub struct UiFeedbackEventPartition {
     pub other: Vec<UiEventDto>,
 }
 
+/// Fully materialized read-model state awaiting an authoritative project cutover.
+///
+/// Construction may perform O(N) work, while installation only swaps prepared state under the
+/// publication guard.
+pub(crate) struct PreparedUiReadModelReplacement {
+    projection: ProjectionState,
+    latest_event_time: Option<EngineTime>,
+}
+
 /// Immutable UI projection used by HTTP snapshots and WebSocket replay.
 pub struct UiReadModel {
     /// Incrementally maintained projection and lazy immutable snapshot cache.
@@ -106,6 +116,7 @@ impl UiReadModel {
         let schema = snapshot.schema.clone();
         let header = SnapshotHeader {
             at,
+            project_generation: ProjectGeneration::INITIAL,
             history: snapshot.history.clone(),
             user_contexts: snapshot.user_contexts.clone(),
             project_file: snapshot.project_file.clone(),
@@ -157,6 +168,15 @@ impl UiReadModel {
             .map_or(snapshot_time, |event_time| event_time.max(snapshot_time))
     }
 
+    /// Returns the authoritative project generation represented by this projection.
+    pub fn current_project_generation(&self) -> ProjectGeneration {
+        self.projection
+            .read()
+            .expect("ui read model poisoned")
+            .header
+            .project_generation
+    }
+
     /// Returns current host-owned project metadata without materializing a snapshot.
     pub fn current_project_file(&self) -> UiProjectFileSpec {
         self.projection
@@ -187,24 +207,28 @@ impl UiReadModel {
         *self.runtime_stats.lock().expect("ui read model poisoned")
     }
 
-    /// Rebuilds the entire model from the live engine (project load/replace or initial build).
-    pub fn replace_from_engine<T, P>(&self, engine: &Engine<T>, project_file: P, reason: UiReadModelReplaceReason)
+    /// Materializes a complete candidate projection before the authoritative cutover.
+    pub(crate) fn prepare_project_replacement<T, P>(
+        engine: &Engine<T>,
+        project_file: P,
+        project_generation: ProjectGeneration,
+    ) -> PreparedUiReadModelReplacement
     where
         T: Node,
         P: Into<UiProjectFileSpec>,
     {
-        let _publication = self.publication.lock().expect("ui read model poisoned");
         let snapshot = Arc::new(snapshot_from_engine(engine, project_file.into()));
         let at = snapshot.at;
         let latest_event_time = engine.ui_event_log().last().map(|event| event.time);
-        {
-            let nodes = nodes_to_store(&snapshot.nodes);
-            let parents = parents_from_nodes(nodes.values());
-            *self.projection.write().expect("ui read model poisoned") = ProjectionState {
+        let nodes = nodes_to_store(&snapshot.nodes);
+        let parents = parents_from_nodes(nodes.values());
+        PreparedUiReadModelReplacement {
+            projection: ProjectionState {
                 nodes,
                 parents,
                 header: SnapshotHeader {
                     at,
+                    project_generation,
                     history: snapshot.history.clone(),
                     user_contexts: snapshot.user_contexts.clone(),
                     project_file: snapshot.project_file.clone(),
@@ -212,11 +236,24 @@ impl UiReadModel {
                 schema: snapshot.schema.clone(),
                 cached_snapshot: snapshot,
                 snapshot_dirty: false,
-            };
+            },
+            latest_event_time,
         }
-        {
-            *self.latest_event_time.lock().expect("ui read model poisoned") = latest_event_time;
-        }
+    }
+
+    /// Installs a prepared project projection at the engine/runtime generation commit point.
+    pub(crate) fn commit_project_replacement(
+        &self,
+        prepared: PreparedUiReadModelReplacement,
+        reason: UiReadModelReplaceReason,
+    ) {
+        let _publication = self.publication.lock().expect("ui read model poisoned");
+        let PreparedUiReadModelReplacement {
+            projection,
+            latest_event_time,
+        } = prepared;
+        *self.projection.write().expect("ui read model poisoned") = projection;
+        *self.latest_event_time.lock().expect("ui read model poisoned") = latest_event_time;
 
         if matches!(
             reason,
@@ -290,11 +327,11 @@ impl UiReadModel {
                 projection.header.history = history;
                 projection.snapshot_dirty = true;
             }
-            if let Some(user_contexts) = user_contexts {
-                if projection.header.user_contexts != user_contexts {
-                    projection.header.user_contexts = user_contexts;
-                    projection.snapshot_dirty = true;
-                }
+            if let Some(user_contexts) = user_contexts
+                && projection.header.user_contexts != user_contexts
+            {
+                projection.header.user_contexts = user_contexts;
+                projection.snapshot_dirty = true;
             }
         }
         if batch.events.is_empty() {
@@ -533,10 +570,10 @@ impl UiFeedbackCoalescer {
 
         let param = *param;
         let mut event = event;
-        if let Some(index) = self.pending_param_indices.get(&param).copied() {
-            if let Some(previous) = self.pending[index].take() {
-                preserve_ui_param_changed_old_value(&mut event.kind, previous.kind);
-            }
+        if let Some(index) = self.pending_param_indices.get(&param).copied()
+            && let Some(previous) = self.pending[index].take()
+        {
+            preserve_ui_param_changed_old_value(&mut event.kind, previous.kind);
         }
         self.pending_param_indices.insert(param, self.pending.len());
         self.pending.push(Some(event));

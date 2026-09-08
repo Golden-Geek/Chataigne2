@@ -4,22 +4,34 @@
 //! transports from owning or locking it directly. It is the application seam through which
 //! runtime planes can be selected independently.
 
+mod project_replacement;
+
+#[cfg(test)]
+pub(crate) use project_replacement::ProjectReplacementFaultCallback;
+use project_replacement::ProjectReplacementFaultHook;
+pub use project_replacement::{
+    ProjectReplacement, ProjectReplacementResult, ProjectReplacementStage, ProjectRuntimeStatus,
+};
+
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::sync::Arc;
 #[cfg(test)]
 use std::sync::Mutex;
+use std::sync::atomic::AtomicU64;
 #[cfg(test)]
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
+#[cfg(test)]
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use golden_application::{GraphEditing, HostLifecycle, Observation, Persistence, ProjectTransactions, RuntimeValues};
 use golden_runtime::{ControlActor, RuntimeMetrics, RuntimeMetricsSnapshot};
 
 use crate::app::{
-    ProjectLifecycle, apply_preferences_runtime_limits, live_preferences_root, prepare_engine_for_runtime,
-    prepare_engine_for_runtime_recovering, shutdown_engine_for_runtime, to_sparse_preferences_json_pretty,
-    to_sparse_project_json_pretty_with_ui_state,
+    ProjectGeneration, ProjectLifecycle, apply_preferences_runtime_limits, live_preferences_root,
+    prepare_engine_for_runtime, prepare_engine_for_runtime_recovering, shutdown_engine_for_runtime,
+    to_sparse_preferences_json_pretty, to_sparse_project_json_pretty_with_ui_state,
 };
 use crate::contexts::UiUserContextCandidatesDto;
 use crate::engine::{Engine, EngineRuntimeError, EngineTime, ProjectLoadRecoveryReport};
@@ -28,7 +40,7 @@ use crate::parameter::ParamValue;
 pub use crate::runtime_center::ProductionInputPort;
 use crate::runtime_center::ProductionState;
 use crate::script::{ScriptUiConfig, ScriptUiState};
-use crate::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelReplaceReason};
+use crate::ui_read_model::{UiEventCapture, UiReadModel};
 use crate::ui_sync::{
     UiAck, UiAckStatus, UiEditIntent, UiEventBatch, UiEventKind, UiGraphOp, UiHistoryState, UiParamControlInfoDto,
     UiProjectFileSpec, UiReferenceTargetsDto, UiSnapshot, UiSubscriptionScope,
@@ -253,37 +265,6 @@ pub struct ProjectSaveRequest {
     pub ui_state: Option<serde_json::Value>,
 }
 
-/// Request to replace the live project with a decoded engine.
-pub struct ProjectReplacement<T: ProjectLifecycle> {
-    /// Decoded replacement engine.
-    pub engine: Engine<T>,
-    /// Host-owned project-file metadata for the new observation snapshot.
-    pub project_file: UiProjectFileSpec,
-    /// Stable replacement reason used by resynchronization diagnostics.
-    pub reason: String,
-    /// Whether recoverable runtime-startup failures may be retained in the report.
-    pub recover: bool,
-}
-
-/// Timing and recovery evidence from replacing the live engine.
-#[derive(Clone, Debug, Default)]
-pub struct ProjectReplacementResult {
-    /// Recoverable load/startup problems.
-    pub recovery: ProjectLoadRecoveryReport,
-    /// Number of nodes in the replacement project.
-    pub node_count: usize,
-    /// Time spent waiting for the production adapter lock.
-    pub lock_wait: Duration,
-    /// Time spent shutting down the previous project.
-    pub shutdown: Duration,
-    /// Time spent dropping the previous project.
-    pub drop_previous: Duration,
-    /// Time spent preparing the replacement for runtime use.
-    pub prepare: Duration,
-    /// Total replacement time.
-    pub total: Duration,
-}
-
 /// Startup policy for the production host-lifecycle adapter.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RuntimeStartRequest {
@@ -296,6 +277,9 @@ struct ProductionRuntimeInner<T: ProjectLifecycle> {
     read_model: Arc<UiReadModel>,
     read_model_publication_hook: ReadModelPublicationHook,
     input_port: ProductionInputPort,
+    next_project_generation: AtomicU64,
+    latest_requested_project_generation: Arc<AtomicU64>,
+    project_replacement_fault_hook: ProjectReplacementFaultHook,
     #[cfg(test)]
     preferences_subtree_collection_count: Arc<AtomicUsize>,
 }
@@ -332,6 +316,9 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 read_model,
                 read_model_publication_hook: ReadModelPublicationHook::default(),
                 input_port,
+                next_project_generation: AtomicU64::new(ProjectGeneration::INITIAL.get() + 1),
+                latest_requested_project_generation: Arc::new(AtomicU64::new(ProjectGeneration::INITIAL.get())),
+                project_replacement_fault_hook: ProjectReplacementFaultHook::default(),
                 #[cfg(test)]
                 preferences_subtree_collection_count: Arc::new(AtomicUsize::new(0)),
             }),
@@ -390,6 +377,26 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .inner
             .control
             .call(move |state| {
+                if let Some(error) = state.project_pause_error().map(str::to_string) {
+                    return intents
+                        .into_iter()
+                        .map(|_| {
+                            let before = state.engine.ui_event_log().last().map(|event| event.time);
+                            let capture = read_model.collect_event_batch(&state.engine, before);
+                            let events = publish_event_capture(&read_model, &publication_hook, capture);
+                            (
+                                rejected_ack(
+                                    &state.engine,
+                                    "project_runtime_paused",
+                                    format!("project runtime is paused: {error}"),
+                                ),
+                                events,
+                                false,
+                                ApplicationTransactionTiming::default(),
+                            )
+                        })
+                        .collect();
+                }
                 let mut failed = false;
                 let mut opened_edit_session: Option<String> = None;
                 let mut pending = Vec::with_capacity(intents.len());
@@ -527,6 +534,11 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         self.inner.read_model_publication_hook.set(callback);
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_project_replacement_fault_hook(&self, callback: Option<ProjectReplacementFaultCallback>) {
+        self.inner.project_replacement_fault_hook.set(callback);
+    }
+
     /// Cancels one client's active edit session and publishes resulting events.
     pub fn cancel_ui_edit_session(&self, ui_client_instance_id: &str) -> UiEventBatch {
         let ui_client_instance_id = ui_client_instance_id.to_owned();
@@ -632,60 +644,6 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             node_count,
             lock_wait: receipt.queue_wait,
             serialize,
-        })
-    }
-
-    /// Replaces the live project after the caller decodes and configures it.
-    pub fn replace_project(&self, request: ProjectReplacement<T>) -> Result<ProjectReplacementResult, String> {
-        let started = Instant::now();
-        let read_model = self.inner.read_model.clone();
-        let publication_hook = self.inner.read_model_publication_hook.clone();
-        let receipt = self
-            .inner
-            .control
-            .call(move |state| {
-                let engine = &mut state.engine;
-                let node_count = request.engine.nodes.iter().count();
-                let shutdown_started = Instant::now();
-                shutdown_engine_for_runtime(engine);
-                let shutdown = shutdown_started.elapsed();
-
-                let drop_started = Instant::now();
-                let previous = std::mem::replace(engine, request.engine);
-                drop(previous);
-                let drop_previous = drop_started.elapsed();
-
-                let prepare_started = Instant::now();
-                let recovery = if request.recover {
-                    prepare_engine_for_runtime_recovering(engine)
-                } else {
-                    prepare_engine_for_runtime(engine).map_err(|error| error.to_string())?;
-                    ProjectLoadRecoveryReport::default()
-                };
-                let prepare = prepare_started.elapsed();
-                state.recompile_blocking("project.replace")?;
-                let engine = &mut state.engine;
-                engine.clear_ui_event_log();
-                engine.push_ui_custom_event(
-                    "__transport.resync_required",
-                    None,
-                    serde_json::json!({ "reason": request.reason }),
-                );
-                publication_hook.invoke();
-                read_model.replace_from_engine(engine, request.project_file, UiReadModelReplaceReason::ProjectReplaced);
-                read_model.publish_engine_events_since(engine, None);
-                Ok::<_, String>((recovery, node_count, shutdown, drop_previous, prepare))
-            })
-            .map_err(|error| error.to_string())?;
-        let (recovery, node_count, shutdown, drop_previous, prepare) = receipt.output?;
-        Ok(ProjectReplacementResult {
-            recovery,
-            node_count,
-            lock_wait: receipt.queue_wait,
-            shutdown,
-            drop_previous,
-            prepare,
-            total: started.elapsed(),
         })
     }
 

@@ -11671,8 +11671,16 @@ fn project_load_tree_batch_preserves_order_and_shares_lifecycle_snapshots() {
     assert_eq!(labels, vec!["first", "second"]);
     assert_eq!(
         engine.tick_stats().snapshot_builds,
+        2,
+        "pre-cutover insertion should run only the shared attached/init snapshots"
+    );
+    engine
+        .run_pending_node_ready_callbacks()
+        .expect("activation should run the deferred ready batch");
+    assert_eq!(
+        engine.tick_stats().snapshot_builds,
         3,
-        "the whole batch should share one attached/init/ready snapshot set"
+        "activation should add one shared ready snapshot"
     );
     assert!(
         engine.ui_event_log().is_empty(),

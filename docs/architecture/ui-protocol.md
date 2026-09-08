@@ -21,6 +21,9 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
 - Production mutations collect and publish their projection delta within the same ordered control
   actor turn. A later mutation or project replacement therefore cannot publish ahead of an older
   capture.
+- Project replacement materializes its complete projection before cutover. The internal projection
+  header carries the same monotonic project generation as the actor-owned engine; installation
+  clears old replay retention and publishes the replacement resync event at that one boundary.
 - One WebSocket replay pass delivers its non-empty data planes in one atomic delta envelope.
   The client stages the whole envelope before rendering and drains large event bursts in bounded
   animation-frame slices, preserving global event-time order and keeping input responsive.

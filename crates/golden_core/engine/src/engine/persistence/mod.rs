@@ -647,18 +647,31 @@ impl<T: Node> Engine<T> {
         };
         drop(record);
         drop(uuid_map);
+        let commit_checkpoint = self.project_subtree_commit_checkpoint();
         let imported_root =
             self.insert_decoded_project_tree(parent, prev_sibling, decoded_tree, "InsertProjectSubtree")?;
-        self.replay_loaded_subtree_lifecycle(
+        if let Err(error) = self.replay_loaded_subtree_lifecycle(
             imported_root,
             NodeCreationContext::Duplicate,
             LoadedReadyMode::Immediate,
-        )?;
-        let imported_node_ids = self.collect_loaded_subtree_node_ids(imported_root)?;
+        ) {
+            self.rollback_committed_project_subtrees([imported_root], commit_checkpoint);
+            return Err(error);
+        }
+        let imported_node_ids = match self.collect_loaded_subtree_node_ids(imported_root) {
+            Ok(node_ids) => node_ids,
+            Err(error) => {
+                self.rollback_committed_project_subtrees([imported_root], commit_checkpoint);
+                return Err(error);
+            }
+        };
         self.sync_missing_reference_warnings_for_nodes_silent(imported_node_ids.as_slice());
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
-        self.push_loaded_subtree_ui_events(imported_node_ids.as_slice())?;
+        if let Err(error) = self.push_loaded_subtree_ui_events(imported_node_ids.as_slice()) {
+            self.rollback_committed_project_subtrees([imported_root], commit_checkpoint);
+            return Err(error);
+        }
         self.record_single_history_step(
             AddNodeEffect {
                 node: imported_root,

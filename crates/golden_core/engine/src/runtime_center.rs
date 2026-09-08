@@ -14,6 +14,7 @@ use golden_runtime::{
 };
 use golden_values::{ColorValue as RuntimeColor, TriggerValue as RuntimeTrigger, Value as RuntimeValue};
 
+use crate::app::ProjectGeneration;
 use crate::edit::Edit;
 use crate::engine::{Engine, EngineRuntimeError, EngineTime};
 use crate::events::EventKind;
@@ -249,6 +250,15 @@ impl InputGeneration {
         *active = false;
         Ok(())
     }
+
+    fn activate(&self) -> Result<(), String> {
+        let mut active = self
+            .lifecycle
+            .lock()
+            .map_err(|_| "runtime input generation lock was poisoned".to_string())?;
+        *active = true;
+        Ok(())
+    }
 }
 
 struct RuntimeInputPlane {
@@ -330,6 +340,17 @@ impl BatchExecutor for InputIdentityExecutor {
 
 struct PendingCompilation {
     snapshot: Arc<EngineCompileSnapshot>,
+    project_generation: ProjectGeneration,
+}
+
+pub(crate) struct CompiledProjectCandidate {
+    snapshot: Arc<EngineCompileSnapshot>,
+    generation: Arc<RuntimeGeneration>,
+}
+
+pub(crate) struct RejectedProjectCommit<T: Node> {
+    pub(crate) error: String,
+    pub(crate) candidate: Box<Engine<T>>,
 }
 
 pub(crate) struct ProductionState<T: Node> {
@@ -350,6 +371,8 @@ pub(crate) struct ProductionState<T: Node> {
     scheduler: PersistentBatchScheduler<InputIdentityExecutor>,
     scheduler_outputs: Vec<(WorkUnitId, WorkUnitId)>,
     last_runtime_plane_error: Option<String>,
+    project_generation: ProjectGeneration,
+    project_pause_error: Option<String>,
 }
 
 impl<T: Node> ProductionState<T> {
@@ -366,7 +389,7 @@ impl<T: Node> ProductionState<T> {
         let work_count = generation.schedule.work_count();
         let mut semantic = SemanticRuntime::new(generation);
         seed_semantic_inputs(&mut semantic, &snapshot)?;
-        let (input_mailbox, input_generation) = make_input_generation(&snapshot)?;
+        let (input_mailbox, input_generation) = make_input_generation(&snapshot, true)?;
         let input_plane = Arc::new(RuntimeInputPlane {
             current: ArcSwap::new(input_generation.clone()),
             next_revision: AtomicU64::new(1),
@@ -403,12 +426,19 @@ impl<T: Node> ProductionState<T> {
                 scheduler,
                 scheduler_outputs: Vec::new(),
                 last_runtime_plane_error: None,
+                project_generation: ProjectGeneration::INITIAL,
+                project_pause_error: None,
             },
             input_port,
         ))
     }
 
     pub(crate) fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
+        if let Some(message) = &self.project_pause_error {
+            return Err(EngineRuntimeError::ProjectPaused {
+                message: message.clone(),
+            });
+        }
         self.apply_completed_compilations();
         self.apply_dense_inputs();
         let previous_event_time = self.engine.ui_event_log().last().map(|event| event.time);
@@ -508,8 +538,13 @@ impl<T: Node> ProductionState<T> {
                 previous: Some(self.semantic.current_generation()),
             })
             .map_err(|error| error.to_string())?;
-        self.pending_compilations
-            .insert(ticket, PendingCompilation { snapshot });
+        self.pending_compilations.insert(
+            ticket,
+            PendingCompilation {
+                snapshot,
+                project_generation: self.project_generation,
+            },
+        );
         Ok(ticket)
     }
 
@@ -530,6 +565,9 @@ impl<T: Node> ProductionState<T> {
         let Some(pending) = self.pending_compilations.remove(&completion.ticket) else {
             return;
         };
+        if pending.project_generation != self.project_generation {
+            return;
+        }
         if completion.revision != self.project_revision {
             return;
         }
@@ -550,8 +588,9 @@ impl<T: Node> ProductionState<T> {
         generation: Arc<RuntimeGeneration>,
         snapshot: &EngineCompileSnapshot,
     ) -> Result<(), String> {
-        let (next_mailbox, next_input_generation) = make_input_generation(snapshot)?;
+        let (next_mailbox, next_input_generation) = make_input_generation(snapshot, false)?;
         let work_count = generation.schedule.work_count();
+        next_input_generation.activate()?;
         self.input_generation.deactivate()?;
         self.input_plane.current.store(next_input_generation.clone());
         self.apply_dense_inputs();
@@ -570,6 +609,109 @@ impl<T: Node> ProductionState<T> {
         self.dirty = DirtySet::new(work_count);
         self.scheduler_outputs.clear();
         Ok(())
+    }
+
+    pub(crate) fn compile_project_candidate(&mut self, engine: &Engine<T>) -> Result<CompiledProjectCandidate, String> {
+        let snapshot = Arc::new(EngineCompileSnapshot::capture(engine)?);
+        let mut changes = RuntimeChangeSet::new();
+        changes.mark("project.replace");
+        let ticket = self
+            .compiler
+            .handle()
+            .request(CompileRequest {
+                project: snapshot.clone(),
+                revision: ProjectRevision(1),
+                changes,
+                previous: None,
+            })
+            .map_err(|error| error.to_string())?;
+
+        loop {
+            let completion = self.compiler.complete().map_err(|error| error.to_string())?;
+            if completion.ticket == ticket {
+                let generation = completion.result.map_err(|error| error.to_string())?;
+                return Ok(CompiledProjectCandidate { snapshot, generation });
+            }
+            self.apply_completion(completion);
+        }
+    }
+
+    pub(crate) fn commit_project(
+        &mut self,
+        engine: Engine<T>,
+        compiled: CompiledProjectCandidate,
+        project_generation: ProjectGeneration,
+        publish_read_model: impl FnOnce(&Engine<T>),
+    ) -> Result<Engine<T>, RejectedProjectCommit<T>> {
+        let CompiledProjectCandidate { snapshot, generation } = compiled;
+        let (next_mailbox, next_input_generation) = match make_input_generation(&snapshot, false) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                return Err(RejectedProjectCommit {
+                    error,
+                    candidate: Box::new(engine),
+                });
+            }
+        };
+        let work_count = generation.schedule.work_count();
+        let mut semantic = SemanticRuntime::new(generation);
+        if let Err(error) = seed_semantic_inputs(&mut semantic, &snapshot) {
+            return Err(RejectedProjectCommit {
+                error,
+                candidate: Box::new(engine),
+            });
+        }
+        if let Err(error) = next_input_generation.activate() {
+            return Err(RejectedProjectCommit {
+                error,
+                candidate: Box::new(engine),
+            });
+        }
+
+        // Fence producers before changing any authoritative project state. Publishers retry the
+        // stable input-plane pointer until the new generation is made visible below.
+        if let Err(error) = self.input_generation.deactivate() {
+            return Err(RejectedProjectCommit {
+                error,
+                candidate: Box::new(engine),
+            });
+        }
+
+        let previous = std::mem::replace(&mut self.engine, engine);
+        self.semantic = semantic;
+        self.project_revision = ProjectRevision(1);
+        self.input_mailbox = next_mailbox;
+        self.input_generation = next_input_generation.clone();
+        self.slot_to_node = snapshot.slot_to_node();
+        self.scheduled_node_to_work = snapshot.scheduled_node_to_work();
+        self.scheduled_work_nodes = snapshot
+            .scheduled_nodes
+            .iter()
+            .map(|scheduled| scheduled.node)
+            .collect();
+        self.input_work_count = snapshot.parameters.len();
+        self.input_scratch.clear();
+        self.dirty = DirtySet::new(work_count);
+        self.scheduler_outputs.clear();
+        self.last_runtime_plane_error = None;
+        self.project_generation = project_generation;
+        self.project_pause_error = None;
+
+        publish_read_model(&self.engine);
+        self.input_plane.current.store(next_input_generation);
+        Ok(previous)
+    }
+
+    pub(crate) fn project_generation(&self) -> ProjectGeneration {
+        self.project_generation
+    }
+
+    pub(crate) fn project_pause_error(&self) -> Option<&str> {
+        self.project_pause_error.as_deref()
+    }
+
+    pub(crate) fn pause_project(&mut self, message: String) {
+        self.project_pause_error = Some(message);
     }
 
     fn apply_dense_inputs(&mut self) {
@@ -632,6 +774,7 @@ impl<T: Node> ProductionState<T> {
 
 fn make_input_generation(
     snapshot: &EngineCompileSnapshot,
+    active: bool,
 ) -> Result<(Arc<RuntimeInputMailbox>, Arc<InputGeneration>), String> {
     let (mailbox, handle) = RuntimeInputMailbox::new(InputIngressConfig {
         input_count: snapshot.parameters.len(),
@@ -639,7 +782,7 @@ fn make_input_generation(
     })
     .map_err(|error| error.to_string())?;
     let generation = Arc::new(InputGeneration {
-        lifecycle: Mutex::new(true),
+        lifecycle: Mutex::new(active),
         routes: snapshot.node_to_slot(),
         handle,
     });

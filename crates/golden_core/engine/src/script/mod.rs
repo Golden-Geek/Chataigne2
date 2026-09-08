@@ -4115,6 +4115,20 @@ impl Node for ScriptNode {
         Ok(())
     }
 
+    fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        if !self.node_data.meta.enabled || self.runtime.is_some() {
+            return Ok(());
+        }
+        let detail = self
+            .node_data
+            .meta
+            .presentation
+            .warning(Some("script"))
+            .map(|warning| warning.message.clone())
+            .unwrap_or_else(|| "script runtime did not initialize".to_string());
+        Err(format!("script '{}': {detail}", self.node_data.meta.label))
+    }
+
     fn init(&mut self, ctx: &mut ProcessCtx) {
         if let Err(error) = self.load_or_reload_internal(ctx, false) {
             self.handle_runtime_error(ctx, &error);

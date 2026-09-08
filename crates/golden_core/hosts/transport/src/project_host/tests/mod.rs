@@ -1,9 +1,11 @@
+use std::fs;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{normalize_project_save_path, replace_live_engine, sanitize_browser_upload_file_name};
+use super::{load_project, normalize_project_save_path, replace_live_engine, sanitize_browser_upload_file_name};
 use golden_engine as golden_core;
 use golden_engine::app::{ProjectFileSpec, ProjectLifecycle, prepare_engine_for_runtime};
-use golden_engine::application::ProductionRuntime;
+use golden_engine::application::{ProductionRuntime, ProjectRuntimeStatus};
 use golden_engine::define_node_enum;
 use golden_engine::edit::Edit;
 use golden_engine::engine::Engine;
@@ -110,7 +112,7 @@ fn sanitize_browser_upload_file_name_uses_app_extension() {
 }
 
 #[test]
-fn replace_live_engine_drops_previous_engine_before_node_ready_callbacks() {
+fn replace_live_engine_drops_previous_engine_after_node_ready_callbacks() {
     PREVIOUS_ENGINE_DROPPED.store(false, Ordering::SeqCst);
     PREVIOUS_ENGINE_DESTROYED.store(false, Ordering::SeqCst);
     READY_CALLBACK_SAW_DROP.store(false, Ordering::SeqCst);
@@ -134,8 +136,8 @@ fn replace_live_engine_drops_previous_engine_before_node_ready_callbacks() {
         "previous engine should be dropped during replacement"
     );
     assert!(
-        READY_CALLBACK_SAW_DROP.load(Ordering::SeqCst),
-        "node-ready callbacks should only run after the previous engine is dropped"
+        !READY_CALLBACK_SAW_DROP.load(Ordering::SeqCst),
+        "previous engine disposal should happen outside candidate activation"
     );
 }
 
@@ -170,7 +172,7 @@ fn replace_live_engine_runs_destroy_callbacks_before_node_ready_callbacks() {
 }
 
 #[test]
-fn replace_live_engine_recovery_reports_runtime_startup_errors() {
+fn replace_live_engine_activation_failure_preserves_a_paused_old_project() {
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut live_engine = Engine::new(root);
     prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
@@ -181,15 +183,60 @@ fn replace_live_engine_recovery_reports_runtime_startup_errors() {
     let mut next_engine = Engine::new(root);
     next_engine.add_node(BadReadyNode::new().into(), None);
 
-    let recovery = replace_live_engine(&runtime, next_engine, "test_replace", true)
-        .expect("recovery replacement should keep the usable graph");
-
-    assert_eq!(recovery.problems.len(), 1);
-    let problem = &recovery.problems[0];
-    assert_eq!(problem.stage.as_str(), "runtime_startup");
+    let error = replace_live_engine(&runtime, next_engine, "test_replace", true)
+        .expect_err("activation failures cannot commit a partially activated candidate");
     assert!(
-        problem.message.contains("SetParam") && problem.message.contains("missing node"),
-        "expected readable missing-node startup failure, got {}",
-        problem.message
+        error.contains("SetParam") && error.contains("missing node"),
+        "expected readable missing-node startup failure, got {error}"
     );
+    assert!(matches!(
+        runtime.project_runtime_status(),
+        ProjectRuntimeStatus::Paused { .. }
+    ));
+    assert!(
+        runtime
+            .read_model()
+            .current_snapshot()
+            .nodes
+            .iter()
+            .any(|node| node.meta.label == "Root")
+    );
+}
+
+#[test]
+fn project_decode_failure_never_enters_the_replacement_transaction() {
+    let root: ReplaceOrderTestNode = Folder::new("Authoritative Root").into();
+    let mut live_engine = Engine::new(root);
+    prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
+    let runtime = production_runtime(live_engine);
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock")
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!(
+        "golden-project-decode-failure-{}-{unique}.json",
+        std::process::id()
+    ));
+    fs::write(&path, "{not valid json").expect("malformed fixture should write");
+
+    let error = match load_project(&runtime, path.to_string_lossy().as_ref(), None) {
+        Ok(_) => panic!("malformed project must fail before replacement"),
+        Err(error) => error,
+    };
+    let _ = fs::remove_file(&path);
+
+    assert!(!error.message.is_empty());
+    assert_eq!(runtime.current_project_generation().get(), 1);
+    assert!(
+        runtime
+            .read_model()
+            .current_snapshot()
+            .nodes
+            .iter()
+            .any(|node| node.meta.label == "Authoritative Root")
+    );
+    assert!(matches!(
+        runtime.project_runtime_status(),
+        ProjectRuntimeStatus::Active { .. }
+    ));
 }

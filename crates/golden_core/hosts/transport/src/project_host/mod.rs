@@ -130,13 +130,26 @@ fn replace_live_engine<T: ProjectLifecycle>(
         recover,
     })?;
     eprintln!(
-        "[project-host] replace_engine reason={reason} nodes={} shutdown_ms={} drop_ms={} prepare_ms={} total_ms={}",
+        "[project-host] replace_engine reason={reason} project_generation={} nodes={} shutdown_ms={} drop_ms={} prepare_ms={} total_ms={} retirement_error={}",
+        result.project_generation.get(),
         result.node_count,
         result.shutdown.as_millis(),
         result.drop_previous.as_millis(),
         result.prepare.as_millis(),
-        result.total.as_millis()
+        result.total.as_millis(),
+        result.retirement_error.as_deref().unwrap_or("none")
     );
+    if let Some(error) = &result.retirement_error {
+        let _ = logger::log_message(
+            LogLevel::Warning,
+            "project".to_string(),
+            None,
+            format!(
+                "Project generation {} committed, but previous-project retirement reported: {error}",
+                result.project_generation.get()
+            ),
+        );
+    }
     Ok(result.recovery)
 }
 

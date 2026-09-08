@@ -1,27 +1,38 @@
 use std::convert::Infallible;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use golden_application::{GraphEditing, Observation, RuntimeValues};
+use golden_application::{GraphEditing, HostLifecycle, Observation, RuntimeValues};
 
 use crate::app::{
     PREFERENCES_DECL_ID, PREFERENCES_ENGINE_DECL_ID, PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID, ProjectLifecycle,
     ensure_preferences_tree,
 };
-use crate::application::{ProductionRuntime, ProjectReplacement, apply_ui_intent_to_engine};
+use crate::application::{
+    ProductionRuntime, ProjectReplacement, ProjectReplacementStage, ProjectRuntimeStatus, apply_ui_intent_to_engine,
+};
 use crate::define_node_enum;
 use crate::engine::Engine;
 use crate::node::{DeclId, Folder, Node, NodeId, NodeScriptDescriptor, USER_CONTEXT_NODE_TYPE, UserContextNode};
 use crate::parameter::ParamValue;
+use crate::script::{ScriptNode, ScriptNodeConfig, ScriptSource};
 use crate::ui_sync::{
     UiCreateUserItemInitialParam, UiDuplicateCreateUserItemSpec, UiDuplicateDependentInitialParamValue,
     UiDuplicateDependentUserItem, UiDuplicateDependentUserItemInitialParam, UiDuplicateNodeSpec, UiEditIntent,
     UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope,
 };
 
+mod project_replacement;
+
 static SNAPSHOT_PROBE_DESCRIPTOR_CALLS: AtomicUsize = AtomicUsize::new(0);
+static LIVE_PROJECT_OWNER: AtomicUsize = AtomicUsize::new(0);
+static OLD_PROJECT_DESTROYED: AtomicBool = AtomicBool::new(false);
+static OLD_PROJECT_DROPPED: AtomicBool = AtomicBool::new(false);
+static CANDIDATE_SAW_EXCLUSIVE_HANDOFF: AtomicBool = AtomicBool::new(false);
+static CANDIDATE_DESTROYED: AtomicBool = AtomicBool::new(false);
+static FAILED_DUPLICATE_OWNER_RELEASED: AtomicBool = AtomicBool::new(false);
 
 #[crate::node("snapshot_probe")]
 struct SnapshotProbeNode {}
@@ -34,13 +45,93 @@ impl Node for SnapshotProbeNode {
     }
 }
 
+#[crate::node("old_project_owner")]
+struct OldProjectOwner {}
+
+impl Drop for OldProjectOwner {
+    fn drop(&mut self) {
+        OLD_PROJECT_DROPPED.store(true, Ordering::SeqCst);
+    }
+}
+
+#[crate::node("old_project_owner", from_struct)]
+impl Node for OldProjectOwner {
+    fn on_node_ready(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx, _context: crate::node::NodeCreationContext) {
+        assert_eq!(LIVE_PROJECT_OWNER.swap(1, Ordering::SeqCst), 0);
+    }
+
+    fn destroy(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx) {
+        let _ = LIVE_PROJECT_OWNER.compare_exchange(1, 0, Ordering::SeqCst, Ordering::SeqCst);
+        OLD_PROJECT_DESTROYED.store(true, Ordering::SeqCst);
+    }
+}
+
+#[crate::node("candidate_project_owner")]
+struct CandidateProjectOwner {}
+
+#[crate::node("candidate_project_owner", from_struct)]
+impl Node for CandidateProjectOwner {
+    fn on_node_ready(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx, _context: crate::node::NodeCreationContext) {
+        CANDIDATE_SAW_EXCLUSIVE_HANDOFF.store(LIVE_PROJECT_OWNER.load(Ordering::SeqCst) == 0, Ordering::SeqCst);
+        assert_eq!(LIVE_PROJECT_OWNER.swap(2, Ordering::SeqCst), 0);
+    }
+
+    fn destroy(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx) {
+        let _ = LIVE_PROJECT_OWNER.compare_exchange(2, 0, Ordering::SeqCst, Ordering::SeqCst);
+        CANDIDATE_DESTROYED.store(true, Ordering::SeqCst);
+    }
+}
+
+#[crate::node("failing_candidate_owner")]
+struct FailingCandidateOwner {}
+
+#[crate::node("failing_candidate_owner", from_struct)]
+impl Node for FailingCandidateOwner {
+    fn on_node_ready(&mut self, ctx: &mut crate::process_ctx::ProcessCtx, _context: crate::node::NodeCreationContext) {
+        CANDIDATE_SAW_EXCLUSIVE_HANDOFF.store(LIVE_PROJECT_OWNER.load(Ordering::SeqCst) == 0, Ordering::SeqCst);
+        assert_eq!(LIVE_PROJECT_OWNER.swap(2, Ordering::SeqCst), 0);
+        ctx.set_param(NodeId(u64::MAX), ParamValue::Int(1));
+    }
+
+    fn destroy(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx) {
+        let _ = LIVE_PROJECT_OWNER.compare_exchange(2, 0, Ordering::SeqCst, Ordering::SeqCst);
+        CANDIDATE_DESTROYED.store(true, Ordering::SeqCst);
+    }
+}
+
+#[crate::node("duplicate_lifecycle_failure")]
+struct DuplicateLifecycleFailure {}
+
+#[crate::node("duplicate_lifecycle_failure", from_struct)]
+impl Node for DuplicateLifecycleFailure {
+    fn on_node_ready(&mut self, ctx: &mut crate::process_ctx::ProcessCtx, context: crate::node::NodeCreationContext) {
+        if matches!(
+            context,
+            crate::node::NodeCreationContext::Duplicate | crate::node::NodeCreationContext::DuplicateWithInitialParams
+        ) {
+            FAILED_DUPLICATE_OWNER_RELEASED.store(false, Ordering::SeqCst);
+            ctx.set_param(NodeId(u64::MAX), ParamValue::Int(1));
+        }
+    }
+
+    fn destroy(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx) {
+        FAILED_DUPLICATE_OWNER_RELEASED.store(true, Ordering::SeqCst);
+    }
+}
+
 define_node_enum!(
     enum FacadeTestNode {
+        CandidateProjectOwner,
+        DuplicateLifecycleFailure,
+        FailingCandidateOwner,
+        OldProjectOwner,
         SnapshotProbeNode,
     }
 );
 
 impl ProjectLifecycle for FacadeTestNode {}
+
+static REPLACEMENT_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 fn runtime() -> ProductionRuntime<FacadeTestNode> {
     let engine = Engine::new(Folder::new("Root").into());
@@ -48,6 +139,49 @@ fn runtime() -> ProductionRuntime<FacadeTestNode> {
         engine,
         UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
     )
+}
+
+fn reset_replacement_probes() {
+    LIVE_PROJECT_OWNER.store(0, Ordering::SeqCst);
+    OLD_PROJECT_DESTROYED.store(false, Ordering::SeqCst);
+    OLD_PROJECT_DROPPED.store(false, Ordering::SeqCst);
+    CANDIDATE_SAW_EXCLUSIVE_HANDOFF.store(false, Ordering::SeqCst);
+    CANDIDATE_DESTROYED.store(false, Ordering::SeqCst);
+}
+
+fn runtime_with_old_project_owner() -> ProductionRuntime<FacadeTestNode> {
+    let root: FacadeTestNode = Folder::new("Old Root").into();
+    let mut engine = Engine::new(root);
+    engine.add_node(OldProjectOwner::new().into(), None);
+    crate::app::prepare_engine_for_runtime(&mut engine).expect("old project should activate");
+    ProductionRuntime::new(
+        engine,
+        UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
+    )
+}
+
+fn replacement_engine(label: &str, failing_activation: bool) -> Engine<FacadeTestNode> {
+    let root: FacadeTestNode = Folder::new(label).into();
+    let mut engine = Engine::new(root);
+    if failing_activation {
+        engine.add_node(FailingCandidateOwner::new().into(), None);
+    } else {
+        engine.add_node(CandidateProjectOwner::new().into(), None);
+    }
+    engine
+}
+
+fn replacement_request(engine: Engine<FacadeTestNode>, reason: &str) -> ProjectReplacement<FacadeTestNode> {
+    ProjectReplacement {
+        engine,
+        project_file: UiProjectFileSpec {
+            display_name: "Replacement".to_string(),
+            extension: "json".to_string(),
+            current_path: Some(format!("{reason}.json")),
+        },
+        reason: reason.to_string(),
+        recover: false,
+    }
 }
 
 fn runtime_with_preferences(include_snapshot_probe: bool) -> (ProductionRuntime<FacadeTestNode>, NodeId) {
@@ -477,6 +611,36 @@ fn rejected_duplicate_node_initializer_leaves_graph_history_and_events_unchanged
                 value: ParamValue::Float(1.0),
             }],
         },
+    );
+}
+
+#[test]
+fn rejected_duplicate_lifecycle_releases_resources_and_rolls_back_graph_history_and_events() {
+    FAILED_DUPLICATE_OWNER_RELEASED.store(false, Ordering::SeqCst);
+    let root: FacadeTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DuplicateLifecycleFailure::new().into(), None);
+    engine.apply_edits().expect("source should attach");
+    let source = engine
+        .ui_direct_children(engine.root)
+        .expect("root children")
+        .into_iter()
+        .next()
+        .expect("duplicate source");
+    let root = engine.root;
+
+    assert_rejected_intent_is_atomic(
+        &mut engine,
+        UiEditIntent::DuplicateNode {
+            source,
+            new_parent: root,
+            new_prev_sibling: Some(source),
+            initial_params: Vec::new(),
+        },
+    );
+    assert!(
+        FAILED_DUPLICATE_OWNER_RELEASED.load(Ordering::SeqCst),
+        "failed duplicate lifecycle must run destroy before detached nodes are discarded"
     );
 }
 

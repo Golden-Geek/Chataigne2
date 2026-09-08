@@ -2899,31 +2899,64 @@ impl<T: Node> Engine<T> {
 
         let committed_capacity =
             prepared_duplicates.len() + prepared_created_items.len() + prepared_dependent_items.len();
+        let commit_checkpoint = self.project_subtree_commit_checkpoint();
         let mut committed = Vec::with_capacity(committed_capacity);
+        let mut committed_roots = Vec::with_capacity(committed_capacity);
         let mut structure_roots = Vec::with_capacity(committed_capacity);
         for prepared in prepared_duplicates {
-            let subtree =
-                self.commit_prepared_project_subtree(prepared, NodeCreationContext::Duplicate, false, OPERATION)?;
+            let subtree = match self.commit_prepared_project_subtree(
+                prepared,
+                NodeCreationContext::Duplicate,
+                false,
+                OPERATION,
+            ) {
+                Ok(subtree) => subtree,
+                Err(error) => {
+                    self.rollback_committed_project_subtrees(committed_roots.iter().copied(), commit_checkpoint);
+                    return Err(error);
+                }
+            };
             copied_roots.push(subtree.root);
             structure_roots.push(subtree.root);
+            committed_roots.push(subtree.root);
             committed.push(subtree);
         }
         for prepared in prepared_created_items {
             let subtree =
-                self.commit_prepared_project_subtree(prepared, NodeCreationContext::Fresh, false, OPERATION)?;
+                match self.commit_prepared_project_subtree(prepared, NodeCreationContext::Fresh, false, OPERATION) {
+                    Ok(subtree) => subtree,
+                    Err(error) => {
+                        self.rollback_committed_project_subtrees(committed_roots.iter().copied(), commit_checkpoint);
+                        return Err(error);
+                    }
+                };
             copied_roots.push(subtree.root);
             structure_roots.push(subtree.root);
+            committed_roots.push(subtree.root);
             committed.push(subtree);
         }
         for prepared in prepared_dependent_items {
             let subtree =
-                self.commit_prepared_project_subtree(prepared, NodeCreationContext::Fresh, false, OPERATION)?;
+                match self.commit_prepared_project_subtree(prepared, NodeCreationContext::Fresh, false, OPERATION) {
+                    Ok(subtree) => subtree,
+                    Err(error) => {
+                        self.rollback_committed_project_subtrees(committed_roots.iter().copied(), commit_checkpoint);
+                        return Err(error);
+                    }
+                };
             structure_roots.push(subtree.root);
+            committed_roots.push(subtree.root);
             committed.push(subtree);
         }
 
-        self.queue_loaded_subtree_structure_events(structure_roots.as_slice())?;
-        self.finalize_committed_project_subtrees(committed)?;
+        if let Err(error) = self.queue_loaded_subtree_structure_events(structure_roots.as_slice()) {
+            self.rollback_committed_project_subtrees(committed_roots.iter().copied(), commit_checkpoint);
+            return Err(error);
+        }
+        if let Err(error) = self.finalize_committed_project_subtrees(committed) {
+            self.rollback_committed_project_subtrees(structure_roots, commit_checkpoint);
+            return Err(error);
+        }
         Ok(copied_roots)
     }
 
@@ -3036,7 +3069,7 @@ impl<T: Node> Engine<T> {
         preferred_label: &str,
         reserved_labels: &mut HashMap<NodeId, HashSet<String>>,
     ) -> String {
-        if !reserved_labels.contains_key(&parent) {
+        reserved_labels.entry(parent).or_insert_with(|| {
             let mut labels = HashSet::new();
             for child in self.ui_direct_children(parent).unwrap_or_default() {
                 if let Some(label) = self
@@ -3048,8 +3081,8 @@ impl<T: Node> Engine<T> {
                     labels.insert(label.to_string());
                 }
             }
-            reserved_labels.insert(parent, labels);
-        }
+            labels
+        });
 
         let labels = reserved_labels
             .get_mut(&parent)

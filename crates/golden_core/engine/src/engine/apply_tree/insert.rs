@@ -302,7 +302,13 @@ impl<T: Node> Engine<T> {
         self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
         if let Some(context) = creation_context {
             self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
-            self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
+            if context.is_project_load() {
+                for node_id in inserted_ids.iter().copied() {
+                    self.queue_node_ready(node_id, context);
+                }
+            } else {
+                self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
+            }
         }
 
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
@@ -369,7 +375,9 @@ impl<T: Node> Engine<T> {
         let context = NodeCreationContext::ProjectLoadAugmentation;
         self.run_node_attached_for_batch(inserted_ids.as_slice(), Some(context))?;
         self.run_node_init_for_batch(inserted_ids.as_slice(), Some(context))?;
-        self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
+        for node_id in inserted_ids {
+            self.queue_node_ready(node_id, context);
+        }
         Ok(())
     }
 
@@ -441,7 +449,13 @@ impl<T: Node> Engine<T> {
         self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
         if let Some(context) = creation_context {
             self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
-            self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
+            if context.is_project_load() {
+                for node_id in inserted_ids.iter().copied() {
+                    self.queue_node_ready(node_id, context);
+                }
+            } else {
+                self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
+            }
         }
 
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {

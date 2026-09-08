@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use crate::app::ProjectGeneration;
 use crate::contexts::UiUserContextsDto;
 use crate::engine::EngineTime;
 use crate::node::NodeId;
@@ -11,6 +12,7 @@ use crate::ui_sync::{
 
 pub(super) struct SnapshotHeader {
     pub(super) at: EngineTime,
+    pub(super) project_generation: ProjectGeneration,
     pub(super) history: UiHistoryState,
     pub(super) user_contexts: UiUserContextsDto,
     pub(super) project_file: UiProjectFileSpec,

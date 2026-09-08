@@ -799,6 +799,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_validate_project_candidate(&self) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, engine_validate_project_candidate; $($variant),*)
+            }
+
+            #[inline(always)]
             fn project_encode_data(&self) -> Result<serde_json::Value, String> {
                 $crate::__dispatch_node_enum!(self, project_encode_data; $($variant),*)
             }

@@ -84,9 +84,10 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T05     | Complete                                                                                           |
 | T06     | Complete                                                                                           |
 | T07     | Complete                                                                                           |
-| T08–T19 | Not started                                                                                        |
+| T08     | Complete                                                                                           |
+| T09–T19 | Not started                                                                                        |
 
-The reviewed stop point is after T07. Resume at T08. Exact commands, evidence, and remaining
+The reviewed stop point is after T08. Resume at T09. Exact commands, evidence, and remaining
 qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 
 ### T00 — Reconcile the baseline and establish a resumable ledger
@@ -202,6 +203,15 @@ qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 - Audit duplication lifecycle failures using the same ownership rules. Grouped UI publication alone is not rollback of module/device side effects.
 
 **Acceptance:** fault injection at decode, preparation, script evaluation, compilation, device activation, publication preparation, and retirement shows an unambiguous active project and coherent UI/history. Test replacement during edits and with stale compiler results. Failure preserves a usable or explicitly paused old project; success changes generation once; no orphan device owner or candidate leaks remain.
+
+**Implementation result (2026-09-08):** complete. Project replacement now prepares and compiles a
+detached candidate, performs an exclusive resource handoff, atomically commits the engine/runtime
+generation/read model, and retires the previous engine outside the control actor. Project generations
+fence stale compilation and input producers. Pre-handoff failures retain the active project;
+post-handoff failures retain its authored state as explicitly paused. Lifecycle-failing single and
+grouped duplications tear down inserted nodes and restore graph, parameter, history, and UI-event
+state. Fault-injection, malformed-decode, script-evaluation, stale-candidate, replacement/edit, and
+resource-owner tests pass; the exact local evidence is recorded in the remediation ledger.
 
 ### T09 — Serialize saves across the complete persistence transaction
 

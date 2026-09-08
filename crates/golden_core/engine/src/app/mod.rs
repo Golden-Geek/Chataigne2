@@ -82,6 +82,34 @@ impl Default for ProjectFileSpec {
     }
 }
 
+/// Monotonic identity of one authoritative project installed in a production runtime.
+///
+/// This token is intentionally separate from document history revisions and compiled runtime
+/// generation ids. A replacement changes it exactly once at the engine/read-model cutover.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProjectGeneration(u64);
+
+impl ProjectGeneration {
+    /// Generation assigned to the project used to create a production runtime.
+    pub const INITIAL: Self = Self(1);
+
+    /// Creates a generation from a runtime-owned monotonic counter.
+    pub(crate) const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    /// Returns the numeric generation value.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+}
+
+impl Default for ProjectGeneration {
+    fn default() -> Self {
+        Self::INITIAL
+    }
+}
+
 /// App node contract required by the default runtime host.
 pub trait ProjectNode: Node {
     /// Creates one node from its default constructor path without applying persisted data.
@@ -141,6 +169,18 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
 
     /// Applies post-load setup after deserializing a project file.
     fn project_opened(_engine: &mut Engine<Self>) -> Result<(), String>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
+
+    /// Performs app-owned, detached candidate validation before live resource handoff.
+    ///
+    /// Implementations may inspect or mutate only `engine`. They must not acquire output devices,
+    /// bind listening sockets, publish externally, or otherwise assume the candidate is live.
+    /// Any edits queued here are settled and compiled while the current project remains active.
+    fn prepare_project_candidate(_engine: &mut Engine<Self>) -> Result<(), String>
     where
         Self: Sized,
     {
@@ -555,39 +595,71 @@ where
     T::project_opened(engine)
 }
 
-/// Applies startup edits, resolves scheduling, and clears bootstrap-only runtime state.
-pub fn prepare_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::Result<()> {
+/// Runs side-effect-free node validation after detached candidate initialization.
+pub fn validate_engine_project_candidate<T: Node>(engine: &Engine<T>) -> Result<(), String> {
+    let mut nodes = engine.nodes.iter().collect::<Vec<_>>();
+    nodes.sort_unstable_by_key(|(node_id, _)| node_id.0);
+    for (node_id, node) in nodes {
+        node.engine_validate_project_candidate().map_err(|error| {
+            format!(
+                "candidate node {} ({}) failed validation: {error}",
+                node_id.0,
+                node.get_type()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+/// Prepares a detached candidate without running callbacks that may acquire live resources.
+///
+/// Node construction, attached/init callbacks, script evaluation, graph stabilization, and
+/// schedule resolution happen here. Deferred `on_node_ready` callbacks form the explicit live
+/// activation boundary and are retained for [`activate_engine_for_runtime`].
+pub fn prepare_engine_candidate_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::Result<()> {
     let trace_enabled = runtime_prepare_perf_trace_enabled();
     let total_started = Instant::now();
     let apply_started = Instant::now();
     engine
-        .apply_edits()
+        .apply_project_load_edits()
         .map_err(|err| Error::other(format!("initial apply_edits failed: {err}")))?;
     let apply = apply_started.elapsed();
-    let ready_started = Instant::now();
-    engine
-        .run_pending_node_ready_callbacks()
-        .map_err(|err| Error::other(format!("initial node-ready callbacks failed: {err}")))?;
-    let ready = ready_started.elapsed();
     let resolve_started = Instant::now();
     engine
         .resolve_if_needed()
         .map_err(|err| Error::other(format!("initial resolve failed: {err}")))?;
     let resolve = resolve_started.elapsed();
-    // Startup shape is already reflected by the in-memory graph and initial snapshot.
-    // Dropping bootstrap inbox events avoids a very expensive first runtime tick for large graphs.
-    engine.inbox.clear();
-    engine.clear_history(); // keep runtime undo history strictly post-start
     if trace_enabled {
         eprintln!(
-            "[engine] runtime_prepare apply_ms={} ready_ms={} resolve_ms={} total_ms={}",
+            "[engine] runtime_candidate_prepare apply_ms={} resolve_ms={} total_ms={}",
             apply.as_millis(),
-            ready.as_millis(),
             resolve.as_millis(),
             total_started.elapsed().as_millis()
         );
     }
     Ok(())
+}
+
+/// Activates a prepared engine after the previous project has released live resources.
+pub fn activate_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::Result<()> {
+    engine
+        .run_pending_node_ready_callbacks()
+        .map_err(|err| Error::other(format!("initial node-ready callbacks failed: {err}")))?;
+    engine
+        .resolve_if_needed()
+        .map_err(|err| Error::other(format!("initial resolve after activation failed: {err}")))?;
+
+    // Startup shape is already reflected by the in-memory graph and initial snapshot.
+    // Dropping bootstrap inbox events avoids a very expensive first runtime tick for large graphs.
+    engine.inbox.clear();
+    engine.clear_history(); // keep runtime undo history strictly post-start
+    Ok(())
+}
+
+/// Applies startup edits, activates resources, resolves scheduling, and clears bootstrap state.
+pub fn prepare_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::Result<()> {
+    prepare_engine_candidate_for_runtime(engine)?;
+    activate_engine_for_runtime(engine)
 }
 
 fn runtime_prepare_perf_trace_enabled() -> bool {
@@ -597,20 +669,30 @@ fn runtime_prepare_perf_trace_enabled() -> bool {
     })
 }
 
-/// Applies startup work for a best-effort project recovery load.
-pub fn prepare_engine_for_runtime_recovering<T: Node>(engine: &mut Engine<T>) -> ProjectLoadRecoveryReport {
+/// Applies detached candidate work for a best-effort project recovery load.
+pub fn prepare_engine_candidate_for_runtime_recovering<T: Node>(engine: &mut Engine<T>) -> ProjectLoadRecoveryReport {
     let mut recovery = ProjectLoadRecoveryReport::default();
 
-    if let Err(err) = engine.apply_edits() {
+    if let Err(err) = engine.apply_project_load_edits() {
         recovery.push_runtime_startup_error(format!("initial apply_edits failed: {err}"));
         engine.edits.pending.clear();
     }
+    if let Err(err) = engine.resolve_if_needed() {
+        recovery.push_runtime_startup_error(format!("initial resolve failed: {err}"));
+    }
+
+    recovery
+}
+
+/// Applies startup work for a best-effort project recovery load.
+pub fn prepare_engine_for_runtime_recovering<T: Node>(engine: &mut Engine<T>) -> ProjectLoadRecoveryReport {
+    let mut recovery = prepare_engine_candidate_for_runtime_recovering(engine);
     if let Err(err) = engine.run_pending_node_ready_callbacks() {
         recovery.push_runtime_startup_error(format!("initial node-ready callbacks failed: {err}"));
         engine.edits.pending.clear();
     }
     if let Err(err) = engine.resolve_if_needed() {
-        recovery.push_runtime_startup_error(format!("initial resolve failed: {err}"));
+        recovery.push_runtime_startup_error(format!("initial resolve after activation failed: {err}"));
     }
 
     engine.inbox.clear();
