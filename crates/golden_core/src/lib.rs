@@ -102,9 +102,8 @@ pub mod app {
         preferences_engine_low_frequency_hz, preferences_engine_low_frequency_hz_from_snapshot,
         preferences_engine_max_frequency_hz, preferences_engine_max_frequency_hz_from_snapshot,
         preferences_engine_max_frequency_interval, preferences_engine_max_frequency_interval_from_snapshot,
-        preferences_root_from_snapshot, prepare_engine_for_runtime, save_sparse_project_file,
-        shutdown_engine_for_runtime, to_sparse_preferences_json_pretty, to_sparse_project_json_pretty,
-        to_sparse_subtree_json_pretty,
+        preferences_root_from_snapshot, prepare_engine_for_runtime, shutdown_engine_for_runtime,
+        to_sparse_preferences_json_pretty, to_sparse_project_json_pretty, to_sparse_subtree_json_pretty,
     };
     pub use golden_host_desktop::{
         FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,

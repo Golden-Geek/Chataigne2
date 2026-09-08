@@ -129,7 +129,7 @@ fn replace_live_engine_drops_previous_engine_after_node_ready_callbacks() {
     let mut next_engine = Engine::new(root);
     next_engine.add_node(ReadyProbeNode::new().into(), None);
 
-    replace_live_engine(&runtime, next_engine, "test_replace", false).expect("engine replacement should succeed");
+    replace_live_engine(&runtime, next_engine, "test_replace", false, None).expect("engine replacement should succeed");
 
     assert!(
         PREVIOUS_ENGINE_DROPPED.load(Ordering::SeqCst),
@@ -159,7 +159,7 @@ fn replace_live_engine_runs_destroy_callbacks_before_node_ready_callbacks() {
     let mut next_engine = Engine::new(root);
     next_engine.add_node(ReadyProbeNode::new().into(), None);
 
-    replace_live_engine(&runtime, next_engine, "test_replace", false).expect("engine replacement should succeed");
+    replace_live_engine(&runtime, next_engine, "test_replace", false, None).expect("engine replacement should succeed");
 
     assert!(
         PREVIOUS_ENGINE_DESTROYED.load(Ordering::SeqCst),
@@ -183,7 +183,7 @@ fn replace_live_engine_activation_failure_preserves_a_paused_old_project() {
     let mut next_engine = Engine::new(root);
     next_engine.add_node(BadReadyNode::new().into(), None);
 
-    let error = replace_live_engine(&runtime, next_engine, "test_replace", true)
+    let error = replace_live_engine(&runtime, next_engine, "test_replace", true, None)
         .expect_err("activation failures cannot commit a partially activated candidate");
     assert!(
         error.contains("SetParam") && error.contains("missing node"),

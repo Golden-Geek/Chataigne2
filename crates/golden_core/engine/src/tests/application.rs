@@ -24,6 +24,7 @@ use crate::ui_sync::{
     UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope,
 };
 
+mod project_persistence;
 mod project_replacement;
 
 static SNAPSHOT_PROBE_DESCRIPTOR_CALLS: AtomicUsize = AtomicUsize::new(0);

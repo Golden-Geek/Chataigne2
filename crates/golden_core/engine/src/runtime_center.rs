@@ -353,6 +353,13 @@ pub(crate) struct RejectedProjectCommit<T: Node> {
     pub(crate) candidate: Box<Engine<T>>,
 }
 
+pub(crate) struct ProjectPersistenceSnapshot {
+    pub(crate) project_generation: ProjectGeneration,
+    pub(crate) document_revision: u64,
+    pub(crate) saved_document_revision: Option<u64>,
+    pub(crate) latest_save_request_id: u64,
+}
+
 pub(crate) struct ProductionState<T: Node> {
     pub(crate) engine: Engine<T>,
     semantic: SemanticRuntime,
@@ -373,12 +380,15 @@ pub(crate) struct ProductionState<T: Node> {
     last_runtime_plane_error: Option<String>,
     project_generation: ProjectGeneration,
     project_pause_error: Option<String>,
+    saved_document_revision: Option<u64>,
+    latest_save_request_id: u64,
 }
 
 impl<T: Node> ProductionState<T> {
     pub(crate) fn new(
         mut engine: Engine<T>,
         metrics: Arc<RuntimeMetrics>,
+        project_was_saved: bool,
     ) -> Result<(Self, ProductionInputPort), String> {
         engine
             .resolve()
@@ -402,6 +412,7 @@ impl<T: Node> ProductionState<T> {
         let worker_count = std::thread::available_parallelism().map_or(1, usize::from).clamp(1, 8);
         let scheduler = PersistentBatchScheduler::new(worker_count, InputIdentityExecutor, metrics.clone())
             .map_err(|error| format!("failed to start runtime scheduler: {error}"))?;
+        let initial_saved_document_revision = project_was_saved.then(|| engine.current_history_state_id());
 
         Ok((
             Self {
@@ -428,6 +439,8 @@ impl<T: Node> ProductionState<T> {
                 last_runtime_plane_error: None,
                 project_generation: ProjectGeneration::INITIAL,
                 project_pause_error: None,
+                saved_document_revision: initial_saved_document_revision,
+                latest_save_request_id: 0,
             },
             input_port,
         ))
@@ -641,6 +654,7 @@ impl<T: Node> ProductionState<T> {
         engine: Engine<T>,
         compiled: CompiledProjectCandidate,
         project_generation: ProjectGeneration,
+        project_was_saved: bool,
         publish_read_model: impl FnOnce(&Engine<T>),
     ) -> Result<Engine<T>, RejectedProjectCommit<T>> {
         let CompiledProjectCandidate { snapshot, generation } = compiled;
@@ -696,6 +710,8 @@ impl<T: Node> ProductionState<T> {
         self.last_runtime_plane_error = None;
         self.project_generation = project_generation;
         self.project_pause_error = None;
+        self.saved_document_revision = project_was_saved.then(|| self.engine.current_history_state_id());
+        self.latest_save_request_id = 0;
 
         publish_read_model(&self.engine);
         self.input_plane.current.store(next_input_generation);
@@ -712,6 +728,29 @@ impl<T: Node> ProductionState<T> {
 
     pub(crate) fn pause_project(&mut self, message: String) {
         self.project_pause_error = Some(message);
+    }
+
+    pub(crate) fn project_persistence_snapshot(&self) -> ProjectPersistenceSnapshot {
+        ProjectPersistenceSnapshot {
+            project_generation: self.project_generation,
+            document_revision: self.engine.current_history_state_id(),
+            saved_document_revision: self.saved_document_revision,
+            latest_save_request_id: self.latest_save_request_id,
+        }
+    }
+
+    pub(crate) fn publish_saved_document(
+        &mut self,
+        project_generation: ProjectGeneration,
+        request_id: u64,
+        document_revision: u64,
+    ) -> bool {
+        if project_generation != self.project_generation || request_id <= self.latest_save_request_id {
+            return false;
+        }
+        self.latest_save_request_id = request_id;
+        self.saved_document_revision = Some(document_revision);
+        true
     }
 
     fn apply_dense_inputs(&mut self) {

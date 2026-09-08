@@ -4,6 +4,8 @@ use tempfile::tempdir;
 
 use super::{read_recovery_candidates, restore_primary_from_backup, write_file_atomically_with_recovery};
 
+mod save_coordinator;
+
 #[test]
 fn atomic_replacement_keeps_previous_complete_file_and_clears_journal() {
     let directory = tempdir().expect("temporary persistence directory should be created");

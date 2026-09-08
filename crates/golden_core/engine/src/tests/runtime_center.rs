@@ -18,7 +18,7 @@ fn production_input_port_drives_the_authoritative_engine_through_dense_slots() {
     let engine = Engine::new(parameter("input", 0));
     let root = engine.root;
     let metrics = Arc::new(RuntimeMetrics::default());
-    let (mut state, input) = ProductionState::new(engine, metrics.clone()).unwrap();
+    let (mut state, input) = ProductionState::new(engine, metrics.clone(), false).unwrap();
 
     input.publish(root, ParamValue::Int(42), 100).unwrap();
     assert_eq!(
@@ -55,7 +55,7 @@ fn production_input_port_drives_the_authoritative_engine_through_dense_slots() {
 fn generation_swap_rebinds_new_parameter_inputs_without_dropping_the_old_generation() {
     let engine = Engine::new(parameter("root", 0));
     let metrics = Arc::new(RuntimeMetrics::default());
-    let (mut state, input) = ProductionState::new(engine, metrics.clone()).unwrap();
+    let (mut state, input) = ProductionState::new(engine, metrics.clone(), false).unwrap();
 
     let root = state.engine.root;
     state.engine.add_node(parameter("dynamic", 1), Some(root));

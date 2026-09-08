@@ -9,6 +9,18 @@ use sha2::{Digest, Sha256};
 
 const RECOVERY_JOURNAL_VERSION: u32 = 1;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FileTransactionStage {
+    BackupTempReady,
+    BackupCommitted,
+    JournalTempReady,
+    JournalCommitted,
+    TargetTempReady,
+    TargetCommitted,
+    BeforeJournalCleanup,
+    JournalCleared,
+}
+
 /// Deterministic sibling paths used for one durable file transaction.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RecoveryPaths {
@@ -74,6 +86,14 @@ pub struct RecoveryCandidates {
 
 /// Replaces a file atomically while retaining its previous complete contents and a write-ahead journal.
 pub fn write_file_atomically_with_recovery(path: impl AsRef<Path>, contents: &[u8]) -> io::Result<RecoveryPaths> {
+    write_file_atomically_with_recovery_observing(path.as_ref(), contents, &mut |_| Ok(()))
+}
+
+pub(crate) fn write_file_atomically_with_recovery_observing(
+    path: &Path,
+    contents: &[u8],
+    observe: &mut impl FnMut(FileTransactionStage) -> io::Result<()>,
+) -> io::Result<RecoveryPaths> {
     let paths = RecoveryPaths::for_target(path)?;
     if let Some(parent) = paths.target.parent().filter(|parent| !parent.as_os_str().is_empty()) {
         fs::create_dir_all(parent)?;
@@ -85,10 +105,11 @@ pub fn write_file_atomically_with_recovery(path: impl AsRef<Path>, contents: &[u
         Err(error) => return Err(error),
     };
     if let Some(previous) = previous.as_deref() {
-        atomic_write(&paths.backup, previous)?;
+        atomic_write_observing(&paths.backup, previous, FileTransactionStage::BackupTempReady, observe)?;
     } else {
         remove_if_present(&paths.backup)?;
     }
+    observe(FileTransactionStage::BackupCommitted)?;
 
     let journal = RecoveryJournal {
         schema_version: RECOVERY_JOURNAL_VERSION,
@@ -98,9 +119,18 @@ pub fn write_file_atomically_with_recovery(path: impl AsRef<Path>, contents: &[u
         backup_sha256: previous.as_deref().map(sha256_hex),
     };
     let journal_bytes = serde_json::to_vec_pretty(&journal).map_err(io::Error::other)?;
-    atomic_write(&paths.journal, &journal_bytes)?;
-    atomic_write(&paths.target, contents)?;
+    atomic_write_observing(
+        &paths.journal,
+        &journal_bytes,
+        FileTransactionStage::JournalTempReady,
+        observe,
+    )?;
+    observe(FileTransactionStage::JournalCommitted)?;
+    atomic_write_observing(&paths.target, contents, FileTransactionStage::TargetTempReady, observe)?;
+    observe(FileTransactionStage::TargetCommitted)?;
+    observe(FileTransactionStage::BeforeJournalCleanup)?;
     remove_if_present(&paths.journal)?;
+    observe(FileTransactionStage::JournalCleared)?;
     Ok(paths)
 }
 
@@ -152,6 +182,14 @@ pub fn read_recovery_candidates(path: impl AsRef<Path>) -> io::Result<RecoveryCa
 
 /// Atomically repairs a failed primary from a backup that the caller has already validated.
 pub fn restore_primary_from_backup(paths: &RecoveryPaths, backup: &[u8]) -> io::Result<()> {
+    restore_primary_from_backup_observing(paths, backup, &mut |_| Ok(()))
+}
+
+pub(crate) fn restore_primary_from_backup_observing(
+    paths: &RecoveryPaths,
+    backup: &[u8],
+    observe: &mut impl FnMut(FileTransactionStage) -> io::Result<()>,
+) -> io::Result<()> {
     let journal = RecoveryJournal {
         schema_version: RECOVERY_JOURNAL_VERSION,
         target_file: display_file_name(&paths.target),
@@ -160,9 +198,18 @@ pub fn restore_primary_from_backup(paths: &RecoveryPaths, backup: &[u8]) -> io::
         backup_sha256: Some(sha256_hex(backup)),
     };
     let journal_bytes = serde_json::to_vec_pretty(&journal).map_err(io::Error::other)?;
-    atomic_write(&paths.journal, &journal_bytes)?;
-    atomic_write(&paths.target, backup)?;
-    remove_if_present(&paths.journal)
+    atomic_write_observing(
+        &paths.journal,
+        &journal_bytes,
+        FileTransactionStage::JournalTempReady,
+        observe,
+    )?;
+    observe(FileTransactionStage::JournalCommitted)?;
+    atomic_write_observing(&paths.target, backup, FileTransactionStage::TargetTempReady, observe)?;
+    observe(FileTransactionStage::TargetCommitted)?;
+    observe(FileTransactionStage::BeforeJournalCleanup)?;
+    remove_if_present(&paths.journal)?;
+    observe(FileTransactionStage::JournalCleared)
 }
 
 /// Removes a stale write-ahead journal after the primary destination is verified.
@@ -171,9 +218,15 @@ pub fn clear_recovery_journal(path: impl AsRef<Path>) -> io::Result<()> {
     remove_if_present(&paths.journal)
 }
 
-fn atomic_write(path: &Path, contents: &[u8]) -> io::Result<()> {
+fn atomic_write_observing(
+    path: &Path,
+    contents: &[u8],
+    temp_ready_stage: FileTransactionStage,
+    observe: &mut impl FnMut(FileTransactionStage) -> io::Result<()>,
+) -> io::Result<()> {
     let mut file = AtomicWriteFile::open(path)?;
     file.write_all(contents)?;
+    observe(temp_ready_stage)?;
     file.commit()
 }
 

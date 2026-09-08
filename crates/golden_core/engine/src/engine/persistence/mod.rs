@@ -471,17 +471,6 @@ impl<T: Node> Engine<T> {
         Ok(serde_json::to_string_pretty(&project)?)
     }
 
-    /// Writes a pretty JSON project snapshot to disk.
-    pub fn save_project_file_with<P, F>(&self, path: P, encode_data: F) -> Result<(), ProjectPersistenceError>
-    where
-        P: AsRef<Path>,
-        F: FnMut(&T) -> Result<serde_json::Value, String>,
-    {
-        let json = self.to_project_json_pretty_with(encode_data)?;
-        golden_persistence::write_file_atomically_with_recovery(path, json.as_bytes())?;
-        Ok(())
-    }
-
     /// Loads a project from an already parsed project document.
     ///
     /// The decoder callback receives `(node_type, data, meta)` and must return a

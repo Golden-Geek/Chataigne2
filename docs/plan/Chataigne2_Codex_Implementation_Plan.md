@@ -85,9 +85,10 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T06     | Complete                                                                                           |
 | T07     | Complete                                                                                           |
 | T08     | Complete                                                                                           |
-| T09–T19 | Not started                                                                                        |
+| T09     | Complete                                                                                           |
+| T10–T19 | Not started                                                                                        |
 
-The reviewed stop point is after T08. Resume at T09. Exact commands, evidence, and remaining
+The reviewed stop point is after T09. Resume at T10. Exact commands, evidence, and remaining
 qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 
 ### T00 — Reconcile the baseline and establish a resumable ledger
@@ -226,6 +227,15 @@ resource-owner tests pass; the exact local evidence is recorded in the remediati
 - Update current path and saved/dirty revision only for the current generation and applicable winning request. A save of revision R must not mark later edits clean. Treat Save As races explicitly.
 
 **Acceptance:** barrier-driven tests force an older encode/write to finish after a newer one, simultaneous same-path saves, path aliases, Save As races, replacement during save, and edits after snapshot capture. Latest accepted successful state and metadata are correct. Inject failure/crash boundaries across journal/backup/temp/rename/recovery on supported OSes; recover a valid committed revision, preserve actionable errors, and allow subsequent saves. Atomic rename alone does not close this task.
+
+**Implementation result (2026-09-08):** the persistence service now assigns generation-,
+revision-, request-, and normalized-destination-aware tickets before encoding, orders complete
+transactions per destination, and permits bounded concurrency across destinations. A replacement
+fence waits through durable write and metadata publication, then invalidates unstarted saves from
+the old generation. The production runtime owns save capture, encoding, durable commit, current
+path, and saved/dirty publication; the transport host no longer carries a parallel file session.
+Barrier and injected transaction-stage tests cover reversed completion, aliases, Save As, later
+edits, replacement races, every write boundary, restore retry, and subsequent-save recovery.
 
 ### T10 — Return real graph-edit failures through the public API
 

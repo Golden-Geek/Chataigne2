@@ -4,8 +4,8 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the T08 commit: `8194d15206b8a3cf8265d3e82aa123245740b91d`
-is checked out with only the T08 implementation and evidence changes in the working tree. T00–T07
+Current SHA and patch state before the T09 commit: `33e06a74b7958a2a930cfd1dfe4e6aeca5bd6b6c`
+is checked out with only the T09 implementation and evidence changes in the working tree. T00–T08
 are committed and pushed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
@@ -20,25 +20,25 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T08 — make project replacement an explicit prepare/commit/retire operation — complete locally. T01's native
+Task: T09 — serialize complete project-save transactions — complete locally. T01's native
 qualification and T03's matching hosted reference baseline remain pending.
 
-Owning layers and files: application lifecycle and control runtime, runtime/input generations,
-immutable UI read-model publication, engine persistence duplication, and the transport project host.
+Owning layers and files: persistence coordination and crash recovery, application save capture and
+metadata publication, replacement fencing, immutable UI project-file publication, and the transport
+project host.
 
-Invariant / implementation decision: detached preparation may validate and compile but cannot own
-live devices. The control actor releases the old owner before candidate activation and commits the
-engine, compiled runtime, input producer generation, project generation, and prebuilt read model as
-one cutover. Pre-handoff failures leave the old project active. A failure after exclusive-resource
-release leaves the old authored project explicitly paused and rejects edits/ticks rather than
-pretending ownership was restored. Retirement diagnostics cannot roll back a committed generation.
+Invariant / implementation decision: acceptance assigns a monotonic ticket containing project
+generation, document revision, and normalized destination before encoding. Saves commit in ticket
+order for the same physical destination, while distinct destinations use bounded concurrency. The
+lease spans backup, journal, temporary file, replacement, cleanup, and actor-owned metadata
+publication. Project replacement exclusively fences this complete transaction without moving disk
+work into the actor or creating an actor/coordinator lock inversion.
 
-Result and remaining work: monotonic project tokens discard stale candidates and compiler
-completions; inactive/active input generations fence publishers across cutover; full UI projection
-is prepared before publication; script-invalid candidates fail before handoff; and lifecycle-failing
-single/group duplication removes partially activated nodes and restores graph, parameter, history,
-and event state. T09 must coordinate persistence leases with these generations. T11 still owns
-bounded lifecycle cancellation and recovery policy for long-running resource teardown.
+Result and remaining work: alias-safe ordered transactions, Save As winner publication, exact
+saved/dirty revision tracking, and old-generation invalidation are production-owned. Barrier tests
+cover reversed completion, same/different destinations, later edits, and replacement races. Injected
+write and restore boundaries prove recovery retains a complete revision and later saves succeed.
+T12 still owns large-project capture/materialization scaling; T11 owns bounded lifecycle policy.
 
 ## Task status and dependencies
 
@@ -53,7 +53,7 @@ bounded lifecycle cancellation and recovery policy for long-running resource tea
 | T06  | T00                                           | complete                                                     |
 | T07  | T00                                           | complete                                                     |
 | T08  | T05, T06                                      | complete                                                     |
-| T09  | T08                                           | pending                                                      |
+| T09  | T08                                           | complete                                                     |
 | T10  | T00                                           | pending                                                      |
 | T11  | T04, T08, T09, T10                            | pending                                                      |
 | T12  | T08, T09, T11                                 | pending                                                      |
@@ -82,7 +82,7 @@ the current branch contains implementation and verification evidence.
 | F08 — UI index copying             | open            | T13 pending                                                                                                                                                                                                                                                        | Delta-proportional work and browser action-to-paint evidence is missing.                                                                                                                                                                                           |
 | F09 — identity work/full scans     | open            | T14/T18 pending                                                                                                                                                                                                                                                    | Sparse-selection and real-kernel measurements are missing.                                                                                                                                                                                                         |
 | F10 — snapshots/encoding           | open            | T12/T15 pending                                                                                                                                                                                                                                                    | Actor capture/materialization scaling evidence is missing.                                                                                                                                                                                                         |
-| F11 — concurrent saves             | open            | T09/T12 pending                                                                                                                                                                                                                                                    | Complete-transaction coordination and crash-boundary tests are missing.                                                                                                                                                                                            |
+| F11 — concurrent saves             | fixed           | T09 adds monotonic save tickets, normalized destination identity, ordered complete transactions, bounded cross-destination concurrency, generation fencing, and winner-only path/revision publication                                                              | Deterministic barriers cover reversed completion, aliases, Save As, edits, and replacement. Injected write/restore boundaries prove recovery and subsequent saves. T12 retains capture-scaling work under F10, not save-order correctness.                         |
 | F12 — dependency gate              | fixed           | `h2` locked at 0.4.16; `rtrb` constraint and lock at 0.3.5; no advisory suppression added                                                                                                                                                                          | `cargo deny check`, `cargo machete`, and both backend-neutral/realtime Golden Audio suites pass against RustSec DB `5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5` (2026-09-02). No reachable Chataigne exploit was established.                                        |
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13/T14/T19 pending                                                                                                       | All 22 qualification-tool tests pass, including every planned invalid class and a real regression. Historical values are explicitly unqualified; matching hosted reference and product evidence remain open.                                                       |
 | F14 — facades/edit acknowledgement | open            | T10/T15 pending                                                                                                                                                                                                                                                    | Typed rejection propagation and dependency-boundary consumer fixtures are missing.                                                                                                                                                                                 |
@@ -143,6 +143,14 @@ the current branch contains implementation and verification evidence.
 | `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T08 patch | Windows x64                           | passed  | All engine targets pass strict lint. T08 also removes the five previously recorded style findings in touched persistence/UI files and boxes rejected candidate ownership to keep the error result bounded.                                                                        |
 | `cargo clippy --locked -p golden_transport_server --all-targets -- -D warnings`    | T08 patch | Windows x64                           | passed  | The transport project-host changes and their tests are warning-free.                                                                                                                                                                                                              |
 | `cargo fmt --all` (root and Golden Core workspaces)                                | T08 patch | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                           |
+| `cargo test --locked -p golden_persistence --no-fail-fast`                         | T09 patch | Windows x64                           | passed  | 10 tests cover same-destination acceptance order, lexical aliases, bounded cross-destination concurrency, generation replacement/abort, dropped tickets, every durable-write boundary, recovery retry, and subsequent saves.                                                      |
+| `cargo test --locked -p golden_engine --no-fail-fast`                              | T09 patch | Windows x64                           | passed  | 410 unit tests and 7 doctests pass; the existing stress and explicit schedule-measurement tests remain ignored. Five application barriers cover exact saved revision, later edits, Save As, stale pending saves, and active-transaction replacement fencing.                      |
+| `cargo test --locked -p golden_transport_server --no-fail-fast`                    | T09 patch | Windows x64                           | passed  | All 28 transport-host tests pass with runtime-owned save and project-file metadata.                                                                                                                                                                                               |
+| `cargo test --locked -p Chataigne2 --no-fail-fast`                                 | T09 patch | Windows x64                           | passed  | 515 application tests and the default Windows audio-host integration test pass.                                                                                                                                                                                                   |
+| `cargo clippy --locked -p golden_persistence --all-targets -- -D warnings`         | T09 patch | Windows x64                           | passed  | The coordinator, file transaction, and fault-injection targets are warning-free.                                                                                                                                                                                                  |
+| `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T09 patch | Windows x64                           | passed  | Runtime save capture, metadata publication, and replacement-fence targets are warning-free.                                                                                                                                                                                       |
+| `cargo clippy --locked -p golden_transport_server --all-targets -- -D warnings`    | T09 patch | Windows x64                           | passed  | Runtime-owned host save/load workflow and tests are warning-free.                                                                                                                                                                                                                 |
+| `cargo fmt --all` (root and Golden Core workspaces)                                | T09 patch | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                           |
 
 ## Preservation and qualification inventory
 
@@ -157,7 +165,7 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready task: T09.
+Next dependency-ready task: T10.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

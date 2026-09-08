@@ -11,6 +11,8 @@ This section explains ownership and dependency direction. Start with the
   callback safety, clocks, and device recovery.
 - [Golden Graph](graph-foundation.md): graph documents, transactions, revisions, and presentation.
 - [Hosts](hosts.md): desktop, headless/browser, transport, and native-dialog ownership.
+- [Persistence transactions](persistence.md): save ordering, destination identity, recovery, and
+  project-generation fencing.
 - [UI protocol](ui-protocol.md): Rust DTO source of truth and generated TypeScript.
 
 ## Chataigne systems

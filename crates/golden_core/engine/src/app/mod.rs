@@ -741,9 +741,21 @@ pub fn to_sparse_project_json_pretty_with_ui_state<T>(
 where
     T: ProjectNode + From<Folder>,
 {
+    let project = capture_sparse_project_file_with_ui_state(engine, ui_state)?;
+    Ok(serde_json::to_string_pretty(&project)?)
+}
+
+/// Captures one owned sparse project document for encoding outside the live engine boundary.
+pub fn capture_sparse_project_file_with_ui_state<T>(
+    engine: &Engine<T>,
+    ui_state: Option<serde_json::Value>,
+) -> Result<ProjectFile, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
     let mut project = to_sparse_project_file(engine)?;
     project.ui_state = ui_state;
-    Ok(serde_json::to_string_pretty(&project)?)
+    Ok(project)
 }
 
 /// Serializes one node subtree using the same sparse codec as project files.
@@ -753,17 +765,6 @@ where
 {
     let project = to_sparse_subtree_file(engine, root)?;
     Ok(serde_json::to_string_pretty(&project)?)
-}
-
-/// Writes one sparse project file that omits default-backed child records.
-pub fn save_sparse_project_file<T, P>(engine: &Engine<T>, path: P) -> Result<(), ProjectPersistenceError>
-where
-    T: ProjectNode + From<Folder>,
-    P: AsRef<Path>,
-{
-    let json = to_sparse_project_json_pretty(engine)?;
-    fs::write(path, json)?;
-    Ok(())
 }
 
 /// Loads one sparse project JSON document by first expanding declared deltas

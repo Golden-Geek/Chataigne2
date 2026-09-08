@@ -12637,7 +12637,7 @@ fn production_runtime_orders_explicit_replay_through_compiled_work() {
         .and_then(|root| root.node_data().first_child)
         .expect("runner should exist");
     let metrics = std::sync::Arc::new(golden_runtime::RuntimeMetrics::default());
-    let (mut runtime, _) = crate::runtime_center::ProductionState::new(engine, metrics.clone())
+    let (mut runtime, _) = crate::runtime_center::ProductionState::new(engine, metrics.clone(), false)
         .expect("production runtime should compile its initial schedule");
 
     runtime

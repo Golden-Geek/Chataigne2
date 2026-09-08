@@ -2,16 +2,14 @@ use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use futures_util::{SinkExt, StreamExt};
-use golden_engine::app::{
-    ProjectFileSpec, ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime,
-};
+use golden_engine::app::{ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime};
 use golden_engine::application::{AppliedUiTransaction, ProductionRuntime};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::events::CustomEventRetention;
@@ -152,60 +150,9 @@ impl Default for UiServerConfig {
     }
 }
 
-#[derive(Clone)]
-struct ProjectFileSession {
-    state: Arc<Mutex<ProjectFileSessionState>>,
-}
-
-struct ProjectFileSessionState {
-    file_spec: ProjectFileSpec,
-    current_path: Option<String>,
-}
-
-impl ProjectFileSession {
-    fn new(file_spec: ProjectFileSpec) -> Self {
-        Self {
-            state: Arc::new(Mutex::new(ProjectFileSessionState {
-                file_spec,
-                current_path: None,
-            })),
-        }
-    }
-
-    fn snapshot(&self) -> UiProjectFileSpec {
-        let state = match self.state.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        UiProjectFileSpec::from_project_file_spec(state.file_spec.clone(), state.current_path.clone())
-    }
-
-    fn set_current_path(&self, path: String) {
-        let mut state = match self.state.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        let normalized = path.trim();
-        state.current_path = if normalized.is_empty() {
-            None
-        } else {
-            Some(normalized.to_string())
-        };
-    }
-
-    fn clear_current_path(&self) {
-        let mut state = match self.state.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        state.current_path = None;
-    }
-}
-
 struct ServerState<T: ProjectLifecycle> {
     runtime: ProductionRuntime<T>,
     read_model: Arc<UiReadModel>,
-    project_file: ProjectFileSession,
     ws_hub: WsHubHandle,
     frontend_assets: &'static [UiAsset],
     preferences: Option<UiPreferencesConfig>,
@@ -216,7 +163,6 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
         Self {
             runtime: self.runtime.clone(),
             read_model: self.read_model.clone(),
-            project_file: self.project_file.clone(),
             ws_hub: self.ws_hub.clone(),
             frontend_assets: self.frontend_assets,
             preferences: self.preferences.clone(),
@@ -310,13 +256,6 @@ fn save_preferences_after_change<T: ProjectLifecycle>(
     if let Err(err) = project_host::save_preferences(runtime, preferences) {
         eprintln!("[preferences] failed to save after edit: {err}");
     }
-}
-
-fn refresh_read_model_after_project_replace<T: ProjectLifecycle>(
-    runtime: &ProductionRuntime<T>,
-    project_file: &ProjectFileSession,
-) {
-    runtime.set_project_file(project_file.snapshot());
 }
 
 fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
@@ -493,8 +432,8 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
 
 /// Runs the built-in HTTP and WebSocket host through the production application facade.
 pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
-    let project_file = ProjectFileSession::new(T::project_file_spec());
-    let runtime = ProductionRuntime::new(engine, project_file.snapshot());
+    let project_file = UiProjectFileSpec::from_project_file_spec(T::project_file_spec(), None);
+    let runtime = ProductionRuntime::new(engine, project_file);
     if let Some(preferences) = config.preferences.as_ref() {
         project_host::save_preferences(&runtime, preferences).map_err(Error::other)?;
     }
@@ -519,7 +458,6 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
     let state = ServerState {
         runtime,
         read_model,
-        project_file,
         ws_hub,
         frontend_assets: config.frontend_assets,
         preferences: config.preferences,
@@ -1421,8 +1359,6 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-new") => {
             match project_host::create_new_project(&state.runtime, state.preferences.as_ref()) {
                 Ok(()) => {
-                    state.project_file.clear_current_path();
-                    refresh_read_model_after_project_replace(&state.runtime, &state.project_file);
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
@@ -1434,9 +1370,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
             match project_host::save_project(&state.runtime, &payload.path, payload.ui_state) {
-                Ok(path) => {
-                    state.project_file.set_current_path(path);
-                    state.runtime.set_project_file(state.project_file.snapshot());
+                Ok(_) => {
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
@@ -1454,8 +1388,6 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             };
             match load {
                 Ok(load) => {
-                    state.project_file.set_current_path(load.path.clone());
-                    refresh_read_model_after_project_replace(&state.runtime, &state.project_file);
                     write_json(stream, "200 OK", &project_path_dto(load))?;
                 }
                 Err(err) => {
@@ -1487,8 +1419,6 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             };
             match load {
                 Ok(load) => {
-                    state.project_file.set_current_path(load.path.clone());
-                    refresh_read_model_after_project_replace(&state.runtime, &state.project_file);
                     write_json(stream, "200 OK", &project_path_dto(load))?;
                 }
                 Err(err) => {

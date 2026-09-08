@@ -23,6 +23,20 @@ rejected until a later project replacement succeeds. A committed replacement own
 before the old engine object is dropped outside the actor. Duplication lifecycle failures run
 destroy callbacks and restore the pre-operation graph/history/event publication boundary.
 
+Project saves run through `golden_persistence::PersistenceCoordinator`. The production facade
+captures an owned sparse document and its project generation/document revision in one actor turn,
+accepts a monotonic destination ticket, and performs JSON encoding and disk work outside the actor.
+The coordinator orders every accepted save for one normalized destination, permits bounded
+cross-destination concurrency, and holds the transaction lease through path/saved-revision
+publication. Later edits therefore remain dirty, and a slower earlier Save As cannot overwrite a
+newer successful request's metadata.
+
+Replacement takes an exclusive persistence generation fence only after detached preparation.
+Already-committing saves finish their complete file and metadata transaction before cutover;
+accepted old-generation saves that have not started writing are rejected after cutover. Save code
+never holds the control actor while waiting for a persistence lease, avoiding actor/coordinator lock
+inversion.
+
 Pure comparison evaluators have no effect authority. External output requires an
 `AuthoritativeOutput` issued by the composed application facade, preventing comparison or
 diagnostic paths from duplicating commands, triggers, effects, or device traffic.

@@ -4,8 +4,13 @@
 //! transports from owning or locking it directly. It is the application seam through which
 //! runtime planes can be selected independently.
 
+mod project_persistence;
 mod project_replacement;
 
+use project_persistence::ProjectSaveFaultHook;
+pub use project_persistence::{ProjectPersistenceStatus, ProjectSaveRequest, ProjectSaveResult};
+#[cfg(test)]
+pub(crate) use project_persistence::{ProjectSaveFaultCallback, ProjectSaveStage};
 #[cfg(test)]
 pub(crate) use project_replacement::ProjectReplacementFaultCallback;
 use project_replacement::ProjectReplacementFaultHook;
@@ -26,12 +31,13 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use golden_application::{GraphEditing, HostLifecycle, Observation, Persistence, ProjectTransactions, RuntimeValues};
+use golden_persistence::PersistenceCoordinator;
 use golden_runtime::{ControlActor, RuntimeMetrics, RuntimeMetricsSnapshot};
 
 use crate::app::{
     ProjectGeneration, ProjectLifecycle, apply_preferences_runtime_limits, live_preferences_root,
     prepare_engine_for_runtime, prepare_engine_for_runtime_recovering, shutdown_engine_for_runtime,
-    to_sparse_preferences_json_pretty, to_sparse_project_json_pretty_with_ui_state,
+    to_sparse_preferences_json_pretty,
 };
 use crate::contexts::UiUserContextCandidatesDto;
 use crate::engine::{Engine, EngineRuntimeError, EngineTime, ProjectLoadRecoveryReport};
@@ -245,26 +251,6 @@ pub struct ApplicationTickResult {
     pub next_interval: Duration,
 }
 
-/// Serialized project snapshot plus capture metadata.
-#[derive(Clone, Debug)]
-pub struct EncodedProjectDocument {
-    /// Pretty JSON project document.
-    pub json: String,
-    /// Number of live nodes represented by the document.
-    pub node_count: usize,
-    /// Time spent waiting for the production adapter lock.
-    pub lock_wait: Duration,
-    /// Time spent encoding the document.
-    pub serialize: Duration,
-}
-
-/// Request to serialize the live project.
-#[derive(Clone, Debug, Default)]
-pub struct ProjectSaveRequest {
-    /// Optional project-owned UI state stored in the persistence envelope.
-    pub ui_state: Option<serde_json::Value>,
-}
-
 /// Startup policy for the production host-lifecycle adapter.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RuntimeStartRequest {
@@ -280,6 +266,8 @@ struct ProductionRuntimeInner<T: ProjectLifecycle> {
     next_project_generation: AtomicU64,
     latest_requested_project_generation: Arc<AtomicU64>,
     project_replacement_fault_hook: ProjectReplacementFaultHook,
+    persistence_coordinator: PersistenceCoordinator,
+    project_save_fault_hook: ProjectSaveFaultHook,
     #[cfg(test)]
     preferences_subtree_collection_count: Arc<AtomicUsize>,
 }
@@ -304,9 +292,10 @@ impl<T: ProjectLifecycle> Clone for ProductionRuntime<T> {
 impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Wraps an already-created engine and seeds its immutable observation projection.
     pub fn new(engine: Engine<T>, project_file: UiProjectFileSpec) -> Self {
+        let project_was_saved = project_file.current_path.is_some();
         let read_model = Arc::new(UiReadModel::from_engine(&engine, project_file));
         let metrics = Arc::new(RuntimeMetrics::default());
-        let (state, input_port) = ProductionState::new(engine, metrics.clone())
+        let (state, input_port) = ProductionState::new(engine, metrics.clone(), project_was_saved)
             .expect("the initial production runtime generation must compile");
         let control = ControlActor::spawn_with_metrics("golden-control", state, metrics)
             .expect("the production control-plane actor must start");
@@ -319,6 +308,8 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 next_project_generation: AtomicU64::new(ProjectGeneration::INITIAL.get() + 1),
                 latest_requested_project_generation: Arc::new(AtomicU64::new(ProjectGeneration::INITIAL.get())),
                 project_replacement_fault_hook: ProjectReplacementFaultHook::default(),
+                persistence_coordinator: PersistenceCoordinator::new(ProjectGeneration::INITIAL.get(), 4),
+                project_save_fault_hook: ProjectSaveFaultHook::default(),
                 #[cfg(test)]
                 preferences_subtree_collection_count: Arc::new(AtomicUsize::new(0)),
             }),
@@ -539,6 +530,11 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         self.inner.project_replacement_fault_hook.set(callback);
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_project_save_fault_hook(&self, callback: Option<ProjectSaveFaultCallback>) {
+        self.inner.project_save_fault_hook.set(callback);
+    }
+
     /// Cancels one client's active edit session and publishes resulting events.
     pub fn cancel_ui_edit_session(&self, ui_client_instance_id: &str) -> UiEventBatch {
         let ui_client_instance_id = ui_client_instance_id.to_owned();
@@ -624,31 +620,8 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         self.call_engine(|engine| to_sparse_preferences_json_pretty(engine).map_err(|error| error.to_string()))
     }
 
-    /// Serializes the live project through the authoritative sparse codec.
-    pub fn encode_project(&self, request: ProjectSaveRequest) -> Result<EncodedProjectDocument, String> {
-        let receipt = self
-            .inner
-            .control
-            .call(move |state| {
-                let engine = &mut state.engine;
-                let node_count = engine.nodes.iter().count();
-                let serialize_started = Instant::now();
-                let json = to_sparse_project_json_pretty_with_ui_state(engine, request.ui_state)
-                    .map_err(|error| error.to_string())?;
-                Ok::<_, String>((json, node_count, serialize_started.elapsed()))
-            })
-            .map_err(|error| error.to_string())?;
-        let (json, node_count, serialize) = receipt.output?;
-        Ok(EncodedProjectDocument {
-            json,
-            node_count,
-            lock_wait: receipt.queue_wait,
-            serialize,
-        })
-    }
-
-    /// Updates host-owned project-file metadata in the immutable observation model.
-    pub fn set_project_file(&self, project_file: UiProjectFileSpec) {
+    #[cfg(test)]
+    pub(crate) fn set_project_file(&self, project_file: UiProjectFileSpec) {
         let read_model = self.inner.read_model.clone();
         self.inner
             .control
@@ -753,7 +726,7 @@ impl<T: ProjectLifecycle> Persistence for ProductionRuntime<T> {
     type LoadRequest = ProjectReplacement<T>;
     type LoadResult = ProjectReplacementResult;
     type SaveRequest = ProjectSaveRequest;
-    type SaveResult = EncodedProjectDocument;
+    type SaveResult = ProjectSaveResult;
     type Error = String;
 
     fn load(&self, request: Self::LoadRequest) -> Result<Self::LoadResult, Self::Error> {
@@ -761,7 +734,7 @@ impl<T: ProjectLifecycle> Persistence for ProductionRuntime<T> {
     }
 
     fn save(&self, request: Self::SaveRequest) -> Result<Self::SaveResult, Self::Error> {
-        self.encode_project(request)
+        self.save_project(request)
     }
 }
 

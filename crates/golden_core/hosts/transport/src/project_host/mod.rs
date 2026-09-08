@@ -11,6 +11,7 @@ use golden_engine::app::{
 use golden_engine::application::{ProductionRuntime, ProjectReplacement, ProjectSaveRequest};
 use golden_engine::engine::{Engine, ProjectLoadRecoveryReport, ProjectPersistenceError};
 use golden_engine::logger::{self, LogLevel};
+use golden_engine::ui_sync::UiProjectFileSpec;
 
 use crate::ui_server::UiPreferencesConfig;
 
@@ -121,8 +122,9 @@ fn replace_live_engine<T: ProjectLifecycle>(
     next_engine: Engine<T>,
     reason: &str,
     recover: bool,
+    current_path: Option<String>,
 ) -> Result<ProjectLoadRecoveryReport, String> {
-    let project_file = runtime.read_model().current_project_file();
+    let project_file = UiProjectFileSpec::from_project_file_spec(T::project_file_spec(), current_path);
     let result = runtime.replace_project(ProjectReplacement {
         engine: next_engine,
         project_file,
@@ -210,7 +212,7 @@ pub(crate) fn create_new_project<T: ProjectLifecycle>(
     let mut next_engine = create_new_project_engine::<T>()?;
     load_preferences_into_engine(&mut next_engine, preferences)?;
     T::project_opened(&mut next_engine)?;
-    replace_live_engine(runtime, next_engine, "project_new", false).map(|_| ())
+    replace_live_engine(runtime, next_engine, "project_new", false, None).map(|_| ())
 }
 
 pub(crate) fn save_project<T: ProjectLifecycle>(
@@ -224,39 +226,50 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
 
     let started = Instant::now();
 
-    let encoded = runtime.encode_project(ProjectSaveRequest { ui_state })?;
-    let clone_or_snapshot_ms = 0;
-
-    let write_started = Instant::now();
-    golden_persistence::write_file_atomically_with_recovery(path.as_str(), encoded.json.as_bytes())
-        .map_err(|err| err.to_string())?;
-    let write_elapsed = write_started.elapsed();
+    let saved = runtime.save_project(ProjectSaveRequest {
+        path: path.clone(),
+        ui_state,
+    })?;
     eprintln!(
-        "[project-host] save_project path='{}' nodes={} bytes={} lock_wait_ms={} clone_or_snapshot_ms={} serialize_ms={} write_ms={} total_ms={}",
-        path,
-        encoded.node_count,
-        encoded.json.len(),
-        encoded.lock_wait.as_millis(),
-        clone_or_snapshot_ms,
-        encoded.serialize.as_millis(),
-        write_elapsed.as_millis(),
-        started.elapsed().as_millis()
+        "[project-host] save_project path='{}' request={} project_generation={} document_revision={} current_revision={} metadata_applied={} dirty={} nodes={} bytes={} lock_wait_ms={} capture_ms={} serialize_ms={} coordination_wait_ms={} write_ms={} total_ms={}",
+        saved.path,
+        saved.request_id,
+        saved.project_generation.get(),
+        saved.document_revision,
+        saved.current_document_revision,
+        saved.metadata_applied,
+        saved.dirty,
+        saved.node_count,
+        saved.encoded_bytes,
+        saved.lock_wait.as_millis(),
+        saved.capture.as_millis(),
+        saved.serialize.as_millis(),
+        saved.coordination_wait.as_millis(),
+        saved.write.as_millis(),
+        saved.total.as_millis()
     );
     let _ = logger::log_message(
         LogLevel::Success,
         "project".to_string(),
         None,
         format!(
-            "Saved project: {path} (nodes={} bytes={} lock_wait_ms={} serialize_ms={} write_ms={} total_ms={})",
-            encoded.node_count,
-            encoded.json.len(),
-            encoded.lock_wait.as_millis(),
-            encoded.serialize.as_millis(),
-            write_elapsed.as_millis(),
+            "Saved project: {} (request={} generation={} revision={} dirty={} nodes={} bytes={} lock_wait_ms={} capture_ms={} serialize_ms={} coordination_wait_ms={} write_ms={} total_ms={})",
+            saved.path,
+            saved.request_id,
+            saved.project_generation.get(),
+            saved.document_revision,
+            saved.dirty,
+            saved.node_count,
+            saved.encoded_bytes,
+            saved.lock_wait.as_millis(),
+            saved.capture.as_millis(),
+            saved.serialize.as_millis(),
+            saved.coordination_wait.as_millis(),
+            saved.write.as_millis(),
             started.elapsed().as_millis()
         ),
     );
-    Ok(path)
+    Ok(saved.path)
 }
 
 pub(crate) fn load_project<T: ProjectLifecycle>(
@@ -311,10 +324,11 @@ fn load_project_with_options<T: ProjectLifecycle>(
     let configure_elapsed = configure_started.elapsed();
 
     let replace_started = Instant::now();
-    let runtime_recovery = replace_live_engine(runtime, next_engine, "project_loaded", recover).map_err(|message| {
-        let recovery = recover.then(|| ProjectLoadRecoveryReport::from_runtime_startup_error(message.clone()));
-        ProjectLoadError { message, recovery }
-    })?;
+    let runtime_recovery = replace_live_engine(runtime, next_engine, "project_loaded", recover, Some(path.clone()))
+        .map_err(|message| {
+            let recovery = recover.then(|| ProjectLoadRecoveryReport::from_runtime_startup_error(message.clone()));
+            ProjectLoadError { message, recovery }
+        })?;
     let replace_elapsed = replace_started.elapsed();
     recovery.problems.extend(runtime_recovery.problems);
     let problem_count = recovery.problems.len();

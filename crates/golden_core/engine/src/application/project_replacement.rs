@@ -165,6 +165,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Replaces the live project after the caller decodes and configures it.
     pub fn replace_project(&self, mut request: ProjectReplacement<T>) -> Result<ProjectReplacementResult, String> {
         let started = Instant::now();
+        let expected_generation = self.current_project_generation();
         let generation = ProjectGeneration::new(self.inner.next_project_generation.fetch_add(1, Ordering::Relaxed));
         self.inner
             .latest_requested_project_generation
@@ -203,6 +204,17 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             }
         };
         let detached_prepare = prepare_started.elapsed();
+        let replacement_fence = match self
+            .inner
+            .persistence_coordinator
+            .begin_generation_replacement(expected_generation.get())
+        {
+            Ok(fence) => fence,
+            Err(error) => {
+                shutdown_engine_for_runtime(&mut request.engine);
+                return Err(error.to_string());
+            }
+        };
 
         let read_model = self.inner.read_model.clone();
         let publication_hook = self.inner.read_model_publication_hook.clone();
@@ -272,6 +284,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     state.pause_project(format!("replacement publication preparation failed: {error}"));
                     return reject_project_candidate(candidate, error);
                 }
+                let project_was_saved = request.project_file.current_path.is_some();
                 let prepared_read_model =
                     UiReadModel::prepare_project_replacement(&candidate, request.project_file, generation);
                 if stale() {
@@ -280,20 +293,21 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     return reject_project_candidate(candidate, error);
                 }
 
-                let previous = match state.commit_project(candidate, compiled, generation, move |engine| {
-                    publication_hook.invoke();
-                    read_model
-                        .commit_project_replacement(prepared_read_model, UiReadModelReplaceReason::ProjectReplaced);
-                    read_model.publish_engine_events_since(engine, None);
-                }) {
-                    Ok(previous) => previous,
-                    Err(rejected) => {
-                        let error = rejected.error;
-                        let candidate = *rejected.candidate;
-                        state.pause_project(format!("replacement commit preparation failed: {error}"));
-                        return reject_project_candidate(candidate, error);
-                    }
-                };
+                let previous =
+                    match state.commit_project(candidate, compiled, generation, project_was_saved, move |engine| {
+                        publication_hook.invoke();
+                        read_model
+                            .commit_project_replacement(prepared_read_model, UiReadModelReplaceReason::ProjectReplaced);
+                        read_model.publish_engine_events_since(engine, None);
+                    }) {
+                        Ok(previous) => previous,
+                        Err(rejected) => {
+                            let error = rejected.error;
+                            let candidate = *rejected.candidate;
+                            state.pause_project(format!("replacement commit preparation failed: {error}"));
+                            return reject_project_candidate(candidate, error);
+                        }
+                    };
 
                 ProjectReplacementActorOutcome::Committed(CommittedProjectReplacement {
                     previous,
@@ -305,8 +319,14 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             })
             .map_err(|error| error.to_string())?;
         let committed = match receipt.output {
-            ProjectReplacementActorOutcome::Committed(committed) => committed,
+            ProjectReplacementActorOutcome::Committed(committed) => {
+                replacement_fence
+                    .commit(generation.get())
+                    .expect("reserved project generation must advance the persistence fence");
+                committed
+            }
             ProjectReplacementActorOutcome::Rejected { candidate, error } => {
+                drop(replacement_fence);
                 drop(candidate);
                 return Err(error);
             }
