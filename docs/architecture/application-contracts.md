@@ -27,12 +27,14 @@ failures run destroy callbacks and restore the pre-operation graph/history/event
 boundary.
 
 Project saves run through `golden_persistence::PersistenceCoordinator`. The production facade
-captures an owned sparse document and its project generation/document revision in one actor turn,
-accepts a monotonic destination ticket, and performs JSON encoding and disk work outside the actor.
-The coordinator orders every accepted save for one normalized destination, permits bounded
-cross-destination concurrency, and holds the transaction lease through path/saved-revision
-publication. Later edits therefore remain dirty, and a slower earlier Save As cannot overwrite a
-newer successful request's metadata.
+incrementally publishes authored nodes into a 256-shard copy-on-write document projection. A save
+clones only those immutable shard roots together with their project generation and document
+revision in the actor turn; sparse document materialization, JSON encoding, and disk work happen
+after leaving the actor. Opaque node mutation and script APIs explicitly mark their target dirty so
+the projection cannot miss authored data that has no ordinary graph event. The coordinator orders
+every accepted save for one normalized destination, permits bounded cross-destination concurrency,
+and holds the transaction lease through path/saved-revision publication. Later edits therefore
+remain dirty, and a slower earlier Save As cannot overwrite a newer successful request's metadata.
 
 Replacement takes an exclusive persistence generation fence only after detached preparation.
 Already-committing saves finish their complete file and metadata transaction before cutover;

@@ -56,6 +56,17 @@ and clone DTOs after releasing that lock. Whole-graph materialization and transp
 never run on the control actor, and completed whole-graph snapshot retention stays bounded to one
 payload.
 
+Project persistence follows the same split. Mutation turns update only affected authored nodes in
+a 256-shard copy-on-write document projection. Save admission captures the immutable roots,
+project generation, and document revision; sparse baseline reconstruction and JSON encoding run
+outside the actor. Measure publication, actor capture, sparse materialization, and encoding
+separately with:
+
+```text
+cargo test --locked -p golden_engine \
+  measure_immutable_project_capture_at_scale -- --ignored --nocapture
+```
+
 ```text
 python tools/qualification/graph_scale.py \
   --output-dir target/qualification/graph-scale/local \

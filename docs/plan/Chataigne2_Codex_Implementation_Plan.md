@@ -88,11 +88,11 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T09     | Complete                                                                                           |
 | T10     | Complete                                                                                           |
 | T11     | Complete                                                                                           |
-| T12     | In progress: read-model and compiler capture complete; persistence, encoding, and scale evidence remain |
+| T12     | In progress: read-model, compiler, and persistence capture complete; transport encoding and contention evidence remain |
 | T13–T19 | Not started                                                                                        |
 
-The reviewed stop point is the T12 compiler-capture slice. Continue T12 with persistence document
-capture and background transport encoding, followed by scale/contended-consumer qualification.
+The reviewed stop point is the T12 persistence-capture slice. Continue T12 with background
+transport encoding, followed by scale/contended-consumer qualification.
 Exact commands, evidence, and remaining qualification gaps are recorded in
 `docs/progress/audit-remediation-status.md`.
 

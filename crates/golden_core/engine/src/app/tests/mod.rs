@@ -1,17 +1,18 @@
 use std::path::PathBuf;
 
 use crate::app::{
-    DEFAULT_ENGINE_LOW_FREQUENCY_HZ, DEFAULT_ENGINE_MAX_FREQUENCY_HZ, PREFERENCES_DECL_ID, PREFERENCES_ENGINE_DECL_ID,
-    PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID, ProjectLifecycle, apply_preferences_runtime_limits,
-    ensure_preferences_tree, from_sparse_project_json_with_ui_state, insert_sparse_preferences_json,
-    load_sparse_project_file_with_ui_state, load_sparse_project_file_with_ui_state_recovering, preferences_data_folder,
-    preferences_engine_low_frequency_hz, preferences_engine_max_frequency_hz, to_sparse_preferences_json_pretty,
+    CapturedProjectNode, DEFAULT_ENGINE_LOW_FREQUENCY_HZ, DEFAULT_ENGINE_MAX_FREQUENCY_HZ, PREFERENCES_DECL_ID,
+    PREFERENCES_ENGINE_DECL_ID, PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID, ProjectGraphCapture, ProjectLifecycle,
+    apply_preferences_runtime_limits, capture_sparse_project_file_with_ui_state, ensure_preferences_tree,
+    from_sparse_project_json_with_ui_state, insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
+    load_sparse_project_file_with_ui_state_recovering, preferences_data_folder, preferences_engine_low_frequency_hz,
+    preferences_engine_max_frequency_hz, sparse_project_file_from_capture, to_sparse_preferences_json_pretty,
     to_sparse_project_json_pretty, to_sparse_project_json_pretty_with_ui_state,
 };
 use crate::define_node_enum;
 use crate::edit::{Edit, NodeTree};
 use crate::engine::{Engine, ProjectLoadRecoveryStage};
-use crate::node::Folder;
+use crate::node::{Folder, Node};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 define_node_enum!(
@@ -19,6 +20,115 @@ define_node_enum!(
 );
 
 impl ProjectLifecycle for PreferencesTestNode {}
+
+#[test]
+fn immutable_project_capture_matches_the_live_sparse_codec() {
+    let root: PreferencesTestNode = Folder::new("root").into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        crate::parameter::Parameter::new(
+            "Project Value",
+            ParamValue::Int(42),
+            crate::parameter::ParameterChangeCheck::None,
+        )
+        .into(),
+        None,
+    );
+    ensure_preferences_tree(&mut engine, "C:/NotInProject");
+    engine.apply_edits().expect("test graph should attach");
+    let ui_state = serde_json::json!({ "selected_node_ids": [1, 2] });
+
+    let live = capture_sparse_project_file_with_ui_state(&engine, Some(ui_state.clone())).expect("live sparse capture");
+    let graph = ProjectGraphCapture::from_engine(&engine).expect("immutable project graph capture");
+    let captured = sparse_project_file_from_capture::<PreferencesTestNode>(&graph, Some(ui_state))
+        .expect("captured sparse materialization");
+
+    assert_eq!(
+        serde_json::to_value(live).expect("live JSON value"),
+        serde_json::to_value(captured).expect("captured JSON value")
+    );
+}
+
+#[test]
+fn updating_one_captured_node_copies_only_its_shard() {
+    let root: PreferencesTestNode = Folder::new("root").into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        crate::parameter::Parameter::new(
+            "Project Value",
+            ParamValue::Int(1),
+            crate::parameter::ParameterChangeCheck::None,
+        )
+        .into(),
+        None,
+    );
+    engine.apply_edits().expect("project parameter should attach");
+    let parameter = engine
+        .nodes
+        .iter()
+        .find_map(|(node_id, node)| (node.node_data().meta.label == "Project Value").then_some(node_id))
+        .expect("project parameter");
+    let original = ProjectGraphCapture::from_engine(&engine).expect("original capture");
+    let mut updated = original.clone();
+
+    engine.edits.push(Edit::SetParam {
+        node: parameter,
+        value: ParamValue::Int(2),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("parameter update");
+    updated.insert(CapturedProjectNode::from_engine(&engine, parameter).expect("updated node capture"));
+
+    assert_eq!(
+        original.shared_shards_with(&updated),
+        ProjectGraphCapture::shard_count() - 1
+    );
+}
+
+#[test]
+#[ignore = "manual immutable project capture/materialization measurement"]
+fn measure_immutable_project_capture_at_scale() {
+    use std::time::Instant;
+
+    for node_count in [1_000, 10_000, 100_000] {
+        let root: PreferencesTestNode = Folder::new("root").into();
+        let mut engine = Engine::new(root);
+        let mut tree = NodeTree::new(Folder::new("scale root"));
+        for index in 0..node_count {
+            tree.push_child(NodeTree::new(Folder::new(format!("node {index}"))));
+        }
+        engine.edits.push(Edit::AddNodeTree {
+            tree,
+            parent: engine.root,
+            prev_sibling: None,
+        });
+        engine.apply_edits().expect("scale tree should attach");
+
+        let publish_started = Instant::now();
+        let graph = ProjectGraphCapture::from_engine(&engine).expect("scale graph capture");
+        let publish = publish_started.elapsed();
+        let actor_capture_started = Instant::now();
+        let captured = graph.clone();
+        let actor_capture = actor_capture_started.elapsed();
+        let materialize_started = Instant::now();
+        let project = sparse_project_file_from_capture::<PreferencesTestNode>(&captured, None)
+            .expect("scale project materialization");
+        let materialize = materialize_started.elapsed();
+        let encode_started = Instant::now();
+        let encoded = serde_json::to_vec_pretty(&project).expect("scale project encoding");
+        let encode = encode_started.elapsed();
+
+        eprintln!(
+            "project_capture nodes={} publish_ms={} actor_capture_us={} materialize_ms={} encode_ms={} bytes={}",
+            graph.len(),
+            publish.as_millis(),
+            actor_capture.as_micros(),
+            materialize.as_millis(),
+            encode.as_millis(),
+            encoded.len()
+        );
+    }
+}
 
 #[test]
 fn preferences_tree_is_saved_separately_from_project_json() {

@@ -41,6 +41,71 @@ fn runtime_with_project_parameter() -> (ProductionRuntime<FacadeTestNode>, NodeI
 }
 
 #[test]
+fn opaque_script_config_mutation_is_published_to_the_project_document() {
+    let mut engine: Engine<FacadeTestNode> = Engine::new(Folder::new("Root").into());
+    engine.add_node(
+        ScriptNode::new(
+            "Project Script",
+            ScriptNodeConfig {
+                source: ScriptSource::Inline { text: String::new() },
+            },
+        )
+        .into(),
+        None,
+    );
+    engine.apply_edits().expect("script should attach");
+    let script = engine
+        .nodes
+        .iter()
+        .find_map(|(node_id, node)| (node.node_data().meta.label == "Project Script").then_some(node_id))
+        .expect("project script");
+    crate::app::prepare_engine_for_runtime(&mut engine).expect("project runtime preparation");
+    let runtime = ProductionRuntime::new(
+        engine,
+        UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
+    );
+    let expected_source = "const persistedMarker = 7;";
+    runtime
+        .set_script_config(
+            script,
+            crate::script::ScriptUiConfig {
+                source: crate::script::ScriptUiSource::Inline {
+                    text: expected_source.to_string(),
+                },
+            },
+            false,
+        )
+        .0
+        .expect("script config update");
+
+    let directory = tempdir().expect("temporary project directory");
+    let target = directory.path().join("script.noisette");
+    runtime
+        .save_project(ProjectSaveRequest {
+            path: target.to_string_lossy().into_owned(),
+            ui_state: None,
+        })
+        .expect("script project save");
+    let json = std::fs::read_to_string(target).expect("saved script project JSON");
+    let loaded = crate::app::from_sparse_project_json::<FacadeTestNode>(&json).expect("script project should decode");
+    let state = loaded
+        .nodes
+        .iter()
+        .find_map(|(_, node)| {
+            (node.node_data().meta.label == "Project Script")
+                .then(|| node.engine_script_state())
+                .flatten()
+        })
+        .expect("saved script state");
+    assert_eq!(
+        state.config.source,
+        crate::script::ScriptUiSource::Inline {
+            text: expected_source.to_string()
+        }
+    );
+}
+
+#[test]
 fn successful_save_publishes_path_and_exact_clean_revision() {
     let (runtime, project_value) = runtime_with_project_parameter();
     let directory = tempdir().expect("temporary project directory");
@@ -81,6 +146,18 @@ fn successful_save_publishes_path_and_exact_clean_revision() {
         .expect("updated save");
     assert!(!saved_again.dirty);
     assert_eq!(saved_again.document_revision, dirty.document_revision);
+    let json = std::fs::read_to_string(&target).expect("saved project JSON");
+    let loaded = crate::app::from_sparse_project_json::<FacadeTestNode>(&json).expect("saved project should decode");
+    let saved_value = loaded
+        .nodes
+        .iter()
+        .find_map(|(_, node)| {
+            (node.node_data().meta.label == "Project Value")
+                .then(|| node.engine_param_snapshot().map(|snapshot| snapshot.value))
+                .flatten()
+        })
+        .expect("saved project parameter");
+    assert_eq!(saved_value, ParamValue::Int(199));
 }
 
 #[test]
@@ -88,6 +165,7 @@ fn edit_after_capture_keeps_the_later_authored_revision_dirty() {
     let (runtime, project_value) = runtime_with_project_parameter();
     let directory = tempdir().expect("temporary project directory");
     let target = directory.path().join("captured-before-edit.noisette");
+    let target_for_thread = target.clone();
     let (entered_tx, entered_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
     let release_rx = Arc::new(Mutex::new(release_rx));
@@ -101,7 +179,7 @@ fn edit_after_capture_keeps_the_later_authored_revision_dirty() {
     let save_runtime = runtime.clone();
     let save = thread::spawn(move || {
         save_runtime.save_project(ProjectSaveRequest {
-            path: target.to_string_lossy().into_owned(),
+            path: target_for_thread.to_string_lossy().into_owned(),
             ui_state: None,
         })
     });
@@ -124,6 +202,18 @@ fn edit_after_capture_keeps_the_later_authored_revision_dirty() {
     let status = runtime.project_persistence_status();
     assert_eq!(status.saved_document_revision, Some(saved.document_revision));
     assert!(status.dirty);
+    let json = std::fs::read_to_string(&target).expect("captured project JSON");
+    let loaded = crate::app::from_sparse_project_json::<FacadeTestNode>(&json).expect("captured project should decode");
+    let captured_value = loaded
+        .nodes
+        .iter()
+        .find_map(|(_, node)| {
+            (node.node_data().meta.label == "Project Value")
+                .then(|| node.engine_param_snapshot().map(|snapshot| snapshot.value))
+                .flatten()
+        })
+        .expect("captured project parameter");
+    assert_eq!(captured_value, ParamValue::Int(1));
     runtime.set_project_save_fault_hook(None);
 }
 

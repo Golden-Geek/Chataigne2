@@ -92,6 +92,7 @@ impl<T: Node> Engine<T> {
         let mut user_context_graph_dirty = false;
 
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
+            let project_dirty_node = opaque_project_dirty_node(&request.edit);
             let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request
                 .edit
             {
@@ -346,6 +347,9 @@ impl<T: Node> Engine<T> {
 
             match outcome {
                 Ok(step) => {
+                    if should_clear_redo && let Some(node) = project_dirty_node {
+                        self.project_dirty_nodes.insert(node);
+                    }
                     if capture_history && should_clear_redo && !redo_cleared {
                         self.clear_redo_history();
                         redo_cleared = true;
@@ -405,6 +409,7 @@ impl<T: Node> Engine<T> {
     }
 
     fn apply_event_side_effects(&mut self, kind: &EventKind) {
+        collect_project_dirty_nodes(kind, &mut self.project_dirty_nodes);
         match &kind {
             EventKind::NodeCreated { node } => {
                 self.last_update_elapsed_by_node
@@ -439,6 +444,99 @@ impl<T: Node> Engine<T> {
         self.inbox.push(Event { time, kind });
         self.tick_scratch.stats.events_emitted += 1;
         self.time.seq = self.time.seq.saturating_add(1);
+    }
+}
+
+fn collect_project_dirty_nodes(kind: &EventKind, dirty: &mut std::collections::HashSet<crate::node::NodeId>) {
+    match kind {
+        EventKind::ParamChanged { param, .. }
+        | EventKind::ParamControlChanged { param, .. }
+        | EventKind::ParamConstraintsChanged { param, .. } => {
+            dirty.insert(*param);
+        }
+        EventKind::ChildAdded { parent, child, .. } | EventKind::ChildRemoved { parent, child } => {
+            dirty.extend([*parent, *child]);
+        }
+        EventKind::ChildReplaced { parent, old, new, .. } => {
+            dirty.extend([*parent, *old, *new]);
+        }
+        EventKind::ChildMoved {
+            child,
+            old_parent,
+            new_parent,
+        } => {
+            dirty.extend([*child, *old_parent, *new_parent]);
+        }
+        EventKind::ChildReordered { parent, child } => {
+            dirty.extend([*parent, *child]);
+        }
+        EventKind::NodeCreated { node } | EventKind::NodeDeleted { node } | EventKind::MetaChanged { node, .. } => {
+            dirty.insert(*node);
+        }
+        EventKind::GraphTransaction { transaction } => {
+            for op in &transaction.ops {
+                collect_graph_op_project_dirty_nodes(op, dirty);
+            }
+        }
+        EventKind::Custom(_) => {}
+    }
+}
+
+fn collect_graph_op_project_dirty_nodes(
+    op: &crate::ui_sync::UiGraphOp,
+    dirty: &mut std::collections::HashSet<crate::node::NodeId>,
+) {
+    use crate::ui_sync::UiGraphOp;
+
+    match op {
+        UiGraphOp::NodeCreated { snapshot, parent, .. } => {
+            dirty.insert(snapshot.node_id);
+            dirty.extend(parent.iter().copied());
+        }
+        UiGraphOp::SubtreeInserted { parent, nodes, .. } => {
+            dirty.insert(*parent);
+            dirty.extend(nodes.iter().map(|node| node.node_id));
+        }
+        UiGraphOp::SubtreeRemoved {
+            removed_ids,
+            parent_after,
+            ..
+        } => {
+            dirty.extend(removed_ids.iter().copied());
+            if let Some(parent) = parent_after {
+                dirty.insert(parent.parent);
+            }
+        }
+        UiGraphOp::NodeMoved {
+            node,
+            old_parent,
+            new_parent,
+            ..
+        } => {
+            dirty.insert(*node);
+            dirty.extend(old_parent.iter().copied());
+            dirty.extend(new_parent.iter().copied());
+        }
+        UiGraphOp::ChildrenReordered { parent, .. } => {
+            dirty.insert(*parent);
+        }
+        UiGraphOp::NodeMetaPatched { node, .. } => {
+            dirty.insert(*node);
+        }
+        UiGraphOp::ParamPatched { node, param, .. } => {
+            dirty.extend([*node, *param]);
+        }
+        UiGraphOp::HistoryPatched { .. } | UiGraphOp::LoggerPatched { .. } => {}
+    }
+}
+
+fn opaque_project_dirty_node(edit: &Edit) -> Option<crate::node::NodeId> {
+    match edit {
+        Edit::SetNodeScriptProperty { node, .. }
+        | Edit::CallNodeScriptMethod { node, .. }
+        | Edit::CallNodeMutation { node, .. }
+        | Edit::SetScriptConfig { node, .. } => Some(*node),
+        _ => None,
     }
 }
 

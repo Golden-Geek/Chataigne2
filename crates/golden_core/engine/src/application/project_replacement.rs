@@ -12,6 +12,7 @@ use crate::ui_read_model::{RetiredUiReadModelState, UiReadModel, UiReadModelRepl
 use crate::ui_sync::UiProjectFileSpec;
 
 use super::ProductionRuntime;
+use super::project_document::{PreparedProjectDocumentReplacement, RetiredProjectDocumentState};
 
 /// Request to replace the live project with a decoded engine.
 pub struct ProjectReplacement<T: ProjectLifecycle> {
@@ -121,6 +122,7 @@ impl ProjectReplacementFaultHook {
 struct CommittedProjectReplacement<T: ProjectLifecycle> {
     previous: Engine<T>,
     retired_read_model: RetiredUiReadModelState,
+    retired_project_document: RetiredProjectDocumentState,
     recovery: ProjectLoadRecoveryReport,
     node_count: usize,
     shutdown: Duration,
@@ -212,6 +214,14 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 return Err(error);
             }
         };
+        let mut prepared_project_document =
+            match PreparedProjectDocumentReplacement::from_engine(&mut request.engine, generation) {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    shutdown_engine_for_runtime(&mut request.engine);
+                    return Err(error);
+                }
+            };
         let detached_prepare = prepare_started.elapsed();
         let replacement_fence = match self
             .inner
@@ -226,6 +236,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         };
 
         let read_model = self.inner.read_model.clone();
+        let project_document = self.inner.project_document.clone();
         let publication_hook = self.inner.read_model_publication_hook.clone();
         let replacement_fault_hook = self.inner.project_replacement_fault_hook.clone();
         let latest_requested_project_generation = self.inner.latest_requested_project_generation.clone();
@@ -283,6 +294,11 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     }
                 };
 
+                if let Err(error) = prepared_project_document.synchronize(&mut candidate) {
+                    state.pause_project(format!("replacement document publication failed: {error}"));
+                    return reject_project_candidate(candidate, error);
+                }
+
                 candidate.clear_ui_event_log();
                 candidate.push_ui_custom_event(
                     "__transport.resync_required",
@@ -302,13 +318,15 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     return reject_project_candidate(candidate, error);
                 }
 
-                let (previous, retired_read_model) =
+                let (previous, (retired_read_model, retired_project_document)) =
                     match state.commit_project(candidate, compiled, generation, project_was_saved, move |engine| {
                         publication_hook.invoke();
                         let retired = read_model
                             .commit_project_replacement(prepared_read_model, UiReadModelReplaceReason::ProjectReplaced);
+                        let retired_project_document =
+                            project_document.commit_project_replacement(prepared_project_document);
                         read_model.publish_engine_events_since(engine, None);
-                        retired
+                        (retired, retired_project_document)
                     }) {
                         Ok(previous) => previous,
                         Err(rejected) => {
@@ -322,6 +340,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 ProjectReplacementActorOutcome::Committed(Box::new(CommittedProjectReplacement {
                     previous,
                     retired_read_model,
+                    retired_project_document,
                     recovery,
                     node_count,
                     shutdown,
@@ -349,7 +368,11 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .check(ProjectReplacementStage::Retirement)
             .err();
         let drop_started = Instant::now();
-        drop((committed.previous, committed.retired_read_model));
+        drop((
+            committed.previous,
+            committed.retired_read_model,
+            committed.retired_project_document,
+        ));
         let drop_previous = drop_started.elapsed();
         drop(retirement_permit);
         Ok(ProjectReplacementResult {

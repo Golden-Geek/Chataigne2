@@ -154,6 +154,9 @@ pub struct Engine<T: Node> {
     ui_event_log_capacity: usize,
     /// Latest-wins custom event key -> retained event time.
     ui_latest_event_times: HashMap<(String, Option<NodeId>), EngineTime>,
+    /// Nodes whose persisted representation may have changed without a structural or parameter
+    /// event that identifies the mutation to an external document projection.
+    project_dirty_nodes: HashSet<NodeId>,
     /// Coalescable parameter -> event time in the current uninterrupted value run.
     ui_pending_param_event_times: HashMap<NodeId, EngineTime>,
     /// Project epoch used by UI graph transactions.
@@ -292,6 +295,7 @@ impl<T: Node> Engine<T> {
             ui_event_log_start: 0,
             ui_event_log_capacity: ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
             ui_latest_event_times: HashMap::new(),
+            project_dirty_nodes: HashSet::new(),
             ui_pending_param_event_times: HashMap::new(),
             ui_epoch: 0,
             next_ui_tx_id: 1,
@@ -329,6 +333,12 @@ impl<T: Node> Engine<T> {
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
         engine
+    }
+
+    /// Drains nodes whose authored persistence payload may have changed through opaque mutation
+    /// callbacks or script configuration APIs.
+    pub(crate) fn take_project_dirty_nodes(&mut self) -> HashSet<NodeId> {
+        std::mem::take(&mut self.project_dirty_nodes)
     }
 
     /// Queues insertion of a node under `parent` (or root when `None`).

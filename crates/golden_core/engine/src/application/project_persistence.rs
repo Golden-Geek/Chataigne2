@@ -2,8 +2,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::app::{ProjectGeneration, ProjectLifecycle, capture_sparse_project_file_with_ui_state};
-use crate::engine::ProjectFile;
+use crate::app::{ProjectGeneration, ProjectLifecycle};
 use crate::ui_sync::UiProjectFileSpec;
 
 use super::ProductionRuntime;
@@ -103,11 +102,8 @@ pub struct ProjectPersistenceStatus {
     pub dirty: bool,
 }
 
-struct ProjectDocumentCapture {
-    project: ProjectFile,
-    project_generation: ProjectGeneration,
-    document_revision: u64,
-    node_count: usize,
+struct TimedProjectDocumentCapture {
+    document: super::project_document::ProjectDocumentCapture,
     capture: Duration,
 }
 
@@ -123,19 +119,23 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     pub fn save_project(&self, request: ProjectSaveRequest) -> Result<ProjectSaveResult, String> {
         let started = Instant::now();
         let ProjectSaveRequest { path, ui_state } = request;
+        let project_document = self.inner.project_document.clone();
         let capture_receipt = self
             .inner
             .control
             .call(move |state| {
                 let capture_started = Instant::now();
-                let project = capture_sparse_project_file_with_ui_state(&state.engine, ui_state)
-                    .map_err(|error| error.to_string())?;
+                let document = project_document.capture()?;
                 let persistence = state.project_persistence_snapshot();
-                Ok::<_, String>(ProjectDocumentCapture {
-                    project,
-                    project_generation: persistence.project_generation,
-                    document_revision: persistence.document_revision,
-                    node_count: state.engine.nodes.iter().count(),
+                if document.project_generation != persistence.project_generation
+                    || document.document_revision != persistence.document_revision
+                {
+                    return Err(
+                        "project document projection is not synchronized with the authoritative revision".to_string(),
+                    );
+                }
+                Ok::<_, String>(TimedProjectDocumentCapture {
+                    document,
                     capture: capture_started.elapsed(),
                 })
             })
@@ -145,14 +145,22 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         let ticket = self
             .inner
             .persistence_coordinator
-            .accept_save(&path, capture.project_generation.get(), capture.document_revision)
+            .accept_save(
+                &path,
+                capture.document.project_generation.get(),
+                capture.document.document_revision,
+            )
             .map_err(|error| error.to_string())?;
         self.inner
             .project_save_fault_hook
             .invoke(ProjectSaveStage::AfterAcceptance, ticket.info().request_id);
 
         let serialize_started = Instant::now();
-        let json = serde_json::to_string_pretty(&capture.project).map_err(|error| error.to_string())?;
+        let project = capture
+            .document
+            .materialize::<T>(ui_state)
+            .map_err(|error| error.to_string())?;
+        let json = serde_json::to_string_pretty(&project).map_err(|error| error.to_string())?;
         let encoded_bytes = json.len();
         let serialize = serialize_started.elapsed();
         let target_path = ticket.info().target.to_string_lossy().into_owned();
@@ -191,12 +199,12 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         Ok(ProjectSaveResult {
             path: target_path,
             request_id: committed.ticket.request_id,
-            project_generation: capture.project_generation,
-            document_revision: capture.document_revision,
+            project_generation: capture.document.project_generation,
+            document_revision: capture.document.document_revision,
             current_document_revision: publication.current_document_revision,
             metadata_applied: publication.metadata_applied,
             dirty: publication.saved_document_revision != Some(publication.current_document_revision),
-            node_count: capture.node_count,
+            node_count: capture.document.node_count,
             encoded_bytes,
             lock_wait: capture_receipt.queue_wait,
             capture: capture.capture,

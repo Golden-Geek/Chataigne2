@@ -2092,5 +2092,8 @@ impl<T: Node> GoldenApp<T> {
     }
 }
 
+mod project_capture;
 #[cfg(test)]
 mod tests;
+
+pub(crate) use project_capture::{CapturedProjectNode, ProjectGraphCapture, sparse_project_file_from_capture};

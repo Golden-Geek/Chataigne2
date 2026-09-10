@@ -5,11 +5,13 @@
 //! runtime planes can be selected independently.
 
 mod graph_editing;
+mod project_document;
 mod project_persistence;
 mod project_replacement;
 
 pub use graph_editing::GraphEditError;
 use graph_editing::{graph_revision_result, transaction_acknowledgement_result};
+use project_document::ProjectDocumentReadModel;
 use project_persistence::ProjectSaveFaultHook;
 pub use project_persistence::{ProjectPersistenceStatus, ProjectSaveRequest, ProjectSaveResult};
 #[cfg(test)]
@@ -238,11 +240,14 @@ impl ReadModelPublicationHook {
     }
 }
 
-fn publish_event_capture(
+fn publish_event_capture<T: ProjectLifecycle>(
+    project_document: &ProjectDocumentReadModel,
     read_model: &UiReadModel,
     publication_hook: &ReadModelPublicationHook,
+    engine: &mut Engine<T>,
     capture: UiEventCapture,
 ) -> UiEventBatch {
+    let _ = project_document.synchronize(engine);
     publication_hook.invoke();
     read_model.apply_event_capture(capture)
 }
@@ -266,6 +271,7 @@ pub struct RuntimeStartRequest {
 struct ProductionRuntimeInner<T: ProjectLifecycle> {
     control: ControlActor<ProductionState<T>>,
     read_model: Arc<UiReadModel>,
+    project_document: Arc<ProjectDocumentReadModel>,
     read_model_publication_hook: ReadModelPublicationHook,
     input_port: ProductionInputPort,
     next_project_generation: AtomicU64,
@@ -297,9 +303,13 @@ impl<T: ProjectLifecycle> Clone for ProductionRuntime<T> {
 
 impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Wraps an already-created engine and seeds its immutable observation projection.
-    pub fn new(engine: Engine<T>, project_file: UiProjectFileSpec) -> Self {
+    pub fn new(mut engine: Engine<T>, project_file: UiProjectFileSpec) -> Self {
         let project_was_saved = project_file.current_path.is_some();
         let read_model = Arc::new(UiReadModel::from_engine(&engine, project_file));
+        let project_document = Arc::new(
+            ProjectDocumentReadModel::from_engine(&mut engine)
+                .expect("the initial project document projection must encode"),
+        );
         let metrics = Arc::new(RuntimeMetrics::default());
         let (state, input_port) = ProductionState::new(engine, metrics.clone(), project_was_saved)
             .expect("the initial production runtime generation must compile");
@@ -309,6 +319,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             inner: Arc::new(ProductionRuntimeInner {
                 control,
                 read_model,
+                project_document,
                 read_model_publication_hook: ReadModelPublicationHook::default(),
                 input_port,
                 next_project_generation: AtomicU64::new(ProjectGeneration::INITIAL.get() + 1),
@@ -370,6 +381,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     ) -> AppliedUiTransactionBatch {
         let ui_client_instance_id = ui_client_instance_id.map(str::to_owned);
         let read_model = self.inner.read_model.clone();
+        let project_document = self.inner.project_document.clone();
         let publication_hook = self.inner.read_model_publication_hook.clone();
         #[cfg(test)]
         let preferences_subtree_collection_count = self.inner.preferences_subtree_collection_count.clone();
@@ -383,7 +395,13 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                         .map(|_| {
                             let before = state.engine.ui_event_log().last().map(|event| event.time);
                             let capture = read_model.collect_event_batch(&state.engine, before);
-                            let events = publish_event_capture(&read_model, &publication_hook, capture);
+                            let events = publish_event_capture(
+                                &project_document,
+                                &read_model,
+                                &publication_hook,
+                                &mut state.engine,
+                                capture,
+                            );
                             (
                                 rejected_ack(
                                     &state.engine,
@@ -416,7 +434,13 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                             &state.engine,
                             state.engine.ui_event_log().last().map(|event| event.time),
                         );
-                        let events = publish_event_capture(&read_model, &publication_hook, capture);
+                        let events = publish_event_capture(
+                            &project_document,
+                            &read_model,
+                            &publication_hook,
+                            &mut state.engine,
+                            capture,
+                        );
                         pending.push((
                             skipped_after_failed_batch_ack(&state.engine),
                             events,
@@ -457,7 +481,13 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     } else {
                         event_batch_changes_preferences(capture.batch(), &preferences_nodes)
                     };
-                    let events = publish_event_capture(&read_model, &publication_hook, capture);
+                    let events = publish_event_capture(
+                        &project_document,
+                        &read_model,
+                        &publication_hook,
+                        &mut state.engine,
+                        capture,
+                    );
                     let event_collect = event_collect_started.elapsed();
                     if acknowledgement.success {
                         if let Some(client_edit_id) = begin_edit_id {
@@ -548,18 +578,20 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     pub fn cancel_ui_edit_session(&self, ui_client_instance_id: &str) -> UiEventBatch {
         let ui_client_instance_id = ui_client_instance_id.to_owned();
         let read_model = self.inner.read_model.clone();
+        let project_document = self.inner.project_document.clone();
         let publication_hook = self.inner.read_model_publication_hook.clone();
         self.call_engine(move |engine| {
             let before = engine.ui_event_log().last().map(|event| event.time);
             let _ = engine.cancel_active_ui_edit_session_for_client(&ui_client_instance_id);
             let capture = read_model.collect_event_batch(engine, before);
-            publish_event_capture(&read_model, &publication_hook, capture)
+            publish_event_capture(&project_document, &read_model, &publication_hook, engine, capture)
         })
     }
 
     /// Runs one authoritative engine tick and publishes its observation delta.
     pub fn run_tick(&self, elapsed: Duration) -> Result<ApplicationTickResult, EngineRuntimeError> {
         let read_model = self.inner.read_model.clone();
+        let project_document = self.inner.project_document.clone();
         let publication_hook = self.inner.read_model_publication_hook.clone();
         let (events, next_interval) = self
             .inner
@@ -571,7 +603,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 let capture = read_model.collect_event_batch(engine, before);
                 apply_preferences_runtime_limits(engine);
                 let next_interval = engine.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));
-                let events = publish_event_capture(&read_model, &publication_hook, capture);
+                let events = publish_event_capture(&project_document, &read_model, &publication_hook, engine, capture);
                 Ok::<_, EngineRuntimeError>((events, next_interval))
             })
             .expect("production control actor disconnected")
@@ -643,12 +675,13 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         R: Send + 'static,
     {
         let read_model = self.inner.read_model.clone();
+        let project_document = self.inner.project_document.clone();
         let publication_hook = self.inner.read_model_publication_hook.clone();
         self.call_engine(move |engine| {
             let before = engine.ui_event_log().last().map(|event| event.time);
             let result = mutation(engine);
             let capture = read_model.collect_event_batch(engine, before);
-            let events = publish_event_capture(&read_model, &publication_hook, capture);
+            let events = publish_event_capture(&project_document, &read_model, &publication_hook, engine, capture);
             (result, events)
         })
     }
@@ -754,9 +787,13 @@ impl<T: ProjectLifecycle> HostLifecycle for ProductionRuntime<T> {
     type Error = String;
 
     fn start(&self, request: Self::StartRequest) -> Result<Self::StartResult, Self::Error> {
+        let read_model = self.inner.read_model.clone();
+        let project_document = self.inner.project_document.clone();
+        let publication_hook = self.inner.read_model_publication_hook.clone();
         self.inner
             .control
             .call(move |state| {
+                let before = state.engine.ui_event_log().last().map(|event| event.time);
                 let recovery = if request.recover {
                     prepare_engine_for_runtime_recovering(&mut state.engine)
                 } else {
@@ -765,6 +802,14 @@ impl<T: ProjectLifecycle> HostLifecycle for ProductionRuntime<T> {
                 };
                 apply_preferences_runtime_limits(&mut state.engine);
                 state.recompile_blocking("runtime.start")?;
+                let capture = read_model.collect_event_batch(&state.engine, before);
+                publish_event_capture(
+                    &project_document,
+                    &read_model,
+                    &publication_hook,
+                    &mut state.engine,
+                    capture,
+                );
                 Ok(recovery)
             })
             .map_err(|error| error.to_string())?
