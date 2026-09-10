@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
@@ -16,7 +16,7 @@ use golden_values::{ColorValue as RuntimeColor, TriggerValue as RuntimeTrigger, 
 
 use crate::app::ProjectGeneration;
 use crate::edit::Edit;
-use crate::engine::{Engine, EngineRuntimeError, EngineTime};
+use crate::engine::{Engine, EngineRuntimeError, EngineTime, ParameterValueStore, ScheduleCompileEntry};
 use crate::events::EventKind;
 use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
@@ -28,8 +28,13 @@ struct CompiledParameter {
     value: ParamValue,
 }
 
-#[derive(Clone)]
 struct EngineCompileSnapshot {
+    parameter_values: ParameterValueStore,
+    schedule: Arc<[ScheduleCompileEntry]>,
+    materialized: OnceLock<Arc<EngineCompileLayout>>,
+}
+
+struct EngineCompileLayout {
     parameters: Vec<CompiledParameter>,
     scheduled_nodes: Vec<CompiledScheduledNode>,
 }
@@ -37,44 +42,72 @@ struct EngineCompileSnapshot {
 #[derive(Clone)]
 struct CompiledScheduledNode {
     node: NodeId,
-    kernel_key: String,
+    kernel_key: &'static str,
 }
 
 impl EngineCompileSnapshot {
-    fn capture<T: Node>(engine: &Engine<T>) -> Result<Self, String> {
-        let mut parameters = engine
-            .nodes
-            .iter()
-            .filter_map(|(node, value)| {
-                value.engine_param_snapshot().map(|snapshot| CompiledParameter {
-                    node,
-                    value: snapshot.value,
-                })
-            })
-            .collect::<Vec<_>>();
+    fn capture<T: Node>(engine: &Engine<T>) -> Self {
+        Self {
+            parameter_values: engine.parameter_values_cache.clone(),
+            schedule: engine.schedule_compile_topology(),
+            materialized: OnceLock::new(),
+        }
+    }
+
+    fn materialize(&self, context: Option<&CompilationContext>) -> Result<&EngineCompileLayout, String> {
+        if let Some(materialized) = self.materialized.get() {
+            return Ok(materialized);
+        }
+
+        let mut parameters = Vec::with_capacity(self.parameter_values.len());
+        for (index, (node, value)) in self.parameter_values.iter().enumerate() {
+            if index % 1_024 == 0 {
+                ensure_compilation_current(context)?;
+            }
+            parameters.push(CompiledParameter {
+                node,
+                value: value.clone(),
+            });
+        }
         parameters.sort_unstable_by_key(|parameter| parameter.node.0);
-        let scheduled_nodes = engine
-            .schedule_topology()
+        ensure_compilation_current(context)?;
+        let scheduled_nodes = self
+            .schedule
             .iter()
-            .map(|node| -> Result<CompiledScheduledNode, String> {
-                let kernel_key = engine
-                    .nodes
-                    .get(*node)
-                    .and_then(|value| value.execution_rule().compiled_kernel_key)
-                    .ok_or_else(|| format!("scheduled node {} has no compiled kernel identity", node.0))?
-                    .to_string();
+            .enumerate()
+            .map(|(index, scheduled)| -> Result<CompiledScheduledNode, String> {
+                if index % 1_024 == 0 {
+                    ensure_compilation_current(context)?;
+                }
+                let kernel_key = scheduled
+                    .kernel_key
+                    .ok_or_else(|| format!("scheduled node {} has no compiled kernel identity", scheduled.node.0))?;
                 Ok(CompiledScheduledNode {
-                    node: *node,
+                    node: scheduled.node,
                     kernel_key,
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self {
+        ensure_compilation_current(context)?;
+        let materialized = Arc::new(EngineCompileLayout {
             parameters,
             scheduled_nodes,
-        })
+        });
+        let _ = self.materialized.set(materialized);
+        Ok(self
+            .materialized
+            .get()
+            .expect("compiler layout must be initialized after successful materialization"))
     }
 
+    fn compiled_layout(&self) -> &EngineCompileLayout {
+        self.materialized
+            .get()
+            .expect("a successful compilation must retain its materialized layout")
+    }
+}
+
+impl EngineCompileLayout {
     fn node_to_slot(&self) -> HashMap<NodeId, InputSlot> {
         self.parameters
             .iter()
@@ -120,6 +153,7 @@ fn compile_generation(
     context: Option<&CompilationContext>,
 ) -> Result<RuntimeGeneration, String> {
     ensure_compilation_current(context)?;
+    let snapshot = snapshot.materialize(context)?;
     let input_count = snapshot.parameters.len();
     let routes = (0..input_count)
         .map(|index| InputRoute {
@@ -147,23 +181,23 @@ fn compile_generation(
             state_per_lane: 0,
         });
     }
-    let mut domain_kernels = BTreeMap::<String, KernelId>::new();
+    let mut domain_kernels = BTreeMap::<&'static str, KernelId>::new();
     for (index, scheduled) in snapshot.scheduled_nodes.iter().enumerate() {
         if index % 1_024 == 0 {
             ensure_compilation_current(context)?;
         }
-        let kernel = if let Some(kernel) = domain_kernels.get(&scheduled.kernel_key) {
+        let kernel = if let Some(kernel) = domain_kernels.get(scheduled.kernel_key) {
             *kernel
         } else {
             let kernel = KernelId(kernels.len() as u32);
             kernels.push(CompiledProcessorKernel {
                 id: kernel,
-                stable_key: scheduled.kernel_key.clone().into(),
+                stable_key: scheduled.kernel_key.into(),
                 inputs_per_lane: 0,
                 outputs_per_lane: 0,
                 state_per_lane: 0,
             });
-            domain_kernels.insert(scheduled.kernel_key.clone(), kernel);
+            domain_kernels.insert(scheduled.kernel_key, kernel);
             kernel
         };
         units.push(ScheduledWork {
@@ -220,7 +254,7 @@ fn ensure_compilation_current(context: Option<&CompilationContext>) -> Result<()
 
 #[cfg(test)]
 pub(crate) fn compiled_kernel_keys<T: Node>(engine: &Engine<T>) -> Result<Vec<String>, String> {
-    let snapshot = EngineCompileSnapshot::capture(engine)?;
+    let snapshot = EngineCompileSnapshot::capture(engine);
     let generation = compile_generation(RuntimeGenerationId(1), ProjectRevision(1), &snapshot, None)?;
     Ok(generation
         .processor_kernels
@@ -409,9 +443,10 @@ impl<T: Node> ProductionState<T> {
         engine
             .resolve()
             .map_err(|error| format!("failed to resolve initial runtime schedule: {error}"))?;
-        let snapshot = Arc::new(EngineCompileSnapshot::capture(&engine)?);
+        let snapshot = Arc::new(EngineCompileSnapshot::capture(&engine));
         let revision = ProjectRevision(1);
         let generation = Arc::new(compile_generation(RuntimeGenerationId(1), revision, &snapshot, None)?);
+        let layout = snapshot.compiled_layout();
         let work_count = generation.schedule.work_count();
         let mut semantic = SemanticRuntime::new(generation);
         seed_semantic_inputs(&mut semantic, &snapshot)?;
@@ -440,14 +475,10 @@ impl<T: Node> ProductionState<T> {
                 input_plane,
                 input_generation,
                 input_mailbox,
-                slot_to_node: snapshot.slot_to_node(),
-                scheduled_node_to_work: snapshot.scheduled_node_to_work(),
-                scheduled_work_nodes: snapshot
-                    .scheduled_nodes
-                    .iter()
-                    .map(|scheduled| scheduled.node)
-                    .collect(),
-                input_work_count: snapshot.parameters.len(),
+                slot_to_node: layout.slot_to_node(),
+                scheduled_node_to_work: layout.scheduled_node_to_work(),
+                scheduled_work_nodes: layout.scheduled_nodes.iter().map(|scheduled| scheduled.node).collect(),
+                input_work_count: layout.parameters.len(),
                 input_scratch: Vec::new(),
                 dirty: DirtySet::new(work_count),
                 scheduler,
@@ -554,7 +585,7 @@ impl<T: Node> ProductionState<T> {
                 .map_err(|error| format!("failed to resolve runtime schedule before compilation: {error}"))?;
         }
         self.project_revision.0 = self.project_revision.0.saturating_add(1);
-        let snapshot = Arc::new(EngineCompileSnapshot::capture(&self.engine)?);
+        let snapshot = Arc::new(EngineCompileSnapshot::capture(&self.engine));
         let mut changes = RuntimeChangeSet::new();
         changes.mark(affected);
         let admission = self
@@ -621,6 +652,7 @@ impl<T: Node> ProductionState<T> {
         generation: Arc<RuntimeGeneration>,
         snapshot: &EngineCompileSnapshot,
     ) -> Result<(), String> {
+        let layout = snapshot.compiled_layout();
         let (next_mailbox, next_input_generation) = make_input_generation(snapshot, false)?;
         let work_count = generation.schedule.work_count();
         next_input_generation.activate()?;
@@ -631,21 +663,17 @@ impl<T: Node> ProductionState<T> {
         seed_semantic_inputs(&mut self.semantic, snapshot)?;
         self.input_mailbox = next_mailbox;
         self.input_generation = next_input_generation;
-        self.slot_to_node = snapshot.slot_to_node();
-        self.scheduled_node_to_work = snapshot.scheduled_node_to_work();
-        self.scheduled_work_nodes = snapshot
-            .scheduled_nodes
-            .iter()
-            .map(|scheduled| scheduled.node)
-            .collect();
-        self.input_work_count = snapshot.parameters.len();
+        self.slot_to_node = layout.slot_to_node();
+        self.scheduled_node_to_work = layout.scheduled_node_to_work();
+        self.scheduled_work_nodes = layout.scheduled_nodes.iter().map(|scheduled| scheduled.node).collect();
+        self.input_work_count = layout.parameters.len();
         self.dirty = DirtySet::new(work_count);
         self.scheduler_outputs.clear();
         Ok(())
     }
 
     pub(crate) fn compile_project_candidate(&mut self, engine: &Engine<T>) -> Result<CompiledProjectCandidate, String> {
-        let snapshot = Arc::new(EngineCompileSnapshot::capture(engine)?);
+        let snapshot = Arc::new(EngineCompileSnapshot::capture(engine));
         let mut changes = RuntimeChangeSet::new();
         changes.mark("project.replace");
         let admission = self
@@ -682,6 +710,7 @@ impl<T: Node> ProductionState<T> {
         publish_read_model: impl FnOnce(&Engine<T>) -> R,
     ) -> Result<(Engine<T>, R), RejectedProjectCommit<T>> {
         let CompiledProjectCandidate { snapshot, generation } = compiled;
+        let layout = snapshot.compiled_layout();
         let (next_mailbox, next_input_generation) = match make_input_generation(&snapshot, false) {
             Ok(prepared) => prepared,
             Err(error) => {
@@ -720,14 +749,10 @@ impl<T: Node> ProductionState<T> {
         self.project_revision = ProjectRevision(1);
         self.input_mailbox = next_mailbox;
         self.input_generation = next_input_generation.clone();
-        self.slot_to_node = snapshot.slot_to_node();
-        self.scheduled_node_to_work = snapshot.scheduled_node_to_work();
-        self.scheduled_work_nodes = snapshot
-            .scheduled_nodes
-            .iter()
-            .map(|scheduled| scheduled.node)
-            .collect();
-        self.input_work_count = snapshot.parameters.len();
+        self.slot_to_node = layout.slot_to_node();
+        self.scheduled_node_to_work = layout.scheduled_node_to_work();
+        self.scheduled_work_nodes = layout.scheduled_nodes.iter().map(|scheduled| scheduled.node).collect();
+        self.input_work_count = layout.parameters.len();
         self.input_scratch.clear();
         self.dirty = DirtySet::new(work_count);
         self.scheduler_outputs.clear();
@@ -839,21 +864,22 @@ fn make_input_generation(
     snapshot: &EngineCompileSnapshot,
     active: bool,
 ) -> Result<(Arc<RuntimeInputMailbox>, Arc<InputGeneration>), String> {
+    let layout = snapshot.compiled_layout();
     let (mailbox, handle) = RuntimeInputMailbox::new(InputIngressConfig {
-        input_count: snapshot.parameters.len(),
+        input_count: layout.parameters.len(),
         lossless_capacity: INPUT_LOSSLESS_CAPACITY,
     })
     .map_err(|error| error.to_string())?;
     let generation = Arc::new(InputGeneration {
         lifecycle: Mutex::new(active),
-        routes: snapshot.node_to_slot(),
+        routes: layout.node_to_slot(),
         handle,
     });
     Ok((mailbox, generation))
 }
 
 fn seed_semantic_inputs(semantic: &mut SemanticRuntime, snapshot: &EngineCompileSnapshot) -> Result<(), String> {
-    for (index, parameter) in snapshot.parameters.iter().enumerate() {
+    for (index, parameter) in snapshot.compiled_layout().parameters.iter().enumerate() {
         semantic
             .arenas_mut()
             .set_input(InputSlot(index as u32), param_to_runtime_value(&parameter.value, 0, 0)?)

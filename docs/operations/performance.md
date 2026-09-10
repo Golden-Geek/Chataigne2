@@ -19,6 +19,9 @@ nodes.
   order and use bounded queues.
 - Structural edits use `NodeTree`/`AddNodeTree` for known subtrees and avoid repeated whole-tree
   snapshots.
+- Compiler admission captures fixed-shard parameter roots and one immutable scheduled-node root.
+  Dense layout materialization and sorting run on the compiler worker; the control actor reuses the
+  successful materialized layout when installing a generation.
 - Lifecycle-generated descendants are accumulated until the outer insertion stabilizes. The UI
   receives one completed subtree transaction for descendants inside that root, while generated
   siblings outside the root retain their own transactions.

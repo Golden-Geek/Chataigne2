@@ -2,7 +2,8 @@ use super::*;
 
 #[derive(Default)]
 pub(crate) struct ScheduleMgr {
-    topo_order: Vec<NodeId>,
+    topo_order: Arc<[NodeId]>,
+    compile_topology: Arc<[ScheduleCompileEntry]>,
     buckets: Vec<ScheduleBucket>,
     pub(super) bucket_by_node: HashMap<NodeId, usize>,
     /// Topologically ordered nodes grouped only by rate for public schedule introspection.
@@ -13,6 +14,13 @@ pub(crate) struct ScheduleMgr {
     topo_index_by_node: HashMap<NodeId, usize>,
     /// Scratch: due bucket indices collected each tick. Cleared on each call.
     due_bucket_scratch: Vec<usize>,
+}
+
+/// Immutable compiler-facing projection built as part of schedule resolution.
+#[derive(Clone, Copy)]
+pub(crate) struct ScheduleCompileEntry {
+    pub(crate) node: NodeId,
+    pub(crate) kernel_key: Option<&'static str>,
 }
 
 struct ScheduleBucket {
@@ -93,11 +101,19 @@ impl ScheduleMgr {
             }
         }
 
-        // Keep only scheduled nodes for the schedule_topology() public API.
-        self.topo_order = topo_order
+        // Keep one immutable scheduled-node root for runtime introspection and compiler capture.
+        let scheduled = topo_order
             .into_iter()
             .filter(|node_id| self.bucket_by_node.contains_key(node_id))
+            .collect::<Vec<_>>();
+        self.compile_topology = scheduled
+            .iter()
+            .map(|node| ScheduleCompileEntry {
+                node: *node,
+                kernel_key: rules.get(node).and_then(|rule| rule.compiled_kernel_key),
+            })
             .collect();
+        self.topo_order = scheduled.into();
 
         Ok(())
     }
@@ -219,5 +235,9 @@ impl ScheduleMgr {
 
     pub(super) fn topo_order(&self) -> &[NodeId] {
         &self.topo_order
+    }
+
+    pub(super) fn compile_topology(&self) -> Arc<[ScheduleCompileEntry]> {
+        self.compile_topology.clone()
     }
 }

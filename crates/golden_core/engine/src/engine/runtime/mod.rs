@@ -43,7 +43,7 @@ pub use limits::{
     DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, FixedStepConfig, MissedPeriodPolicy, NodeExecutionRule, NodeUpdateRate,
     RuntimeLimits, runtime_loop_interval_for_frequency_hz,
 };
-pub(crate) use scheduler::ScheduleMgr;
+pub(crate) use scheduler::{ScheduleCompileEntry, ScheduleMgr};
 
 impl<T: Node> Engine<T> {
     pub(crate) fn mark_schedule_dirty(&mut self) {
@@ -116,6 +116,11 @@ impl<T: Node> Engine<T> {
     /// UUIDs. This order is compiled during [`Self::resolve`] and is not sorted again on live ticks.
     pub fn schedule_topology(&self) -> &[NodeId] {
         self.runtime_schedule.topo_order()
+    }
+
+    /// Captures the immutable scheduled-node/compiler root built by the latest resolve pass.
+    pub(crate) fn schedule_compile_topology(&self) -> Arc<[ScheduleCompileEntry]> {
+        self.runtime_schedule.compile_topology()
     }
 
     /// Returns the node bucket for a given update rate when present.

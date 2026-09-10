@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use crate::edit::{Edit, EditQueue, EditRequest, NodeTree};
 use crate::events::Inbox;
 use crate::node::*;
+#[cfg(test)]
 use crate::parameter::ParamValue;
 use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,8 @@ mod error;
 mod history;
 /// Two-way listener index for O(tree_depth) subscription routing.
 mod listener_index;
+/// Copy-on-write parameter values shared with immutable compiler captures.
+mod parameter_value_store;
 /// Project save/load support.
 mod persistence;
 /// UUID reference cache helpers.
@@ -51,6 +54,7 @@ mod ui;
 /// Node storage implementation used by the engine.
 pub mod node_store;
 use node_store::NodeStore;
+pub(crate) use parameter_value_store::ParameterValueStore;
 
 /// Error type returned when validating or applying edits.
 pub use error::EngineEditError;
@@ -85,6 +89,7 @@ pub use runtime::NodeExecutionRule;
 pub use runtime::NodeUpdateRate;
 /// Runtime safety and scheduling limits.
 pub use runtime::RuntimeLimits;
+pub(crate) use runtime::ScheduleCompileEntry;
 /// Converts a frequency cap in hertz to a runtime loop interval.
 pub use runtime::runtime_loop_interval_for_frequency_hz;
 /// Per-tick performance counters returned by `Engine::tick_stats`.
@@ -222,7 +227,7 @@ pub struct Engine<T: Node> {
     ///   - SetParam / SetParamConstraints: updated in `apply_set_param` and `emit_param_events_for_state_change`
     ///   - History undo/redo: populate/purge alongside every `nodes.reattach` / `nodes.detach`
     ///   - NodeCreated/NodeDeleted events during absorb_edits: scanned in run_scheduled_updates and dispatch
-    pub(crate) parameter_values_cache: HashMap<NodeId, ParamValue>,
+    pub(crate) parameter_values_cache: ParameterValueStore,
     /// Pre-allocated scratch buffers reused across tick phases to avoid per-tick heap allocations.
     ///
     /// INVALIDATED BY: cleared at the start of each phase that uses it; never persisted.
@@ -258,7 +263,7 @@ impl<T: Node> Engine<T> {
         if let Some(node) = nodes.get(root) {
             uuid_index.insert(node.node_data().meta.uuid, root);
         }
-        let mut parameter_values_cache = HashMap::new();
+        let mut parameter_values_cache = ParameterValueStore::default();
         if let Some(snapshot) = nodes.get(root).and_then(Node::engine_param_snapshot) {
             parameter_values_cache.insert(root, snapshot.value);
         }

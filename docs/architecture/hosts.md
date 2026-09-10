@@ -52,6 +52,10 @@ payload adapters must call the weighted send API; fixed-size status events may u
 Compiler implementations receive a cooperative staleness token and must check it between expensive
 materialization stages. Superseded pending snapshots are returned to the engine immediately for
 retirement; stale in-flight results are reported but can never become the live generation.
+Engine compiler requests capture a fixed set of copy-on-write parameter-value shard roots plus the
+immutable scheduled-node root built by graph resolution. Dense parameter ordering, value cloning,
+scheduled-kernel validation, and generation construction run on the compiler worker. A successful
+request retains that one materialized layout for constant-time reuse during generation installation.
 The transport host admits TCP connections before spawning request workers, so reconnect storms have
 a fixed task ceiling. Its WebSocket hub never drains an unbounded producer backlog before
 publication, and a `Received` control phase is emitted only after the corresponding command has
