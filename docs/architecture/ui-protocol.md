@@ -15,9 +15,14 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
 - The HTTP transport adapter in `packages/golden-ui/transport/http.ts` converts those generated Rust-wire types into the UI-local model types in `packages/golden-ui/types.ts`.
 - `types.ts` is a frontend model layer, not a second source of truth for the wire protocol.
 - `crates/golden_core/engine/src/ui_read_model.rs` maintains an incremental graph projection,
-  indexed retained-event replay, and a lazy immutable whole-graph snapshot. Normal ticks and edits
-  update only affected projection entries; the O(N) snapshot is materialized only when a snapshot
-  consumer asks for it.
+  indexed retained-event replay, and a bounded cache of completed immutable whole-graph snapshots.
+  Projection nodes and parent indexes use fixed-shard copy-on-write stores. Capturing a revision
+  clones only a fixed set of shard roots while holding the projection lock; DTO materialization and
+  JSON encoding happen after that lock is released.
+- Each immutable capture owns its event revision and project generation alongside its projection
+  roots. Later edits copy only affected shards, so a slow snapshot consumer cannot observe a mix of
+  revisions or block publication for whole-graph materialization. At most one completed whole-graph
+  payload is cached, and superseded project read-model state is retired outside the control actor.
 - Production mutations collect and publish their projection delta within the same ordered control
   actor turn. A later mutation or project replacement therefore cannot publish ahead of an older
   capture.

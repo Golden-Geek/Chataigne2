@@ -13,7 +13,9 @@ use crate::engine::EngineTime;
 use crate::events::CustomEventRetention;
 use crate::node::NodeId;
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
-use crate::ui_sync::{UiEventDto, UiEventKind, UiNodeDataDto, UiNodeDto};
+use crate::ui_sync::{UiEventDto, UiEventKind, UiNodeDataDto};
+
+use super::projection_store::NodeStore;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct RetainedEventKey {
@@ -49,13 +51,6 @@ pub(super) struct RetainedEventLog {
 }
 
 impl RetainedEventLog {
-    pub(super) fn clear(&mut self) {
-        self.events.clear();
-        self.latest_custom.clear();
-        self.pending_params.clear();
-        self.next_ordinal = 0;
-    }
-
     pub(super) fn first_event_time(&self) -> Option<EngineTime> {
         self.events.first_key_value().map(|(_, retained)| retained.event.time)
     }
@@ -80,12 +75,7 @@ impl RetainedEventLog {
     }
 
     /// Appends one event and returns the highest time evicted by the capacity limit.
-    pub(super) fn append(
-        &mut self,
-        nodes: &HashMap<NodeId, UiNodeDto>,
-        mut event: UiEventDto,
-        capacity: usize,
-    ) -> Option<EngineTime> {
+    pub(super) fn append(&mut self, nodes: &NodeStore, mut event: UiEventDto, capacity: usize) -> Option<EngineTime> {
         debug_assert!(
             self.events
                 .last_key_value()
@@ -173,11 +163,11 @@ impl RetainedEventLog {
     }
 }
 
-pub(super) fn event_is_coalescable_value(nodes: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> bool {
+pub(super) fn event_is_coalescable_value(nodes: &NodeStore, event: &UiEventDto) -> bool {
     coalescable_param(nodes, event).is_some()
 }
 
-fn replacement_key(nodes: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> ReplacementKey {
+fn replacement_key(nodes: &NodeStore, event: &UiEventDto) -> ReplacementKey {
     if let UiEventKind::Custom {
         topic,
         origin,
@@ -194,7 +184,7 @@ fn replacement_key(nodes: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> Re
     coalescable_param(nodes, event).map_or(ReplacementKey::None, ReplacementKey::PendingParam)
 }
 
-fn coalescable_param(nodes: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> Option<NodeId> {
+fn coalescable_param(nodes: &NodeStore, event: &UiEventDto) -> Option<NodeId> {
     let UiEventKind::ParamChanged { param, new_value, .. } = &event.kind else {
         return None;
     };

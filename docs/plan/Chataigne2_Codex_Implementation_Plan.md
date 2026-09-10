@@ -88,10 +88,12 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T09     | Complete                                                                                           |
 | T10     | Complete                                                                                           |
 | T11     | Complete                                                                                           |
-| T12–T19 | Not started                                                                                        |
+| T12     | In progress: immutable read-model capture complete; persistence/compiler capture and scale evidence remain |
+| T13–T19 | Not started                                                                                        |
 
-The reviewed stop point is after T11. Resume at T12. Exact commands, evidence, and remaining
-qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
+The reviewed stop point is the first T12 read-model slice. Continue T12 with persistence document
+and compiler capture, followed by scale/contended-consumer qualification. Exact commands, evidence,
+and remaining qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 
 ### T00 — Reconcile the baseline and establish a resumable ledger
 

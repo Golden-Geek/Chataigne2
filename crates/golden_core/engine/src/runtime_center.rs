@@ -673,14 +673,14 @@ impl<T: Node> ProductionState<T> {
         }
     }
 
-    pub(crate) fn commit_project(
+    pub(crate) fn commit_project<R>(
         &mut self,
         engine: Engine<T>,
         compiled: CompiledProjectCandidate,
         project_generation: ProjectGeneration,
         project_was_saved: bool,
-        publish_read_model: impl FnOnce(&Engine<T>),
-    ) -> Result<Engine<T>, RejectedProjectCommit<T>> {
+        publish_read_model: impl FnOnce(&Engine<T>) -> R,
+    ) -> Result<(Engine<T>, R), RejectedProjectCommit<T>> {
         let CompiledProjectCandidate { snapshot, generation } = compiled;
         let (next_mailbox, next_input_generation) = match make_input_generation(&snapshot, false) {
             Ok(prepared) => prepared,
@@ -737,9 +737,9 @@ impl<T: Node> ProductionState<T> {
         self.saved_document_revision = project_was_saved.then(|| self.engine.current_history_state_id());
         self.latest_save_request_id = 0;
 
-        publish_read_model(&self.engine);
+        let publication = publish_read_model(&self.engine);
         self.input_plane.current.store(next_input_generation);
-        Ok(previous)
+        Ok((previous, publication))
     }
 
     pub(crate) fn project_generation(&self) -> ProjectGeneration {

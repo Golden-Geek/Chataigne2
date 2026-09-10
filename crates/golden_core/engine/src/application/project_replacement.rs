@@ -8,7 +8,7 @@ use crate::app::{
     prepare_engine_candidate_for_runtime_recovering, shutdown_engine_for_runtime, validate_engine_project_candidate,
 };
 use crate::engine::{Engine, ProjectLoadRecoveryReport};
-use crate::ui_read_model::{UiReadModel, UiReadModelReplaceReason};
+use crate::ui_read_model::{RetiredUiReadModelState, UiReadModel, UiReadModelReplaceReason};
 use crate::ui_sync::UiProjectFileSpec;
 
 use super::ProductionRuntime;
@@ -120,6 +120,7 @@ impl ProjectReplacementFaultHook {
 
 struct CommittedProjectReplacement<T: ProjectLifecycle> {
     previous: Engine<T>,
+    retired_read_model: RetiredUiReadModelState,
     recovery: ProjectLoadRecoveryReport,
     node_count: usize,
     shutdown: Duration,
@@ -127,8 +128,8 @@ struct CommittedProjectReplacement<T: ProjectLifecycle> {
 }
 
 enum ProjectReplacementActorOutcome<T: ProjectLifecycle> {
-    Committed(CommittedProjectReplacement<T>),
-    Rejected { candidate: Engine<T>, error: String },
+    Committed(Box<CommittedProjectReplacement<T>>),
+    Rejected { candidate: Box<Engine<T>>, error: String },
 }
 
 fn reject_project_candidate<T: ProjectLifecycle>(
@@ -136,7 +137,10 @@ fn reject_project_candidate<T: ProjectLifecycle>(
     error: String,
 ) -> ProjectReplacementActorOutcome<T> {
     shutdown_engine_for_runtime(&mut candidate);
-    ProjectReplacementActorOutcome::Rejected { candidate, error }
+    ProjectReplacementActorOutcome::Rejected {
+        candidate: Box::new(candidate),
+        error,
+    }
 }
 
 impl<T: ProjectLifecycle> ProductionRuntime<T> {
@@ -298,12 +302,13 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     return reject_project_candidate(candidate, error);
                 }
 
-                let previous =
+                let (previous, retired_read_model) =
                     match state.commit_project(candidate, compiled, generation, project_was_saved, move |engine| {
                         publication_hook.invoke();
-                        read_model
+                        let retired = read_model
                             .commit_project_replacement(prepared_read_model, UiReadModelReplaceReason::ProjectReplaced);
                         read_model.publish_engine_events_since(engine, None);
+                        retired
                     }) {
                         Ok(previous) => previous,
                         Err(rejected) => {
@@ -314,13 +319,14 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                         }
                     };
 
-                ProjectReplacementActorOutcome::Committed(CommittedProjectReplacement {
+                ProjectReplacementActorOutcome::Committed(Box::new(CommittedProjectReplacement {
                     previous,
+                    retired_read_model,
                     recovery,
                     node_count,
                     shutdown,
                     prepare: detached_prepare.saturating_add(candidate_prepare_started.elapsed()),
-                })
+                }))
             })
             .map_err(|error| error.to_string())?;
         let committed = match receipt.output {
@@ -343,7 +349,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .check(ProjectReplacementStage::Retirement)
             .err();
         let drop_started = Instant::now();
-        drop(committed.previous);
+        drop((committed.previous, committed.retired_read_model));
         let drop_previous = drop_started.elapsed();
         drop(retirement_permit);
         Ok(ProjectReplacementResult {

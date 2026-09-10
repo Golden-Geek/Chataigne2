@@ -47,6 +47,12 @@ cargo test --locked -p golden_engine \
 `golden_graph_ui` keeps the graph document independent of rendered DOM. Viewport culling and keyed
 stores limit work to visible nodes; a 10,000-node document must not mount the whole graph.
 
+The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
+capture a coherent event revision and project generation under a short projection read, then walk
+and clone DTOs after releasing that lock. Whole-graph materialization and transport encoding must
+never run on the control actor, and completed whole-graph snapshot retention stays bounded to one
+payload.
+
 ```text
 python tools/qualification/graph_scale.py \
   --output-dir target/qualification/graph-scale/local \

@@ -542,6 +542,54 @@ fn snapshot_materializes_parameter_updates_without_a_structural_rebuild() {
 }
 
 #[test]
+fn snapshot_capture_keeps_one_coherent_revision_while_edits_publish() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let root = engine.root;
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let before = read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
+    let before_revision = before.revision();
+    let project_generation = before.project_generation();
+
+    engine.time.tick += 1;
+    apply_param_change(&mut engine, 7);
+    let batch = read_model.publish_engine_events_since(&engine, Some(before_revision));
+    let after = read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
+
+    assert_eq!(
+        after.revision(),
+        batch.to.expect("the published edit should advance the cursor")
+    );
+    assert!(after.revision() > before_revision);
+    assert_eq!(after.project_generation(), project_generation);
+    assert_eq!(
+        before.shared_node_shards_for_tests(&after),
+        crate::ui_read_model::UiSnapshotCapture::node_shard_count_for_tests() - 1,
+        "one-node mutation should copy only its fixed projection shard"
+    );
+
+    let before = before.materialize();
+    let after = after.materialize();
+    assert_eq!(before.at, before_revision);
+    assert_eq!(
+        after.at,
+        batch.to.expect("the published edit should advance the cursor")
+    );
+    let value = |snapshot: &crate::ui_sync::UiSnapshot| {
+        let node = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.node_id == root)
+            .expect("root should be present in both captured revisions");
+        let UiNodeDataDto::Parameter { param } = &node.data else {
+            panic!("root should remain a parameter");
+        };
+        param.value.clone()
+    };
+    assert_eq!(value(&before), ParamValue::Int(0));
+    assert_eq!(value(&after), ParamValue::Int(7));
+}
+
+#[test]
 fn project_file_path_survives_structural_rebuild() {
     let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
     let project_file = UiProjectFileSpec {

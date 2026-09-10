@@ -1,15 +1,17 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::app::ProjectGeneration;
 use crate::contexts::UiUserContextsDto;
 use crate::engine::EngineTime;
-use crate::node::NodeId;
 use crate::ui_sync::{
     UI_PROTOCOL_VERSION, UiChildrenOrderPatch, UiEventDto, UiEventKind, UiGraphOp, UiHistoryState, UiLoggerState,
     UiNodeDataDto, UiNodeDto, UiNodeMetaPatch, UiProjectFileSpec, UiSchemaView, UiSnapshot, UiSubscriptionScope,
 };
 
+use super::projection_store::{NodeStore, ParentStore};
+
+#[derive(Clone)]
 pub(super) struct SnapshotHeader {
     pub(super) at: EngineTime,
     pub(super) project_generation: ProjectGeneration,
@@ -19,35 +21,51 @@ pub(super) struct SnapshotHeader {
 }
 
 pub(super) struct ProjectionState {
-    pub(super) nodes: HashMap<NodeId, UiNodeDto>,
-    pub(super) parents: HashMap<NodeId, NodeId>,
-    pub(super) header: SnapshotHeader,
-    pub(super) schema: UiSchemaView,
-    pub(super) cached_snapshot: Arc<UiSnapshot>,
-    pub(super) snapshot_dirty: bool,
+    pub(super) nodes: NodeStore,
+    pub(super) parents: ParentStore,
+    pub(super) header: Arc<SnapshotHeader>,
+    pub(super) schema: Arc<UiSchemaView>,
+    pub(super) version: u64,
 }
 
-pub(super) fn nodes_to_store(nodes: &[UiNodeDto]) -> HashMap<NodeId, UiNodeDto> {
-    nodes.iter().map(|dto| (dto.node_id, dto.clone())).collect()
+#[derive(Clone)]
+pub(super) struct ProjectionCapture {
+    pub(super) nodes: NodeStore,
+    pub(super) header: Arc<SnapshotHeader>,
+    pub(super) schema: Arc<UiSchemaView>,
+    pub(super) version: u64,
 }
 
-pub(super) fn parents_from_nodes<'a>(nodes: impl IntoIterator<Item = &'a UiNodeDto>) -> HashMap<NodeId, NodeId> {
-    let mut parents = HashMap::new();
-    for node in nodes {
-        for child in &node.children {
-            parents.insert(*child, node.node_id);
+impl ProjectionState {
+    pub(super) fn capture(&self) -> ProjectionCapture {
+        ProjectionCapture {
+            nodes: self.nodes.clone(),
+            header: self.header.clone(),
+            schema: self.schema.clone(),
+            version: self.version,
         }
     }
-    parents
+
+    pub(super) fn advance_version(&mut self) {
+        self.version = self.version.checked_add(1).expect("UI projection version exhausted");
+    }
 }
 
-fn snapshot_header_from_projection(projection: &ProjectionState, scope: UiSubscriptionScope) -> UiSnapshot {
+pub(super) fn nodes_to_store(nodes: &[UiNodeDto]) -> NodeStore {
+    NodeStore::from_nodes(nodes)
+}
+
+pub(super) fn parents_from_nodes<'a>(nodes: impl IntoIterator<Item = &'a UiNodeDto>) -> ParentStore {
+    ParentStore::from_nodes(nodes)
+}
+
+fn snapshot_header_from_projection(projection: &ProjectionCapture, scope: UiSubscriptionScope) -> UiSnapshot {
     UiSnapshot {
         protocol_version: UI_PROTOCOL_VERSION.to_string(),
         scope,
         at: projection.header.at,
         nodes: Vec::new(),
-        schema: projection.schema.clone(),
+        schema: projection.schema.as_ref().clone(),
         history: projection.header.history.clone(),
         logger: UiLoggerState {
             max_entries: crate::logger::max_entries(),
@@ -58,13 +76,13 @@ fn snapshot_header_from_projection(projection: &ProjectionState, scope: UiSubscr
     }
 }
 
-pub(super) fn snapshot_from_projection(projection: &ProjectionState) -> UiSnapshot {
+pub(super) fn snapshot_from_projection(projection: &ProjectionCapture) -> UiSnapshot {
     let mut snapshot = snapshot_header_from_projection(projection, UiSubscriptionScope::WholeGraph);
     snapshot.nodes = projection.nodes.values().cloned().collect();
     snapshot
 }
 
-pub(super) fn scoped_snapshot(projection: &ProjectionState, scope: UiSubscriptionScope) -> UiSnapshot {
+pub(super) fn scoped_snapshot(projection: &ProjectionCapture, scope: UiSubscriptionScope) -> UiSnapshot {
     let mut snapshot = snapshot_header_from_projection(projection, scope.clone());
     snapshot.nodes = nodes_for_scope(&projection.nodes, scope);
     snapshot
@@ -183,18 +201,18 @@ pub(super) fn apply_events(projection: &mut ProjectionState, events: &[UiEventDt
                     parent_dto.children.clone_from(children);
                 }
             }
-            UiEventKind::NodeCreated { node, snapshot } => {
+            UiEventKind::NodeCreated { snapshot, .. } => {
                 if let Some(snapshot) = snapshot {
                     record_node_children_parents(&mut projection.parents, snapshot);
-                    projection.nodes.insert(*node, snapshot.as_ref().clone());
+                    projection.nodes.insert(snapshot.as_ref().clone());
                 }
             }
             UiEventKind::NodeDeleted { node } => {
                 projection.parents.remove(node);
                 if let Some(removed) = projection.nodes.remove(node) {
-                    for child in removed.children {
-                        if projection.parents.get(&child) == Some(node) {
-                            projection.parents.remove(&child);
+                    for child in &removed.children {
+                        if projection.parents.get(child) == Some(node) {
+                            projection.parents.remove(child);
                         }
                     }
                 }
@@ -209,14 +227,14 @@ pub(super) fn apply_events(projection: &mut ProjectionState, events: &[UiEventDt
     }
 }
 
-fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, parents: &mut HashMap<NodeId, NodeId>, op: &UiGraphOp) {
+fn apply_graph_op(store: &mut NodeStore, parents: &mut ParentStore, op: &UiGraphOp) {
     match op {
         UiGraphOp::NodeCreated { snapshot, parent, .. } => {
             record_node_children_parents(parents, snapshot);
             if let Some(parent) = parent {
                 parents.insert(snapshot.node_id, *parent);
             }
-            store.insert(snapshot.node_id, snapshot.as_ref().clone());
+            store.insert(snapshot.as_ref().clone());
         }
         UiGraphOp::SubtreeInserted {
             root,
@@ -227,7 +245,7 @@ fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, parents: &mut HashMap<
         } => {
             for node in nodes {
                 record_node_children_parents(parents, node);
-                store.insert(node.node_id, node.clone());
+                store.insert(node.clone());
             }
             parents.insert(*root, *parent);
             if let Some(parent_dto) = store.get_mut(parent) {
@@ -292,13 +310,13 @@ fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, parents: &mut HashMap<
     }
 }
 
-fn record_node_children_parents(parents: &mut HashMap<NodeId, NodeId>, node: &UiNodeDto) {
+fn record_node_children_parents(parents: &mut ParentStore, node: &UiNodeDto) {
     for child in &node.children {
         parents.insert(*child, node.node_id);
     }
 }
 
-fn apply_children_order(store: &mut HashMap<NodeId, UiNodeDto>, patch: Option<&UiChildrenOrderPatch>) {
+fn apply_children_order(store: &mut NodeStore, patch: Option<&UiChildrenOrderPatch>) {
     if let Some(patch) = patch
         && let Some(node) = store.get_mut(&patch.parent)
     {
@@ -333,7 +351,7 @@ fn apply_meta_patch(meta: &mut crate::ui_sync::UiNodeMetaDto, patch: &UiNodeMeta
     }
 }
 
-fn nodes_for_scope(store: &HashMap<NodeId, UiNodeDto>, scope: UiSubscriptionScope) -> Vec<UiNodeDto> {
+fn nodes_for_scope(store: &NodeStore, scope: UiSubscriptionScope) -> Vec<UiNodeDto> {
     match scope {
         UiSubscriptionScope::WholeGraph => store.values().cloned().collect(),
         UiSubscriptionScope::Subtree { root, max_depth } => {

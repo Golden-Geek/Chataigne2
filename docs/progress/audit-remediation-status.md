@@ -4,10 +4,10 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the final T11 slice commit: `84671c00`
-is checked out with the lifecycle-retirement T11 implementation and evidence changes in the
-working tree. Concurrent app-system changes outside this slice remain unstaged. T00–T10 plus the
-shared-I/O, control/compiler, and transport-host T11 slices are committed and pushed on `main`.
+Current SHA and patch state before the first T12 slice commit: `83fb61f5`
+is checked out with immutable read-model capture and evidence changes in the working tree.
+Concurrent app-system changes outside this slice remain unstaged. T00–T11 are committed and pushed
+on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -21,22 +21,25 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T11 — bound admission, service turns, compilation, and retirement — complete locally. T01's
-native qualification and T03's matching hosted reference baseline remain pending.
+Task: T12 — separate immutable snapshots and encoding from actor progress — in progress. This
+slice completes the UI read-model publication/capture boundary. T01's native qualification and
+T03's matching hosted reference baseline remain pending.
 
-Owning layers and files in this slice: reusable Golden I/O retirement ownership, the production
-project-replacement facade, and app-owned Sound Card and Joy-Con lifecycle adapters.
+Owning layers and files in this slice: the Golden Engine UI read projection and the production
+project-replacement publication boundary.
 
-Invariant / implementation decision: retirement capacity is reserved before an owner relinquishes
-its resource. A blocked cleanup occupies one explicit slot; saturation returns the original value
-and rejects replacement work instead of spawning or queueing without limit. Cleanup and joins run
-outside the live engine actor, and recovery becomes visible when active capacity returns to zero.
+Invariant / implementation decision: a snapshot consumer captures fixed-shard copy-on-write node
+roots, header, schema, event revision, and project generation while briefly holding the projection
+read lock. It materializes DTOs after releasing that lock. A later publication copies only affected
+shards and advances one projection version; at most one completed whole-graph snapshot remains
+cached. Project cutover returns superseded projection, cache, and retained events for outside-actor
+retirement.
 
-Result and remaining work: two blocked project retirements leave actor reads/ticks available and a
-third replacement is rejected before generation allocation. Sound Card lifecycle workers, detached
-audio runtimes, delayed retries, and Joy-Con joins have fixed aggregate ceilings; rejected audio
-retirement is retained until admission recovers. T11 is complete; T12 owns remaining immutable
-snapshot/capture capacity work.
+Result and remaining work: an edit racing an older capture preserves two internally coherent
+snapshots and their correct cursors, while a one-node edit shares 255 of 256 projection shards.
+Concurrent whole-graph readers continue to converge on the one completed cached payload. T12 still
+owns persistence document capture, compiler capture, background transport encoding, bounded
+cross-client retention, and 1k/10k/100k capture/materialization measurements.
 
 ## Task status and dependencies
 
@@ -54,7 +57,7 @@ snapshot/capture capacity work.
 | T09  | T08                                           | complete                                                     |
 | T10  | T00                                           | complete                                                     |
 | T11  | T04, T08, T09, T10                            | complete                                                     |
-| T12  | T08, T09, T11                                 | pending                                                      |
+| T12  | T08, T09, T11                                 | in progress: immutable UI read-model capture slice complete  |
 | T13  | T03, T10                                      | pending                                                      |
 | T14  | T03, T07, T11                                 | pending                                                      |
 | T15  | T05, T09, T10, T12                            | pending                                                      |
@@ -75,11 +78,11 @@ the current branch contains implementation and verification evidence.
 | F03 — script interruption/effects  | partially fixed | T05 installs nesting-safe monotonic interruption/cancellation, budgets and resource caps, input validation, success-only effect admission, heap quarantine, and clean reload; T15 extraction remains                                                               | Watchdog subprocesses and engine recovery pass. Physical I/O is not claimed rollback-safe after host admission; reusable VM/effect ownership remains pending.                                                                                                      |
 | F04 — project replacement          | fixed           | T08 adds detached prepare/validate/compile, monotonic project generations, exclusive activation, atomic engine/runtime/read-model publication, explicit paused-state failure, stale candidate/compiler fencing, outside-actor retirement, and duplication rollback | Barrier and fault-injection coverage spans decode through resource cleanup. T11 caps concurrent detached-engine retirement and rejects overload before generation allocation or candidate preparation.                                                           |
 | F05 — cache restoration            | fixed           | Scheduled updates and inbox dispatch borrow the cache in place; all fallible scheduled scratch extraction uses one restore boundary; excess callbacks are rejected before invocation                                                                               | Injected budget and edit-absorption failures prove unchanged/changed bindings, node membership, cache contents, accepted-edit policy, and next-tick progress. Panic/unwind recovery is not claimed.                                                                |
-| F06 — unbounded work/lifecycle     | partially fixed | T11 adds dual-bounded I/O, bounded OSC turns, nonblocking actor admission, constant compiler retention/cancellation, bounded HTTP/WebSocket admission, explicit slow-client policy, capacity-reserved project/device retirement, and bounded delayed recovery          | T11 saturation, recovery, shutdown, and ownership tests pass. T12 still owns snapshot/capture capacity under F10/F06.                                                                                                                                               |
+| F06 — unbounded work/lifecycle     | partially fixed | T11 adds dual-bounded I/O, bounded OSC turns, nonblocking actor admission, constant compiler retention/cancellation, bounded HTTP/WebSocket admission, explicit slow-client policy, capacity-reserved project/device retirement, and bounded delayed recovery. T12 bounds completed UI snapshot retention to one payload. | T11 saturation, recovery, shutdown, and ownership tests pass. T12 still owns persistence/compiler capture and contended-client capacity under F10/F06.                                                                                                             |
 | F07 — topology ties                | partially fixed | T07 uses one UUID-ordered global ready frontier and compiles stable bucket/runtime order                                                                                                                                                                           | Equivalent-order, diamond, disconnected, cycle, and conflicting write/trigger fixtures pass. T14/T18 cross-worker real-kernel determinism remains pending.                                                                                                         |
 | F08 — UI index copying             | open            | T13 pending                                                                                                                                                                                                                                                        | Delta-proportional work and browser action-to-paint evidence is missing.                                                                                                                                                                                           |
 | F09 — identity work/full scans     | open            | T14/T18 pending                                                                                                                                                                                                                                                    | Sparse-selection and real-kernel measurements are missing.                                                                                                                                                                                                         |
-| F10 — snapshots/encoding           | open            | T12/T15 pending                                                                                                                                                                                                                                                    | Actor capture/materialization scaling evidence is missing.                                                                                                                                                                                                         |
+| F10 — snapshots/encoding           | partially fixed | T12 uses fixed-shard copy-on-write UI projection roots, revision/generation-bound immutable captures, outside-lock DTO materialization, one completed whole-graph cache entry, and outside-actor project read-model retirement.                                      | Persistence/compiler capture and background transport encoding remain. Actor capture versus background materialization/encoding scaling and three-client contention evidence are still missing.                                                                  |
 | F11 — concurrent saves             | fixed           | T09 adds monotonic save tickets, normalized destination identity, ordered complete transactions, bounded cross-destination concurrency, generation fencing, and winner-only path/revision publication                                                              | Deterministic barriers cover reversed completion, aliases, Save As, edits, and replacement. Injected write/restore boundaries prove recovery and subsequent saves. T12 retains capture-scaling work under F10, not save-order correctness.                         |
 | F12 — dependency gate              | fixed           | `h2` locked at 0.4.16; `rtrb` constraint and lock at 0.3.5; no advisory suppression added                                                                                                                                                                          | `cargo deny check`, `cargo machete`, and both backend-neutral/realtime Golden Audio suites pass against RustSec DB `5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5` (2026-09-02). No reachable Chataigne exploit was established.                                        |
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13/T14/T19 pending                                                                                                       | All 22 qualification-tool tests pass, including every planned invalid class and a real regression. Historical values are explicitly unqualified; matching hosted reference and product evidence remain open.                                                       |
@@ -169,6 +172,9 @@ the current branch contains implementation and verification evidence.
 | `cargo test --locked -p Chataigne2 --no-default-features --no-fail-fast --target-dir target/codex-t11` | T11 life | Windows x64, isolated target | passed | All 515 app tests pass after bounded Sound Card/Joy-Con lifecycle retirement and delayed-wake scheduling changes. The default Windows/ASIO path is compile-covered by the strict Clippy run; the isolated full test excludes ASIO because the configured temporary SDK is incomplete. |
 | `cargo clippy --locked -p golden_io -p golden_engine -p Chataigne2 --all-targets -- -D warnings` | T11 life | Windows x64 | passed | Reusable retirement admission, project replacement, app-owned device lifecycle adapters, and all their test targets are warning-free.                                                                 |
 | `cargo fmt --all` (root and Golden Core workspaces)                               | T11 life  | Windows x64                           | passed  | Final lifecycle sources and deterministic tests are formatted in both required workspaces.                                                                                                                                                                                            |
+| `cargo test --locked -p golden_engine ui_read_model --target-dir target/codex-t12` | T12 read | Windows x64, isolated target | passed | All 19 focused read-model tests pass. The revision-race regression preserves old/new parameter values, event cursors, project generation, and 255/256 shared shards across a one-node edit. |
+| `cargo test --locked -p golden_engine --no-fail-fast --target-dir target/codex-t12` | T12 read | Windows x64, isolated target | passed | 414 unit tests pass, 2 manual measurements remain ignored, the crate-external consumer passes, and 7 doctests pass. |
+| `cargo clippy --locked -p golden_engine --all-targets --target-dir target/codex-t12 -- -D warnings` | T12 read | Windows x64, isolated target | passed | Copy-on-write projection storage, snapshot caching, outside-actor read-model retirement, and all engine test targets are warning-free. |
 
 ## Preservation and qualification inventory
 
@@ -183,7 +189,9 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready task: T12.
+Next dependency-ready work: continue T12 with persistence document capture and compiler capture,
+then move transport encoding off request/control progress and run the required scale/contention
+qualification.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

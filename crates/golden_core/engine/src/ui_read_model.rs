@@ -4,14 +4,15 @@
 //!
 //! 1. `projection` - incremental node, parent, schema, and snapshot-header state.
 //! 2. `events` - the retained, time-indexed replay log.
-//! 3. A lazy immutable whole-graph snapshot cache inside `projection`.
+//! 3. `snapshot_cache` - one completed immutable whole-graph materialization.
 //!
 //! Hot paths (runtime tick, intent) use [`UiReadModel::collect_event_batch`] after mutating the
 //! actor-owned engine, end that engine borrow, and call [`UiReadModel::apply_event_capture`] before
-//! the same actor turn completes. Incremental publication invalidates the snapshot cache in
-//! O(changed nodes); only an explicit snapshot consumer pays for O(N) whole-graph materialization.
+//! the same actor turn completes. Incremental publication advances copy-on-write projection roots
+//! in O(changed nodes); only an explicit snapshot consumer pays for O(N) materialization.
 
 mod projection;
+mod projection_store;
 mod retained_events;
 
 use std::collections::HashMap;
@@ -23,13 +24,13 @@ use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
 use crate::ui_sync::{
     UI_PROTOCOL_VERSION, UI_USER_CONTEXT_ENTRY_TOPIC, UI_USER_CONTEXT_SCOPE_TOPIC, UiEventBatch, UiEventDto,
-    UiEventKind, UiGraphOp, UiHistoryState, UiNodeDto, UiProjectFileSpec, UiRuntimeStatsDto, UiSnapshot,
-    UiSubscriptionScope,
+    UiEventKind, UiGraphOp, UiHistoryState, UiProjectFileSpec, UiRuntimeStatsDto, UiSnapshot, UiSubscriptionScope,
 };
 use projection::{
-    ProjectionState, SnapshotHeader, apply_events, nodes_to_store, parents_from_nodes, scoped_snapshot,
-    snapshot_from_projection,
+    ProjectionCapture, ProjectionState, SnapshotHeader, apply_events, nodes_to_store, parents_from_nodes,
+    scoped_snapshot, snapshot_from_projection,
 };
+use projection_store::{NodeStore, ParentStore};
 use retained_events::{RetainedEventLog, event_is_coalescable_value};
 
 const DEFAULT_UI_READ_MODEL_EVENT_CAPACITY: usize = 8192;
@@ -82,12 +83,66 @@ pub struct UiFeedbackEventPartition {
 pub(crate) struct PreparedUiReadModelReplacement {
     projection: ProjectionState,
     latest_event_time: Option<EngineTime>,
+    snapshot: Arc<UiSnapshot>,
+}
+
+/// Immutable, revision-consistent projection root captured in bounded time.
+///
+/// Materialization traverses and clones DTOs without retaining any read-model lock. A concurrent
+/// edit publishes a new copy-on-write root while this capture continues to represent its original
+/// event cursor and project generation.
+pub struct UiSnapshotCapture {
+    projection: ProjectionCapture,
+    scope: UiSubscriptionScope,
+}
+
+impl UiSnapshotCapture {
+    /// Event cursor represented by this immutable capture.
+    pub fn revision(&self) -> EngineTime {
+        self.projection.header.at
+    }
+
+    /// Project generation represented by this immutable capture.
+    pub fn project_generation(&self) -> ProjectGeneration {
+        self.projection.header.project_generation
+    }
+
+    /// Materializes the requested snapshot without accessing the live read model.
+    pub fn materialize(self) -> UiSnapshot {
+        match self.scope {
+            UiSubscriptionScope::WholeGraph => snapshot_from_projection(&self.projection),
+            scope @ UiSubscriptionScope::Subtree { .. } => scoped_snapshot(&self.projection, scope),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn shared_node_shards_for_tests(&self, other: &Self) -> usize {
+        self.projection.nodes.shared_shards_with(&other.projection.nodes)
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn node_shard_count_for_tests() -> usize {
+        projection_store::projection_shard_count()
+    }
+}
+
+struct CachedUiSnapshot {
+    version: u64,
+    snapshot: Arc<UiSnapshot>,
+}
+
+pub(crate) struct RetiredUiReadModelState {
+    _projection: ProjectionState,
+    _snapshot: Option<CachedUiSnapshot>,
+    _events: RetainedEventLog,
 }
 
 /// Immutable UI projection used by HTTP snapshots and WebSocket replay.
 pub struct UiReadModel {
-    /// Incrementally maintained projection and lazy immutable snapshot cache.
+    /// Incrementally maintained copy-on-write projection roots.
     projection: RwLock<ProjectionState>,
+    /// At most one completed whole-graph materialization, replaced only by snapshot workers.
+    snapshot_cache: Mutex<Option<CachedUiSnapshot>>,
     /// Serializes publication so projection and replay-ring order cannot diverge.
     publication: Mutex<()>,
     /// Retained, time-indexed event log for WS replay.
@@ -114,22 +169,23 @@ impl UiReadModel {
         let nodes = nodes_to_store(&snapshot.nodes);
         let parents = parents_from_nodes(nodes.values());
         let schema = snapshot.schema.clone();
-        let header = SnapshotHeader {
+        let header = Arc::new(SnapshotHeader {
             at,
             project_generation: ProjectGeneration::INITIAL,
             history: snapshot.history.clone(),
             user_contexts: snapshot.user_contexts.clone(),
             project_file: snapshot.project_file.clone(),
-        };
+        });
+        let snapshot = Arc::new(snapshot);
         Self {
             projection: RwLock::new(ProjectionState {
                 nodes,
                 parents,
                 header,
-                schema,
-                cached_snapshot: Arc::new(snapshot),
-                snapshot_dirty: false,
+                schema: Arc::new(schema),
+                version: 1,
             }),
+            snapshot_cache: Mutex::new(Some(CachedUiSnapshot { version: 1, snapshot })),
             publication: Mutex::new(()),
             events: Mutex::new(RetainedEventLog::default()),
             event_capacity: DEFAULT_UI_READ_MODEL_EVENT_CAPACITY,
@@ -139,21 +195,46 @@ impl UiReadModel {
         }
     }
 
-    /// Returns the current immutable whole-graph snapshot, materializing it on demand.
+    /// Captures the current immutable projection root in bounded time.
+    pub fn capture_snapshot(&self, scope: UiSubscriptionScope) -> UiSnapshotCapture {
+        let projection = self.projection.read().expect("ui read model poisoned").capture();
+        UiSnapshotCapture { projection, scope }
+    }
+
+    /// Returns the current immutable whole-graph snapshot, materializing it outside projection locks.
     pub fn current_snapshot(&self) -> Arc<UiSnapshot> {
         {
-            let projection = self.projection.read().expect("ui read model poisoned");
-            if !projection.snapshot_dirty {
-                return projection.cached_snapshot.clone();
+            let version = self.projection.read().expect("ui read model poisoned").version;
+            let cache = self
+                .snapshot_cache
+                .lock()
+                .expect("ui read model snapshot cache poisoned");
+            if let Some(cached) = cache.as_ref()
+                && cached.version == version
+            {
+                return cached.snapshot.clone();
             }
         }
 
-        let mut projection = self.projection.write().expect("ui read model poisoned");
-        if projection.snapshot_dirty {
-            projection.cached_snapshot = Arc::new(snapshot_from_projection(&projection));
-            projection.snapshot_dirty = false;
+        let capture = self.capture_snapshot(UiSubscriptionScope::WholeGraph);
+        let version = capture.projection.version;
+        let snapshot = Arc::new(capture.materialize());
+        let mut cache = self
+            .snapshot_cache
+            .lock()
+            .expect("ui read model snapshot cache poisoned");
+        if let Some(cached) = cache.as_ref()
+            && cached.version == version
+        {
+            return cached.snapshot.clone();
         }
-        projection.cached_snapshot.clone()
+        if cache.as_ref().is_none_or(|cached| cached.version < version) {
+            *cache = Some(CachedUiSnapshot {
+                version,
+                snapshot: snapshot.clone(),
+            });
+        }
+        snapshot
     }
 
     /// Returns the latest known event time.
@@ -163,9 +244,7 @@ impl UiReadModel {
 
     /// Returns the newest complete projection boundary without materializing a snapshot.
     pub fn current_revision(&self) -> EngineTime {
-        let snapshot_time = self.projection.read().expect("ui read model poisoned").header.at;
-        self.current_event_time()
-            .map_or(snapshot_time, |event_time| event_time.max(snapshot_time))
+        self.projection.read().expect("ui read model poisoned").header.at
     }
 
     /// Returns the authoritative project generation represented by this projection.
@@ -226,18 +305,18 @@ impl UiReadModel {
             projection: ProjectionState {
                 nodes,
                 parents,
-                header: SnapshotHeader {
+                header: Arc::new(SnapshotHeader {
                     at,
                     project_generation,
                     history: snapshot.history.clone(),
                     user_contexts: snapshot.user_contexts.clone(),
                     project_file: snapshot.project_file.clone(),
-                },
-                schema: snapshot.schema.clone(),
-                cached_snapshot: snapshot,
-                snapshot_dirty: false,
+                }),
+                schema: Arc::new(snapshot.schema.clone()),
+                version: 0,
             },
             latest_event_time,
+            snapshot,
         }
     }
 
@@ -246,24 +325,45 @@ impl UiReadModel {
         &self,
         prepared: PreparedUiReadModelReplacement,
         reason: UiReadModelReplaceReason,
-    ) {
+    ) -> RetiredUiReadModelState {
         let _publication = self.publication.lock().expect("ui read model poisoned");
         let PreparedUiReadModelReplacement {
-            projection,
+            mut projection,
             latest_event_time,
+            snapshot,
         } = prepared;
-        *self.projection.write().expect("ui read model poisoned") = projection;
+        let previous_projection = {
+            let mut current = self.projection.write().expect("ui read model poisoned");
+            projection.version = current.version.checked_add(1).expect("UI projection version exhausted");
+            std::mem::replace(&mut *current, projection)
+        };
+        let previous_snapshot = self
+            .snapshot_cache
+            .lock()
+            .expect("ui read model snapshot cache poisoned")
+            .replace(CachedUiSnapshot {
+                version: previous_projection.version + 1,
+                snapshot,
+            });
         *self.latest_event_time.lock().expect("ui read model poisoned") = latest_event_time;
 
-        if matches!(
+        let previous_events = if matches!(
             reason,
             UiReadModelReplaceReason::ProjectReplaced | UiReadModelReplaceReason::Initial
         ) {
-            self.events.lock().expect("ui read model event log poisoned").clear();
+            let previous = std::mem::take(&mut *self.events.lock().expect("ui read model event log poisoned"));
             *self
                 .last_evicted_event_time
                 .lock()
                 .expect("ui read model eviction watermark poisoned") = None;
+            previous
+        } else {
+            RetainedEventLog::default()
+        };
+        RetiredUiReadModelState {
+            _projection: previous_projection,
+            _snapshot: previous_snapshot,
+            _events: previous_events,
         }
     }
 
@@ -277,8 +377,8 @@ impl UiReadModel {
     {
         let _publication = self.publication.lock().expect("ui read model poisoned");
         let mut projection = self.projection.write().expect("ui read model poisoned");
-        projection.header.project_file = project_file.into();
-        projection.snapshot_dirty = true;
+        Arc::make_mut(&mut projection.header).project_file = project_file.into();
+        projection.advance_version();
     }
 
     // -----------------------------------------------------------------------
@@ -311,8 +411,8 @@ impl UiReadModel {
 
     /// Applies a previously collected capture after the live-engine borrow is no longer needed.
     ///
-    /// Graph and parameter events update the projection incrementally. Publication only
-    /// invalidates the immutable whole-graph snapshot cache; a snapshot consumer materializes it.
+    /// Graph and parameter events update the copy-on-write projection incrementally. A snapshot
+    /// consumer materializes its immutable capture outside the projection lock.
     pub fn apply_event_capture(&self, capture: UiEventCapture) -> UiEventBatch {
         let _publication = self.publication.lock().expect("ui read model poisoned");
         let UiEventCapture {
@@ -321,31 +421,34 @@ impl UiReadModel {
             user_contexts,
         } = capture;
         batch.runtime = self.runtime_stats();
+        let batch_time = batch.events.iter().map(|event| event.time).max();
         {
             let mut projection = self.projection.write().expect("ui read model poisoned");
+            let mut changed = false;
             if projection.header.history != history {
-                projection.header.history = history;
-                projection.snapshot_dirty = true;
+                Arc::make_mut(&mut projection.header).history = history;
+                changed = true;
             }
             if let Some(user_contexts) = user_contexts
                 && projection.header.user_contexts != user_contexts
             {
-                projection.header.user_contexts = user_contexts;
-                projection.snapshot_dirty = true;
+                Arc::make_mut(&mut projection.header).user_contexts = user_contexts;
+                changed = true;
+            }
+            if !batch.events.is_empty() {
+                apply_events(&mut projection, &batch.events);
+                if let Some(time) = batch_time {
+                    let header = Arc::make_mut(&mut projection.header);
+                    header.at = header.at.max(time);
+                }
+                changed = true;
+            }
+            if changed {
+                projection.advance_version();
             }
         }
         if batch.events.is_empty() {
             return batch;
-        }
-
-        let batch_time = batch.events.iter().map(|event| event.time).max();
-        {
-            let mut projection = self.projection.write().expect("ui read model poisoned");
-            apply_events(&mut projection, &batch.events);
-            if let Some(time) = batch_time {
-                projection.header.at = projection.header.at.max(time);
-            }
-            projection.snapshot_dirty = true;
         }
 
         self.append_events(batch.events.iter().cloned());
@@ -387,9 +490,7 @@ impl UiReadModel {
             snapshot.protocol_version = UI_PROTOCOL_VERSION.to_string();
             return snapshot;
         }
-
-        let projection = self.projection.read().expect("ui read model poisoned");
-        scoped_snapshot(&projection, scope)
+        self.capture_snapshot(scope).materialize()
     }
 
     /// Replays retained events newer than `from` for the requested scope.
@@ -417,10 +518,10 @@ impl UiReadModel {
         let events = match &scope {
             UiSubscriptionScope::WholeGraph => retained,
             UiSubscriptionScope::Subtree { .. } => {
-                let projection = self.projection.read().expect("ui read model poisoned");
+                let parents = self.projection.read().expect("ui read model poisoned").parents.clone();
                 retained
                     .iter()
-                    .filter_map(|event| event_for_scope(&projection.parents, &scope, event))
+                    .filter_map(|event| event_for_scope(&parents, &scope, event))
                     .collect()
             }
         };
@@ -438,8 +539,8 @@ impl UiReadModel {
     /// This only affects UI replay payloads. The engine event log and script/watch-style event
     /// delivery remain lossless.
     pub fn coalesce_ui_feedback_events(&self, events: Vec<UiEventDto>) -> Vec<UiEventDto> {
-        let projection = self.projection.read().expect("ui read model poisoned");
-        coalesce_ui_feedback_events(&projection.nodes, events)
+        let nodes = self.projection.read().expect("ui read model poisoned").nodes.clone();
+        coalesce_ui_feedback_events(&nodes, events)
     }
 
     /// Coalesces and partitions one visible batch while holding one projection read.
@@ -447,12 +548,12 @@ impl UiReadModel {
     /// Transport dispatch uses this instead of reacquiring the projection lock for
     /// every event while deciding whether it belongs to the value plane.
     pub fn partition_ui_feedback_events(&self, events: Vec<UiEventDto>) -> UiFeedbackEventPartition {
-        let projection = self.projection.read().expect("ui read model poisoned");
-        let coalesced = coalesce_ui_feedback_events(&projection.nodes, events);
+        let nodes = self.projection.read().expect("ui read model poisoned").nodes.clone();
+        let coalesced = coalesce_ui_feedback_events(&nodes, events);
         let mut values = Vec::new();
         let mut other = Vec::new();
         for event in coalesced {
-            if event_is_coalescable_value(&projection.nodes, &event) {
+            if event_is_coalescable_value(&nodes, &event) {
                 values.push(event);
             } else {
                 other.push(event);
@@ -463,8 +564,8 @@ impl UiReadModel {
 
     /// Returns true when an event belongs to the coalescable UI value plane.
     pub fn event_is_coalescable_value(&self, event: &UiEventDto) -> bool {
-        let projection = self.projection.read().expect("ui read model poisoned");
-        event_is_coalescable_value(&projection.nodes, event)
+        let nodes = self.projection.read().expect("ui read model poisoned").nodes.clone();
+        event_is_coalescable_value(&nodes, event)
     }
 
     /// Highest event time discarded because the replay ring reached capacity.
@@ -489,11 +590,11 @@ impl UiReadModel {
 
     fn append_events(&self, events: impl IntoIterator<Item = UiEventDto>) {
         let mut evicted_through: Option<EngineTime> = None;
+        let nodes = self.projection.read().expect("ui read model poisoned").nodes.clone();
         {
             let mut guard = self.events.lock().expect("ui read model event log poisoned");
-            let projection = self.projection.read().expect("ui read model poisoned");
             for event in events {
-                if let Some(evicted) = guard.append(&projection.nodes, event, self.event_capacity) {
+                if let Some(evicted) = guard.append(&nodes, event, self.event_capacity) {
                     evicted_through = Some(evicted_through.map_or(evicted, |time| time.max(evicted)));
                 }
             }
@@ -515,7 +616,12 @@ impl UiReadModel {
 
     #[cfg(test)]
     pub(crate) fn snapshot_cache_is_dirty_for_tests(&self) -> bool {
-        self.projection.read().expect("ui read model poisoned").snapshot_dirty
+        let version = self.projection.read().expect("ui read model poisoned").version;
+        self.snapshot_cache
+            .lock()
+            .expect("ui read model snapshot cache poisoned")
+            .as_ref()
+            .is_none_or(|cached| cached.version != version)
     }
 }
 
@@ -616,7 +722,7 @@ fn preserve_ui_param_changed_old_value(new_kind: &mut UiEventKind, previous_kind
     *new_old_value = previous_old_value;
 }
 
-fn coalesce_ui_feedback_events(nodes: &HashMap<NodeId, UiNodeDto>, events: Vec<UiEventDto>) -> Vec<UiEventDto> {
+fn coalesce_ui_feedback_events(nodes: &NodeStore, events: Vec<UiEventDto>) -> Vec<UiEventDto> {
     let mut coalescer = UiFeedbackCoalescer::default();
     for event in events {
         if event_is_coalescable_value(nodes, &event) {
@@ -628,11 +734,7 @@ fn coalesce_ui_feedback_events(nodes: &HashMap<NodeId, UiNodeDto>, events: Vec<U
     coalescer.finish()
 }
 
-fn event_for_scope(
-    parents: &HashMap<NodeId, NodeId>,
-    scope: &UiSubscriptionScope,
-    event: &UiEventDto,
-) -> Option<UiEventDto> {
+fn event_for_scope(parents: &ParentStore, scope: &UiSubscriptionScope, event: &UiEventDto) -> Option<UiEventDto> {
     match (&event.kind, scope) {
         (_, UiSubscriptionScope::WholeGraph) => Some(event.clone()),
         (UiEventKind::GraphTransaction { transaction }, UiSubscriptionScope::Subtree { root, max_depth }) => {
@@ -657,7 +759,7 @@ fn event_for_scope(
     }
 }
 
-fn graph_op_matches_subtree(parents: &HashMap<NodeId, NodeId>, op: &UiGraphOp, root: NodeId, max_depth: u32) -> bool {
+fn graph_op_matches_subtree(parents: &ParentStore, op: &UiGraphOp, root: NodeId, max_depth: u32) -> bool {
     match op {
         UiGraphOp::NodeCreated {
             snapshot: node, parent, ..
@@ -715,7 +817,7 @@ fn graph_op_matches_subtree(parents: &HashMap<NodeId, NodeId>, op: &UiGraphOp, r
     }
 }
 
-fn event_matches_scope(parents: &HashMap<NodeId, NodeId>, scope: &UiSubscriptionScope, event: &UiEventDto) -> bool {
+fn event_matches_scope(parents: &ParentStore, scope: &UiSubscriptionScope, event: &UiEventDto) -> bool {
     match scope {
         UiSubscriptionScope::WholeGraph => true,
         UiSubscriptionScope::Subtree { root, max_depth } => {
@@ -752,7 +854,7 @@ fn event_candidate_nodes(event: &UiEventDto) -> Vec<NodeId> {
     }
 }
 
-fn node_within_subtree(parents: &HashMap<NodeId, NodeId>, node: NodeId, root: NodeId, max_depth: u32) -> bool {
+fn node_within_subtree(parents: &ParentStore, node: NodeId, root: NodeId, max_depth: u32) -> bool {
     if node == root {
         return true;
     }
