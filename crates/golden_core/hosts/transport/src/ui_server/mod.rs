@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -39,16 +39,26 @@ use tokio_tungstenite::{
 
 use crate::project_host;
 
+mod admission;
 mod outbound_queue;
 mod pending_value_events;
 mod runtime_pacer;
 
+use admission::ConnectionLimiter;
 use outbound_queue::{DEFAULT_OUTBOUND_CAPACITY, QueuePushResult, WsOutboundQueue};
 use pending_value_events::PendingValueEvents;
 use runtime_pacer::RuntimeLoopPacer;
 
-const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
+const MAX_CONNECTIONS: usize = 16;
+const HTTP_MAX_HEADER_BYTES: usize = 32 * 1024;
+const HTTP_MAX_REQUEST_BYTES: usize = 16 * 1024 * 1024;
+const HTTP_IO_TIMEOUT: Duration = Duration::from_secs(3);
 const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
+const WS_HUB_COMMAND_CAPACITY: usize = 64;
+const WS_HUB_SERVICE_BUDGET: usize = 32;
+const MAX_WS_CLIENTS: usize = MAX_CONNECTIONS;
+const MAX_SUBSCRIPTIONS_PER_CLIENT: usize = 32;
+const MAX_UI_INTENTS_PER_BATCH: usize = 256;
 const WS_RETRY_INTERVAL: Duration = Duration::from_millis(16);
 const DEFAULT_WS_VALUE_FLUSH_INTERVAL: Duration = Duration::from_millis(16);
 const WS_IO_POLL_INTERVAL: Duration = Duration::from_millis(5);
@@ -274,7 +284,7 @@ fn ui_client_instance_id_from_headers(headers: &HashMap<String, String>) -> Opti
 
 #[derive(Clone)]
 struct WsHubHandle {
-    cmd_tx: Sender<WsHubCommand>,
+    cmd_tx: SyncSender<WsHubCommand>,
     readiness: Arc<UiSessionReadiness>,
 }
 
@@ -403,8 +413,9 @@ enum WsHubCommand {
     },
 }
 
-// The queue is strictly bounded to 64 entries; keeping messages inline avoids a heap allocation on
-// every high-rate value/preview update while retaining a small fixed per-client memory ceiling.
+// The queue is bounded by both entry count and retained serialized bytes. Keeping messages inline
+// avoids an extra heap allocation on every high-rate value/preview update.
+#[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
 enum WsOutbound {
     Message(WsServerMessage),
@@ -463,15 +474,26 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
         preferences: config.preferences,
     };
 
+    let connection_limiter = Arc::new(ConnectionLimiter::new(MAX_CONNECTIONS));
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
+                let Some(connection_permit) = connection_limiter.try_acquire() else {
+                    reject_overloaded_connection(&mut stream);
+                    continue;
+                };
                 let state = state.clone();
-                thread::spawn(move || {
-                    if let Err(err) = handle_connection(&mut stream, &state) {
-                        eprintln!("ui server request failed: {err}");
-                    }
-                });
+                let spawn_result = thread::Builder::new()
+                    .name("golden-ui-connection".to_string())
+                    .spawn(move || {
+                        let _connection_permit = connection_permit;
+                        if let Err(err) = handle_connection(&mut stream, &state) {
+                            eprintln!("ui server request failed: {err}");
+                        }
+                    });
+                if let Err(err) = spawn_result {
+                    eprintln!("failed to spawn UI connection worker: {err}");
+                }
             }
             Err(err) => {
                 eprintln!("ui server accept failed: {err}");
@@ -480,6 +502,16 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
     }
 
     Ok(())
+}
+
+fn reject_overloaded_connection(stream: &mut TcpStream) {
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
+    let _ = write_json_error(
+        stream,
+        "503 Service Unavailable",
+        "UI host connection capacity is exhausted; retry later",
+    );
+    let _ = stream.shutdown(Shutdown::Both);
 }
 
 fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<T>, read_model: Arc<UiReadModel>) {
@@ -552,7 +584,7 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     preferences: Option<UiPreferencesConfig>,
     session_id: String,
 ) -> WsHubHandle {
-    let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
+    let (cmd_tx, cmd_rx) = mpsc::sync_channel::<WsHubCommand>(WS_HUB_COMMAND_CAPACITY);
     let readiness = Arc::new(UiSessionReadiness::default());
     let readiness_for_hub = readiness.clone();
     thread::spawn(move || {
@@ -583,7 +615,10 @@ fn ws_hub_loop<T: ProjectLifecycle>(
         match cmd_rx.recv_timeout(dispatch_interval) {
             Ok(command) => {
                 handle_ws_hub_command(&context, &mut clients, &mut client_instances, &mut origins, command);
-                while let Ok(next) = cmd_rx.try_recv() {
+                for _ in 1..WS_HUB_SERVICE_BUDGET {
+                    let Ok(next) = cmd_rx.try_recv() else {
+                        break;
+                    };
                     handle_ws_hub_command(&context, &mut clients, &mut client_instances, &mut origins, next);
                 }
             }
@@ -607,6 +642,12 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
 ) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
+            if clients.len() >= MAX_WS_CLIENTS && !clients.contains_key(&client_id) {
+                eprintln!("[ui-ws] rejected client {client_id}: maximum of {MAX_WS_CLIENTS} clients reached");
+                let _ = outbound.push(WsOutbound::Close);
+                context.readiness.update(clients);
+                return;
+            }
             clients.insert(
                 client_id,
                 WsClientState {
@@ -683,6 +724,21 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             interest,
             from,
         } => {
+            let subscription_limit_reached = clients
+                .get(&client_id)
+                .is_some_and(|client| !client_accepts_subscription(client, &subscription_id));
+            if subscription_limit_reached {
+                send_to_client(
+                    clients,
+                    client_id,
+                    WsServerMessage::Error {
+                        message: format!("maximum of {MAX_SUBSCRIPTIONS_PER_CLIENT} subscriptions per client reached"),
+                        request_id: None,
+                    },
+                );
+                context.readiness.update(clients);
+                return;
+            }
             if let Some(client) = clients.get_mut(&client_id) {
                 let _replaced = client
                     .subscriptions
@@ -870,6 +926,10 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
         }
     }
     context.readiness.update(clients);
+}
+
+fn client_accepts_subscription(client: &WsClientState, subscription_id: &str) -> bool {
+    client.subscriptions.contains_key(subscription_id) || client.subscriptions.len() < MAX_SUBSCRIPTIONS_PER_CLIENT
 }
 
 fn dispatch_ws_batches(
@@ -1149,8 +1209,8 @@ fn make_server_session_id() -> String {
 }
 
 fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &ServerState<T>) -> std::io::Result<()> {
-    stream.set_read_timeout(Some(Duration::from_secs(3)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(3)))?;
+    stream.set_read_timeout(Some(HTTP_IO_TIMEOUT))?;
+    stream.set_write_timeout(Some(HTTP_IO_TIMEOUT))?;
 
     let request = match read_http_request(stream) {
         Ok(request) => request,
@@ -1444,6 +1504,14 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/intent/batch") => {
             let intents: Vec<UiEditIntent> = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent batch payload: {err}")))?;
+            if intents.len() > MAX_UI_INTENTS_PER_BATCH {
+                write_json_error(
+                    stream,
+                    "413 Payload Too Large",
+                    &format!("intent batch exceeds {MAX_UI_INTENTS_PER_BATCH} operations"),
+                )?;
+                return Ok(());
+            }
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
             let total_started = Instant::now();
@@ -1768,14 +1836,16 @@ fn handle_ws_client_message(
                     return true;
                 };
 
-                if !hub
-                    .cmd_tx
-                    .send(WsHubCommand::BindClientInstance {
+                if !submit_ws_hub_command(
+                    hub,
+                    outbound,
+                    WsHubCommand::BindClientInstance {
                         client_id,
                         client_instance_id,
-                    })
-                    .is_ok()
-                {
+                    },
+                    None,
+                    None,
+                ) {
                     return false;
                 }
             }
@@ -1794,22 +1864,29 @@ fn handle_ws_client_message(
                 return true;
             }
 
-            hub.cmd_tx
-                .send(WsHubCommand::Subscribe {
+            submit_ws_hub_command(
+                hub,
+                outbound,
+                WsHubCommand::Subscribe {
                     client_id,
                     subscription_id,
                     interest,
                     from,
-                })
-                .is_ok()
+                },
+                None,
+                None,
+            )
         }
-        WsClientMessage::Unsubscribe { subscription_id } => hub
-            .cmd_tx
-            .send(WsHubCommand::Unsubscribe {
+        WsClientMessage::Unsubscribe { subscription_id } => submit_ws_hub_command(
+            hub,
+            outbound,
+            WsHubCommand::Unsubscribe {
                 client_id,
                 subscription_id,
-            })
-            .is_ok(),
+            },
+            None,
+            None,
+        ),
         WsClientMessage::Snapshot { request_id, scope } => {
             if request_id.trim().is_empty() {
                 let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
@@ -1818,13 +1895,17 @@ fn handle_ws_client_message(
                 }));
                 return true;
             }
-            hub.cmd_tx
-                .send(WsHubCommand::Snapshot {
+            submit_ws_hub_command(
+                hub,
+                outbound,
+                WsHubCommand::Snapshot {
                     client_id,
-                    request_id,
+                    request_id: request_id.clone(),
                     scope,
-                })
-                .is_ok()
+                },
+                Some(request_id),
+                None,
+            )
         }
         WsClientMessage::Replay {
             request_id,
@@ -1838,14 +1919,18 @@ fn handle_ws_client_message(
                 }));
                 return true;
             }
-            hub.cmd_tx
-                .send(WsHubCommand::Replay {
+            submit_ws_hub_command(
+                hub,
+                outbound,
+                WsHubCommand::Replay {
                     client_id,
-                    request_id,
+                    request_id: request_id.clone(),
                     scope,
                     from,
-                })
-                .is_ok()
+                },
+                Some(request_id),
+                None,
+            )
         }
         WsClientMessage::Intent {
             request_id,
@@ -1860,18 +1945,18 @@ fn handle_ws_client_message(
                 return true;
             }
 
-            let _ = outbound.push(WsOutbound::Message(WsServerMessage::Control {
-                update: UiControlUpdate::pending(request_id.clone(), UiControlPhase::Received),
-            }));
-
-            hub.cmd_tx
-                .send(WsHubCommand::Intent {
+            submit_ws_hub_command(
+                hub,
+                outbound,
+                WsHubCommand::Intent {
                     client_id,
-                    request_id,
+                    request_id: request_id.clone(),
                     intent,
                     include_self_events,
-                })
-                .is_ok()
+                },
+                Some(request_id.clone()),
+                Some(request_id),
+            )
         }
         WsClientMessage::IntentBatch {
             request_id,
@@ -1892,20 +1977,53 @@ fn handle_ws_client_message(
                 }));
                 return true;
             }
+            if intents.len() > MAX_UI_INTENTS_PER_BATCH {
+                let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
+                    message: format!("intent batch exceeds {MAX_UI_INTENTS_PER_BATCH} operations"),
+                    request_id: Some(request_id),
+                }));
+                return true;
+            }
 
-            let _ = outbound.push(WsOutbound::Message(WsServerMessage::Control {
-                update: UiControlUpdate::pending(request_id.clone(), UiControlPhase::Received),
-            }));
-
-            hub.cmd_tx
-                .send(WsHubCommand::IntentBatch {
+            submit_ws_hub_command(
+                hub,
+                outbound,
+                WsHubCommand::IntentBatch {
                     client_id,
-                    request_id,
+                    request_id: request_id.clone(),
                     intents,
                     include_self_events,
-                })
-                .is_ok()
+                },
+                Some(request_id.clone()),
+                Some(request_id),
+            )
         }
+    }
+}
+
+fn submit_ws_hub_command(
+    hub: &WsHubHandle,
+    outbound: &WsOutboundQueue,
+    command: WsHubCommand,
+    error_request_id: Option<String>,
+    received_request_id: Option<String>,
+) -> bool {
+    match hub.cmd_tx.try_send(command) {
+        Ok(()) => {
+            let Some(request_id) = received_request_id else {
+                return true;
+            };
+            outbound.push(WsOutbound::Message(WsServerMessage::Control {
+                update: UiControlUpdate::pending(request_id, UiControlPhase::Received),
+            })) != QueuePushResult::Full
+        }
+        Err(TrySendError::Full(_)) => {
+            outbound.push(WsOutbound::Message(WsServerMessage::Error {
+                message: "websocket command capacity is exhausted; retry later".to_string(),
+                request_id: error_request_id,
+            })) != QueuePushResult::Full
+        }
+        Err(TrySendError::Disconnected(_)) => false,
     }
 }
 
@@ -1953,15 +2071,21 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
                 format!("request exceeds {} bytes", HTTP_MAX_REQUEST_BYTES),
             ));
         }
-
-        if header_end.is_none()
-            && let Some(idx) = find_header_end(&buffer)
-        {
-            header_end = Some(idx + 4);
-            let header_text = std::str::from_utf8(&buffer[..idx])
-                .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid header utf-8: {err}")))?;
-            parsed_headers = parse_headers(header_text)?;
-            content_length = parse_content_length(&parsed_headers)?;
+        if header_end.is_none() {
+            if let Some(idx) = find_header_end(&buffer) {
+                let parsed_header_end = idx + 4;
+                let header_text = std::str::from_utf8(&buffer[..idx])
+                    .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid header utf-8: {err}")))?;
+                parsed_headers = parse_headers(header_text)?;
+                content_length = parse_content_length(&parsed_headers)?;
+                validate_http_request_size(parsed_header_end, content_length)?;
+                header_end = Some(parsed_header_end);
+            } else if buffer.len() > HTTP_MAX_HEADER_BYTES {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("request headers exceed {HTTP_MAX_HEADER_BYTES} bytes"),
+                ));
+            }
         }
 
         if let Some(end) = header_end
@@ -2002,6 +2126,25 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
         headers: parsed_headers,
         body,
     })
+}
+
+fn validate_http_request_size(header_bytes: usize, content_length: usize) -> std::io::Result<()> {
+    if header_bytes > HTTP_MAX_HEADER_BYTES {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("request headers exceed {HTTP_MAX_HEADER_BYTES} bytes"),
+        ));
+    }
+    if header_bytes
+        .checked_add(content_length)
+        .is_none_or(|total| total > HTTP_MAX_REQUEST_BYTES)
+    {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("request exceeds {HTTP_MAX_REQUEST_BYTES} bytes"),
+        ));
+    }
+    Ok(())
 }
 
 fn find_header_end(buffer: &[u8]) -> Option<usize> {

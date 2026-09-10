@@ -297,6 +297,14 @@ replaceable pending request, reports both replaced and stale tickets, bounds com
 and exposes cooperative staleness checks plus pending/supersession telemetry. The engine drops
 superseded snapshot bookkeeping immediately and checks staleness between compilation stages.
 
+**Implementation progress (2026-09-10, transport-host slice):** the reusable UI host now admits at
+most 16 concurrent TCP/HTTP/WebSocket connections, applies a three-second HTTP I/O deadline, bounds
+requests to 16 MiB with 32 KiB headers, and caps intent batches at 256 operations. The WebSocket hub
+has a 64-command mailbox and handles at most 32 commands before returning to publication; each of
+the at most 16 clients may retain 32 subscriptions and 64 outbound messages / 4 MiB. Latest-value
+planes still coalesce, while reliable overflow disconnects the slow client and command overload is
+reported before any `Received` control phase. Bounded lifecycle retirement remains in T11.
+
 ### T12 — Separate immutable snapshots and encoding from actor progress
 
 **Finding:** F10. **Depends on:** T08, T09, T11. **Owners:** read model, persistence document capture, compiler capture.

@@ -6,6 +6,7 @@ use golden_protocol::{UiDataPlane, UiEventKind, UiServerMessage};
 use super::WsOutbound;
 
 pub(super) const DEFAULT_OUTBOUND_CAPACITY: usize = 64;
+pub(super) const DEFAULT_OUTBOUND_BYTES_CAPACITY: usize = 4 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum QueuePushResult {
@@ -16,34 +17,76 @@ pub(super) enum QueuePushResult {
 
 pub(super) struct WsOutboundQueue {
     capacity: usize,
-    queue: Mutex<VecDeque<WsOutbound>>,
+    bytes_capacity: usize,
+    queue: Mutex<OutboundState>,
+}
+
+struct OutboundState {
+    entries: VecDeque<WeightedOutbound>,
+    retained_bytes: usize,
+}
+
+struct WeightedOutbound {
+    outbound: WsOutbound,
+    bytes: usize,
 }
 
 impl WsOutboundQueue {
     pub(super) fn new(capacity: usize) -> Self {
+        Self::with_limits(capacity, DEFAULT_OUTBOUND_BYTES_CAPACITY)
+    }
+
+    pub(super) fn with_limits(capacity: usize, bytes_capacity: usize) -> Self {
         assert!(capacity > 0, "websocket outbound capacity must be non-zero");
+        assert!(bytes_capacity > 0, "websocket outbound byte capacity must be non-zero");
         Self {
             capacity,
-            queue: Mutex::new(VecDeque::with_capacity(capacity)),
+            bytes_capacity,
+            queue: Mutex::new(OutboundState {
+                entries: VecDeque::with_capacity(capacity),
+                retained_bytes: 0,
+            }),
         }
     }
 
     pub(super) fn push(&self, outbound: WsOutbound) -> QueuePushResult {
-        let mut queue = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let bytes = outbound_retained_bytes(&outbound);
+        if bytes > self.bytes_capacity {
+            return QueuePushResult::Full;
+        }
+        let mut state = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
         if matches!(outbound, WsOutbound::Close) {
-            queue.clear();
-            queue.push_back(outbound);
+            state.entries.clear();
+            state.retained_bytes = bytes;
+            state.entries.push_back(WeightedOutbound { outbound, bytes });
             return QueuePushResult::Queued;
         }
 
         if let Some(key) = latest_wins_key(&outbound) {
-            for queued in queue.iter_mut().rev() {
-                if outbound_subscription_id(queued).is_none_or(|subscription_id| subscription_id != key.0.as_str()) {
+            for index in (0..state.entries.len()).rev() {
+                let queued = &state.entries[index];
+                if outbound_subscription_id(&queued.outbound)
+                    .is_none_or(|subscription_id| subscription_id != key.0.as_str())
+                {
                     continue;
                 }
-                if latest_wins_key(queued) == Some(key.clone()) {
-                    merge_latest(queued, outbound);
+                if latest_wins_key(&queued.outbound) == Some(key.clone()) {
+                    let mut merged = queued.outbound.clone();
+                    merge_latest(&mut merged, outbound);
+                    let merged_bytes = outbound_retained_bytes(&merged);
+                    let retained_bytes = state.retained_bytes - queued.bytes;
+                    if retained_bytes
+                        .checked_add(merged_bytes)
+                        .is_none_or(|next| next > self.bytes_capacity)
+                    {
+                        return QueuePushResult::Full;
+                    }
+                    state.retained_bytes = retained_bytes + merged_bytes;
+                    state.entries[index] = WeightedOutbound {
+                        outbound: merged,
+                        bytes: merged_bytes,
+                    };
                     return QueuePushResult::Superseded;
                 }
                 // Any intervening delta for this subscription is an ordering
@@ -53,30 +96,80 @@ impl WsOutboundQueue {
             }
         }
 
-        if queue.len() < self.capacity {
-            queue.push_back(outbound);
+        let fits = |state: &OutboundState| {
+            state.entries.len() < self.capacity
+                && state
+                    .retained_bytes
+                    .checked_add(bytes)
+                    .is_some_and(|next| next <= self.bytes_capacity)
+        };
+        if fits(&state) {
+            state.retained_bytes += bytes;
+            state.entries.push_back(WeightedOutbound { outbound, bytes });
             return QueuePushResult::Queued;
         }
 
-        if let Some(index) = queue.iter().position(is_latest_wins) {
-            queue.remove(index);
-            queue.push_back(outbound);
+        let (reclaimable_count, reclaimable_bytes) = state
+            .entries
+            .iter()
+            .filter(|queued| is_latest_wins(&queued.outbound))
+            .fold((0usize, 0usize), |(count, bytes), queued| {
+                (count + 1, bytes + queued.bytes)
+            });
+        if state.entries.len() - reclaimable_count >= self.capacity
+            || state.retained_bytes - reclaimable_bytes + bytes > self.bytes_capacity
+        {
+            return QueuePushResult::Full;
+        }
+
+        let mut superseded = false;
+        while !fits(&state) {
+            let Some(index) = state.entries.iter().position(|queued| is_latest_wins(&queued.outbound)) else {
+                return QueuePushResult::Full;
+            };
+            let removed = state.entries.remove(index).expect("located outbound exists");
+            state.retained_bytes -= removed.bytes;
+            superseded = true;
+        }
+        state.retained_bytes += bytes;
+        state.entries.push_back(WeightedOutbound { outbound, bytes });
+        if superseded {
             return QueuePushResult::Superseded;
         }
 
-        QueuePushResult::Full
+        QueuePushResult::Queued
     }
 
     pub(super) fn pop(&self) -> Option<WsOutbound> {
-        self.queue
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .pop_front()
+        let mut state = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let queued = state.entries.pop_front()?;
+        state.retained_bytes -= queued.bytes;
+        Some(queued.outbound)
     }
 
     #[cfg(test)]
     pub(super) fn len(&self) -> usize {
-        self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).len()
+        self.queue
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .entries
+            .len()
+    }
+
+    #[cfg(test)]
+    pub(super) fn retained_bytes(&self) -> usize {
+        self.queue
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .retained_bytes
+    }
+}
+
+fn outbound_retained_bytes(outbound: &WsOutbound) -> usize {
+    match outbound {
+        WsOutbound::Message(message) => serde_json::to_vec(message).map_or(usize::MAX, |bytes| bytes.len()),
+        WsOutbound::Ping(payload) => payload.len(),
+        WsOutbound::Close => 1,
     }
 }
 

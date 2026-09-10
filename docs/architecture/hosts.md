@@ -21,7 +21,7 @@ The default desktop host lives in `golden_core`.
 The default built-in browser/headless path also starts from `golden_core`.
 
 - `crates/golden_core/hosts/transport/src/lib.rs` is the public transport-host entry point used through the `golden_core::app` facade.
-- `crates/golden_core/hosts/transport/src/ui_server.rs` exposes the current HTTP and WebSocket runtime endpoints and serves any bundled frontend assets provided by the app shell.
+- `crates/golden_core/hosts/transport/src/ui_server/mod.rs` exposes the current HTTP and WebSocket runtime endpoints and serves any bundled frontend assets provided by the app shell.
 - `--headless` runs the server without launching the Tauri window.
 - Browser-triggered `Load From...` project imports are handled by the transport host, which currently stores uploaded project JSON files under `~/Documents/Chataigne` before loading them into the live engine.
 - Browser-side `Open Remote` and `Save As` remain intentionally unwired until the browser file chooser workflow is designed.
@@ -38,6 +38,10 @@ payloads. Ordered commands are never coalesced or silently discarded.
 | Generic worker commands | 256 | Fixed-size commands | Return `TrySendError::Full` | Worker supplied |
 | Authoritative control actor | 1,024 | One typed operation per item | Return `ControlErrorKind::Overloaded` | One operation, then recheck shutdown |
 | Generation compiler | 1 pending + 1 in flight | One immutable snapshot per generation | Replace pending; mark stale in flight; bounded completion queue | One generation |
+| UI TCP/HTTP connections | 16 total | 16 MiB request including 32 KiB headers | Return HTTP 503 above connection capacity; reject oversized requests | One request; 3 s read/write timeout |
+| WebSocket hub commands | 64 | 1 MiB inbound frame; 256 intents per batch | Return a request-correlated overload error | 32 commands, then publish |
+| WebSocket subscriptions | 16 clients; 32 subscriptions each | Scope and interest per subscription | Close excess clients; reject excess subscription ids | Included in each publish turn |
+| WebSocket client output | 64 per client | 4 MiB serialized weight per client | Coalesce latest-value planes; disconnect on reliable overflow | Drained by the client socket loop |
 | OSC output commands | 256 | One UDP message per item | Reject synchronously with an overload error | 256 commands |
 | OSC input events | 2,048 | 2 MiB decoded datagram weight | Reject new datagram event; count rejection | 256 datagrams / 1,024 events |
 | Serial input events | 2,048 | 2 MiB received bytes | Reject new read event; count rejection | 1,024 events |
@@ -47,3 +51,8 @@ payload adapters must call the weighted send API; fixed-size status events may u
 Compiler implementations receive a cooperative staleness token and must check it between expensive
 materialization stages. Superseded pending snapshots are returned to the engine immediately for
 retirement; stale in-flight results are reported but can never become the live generation.
+The transport host admits TCP connections before spawning request workers, so reconnect storms have
+a fixed task ceiling. Its WebSocket hub never drains an unbounded producer backlog before
+publication, and a `Received` control phase is emitted only after the corresponding command has
+entered the hub mailbox. Reliable outbound overflow disconnects the lagging client so reconnect and
+snapshot/resync can restore a coherent view; only explicitly latest-wins planes may be superseded.

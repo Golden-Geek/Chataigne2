@@ -4,9 +4,10 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the second T11 slice commit: `b00dd2f0`
-is checked out with only the control/compiler T11 implementation and evidence changes in the
-working tree. T00–T10 and the shared-I/O T11 slice are committed and pushed on `main`.
+Current SHA and patch state before the third T11 slice commit: `f1f7cab5`
+is checked out with only the transport-host T11 implementation and evidence changes in the working
+tree. T00–T10 plus the shared-I/O and control/compiler T11 slices are committed and pushed on
+`main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -21,21 +22,21 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 ## Current batch
 
 Task: T11 — bound admission, service turns, compilation, and retirement — shared-I/O, OSC,
-control-actor, and compiler boundaries complete locally. T01's native qualification and T03's
-matching hosted reference baseline remain pending.
+control-actor, compiler, and transport-host boundaries complete locally. T01's native qualification
+and T03's matching hosted reference baseline remain pending.
 
-Owning layers and files in this slice: reusable Golden control actor, compiler service, runtime
-metrics, and the engine runtime-center adapter.
+Owning layers and files in this slice: reusable Golden HTTP/WebSocket transport host and its
+connection admission, hub mailbox, and per-client outbound queues.
 
-Invariant / implementation decision: control admission is bounded and nonblocking, while shutdown
-does not depend on finding capacity in the work queue. Compilation is replaceable: retain at most
-the active job plus the latest pending request, expose the replaced ticket to its owner immediately,
-and prevent any generation whose cooperative context became stale from publication.
+Invariant / implementation decision: connection tasks, request bytes, intent-batch work, hub
+commands, clients, subscriptions, and outbound count/weight all have explicit ceilings. The hub
+yields to publication after a bounded command turn. Latest-value planes may coalesce; reliable
+messages are never silently discarded, and hub overload is rejected before publishing `Received`.
 
-Result and remaining work: actor overload is typed and observable; queue depth recovers after
-saturation; compiler request retention is constant; superseded pending engine snapshots are removed
-immediately; and stale in-flight output cannot install. T11 still owns WebSocket/HTTP aggregate
-admission and bounded lifecycle retirement.
+Result and remaining work: reconnect storms reach a fixed connection/task plateau; oversized HTTP
+requests and intent batches are rejected; hub backlog cannot starve publication indefinitely; and a
+slow client's reliable overflow closes it for coherent reconnect/resync. T11 still owns bounded
+lifecycle retirement.
 
 ## Task status and dependencies
 
@@ -52,7 +53,7 @@ admission and bounded lifecycle retirement.
 | T08  | T05, T06                                      | complete                                                     |
 | T09  | T08                                           | complete                                                     |
 | T10  | T00                                           | complete                                                     |
-| T11  | T04, T08, T09, T10                            | in progress: I/O, OSC, control, compiler complete            |
+| T11  | T04, T08, T09, T10                            | in progress: I/O, OSC, control, compiler, transport complete |
 | T12  | T08, T09, T11                                 | pending                                                      |
 | T13  | T03, T10                                      | pending                                                      |
 | T14  | T03, T07, T11                                 | pending                                                      |
@@ -74,7 +75,7 @@ the current branch contains implementation and verification evidence.
 | F03 — script interruption/effects  | partially fixed | T05 installs nesting-safe monotonic interruption/cancellation, budgets and resource caps, input validation, success-only effect admission, heap quarantine, and clean reload; T15 extraction remains                                                               | Watchdog subprocesses and engine recovery pass. Physical I/O is not claimed rollback-safe after host admission; reusable VM/effect ownership remains pending.                                                                                                      |
 | F04 — project replacement          | fixed           | T08 adds detached prepare/validate/compile, monotonic project generations, exclusive activation, atomic engine/runtime/read-model publication, explicit paused-state failure, stale candidate/compiler fencing, outside-actor retirement, and duplication rollback | Barrier and fault-injection coverage spans decode, preparation, script evaluation, both compilation stages, activation, publication, retirement, edits, stale candidates, projection/history coherence, and resource cleanup. T11 still bounds lifecycle duration. |
 | F05 — cache restoration            | fixed           | Scheduled updates and inbox dispatch borrow the cache in place; all fallible scheduled scratch extraction uses one restore boundary; excess callbacks are rejected before invocation                                                                               | Injected budget and edit-absorption failures prove unchanged/changed bindings, node membership, cache contents, accepted-edit policy, and next-tick progress. Panic/unwind recovery is not claimed.                                                                |
-| F06 — unbounded work/lifecycle     | partially fixed | T11 adds dual-bounded I/O, bounded OSC turns, configurable nonblocking actor admission, constant compiler retention, cooperative stale-generation cancellation, and queue/supersession telemetry                                                                    | Host aggregate admission, lifecycle retirement, and T12 snapshot capacity remain pending.                                                                                                                                                                         |
+| F06 — unbounded work/lifecycle     | partially fixed | T11 adds dual-bounded I/O, bounded OSC turns, configurable nonblocking actor admission, constant compiler retention, cooperative stale-generation cancellation, bounded HTTP/WebSocket admission and turns, plus explicit slow-client policy                          | Bounded lifecycle retirement and T12 snapshot capacity remain pending.                                                                                                                                                                                             |
 | F07 — topology ties                | partially fixed | T07 uses one UUID-ordered global ready frontier and compiles stable bucket/runtime order                                                                                                                                                                           | Equivalent-order, diamond, disconnected, cycle, and conflicting write/trigger fixtures pass. T14/T18 cross-worker real-kernel determinism remains pending.                                                                                                         |
 | F08 — UI index copying             | open            | T13 pending                                                                                                                                                                                                                                                        | Delta-proportional work and browser action-to-paint evidence is missing.                                                                                                                                                                                           |
 | F09 — identity work/full scans     | open            | T14/T18 pending                                                                                                                                                                                                                                                    | Sparse-selection and real-kernel measurements are missing.                                                                                                                                                                                                         |
@@ -161,6 +162,10 @@ the current branch contains implementation and verification evidence.
 | `cargo test --locked -p golden_engine --no-fail-fast`                             | T11 ctrl  | Windows x64                           | passed  | 412 unit tests pass, 2 manual measurements remain ignored, the external consumer test passes, and 7 doctests pass with bounded actor/compiler integration.                                                                                                                         |
 | `cargo clippy --locked -p golden_runtime --all-targets -- -D warnings`            | T11 ctrl  | Windows x64                           | passed  | Bounded actor admission, compiler replacement/cancellation, metrics, and all test targets are warning-free.                                                                                                                                                                         |
 | `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`             | T11 ctrl  | Windows x64                           | passed  | Runtime-center ticket retirement and cooperative compiler checkpoints are warning-free.                                                                                                                                                                                            |
+| `cargo test --locked -p golden_transport_server --no-fail-fast`                   | T11 host  | Windows x64                           | passed  | All 36 transport-host tests pass, including connection saturation/recovery, HTTP request weight, outbound byte recovery and transactional rejection, hub overload semantics, intent-batch weight, and subscription policy.                                                                 |
+| `cargo clippy --locked -p golden_transport_server --all-targets -- -D warnings`   | T11 host  | Windows x64                           | passed  | Bounded connection, request, hub, subscription, and outbound admission plus all transport test targets are warning-free.                                                                                                                                                               |
+| `cargo check --locked -p Chataigne2`                                              | T11 host  | Windows x64                           | passed  | The reusable bounded transport host composes through Golden Core and the thin Chataigne application shell.                                                                                                                                                                             |
+| `cargo fmt --all` (root and Golden Core workspaces)                               | T11 host  | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                                 |
 
 ## Preservation and qualification inventory
 

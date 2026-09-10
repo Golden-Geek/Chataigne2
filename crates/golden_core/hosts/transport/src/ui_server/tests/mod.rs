@@ -86,6 +86,33 @@ fn default_ui_server_config_uses_explicit_ipv4_loopback() {
 }
 
 #[test]
+fn connection_admission_recovers_capacity_when_a_permit_is_dropped() {
+    let limiter = Arc::new(ConnectionLimiter::new(2));
+    let first = limiter.try_acquire().expect("first connection admitted");
+    let second = limiter.try_acquire().expect("second connection admitted");
+
+    assert!(limiter.try_acquire().is_none());
+    assert_eq!(limiter.active(), 2);
+    assert_eq!(limiter.rejected(), 1);
+
+    drop(first);
+    let replacement = limiter.try_acquire().expect("released capacity is reusable");
+    assert_eq!(limiter.active(), 2);
+
+    drop(second);
+    drop(replacement);
+    assert_eq!(limiter.active(), 0);
+}
+
+#[test]
+fn http_request_weight_validation_bounds_headers_and_total_bytes() {
+    assert!(validate_http_request_size(1024, HTTP_MAX_REQUEST_BYTES - 1024).is_ok());
+    assert!(validate_http_request_size(HTTP_MAX_HEADER_BYTES + 1, 0).is_err());
+    assert!(validate_http_request_size(1024, HTTP_MAX_REQUEST_BYTES - 1023).is_err());
+    assert!(validate_http_request_size(1, usize::MAX).is_err());
+}
+
+#[test]
 fn readiness_counts_only_clients_with_active_subscriptions() {
     let readiness = UiSessionReadiness::default();
     let mut clients = HashMap::new();
@@ -207,6 +234,76 @@ fn outbound_queue_never_silently_drops_reliable_messages() {
     assert_eq!(queue.push(reliable_message(2)), QueuePushResult::Queued);
     assert_eq!(queue.push(reliable_message(3)), QueuePushResult::Full);
     assert_eq!(queue.len(), 2);
+}
+
+#[test]
+fn outbound_queue_enforces_retained_byte_capacity_and_recovers_after_pop() {
+    let first = reliable_message(1);
+    let second = reliable_message(2);
+    let third = reliable_message(3);
+
+    let probe = WsOutboundQueue::new(1);
+    assert_eq!(probe.push(first.clone()), QueuePushResult::Queued);
+    let first_bytes = probe.retained_bytes();
+    assert!(probe.pop().is_some());
+    assert_eq!(probe.push(second.clone()), QueuePushResult::Queued);
+    let second_bytes = probe.retained_bytes();
+
+    let byte_capacity = first_bytes + second_bytes;
+    let queue = WsOutboundQueue::with_limits(4, byte_capacity);
+    assert_eq!(queue.push(first), QueuePushResult::Queued);
+    assert_eq!(queue.push(second), QueuePushResult::Queued);
+    assert_eq!(queue.retained_bytes(), byte_capacity);
+    assert_eq!(queue.push(third.clone()), QueuePushResult::Full);
+
+    assert!(queue.pop().is_some());
+    assert_eq!(queue.retained_bytes(), second_bytes);
+    assert_eq!(queue.push(third), QueuePushResult::Queued);
+    assert!(queue.retained_bytes() <= byte_capacity);
+}
+
+#[test]
+fn outbound_queue_rejects_a_single_message_larger_than_its_byte_capacity() {
+    let message = reliable_message(1);
+    let probe = WsOutboundQueue::new(1);
+    assert_eq!(probe.push(message.clone()), QueuePushResult::Queued);
+    let message_bytes = probe.retained_bytes();
+
+    let queue = WsOutboundQueue::with_limits(4, message_bytes - 1);
+    assert_eq!(queue.push(message), QueuePushResult::Full);
+    assert_eq!(queue.len(), 0);
+    assert_eq!(queue.retained_bytes(), 0);
+}
+
+#[test]
+fn failed_reliable_push_preserves_queued_latest_value_messages() {
+    let reliable = reliable_message(1);
+    let latest = observation_message(1);
+    let incoming = WsOutbound::Message(WsServerMessage::Error {
+        message: "overload-detail".repeat(64),
+        request_id: Some("request".to_string()),
+    });
+    let reliable_bytes = retained_weight(&reliable);
+    let latest_bytes = retained_weight(&latest);
+    let incoming_bytes = retained_weight(&incoming);
+    let byte_capacity = (reliable_bytes + latest_bytes).max(incoming_bytes);
+
+    let queue = WsOutboundQueue::with_limits(4, byte_capacity);
+    assert_eq!(queue.push(reliable), QueuePushResult::Queued);
+    assert_eq!(queue.push(latest), QueuePushResult::Queued);
+    let retained_before_rejection = queue.retained_bytes();
+
+    assert_eq!(queue.push(incoming), QueuePushResult::Full);
+    assert_eq!(queue.len(), 2);
+    assert_eq!(queue.retained_bytes(), retained_before_rejection);
+    assert!(matches!(
+        queue.pop(),
+        Some(WsOutbound::Message(WsServerMessage::Hello { .. }))
+    ));
+    assert!(matches!(
+        queue.pop(),
+        Some(WsOutbound::Message(WsServerMessage::Delta { .. }))
+    ));
 }
 
 #[test]
@@ -355,8 +452,8 @@ fn slow_client_is_removed_when_only_reliable_messages_fill_its_queue() {
 }
 
 #[test]
-fn websocket_intent_queues_received_control_before_hub_handoff() {
-    let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
+fn websocket_intent_queues_received_control_after_hub_admission() {
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::sync_channel(1);
     let hub = WsHubHandle {
         cmd_tx,
         readiness: Arc::new(UiSessionReadiness::default()),
@@ -392,8 +489,8 @@ fn websocket_intent_queues_received_control_before_hub_handoff() {
 }
 
 #[test]
-fn websocket_intent_batch_queues_received_control_before_hub_handoff() {
-    let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
+fn websocket_intent_batch_queues_received_control_after_hub_admission() {
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::sync_channel(1);
     let hub = WsHubHandle {
         cmd_tx,
         readiness: Arc::new(UiSessionReadiness::default()),
@@ -426,6 +523,78 @@ fn websocket_intent_batch_queues_received_control_before_hub_handoff() {
     assert_eq!(request_id, "batch-request");
     assert_eq!(intents, vec![UiEditIntent::Undo, UiEditIntent::Redo]);
     assert!(!include_self_events);
+}
+
+#[test]
+fn websocket_command_overload_is_rejected_without_a_received_control_update() {
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::sync_channel(1);
+    cmd_tx
+        .send(WsHubCommand::Unsubscribe {
+            client_id: 99,
+            subscription_id: "occupy-capacity".to_string(),
+        })
+        .unwrap();
+    let hub = WsHubHandle {
+        cmd_tx,
+        readiness: Arc::new(UiSessionReadiness::default()),
+    };
+    let outbound = Arc::new(WsOutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY));
+
+    assert!(handle_ws_client_message(
+        WsClientMessage::Intent {
+            request_id: "overloaded-request".to_string(),
+            intent: Box::new(UiEditIntent::Undo),
+            include_self_events: true,
+        },
+        7,
+        &hub,
+        &outbound,
+    ));
+
+    let Some(WsOutbound::Message(WsServerMessage::Error { message, request_id })) = outbound.pop() else {
+        panic!("expected explicit hub overload rejection");
+    };
+    assert!(message.contains("capacity is exhausted"));
+    assert_eq!(request_id.as_deref(), Some("overloaded-request"));
+    assert!(outbound.pop().is_none());
+    assert!(matches!(cmd_rx.try_recv(), Ok(WsHubCommand::Unsubscribe { .. })));
+    assert!(cmd_rx.try_recv().is_err());
+}
+
+#[test]
+fn websocket_intent_batch_rejects_excess_operation_weight_before_hub_admission() {
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::sync_channel(1);
+    let hub = WsHubHandle {
+        cmd_tx,
+        readiness: Arc::new(UiSessionReadiness::default()),
+    };
+    let outbound = Arc::new(WsOutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY));
+
+    assert!(handle_ws_client_message(
+        WsClientMessage::IntentBatch {
+            request_id: "oversized-batch".to_string(),
+            intents: vec![UiEditIntent::Undo; MAX_UI_INTENTS_PER_BATCH + 1],
+            include_self_events: true,
+        },
+        7,
+        &hub,
+        &outbound,
+    ));
+
+    let Some(WsOutbound::Message(WsServerMessage::Error { message, request_id })) = outbound.pop() else {
+        panic!("expected explicit batch-weight rejection");
+    };
+    assert!(message.contains("intent batch exceeds"));
+    assert_eq!(request_id.as_deref(), Some("oversized-batch"));
+    assert!(cmd_rx.try_recv().is_err());
+}
+
+#[test]
+fn subscription_admission_allows_replacement_but_rejects_new_ids_at_capacity() {
+    let client = client_with_subscription_count(MAX_SUBSCRIPTIONS_PER_CLIENT);
+
+    assert!(client_accepts_subscription(&client, "subscription-0"));
+    assert!(!client_accepts_subscription(&client, "one-too-many"));
 }
 
 fn assert_received_control(outbound: &WsOutboundQueue, expected_request_id: &str) {
@@ -618,4 +787,10 @@ fn reliable_message(client_id: u64) -> WsOutbound {
         client_id,
         session_id: "test-session".to_string(),
     })
+}
+
+fn retained_weight(outbound: &WsOutbound) -> usize {
+    let queue = WsOutboundQueue::new(1);
+    assert_eq!(queue.push(outbound.clone()), QueuePushResult::Queued);
+    queue.retained_bytes()
 }
