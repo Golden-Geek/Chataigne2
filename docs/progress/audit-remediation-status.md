@@ -4,8 +4,8 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the T09 commit: `33e06a74b7958a2a930cfd1dfe4e6aeca5bd6b6c`
-is checked out with only the T09 implementation and evidence changes in the working tree. T00–T08
+Current SHA and patch state before the T10 commit: `165287feec473d4237eab6b783f4b1713980c5e5`
+is checked out with only the T10 implementation and evidence changes in the working tree. T00–T09
 are committed and pushed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
@@ -20,25 +20,23 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T09 — serialize complete project-save transactions — complete locally. T01's native
+Task: T10 — return real graph-edit failures through the public API — complete locally. T01's native
 qualification and T03's matching hosted reference baseline remain pending.
 
-Owning layers and files: persistence coordination and crash recovery, application save capture and
-metadata publication, replacement fencing, immutable UI project-file publication, and the transport
-project host.
+Owning layers and files: the engine application facade, authoritative UI acknowledgement mapping,
+project transaction history operations, and dependency-facing consumer tests.
 
-Invariant / implementation decision: acceptance assigns a monotonic ticket containing project
-generation, document revision, and normalized destination before encoding. Saves commit in ticket
-order for the same physical destination, while distinct destinations use bounded concurrency. The
-lease spans backup, journal, temporary file, replacement, cleanup, and actor-owned metadata
-publication. Project replacement exclusively fences this complete transaction without moving disk
-work into the actor or creating an actor/coordinator lock inversion.
+Invariant / implementation decision: the acknowledgement produced in the mutation's actor turn is
+the single source for public success, failure, error details, and revision. `GraphEditing` returns
+that acknowledgement's history only on success; `ProjectTransactions` returns the successful
+acknowledgement. Both return a typed, bounded `GraphEditError` retaining the rejected acknowledgement
+on failure. UI and transport continue to expose the same generated `UiAck` wire contract.
 
-Result and remaining work: alias-safe ordered transactions, Save As winner publication, exact
-saved/dirty revision tracking, and old-generation invalidation are production-owned. Barrier tests
-cover reversed completion, same/different destinations, later edits, and replacement races. Injected
-write and restore boundaries prove recovery retains a complete revision and later saves succeed.
-T12 still owns large-project capture/materialization scaling; T11 owns bounded lifecycle policy.
+Result and remaining work: rejected graph edits can no longer return `Ok`; accepted edits cannot
+race a second history read; empty undo/redo return stable rejection codes; and history/read-model
+state remains aligned. Unit tests cover edit and history-operation results, while a crate-external
+generic `GraphEditing` consumer proves the public dependency boundary. T15 still owns broader facade
+and reusable script/protocol extraction.
 
 ## Task status and dependencies
 
@@ -54,7 +52,7 @@ T12 still owns large-project capture/materialization scaling; T11 owns bounded l
 | T07  | T00                                           | complete                                                     |
 | T08  | T05, T06                                      | complete                                                     |
 | T09  | T08                                           | complete                                                     |
-| T10  | T00                                           | pending                                                      |
+| T10  | T00                                           | complete                                                     |
 | T11  | T04, T08, T09, T10                            | pending                                                      |
 | T12  | T08, T09, T11                                 | pending                                                      |
 | T13  | T03, T10                                      | pending                                                      |
@@ -85,7 +83,7 @@ the current branch contains implementation and verification evidence.
 | F11 — concurrent saves             | fixed           | T09 adds monotonic save tickets, normalized destination identity, ordered complete transactions, bounded cross-destination concurrency, generation fencing, and winner-only path/revision publication                                                              | Deterministic barriers cover reversed completion, aliases, Save As, edits, and replacement. Injected write/restore boundaries prove recovery and subsequent saves. T12 retains capture-scaling work under F10, not save-order correctness.                         |
 | F12 — dependency gate              | fixed           | `h2` locked at 0.4.16; `rtrb` constraint and lock at 0.3.5; no advisory suppression added                                                                                                                                                                          | `cargo deny check`, `cargo machete`, and both backend-neutral/realtime Golden Audio suites pass against RustSec DB `5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5` (2026-09-02). No reachable Chataigne exploit was established.                                        |
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13/T14/T19 pending                                                                                                       | All 22 qualification-tool tests pass, including every planned invalid class and a real regression. Historical values are explicitly unqualified; matching hosted reference and product evidence remain open.                                                       |
-| F14 — facades/edit acknowledgement | open            | T10/T15 pending                                                                                                                                                                                                                                                    | Typed rejection propagation and dependency-boundary consumer fixtures are missing.                                                                                                                                                                                 |
+| F14 — facades/edit acknowledgement | partially fixed | T10 maps the authoritative actor-turn acknowledgement into typed graph/project transaction results, returns the acknowledged success revision, rejects unavailable undo/redo, and adds a crate-external dependency consumer                                        | UI, WebSocket, HTTP, and headless paths share the same rejection details without a wire-schema change. T15 still owns generic protocol/script/persistence facade extraction.                                                                                       |
 | F15 — ordinary audio portability   | open            | T16 pending                                                                                                                                                                                                                                                        | Windows host CI passed, but artifact feature forwarding and external-consumer portability remain unqualified.                                                                                                                                                      |
 | F16 — gitlinks/docs/source size    | open            | T17 pending                                                                                                                                                                                                                                                        | Four mode-160000 entries are confirmed present without a usable `.gitmodules`; current oversized-file inventory is pending.                                                                                                                                        |
 
@@ -151,6 +149,11 @@ the current branch contains implementation and verification evidence.
 | `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T09 patch | Windows x64                           | passed  | Runtime save capture, metadata publication, and replacement-fence targets are warning-free.                                                                                                                                                                                       |
 | `cargo clippy --locked -p golden_transport_server --all-targets -- -D warnings`    | T09 patch | Windows x64                           | passed  | Runtime-owned host save/load workflow and tests are warning-free.                                                                                                                                                                                                                 |
 | `cargo fmt --all` (root and Golden Core workspaces)                                | T09 patch | Windows x64                           | passed  | Rust sources are formatted in both required workspaces.                                                                                                                                                                                                                           |
+| `cargo test --locked -p golden_engine --no-fail-fast`                              | T10 patch | Windows x64                           | passed  | 412 unit tests pass, 2 manual measurements remain ignored, the crate-external public-graph consumer passes, and 7 doctests pass. Typed edit rejection, unavailable undo/redo, and actor-turn success revision are covered.                                                        |
+| `cargo test --locked -p golden_transport_server --no-fail-fast`                    | T10 patch | Windows x64                           | passed  | All 28 transport tests pass while continuing to expose authoritative acknowledgement details and rejection phases.                                                                                                                                                                |
+| `cargo test --locked -p Chataigne2 --no-fail-fast`                                 | T10 patch | Windows x64                           | passed  | 515 application tests and the default Windows audio-host integration test pass.                                                                                                                                                                                                   |
+| `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T10 patch | Windows x64                           | passed  | The application facade, bounded typed error, UI acknowledgement mapping, and all test targets are warning-free.                                                                                                                                                                   |
+| `cargo clippy --locked -p golden_transport_server --all-targets -- -D warnings`    | T10 patch | Windows x64                           | passed  | Transport consumers remain warning-free with the new engine contract.                                                                                                                                                                                                             |
 
 ## Preservation and qualification inventory
 
@@ -165,7 +168,7 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready task: T10.
+Next dependency-ready task: T11.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

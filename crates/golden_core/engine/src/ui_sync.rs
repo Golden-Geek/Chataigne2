@@ -3501,11 +3501,13 @@ impl<T: Node> Engine<T> {
                 self.applied_ui_ack_since(before_event_time)
             }
             UiEditIntent::Undo => match self.undo() {
-                Ok(_) => self.applied_ui_ack_since(before_event_time),
+                Ok(true) => self.applied_ui_ack_since(before_event_time),
+                Ok(false) => self.rejected_ui_ack("undo_unavailable", "there is no transaction to undo".to_string()),
                 Err(err) => self.rejected_ui_ack(ui_error_code(&err), err.to_string()),
             },
             UiEditIntent::Redo => match self.redo() {
-                Ok(_) => self.applied_ui_ack_since(before_event_time),
+                Ok(true) => self.applied_ui_ack_since(before_event_time),
+                Ok(false) => self.rejected_ui_ack("redo_unavailable", "there is no transaction to redo".to_string()),
                 Err(err) => self.rejected_ui_ack(ui_error_code(&err), err.to_string()),
             },
         };

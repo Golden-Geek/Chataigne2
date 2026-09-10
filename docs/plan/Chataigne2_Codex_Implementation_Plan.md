@@ -86,9 +86,10 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T07     | Complete                                                                                           |
 | T08     | Complete                                                                                           |
 | T09     | Complete                                                                                           |
-| T10–T19 | Not started                                                                                        |
+| T10     | Complete                                                                                           |
+| T11–T19 | Not started                                                                                        |
 
-The reviewed stop point is after T09. Resume at T10. Exact commands, evidence, and remaining
+The reviewed stop point is after T10. Resume at T11. Exact commands, evidence, and remaining
 qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 
 ### T00 — Reconcile the baseline and establish a resumable ledger
@@ -247,6 +248,14 @@ edits, replacement races, every write boundary, restore retry, and subsequent-sa
 - Propagate rejection details consistently to UI, script, transport, undo/redo, and external consumers. Update generated contracts only if the wire contract changes. Do not duplicate wire declarations by hand.
 
 **Acceptance:** rejected add/edit/undo/redo operations produce a real failure and leave history/UI aligned with engine state; accepted edits report the correct acknowledgement and revision. A small non-UI consumer test proves the public API observes failure.
+
+**Implementation result (2026-09-08):** `ProductionRuntime` now derives both
+`GraphEditing` and `ProjectTransactions` results from the acknowledgement captured in the mutation's
+actor turn. Successful graph edits return that exact history revision; rejected edits return a
+typed `GraphEditError` retaining the shared error code, message, acknowledgement, and aligned
+history state. Empty undo/redo are explicit `undo_unavailable` / `redo_unavailable` rejections for
+UI, transport, and headless callers. A crate-external consumer fixture proves the dependency-facing
+trait cannot observe rejected edits as success; the existing generated wire DTO is unchanged.
 
 ### T11 — Bound admission, service turns, compilation, and retirement
 

@@ -41,6 +41,14 @@ Pure comparison evaluators have no effect authority. External output requires an
 `AuthoritativeOutput` issued by the composed application facade, preventing comparison or
 diagnostic paths from duplicating commands, triggers, effects, or device traffic.
 
+`GraphEditing` and `ProjectTransactions` convert the same authoritative `UiAck` used by UI and
+transport into typed Rust results. Success returns the acknowledgement or history revision captured
+in the mutation's actor turn. Rejection returns `GraphEditError`, which retains the shared code,
+message, acknowledgement, and post-operation history state. The public facade never performs a
+second history read that could race a later edit, and unavailable undo/redo are rejections rather
+than successful no-ops. Script or headless adapters should consume these application contracts
+instead of inferring success from transport or engine side effects.
+
 `RecordingModuleIo` captures versioned inputs and authoritative outputs using an injected clock.
 Deterministic clocks keep protocol and hardware fixtures repeatable without putting polling or
 device work on the engine loop.

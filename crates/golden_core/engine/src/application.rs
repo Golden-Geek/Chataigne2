@@ -4,9 +4,12 @@
 //! transports from owning or locking it directly. It is the application seam through which
 //! runtime planes can be selected independently.
 
+mod graph_editing;
 mod project_persistence;
 mod project_replacement;
 
+pub use graph_editing::GraphEditError;
+use graph_editing::{graph_revision_result, transaction_acknowledgement_result};
 use project_persistence::ProjectSaveFaultHook;
 pub use project_persistence::{ProjectPersistenceStatus, ProjectSaveRequest, ProjectSaveResult};
 #[cfg(test)]
@@ -659,10 +662,10 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
 impl<T: ProjectLifecycle> ProjectTransactions for ProductionRuntime<T> {
     type Transaction = UiEditIntent;
     type Receipt = UiAck;
-    type Error = Infallible;
+    type Error = GraphEditError;
 
     fn apply_transaction(&self, transaction: Self::Transaction) -> Result<Self::Receipt, Self::Error> {
-        Ok(self.apply_ui_transaction(transaction, None).acknowledgement)
+        transaction_acknowledgement_result(self.apply_ui_transaction(transaction, None).acknowledgement)
     }
 
     fn undo(&self) -> Result<Self::Receipt, Self::Error> {
@@ -677,11 +680,10 @@ impl<T: ProjectLifecycle> ProjectTransactions for ProductionRuntime<T> {
 impl<T: ProjectLifecycle> GraphEditing for ProductionRuntime<T> {
     type Edit = UiEditIntent;
     type Revision = UiHistoryState;
-    type Error = Infallible;
+    type Error = GraphEditError;
 
     fn apply_graph_edit(&self, edit: Self::Edit) -> Result<Self::Revision, Self::Error> {
-        let _ = self.apply_ui_transaction(edit, None);
-        Ok(self.history_state())
+        graph_revision_result(self.apply_ui_transaction(edit, None).acknowledgement)
     }
 }
 

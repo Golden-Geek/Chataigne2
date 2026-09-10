@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
@@ -24,6 +23,7 @@ use crate::ui_sync::{
     UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope,
 };
 
+mod graph_editing;
 mod project_persistence;
 mod project_replacement;
 
@@ -717,10 +717,4 @@ fn failed_transaction_batch_closes_matching_edit_session_and_skips_later_work() 
         batch.transactions[3].acknowledgement.error_code.as_deref(),
         Some("intent_batch_cancelled")
     );
-}
-
-#[test]
-fn facade_trait_errors_remain_explicit() {
-    fn assert_infallible(_: Infallible) {}
-    let _ = assert_infallible;
 }
