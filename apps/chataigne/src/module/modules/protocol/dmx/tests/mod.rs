@@ -8,7 +8,7 @@ use crate::app::{
         parse_destination, script_blackout, script_send_frame, script_set_channel,
         DmxCommandRequest, DmxProtocol,
     },
-    AppNode, ArtNetModule, ModuleManager, NodeModule, SacnModule,
+    AppNode, ArtNetModule, ModuleManager, SacnModule,
 };
 
 #[test]
@@ -80,7 +80,6 @@ fn dmx_modules_round_trip_through_sparse_project_persistence() {
 
     engine.add_user_item(ArtNetModule::create().into(), Some(manager_id));
     engine.add_user_item(SacnModule::create().into(), Some(manager_id));
-    engine.add_user_item(NodeModule::create().into(), Some(manager_id));
     engine
         .apply_edits()
         .expect("DMX modules should attach");
@@ -94,7 +93,7 @@ fn dmx_modules_round_trip_through_sparse_project_persistence() {
         .expect("DMX project should encode");
     let reopened = golden_core::app::from_sparse_project_json::<AppNode>(&json)
         .expect("DMX project should decode");
-    for node_type in ["artnet_module", "sacn_module", "node_module"] {
+    for node_type in ["artnet_module", "sacn_module"] {
         assert_eq!(
             reopened
                 .nodes

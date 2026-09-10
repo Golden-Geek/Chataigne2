@@ -89,17 +89,6 @@ const DMX_FUNCTION_DOCS: &[&str] = &[
 
 const DMX_CALLBACK_DOCS: &[&str] = &["dmxFrameReceived(universe, channels, metadata)"];
 
-const NODE_FUNCTION_DOCS: &[&str] = &[
-    "Node module functions",
-    "local.setValue(targetReference, value)",
-    "local.trigger(targetReference)",
-];
-
-const NODE_CALLBACK_DOCS: &[&str] = &[
-    "nodeValueSet(target, value)",
-    "nodeTriggered(target)",
-];
-
 const SIGNALS_FUNCTION_DOCS: &[&str] = &[
     "Signals module functions",
     "local.resetSignals()",
@@ -163,11 +152,6 @@ fn module_script_templates_document_available_functions_for_each_module() {
             crate::app::SacnModule::NODE_TYPE,
             DMX_FUNCTION_DOCS,
             DMX_CALLBACK_DOCS,
-        ),
-        (
-            crate::app::NodeModule::NODE_TYPE,
-            NODE_FUNCTION_DOCS,
-            NODE_CALLBACK_DOCS,
         ),
         (
             crate::app::SignalsModule::NODE_TYPE,

@@ -195,7 +195,9 @@ bridge nodes.
 
 Conditions and filters expose reusable filter-capable items. Inputs expose
 declared processor input source items. Outputs expose command items, including
-module-provided commands and generic commands such as setting a parameter value.
+module-provided commands and module-independent generic commands. Core graph
+operations such as setting or triggering a parameter are generic commands and
+never require an adapter module to be instantiated.
 
 ## ValueSet And Managed Pipelines
 

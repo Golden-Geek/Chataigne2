@@ -391,7 +391,10 @@ fn build_runtime_command_dispatch_plan(
         if !seen.insert(root) {
             continue;
         }
-        let batchable = crate::app::systems_alchemist_managed_nodes::is_output_container(snapshot, root);
+        let batchable = crate::app::systems_alchemist_managed_nodes::is_output_container(snapshot, root)
+            || snapshot.node(root).is_some_and(|node| {
+                crate::app::systems_alchemist_generic_commands::generic_command_supports_batch(&node.node_type)
+            });
         if node_is_command(snapshot, root) || batchable {
             push_dispatch_action(
                 &mut actions,

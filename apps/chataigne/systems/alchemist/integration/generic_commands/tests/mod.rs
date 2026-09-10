@@ -1,21 +1,127 @@
 use std::sync::Arc;
 
 use golden_core::{
+    edit::Edit,
     engine::EngineTime,
     events::{CustomEvent, Event, EventFrame},
-    node::{Node, NodeId},
-    parameter::ParamValue,
+    node::{Folder, Node, NodeId, NodeReference},
+    parameter::{Parameter, ParameterChangeCheck, ParameterEventBehaviour, ParamValue},
     process_ctx::{ExecutionPhase, ProcessCtx},
 };
 
 use super::{
+    GENERIC_COMMAND_ITEM_KIND, GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE, GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE,
     GenericLogCommand, GenericLogRuntimeCache, LOG_INVOCATION_KEEPALIVE_TICKS, LOG_INVOCATION_STALE_TICKS,
-    command_string_param_override,
+    command_string_param_override, set_parameter_value, trigger_parameter,
 };
 use crate::app::module_command::{
     MODULE_COMMAND_EXECUTE_BATCH_TOPIC, MODULE_COMMAND_EXECUTE_TOPIC, ModuleCommandDeliveryPolicy,
     ModuleCommandExecuteBatchEvent, ModuleCommandExecuteEvent, ModuleCommandInvocationId, ModuleCommandParamOverride,
 };
+
+#[test]
+fn parameter_commands_are_generic_and_do_not_require_a_node_module() {
+    let generic_items = crate::app::declared_user_creatable_items(GENERIC_COMMAND_ITEM_KIND);
+    for (node_type, label) in [
+        (GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE, "Set Parameter"),
+        (GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE, "Trigger Parameter"),
+    ] {
+        let item = generic_items
+            .iter()
+            .find(|item| item.node_type == node_type)
+            .unwrap_or_else(|| panic!("{label} should be a generic command"));
+        assert_eq!(item.label, label);
+        assert!(
+            crate::app::create_declared_user_item(node_type, GENERIC_COMMAND_ITEM_KIND).is_some(),
+            "{label} should be creatable without a module"
+        );
+    }
+
+    assert!(
+        crate::app::declared_user_creatable_items(crate::app::module::MODULE_ITEM_KIND)
+            .iter()
+            .all(|item| item.node_type != "node_module")
+    );
+}
+
+#[test]
+fn parameter_commands_queue_core_parameter_edits() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(
+        Parameter::new(
+            "Value Target",
+            ParamValue::Float(0.0),
+            ParameterChangeCheck::ValueChange,
+        )
+        .into(),
+        None,
+    );
+    engine.add_node(
+        Parameter::new(
+            "Trigger Target",
+            ParamValue::Trigger(),
+            ParameterChangeCheck::None,
+        )
+        .into(),
+        None,
+    );
+    engine.apply_edits().expect("target parameters should attach");
+
+    let value_target = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Value Target")
+        .map(|(id, node)| (id, node.node_data().meta.uuid))
+        .expect("value target should exist");
+    let trigger_target = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Trigger Target")
+        .map(|(id, node)| (id, node.node_data().meta.uuid))
+        .expect("trigger target should exist");
+    let snapshot = engine.process_tree_snapshot();
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+    ctx.set_tree_snapshot(snapshot.clone());
+
+    set_parameter_value(
+        &mut ctx,
+        snapshot.as_ref(),
+        &ParamValue::Reference(NodeReference::new(value_target.1)),
+        ParamValue::Float(0.75),
+    )
+    .expect("set command should resolve a stable parameter reference");
+    trigger_parameter(
+        &mut ctx,
+        snapshot.as_ref(),
+        &ParamValue::Reference(NodeReference::new(trigger_target.1)),
+    )
+    .expect("trigger command should resolve a stable trigger reference");
+
+    assert!(matches!(
+        &ctx.edits.pending[0].edit,
+        Edit::SetParam {
+            node,
+            value: ParamValue::Float(0.75),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        } if *node == value_target.0
+    ));
+    assert!(matches!(
+        &ctx.edits.pending[1].edit,
+        Edit::SetParam {
+            node,
+            value: ParamValue::Trigger(),
+            behaviour: ParameterEventBehaviour::Append,
+        } if *node == trigger_target.0
+    ));
+}
 
 #[test]
 fn cached_log_command_resolves_overrides_without_tree_snapshot() {

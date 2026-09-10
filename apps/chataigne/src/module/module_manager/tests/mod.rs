@@ -36,6 +36,11 @@ fn module_manager_uses_declared_module_item_metadata() {
     let manager = ModuleManager::new();
     let items = manager.user_creatable_items();
 
+    assert!(
+        items.iter().all(|item| item.node_type != "node_module"),
+        "core parameter commands must not require a user-created adapter module"
+    );
+
     for (node_type, label, menu_path) in [
         (
             crate::app::GenericOscModule::NODE_TYPE,

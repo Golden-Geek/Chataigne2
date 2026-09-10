@@ -14,7 +14,9 @@ use golden_core::{
 
 const INPUT_ITEM_KIND: &str = "sm_input";
 use crate::app::module_command;
-use crate::app::systems_alchemist_generic_commands::{GENERIC_COMMAND_ITEM_KIND, GENERIC_LOG_COMMAND_NODE_TYPE};
+use crate::app::systems_alchemist_generic_commands::{
+    GENERIC_COMMAND_ITEM_KIND, GENERIC_LOG_COMMAND_NODE_TYPE, generic_command_supports_batch,
+};
 
 mod schedule;
 
@@ -90,7 +92,7 @@ fn refresh_output_runtime_cache(cache: &mut OutputRuntimeCache, snapshot: &Proce
                 .is_some_and(|node| node.node_type == GENERIC_LOG_COMMAND_NODE_TYPE),
             batchable: snapshot
                 .node(node)
-                .is_some_and(|node| node.node_type == GENERIC_LOG_COMMAND_NODE_TYPE)
+                .is_some_and(|node| generic_command_supports_batch(&node.node_type))
                 || is_output_container(snapshot, node),
         })
         .collect::<Vec<_>>()

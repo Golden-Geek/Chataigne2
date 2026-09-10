@@ -10,8 +10,8 @@ use std::collections::{HashMap, VecDeque};
 use golden_core::{
     events::{Event, EventFrame, EventKind},
     node,
-    node::{Node, NodeCreationContext, NodeId},
-    parameter::ParamValue,
+    node::{Node, NodeCreationContext, NodeHandle, NodeId},
+    parameter::{ParameterEventBehaviour, ParamValue, ReferenceTargetKind},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -21,6 +21,10 @@ use crate::app::module_command::{self, ModuleCommandDeliveryPolicy, ModuleComman
 pub(crate) const GENERIC_COMMAND_ITEM_KIND: &str = "generic_command";
 
 pub(crate) const GENERIC_LOG_COMMAND_NODE_TYPE: &str = "generic_log_command";
+pub(crate) const GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE: &str = "generic_set_parameter_command";
+pub(crate) const GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE: &str = "generic_trigger_parameter_command";
+
+const GENERIC_COMMAND_OPERATION_WARNING_ID: &str = "generic_command_operation";
 
 pub(crate) const LOG_INVOCATION_CHANGE_MIN_TICKS: u64 = 30;
 pub(crate) const LOG_INVOCATION_KEEPALIVE_TICKS: u64 = 200;
@@ -29,6 +33,351 @@ pub(crate) const LOG_INVOCATION_RECENCY_TOUCH_TICKS: u64 = 256;
 pub(crate) const MAX_LOG_INVOCATIONS: usize = 32_768;
 const MAX_LOG_EMISSIONS_PER_TICK: usize = 1;
 pub(crate) const MAX_LOG_PRUNE_STEPS_PER_EVENT: usize = 8;
+
+#[node("generic_command_base", label = "Command")]
+#[children(
+    trigger: ParamValue = ParamValue::Trigger() (
+        label = "Trigger",
+        description = "Fire this trigger to run the command.",
+        show_in_inspector_content = false
+    );
+)]
+pub struct GenericCommandBase {}
+
+#[node("generic_command_base", from_struct)]
+impl Node for GenericCommandBase {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        module_command::enable_module_command_authoring(self.node_data_mut());
+    }
+
+    fn user_item_kind(&self) -> &str {
+        GENERIC_COMMAND_ITEM_KIND
+    }
+}
+
+pub(crate) fn generic_command_supports_batch(node_type: &str) -> bool {
+    matches!(
+        node_type,
+        GENERIC_LOG_COMMAND_NODE_TYPE
+            | GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE
+            | GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE
+    )
+}
+
+#[node("generic_set_parameter_command", label = "Set Parameter")]
+#[children(
+    target: golden_core::node::NodeReference = golden_core::node::NodeReference::default() (
+        label = "Target Parameter",
+        description = "Parameter whose value will be updated.",
+        reference_target_kind = ReferenceTargetKind::ParameterOnly
+    );
+    value: ParamValue = ParamValue::Bool(false) (
+        label = "Value",
+        description = "Value converted and written through the target parameter's constraints."
+    );
+)]
+pub struct GenericSetParameterCommand {
+    #[state(default = None)]
+    operation_warning: Option<String>,
+    base: GenericCommandBase,
+}
+
+impl GenericSetParameterCommand {
+    pub fn create() -> Self {
+        Self::new(GenericCommandBase::new())
+    }
+
+    fn execute(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        overrides: &[module_command::ModuleCommandParamOverride],
+    ) -> Result<(), String> {
+        let target = command_parameter_value(snapshot, self.target.id(), overrides)
+            .ok_or_else(|| "Set Parameter requires a target parameter".to_string())?;
+        let value = command_parameter_value(snapshot, self.value.id(), overrides)
+            .ok_or_else(|| "Set Parameter requires a value".to_string())?;
+        set_parameter_value(ctx, snapshot, &target, value)
+    }
+
+    fn run_current(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.update_operation_warning(ctx, Some("Set Parameter requires a tree snapshot".to_string()));
+            return;
+        };
+        let result = self.execute(ctx, snapshot.as_ref(), &[]);
+        self.update_operation_warning(ctx, result.err());
+    }
+
+    fn run_event(&mut self, ctx: &mut ProcessCtx, event: &golden_core::events::CustomEvent) {
+        let Some(executions) = command_executions(event, self.id()) else {
+            return;
+        };
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.update_operation_warning(ctx, Some("Set Parameter requires a tree snapshot".to_string()));
+            return;
+        };
+        let mut first_error = None;
+        for execution in &executions {
+            if let Err(error) = self.execute(ctx, snapshot.as_ref(), &execution.param_overrides) {
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            }
+        }
+        self.update_operation_warning(ctx, first_error);
+    }
+
+    fn update_operation_warning(&mut self, ctx: &mut ProcessCtx, error: Option<String>) {
+        update_command_warning(ctx, self.id(), &mut self.operation_warning, error);
+    }
+}
+
+#[golden_core::item(
+    "generic_command",
+    node = "generic_set_parameter_command",
+    via = base,
+    from_struct
+)]
+impl Node for GenericSetParameterCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        matches!(event.kind, EventKind::ParamChanged { .. })
+            .then_some(u32::MAX)
+            .unwrap_or(0)
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        command_inbox_requires_tree_snapshot(events, self.id())
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if ctx
+            .tree_snapshot()
+            .is_some_and(|snapshot| module_command::module_command_triggered(snapshot, self.id(), param))
+        {
+            self.run_current(ctx);
+        }
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        self.run_event(ctx, &event);
+    }
+}
+
+#[node("generic_trigger_parameter_command", label = "Trigger Parameter")]
+#[children(
+    target: golden_core::node::NodeReference = golden_core::node::NodeReference::default() (
+        label = "Target Parameter",
+        description = "Trigger parameter that will receive a new trigger edge.",
+        reference_target_kind = ReferenceTargetKind::ParameterOnly
+    );
+)]
+pub struct GenericTriggerParameterCommand {
+    #[state(default = None)]
+    operation_warning: Option<String>,
+    base: GenericCommandBase,
+}
+
+impl GenericTriggerParameterCommand {
+    pub fn create() -> Self {
+        Self::new(GenericCommandBase::new())
+    }
+
+    fn execute(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        overrides: &[module_command::ModuleCommandParamOverride],
+    ) -> Result<(), String> {
+        let target = command_parameter_value(snapshot, self.target.id(), overrides)
+            .ok_or_else(|| "Trigger Parameter requires a target parameter".to_string())?;
+        trigger_parameter(ctx, snapshot, &target)
+    }
+
+    fn run_current(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.update_operation_warning(ctx, Some("Trigger Parameter requires a tree snapshot".to_string()));
+            return;
+        };
+        let result = self.execute(ctx, snapshot.as_ref(), &[]);
+        self.update_operation_warning(ctx, result.err());
+    }
+
+    fn run_event(&mut self, ctx: &mut ProcessCtx, event: &golden_core::events::CustomEvent) {
+        let Some(executions) = command_executions(event, self.id()) else {
+            return;
+        };
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.update_operation_warning(ctx, Some("Trigger Parameter requires a tree snapshot".to_string()));
+            return;
+        };
+        let mut first_error = None;
+        for execution in &executions {
+            if let Err(error) = self.execute(ctx, snapshot.as_ref(), &execution.param_overrides) {
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            }
+        }
+        self.update_operation_warning(ctx, first_error);
+    }
+
+    fn update_operation_warning(&mut self, ctx: &mut ProcessCtx, error: Option<String>) {
+        update_command_warning(ctx, self.id(), &mut self.operation_warning, error);
+    }
+}
+
+#[golden_core::item(
+    "generic_command",
+    node = "generic_trigger_parameter_command",
+    via = base,
+    from_struct
+)]
+impl Node for GenericTriggerParameterCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        matches!(event.kind, EventKind::ParamChanged { .. })
+            .then_some(u32::MAX)
+            .unwrap_or(0)
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        command_inbox_requires_tree_snapshot(events, self.id())
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if ctx
+            .tree_snapshot()
+            .is_some_and(|snapshot| module_command::module_command_triggered(snapshot, self.id(), param))
+        {
+            self.run_current(ctx);
+        }
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        self.run_event(ctx, &event);
+    }
+}
+
+fn command_inbox_requires_tree_snapshot(events: &EventFrame, command: NodeId) -> bool {
+    events.iter().any(|event| match &event.kind {
+        EventKind::ParamChanged { .. } => true,
+        EventKind::Custom(custom) => {
+            module_command::is_command_execute_request(custom, command)
+                || module_command::is_command_execute_batch_request(custom, command)
+        }
+        _ => false,
+    })
+}
+
+fn command_executions(
+    event: &golden_core::events::CustomEvent,
+    command: NodeId,
+) -> Option<Vec<module_command::ModuleCommandExecuteEvent>> {
+    module_command::command_execute_request(event, command)
+        .map(|execution| vec![execution])
+        .or_else(|| module_command::command_execute_batch_requests(event, command))
+}
+
+fn command_parameter_value(
+    snapshot: &ProcessTreeSnapshot,
+    parameter: NodeId,
+    overrides: &[module_command::ModuleCommandParamOverride],
+) -> Option<ParamValue> {
+    overrides
+        .iter()
+        .find(|override_value| override_value.param_id == parameter)
+        .map(|override_value| override_value.value.clone())
+        .or_else(|| snapshot.node(parameter).and_then(|node| node.param_value.clone()))
+}
+
+fn resolve_parameter_target(snapshot: &ProcessTreeSnapshot, value: &ParamValue) -> Option<NodeId> {
+    let ParamValue::Reference(reference) = value else {
+        return None;
+    };
+    reference
+        .cached_id()
+        .filter(|target| {
+            snapshot
+                .node(*target)
+                .is_some_and(|node| node.uuid == reference.uuid() && node.param_value.is_some())
+        })
+        .or_else(|| {
+            snapshot
+                .node_id_by_uuid(reference.uuid())
+                .filter(|target| snapshot.node(*target).is_some_and(|node| node.param_value.is_some()))
+        })
+}
+
+fn set_parameter_value(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    target: &ParamValue,
+    value: ParamValue,
+) -> Result<(), String> {
+    let target = resolve_parameter_target(snapshot, target)
+        .ok_or_else(|| "Set Parameter requires a valid target parameter".to_string())?;
+    if snapshot
+        .node(target)
+        .is_some_and(|node| matches!(node.param_value, Some(ParamValue::Trigger())))
+    {
+        return Err("Set Parameter cannot target a trigger; use Trigger Parameter".to_string());
+    }
+    ctx.set_param(target, value);
+    Ok(())
+}
+
+fn trigger_parameter(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    target: &ParamValue,
+) -> Result<(), String> {
+    let target = resolve_parameter_target(snapshot, target)
+        .ok_or_else(|| "Trigger Parameter requires a valid target parameter".to_string())?;
+    if snapshot
+        .node(target)
+        .is_none_or(|node| !matches!(node.param_value, Some(ParamValue::Trigger())))
+    {
+        return Err("Trigger Parameter requires a trigger target".to_string());
+    }
+    ctx.set_param_with_behaviour(
+        target,
+        ParamValue::Trigger(),
+        ParameterEventBehaviour::Append,
+    );
+    Ok(())
+}
+
+fn update_command_warning(
+    ctx: &mut ProcessCtx,
+    command: NodeId,
+    current: &mut Option<String>,
+    next: Option<String>,
+) {
+    if *current == next {
+        return;
+    }
+    match next.as_deref() {
+        Some(message) => {
+            NodeHandle::new(command).set_warning_with(
+                ctx,
+                Some(GENERIC_COMMAND_OPERATION_WARNING_ID),
+                message,
+                None,
+            );
+            golden_core::logerror!(origin = command; message);
+        }
+        None => NodeHandle::new(command).clear_warning(ctx, Some(GENERIC_COMMAND_OPERATION_WARNING_ID)),
+    }
+    *current = next;
+}
 
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 struct GenericLogRuntimeCache {
@@ -181,12 +530,12 @@ pub struct GenericLogCommand {
     cached_message_param: Option<NodeId>,
     #[state(default = GenericLogRuntimeCache::default())]
     runtime_cache: GenericLogRuntimeCache,
-    base: crate::app::ModuleCommandBase,
+    base: GenericCommandBase,
 }
 
 impl GenericLogCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(GenericCommandBase::new())
     }
 }
 
