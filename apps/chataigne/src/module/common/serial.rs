@@ -12,8 +12,8 @@ use std::{
 };
 
 use golden_io::{
-    pending_channel, BoundedQueue, PendingDrain, PendingReceiver, PendingSender, ReconnectBackoff,
-    WorkerTask,
+    BoundedQueue, PendingDrain, PendingReceiver, PendingSendError, PendingSender, ReconnectBackoff,
+    WorkerTask, bounded_pending_channel,
 };
 
 #[cfg(not(windows))]
@@ -34,6 +34,8 @@ const SERIAL_RECONNECT_BASE_DELAY: Duration = Duration::from_millis(250);
 const SERIAL_RECONNECT_MAX_DELAY: Duration = Duration::from_secs(5);
 const SERIAL_PENDING_WRITE_LIMIT: usize = 256;
 const SERIAL_PENDING_WRITE_BYTES_LIMIT: usize = 256 * 1024;
+const SERIAL_EVENT_LIMIT: usize = 2_048;
+const SERIAL_EVENT_BYTES_LIMIT: usize = 2 * 1024 * 1024;
 const SERIAL_EVENT_DRAIN_BUDGET: NonZeroUsize =
     NonZeroUsize::new(1_024).expect("serial event drain budget must be nonzero");
 
@@ -204,7 +206,7 @@ impl SerialConnectionHandle {
             return Err("serial port is not selected".to_string());
         }
 
-        let (event_tx, event_rx) = pending_channel();
+        let (event_tx, event_rx) = bounded_pending_channel(SERIAL_EVENT_LIMIT, SERIAL_EVENT_BYTES_LIMIT);
         let connected = Arc::new(AtomicBool::new(false));
         let worker_connected = Arc::clone(&connected);
 
@@ -542,10 +544,11 @@ fn serial_connection_worker_loop(
 
             match active_port.read(&mut buffer) {
                 Ok(length) if length > 0 => {
-                    if event_tx
-                        .send(SerialConnectionEvent::Bytes(buffer[..length].to_vec()))
-                        .is_err()
-                    {
+                    if !publish_serial_event(
+                        &event_tx,
+                        SerialConnectionEvent::Bytes(buffer[..length].to_vec()),
+                        length,
+                    ) {
                         return;
                     }
                 }
@@ -612,9 +615,9 @@ fn enqueue_pending_write(
 ) {
     let byte_count = bytes.len();
     if pending_writes.try_push(bytes, byte_count).is_err() {
-        let _ = event_tx.send(SerialConnectionEvent::Warning(
-            "serial write queue is full; outgoing bytes were dropped".to_string(),
-        ));
+        let message = "serial write queue is full; outgoing bytes were dropped".to_string();
+        let weight = message.len();
+        let _ = publish_serial_event(event_tx, SerialConnectionEvent::Warning(message), weight);
     }
 }
 
@@ -661,7 +664,29 @@ fn emit_status(
     }
 
     *last_status = Some(next_status.clone());
-    event_tx.send(SerialConnectionEvent::Status(next_status)).is_ok()
+    let weight = serial_status_weight(&next_status);
+    publish_serial_event(event_tx, SerialConnectionEvent::Status(next_status), weight)
+}
+
+fn publish_serial_event(
+    event_tx: &PendingSender<SerialConnectionEvent>,
+    event: SerialConnectionEvent,
+    weight: usize,
+) -> bool {
+    match event_tx.send_weighted(event, weight.max(1)) {
+        Ok(()) | Err(PendingSendError::Full(_)) => true,
+        Err(PendingSendError::Disconnected(_)) => false,
+    }
+}
+
+fn serial_status_weight(status: &SerialConnectionStatus) -> usize {
+    match status {
+        SerialConnectionStatus::Connected { port_name } => port_name.len(),
+        SerialConnectionStatus::Recovering {
+            port_name,
+            message,
+        } => port_name.len().saturating_add(message.len()),
+    }
 }
 
 fn enter_recovery(

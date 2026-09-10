@@ -87,7 +87,8 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T08     | Complete                                                                                           |
 | T09     | Complete                                                                                           |
 | T10     | Complete                                                                                           |
-| T11–T19 | Not started                                                                                        |
+| T11     | In progress: shared I/O and OSC boundary complete                                                |
+| T12–T19 | Not started                                                                                        |
 
 The reviewed stop point is after T10. Resume at T11. Exact commands, evidence, and remaining
 qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
@@ -280,6 +281,14 @@ Produce one small capacity/overflow table in the owning docs, then implement eac
 - Do not create unlimited replacement threads when an old worker is stuck. Retain ownership safely, cap stuck/retiring slots, and report a recoverable resource failure. Moving `join()` to an unbounded cleanup queue is insufficient.
 
 **Acceptance:** sustained producer rates above capacity reach a memory plateau; ticks, command replies, publication, and shutdown/cancellation continue; ordered events are accepted in order or explicitly rejected; continuous data converges to the latest accepted value. Test slow clients, reconnect storms, OSC bursts, superseded compilation, blocked worker shutdown, and partial drains. After load stops, backlog and feedback recover within the configured bounds.
+
+**Implementation progress (2026-09-10, shared I/O slice):** the reusable pending channel now has
+explicit item and caller-supplied retained-weight bounds, nonblocking overload/disconnect results,
+bounded receiver turns, retained readiness, and depth/weight/oldest-age/rejection telemetry. Generic
+I/O worker command admission is bounded and nonblocking. OSC applies bounded command service turns,
+bounded socket turns, explicit output overload rejection, and a dual-bounded inbound event channel;
+serial inbound events use the same byte-aware contract. Control/compiler, transport-host admission,
+and bounded lifecycle retirement remain in T11.
 
 ### T12 — Separate immutable snapshots and encoding from actor progress
 

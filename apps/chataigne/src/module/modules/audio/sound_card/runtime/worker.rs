@@ -1,7 +1,7 @@
 use std::{
     fmt,
     num::NonZeroUsize,
-    sync::mpsc::{RecvTimeoutError, SendError},
+    sync::mpsc::{RecvTimeoutError, TrySendError},
     thread,
     time::Duration,
 };
@@ -114,7 +114,10 @@ impl SoundCardRuntimeWorker {
             .send(SoundCardRuntimeWorkerCommand::Start {
                 request: request.clone(),
             })
-            .map_err(|_| "Sound Card runtime worker stopped".to_owned())?;
+            .map_err(|error| match error {
+                TrySendError::Full(_) => "Sound Card runtime worker queue is full".to_owned(),
+                TrySendError::Disconnected(_) => "Sound Card runtime worker stopped".to_owned(),
+            })?;
         Ok(request)
     }
 
@@ -134,7 +137,10 @@ impl SoundCardRuntimeWorker {
     }
 
     pub(crate) fn retire(&self, runtime: SoundCardRuntime) {
-        if let Err(SendError(SoundCardRuntimeWorkerCommand::Retire(runtime))) =
+        if let Err(
+            TrySendError::Full(SoundCardRuntimeWorkerCommand::Retire(runtime))
+            | TrySendError::Disconnected(SoundCardRuntimeWorkerCommand::Retire(runtime)),
+        ) =
             self.task.send(SoundCardRuntimeWorkerCommand::Retire(Box::new(runtime)))
         {
             retire_detached(*runtime);

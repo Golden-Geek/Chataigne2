@@ -4,8 +4,8 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the T10 commit: `165287feec473d4237eab6b783f4b1713980c5e5`
-is checked out with only the T10 implementation and evidence changes in the working tree. T00–T09
+Current SHA and patch state before the first T11 slice commit: `ae1de67a`
+is checked out with only the shared-I/O T11 implementation and evidence changes in the working tree. T00–T10
 are committed and pushed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
@@ -20,23 +20,22 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T10 — return real graph-edit failures through the public API — complete locally. T01's native
-qualification and T03's matching hosted reference baseline remain pending.
+Task: T11 — bound admission, service turns, compilation, and retirement — shared-I/O/OSC boundary
+complete locally. T01's native qualification and T03's matching hosted reference baseline remain
+pending.
 
-Owning layers and files: the engine application facade, authoritative UI acknowledgement mapping,
-project transaction history operations, and dependency-facing consumer tests.
+Owning layers and files in this slice: reusable Golden I/O pending/worker primitives plus the
+app-owned OSC and serial transport adapters.
 
-Invariant / implementation decision: the acknowledgement produced in the mutation's actor turn is
-the single source for public success, failure, error details, and revision. `GraphEditing` returns
-that acknowledgement's history only on success; `ProjectTransactions` returns the successful
-acknowledgement. Both return a typed, bounded `GraphEditError` retaining the rejected acknowledgement
-on failure. UI and transport continue to expose the same generated `UiAck` wire contract.
+Invariant / implementation decision: producer admission never blocks and accepted ordered events
+remain FIFO. Capacity is enforced by both item count and caller-supplied retained weight; a full
+queue returns the item to its producer and increments rejection telemetry. Receiver-owned bounded
+drains retain the T04 readiness protocol and re-arm whenever work remains.
 
-Result and remaining work: rejected graph edits can no longer return `Ok`; accepted edits cannot
-race a second history read; empty undo/redo return stable rejection codes; and history/read-model
-state remains aligned. Unit tests cover edit and history-operation results, while a crate-external
-generic `GraphEditing` consumer proves the public dependency boundary. T15 still owns broader facade
-and reusable script/protocol extraction.
+Result and remaining work: generic worker commands, OSC output, OSC input, and serial input now
+plateau at configured capacity. OSC socket and command handling yield after bounded turns, and
+ordered output overload is explicit to callers. T11 still owns control/compiler admission,
+WebSocket/HTTP aggregate admission, and bounded lifecycle retirement.
 
 ## Task status and dependencies
 
@@ -53,7 +52,7 @@ and reusable script/protocol extraction.
 | T08  | T05, T06                                      | complete                                                     |
 | T09  | T08                                           | complete                                                     |
 | T10  | T00                                           | complete                                                     |
-| T11  | T04, T08, T09, T10                            | pending                                                      |
+| T11  | T04, T08, T09, T10                            | in progress: shared I/O and OSC boundary complete            |
 | T12  | T08, T09, T11                                 | pending                                                      |
 | T13  | T03, T10                                      | pending                                                      |
 | T14  | T03, T07, T11                                 | pending                                                      |
@@ -75,7 +74,7 @@ the current branch contains implementation and verification evidence.
 | F03 — script interruption/effects  | partially fixed | T05 installs nesting-safe monotonic interruption/cancellation, budgets and resource caps, input validation, success-only effect admission, heap quarantine, and clean reload; T15 extraction remains                                                               | Watchdog subprocesses and engine recovery pass. Physical I/O is not claimed rollback-safe after host admission; reusable VM/effect ownership remains pending.                                                                                                      |
 | F04 — project replacement          | fixed           | T08 adds detached prepare/validate/compile, monotonic project generations, exclusive activation, atomic engine/runtime/read-model publication, explicit paused-state failure, stale candidate/compiler fencing, outside-actor retirement, and duplication rollback | Barrier and fault-injection coverage spans decode, preparation, script evaluation, both compilation stages, activation, publication, retirement, edits, stale candidates, projection/history coherence, and resource cleanup. T11 still bounds lifecycle duration. |
 | F05 — cache restoration            | fixed           | Scheduled updates and inbox dispatch borrow the cache in place; all fallible scheduled scratch extraction uses one restore boundary; excess callbacks are rejected before invocation                                                                               | Injected budget and edit-absorption failures prove unchanged/changed bindings, node membership, cache contents, accepted-edit policy, and next-tick progress. Panic/unwind recovery is not claimed.                                                                |
-| F06 — unbounded work/lifecycle     | open            | T11/T12 pending                                                                                                                                                                                                                                                    | Capacity, service-budget, and overload recovery evidence is missing.                                                                                                                                                                                               |
+| F06 — unbounded work/lifecycle     | partially fixed | T11 shared-I/O slice adds dual item/weight bounds, nonblocking overload results, retained readiness telemetry, bounded generic worker commands, bounded OSC command/socket turns, and bounded OSC/serial input retention                                           | Control/compiler, host aggregate admission, lifecycle retirement, and T12 snapshot capacity remain pending.                                                                                                                                                       |
 | F07 — topology ties                | partially fixed | T07 uses one UUID-ordered global ready frontier and compiles stable bucket/runtime order                                                                                                                                                                           | Equivalent-order, diamond, disconnected, cycle, and conflicting write/trigger fixtures pass. T14/T18 cross-worker real-kernel determinism remains pending.                                                                                                         |
 | F08 — UI index copying             | open            | T13 pending                                                                                                                                                                                                                                                        | Delta-proportional work and browser action-to-paint evidence is missing.                                                                                                                                                                                           |
 | F09 — identity work/full scans     | open            | T14/T18 pending                                                                                                                                                                                                                                                    | Sparse-selection and real-kernel measurements are missing.                                                                                                                                                                                                         |
@@ -154,6 +153,10 @@ the current branch contains implementation and verification evidence.
 | `cargo test --locked -p Chataigne2 --no-fail-fast`                                 | T10 patch | Windows x64                           | passed  | 515 application tests and the default Windows audio-host integration test pass.                                                                                                                                                                                                   |
 | `cargo clippy --locked -p golden_engine --all-targets -- -D warnings`              | T10 patch | Windows x64                           | passed  | The application facade, bounded typed error, UI acknowledgement mapping, and all test targets are warning-free.                                                                                                                                                                   |
 | `cargo clippy --locked -p golden_transport_server --all-targets -- -D warnings`    | T10 patch | Windows x64                           | passed  | Transport consumers remain warning-free with the new engine contract.                                                                                                                                                                                                             |
+| `cargo test --locked -p golden_io --no-fail-fast`                                  | T11 I/O   | Windows x64                           | passed  | All 13 tests pass, including dual-bound saturation, overload ownership, disconnect, readiness races, partial drains, and worker-command saturation.                                                                                                                                |
+| `cargo check --locked -p Chataigne2`                                               | T11 I/O   | Windows x64                           | passed  | OSC, serial, Sound Card retirement, and all other reusable worker/pending-channel consumers compile against bounded admission.                                                                                                                                                     |
+| `cargo clippy --locked -p golden_io --all-targets -- -D warnings`                  | T11 I/O   | Windows x64                           | passed  | Reusable bounded pending and worker primitives plus all test targets are warning-free.                                                                                                                                                                                             |
+| `cargo test --locked -p Chataigne2 osc_runtime --no-fail-fast`                    | T11 I/O   | Windows x64                           | passed  | All 4 focused OSC runtime tests pass, including one-packet readiness, waker-driven output, and platform receive-error handling.                                                                                                                                                      |
 
 ## Preservation and qualification inventory
 

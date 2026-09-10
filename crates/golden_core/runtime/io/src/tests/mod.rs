@@ -73,6 +73,24 @@ fn worker_task_owns_command_channel_and_orderly_join() {
 }
 
 #[test]
+fn worker_task_rejects_overload_without_blocking_the_producer() {
+    use std::sync::{Arc, Barrier, mpsc::TrySendError};
+
+    let start = Arc::new(Barrier::new(2));
+    let worker_start = Arc::clone(&start);
+    let mut worker = WorkerTask::spawn_with_capacity("golden-io-bounded-test", 1, move |commands| {
+        worker_start.wait();
+        let _ = commands.recv();
+    })
+    .expect("test worker starts");
+
+    worker.send(1_u8).expect("first command fits");
+    assert_eq!(worker.send(2_u8), Err(TrySendError::Full(2)));
+    start.wait();
+    worker.join();
+}
+
+#[test]
 fn test_transport_models_bounded_loopback_and_disconnects() {
     let (left, right) = test_transport_pair(1, 4);
     left.send("ping", 4).expect("first frame fits");

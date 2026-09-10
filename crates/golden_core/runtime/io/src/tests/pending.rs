@@ -4,7 +4,7 @@ use std::{
     thread,
 };
 
-use crate::{PendingDrainState, pending_channel};
+use crate::{PendingDrainState, PendingSendError, bounded_pending_channel, pending_channel};
 
 const ONE: NonZeroUsize = NonZeroUsize::MIN;
 const EIGHT: NonZeroUsize = NonZeroUsize::new(8).expect("eight is nonzero");
@@ -178,4 +178,38 @@ fn disconnect_is_distinct_from_empty() {
     );
     assert_eq!(events, vec![3]);
     assert!(!receiver.has_pending());
+}
+
+#[test]
+fn admission_is_bounded_by_items_and_retained_weight() {
+    let (sender, receiver) = bounded_pending_channel(2, 5);
+    sender.send_weighted("one", 3).unwrap();
+    assert_eq!(
+        sender.send_weighted("too-heavy", 3),
+        Err(PendingSendError::Full("too-heavy"))
+    );
+    sender.send_weighted("two", 2).unwrap();
+    assert_eq!(sender.send("too-many"), Err(PendingSendError::Full("too-many")));
+
+    let metrics = receiver.metrics();
+    assert_eq!(metrics.depth, 2);
+    assert_eq!(metrics.retained_weight, 5);
+    assert_eq!(metrics.rejected, 2);
+    assert!(metrics.ready);
+
+    let mut events = Vec::new();
+    assert_eq!(
+        receiver.drain_into(&mut events, ONE).state,
+        PendingDrainState::BudgetExhausted
+    );
+    assert_eq!(receiver.metrics().retained_weight, 2);
+    assert_eq!(events, vec!["one"]);
+}
+
+#[test]
+fn producer_gets_its_event_back_after_receiver_disconnects() {
+    let (sender, receiver) = bounded_pending_channel(1, 1);
+    drop(receiver);
+
+    assert_eq!(sender.send(7), Err(PendingSendError::Disconnected(7)));
 }

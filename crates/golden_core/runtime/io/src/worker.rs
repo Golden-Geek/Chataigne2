@@ -1,12 +1,14 @@
 use std::{
     io,
-    sync::mpsc::{self, Receiver, SendError},
+    sync::mpsc::{self, Receiver, SyncSender, TrySendError},
     thread::{self, JoinHandle},
 };
 
+const DEFAULT_COMMAND_CAPACITY: usize = 256;
+
 /// Owns a named IO worker thread and its command channel.
 pub struct WorkerTask<C> {
-    commands: mpsc::Sender<C>,
+    commands: SyncSender<C>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -15,7 +17,16 @@ impl<C: Send + 'static> WorkerTask<C> {
     where
         F: FnOnce(Receiver<C>) + Send + 'static,
     {
-        let (commands, receiver) = mpsc::channel();
+        Self::spawn_with_capacity(name, DEFAULT_COMMAND_CAPACITY, run)
+    }
+
+    /// Starts a worker with an explicit bounded command capacity.
+    pub fn spawn_with_capacity<F>(name: impl Into<String>, command_capacity: usize, run: F) -> io::Result<Self>
+    where
+        F: FnOnce(Receiver<C>) + Send + 'static,
+    {
+        assert!(command_capacity > 0, "worker command capacity must be non-zero");
+        let (commands, receiver) = mpsc::sync_channel(command_capacity);
         let worker = thread::Builder::new().name(name.into()).spawn(move || run(receiver))?;
         Ok(Self {
             commands,
@@ -23,8 +34,9 @@ impl<C: Send + 'static> WorkerTask<C> {
         })
     }
 
-    pub fn send(&self, command: C) -> Result<(), SendError<C>> {
-        self.commands.send(command)
+    /// Attempts to admit a command without blocking the caller.
+    pub fn send(&self, command: C) -> Result<(), TrySendError<C>> {
+        self.commands.try_send(command)
     }
 
     /// Requests an orderly stop and joins the worker exactly once.

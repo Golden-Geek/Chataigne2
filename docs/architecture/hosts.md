@@ -26,3 +26,19 @@ The default built-in browser/headless path also starts from `golden_core`.
 - Browser-triggered `Load From...` project imports are handled by the transport host, which currently stores uploaded project JSON files under `~/Documents/Chataigne` before loading them into the live engine.
 - Browser-side `Open Remote` and `Save As` remain intentionally unwired until the browser file chooser workflow is designed.
 - Apps can still supply custom bootstrap if they need it, but the reusable default transport server lives in `golden_core`.
+
+## I/O Capacity And Overflow
+
+The reusable I/O layer owns admission mechanics; each adapter supplies limits that match its
+payloads. Ordered commands are never coalesced or silently discarded.
+
+| Boundary | Item limit | Retained-weight limit | Overflow policy | Service turn |
+| --- | ---: | ---: | --- | ---: |
+| Generic pending events | 4,096 | 4 MiB caller weight | Return `Full` with ownership; count rejection | Consumer supplied |
+| Generic worker commands | 256 | Fixed-size commands | Return `TrySendError::Full` | Worker supplied |
+| OSC output commands | 256 | One UDP message per item | Reject synchronously with an overload error | 256 commands |
+| OSC input events | 2,048 | 2 MiB decoded datagram weight | Reject new datagram event; count rejection | 256 datagrams / 1,024 events |
+| Serial input events | 2,048 | 2 MiB received bytes | Reject new read event; count rejection | 1,024 events |
+
+Readiness is set only after successful admission and remains armed after a partial drain. Dynamic
+payload adapters must call the weighted send API; fixed-size status events may use unit weight.
