@@ -1,5 +1,6 @@
 use std::fmt;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
@@ -13,10 +14,27 @@ enum ControlMessage<S> {
     Shutdown,
 }
 
+const DEFAULT_CONTROL_CAPACITY: NonZeroUsize = NonZeroUsize::new(1_024).expect("control capacity is non-zero");
+
+/// Admission limits for one authoritative control actor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ControlActorConfig {
+    /// Maximum operations retained while another operation is executing.
+    pub pending_capacity: NonZeroUsize,
+}
+
+impl Default for ControlActorConfig {
+    fn default() -> Self {
+        Self {
+            pending_capacity: DEFAULT_CONTROL_CAPACITY,
+        }
+    }
+}
+
 /// Lifecycle state of one admitted control operation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ControlStatus {
-    /// The actor accepted the operation into its lossless queue.
+    /// The actor accepted the operation into its bounded queue.
     Accepted,
     /// The actor applied the operation to the authoritative state.
     Applied,
@@ -24,17 +42,40 @@ pub enum ControlStatus {
     Rejected,
 }
 
+/// Stable category for a control admission or completion failure.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ControlErrorKind {
+    /// The actor's bounded pending-operation capacity is exhausted.
+    Overloaded,
+    /// The actor is shutting down or no longer available.
+    Disconnected,
+}
+
 /// Failure to admit or complete a control operation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ControlError {
+    kind: ControlErrorKind,
     message: Arc<str>,
 }
 
 impl ControlError {
     fn disconnected() -> Self {
         Self {
+            kind: ControlErrorKind::Disconnected,
             message: "control actor is not available".into(),
         }
+    }
+
+    fn overloaded() -> Self {
+        Self {
+            kind: ControlErrorKind::Overloaded,
+            message: "control actor pending-operation capacity is exhausted".into(),
+        }
+    }
+
+    /// Returns the stable failure category.
+    pub const fn kind(&self) -> ControlErrorKind {
+        self.kind
     }
 
     /// Returns the stable diagnostic.
@@ -98,9 +139,10 @@ impl<R> PendingControl<R> {
 
 /// Cloneable typed channel into an actor-owned authoritative state.
 pub struct ControlHandle<S> {
-    sender: mpsc::Sender<ControlMessage<S>>,
+    sender: mpsc::SyncSender<ControlMessage<S>>,
     next_sequence: Arc<AtomicU64>,
     metrics: Arc<RuntimeMetrics>,
+    accepting: Arc<AtomicBool>,
 }
 
 impl<S> Clone for ControlHandle<S> {
@@ -109,6 +151,7 @@ impl<S> Clone for ControlHandle<S> {
             sender: self.sender.clone(),
             next_sequence: self.next_sequence.clone(),
             metrics: self.metrics.clone(),
+            accepting: self.accepting.clone(),
         }
     }
 }
@@ -134,10 +177,18 @@ impl<S: Send + 'static> ControlHandle<S> {
             let _ = response_tx.send((output, queue_wait, apply_time));
         });
         self.metrics.control_received();
-        if self.sender.send(ControlMessage::Apply(task)).is_err() {
+        let admission = if self.accepting.load(Ordering::Acquire) {
+            self.sender.try_send(ControlMessage::Apply(task))
+        } else {
+            Err(mpsc::TrySendError::Disconnected(ControlMessage::Apply(task)))
+        };
+        if let Err(error) = admission {
             self.metrics.control_started(0);
             self.metrics.control_rejected();
-            return Err(ControlError::disconnected());
+            return Err(match error {
+                mpsc::TrySendError::Full(_) => ControlError::overloaded(),
+                mpsc::TrySendError::Disconnected(_) => ControlError::disconnected(),
+            });
         }
         Ok(PendingControl {
             sequence,
@@ -163,13 +214,19 @@ impl<S: Send + 'static> ControlHandle<S> {
 /// Owner of one authoritative state and its dedicated control thread.
 pub struct ControlActor<S> {
     handle: ControlHandle<S>,
+    stopping: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl<S: Send + 'static> ControlActor<S> {
     /// Starts an actor with the supplied authoritative state.
     pub fn spawn(name: impl Into<String>, state: S) -> std::io::Result<Self> {
-        Self::spawn_with_metrics(name, state, Arc::new(RuntimeMetrics::default()))
+        Self::spawn_with_config(name, state, ControlActorConfig::default())
+    }
+
+    /// Starts an actor with explicit bounded admission settings.
+    pub fn spawn_with_config(name: impl Into<String>, state: S, config: ControlActorConfig) -> std::io::Result<Self> {
+        Self::spawn_with_metrics_and_config(name, state, Arc::new(RuntimeMetrics::default()), config)
     }
 
     /// Starts an actor with a metrics source shared by the other runtime planes.
@@ -178,17 +235,32 @@ impl<S: Send + 'static> ControlActor<S> {
         state: S,
         metrics: Arc<RuntimeMetrics>,
     ) -> std::io::Result<Self> {
-        let (sender, receiver) = mpsc::channel();
+        Self::spawn_with_metrics_and_config(name, state, metrics, ControlActorConfig::default())
+    }
+
+    /// Starts an actor with shared metrics and explicit bounded admission settings.
+    pub fn spawn_with_metrics_and_config(
+        name: impl Into<String>,
+        state: S,
+        metrics: Arc<RuntimeMetrics>,
+        config: ControlActorConfig,
+    ) -> std::io::Result<Self> {
+        let (sender, receiver) = mpsc::sync_channel(config.pending_capacity.get());
+        let accepting = Arc::new(AtomicBool::new(true));
+        let stopping = Arc::new(AtomicBool::new(false));
         let handle = ControlHandle {
             sender,
             next_sequence: Arc::new(AtomicU64::new(1)),
             metrics,
+            accepting,
         };
+        let actor_stopping = stopping.clone();
         let thread = thread::Builder::new()
             .name(name.into())
-            .spawn(move || actor_loop(state, receiver))?;
+            .spawn(move || actor_loop(state, receiver, actor_stopping))?;
         Ok(Self {
             handle,
+            stopping,
             thread: Some(thread),
         })
     }
@@ -215,7 +287,10 @@ impl<S: Send + 'static> ControlActor<S> {
 
 impl<S> Drop for ControlActor<S> {
     fn drop(&mut self) {
-        let _ = self.handle.sender.send(ControlMessage::Shutdown);
+        self.handle.accepting.store(false, Ordering::Release);
+        self.stopping.store(true, Ordering::Release);
+        let _ = self.handle.sender.try_send(ControlMessage::Shutdown);
+        self.handle.metrics.control_discard_pending();
         if let Some(thread) = self.thread.take()
             && thread.thread().id() != thread::current().id()
         {
@@ -224,11 +299,14 @@ impl<S> Drop for ControlActor<S> {
     }
 }
 
-fn actor_loop<S>(mut state: S, receiver: mpsc::Receiver<ControlMessage<S>>) {
+fn actor_loop<S>(mut state: S, receiver: mpsc::Receiver<ControlMessage<S>>, stopping: Arc<AtomicBool>) {
     while let Ok(message) = receiver.recv() {
         match message {
             ControlMessage::Apply(task) => task(&mut state),
             ControlMessage::Shutdown => break,
+        }
+        if stopping.load(Ordering::Acquire) {
+            break;
         }
     }
 }

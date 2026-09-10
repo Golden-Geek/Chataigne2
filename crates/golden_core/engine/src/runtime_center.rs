@@ -5,12 +5,12 @@ use std::time::Duration;
 
 use arc_swap::ArcSwap;
 use golden_runtime::{
-    ArenaLayout, BatchExecutor, CompilationCompletion, CompilationService, CompileRequest, CompiledContextCatalog,
-    CompiledProcessorKernel, DirtySet, EffectRoutingTable, GenerationCompiler, InputDelivery, InputIngressConfig,
-    InputRoute, InputRoutingTable, InputSlot, KernelId, ObservationCatalog, ObservationRoute, PersistentBatchScheduler,
-    ProjectRevision, RuntimeChangeSet, RuntimeGeneration, RuntimeGenerationBuilder, RuntimeGenerationId,
-    RuntimeInputHandle, RuntimeInputMailbox, RuntimeInputUpdate, RuntimeMetrics, RuntimeSchedule, ScheduledWork,
-    SemanticRuntime, ValueSlot, WorkUnitId,
+    ArenaLayout, BatchExecutor, CompilationCompletion, CompilationContext, CompilationService, CompileRequest,
+    CompiledContextCatalog, CompiledProcessorKernel, DirtySet, EffectRoutingTable, GenerationCompiler, InputDelivery,
+    InputIngressConfig, InputRoute, InputRoutingTable, InputSlot, KernelId, ObservationCatalog, ObservationRoute,
+    PersistentBatchScheduler, ProjectRevision, RuntimeChangeSet, RuntimeGeneration, RuntimeGenerationBuilder,
+    RuntimeGenerationId, RuntimeInputHandle, RuntimeInputMailbox, RuntimeInputUpdate, RuntimeMetrics, RuntimeSchedule,
+    ScheduledWork, SemanticRuntime, ValueSlot, WorkUnitId,
 };
 use golden_values::{ColorValue as RuntimeColor, TriggerValue as RuntimeTrigger, Value as RuntimeValue};
 
@@ -107,8 +107,9 @@ impl GenerationCompiler<EngineCompileSnapshot> for EngineGenerationCompiler {
         &self,
         generation_id: RuntimeGenerationId,
         request: CompileRequest<EngineCompileSnapshot>,
+        context: &CompilationContext,
     ) -> Result<RuntimeGeneration, Self::Error> {
-        compile_generation(generation_id, request.revision, &request.project)
+        compile_generation(generation_id, request.revision, &request.project, Some(context))
     }
 }
 
@@ -116,7 +117,9 @@ fn compile_generation(
     generation_id: RuntimeGenerationId,
     revision: ProjectRevision,
     snapshot: &EngineCompileSnapshot,
+    context: Option<&CompilationContext>,
 ) -> Result<RuntimeGeneration, String> {
+    ensure_compilation_current(context)?;
     let input_count = snapshot.parameters.len();
     let routes = (0..input_count)
         .map(|index| InputRoute {
@@ -125,6 +128,7 @@ fn compile_generation(
             dependent: WorkUnitId(index as u32),
         })
         .collect();
+    ensure_compilation_current(context)?;
     let mut units = (0..input_count)
         .map(|index| ScheduledWork {
             id: WorkUnitId(index as u32),
@@ -145,6 +149,9 @@ fn compile_generation(
     }
     let mut domain_kernels = BTreeMap::<String, KernelId>::new();
     for (index, scheduled) in snapshot.scheduled_nodes.iter().enumerate() {
+        if index % 1_024 == 0 {
+            ensure_compilation_current(context)?;
+        }
         let kernel = if let Some(kernel) = domain_kernels.get(&scheduled.kernel_key) {
             *kernel
         } else {
@@ -166,6 +173,7 @@ fn compile_generation(
             lane_count: 1,
         });
     }
+    ensure_compilation_current(context)?;
     let observation = ObservationCatalog {
         routes: snapshot
             .parameters
@@ -202,10 +210,18 @@ fn compile_generation(
     .map_err(|error| error.to_string())
 }
 
+fn ensure_compilation_current(context: Option<&CompilationContext>) -> Result<(), String> {
+    if context.is_some_and(CompilationContext::is_stale) {
+        Err("compilation superseded by a newer project revision".to_string())
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 pub(crate) fn compiled_kernel_keys<T: Node>(engine: &Engine<T>) -> Result<Vec<String>, String> {
     let snapshot = EngineCompileSnapshot::capture(engine)?;
-    let generation = compile_generation(RuntimeGenerationId(1), ProjectRevision(1), &snapshot)?;
+    let generation = compile_generation(RuntimeGenerationId(1), ProjectRevision(1), &snapshot, None)?;
     Ok(generation
         .processor_kernels
         .iter()
@@ -395,7 +411,7 @@ impl<T: Node> ProductionState<T> {
             .map_err(|error| format!("failed to resolve initial runtime schedule: {error}"))?;
         let snapshot = Arc::new(EngineCompileSnapshot::capture(&engine)?);
         let revision = ProjectRevision(1);
-        let generation = Arc::new(compile_generation(RuntimeGenerationId(1), revision, &snapshot)?);
+        let generation = Arc::new(compile_generation(RuntimeGenerationId(1), revision, &snapshot, None)?);
         let work_count = generation.schedule.work_count();
         let mut semantic = SemanticRuntime::new(generation);
         seed_semantic_inputs(&mut semantic, &snapshot)?;
@@ -541,7 +557,7 @@ impl<T: Node> ProductionState<T> {
         let snapshot = Arc::new(EngineCompileSnapshot::capture(&self.engine)?);
         let mut changes = RuntimeChangeSet::new();
         changes.mark(affected);
-        let ticket = self
+        let admission = self
             .compiler
             .handle()
             .request(CompileRequest {
@@ -551,6 +567,10 @@ impl<T: Node> ProductionState<T> {
                 previous: Some(self.semantic.current_generation()),
             })
             .map_err(|error| error.to_string())?;
+        if let Some(superseded_ticket) = admission.superseded_ticket {
+            self.pending_compilations.remove(&superseded_ticket);
+        }
+        let ticket = admission.ticket;
         self.pending_compilations.insert(
             ticket,
             PendingCompilation {
@@ -628,7 +648,7 @@ impl<T: Node> ProductionState<T> {
         let snapshot = Arc::new(EngineCompileSnapshot::capture(engine)?);
         let mut changes = RuntimeChangeSet::new();
         changes.mark("project.replace");
-        let ticket = self
+        let admission = self
             .compiler
             .handle()
             .request(CompileRequest {
@@ -638,6 +658,10 @@ impl<T: Node> ProductionState<T> {
                 previous: None,
             })
             .map_err(|error| error.to_string())?;
+        if let Some(superseded_ticket) = admission.superseded_ticket {
+            self.pending_compilations.remove(&superseded_ticket);
+        }
+        let ticket = admission.ticket;
 
         loop {
             let completion = self.compiler.complete().map_err(|error| error.to_string())?;

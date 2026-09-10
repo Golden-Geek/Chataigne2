@@ -36,9 +36,14 @@ payloads. Ordered commands are never coalesced or silently discarded.
 | --- | ---: | ---: | --- | ---: |
 | Generic pending events | 4,096 | 4 MiB caller weight | Return `Full` with ownership; count rejection | Consumer supplied |
 | Generic worker commands | 256 | Fixed-size commands | Return `TrySendError::Full` | Worker supplied |
+| Authoritative control actor | 1,024 | One typed operation per item | Return `ControlErrorKind::Overloaded` | One operation, then recheck shutdown |
+| Generation compiler | 1 pending + 1 in flight | One immutable snapshot per generation | Replace pending; mark stale in flight; bounded completion queue | One generation |
 | OSC output commands | 256 | One UDP message per item | Reject synchronously with an overload error | 256 commands |
 | OSC input events | 2,048 | 2 MiB decoded datagram weight | Reject new datagram event; count rejection | 256 datagrams / 1,024 events |
 | Serial input events | 2,048 | 2 MiB received bytes | Reject new read event; count rejection | 1,024 events |
 
 Readiness is set only after successful admission and remains armed after a partial drain. Dynamic
 payload adapters must call the weighted send API; fixed-size status events may use unit weight.
+Compiler implementations receive a cooperative staleness token and must check it between expensive
+materialization stages. Superseded pending snapshots are returned to the engine immediately for
+retirement; stale in-flight results are reported but can never become the live generation.

@@ -13,6 +13,9 @@ pub struct RuntimeMetrics {
     compilation_requested: AtomicU64,
     compilation_applied: AtomicU64,
     compilation_rejected: AtomicU64,
+    compilation_superseded: AtomicU64,
+    compilation_pending_depth: AtomicU64,
+    compilation_pending_peak: AtomicU64,
     generation_id: AtomicU64,
     sparse_batches: AtomicU64,
     dense_batches: AtomicU64,
@@ -44,6 +47,12 @@ pub struct RuntimeMetricsSnapshot {
     pub compilation_applied: u64,
     /// Compile requests that failed.
     pub compilation_rejected: u64,
+    /// Compile requests replaced or made stale by a newer generation.
+    pub compilation_superseded: u64,
+    /// Current replaceable pending compile depth (zero or one).
+    pub compilation_pending_depth: u64,
+    /// Peak replaceable pending compile depth (at most one).
+    pub compilation_pending_peak: u64,
     /// Current published generation id.
     pub generation_id: u64,
     /// Sparse scheduler batches completed.
@@ -79,8 +88,32 @@ impl RuntimeMetrics {
         self.control_rejected.fetch_add(1, Ordering::Relaxed);
     }
 
-    pub(crate) fn compilation_requested(&self) {
+    pub(crate) fn control_discard_pending(&self) {
+        self.control_queue_depth.store(0, Ordering::Relaxed);
+    }
+
+    pub(crate) fn compilation_requested(&self, replaced: bool) {
         self.compilation_requested.fetch_add(1, Ordering::Relaxed);
+        self.compilation_pending_depth.store(1, Ordering::Relaxed);
+        self.compilation_pending_peak.fetch_max(1, Ordering::Relaxed);
+        if replaced {
+            self.compilation_superseded.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub(crate) fn compilation_started(&self) {
+        self.compilation_pending_depth.store(0, Ordering::Relaxed);
+    }
+
+    pub(crate) fn compilation_discard_pending(&self, discarded: bool) {
+        self.compilation_pending_depth.store(0, Ordering::Relaxed);
+        if discarded {
+            self.compilation_superseded.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub(crate) fn compilation_finished_superseded(&self) {
+        self.compilation_superseded.fetch_add(1, Ordering::Relaxed);
     }
 
     pub(crate) fn compilation_finished(&self, accepted: bool, generation_id: Option<u64>) {
@@ -122,6 +155,9 @@ impl RuntimeMetrics {
             compilation_requested: self.compilation_requested.load(Ordering::Relaxed),
             compilation_applied: self.compilation_applied.load(Ordering::Relaxed),
             compilation_rejected: self.compilation_rejected.load(Ordering::Relaxed),
+            compilation_superseded: self.compilation_superseded.load(Ordering::Relaxed),
+            compilation_pending_depth: self.compilation_pending_depth.load(Ordering::Relaxed),
+            compilation_pending_peak: self.compilation_pending_peak.load(Ordering::Relaxed),
             generation_id: self.generation_id.load(Ordering::Acquire),
             sparse_batches: self.sparse_batches.load(Ordering::Relaxed),
             dense_batches: self.dense_batches.load(Ordering::Relaxed),

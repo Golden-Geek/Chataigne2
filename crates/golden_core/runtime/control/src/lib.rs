@@ -16,10 +16,13 @@ mod metrics;
 mod scheduler;
 
 pub use compiler::{
-    CompilationCompletion, CompilationError, CompilationHandle, CompilationService, CompileRequest, GenerationCompiler,
-    RuntimeChangeSet,
+    CompilationAdmission, CompilationCompletion, CompilationContext, CompilationError, CompilationHandle,
+    CompilationService, CompileRequest, GenerationCompiler, RuntimeChangeSet,
 };
-pub use control::{ControlActor, ControlError, ControlHandle, ControlReceipt, ControlStatus, PendingControl};
+pub use control::{
+    ControlActor, ControlActorConfig, ControlError, ControlErrorKind, ControlHandle, ControlReceipt, ControlStatus,
+    PendingControl,
+};
 pub use effects::{EffectBuffer, EffectCommitMode, EffectCommitReport, EffectSink, StagedEffect};
 pub use generation::{
     ArenaLayout, CompiledArtifact, CompiledContextCatalog, CompiledProcessorKernel, CompiledStatechart, EffectRoute,

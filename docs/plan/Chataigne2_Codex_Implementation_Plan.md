@@ -87,7 +87,7 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T08     | Complete                                                                                           |
 | T09     | Complete                                                                                           |
 | T10     | Complete                                                                                           |
-| T11     | In progress: shared I/O and OSC boundary complete                                                |
+| T11     | In progress: shared I/O, OSC, control, and compiler boundaries complete                         |
 | T12–T19 | Not started                                                                                        |
 
 The reviewed stop point is after T10. Resume at T11. Exact commands, evidence, and remaining
@@ -289,6 +289,13 @@ I/O worker command admission is bounded and nonblocking. OSC applies bounded com
 bounded socket turns, explicit output overload rejection, and a dual-bounded inbound event channel;
 serial inbound events use the same byte-aware contract. Control/compiler, transport-host admission,
 and bounded lifecycle retirement remain in T11.
+
+**Implementation progress (2026-09-10, control/compiler slice):** control actors now use configurable
+bounded, nonblocking admission with a typed overload category and shutdown signaling that cannot be
+stranded behind a full queue. The compiler retains only one in-flight generation and the latest
+replaceable pending request, reports both replaced and stale tickets, bounds completion retention,
+and exposes cooperative staleness checks plus pending/supersession telemetry. The engine drops
+superseded snapshot bookkeeping immediately and checks staleness between compilation stages.
 
 ### T12 — Separate immutable snapshots and encoding from actor progress
 
