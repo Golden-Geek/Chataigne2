@@ -581,8 +581,7 @@ fn config_field_trees_for_instance(
         }
 
         if field.type_variable.is_some() {
-            let type_options =
-                field.resolved_type_options(&config_signature, &value_types);
+            let type_options = field.resolved_type_options(&config_signature, value_types);
             let selected_type = match &field.default_value {
                 RuntimeValue::String(value) => value.to_string(),
                 value => runtime_value_type_id(value),
@@ -599,8 +598,7 @@ fn config_field_trees_for_instance(
 
         let value_type = if field.editor.as_deref() == Some("runtime_value") {
             let type_decl = config_type_decl_id(field.id.as_str());
-            let type_options =
-                field.resolved_type_options(&config_signature, &value_types);
+            let type_options = field.resolved_type_options(&config_signature, value_types);
             let selected_type = runtime_value_type_id(&field.default_value);
             let mut type_parameter = value_type_parameter(
                 &format!("{} Type", field.label),
@@ -1497,7 +1495,7 @@ pub(crate) fn anode_from_snapshot(
         config_folder,
         declaration.as_ref(),
         &signature,
-        &value_types,
+        value_types,
         &mut instance,
     );
     instance.ui.position =
@@ -2050,8 +2048,7 @@ impl AlchemistANode {
                 continue;
             }
             if field.type_variable.is_some() {
-                let type_options =
-                    field.resolved_type_options(&config_signature, &value_types);
+                let type_options = field.resolved_type_options(&config_signature, value_types);
                 let selected_type = child_string(&snapshot, config_folder, value_decl.as_str())
                     .unwrap_or_else(|| match &field.default_value {
                         RuntimeValue::String(value) => value.to_string(),
@@ -2074,8 +2071,7 @@ impl AlchemistANode {
             let value_type = if field.editor.as_deref() == Some("runtime_value") {
                 let type_decl = config_type_decl_id(field.id.as_str());
                 desired_config.insert(type_decl.clone());
-                let type_options =
-                    field.resolved_type_options(&config_signature, &value_types);
+                let type_options = field.resolved_type_options(&config_signature, value_types);
                 let selected_type = child_string(
                     &snapshot,
                     config_folder,
@@ -2179,7 +2175,7 @@ impl AlchemistANode {
             config_folder,
             declaration.as_ref(),
             &config_signature,
-            &value_types,
+            value_types,
             &mut instance,
         );
         let signature = declaration.signature(
@@ -4477,7 +4473,7 @@ impl AlchemistFormulaDefinition {
                     config_folder,
                     declaration.as_ref(),
                     &signature,
-                    &value_types,
+                    value_types,
                     resolved_bindings,
                 );
             }

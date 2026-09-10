@@ -475,12 +475,11 @@ impl OutputSchedule {
                         flush_command_batch(ctx, &mut pending_batch);
                         if !will_be_cancelled {
                             self.schedule_at(
-                                target.node,
+                                target,
                                 fanout.trigger_elapsed_seconds + remaining,
                                 execution.param_overrides.clone(),
                                 execution.invocation_id,
                                 delivery_policy,
-                                target.batchable,
                                 target.batchable || fanout.preserve_batch,
                             );
                         }
@@ -569,12 +568,11 @@ impl OutputSchedule {
 
     fn schedule_at(
         &mut self,
-        target: NodeId,
+        target: OutputRuntimeTarget,
         due_at: f64,
         param_overrides: ModuleCommandParamOverrides,
         invocation_id: Option<ModuleCommandInvocationId>,
         delivery_policy: ModuleCommandDeliveryPolicy,
-        batchable: bool,
         preserve_batch: bool,
     ) {
         let sequence = self.next_sequence;
@@ -583,13 +581,13 @@ impl OutputSchedule {
             .checked_add(1)
             .expect("output schedule sequence exhausted");
         self.pending.push(PendingOutput {
-            target,
+            target: target.node,
             due_at,
             sequence,
             param_overrides,
             invocation_id,
             delivery_policy,
-            batchable,
+            batchable: target.batchable,
             preserve_batch,
         });
     }
