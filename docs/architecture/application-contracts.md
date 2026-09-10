@@ -20,8 +20,11 @@ turn. Superseded candidates are discarded by generation before they can acquire 
 If activation or publication preparation fails after old resources were released, the old authored
 project and its projection remain authoritative but are explicitly `Paused`; ticks and UI edits are
 rejected until a later project replacement succeeds. A committed replacement owns the new devices
-before the old engine object is dropped outside the actor. Duplication lifecycle failures run
-destroy callbacks and restore the pre-operation graph/history/event publication boundary.
+before the old engine object is dropped outside the actor. At most two replacement callers may own
+detached-engine retirement at once; overload is rejected before generation allocation or candidate
+preparation, so stalled cleanup cannot create unlimited replacement work. Duplication lifecycle
+failures run destroy callbacks and restore the pre-operation graph/history/event publication
+boundary.
 
 Project saves run through `golden_persistence::PersistenceCoordinator`. The production facade
 captures an owned sparse document and its project generation/document revision in one actor turn,

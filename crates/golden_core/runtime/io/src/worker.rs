@@ -51,6 +51,13 @@ impl<C: Send + 'static> WorkerTask<C> {
         }
     }
 
+    /// Disconnects command admission and returns the worker for retirement outside the caller.
+    pub fn into_join_handle(self) -> Option<JoinHandle<()>> {
+        let Self { commands, worker } = self;
+        drop(commands);
+        worker
+    }
+
     pub fn is_running(&self) -> bool {
         self.worker.is_some()
     }

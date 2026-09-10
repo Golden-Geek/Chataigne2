@@ -1,9 +1,10 @@
 use std::{
     convert::TryFrom,
+    num::NonZeroUsize,
     panic,
     sync::{
         mpsc::{self, Receiver, Sender, TryRecvError},
-        Arc, Mutex,
+        Arc, Mutex, OnceLock,
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -17,6 +18,7 @@ use joycon_rs::joycon::{
     Buttons, JoyConDriver, JoyConManager, Rumble, SimpleJoyConDriver,
 };
 use joycon_rs::result::JoyConError;
+use golden_io::{RetirementPermit, RetirementPool};
 
 use crate::app::module::common::joycon::{
     JoyConControllerTarget, JoyConSetLedRequest, JoyConVibrateRequest, JOYCON_LED_STATE_FLASH, JOYCON_LED_STATE_OFF,
@@ -37,6 +39,16 @@ const JOYCON_ORIENTATION_QUANTUM_DEGREES: f64 = 0.25;
 const JOYCON_RAW_IMU_QUANTUM: f64 = 4.0;
 const JOYCON_ACCELEROMETER_FILTER_ALPHA: f64 = 0.2;
 const JOYCON_ORIENTATION_FILTER_ALPHA: f64 = 0.8;
+const JOYCON_RUNTIME_CAPACITY: usize = 4;
+
+fn joycon_runtime_retirements() -> &'static RetirementPool {
+    static POOL: OnceLock<RetirementPool> = OnceLock::new();
+    POOL.get_or_init(|| {
+        RetirementPool::new(
+            NonZeroUsize::new(JOYCON_RUNTIME_CAPACITY).expect("Joy-Con runtime capacity is non-zero"),
+        )
+    })
+}
 
 type SharedJoyConDevice = Arc<Mutex<JoyConDevice>>;
 type JoyConMode = StandardFullMode<SimpleJoyConDriver>;
@@ -157,10 +169,14 @@ pub(crate) struct JoyConRuntimeHandle {
     command_tx: Sender<JoyConWorkerCommand>,
     event_rx: Receiver<JoyConWorkerEvent>,
     worker: Option<JoinHandle<()>>,
+    retirement_permit: Option<RetirementPermit>,
 }
 
 impl JoyConRuntimeHandle {
     pub(crate) fn spawn() -> Result<Self, String> {
+        let retirement_permit = joycon_runtime_retirements()
+            .try_reserve()
+            .map_err(|error| format!("Joy-Con runtime rejected: {error}"))?;
         let (command_tx, command_rx) = mpsc::channel();
         let (event_tx, event_rx) = mpsc::channel();
 
@@ -173,6 +189,7 @@ impl JoyConRuntimeHandle {
             command_tx,
             event_rx,
             worker: Some(worker),
+            retirement_permit: Some(retirement_permit),
         })
     }
 
@@ -188,12 +205,14 @@ impl JoyConRuntimeHandle {
 
     pub(crate) fn stop(&mut self) {
         let _ = self.command_tx.send(JoyConWorkerCommand::Stop);
-        if let Some(worker) = self.worker.take() {
-            let _ = thread::Builder::new()
-                .name("joycon-runtime-stop".to_string())
-                .spawn(move || {
-                    let _ = worker.join();
-                });
+        let (Some(worker), Some(permit)) = (self.worker.take(), self.retirement_permit.take()) else {
+            return;
+        };
+        if let Err(error) = permit.spawn("joycon-runtime-stop", worker, |worker| {
+            let _ = worker.join();
+        }) {
+            eprintln!("Joy-Con runtime retirement failed: {error}");
+            let _ = error.into_value().join();
         }
     }
 }

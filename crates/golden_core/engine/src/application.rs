@@ -23,6 +23,7 @@ pub use project_replacement::{
 
 use std::collections::HashSet;
 use std::convert::Infallible;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 #[cfg(test)]
 use std::sync::Mutex;
@@ -34,6 +35,7 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use golden_application::{GraphEditing, HostLifecycle, Observation, Persistence, ProjectTransactions, RuntimeValues};
+use golden_io::RetirementPool;
 use golden_persistence::PersistenceCoordinator;
 use golden_runtime::{ControlActor, RuntimeMetrics, RuntimeMetricsSnapshot};
 
@@ -269,6 +271,7 @@ struct ProductionRuntimeInner<T: ProjectLifecycle> {
     next_project_generation: AtomicU64,
     latest_requested_project_generation: Arc<AtomicU64>,
     project_replacement_fault_hook: ProjectReplacementFaultHook,
+    project_retirements: RetirementPool,
     persistence_coordinator: PersistenceCoordinator,
     project_save_fault_hook: ProjectSaveFaultHook,
     #[cfg(test)]
@@ -311,6 +314,9 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 next_project_generation: AtomicU64::new(ProjectGeneration::INITIAL.get() + 1),
                 latest_requested_project_generation: Arc::new(AtomicU64::new(ProjectGeneration::INITIAL.get())),
                 project_replacement_fault_hook: ProjectReplacementFaultHook::default(),
+                project_retirements: RetirementPool::new(
+                    NonZeroUsize::new(2).expect("project retirement capacity is non-zero"),
+                ),
                 persistence_coordinator: PersistenceCoordinator::new(ProjectGeneration::INITIAL.get(), 4),
                 project_save_fault_hook: ProjectSaveFaultHook::default(),
                 #[cfg(test)]

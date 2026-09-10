@@ -507,10 +507,8 @@ impl AlchemistMemory {
         self.value_initialized.fill(false);
         self.value_revisions.fill(0);
         self.states.fill(RuntimeValue::Unit);
-        for inputs in &mut self.node_inputs {
-            if let Some(inputs) = inputs {
-                inputs.clear();
-            }
+        for inputs in self.node_inputs.iter_mut().flatten() {
+            inputs.clear();
         }
         self.node_initialized.fill(false);
         self.dirty_nodes.fill(false);

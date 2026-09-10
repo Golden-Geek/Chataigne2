@@ -294,7 +294,12 @@ for the selected Audio Driver on a dedicated lifecycle worker. Node creation doe
 native host initialization, and Audio Driver `None` does not construct a hardware backend.
 Completed runtimes cross back through a pending-result channel; stale driver/format generations and
 retired runtimes return to that worker for shutdown, so replacement, removal, and project drop do
-not join audio workers on Chataigne's engine thread. Startup failures use bounded reconnect backoff.
+not join audio workers on Chataigne's engine thread. Lifecycle command/result retention is bounded,
+each lifecycle worker reserves one of eight cleanup slots for its complete lifetime, and detached
+runtime shutdown has four fixed slots that return ownership on overload. A module with rejected
+retirement retains that exact runtime and stops requesting replacements until cleanup admission
+recovers. Startup failures use bounded reconnect backoff, and delayed retries share one scheduler
+with at most 64 outstanding wakes instead of creating one sleeper thread per failure.
 
 Tree snapshots are requested only for dirty authored configuration after the requested runtime is
 ready. The adapter converts persistent UUIDs and references into Golden IDs, submits one generation

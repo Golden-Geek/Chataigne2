@@ -87,10 +87,10 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T08     | Complete                                                                                           |
 | T09     | Complete                                                                                           |
 | T10     | Complete                                                                                           |
-| T11     | In progress: shared I/O, OSC, control, and compiler boundaries complete                         |
+| T11     | Complete                                                                                           |
 | T12–T19 | Not started                                                                                        |
 
-The reviewed stop point is after T10. Resume at T11. Exact commands, evidence, and remaining
+The reviewed stop point is after T11. Resume at T12. Exact commands, evidence, and remaining
 qualification gaps are recorded in `docs/progress/audit-remediation-status.md`.
 
 ### T00 — Reconcile the baseline and establish a resumable ledger
@@ -304,6 +304,17 @@ has a 64-command mailbox and handles at most 32 commands before returning to pub
 the at most 16 clients may retain 32 subscriptions and 64 outbound messages / 4 MiB. Latest-value
 planes still coalesce, while reliable overflow disconnects the slow client and command overload is
 reported before any `Received` control phase. Bounded lifecycle retirement remains in T11.
+
+**Implementation progress (2026-09-10, lifecycle-retirement slice):**
+`golden_io::RetirementPool` admits cleanup before ownership moves, caps active cleanup threads,
+returns the original resource on overload or thread-start failure, and exposes active/peak/rejected
+state. Production project replacement reserves one of two retirement slots before generation
+allocation, keeping detached engine destruction outside the actor while rejecting a third stalled
+replacement without changing live state. Sound Card lifecycle workers reserve one of eight cleanup
+slots for their entire lifetime; lifecycle commands/results, detached runtime shutdown (four), and
+delayed retry wakes (64) are bounded. Rejected audio retirement is retained by the module and blocks
+new replacement work until recovery. Joy-Con shutdown likewise uses four lifetime-reserved cleanup
+slots instead of spawning unlimited join threads. T11 is complete locally.
 
 ### T12 — Separate immutable snapshots and encoding from actor progress
 

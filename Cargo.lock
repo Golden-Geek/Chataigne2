@@ -2861,6 +2861,7 @@ dependencies = [
  "golden_application",
  "golden_context",
  "golden_core_macros",
+ "golden_io",
  "golden_model",
  "golden_parameters",
  "golden_persistence",

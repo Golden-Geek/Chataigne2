@@ -38,6 +38,7 @@ payloads. Ordered commands are never coalesced or silently discarded.
 | Generic worker commands | 256 | Fixed-size commands | Return `TrySendError::Full` | Worker supplied |
 | Authoritative control actor | 1,024 | One typed operation per item | Return `ControlErrorKind::Overloaded` | One operation, then recheck shutdown |
 | Generation compiler | 1 pending + 1 in flight | One immutable snapshot per generation | Replace pending; mark stale in flight; bounded completion queue | One generation |
+| Lifecycle retirement | Caller configured | One owned resource per active task | Reject before relinquishing ownership; return the resource | One dedicated cleanup thread per admitted slot |
 | UI TCP/HTTP connections | 16 total | 16 MiB request including 32 KiB headers | Return HTTP 503 above connection capacity; reject oversized requests | One request; 3 s read/write timeout |
 | WebSocket hub commands | 64 | 1 MiB inbound frame; 256 intents per batch | Return a request-correlated overload error | 32 commands, then publish |
 | WebSocket subscriptions | 16 clients; 32 subscriptions each | Scope and interest per subscription | Close excess clients; reject excess subscription ids | Included in each publish turn |
@@ -56,3 +57,7 @@ a fixed task ceiling. Its WebSocket hub never drains an unbounded producer backl
 publication, and a `Received` control phase is emitted only after the corresponding command has
 entered the hub mailbox. Reliable outbound overflow disconnects the lagging client so reconnect and
 snapshot/resync can restore a coherent view; only explicitly latest-wins planes may be superseded.
+`golden_io::RetirementPool` reserves capacity before ownership moves. Cleanup threads are therefore
+limited even if native shutdown never returns, and admission failure gives the caller its original
+resource back. Production project replacement permits two concurrent detached-engine retirements;
+a third request is rejected before allocating a generation or preparing the candidate.

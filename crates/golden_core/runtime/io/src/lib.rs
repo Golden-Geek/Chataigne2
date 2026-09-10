@@ -3,6 +3,7 @@
 mod pending;
 mod queue;
 mod recovery;
+mod retirement;
 mod worker;
 
 pub mod testkit;
@@ -13,6 +14,9 @@ pub use pending::{
 };
 pub use queue::{BoundedQueue, QueueFull};
 pub use recovery::ReconnectBackoff;
+pub use retirement::{
+    RetirementCapacityError, RetirementError, RetirementMetricsSnapshot, RetirementPermit, RetirementPool,
+};
 pub use worker::WorkerTask;
 
 #[cfg(test)]

@@ -73,6 +73,7 @@ fn publication_after_enqueue_closes_the_old_store_before_send_race() {
 fn enqueue_during_drain_remains_observable() {
     let (sender, receiver) = pending_channel();
     sender.send(1_u8).expect("receiver is alive");
+    let keepalive = sender.clone();
     let cleared = Arc::new(Barrier::new(2));
     let sent = Arc::new(Barrier::new(2));
     let producer = {
@@ -101,6 +102,7 @@ fn enqueue_during_drain_remains_observable() {
     events.clear();
     receiver.drain_into(&mut events, EIGHT);
     assert!(!receiver.has_pending());
+    drop(keepalive);
 }
 
 #[test]

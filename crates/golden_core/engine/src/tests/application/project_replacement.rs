@@ -232,6 +232,84 @@ fn retirement_failure_is_reported_after_new_generation_is_committed() {
 }
 
 #[test]
+fn project_replacement_rejects_when_bounded_retirement_capacity_is_exhausted() {
+    let _guard = REPLACEMENT_TEST_LOCK.lock().expect("replacement test lock");
+    reset_replacement_probes();
+    let runtime = runtime_with_old_project_owner();
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let release = Arc::new((Mutex::new(false), Condvar::new()));
+    let release_for_hook = release.clone();
+    runtime.set_project_replacement_fault_hook(Some(Arc::new(move |stage| {
+        if stage != ProjectReplacementStage::Retirement {
+            return Ok(());
+        }
+        entered_tx.send(()).expect("test observes retirement admission");
+        let (released, changed) = &*release_for_hook;
+        let released = released.lock().expect("retirement release lock");
+        let _released = changed
+            .wait_while(released, |released| !*released)
+            .expect("retirement release wait");
+        Ok(())
+    })));
+
+    let first_runtime = runtime.clone();
+    let first = thread::spawn(move || {
+        first_runtime.replace_project(replacement_request(
+            replacement_engine("First Candidate", false),
+            "first-retirement",
+        ))
+    });
+    entered_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("first retirement reaches the barrier");
+
+    let second_runtime = runtime.clone();
+    let second = thread::spawn(move || {
+        second_runtime.replace_project(replacement_request(
+            replacement_engine("Second Candidate", false),
+            "second-retirement",
+        ))
+    });
+    entered_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("second retirement reaches the barrier");
+
+    let error = runtime
+        .replace_project(replacement_request(
+            replacement_engine("Rejected At Capacity", false),
+            "retirement-overload",
+        ))
+        .expect_err("third concurrent retirement must be rejected");
+    assert!(error.contains("retirement capacity") && error.contains("retry"));
+    assert_eq!(runtime.current_project_generation().get(), 3);
+
+    let (released, changed) = &*release;
+    *released.lock().expect("retirement release lock") = true;
+    changed.notify_all();
+
+    assert_eq!(
+        first
+            .join()
+            .expect("first replacement thread")
+            .unwrap()
+            .project_generation
+            .get(),
+        2
+    );
+    assert_eq!(
+        second
+            .join()
+            .expect("second replacement thread")
+            .unwrap()
+            .project_generation
+            .get(),
+        3
+    );
+    runtime.set_project_replacement_fault_hook(None);
+    runtime.stop(()).expect("latest candidate should stop");
+}
+
+#[test]
 fn superseded_candidate_is_discarded_before_device_handoff() {
     let _guard = REPLACEMENT_TEST_LOCK.lock().expect("replacement test lock");
     reset_replacement_probes();

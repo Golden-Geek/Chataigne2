@@ -1,7 +1,8 @@
+use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
 
 use crate::testkit::{TestTransportSendError, test_transport_pair};
-use crate::{BoundedQueue, ReconnectBackoff, WorkerTask};
+use crate::{BoundedQueue, ReconnectBackoff, RetirementPool, WorkerTask};
 
 mod pending;
 
@@ -88,6 +89,53 @@ fn worker_task_rejects_overload_without_blocking_the_producer() {
     assert_eq!(worker.send(2_u8), Err(TrySendError::Full(2)));
     start.wait();
     worker.join();
+}
+
+#[test]
+fn retirement_pool_rejects_saturation_without_losing_the_resource() {
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
+    let (release_tx, release_rx) = std::sync::mpsc::sync_channel(1);
+    pool.try_retire("golden-io-retirement-blocked", 1_u8, move |value| {
+        entered_tx.send(value).expect("test observes active retirement");
+        release_rx.recv().expect("test releases active retirement");
+    })
+    .expect("first retirement is admitted");
+    assert_eq!(entered_rx.recv(), Ok(1));
+
+    let rejected = pool
+        .try_retire("golden-io-retirement-rejected", 2_u8, |_| {})
+        .expect_err("a blocked retirement consumes the fixed capacity");
+    assert_eq!(rejected.into_value(), 2);
+    assert_eq!(
+        pool.metrics(),
+        crate::RetirementMetricsSnapshot {
+            capacity: 1,
+            active: 1,
+            peak: 1,
+            rejected: 1,
+        }
+    );
+
+    release_tx.send(()).expect("release blocked retirement");
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+    let (recovered_tx, recovered_rx) = std::sync::mpsc::sync_channel(1);
+    pool.try_retire("golden-io-retirement-recovered", 3_u8, move |value| {
+        recovered_tx.send(value).expect("test observes recovered retirement");
+    })
+    .expect("capacity recovers after cleanup");
+    assert_eq!(recovered_rx.recv(), Ok(3));
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
+fn unused_retirement_reservation_releases_its_capacity() {
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let permit = pool.try_reserve().expect("slot is available");
+    assert!(pool.try_reserve().is_err());
+
+    drop(permit);
+    assert!(pool.try_reserve().is_ok());
 }
 
 #[test]

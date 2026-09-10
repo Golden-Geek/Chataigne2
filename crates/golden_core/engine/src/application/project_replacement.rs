@@ -165,6 +165,11 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Replaces the live project after the caller decodes and configures it.
     pub fn replace_project(&self, mut request: ProjectReplacement<T>) -> Result<ProjectReplacementResult, String> {
         let started = Instant::now();
+        let retirement_permit = self
+            .inner
+            .project_retirements
+            .try_reserve()
+            .map_err(|error| format!("project replacement rejected: {error}; retry after cleanup completes"))?;
         let expected_generation = self.current_project_generation();
         let generation = ProjectGeneration::new(self.inner.next_project_generation.fetch_add(1, Ordering::Relaxed));
         self.inner
@@ -340,6 +345,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         let drop_started = Instant::now();
         drop(committed.previous);
         let drop_previous = drop_started.elapsed();
+        drop(retirement_permit);
         Ok(ProjectReplacementResult {
             project_generation: generation,
             recovery: committed.recovery,

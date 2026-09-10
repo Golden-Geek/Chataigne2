@@ -126,6 +126,7 @@ pub(crate) const PITCH_VALUES_PATH: &str = "values/pitch_detection";
 pub struct SoundCardModule {
     base: crate::app::ModuleBase,
     runtime: Option<runtime::SoundCardRuntime>,
+    blocked_runtime_retirement: Option<runtime::SoundCardRuntime>,
     runtime_worker: Option<runtime::SoundCardRuntimeWorker>,
     runtime_request: Option<runtime::SoundCardRuntimeRequest>,
     runtime_wake: Option<runtime::RuntimeWakeSender>,
@@ -146,6 +147,7 @@ impl SoundCardModule {
     pub fn create() -> Self {
         Self::new(
             crate::app::ModuleBase::create_with_command_types(SOUND_CARD_COMMAND_TYPES),
+            None,
             None,
             None,
             None,
