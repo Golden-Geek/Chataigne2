@@ -40,6 +40,7 @@ pub use input::{
 pub use metrics::{RuntimeMetrics, RuntimeMetricsSnapshot};
 pub use scheduler::{
     BatchExecution, BatchExecutor, DirtySet, ExecutionMode, PersistentBatchScheduler, RuntimeSchedule, ScheduledWork,
+    SelectionReport, WorkSelector,
 };
 
 #[cfg(test)]

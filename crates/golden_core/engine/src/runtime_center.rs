@@ -5,12 +5,12 @@ use std::time::Duration;
 
 use arc_swap::ArcSwap;
 use golden_runtime::{
-    ArenaLayout, BatchExecutor, CompilationCompletion, CompilationContext, CompilationService, CompileRequest,
-    CompiledContextCatalog, CompiledProcessorKernel, DirtySet, EffectRoutingTable, GenerationCompiler, InputDelivery,
-    InputIngressConfig, InputRoute, InputRoutingTable, InputSlot, KernelId, ObservationCatalog, ObservationRoute,
-    PersistentBatchScheduler, ProjectRevision, RuntimeChangeSet, RuntimeGeneration, RuntimeGenerationBuilder,
-    RuntimeGenerationId, RuntimeInputHandle, RuntimeInputMailbox, RuntimeInputUpdate, RuntimeMetrics, RuntimeSchedule,
-    ScheduledWork, SemanticRuntime, ValueSlot, WorkUnitId,
+    ArenaLayout, CompilationCompletion, CompilationContext, CompilationService, CompileRequest, CompiledContextCatalog,
+    CompiledProcessorKernel, DirtySet, EffectRoutingTable, GenerationCompiler, InputDelivery, InputIngressConfig,
+    InputRoute, InputRoutingTable, InputSlot, KernelId, ObservationCatalog, ObservationRoute, ProjectRevision,
+    RuntimeChangeSet, RuntimeGeneration, RuntimeGenerationBuilder, RuntimeGenerationId, RuntimeInputHandle,
+    RuntimeInputMailbox, RuntimeInputUpdate, RuntimeMetrics, RuntimeSchedule, ScheduledWork, SemanticRuntime,
+    ValueSlot, WorkSelector, WorkUnitId,
 };
 use golden_values::{ColorValue as RuntimeColor, TriggerValue as RuntimeTrigger, Value as RuntimeValue};
 
@@ -377,17 +377,6 @@ impl std::fmt::Display for PublishInputError {
     }
 }
 
-#[derive(Clone, Copy)]
-struct InputIdentityExecutor;
-
-impl BatchExecutor for InputIdentityExecutor {
-    type Output = WorkUnitId;
-
-    fn execute(&self, work: ScheduledWork) -> Self::Output {
-        work.id
-    }
-}
-
 struct PendingCompilation {
     snapshot: Arc<EngineCompileSnapshot>,
     project_generation: ProjectGeneration,
@@ -425,8 +414,8 @@ pub(crate) struct ProductionState<T: Node> {
     input_work_count: usize,
     input_scratch: Vec<RuntimeInputUpdate>,
     dirty: DirtySet,
-    scheduler: PersistentBatchScheduler<InputIdentityExecutor>,
-    scheduler_outputs: Vec<(WorkUnitId, WorkUnitId)>,
+    work_selector: WorkSelector,
+    selected_work: Vec<ScheduledWork>,
     last_runtime_plane_error: Option<String>,
     project_generation: ProjectGeneration,
     project_pause_error: Option<String>,
@@ -460,9 +449,7 @@ impl<T: Node> ProductionState<T> {
         };
         let compiler = CompilationService::spawn(EngineGenerationCompiler, 2, metrics.clone())
             .map_err(|error| format!("failed to start runtime compiler: {error}"))?;
-        let worker_count = std::thread::available_parallelism().map_or(1, usize::from).clamp(1, 8);
-        let scheduler = PersistentBatchScheduler::new(worker_count, InputIdentityExecutor, metrics.clone())
-            .map_err(|error| format!("failed to start runtime scheduler: {error}"))?;
+        let work_selector = WorkSelector::new(metrics);
         let initial_saved_document_revision = project_was_saved.then(|| engine.current_history_state_id());
 
         Ok((
@@ -481,8 +468,8 @@ impl<T: Node> ProductionState<T> {
                 input_work_count: layout.parameters.len(),
                 input_scratch: Vec::new(),
                 dirty: DirtySet::new(work_count),
-                scheduler,
-                scheduler_outputs: Vec::new(),
+                work_selector,
+                selected_work: Vec::new(),
                 last_runtime_plane_error: None,
                 project_generation: ProjectGeneration::INITIAL,
                 project_pause_error: None,
@@ -507,8 +494,8 @@ impl<T: Node> ProductionState<T> {
         let scheduled_work_nodes = &self.scheduled_work_nodes;
         let input_work_count = self.input_work_count;
         let dirty = &mut self.dirty;
-        let scheduler = &self.scheduler;
-        let scheduler_outputs = &mut self.scheduler_outputs;
+        let work_selector = &mut self.work_selector;
+        let selected_work = &mut self.selected_work;
         let runtime_error = &mut self.last_runtime_plane_error;
         let tick_result = self
             .engine
@@ -522,10 +509,10 @@ impl<T: Node> ProductionState<T> {
                     }
                 }
 
-                match scheduler.execute_into(&generation.schedule, dirty, scheduler_outputs) {
+                match work_selector.select_into(&generation.schedule, dirty, selected_work) {
                     Ok(_) => {
-                        for (work, _) in scheduler_outputs.iter().copied() {
-                            let Some(index) = work.index().checked_sub(input_work_count) else {
+                        for work in selected_work.iter().copied() {
+                            let Some(index) = work.id.index().checked_sub(input_work_count) else {
                                 continue;
                             };
                             if let Some(node) = scheduled_work_nodes.get(index).copied() {
@@ -668,7 +655,7 @@ impl<T: Node> ProductionState<T> {
         self.scheduled_work_nodes = layout.scheduled_nodes.iter().map(|scheduled| scheduled.node).collect();
         self.input_work_count = layout.parameters.len();
         self.dirty = DirtySet::new(work_count);
-        self.scheduler_outputs.clear();
+        self.selected_work.clear();
         Ok(())
     }
 
@@ -755,7 +742,7 @@ impl<T: Node> ProductionState<T> {
         self.input_work_count = layout.parameters.len();
         self.input_scratch.clear();
         self.dirty = DirtySet::new(work_count);
-        self.scheduler_outputs.clear();
+        self.selected_work.clear();
         self.last_runtime_plane_error = None;
         self.project_generation = project_generation;
         self.project_pause_error = None;
@@ -820,8 +807,8 @@ impl<T: Node> ProductionState<T> {
             return;
         }
         if let Err(error) = self
-            .scheduler
-            .execute_into(&generation.schedule, &self.dirty, &mut self.scheduler_outputs)
+            .work_selector
+            .select_into(&generation.schedule, &self.dirty, &mut self.selected_work)
         {
             self.last_runtime_plane_error = Some(error.to_string());
             self.dirty.clear();

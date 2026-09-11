@@ -90,12 +90,14 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T11     | Complete                                                                                           |
 | T12     | Complete                                                                                           |
 | T13     | Complete                                                                                           |
-| T14–T19 | Not started                                                                                        |
+| T14     | In progress: direct selection complete; sparse indexing pending                                    |
+| T15–T19 | Not started                                                                                        |
 
 T13 is complete. Persistent graph indexes, proportional atomic transaction projection, wall-clock
 frame limits, bounded retained versions, and downstream mounted-panel indexes now share one
 production-qualified path. The full workbench passes twenty 600-node inserts at both 10k and 100k
-existing nodes with zero action-window Long Tasks. Continue with T14's runtime selection work.
+existing nodes with zero action-window Long Tasks. T14 has removed identity-only worker dispatch;
+continue with proportional sparse dirty selection and crossover qualification.
 Exact commands, evidence, and remaining qualification gaps are recorded in
 `docs/progress/audit-remediation-status.md`.
 

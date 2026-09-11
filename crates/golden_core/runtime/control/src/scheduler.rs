@@ -126,6 +126,72 @@ pub enum ExecutionMode {
     Dense,
 }
 
+/// Diagnostics for one deterministic work-selection pass.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SelectionReport {
+    /// Sparse or dense selection path.
+    pub mode: ExecutionMode,
+    /// Schedule units examined while selecting work.
+    pub visited_units: usize,
+    /// Dirty work units selected for execution.
+    pub selected_units: usize,
+}
+
+/// Reusable deterministic selector for compile-assigned work.
+///
+/// Selection is deliberately independent from kernel execution so callers that only need ordered
+/// work identities do not pay worker dispatch and synchronization costs.
+pub struct WorkSelector {
+    metrics: Arc<RuntimeMetrics>,
+}
+
+impl WorkSelector {
+    /// Creates a selector that records sparse/dense batch metrics.
+    pub fn new(metrics: Arc<RuntimeMetrics>) -> Self {
+        Self { metrics }
+    }
+
+    /// Writes dirty work into caller-owned storage in compile-assigned order.
+    pub fn select_into(
+        &mut self,
+        schedule: &RuntimeSchedule,
+        dirty: &DirtySet,
+        selected: &mut Vec<ScheduledWork>,
+    ) -> Result<SelectionReport, SchedulerError> {
+        if dirty.len != schedule.work_count() {
+            return Err(SchedulerError::DirtyLayoutMismatch);
+        }
+        selected.clear();
+        let mode = selection_mode(schedule, dirty);
+        for work in schedule.units() {
+            if dirty.contains(work.id) {
+                selected.push(*work);
+            }
+        }
+        let report = SelectionReport {
+            mode,
+            visited_units: schedule.work_count(),
+            selected_units: selected.len(),
+        };
+        self.metrics
+            .batch_finished(mode == ExecutionMode::Dense, report.selected_units);
+        Ok(report)
+    }
+}
+
+fn selection_mode(schedule: &RuntimeSchedule, dirty: &DirtySet) -> ExecutionMode {
+    let density = if dirty.len == 0 {
+        0.0
+    } else {
+        dirty.count as f32 / dirty.len as f32
+    };
+    if density >= schedule.dense_threshold() {
+        ExecutionMode::Dense
+    } else {
+        ExecutionMode::Sparse
+    }
+}
+
 /// Pure executor installed once into a persistent worker pool.
 pub trait BatchExecutor: Send + Sync + 'static {
     /// Work result written into a deterministic output position.
@@ -168,13 +234,15 @@ struct WorkerResult<O> {
 }
 
 struct BatchScratch<O> {
+    selector: WorkSelector,
     selected: Vec<ScheduledWork>,
     positioned: Vec<Option<(WorkUnitId, O)>>,
 }
 
-impl<O> Default for BatchScratch<O> {
-    fn default() -> Self {
+impl<O> BatchScratch<O> {
+    fn new(metrics: Arc<RuntimeMetrics>) -> Self {
         Self {
+            selector: WorkSelector::new(metrics),
             selected: Vec::new(),
             positioned: Vec::new(),
         }
@@ -192,7 +260,6 @@ pub struct PersistentBatchScheduler<E: BatchExecutor> {
     results: Mutex<mpsc::Receiver<WorkerResult<E::Output>>>,
     scratch: Mutex<BatchScratch<E::Output>>,
     workers: Vec<JoinHandle<()>>,
-    metrics: Arc<RuntimeMetrics>,
 }
 
 impl<E: BatchExecutor> PersistentBatchScheduler<E> {
@@ -219,9 +286,8 @@ impl<E: BatchExecutor> PersistentBatchScheduler<E> {
         Ok(Self {
             jobs: job_tx,
             results: Mutex::new(result_rx),
-            scratch: Mutex::new(BatchScratch::default()),
+            scratch: Mutex::new(BatchScratch::new(metrics)),
             workers,
-            metrics,
         })
     }
 
@@ -245,47 +311,33 @@ impl<E: BatchExecutor> PersistentBatchScheduler<E> {
         dirty: &DirtySet,
         outputs: &mut Vec<(WorkUnitId, E::Output)>,
     ) -> Result<ExecutionMode, SchedulerError> {
-        if dirty.len != schedule.work_count() {
-            return Err(SchedulerError::DirtyLayoutMismatch);
-        }
         outputs.clear();
-        let density = if dirty.len == 0 {
-            0.0
-        } else {
-            dirty.count as f32 / dirty.len as f32
-        };
-        let mode = if density >= schedule.dense_threshold() {
-            ExecutionMode::Dense
-        } else {
-            ExecutionMode::Sparse
-        };
         let mut scratch = self.scratch.lock().map_err(|_| SchedulerError::WorkerDisconnected)?;
-        scratch.selected.clear();
-        for work in schedule.units() {
-            if dirty.contains(work.id) {
-                scratch.selected.push(*work);
-            }
-        }
-        for (ordinal, work) in scratch.selected.iter().copied().enumerate() {
+        let BatchScratch {
+            selector,
+            selected,
+            positioned,
+        } = &mut *scratch;
+        let report = selector.select_into(schedule, dirty, selected)?;
+        let mode = report.mode;
+        for (ordinal, work) in selected.iter().copied().enumerate() {
             self.jobs
                 .send(WorkerMessage::Run(WorkerJob { ordinal, work }))
                 .map_err(|_| SchedulerError::WorkerDisconnected)?;
         }
-        let selected_len = scratch.selected.len();
-        scratch.positioned.clear();
-        scratch.positioned.resize_with(selected_len, || None);
+        let selected_len = selected.len();
+        positioned.clear();
+        positioned.resize_with(selected_len, || None);
         let results = self.results.lock().map_err(|_| SchedulerError::WorkerDisconnected)?;
         for _ in 0..selected_len {
             let result = results.recv().map_err(|_| SchedulerError::WorkerDisconnected)?;
-            scratch.positioned[result.ordinal] = Some((result.work, result.output));
+            positioned[result.ordinal] = Some((result.work, result.output));
         }
         outputs.extend(
-            scratch
-                .positioned
+            positioned
                 .drain(..)
                 .map(|output| output.expect("every admitted work item returns one result")),
         );
-        self.metrics.batch_finished(mode == ExecutionMode::Dense, selected_len);
         Ok(mode)
     }
 }

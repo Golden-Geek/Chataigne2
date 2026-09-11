@@ -15,6 +15,9 @@ nodes.
   process-local `NodeId` only as a total-order fallback for malformed duplicate UUIDs. The compiled
   order governs same-target values, triggers, commands, and effects and is reused without sorting
   on live ticks.
+- Deterministic work selection is independent from kernel execution. The production engine selects
+  ordered work identities directly into retained storage; it does not dispatch identity-only jobs
+  to runtime workers. Worker scheduling remains reserved for executors that perform real work.
 - Value updates coalesce where the contract allows it. Triggers, commands, and effects preserve
   order and use bounded queues.
 - Structural edits use `NodeTree`/`AddNodeTree` for known subtrees and avoid repeated whole-tree
@@ -43,6 +46,15 @@ Measure canonical schedule compilation separately from fixture construction with
 ```text
 cargo test --locked -p golden_engine \
   bench_canonical_schedule_resolve_twenty_thousand_nodes -- --ignored --nocapture
+```
+
+Compare direct ordered selection with the retired identity-only dispatch path on the same
+100,000-unit, one-percent-dirty fixture with:
+
+```text
+cargo test --locked -p golden_runtime --test work_selection \
+  measure_direct_selection_against_identity_worker_dispatch \
+  -- --ignored --nocapture --test-threads=1
 ```
 
 ## UI and graphs
