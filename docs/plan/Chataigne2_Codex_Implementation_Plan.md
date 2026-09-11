@@ -89,13 +89,13 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T10     | Complete                                                                                           |
 | T11     | Complete                                                                                           |
 | T12     | Complete                                                                                           |
-| T13     | In progress: proportional graph transaction implementation complete                              |
+| T13     | Complete                                                                                           |
 | T14–T19 | Not started                                                                                        |
 
-T12 is complete, including transport scale and contended save/resync qualification. T13 now has
-persistent graph indexes, proportional atomic insertion/removal paths, and a scheduler wall-clock
-budget with bounded retained versions. Mixed moves, reorders, metadata, and parameter patches now
-share that path; continue with full-workbench action-to-paint qualification.
+T13 is complete. Persistent graph indexes, proportional atomic transaction projection, wall-clock
+frame limits, bounded retained versions, and downstream mounted-panel indexes now share one
+production-qualified path. The full workbench passes twenty 600-node inserts at both 10k and 100k
+existing nodes with zero action-window Long Tasks. Continue with T14's runtime selection work.
 Exact commands, evidence, and remaining qualification gaps are recorded in
 `docs/progress/audit-remediation-status.md`.
 

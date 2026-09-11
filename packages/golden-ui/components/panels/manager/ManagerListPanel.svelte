@@ -90,12 +90,6 @@
 			}
 		}
 
-		for (const candidate of graph.nodesById.values()) {
-			if (managerNodeType !== null && candidate.node_type === managerNodeType) {
-				return candidate;
-			}
-		}
-
 		return null;
 	};
 

@@ -73,6 +73,27 @@ patches metadata, and patches a parameter in one event. The default scheduler sp
 frames while the prior graph and cursor remain the only published version until every operation is
 complete.
 
+Mounted graph consumers must preserve the same proportional boundary. Warning ownership is indexed
+incrementally, and manager/dashboard roots are resolved through direct children of the graph root;
+hidden dock panels must not rediscover them by scanning every node after publication.
+
+Run the production-workbench action-to-paint gate against a fresh preview build:
+
+```text
+npm run build
+npm run preview --workspace chataigne-ui -- --host 127.0.0.1
+npm run measure:graph-paint --workspace chataigne-ui -- \
+  --url http://127.0.0.1:4173/ \
+  --report artifacts/graph-action-to-paint.browser-report.json
+```
+
+The harness loads the real workbench through its WebSocket transport, waits for a 10k or 100k-node
+snapshot, then measures twenty 600-node transaction inserts through Svelte publication and two
+animation frames. Snapshot startup is excluded from the action window. The gate requires p95 at or
+below 250 ms for 10k and 500 ms for 100k, no browser errors, and no browser Long Tasks during the
+measured actions. On Windows x64 with Node 26, the T13 completion run measured p95 44.9 ms and
+40.9 ms respectively, with zero Long Tasks.
+
 The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
 capture a coherent event revision and project generation under a short projection read, then walk
 and clone DTOs after releasing that lock. Whole-graph materialization and transport encoding must

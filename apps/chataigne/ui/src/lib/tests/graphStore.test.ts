@@ -5,7 +5,12 @@ import {
 	graphIndexMutationCopies
 } from '../../../../../../packages/golden-ui/store/graph-index';
 import { createGraphStore } from '../../../../../../packages/golden-ui/store/graph.svelte';
-import type { UiNodeDto, UiSnapshot } from '../../../../../../packages/golden-ui/types';
+import { createWorkbenchWarningStore } from '../../../../../../packages/golden-ui/store/session/warnings.svelte';
+import type {
+	UiEventBatch,
+	UiNodeDto,
+	UiSnapshot
+} from '../../../../../../packages/golden-ui/types';
 
 const eventTime = (seq: number) => ({ tick: 1, micro: 0, seq });
 
@@ -272,5 +277,39 @@ describe('graph store scaling', () => {
 		expect(changed).toBe(true);
 		expect(store.state).not.toBe(previousState);
 		expect(store.state.lastEventTime).toEqual(eventTime(2));
+	});
+
+	it('maintains the active warning index across metadata batches', () => {
+		const store = createGraphStore();
+		const initialSnapshot = snapshot();
+		initialSnapshot.nodes[0]!.meta.presentation = {
+			warnings: [{ id: 'input', message: 'Input is unavailable' }]
+		};
+		store.loadSnapshot(initialSnapshot);
+		const warnings = createWorkbenchWarningStore(store);
+		warnings.applySnapshot();
+
+		expect(warnings.getActiveWarnings()).toMatchObject([
+			{ sourceNodeId: 1, warningId: 'input', message: 'Input is unavailable' }
+		]);
+
+		const batch: UiEventBatch = {
+			from: eventTime(0),
+			to: eventTime(1),
+			events: [
+				{
+					time: eventTime(1),
+					kind: {
+						kind: 'metaChanged',
+						node: 1,
+						patch: { presentation: { warnings: [] } }
+					}
+				}
+			]
+		};
+		store.applyBatch(batch);
+		warnings.applyBatch(batch);
+
+		expect(warnings.getActiveWarnings()).toEqual([]);
 	});
 });

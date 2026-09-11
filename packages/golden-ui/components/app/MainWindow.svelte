@@ -25,7 +25,10 @@
 	httpBaseUrl={props.httpBaseUrl}
 	bootstrapRetryMs={props.bootstrapRetryMs}>
 	{#if session}
-		<div class="gc-main os-{platform.name}">
+		<div
+			class="gc-main os-{platform.name}"
+			data-graph-node-count={session.graph.state.nodesById.size}
+			data-graph-event-tick={session.graph.state.lastEventTime?.tick ?? 0}>
 			<AppHeader {session} />
 			<MainComponent
 				userPanels={props.userPanels}

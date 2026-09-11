@@ -3,7 +3,7 @@
 	import type { NodeId, UiNodeDto } from '../../../types';
 
 	import DashboardCanvas from './DashboardCanvas.svelte';
-	import { getDirectItemChildren } from './dashboard-model';
+	import { getDirectItemChildren, getRootChildrenByType } from './dashboard-model';
 	import { findDashboardPageByRouteSegment, getDashboardPageRouteHref } from './dashboard-route';
 
 	let {
@@ -28,12 +28,9 @@
 	});
 
 	let dashboards = $derived.by((): UiNodeDto[] => {
-		if (!graph) {
-			return [];
-		}
-		return [...graph.nodesById.values()]
-			.filter((candidate) => candidate.node_type === 'dashboard')
-			.sort((left, right) => left.meta.label.localeCompare(right.meta.label));
+		return getRootChildrenByType(graph, 'dashboard').sort((left, right) =>
+			left.meta.label.localeCompare(right.meta.label)
+		);
 	});
 
 	let selectedDashboard = $derived.by((): UiNodeDto | null => {

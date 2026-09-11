@@ -17,8 +17,8 @@ export interface WorkbenchWarningStore {
 	getNodeVisibleWarnings(nodeId: NodeId): NodeWarningRecord[];
 	getActiveWarnings(): NodeWarningRecord[];
 	hasNodeWarnings(nodeId: NodeId): boolean;
-	batchAffectsWarnings(batch: UiEventBatch): boolean;
-	invalidate(): void;
+	applySnapshot(): void;
+	applyBatch(batch: UiEventBatch): void;
 	reset(): void;
 }
 
@@ -57,6 +57,7 @@ export const createWorkbenchWarningStore = (graph: GraphStore): WorkbenchWarning
 	let activeWarningsCacheVersion = -1;
 	let activeWarningsCache: NodeWarningRecord[] = [];
 	const visibleWarningsCache = new Map<NodeId, VisibleWarningCacheEntry>();
+	const warningNodeIds = new Set<NodeId>();
 
 	const invalidate = (): void => {
 		warningCacheVersion += 1;
@@ -85,6 +86,14 @@ export const createWorkbenchWarningStore = (graph: GraphStore): WorkbenchWarning
 			return [];
 		}
 		return [...getMetaWarningsForNode(node).values()];
+	};
+
+	const refreshWarningNode = (nodeId: NodeId): void => {
+		if (getNodeOwnWarnings(nodeId).length > 0) {
+			warningNodeIds.add(nodeId);
+		} else {
+			warningNodeIds.delete(nodeId);
+		}
 	};
 
 	const getNodeWarningChildDepth = (nodeId: NodeId): number => {
@@ -184,8 +193,12 @@ export const createWorkbenchWarningStore = (graph: GraphStore): WorkbenchWarning
 
 	const computeActiveWarnings = (): NodeWarningRecord[] => {
 		const allWarnings: NodeWarningRecord[] = [];
-		for (const node of graph.state.nodesById.values()) {
-			for (const warning of getNodeOwnWarnings(node.node_id)) {
+		for (const nodeId of warningNodeIds) {
+			const node = graph.state.nodesById.get(nodeId);
+			if (!node) {
+				continue;
+			}
+			for (const warning of getNodeOwnWarnings(nodeId)) {
 				allWarnings.push({
 					targetNodeId: node.node_id,
 					targetNodeLabel: node.meta.label,
@@ -262,19 +275,72 @@ export const createWorkbenchWarningStore = (graph: GraphStore): WorkbenchWarning
 		return false;
 	};
 
+	const applySnapshot = (): void => {
+		warningNodeIds.clear();
+		for (const node of graph.state.nodesById.values()) {
+			refreshWarningNode(node.node_id);
+		}
+		invalidate();
+	};
+
+	const applyBatch = (batch: UiEventBatch): void => {
+		if (!batchAffectsWarnings(batch)) {
+			return;
+		}
+		for (const event of batch.events) {
+			switch (event.kind.kind) {
+				case 'metaChanged':
+					refreshWarningNode(event.kind.node);
+					break;
+				case 'nodeCreated':
+					refreshWarningNode(event.kind.node);
+					break;
+				case 'nodeDeleted':
+					warningNodeIds.delete(event.kind.node);
+					break;
+				case 'graphTransaction':
+					for (const op of event.kind.ops) {
+						if (op.kind === 'nodeCreated') {
+							refreshWarningNode(op.snapshot.node_id);
+						} else if (op.kind === 'subtreeInserted') {
+							for (const node of op.nodes) {
+								refreshWarningNode(node.node_id);
+							}
+						} else if (op.kind === 'subtreeRemoved') {
+							for (const nodeId of op.removed_ids) {
+								warningNodeIds.delete(nodeId);
+							}
+						} else if (op.kind === 'nodeMetaPatched') {
+							refreshWarningNode(op.node);
+						}
+					}
+					break;
+				default:
+					break;
+			}
+		}
+		for (const nodeId of warningNodeIds) {
+			if (!graph.state.nodesById.has(nodeId)) {
+				warningNodeIds.delete(nodeId);
+			}
+		}
+		invalidate();
+	};
+
 	const reset = (): void => {
 		warningCacheVersion = 0;
 		activeWarningsCacheVersion = -1;
 		activeWarningsCache = [];
 		visibleWarningsCache.clear();
+		warningNodeIds.clear();
 	};
 
 	return {
 		getNodeVisibleWarnings,
 		getActiveWarnings,
 		hasNodeWarnings,
-		batchAffectsWarnings,
-		invalidate,
+		applySnapshot,
+		applyBatch,
 		reset
 	};
 };

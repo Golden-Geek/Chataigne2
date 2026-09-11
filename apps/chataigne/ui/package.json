@@ -24,6 +24,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"smoke:ui": "node ./scripts/ui-browser-tools.mjs smoke",
 		"inspect:ui": "node ./scripts/ui-browser-tools.mjs inspect",
+		"measure:graph-paint": "node ./scripts/graph-action-to-paint.mjs",
 		"lint": "prettier --check .",
 		"format": "prettier --write ."
 	},

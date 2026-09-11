@@ -9,12 +9,7 @@ import type {
 import { cssValueFromParamValue, formatCssValue, type CssValueData } from '../../../css-value';
 
 export type DashboardLayoutKind =
-	| 'free'
-	| 'horizontal'
-	| 'vertical'
-	| 'grid'
-	| 'accordion'
-	| 'tabs';
+	'free' | 'horizontal' | 'vertical' | 'grid' | 'accordion' | 'tabs';
 
 export type DashboardGridDirection = 'row' | 'column';
 
@@ -62,6 +57,19 @@ export interface DashboardGridSettings {
 
 export const getLiveNode = (graph: GraphState | null, node: UiNodeDto): UiNodeDto => {
 	return graph?.nodesById.get(node.node_id) ?? node;
+};
+
+export const getRootChildrenByType = (graph: GraphState | null, nodeType: string): UiNodeDto[] => {
+	if (!graph || graph.rootId === null) {
+		return [];
+	}
+	const root = graph.nodesById.get(graph.rootId);
+	if (!root) {
+		return [];
+	}
+	return root.children
+		.map((childId) => graph.nodesById.get(childId))
+		.filter((child): child is UiNodeDto => child?.node_type === nodeType);
 };
 
 export const getDirectChildren = (

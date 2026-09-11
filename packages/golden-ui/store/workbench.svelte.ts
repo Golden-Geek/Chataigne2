@@ -394,7 +394,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		descriptions.applySnapshotSchema(snapshot.schema);
 		footerHover.prune();
 		hasLoadedSnapshot = true;
-		warnings.invalidate();
+		warnings.applySnapshot();
 		selection.restorePersistedSelection();
 		selection.reconcileSelection();
 		history.applyHistoryState(snapshot.history);
@@ -462,15 +462,11 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 			graphPatchMs = nowMs() - graphPatchStartedAt;
 			if (graphChanged) {
 				footerHover.prune();
-				if (
-					warnings.batchAffectsWarnings({
-						from: batch.from,
-						to: batch.to,
-						events: graphEvents
-					})
-				) {
-					warnings.invalidate();
-				}
+				warnings.applyBatch({
+					from: batch.from,
+					to: batch.to,
+					events: graphEvents
+				});
 				selection.reconcileSelection();
 				if (graph.state.requiresResync) {
 					if (subscriptionControl) {
