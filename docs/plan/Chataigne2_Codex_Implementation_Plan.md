@@ -89,10 +89,12 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T10     | Complete                                                                                           |
 | T11     | Complete                                                                                           |
 | T12     | Complete                                                                                           |
-| T13–T19 | Not started                                                                                        |
+| T13     | In progress: persistent graph indexes and proportional insertion path complete                     |
+| T14–T19 | Not started                                                                                        |
 
-T12 is complete, including transport scale and contended save/resync qualification. Continue with
-T13's delta-proportional browser graph indexes and scheduler.
+T12 is complete, including transport scale and contended save/resync qualification. T13 now has
+persistent graph indexes and a proportional atomic insertion path; continue with delete/mixed-edit,
+compaction, time-budget, and full-workbench qualification.
 Exact commands, evidence, and remaining qualification gaps are recorded in
 `docs/progress/audit-remediation-status.md`.
 

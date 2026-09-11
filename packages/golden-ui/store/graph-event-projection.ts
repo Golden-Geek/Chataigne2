@@ -166,19 +166,15 @@ export const createIncrementalGraphEventProjection = (
 	const baseState = options.baseState;
 	const nextState: GraphState = {
 		rootId: baseState.rootId,
-		nodesById: new Map(),
-		childrenById: new Map(),
-		parentById: new Map(),
-		paramsById: new Map(),
+		nodesById: baseState.nodesById.fork(),
+		childrenById: baseState.childrenById.fork(),
+		parentById: baseState.parentById.fork(),
+		paramsById: baseState.paramsById.fork(),
 		lastEventTime: options.event.time,
 		requiresResync: baseState.requiresResync
 	};
-	const nodeEntries = baseState.nodesById.entries();
-	const childrenEntries = baseState.childrenById.entries();
-	const parentEntries = baseState.parentById.entries();
-	const paramEntries = baseState.paramsById.entries();
 	const ops = options.event.kind.ops as SubtreeInsertedOp[];
-	let copyPhase: 'nodes' | 'children' | 'parents' | 'params' | 'ops' | 'done' = 'nodes';
+	let done = false;
 	let opIndex = 0;
 	let nodeIndex = 0;
 	let nodeTask: NodeProjectionTask | undefined;
@@ -186,46 +182,10 @@ export const createIncrementalGraphEventProjection = (
 	let prepared = false;
 	let cancelled = false;
 
-	const copyOneEntry = (): boolean => {
-		if (copyPhase === 'nodes') {
-			const entry = nodeEntries.next();
-			if (!entry.done) {
-				nextState.nodesById.set(entry.value[0], entry.value[1]);
-				return true;
-			}
-			copyPhase = 'children';
-		}
-		if (copyPhase === 'children') {
-			const entry = childrenEntries.next();
-			if (!entry.done) {
-				nextState.childrenById.set(entry.value[0], entry.value[1]);
-				return true;
-			}
-			copyPhase = 'parents';
-		}
-		if (copyPhase === 'parents') {
-			const entry = parentEntries.next();
-			if (!entry.done) {
-				nextState.parentById.set(entry.value[0], entry.value[1]);
-				return true;
-			}
-			copyPhase = 'params';
-		}
-		if (copyPhase === 'params') {
-			const entry = paramEntries.next();
-			if (!entry.done) {
-				nextState.paramsById.set(entry.value[0], entry.value[1]);
-				return true;
-			}
-			copyPhase = 'ops';
-		}
-		return false;
-	};
-
 	const advanceOneOpStep = (): boolean => {
 		const op = ops[opIndex];
 		if (!op) {
-			copyPhase = 'done';
+			done = true;
 			return false;
 		}
 		if (nodeTask) {
@@ -271,18 +231,12 @@ export const createIncrementalGraphEventProjection = (
 			}
 			const budget = Math.max(1, Math.floor(maxWork));
 			let workUsed = 0;
-			while (workUsed < budget && copyPhase !== 'done') {
-				if (copyPhase !== 'ops') {
-					if (copyOneEntry()) {
-						workUsed += 1;
-					}
-					continue;
-				}
+			while (workUsed < budget && !done) {
 				if (advanceOneOpStep()) {
 					workUsed += 1;
 				}
 			}
-			if (copyPhase === 'done') {
+			if (done) {
 				finish();
 			}
 			return { workUsed, done: prepared || cancelled };

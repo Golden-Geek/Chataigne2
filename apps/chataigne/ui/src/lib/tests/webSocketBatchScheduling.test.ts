@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UI_PROTOCOL_VERSION } from '../../../../../../packages/golden-ui/generated/rust_protocol/protocol-version';
+import { graphIndexMutationCopies } from '../../../../../../packages/golden-ui/store/graph-index';
 import { createGraphStore } from '../../../../../../packages/golden-ui/store/graph.svelte';
 import { createWebSocketUiClient } from '../../../../../../packages/golden-ui/transport/ws';
 import type {
@@ -160,6 +161,44 @@ const graphSnapshot = (at: EventTime): UiSnapshot => ({
 	logger: { max_entries: 100, records: [] },
 	project_file: { display_name: 'Test', extension: 'noisette', current_path: null }
 });
+
+const chainGraphSnapshot = (at: EventTime, nodeCount: number): UiSnapshot => ({
+	...graphSnapshot(at),
+	nodes: Array.from({ length: nodeCount }, (_, index) => {
+		const nodeId = index + 1;
+		return graphNode(nodeId, nodeId < nodeCount ? [nodeId + 1] : []);
+	})
+});
+
+const appendedChainTransaction = (
+	eventAt: EventTime,
+	baseNodeCount: number,
+	insertedNodeCount: number
+) => {
+	const firstNode = baseNodeCount + 1;
+	const lastNode = baseNodeCount + insertedNodeCount;
+	const nodes = Array.from({ length: insertedNodeCount }, (_, index) => {
+		const nodeId = firstNode + index;
+		return nodeId === lastNode ? parameterNode(nodeId) : graphNode(nodeId, [nodeId + 1]);
+	});
+	return {
+		time: eventAt,
+		kind: 'graphTransaction',
+		tx_id: 1,
+		epoch: 1,
+		base_graph_version: 0,
+		next_graph_version: 1,
+		ops: [
+			{
+				kind: 'subtreeInserted',
+				root: firstNode,
+				parent: baseNodeCount,
+				nodes,
+				parent_children_after: [firstNode]
+			}
+		]
+	};
+};
 
 const subtreeTransaction = (eventAt: EventTime, nodeCount: number) => {
 	const firstNode = 2;
@@ -486,6 +525,65 @@ describe('websocket event burst scheduling', () => {
 		await flushMicrotasks();
 		expect(sentSubscribe(thirdSocket).from).toEqual(committed);
 		unsubscribe();
+	});
+
+	it('keeps a fixed 600-node transaction independent of a 1k, 10k, or 100k base graph', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		const frameCounts: number[] = [];
+		const mutationCopies: number[] = [];
+
+		for (const baseNodeCount of [1_000, 10_000, 100_000]) {
+			const graph = createGraphStore();
+			const initial = time(baseNodeCount);
+			const committed = time(baseNodeCount + 600);
+			graph.loadSnapshot(chainGraphSnapshot(initial, baseNodeCount));
+			const initialState = graph.state;
+			const client = createWebSocketUiClient({
+				webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
+			});
+			const unsubscribe = client.subscribe(
+				{ kind: 'wholeGraph' },
+				initial,
+				(batch) => graph.applyBatch(batch),
+				{ createEventWork: (event) => graph.createEventWork(event) }
+			);
+			const socket = FakeWebSocket.instances.at(-1);
+			if (!socket) {
+				throw new Error('websocket was not created');
+			}
+			socket.open();
+			await flushMicrotasks();
+			const subscription = sentSubscribe(socket);
+			receivePlaneDelta(socket, subscription.subscription_id, 'structure', initial, committed, [
+				appendedChainTransaction(committed, baseNodeCount, 600)
+			]);
+
+			let frameCount = 0;
+			while (frames.length > 0) {
+				runFrame();
+				frameCount += 1;
+				if (frames.length > 0) {
+					expect(graph.state).toBe(initialState);
+					expect(graph.state.nodesById.size).toBe(baseNodeCount);
+				}
+			}
+
+			expect(frameCount).toBeLessThanOrEqual(20);
+			expect(graph.state.nodesById.size).toBe(baseNodeCount + 600);
+			expect(graph.state.parentById.get(baseNodeCount + 1)).toBe(baseNodeCount);
+			expect(graph.state.parentById.get(baseNodeCount + 600)).toBe(baseNodeCount + 599);
+			expect(graph.state.paramsById.get(baseNodeCount + 600)?.value).toEqual({
+				kind: 'int',
+				value: baseNodeCount + 600
+			});
+			expect(graph.state.lastEventTime).toEqual(committed);
+			frameCounts.push(frameCount);
+			mutationCopies.push(graphIndexMutationCopies(graph.state.nodesById) ?? Number.MAX_VALUE);
+			unsubscribe();
+		}
+
+		expect(new Set(frameCounts).size).toBe(1);
+		expect(Math.max(...mutationCopies) - Math.min(...mutationCopies)).toBeLessThan(100);
 	});
 
 	it('bounds sustained value-plane input by keeping only the newest value per parameter', async () => {

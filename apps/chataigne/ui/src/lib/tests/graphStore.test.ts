@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { UI_PROTOCOL_VERSION } from '../../../../../../packages/golden-ui/generated/rust_protocol/protocol-version';
+import {
+	VersionedNodeMap,
+	graphIndexMutationCopies
+} from '../../../../../../packages/golden-ui/store/graph-index';
 import { createGraphStore } from '../../../../../../packages/golden-ui/store/graph.svelte';
 import type { UiNodeDto, UiSnapshot } from '../../../../../../packages/golden-ui/types';
 
@@ -65,6 +69,28 @@ const snapshot = (): UiSnapshot =>
 	}) as UiSnapshot;
 
 describe('graph store scaling', () => {
+	it('forks numeric indexes without copying prior entries', () => {
+		const original = new VersionedNodeMap<string>(
+			Array.from({ length: 10_000 }, (_, index) => [index, `value-${index}`] as const)
+		);
+		const fork = original.fork();
+
+		fork.set(5_000, 'updated');
+		fork.set(10_000, 'added');
+		fork.delete(7_500);
+
+		expect(original.size).toBe(10_000);
+		expect(original.get(5_000)).toBe('value-5000');
+		expect(original.get(10_000)).toBeUndefined();
+		expect(original.get(7_500)).toBe('value-7500');
+		expect(fork.size).toBe(10_000);
+		expect(fork.get(5_000)).toBe('updated');
+		expect(fork.get(10_000)).toBe('added');
+		expect(fork.get(7_500)).toBeUndefined();
+		expect([...fork.keys()]).toHaveLength(10_000);
+		expect(graphIndexMutationCopies(fork)).toBeLessThanOrEqual(30);
+	});
+
 	it('patches a live parameter without copying the complete graph indexes', () => {
 		const store = createGraphStore();
 		store.loadSnapshot(snapshot());
@@ -91,11 +117,16 @@ describe('graph store scaling', () => {
 		});
 
 		expect(store.state).not.toBe(previousState);
-		expect(store.state.nodesById).toBe(nodesById);
-		expect(store.state.childrenById).toBe(childrenById);
-		expect(store.state.parentById).toBe(parentById);
-		expect(store.state.paramsById).toBe(paramsById);
+		expect(store.state.nodesById).not.toBe(nodesById);
+		expect(store.state.childrenById).not.toBe(childrenById);
+		expect(store.state.parentById).not.toBe(parentById);
+		expect(store.state.paramsById).not.toBe(paramsById);
+		expect(paramsById.get(1)?.value).toEqual({ kind: 'int', value: 0 });
 		expect(store.state.paramsById.get(1)?.value).toEqual({ kind: 'int', value: 42 });
+		expect(graphIndexMutationCopies(store.state.nodesById)).toBeLessThanOrEqual(9);
+		expect(graphIndexMutationCopies(store.state.paramsById)).toBeLessThanOrEqual(9);
+		expect(graphIndexMutationCopies(store.state.childrenById)).toBe(0);
+		expect(graphIndexMutationCopies(store.state.parentById)).toBe(0);
 	});
 
 	it('does not invalidate graph consumers for preview-only custom events', () => {

@@ -12,13 +12,14 @@ import {
 	createIncrementalGraphEventProjection,
 	type GraphEventProjectionWork
 } from './graph-event-projection';
+import { VersionedNodeMap } from './graph-index';
 
 export interface GraphState {
 	rootId: NodeId | null;
-	nodesById: Map<NodeId, UiNodeDto>;
-	childrenById: Map<NodeId, NodeId[]>;
-	parentById: Map<NodeId, NodeId>;
-	paramsById: Map<NodeId, UiParamDto>;
+	nodesById: VersionedNodeMap<UiNodeDto>;
+	childrenById: VersionedNodeMap<NodeId[]>;
+	parentById: VersionedNodeMap<NodeId>;
+	paramsById: VersionedNodeMap<UiParamDto>;
 	lastEventTime?: EventTime;
 	requiresResync: boolean;
 }
@@ -34,17 +35,17 @@ export interface GraphStore {
 
 const createEmptyState = (): GraphState => ({
 	rootId: null,
-	nodesById: new Map(),
-	childrenById: new Map(),
-	parentById: new Map(),
-	paramsById: new Map(),
+	nodesById: new VersionedNodeMap(),
+	childrenById: new VersionedNodeMap(),
+	parentById: new VersionedNodeMap(),
+	paramsById: new VersionedNodeMap(),
 	lastEventTime: undefined,
 	requiresResync: false
 });
 
 const detectRoot = (
-	nodesById: Map<NodeId, UiNodeDto>,
-	childrenById: Map<NodeId, NodeId[]>
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	childrenById: ReadonlyMap<NodeId, NodeId[]>
 ): NodeId | null => {
 	const childSet = new Set<NodeId>();
 	for (const children of childrenById.values()) {
@@ -63,10 +64,10 @@ const detectRoot = (
 };
 
 const stateFromSnapshot = (snapshot: UiSnapshot): GraphState => {
-	const nodesById = new Map<NodeId, UiNodeDto>();
-	const childrenById = new Map<NodeId, NodeId[]>();
-	const parentById = new Map<NodeId, NodeId>();
-	const paramsById = new Map<NodeId, UiParamDto>();
+	const nodesById = new VersionedNodeMap<UiNodeDto>();
+	const childrenById = new VersionedNodeMap<NodeId[]>();
+	const parentById = new VersionedNodeMap<NodeId>();
+	const paramsById = new VersionedNodeMap<UiParamDto>();
 
 	for (const node of snapshot.nodes) {
 		nodesById.set(node.node_id, node);
@@ -90,8 +91,27 @@ const stateFromSnapshot = (snapshot: UiSnapshot): GraphState => {
 	};
 };
 
+const forkGraphState = (state: GraphState): GraphState => ({
+	...state,
+	nodesById: state.nodesById.fork(),
+	childrenById: state.childrenById.fork(),
+	parentById: state.parentById.fork(),
+	paramsById: state.paramsById.fork()
+});
+
+const refreshRootIfInvalid = (state: GraphState): void => {
+	if (
+		state.rootId !== null &&
+		state.nodesById.has(state.rootId) &&
+		!state.parentById.has(state.rootId)
+	) {
+		return;
+	}
+	state.rootId = detectRoot(state.nodesById, state.childrenById);
+};
+
 const removeFromChildren = (
-	childrenById: Map<NodeId, NodeId[]>,
+	childrenById: VersionedNodeMap<NodeId[]>,
 	parent: NodeId,
 	child: NodeId
 ): void => {
@@ -106,7 +126,7 @@ const removeFromChildren = (
 };
 
 const addToChildren = (
-	childrenById: Map<NodeId, NodeId[]>,
+	childrenById: VersionedNodeMap<NodeId[]>,
 	parent: NodeId,
 	child: NodeId
 ): void => {
@@ -134,7 +154,7 @@ const setNodeChildren = (state: GraphState, parent: NodeId, children: NodeId[]):
 };
 
 const replaceInChildren = (
-	childrenById: Map<NodeId, NodeId[]>,
+	childrenById: VersionedNodeMap<NodeId[]>,
 	parent: NodeId,
 	oldChild: NodeId,
 	newChild: NodeId
@@ -519,22 +539,23 @@ export const createGraphStore = (): GraphStore => {
 		{ baseState: GraphState; nextState: GraphState }
 	>();
 
-	const applyPreparedEvent = (event: UiEventDto): boolean => {
+	const takePreparedEvent = (
+		event: UiEventDto,
+		currentState: GraphState
+	): GraphState | undefined => {
 		const prepared = preparedEvents.get(event);
 		if (!prepared) {
-			return false;
+			return undefined;
 		}
 		preparedEvents.delete(event);
-		if (state === prepared.baseState) {
-			state = prepared.nextState;
-		} else {
-			state = {
-				...state,
-				lastEventTime: event.time,
-				requiresResync: true
-			};
+		if (currentState === prepared.baseState) {
+			return prepared.nextState;
 		}
-		return true;
+		return {
+			...forkGraphState(currentState),
+			lastEventTime: event.time,
+			requiresResync: true
+		};
 	};
 
 	return {
@@ -546,17 +567,20 @@ export const createGraphStore = (): GraphStore => {
 			state = stateFromSnapshot(snapshot);
 		},
 		applyEvent(event: UiEventDto): void {
-			if (applyPreparedEvent(event)) {
+			const prepared = takePreparedEvent(event, state);
+			if (prepared) {
+				state = prepared;
 				return;
 			}
-			const result = reduceEventInPlace(state, event);
+			const nextState = forkGraphState(state);
+			const result = reduceEventInPlace(nextState, event);
 			if (!result.stateChanged) {
 				return;
 			}
 			if (result.requiresRootRecompute) {
-				state.rootId = detectRoot(state.nodesById, state.childrenById);
+				refreshRootIfInvalid(nextState);
 			}
-			state = { ...state };
+			state = nextState;
 		},
 		applyBatch(batch: UiEventBatch): boolean {
 			if (batch.events.length === 0) {
@@ -567,12 +591,21 @@ export const createGraphStore = (): GraphStore => {
 			}
 			let requiresRootRecompute = false;
 			let stateChanged = false;
+			let workingState = state;
+			let workingStateIsMutable = false;
 			for (const event of batch.events) {
-				if (applyPreparedEvent(event)) {
+				const prepared = takePreparedEvent(event, workingState);
+				if (prepared) {
+					workingState = prepared;
+					workingStateIsMutable = true;
 					stateChanged = true;
 					continue;
 				}
-				const result = reduceEventInPlace(state, event);
+				if (!workingStateIsMutable) {
+					workingState = forkGraphState(workingState);
+					workingStateIsMutable = true;
+				}
+				const result = reduceEventInPlace(workingState, event);
 				stateChanged = stateChanged || result.stateChanged;
 				requiresRootRecompute = requiresRootRecompute || result.requiresRootRecompute;
 			}
@@ -580,12 +613,12 @@ export const createGraphStore = (): GraphStore => {
 				return false;
 			}
 			if (batch.to) {
-				state.lastEventTime = batch.to;
+				workingState.lastEventTime = batch.to;
 			}
 			if (requiresRootRecompute) {
-				state.rootId = detectRoot(state.nodesById, state.childrenById);
+				refreshRootIfInvalid(workingState);
 			}
-			state = { ...state };
+			state = workingState;
 			return true;
 		},
 		createEventWork(event: UiEventDto): GraphEventProjectionWork | undefined {

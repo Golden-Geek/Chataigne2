@@ -50,6 +50,12 @@ cargo test --locked -p golden_engine \
 `golden_graph_ui` keeps the graph document independent of rendered DOM. Viewport culling and keyed
 stores limit work to visible nodes; a 10,000-node document must not mount the whole graph.
 
+The browser graph store uses fixed-depth persistent numeric tries for node, child, parent, and
+parameter indexes. Fork cost is independent of existing graph size, and mutations copy only touched
+trie paths. The default 512-work frame scheduler regression inserts the same 600-node chain into
+1k, 10k, and 100k existing-node graphs, requires identical frame counts at every size, permits at
+most 20 frames, and asserts that no detached intermediate root becomes visible.
+
 The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
 capture a coherent event revision and project generation under a short projection read, then walk
 and clone DTOs after releasing that lock. Whole-graph materialization and transport encoding must
