@@ -15,11 +15,11 @@ color?: ColorValue | null,
  */
 default_color?: ColorValue | null,
 /**
- * Preferred UI icon, as a data URI (e.g. `data:image/svg+xml;base64,...`).
+ * Preferred UI icon, as a data URI.
  */
 icon?: string | null,
 /**
- * Whether UI tree/inspector containers should start collapsed until a user chooses otherwise.
+ * Whether UI containers should start collapsed.
  */
 collapsed?: boolean,
 /**
@@ -27,20 +27,14 @@ collapsed?: boolean,
  */
 warnings?: Array<NodeWarning>,
 /**
- * If greater than zero, this node surfaces descendant warnings up to this depth.
+ * If greater than zero, surface descendant warnings up to this depth.
  */
 show_child_warnings_max_depth?: number,
 /**
  * Whether this node stays visible when rendered as a nested inspector child.
- *
- * Nodes default to visible at any nested inspector level. Set this to `false`
- * only for item roots that should stay hidden unless selected directly.
  */
 show_in_nested_inspector?: boolean,
 /**
  * Whether this node is rendered in its parent's inspector content area.
- *
- * Nodes default to visible in inspector content. Set this to `false` for controls
- * that are rendered by a custom inspector location such as a header action.
  */
 show_in_inspector_content?: boolean, };

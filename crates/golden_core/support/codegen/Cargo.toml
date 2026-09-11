@@ -12,5 +12,5 @@ path = "src/lib.rs"
 [dependencies]
 golden_graph = { path = "../../../golden_graph" }
 golden_protocol = { path = "../../services/protocol" }
-golden_script = { path = "../../runtime/script" }
+golden_script_contract.workspace = true
 ts-rs.workspace = true

@@ -2810,7 +2810,7 @@ version = "0.1.0"
 dependencies = [
  "golden_graph",
  "golden_protocol",
- "golden_script",
+ "golden_script_contract",
  "ts-rs",
 ]
 
@@ -2865,7 +2865,9 @@ dependencies = [
  "golden_model",
  "golden_parameters",
  "golden_persistence",
+ "golden_protocol",
  "golden_runtime",
+ "golden_script_contract",
  "golden_values",
  "rquickjs",
  "serde",
@@ -2909,6 +2911,7 @@ version = "0.1.0"
 name = "golden_model"
 version = "0.1.0"
 dependencies = [
+ "golden_values",
  "serde",
  "serde_json",
  "ts-rs",
@@ -2932,6 +2935,7 @@ name = "golden_persistence"
 version = "0.1.0"
 dependencies = [
  "atomic-write-file",
+ "golden_model",
  "serde",
  "serde_json",
  "sha2",
@@ -2942,7 +2946,13 @@ dependencies = [
 name = "golden_protocol"
 version = "0.1.0"
 dependencies = [
- "golden_engine",
+ "golden_context",
+ "golden_model",
+ "golden_parameters",
+ "golden_script_contract",
+ "serde",
+ "serde_json",
+ "ts-rs",
 ]
 
 [[package]]
@@ -2959,6 +2969,16 @@ version = "0.1.0"
 dependencies = [
  "golden_engine",
  "serde_json",
+]
+
+[[package]]
+name = "golden_script_contract"
+version = "0.1.0"
+dependencies = [
+ "golden_model",
+ "golden_parameters",
+ "serde",
+ "ts-rs",
 ]
 
 [[package]]

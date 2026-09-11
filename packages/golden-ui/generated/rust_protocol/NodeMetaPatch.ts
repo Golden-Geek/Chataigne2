@@ -4,7 +4,7 @@ import type { PresentationHint } from "./PresentationHint";
 import type { SemanticsHint } from "./SemanticsHint";
 
 /**
- * Patch payload for metadata updates.
+ * Complete metadata patch accepted by the public edit protocol.
  */
 export type NodeMetaPatch = {
 /**

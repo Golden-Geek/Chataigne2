@@ -410,7 +410,8 @@ fn scoped_replay_filters_unrelated_graph_transactions() {
         patch: NodeMetaPatch {
             label: Some("right renamed".to_string()),
             ..Default::default()
-        },
+        }
+        .into(),
     });
     assert!(ack.success, "rename should apply: {:?}", ack.error_message);
     read_model.publish_engine_events_since(&engine, Some(snapshot.at));

@@ -5386,7 +5386,8 @@ fn rename_node_does_not_require_whole_graph_resync() {
         patch: NodeMetaPatch {
             label: Some("renamed".to_string()),
             ..Default::default()
-        },
+        }
+        .into(),
     });
 
     assert!(ack.success, "rename intent should apply: {:?}", ack.error_message);

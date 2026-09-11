@@ -4,9 +4,9 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the sparse-selection T14 slice: `ef030667` is checked out with
-dirty-word index, selector, engine capacity, regression, qualification, and documentation changes
-in the working tree. T00–T13 and the prior T14 slice are committed and pushed on `main`.
+Current SHA and patch state before T15: `5dd0be6f` is checked out with the persistence, foundation,
+protocol, and script-contract boundary changes described below in the working tree. T00-T14 are
+committed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -20,22 +20,26 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T14 — remove identity-only worker overhead and implement real sparse selection — complete.
-This slice makes sparse work selection proportional to dirty work.
-T01's native qualification and T03's matching hosted reference baseline remain pending.
+Task: T15 — move reusable contracts into their owning crates — in progress. The current slices move
+project hierarchy/version/JSON codecs into `golden_persistence`, neutral model values into
+`golden_model`, canonical wire DTOs into `golden_protocol`, and QuickJS-free script manifest/UI
+declarations into `golden_script_contract`.
 
-Owning layers and files in this slice: the reusable `golden_runtime` dirty set and selector, plus
-generation-time scratch reservation in the `golden_engine` production runtime center.
+Owning layers and files in these slices: `golden_model`, `golden_persistence`, `golden_protocol`,
+`golden_script_contract`, code generation, and the focused `golden_engine` adapters.
 
-Invariant / implementation decision: sparse selection tracks touched bitset words, sorts their
-ordinals, and walks only set bits in compile order. Clearing touches only retained dirty words.
-Dense selection remains a straight schedule scan at the measured 50% crossover. Generation install
-reserves both dirty-word and selected-work storage before the tick path.
+Invariant / implementation decision: persistence owns a typed, app-agnostic
+`ProjectDocument<M>` / `ProjectNodeRecord<M>` hierarchy and codecs. Protocol declarations are split
+into cohesive files and import only foundation/script-contract crates; engine application and
+projection remain engine-owned adapters. Shared logical time, presentation, logging, retention,
+curve-fit, curation, and project-file metadata no longer originate in engine modules. Generated
+TypeScript remains Rust-owned and is regenerated in the same change.
 
-Result: at 0%/0.1%/1%/10% dirty, selection visits exactly 0/100/1,000/10,000 units; p95 is
-0/0/1/14 µs. Sparse and dense p95 converge at 50% (56/55 µs), and warmed selection records zero
-allocations. Direct 1%-dirty p95 is 3 µs versus 353 µs for identity dispatch. The release 100k-lane
-qualification passes with zero deadline misses. Real node callbacks remain serial until T18.
+Result: persistence has crate-external round-trip coverage; protocol has a crate-external wire
+consumer; neither protocol nor codegen contains engine, QuickJS, desktop-host, or Tauri dependency
+edges. All 418 active engine regressions and complete Svelte checks pass. The default app check
+reached the pre-existing incomplete local ASIO SDK (`asiodrivers.h` absent). Reusable QuickJS VM,
+budget, deadline, and effect-journal extraction plus public host fixtures remain in T15.
 
 ## Task status and dependencies
 
@@ -56,7 +60,7 @@ qualification passes with zero deadline misses. Real node callbacks remain seria
 | T12  | T08, T09, T11                                 | complete                                                     |
 | T13  | T03, T10                                      | complete                                                     |
 | T14  | T03, T07, T11                                 | complete                                                     |
-| T15  | T05, T09, T10, T12                            | pending                                                      |
+| T15  | T05, T09, T10, T12                            | in progress                                                  |
 | T16  | T01, T02                                      | pending                                                      |
 | T17  | T00; behavior fixes before related extraction | pending                                                      |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | pending                                                      |
@@ -82,7 +86,7 @@ the current branch contains implementation and verification evidence.
 | F11 — concurrent saves             | fixed           | T09 adds monotonic save tickets, normalized destination identity, ordered complete transactions, bounded cross-destination concurrency, generation fencing, and winner-only path/revision publication                                                                                                                                                                                             | Deterministic barriers cover reversed completion, aliases, Save As, edits, and replacement. Injected write/restore boundaries prove recovery and subsequent saves. T12 retains capture-scaling work under F10, not save-order correctness.                    |
 | F12 — dependency gate              | fixed           | `h2` locked at 0.4.16; `rtrb` constraint and lock at 0.3.5; no advisory suppression added                                                                                                                                                                                                                                                                                                         | `cargo deny check`, `cargo machete`, and both backend-neutral/realtime Golden Audio suites pass against RustSec DB `5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5` (2026-09-02). No reachable Chataigne exploit was established.                                   |
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
-| F14 — facades/edit acknowledgement | partially fixed | T10 maps the authoritative actor-turn acknowledgement into typed graph/project transaction results, returns the acknowledged success revision, rejects unavailable undo/redo, and adds a crate-external dependency consumer                                                                                                                                                                       | UI, WebSocket, HTTP, and headless paths share the same rejection details without a wire-schema change. T15 still owns generic protocol/script/persistence facade extraction.                                                                                  |
+| F14 — facades/edit acknowledgement | partially fixed | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 owns typed project codecs in `golden_persistence`, canonical wire DTOs in `golden_protocol`, and lightweight script declarations in `golden_script_contract`; engine application stays in adapters.                                                  | Persistence and protocol external consumers pass. Protocol/codegen dependency trees contain no engine, QuickJS, desktop host, or Tauri. Reusable VM/effect extraction and remaining public host consumers are pending.                                    |
 | F15 — ordinary audio portability   | open            | T16 pending                                                                                                                                                                                                                                                                                                                                                                                       | Windows host CI passed, but artifact feature forwarding and external-consumer portability remain unqualified.                                                                                                                                                 |
 | F16 — gitlinks/docs/source size    | open            | T17 pending                                                                                                                                                                                                                                                                                                                                                                                       | Four mode-160000 entries are confirmed present without a usable `.gitmodules`; current oversized-file inventory is pending.                                                                                                                                   |
 
@@ -221,6 +225,17 @@ the current branch contains implementation and verification evidence.
 | `python tools/qualification/runtime_scale.py --output-dir target/qualification/runtime-scale/t14-local`                                                           | T14 sparse      | Windows x64, Rust 1.97, release, four workers                  | passed  | Source-fingerprinted 100k-lane report: dense p95 339.7/3,618.2 µs, sparse p95 9.7/32.2 µs, idle p95 0.1/0.1 µs for the 1k×100/10k×10 partitions; zero deadline misses and stable 1/2/4/8-worker digests.                                                                                     |
 | `cargo test --locked -p golden_engine --lib --no-fail-fast`                                                                                                       | T14 sparse      | Windows x64, Rust 1.97                                         | passed  | 418 tests pass; three explicit measurements remain ignored. Schedule ordering, due/replay behavior, effects, production input, generation changes, and graph removals remain green.                                                                                                          |
 | `cargo clippy --locked -p golden_runtime -p golden_engine --all-targets -- -D warnings`                                                                           | T14 sparse      | Windows x64, Rust 1.97                                         | passed  | Dirty-word indexing, zero-allocation selection tests, engine reservation, and all related targets are warning-free.                                                                                                                                                                          |
+| `cargo test --locked -p golden_persistence --target-dir target/t15-check`                                                                                         | T15 persistence | Windows x64, Rust 1.97                                         | passed  | All 12 unit tests and one crate-external public codec test pass, including engine- and host-free round trips and unsupported-version rejection.                                                                                                                                              |
+| `cargo test --locked -p golden_engine persistence --lib --target-dir target/t15-check -- --test-threads=1`                                                       | T15 persistence | Windows x64, Rust 1.97                                         | passed  | All 11 persistence/coordinator engine regressions pass through the new persistence-owned codec.                                                                                                                                                                                              |
+| `cargo check --locked -p golden_engine --target-dir target/t15-check`                                                                                             | T15 persistence | Windows x64, Rust 1.97                                         | passed  | The engine application, project adapter, and public compatibility paths compile against the persistence-owned document contract.                                                                                                                                                             |
+| `cargo fmt --all`; `cargo fmt --manifest-path crates/golden_core/Cargo.toml --all`; `git diff --check`                                                           | T15 persistence | Windows x64                                                    | passed  | Both required Rust workspaces are formatted; the diff has no whitespace errors.                                                                                                                                                                                                              |
+| `cargo test --locked -p golden_protocol --target-dir target/t15-check`                                                                                           | T15 protocol    | Windows x64, Rust 1.97                                         | passed  | The crate-external protocol consumer serializes the canonical handshake using only the public protocol package.                                                                                                                                                                               |
+| protocol/codegen `cargo tree --locked ... -e normal` forbidden-edge check                                                                                       | T15 protocol    | Windows x64, Rust 1.97                                         | passed  | Neither normal dependency tree contains `golden_engine`, `rquickjs`, `golden_host_desktop`, or `tauri`.                                                                                                                                                                                       |
+| `cargo test --locked -p golden_engine --lib --target-dir target/t15-check -- --test-threads=1`                                                                   | T15 protocol    | Windows x64, Rust 1.97                                         | passed  | All 418 active engine regressions pass through protocol-owned DTOs and engine-owned application/projection adapters; three manual measurements remain ignored.                                                                                                                                |
+| `cargo clippy --locked -p golden_engine -p golden_protocol -p golden_codegen_support -p golden_script_contract -p golden_model --all-targets --target-dir target/t15-check -- -D warnings` | T15 protocol | Windows x64, Rust 1.97 | passed | Foundation contracts, canonical DTOs, adapters, codegen, and every related target are warning-free. |
+| `cargo run --locked -p golden_codegen_support --bin golden_codegen -- ui-protocol packages/golden-ui/generated/rust_protocol`                                   | T15 protocol    | Windows x64, Rust 1.97                                         | passed  | Rust-owned TypeScript bindings regenerate successfully from the engine-independent protocol and script declarations.                                                                                                                                                                         |
+| `npm run check`                                                                                                                                                  | T15 protocol    | Windows x64, Node 26                                           | passed  | Golden Audio generated checks and both Svelte workspaces report zero errors and zero warnings.                                                                                                                                                                                               |
+| `cargo check --locked -p golden_codegen_support -p Chataigne2 --target-dir target/t15-check`                                                                     | T15 protocol    | Windows x64, default app features                              | failed  | Codegen compiled; the app build reached the known incomplete local ASIO SDK and failed because `asiodrivers.h` is absent. No protocol diagnostic was emitted.                                                                                                                                |
 
 ## Preservation and qualification inventory
 
@@ -235,7 +250,9 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready work: T15 — move reusable contracts into their owning crates.
+Next dependency-ready work: continue T15 by extracting the reusable QuickJS VM, budgets, deadlines,
+and effect journal into `golden_script` behind explicit host contracts, then prove the boundary with
+a tiny fake host and lightweight public runtime consumers.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

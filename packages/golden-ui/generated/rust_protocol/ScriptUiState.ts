@@ -11,7 +11,7 @@ export type ScriptUiState = {
  */
 config: ScriptUiConfig,
 /**
- * Effective update-rate used by scheduler.
+ * Effective update rate used by the scheduler.
  */
 effective_update_rate_hz?: number | null,
 /**

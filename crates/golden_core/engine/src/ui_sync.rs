@@ -1,47 +1,26 @@
 use std::collections::{HashMap, HashSet};
 
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-
-use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
+use crate::contexts::UserContextValueType;
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime, ProjectLoadRecoveryReport, ProjectPersistenceError};
-use crate::events::{CustomEventRetention, Event, EventKind};
-use crate::logger::LogRecord;
+use crate::events::{Event, EventKind};
 use crate::node::{
-    CurveBezierFitOptions, CurveFitPoint, CurveNode, DASHBOARD_GENERIC_WIDGET_NODE_TYPE,
-    DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DeclId,
-    FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeId, NodeMeta, NodeMetaPatch, NodeReference, NodeUserPermissions,
-    NodeUuid, PresentationHint, UserCreatableItem, UserCreatableItemInitialParam, UserNodeRole,
+    CurveNode, DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE,
+    DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DeclId, FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeId, NodeMeta,
+    NodeMetaPatch as EngineNodeMetaPatch, NodeReference, NodeUuid, UserCreatableItem, UserCreatableItemInitialParam,
 };
 use crate::parameter::{
-    CssValue, ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
-    ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
-    RangeConstraint, available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
+    ParamValue, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState,
+    ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, available_control_modes_for_parameter,
+    compatibility_for_binding_values, compatibility_for_values,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
-/// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.4.0";
+pub use golden_protocol::*;
+
 pub(crate) const UI_USER_CONTEXT_SCOPE_TOPIC: &str = "__user_context.scope_changed";
 pub(crate) const UI_USER_CONTEXT_ENTRY_TOPIC: &str = "__user_context.entry_changed";
-
-fn is_default_presentation_hint(value: &PresentationHint) -> bool {
-    *value == PresentationHint::default()
-}
-
-fn is_default_user_permissions(value: &NodeUserPermissions) -> bool {
-    *value == NodeUserPermissions::default()
-}
-
-fn is_default_event_behaviour(value: &ParameterEventBehaviour) -> bool {
-    *value == ParameterEventBehaviour::default()
-}
-
-fn is_false(value: &bool) -> bool {
-    !*value
-}
 
 fn duplicate_unique_label_base(label: &str) -> (&str, u64) {
     let Some((base, suffix)) = label.rsplit_once(' ') else {
@@ -54,410 +33,6 @@ fn duplicate_unique_label_base(label: &str) -> (&str, u64) {
         Ok(suffix) if suffix >= 2 => (base, suffix.saturating_add(1)),
         _ => (label, 2),
     }
-}
-
-fn is_empty_create_user_item_initial_params(value: &[UiCreateUserItemInitialParam]) -> bool {
-    value.is_empty()
-}
-
-fn is_empty_duplicate_node_specs(value: &[UiDuplicateNodeSpec]) -> bool {
-    value.is_empty()
-}
-
-fn is_empty_duplicate_create_user_item_specs(value: &[UiDuplicateCreateUserItemSpec]) -> bool {
-    value.is_empty()
-}
-
-fn is_empty_duplicate_dependent_user_items(value: &[UiDuplicateDependentUserItem]) -> bool {
-    value.is_empty()
-}
-
-fn is_empty_duplicate_dependent_initial_params(value: &[UiDuplicateDependentUserItemInitialParam]) -> bool {
-    value.is_empty()
-}
-
-fn is_default_parameter_constraints(value: &ParameterConstraints) -> bool {
-    *value == ParameterConstraints::default()
-}
-
-fn is_default_parameter_ui_hints(value: &ParameterUiHints) -> bool {
-    *value == ParameterUiHints::default()
-}
-
-/// Scope used by snapshot/event subscriptions.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
-#[serde(rename_all = "camelCase")]
-pub enum UiSubscriptionScope {
-    /// Full graph scope.
-    #[default]
-    WholeGraph,
-    /// Subtree-limited scope rooted at `root` with `max_depth`.
-    Subtree {
-        /// Subtree root node id.
-        root: NodeId,
-        /// Maximum descendant depth (`0` means only root).
-        max_depth: u32,
-    },
-}
-
-/// Independently flow-controlled UI protocol plane.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub enum UiDataPlane {
-    /// Reliable document and presentation structure.
-    Structure,
-    /// Latest-wins runtime values.
-    Value,
-    /// Lossless triggers and application callbacks.
-    Trigger,
-    /// Latest-wins diagnostics and runtime observation.
-    Observation,
-    /// Static catalogs and schema descriptors.
-    Catalog,
-    /// Keyed authoring and runtime previews.
-    Preview,
-}
-
-impl UiDataPlane {
-    /// Every plane used by a complete workbench view.
-    pub const ALL: [Self; 6] = [
-        Self::Structure,
-        Self::Value,
-        Self::Trigger,
-        Self::Observation,
-        Self::Catalog,
-        Self::Preview,
-    ];
-
-    /// Whether queued messages on this plane may be superseded by newer state.
-    pub const fn is_latest_wins(self) -> bool {
-        matches!(self, Self::Value | Self::Observation | Self::Preview)
-    }
-}
-
-/// Per-view interest registered by one UI client.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiInterest {
-    /// Stable identifier for the consuming workbench view or panel.
-    pub view_id: String,
-    /// Graph scope observed by the view.
-    pub scope: UiSubscriptionScope,
-    /// Planes delivered to the view.
-    pub planes: Vec<UiDataPlane>,
-}
-
-impl UiInterest {
-    /// Creates an interest covering every protocol plane for `scope`.
-    pub fn workbench(view_id: impl Into<String>, scope: UiSubscriptionScope) -> Self {
-        Self {
-            view_id: view_id.into(),
-            scope,
-            planes: UiDataPlane::ALL.to_vec(),
-        }
-    }
-
-    /// Returns whether the view consumes `plane`.
-    pub fn includes(&self, plane: UiDataPlane) -> bool {
-        self.planes.contains(&plane)
-    }
-}
-
-/// Lifecycle phase for one control request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub enum UiControlPhase {
-    /// The transport parsed the request.
-    Received,
-    /// The actor-owned control plane accepted the request.
-    Accepted,
-    /// The authoritative runtime applied the request.
-    Applied,
-    /// The authoritative runtime rejected the request.
-    Rejected,
-}
-
-/// Lifecycle update for one control request or batch.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiControlUpdate {
-    /// Client-generated request identifier.
-    pub request_id: String,
-    /// Current lifecycle phase.
-    pub phase: UiControlPhase,
-    /// Final single-intent acknowledgement.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub acknowledgement: Option<UiAck>,
-    /// Final batch acknowledgements.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub acknowledgements: Vec<UiAck>,
-}
-
-impl UiControlUpdate {
-    /// Creates a non-final lifecycle update.
-    pub fn pending(request_id: String, phase: UiControlPhase) -> Self {
-        Self {
-            request_id,
-            phase,
-            acknowledgement: None,
-            acknowledgements: Vec::new(),
-        }
-    }
-}
-
-/// One independently flow-controlled delta.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiPlaneDelta {
-    /// Plane carrying the delta.
-    pub plane: UiDataPlane,
-    /// Existing revisioned event payload for that plane.
-    pub batch: UiEventBatch,
-}
-
-/// Canonical client-to-runtime WebSocket message.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UiClientMessage {
-    /// Starts or resumes a client session.
-    Hello {
-        /// Protocol version implemented by the client.
-        protocol_version: String,
-        /// Stable identifier for the browser tab.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        client_instance_id: Option<String>,
-    },
-    /// Registers or replaces one view interest.
-    Subscribe {
-        /// Client-local subscription identifier.
-        subscription_id: String,
-        /// View and plane interest.
-        interest: UiInterest,
-        /// Optional replay cursor.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        from: Option<EngineTime>,
-    },
-    /// Removes one view interest.
-    Unsubscribe {
-        /// Client-local subscription identifier.
-        subscription_id: String,
-    },
-    /// Requests a scoped immutable snapshot over the live transport.
-    Snapshot {
-        /// Client-generated request identifier.
-        request_id: String,
-        /// Snapshot scope.
-        scope: UiSubscriptionScope,
-    },
-    /// Requests a bounded scoped replay over the live transport.
-    Replay {
-        /// Client-generated request identifier.
-        request_id: String,
-        /// Replay scope.
-        scope: UiSubscriptionScope,
-        /// Optional replay cursor.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        from: Option<EngineTime>,
-    },
-    /// Submits one control intent.
-    Intent {
-        /// Client-generated request identifier.
-        request_id: String,
-        /// Typed edit intent.
-        intent: Box<UiEditIntent>,
-        /// Whether resulting events are echoed to the sender.
-        #[serde(default)]
-        include_self_events: bool,
-    },
-    /// Submits one ordered control batch.
-    IntentBatch {
-        /// Client-generated request identifier.
-        request_id: String,
-        /// Typed edit intents.
-        intents: Vec<UiEditIntent>,
-        /// Whether resulting events are echoed to the sender.
-        #[serde(default)]
-        include_self_events: bool,
-    },
-}
-
-/// Canonical runtime-to-client WebSocket message.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UiServerMessage {
-    /// Confirms the negotiated session.
-    Hello {
-        /// Protocol version implemented by the server.
-        protocol_version: String,
-        /// Server-assigned connection identifier.
-        client_id: u64,
-        /// Runtime session identifier used to detect restarts.
-        session_id: String,
-    },
-    /// Returns a scoped immutable snapshot.
-    Snapshot {
-        /// Matching client request identifier.
-        request_id: String,
-        /// Requested snapshot.
-        snapshot: Box<UiSnapshot>,
-    },
-    /// Returns a bounded scoped replay.
-    Replay {
-        /// Matching client request identifier.
-        request_id: String,
-        /// Requested replay batch.
-        batch: UiEventBatch,
-    },
-    /// Delivers one atomic set of plane deltas from a server replay pass.
-    Delta {
-        /// Matching client subscription identifier.
-        subscription_id: String,
-        /// Plane-specific deltas staged together before the client may render.
-        deltas: Vec<UiPlaneDelta>,
-    },
-    /// Advances a control request lifecycle.
-    Control {
-        /// Lifecycle update.
-        update: UiControlUpdate,
-    },
-    /// Requires a scoped replay or snapshot refresh.
-    ResyncRequired {
-        /// Matching client subscription identifier.
-        subscription_id: String,
-        /// Affected plane, or every subscribed plane when absent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        plane: Option<UiDataPlane>,
-        /// Stable machine-readable reason.
-        reason: String,
-    },
-    /// Reports a protocol or transport error.
-    Error {
-        /// Human-readable diagnostic.
-        message: String,
-        /// Matching request identifier when available.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        request_id: Option<String>,
-    },
-}
-
-/// UI hello handshake.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiHello {
-    /// Requested UI protocol version.
-    pub protocol_version: String,
-    /// Requested subscription scope.
-    #[serde(default)]
-    pub scope: UiSubscriptionScope,
-    /// Optional replay cursor.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub from: Option<EngineTime>,
-}
-
-/// HTTP snapshot request payload.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiSnapshotRequest {
-    /// Requested snapshot scope.
-    #[serde(default)]
-    pub scope: UiSubscriptionScope,
-    /// Whether any active grouped edit should be cancelled before snapshotting.
-    #[serde(default)]
-    pub cancel_active_edit_session: bool,
-}
-
-/// HTTP replay request payload.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiReplayRequest {
-    /// Requested replay scope.
-    #[serde(default)]
-    pub scope: UiSubscriptionScope,
-    /// Optional replay cursor.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub from: Option<EngineTime>,
-}
-
-/// HTTP request payload for reference-target queries.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiReferenceTargetsRequest {
-    /// Target reference parameter node id.
-    pub param: NodeId,
-}
-
-/// HTTP request payload for user-context candidate queries.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiContextCandidatesRequest {
-    /// Target parameter node id.
-    pub param: NodeId,
-}
-
-/// HTTP request payload for parameter-control info queries.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiParamControlInfoRequest {
-    /// Target parameter node id.
-    pub param: NodeId,
-}
-
-/// HTTP request payload for script-state queries.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiScriptStateRequest {
-    /// Target script node id.
-    pub node: NodeId,
-}
-
-/// HTTP request payload for script-config updates.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiScriptConfigRequest {
-    /// Target script node id.
-    pub node: NodeId,
-    /// Replacement config payload.
-    pub config: ScriptUiConfig,
-    /// Whether the runtime should force an immediate reload.
-    #[serde(default)]
-    pub force_reload: bool,
-}
-
-/// HTTP request payload for script reloads.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiScriptReloadRequest {
-    /// Target script node id.
-    pub node: NodeId,
-}
-
-/// HTTP request payload carrying a project path.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiProjectPathRequest {
-    /// Project path selected by the host.
-    pub path: String,
-    /// Optional project-owned UI state to write into the saved project document.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ui_state: Option<serde_json::Value>,
-    /// Whether to skip recoverable load-time rebuild problems after user confirmation.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub recover: bool,
-}
-
-/// HTTP request payload for uploading a browser-selected project file before loading it.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiProjectUploadRequest {
-    /// Original browser-side file name.
-    pub file_name: String,
-    /// Uploaded project document contents.
-    pub contents: String,
-    /// Whether to skip recoverable load-time rebuild problems after user confirmation.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub recover: bool,
-}
-
-/// HTTP response payload describing a project load completed with recovery.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiProjectLoadRecoveryDto {
-    /// Problems skipped while loading as much of the project as possible.
-    pub problems: Vec<UiProjectLoadProblemDto>,
-}
-
-/// HTTP response payload for one skipped project-load problem.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiProjectLoadProblemDto {
-    /// Stable load stage identifier.
-    pub stage: String,
-    /// Human-readable problem description.
-    pub message: String,
 }
 
 impl From<&ProjectLoadRecoveryReport> for UiProjectLoadRecoveryDto {
@@ -481,323 +56,6 @@ impl From<ProjectLoadRecoveryReport> for UiProjectLoadRecoveryDto {
     }
 }
 
-/// HTTP response payload carrying a resolved project path.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiProjectPathDto {
-    /// Resolved project path on the host.
-    pub path: String,
-    /// Optional project-owned UI state loaded from the project document.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ui_state: Option<serde_json::Value>,
-    /// Recovery diagnostics when the user approved a partial project load.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub recovery: Option<UiProjectLoadRecoveryDto>,
-}
-
-/// UI-facing app project-file metadata.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiProjectFileSpec {
-    /// Human-readable name for one project document, such as `Noisette`.
-    pub display_name: String,
-    /// Preferred filename extension without a leading dot.
-    pub extension: String,
-    /// Resolved host path for the currently open project document, when any.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub current_path: Option<String>,
-}
-
-impl Default for UiProjectFileSpec {
-    fn default() -> Self {
-        Self {
-            display_name: "Project".to_string(),
-            extension: "json".to_string(),
-            current_path: None,
-        }
-    }
-}
-
-impl UiProjectFileSpec {
-    /// Builds UI project-file metadata from an app file spec and active host path.
-    pub fn from_project_file_spec(spec: crate::app::ProjectFileSpec, current_path: Option<String>) -> Self {
-        Self {
-            display_name: spec.normalized_display_name(),
-            extension: spec.normalized_extension(),
-            current_path,
-        }
-    }
-}
-
-impl From<crate::app::ProjectFileSpec> for UiProjectFileSpec {
-    fn from(spec: crate::app::ProjectFileSpec) -> Self {
-        Self::from_project_file_spec(spec, None)
-    }
-}
-
-/// UI-facing node metadata payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiNodeMetaDto {
-    /// Generated short name.
-    pub short_name: String,
-    /// User-visible label.
-    pub label: String,
-    /// Enabled flag.
-    pub enabled: bool,
-    /// Whether disable is allowed.
-    pub can_be_disabled: bool,
-    /// User-edit permissions.
-    #[serde(default, skip_serializing_if = "is_default_user_permissions")]
-    pub user_permissions: NodeUserPermissions,
-    /// Optional description.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    /// Shared declaration-description key resolved via `UiSchemaView.declared_descriptions`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub declared_description_key: Option<String>,
-    /// Whether `description` is an instance-level override relative to the declared description.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub description_overridden: bool,
-    /// Optional tags.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
-    /// Presentation hints, including warnings.
-    #[serde(default, skip_serializing_if = "is_default_presentation_hint")]
-    pub presentation: PresentationHint,
-}
-
-/// UI-facing parameter payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiParamDto {
-    /// Current value.
-    pub value: ParamValue,
-    /// Declared default value.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_value: Option<ParamValue>,
-    /// Coalescing policy.
-    #[serde(default, skip_serializing_if = "is_default_event_behaviour")]
-    pub event_behaviour: ParameterEventBehaviour,
-    /// Read-only flag.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub read_only: bool,
-    /// Runtime value constraints.
-    #[serde(default, skip_serializing_if = "is_default_parameter_constraints")]
-    pub constraints: ParameterConstraints,
-    /// Presentation and editing hints.
-    #[serde(default, skip_serializing_if = "is_default_parameter_ui_hints")]
-    pub ui_hints: ParameterUiHints,
-    /// Runtime control-plane state.
-    #[serde(default, skip_serializing_if = "is_default_ui_parameter_control_state")]
-    pub control: UiParameterControlStateDto,
-    /// Optional shared enum-options id resolved via `UiSchemaView.enums`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub enum_options_id: Option<String>,
-    /// Engine-computed selectable targets for reference parameters.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub reference_allowed_targets: Vec<NodeId>,
-    /// Engine-computed visible tree nodes for reference picker (targets + relevant ancestor paths).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub reference_visible_nodes: Vec<NodeId>,
-}
-
-impl From<ParameterSnapshot> for UiParamDto {
-    fn from(snapshot: ParameterSnapshot) -> Self {
-        let default_value = if snapshot.default_value == snapshot.value {
-            None
-        } else {
-            Some(snapshot.default_value)
-        };
-        Self {
-            value: snapshot.value,
-            default_value,
-            event_behaviour: snapshot.event_behaviour,
-            read_only: snapshot.read_only,
-            constraints: snapshot.constraints,
-            ui_hints: snapshot.ui_hints,
-            control: snapshot.control.into(),
-            enum_options_id: None,
-            reference_allowed_targets: Vec::new(),
-            reference_visible_nodes: Vec::new(),
-        }
-    }
-}
-
-/// UI-facing parameter control state.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiParameterControlStateDto {
-    /// Active control mode.
-    #[serde(default)]
-    pub mode: ParameterControlMode,
-    /// Authoring control specification.
-    #[serde(default)]
-    pub spec: ParameterControlSpec,
-}
-
-impl Default for UiParameterControlStateDto {
-    fn default() -> Self {
-        Self {
-            mode: ParameterControlMode::Manual,
-            spec: ParameterControlSpec::Manual,
-        }
-    }
-}
-
-fn is_default_ui_parameter_control_state(value: &UiParameterControlStateDto) -> bool {
-    *value == UiParameterControlStateDto::default()
-}
-
-impl From<ParameterControlState> for UiParameterControlStateDto {
-    fn from(state: ParameterControlState) -> Self {
-        Self {
-            mode: state.mode,
-            spec: state.spec,
-        }
-    }
-}
-
-impl From<UiParameterControlStateDto> for ParameterControlState {
-    fn from(state: UiParameterControlStateDto) -> Self {
-        ParameterControlState::new(state.mode, state.spec)
-    }
-}
-
-/// UI payload for on-demand reference picker target resolution.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, TS)]
-pub struct UiReferenceTargetsDto {
-    /// Selectable targets for the requested reference parameter.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub allowed_targets: Vec<NodeId>,
-    /// Visible picker nodes (targets + path ancestors).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub visible_nodes: Vec<NodeId>,
-    /// Compatibility details for each selectable target.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub candidates: Vec<UiReferenceTargetCandidateDto>,
-}
-
-/// UI-facing compatibility details for one selectable reference target.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiReferenceTargetCandidateDto {
-    /// Candidate node id.
-    pub target: NodeId,
-    /// Whether this candidate can be consumed without projection.
-    pub direct: bool,
-    /// Projections that make this candidate compatible.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub projections: Vec<ParamValueProjection>,
-}
-
-/// UI-facing control candidate for proxy/binding target pickers.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiParamCandidateDto {
-    /// Candidate parameter node id.
-    pub param: NodeId,
-    /// Whether candidate value type is compatible.
-    pub compatible: bool,
-    /// Projections that enable compatibility.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub projections: Vec<ParamValueProjection>,
-}
-
-/// UI-facing token suggestion for template/expression editors.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiTokenSuggestionDto {
-    /// Suggested token string.
-    pub token: String,
-}
-
-/// UI-facing per-parameter control info payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiParamControlInfoDto {
-    /// Parameter node id.
-    pub param: NodeId,
-    /// Active control mode.
-    pub active_mode: ParameterControlMode,
-    /// Supported control modes for this parameter.
-    pub available_modes: Vec<ParameterControlMode>,
-    /// Lexical user-context candidates.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub context_candidates: Vec<UserContextCandidate>,
-    /// Token suggestions for text/expression editors.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub token_suggestions: Vec<UiTokenSuggestionDto>,
-    /// Candidate proxy targets.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub proxy_candidates: Vec<UiParamCandidateDto>,
-    /// Candidate binding targets.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub binding_candidates: Vec<UiParamCandidateDto>,
-}
-
-/// UI-facing node data summary.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UiNodeDataDto {
-    /// Parameter node payload.
-    Parameter {
-        /// Parameter details.
-        param: Box<UiParamDto>,
-    },
-    /// Non-parameter node summary.
-    Node {
-        /// Runtime type identifier.
-        node_type: String,
-    },
-}
-
-/// UI-facing node DTO.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiNodeDto {
-    /// Runtime node id.
-    pub node_id: NodeId,
-    /// Stable persistent uuid.
-    pub uuid: NodeUuid,
-    /// Declared id for this node in its parent scope.
-    pub decl_id: DeclId,
-    /// Runtime node type identifier.
-    pub node_type: String,
-    /// User-facing metadata.
-    pub meta: UiNodeMetaDto,
-    /// Node payload summary.
-    pub data: UiNodeDataDto,
-    /// Runtime role for user curation semantics.
-    pub user_role: UserNodeRole,
-    /// Logical item kind used by container admission.
-    pub user_item_kind: String,
-    /// Accepted item kinds when this node acts as a container.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub accepted_user_item_kinds: Vec<String>,
-    /// User-creatable item node types for this container instance.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub creatable_user_items: Vec<UiCreatableUserItemDto>,
-    /// Direct children ids in visual order.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub children: Vec<NodeId>,
-}
-
-/// UI-facing descriptor of a user-creatable item type.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiCreatableUserItemDto {
-    /// Runtime node type identifier.
-    pub node_type: String,
-    /// Logical user-item kind.
-    pub item_kind: String,
-    /// Suggested default label.
-    pub label: String,
-    /// Optional Add menu submenu path, excluding the item label.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub menu_path: Vec<String>,
-    /// Optional direct parameter values applied immediately after creation.
-    #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
-    pub initial_params: Vec<UiCreateUserItemInitialParam>,
-    /// Whether UI creation flows should auto-select the created item.
-    pub select_when_created: bool,
-    /// Whether the Add menu should render a divider immediately above this item.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub separator_before: bool,
-    /// Optional icon shown for this item in Add menus, as a data URI.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub icon: Option<String>,
-}
-
 impl From<UserCreatableItem> for UiCreatableUserItemDto {
     fn from(item: UserCreatableItem) -> Self {
         Self {
@@ -813,130 +71,6 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
     }
 }
 
-/// UI-facing node-type descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiNodeTypeDescriptor {
-    /// Runtime node type identifier.
-    pub node_type: String,
-    /// Canonical description shared by all nodes of this type when available.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-}
-
-/// UI-facing shared declaration-description descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct UiDeclaredDescriptionDescriptor {
-    /// Stable key used by nodes that share this declared description.
-    pub key: String,
-    /// Canonical declared description text.
-    pub description: String,
-}
-
-/// UI-facing enum descriptor.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiEnumDefinition {
-    /// Stable enum id.
-    pub enum_id: String,
-    /// Enum variant definitions.
-    pub variants: Vec<UiEnumVariantDefinition>,
-}
-
-/// UI-facing enum variant descriptor.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiEnumVariantDefinition {
-    /// Stable variant id.
-    pub variant_id: String,
-    /// Value represented by this variant.
-    pub value: ParamValue,
-    /// Display label.
-    pub label: String,
-    /// Optional tags.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
-    /// Optional ordering key.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ordering: Option<i32>,
-}
-
-/// UI-facing schema payload needed by editors.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, TS)]
-pub struct UiSchemaView {
-    /// Known node types within the snapshot scope.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub node_types: Vec<UiNodeTypeDescriptor>,
-    /// Shared descriptions for repeated declared nodes and parameters.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub declared_descriptions: Vec<UiDeclaredDescriptionDescriptor>,
-    /// Enum definitions used by UI editors.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub enums: Vec<UiEnumDefinition>,
-}
-
-/// UI-facing history status payload.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
-pub struct UiHistoryState {
-    /// Whether undo is currently possible.
-    pub can_undo: bool,
-    /// Whether redo is currently possible.
-    pub can_redo: bool,
-    /// Number of undo transactions available.
-    pub undo_len: usize,
-    /// Number of redo transactions available.
-    pub redo_len: usize,
-    /// Whether an edit session is currently active.
-    pub active_edit_session: bool,
-    /// Logical content-state id for the current graph relative to undo/redo history.
-    pub current_history_state_id: u64,
-}
-
-/// UI-facing logger state included in snapshots.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, TS)]
-pub struct UiLoggerState {
-    /// Maximum number of logger records retained server-side.
-    pub max_entries: usize,
-    /// Retained records in ascending record-id order.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub records: Vec<LogRecord>,
-}
-
-/// Snapshot payload for initial sync.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiSnapshot {
-    /// Protocol version.
-    pub protocol_version: String,
-    /// Snapshot scope.
-    pub scope: UiSubscriptionScope,
-    /// Engine time when snapshot was produced.
-    pub at: EngineTime,
-    /// Nodes included in this snapshot.
-    pub nodes: Vec<UiNodeDto>,
-    /// Schema fragments required by editors.
-    pub schema: UiSchemaView,
-    /// Current undo/redo state.
-    pub history: UiHistoryState,
-    /// Current logger state.
-    pub logger: UiLoggerState,
-    /// App-provided project file metadata.
-    #[serde(default)]
-    pub project_file: UiProjectFileSpec,
-    /// Current user-context scopes.
-    #[serde(default, skip_serializing_if = "is_default_user_contexts")]
-    pub user_contexts: UiUserContextsDto,
-}
-
-fn is_default_user_contexts(value: &UiUserContextsDto) -> bool {
-    *value == UiUserContextsDto::default()
-}
-
-/// Direct parameter initializer applied immediately after one user-item is created.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiCreateUserItemInitialParam {
-    /// Direct child decl id on the newly-created root node.
-    pub decl_id: DeclId,
-    /// Initial value to assign.
-    pub value: ParamValue,
-}
-
 impl From<UserCreatableItemInitialParam> for UiCreateUserItemInitialParam {
     fn from(initial_param: UserCreatableItemInitialParam) -> Self {
         Self {
@@ -946,158 +80,8 @@ impl From<UserCreatableItemInitialParam> for UiCreateUserItemInitialParam {
     }
 }
 
-/// Optional size-enabled hints for dashboard widget creation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiDashboardWidgetSizeEnabled {
-    /// Whether width should be enabled when the parent layout uses horizontal sizing.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub width: bool,
-    /// Whether height should be enabled when the parent layout uses vertical sizing.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub height: bool,
-}
-
-/// UI-provided placement hint for dashboard widget creation.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiDashboardWidgetPlacement {
-    /// Anchor used by free-layout parents.
-    pub anchor: String,
-    /// Position used by free-layout parents.
-    pub position: (f64, f64),
-    /// Preferred widget width.
-    pub width: CssValue,
-    /// Preferred widget height.
-    pub height: CssValue,
-    /// Optional size enablement hints for non-free layouts.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub size_enabled: Option<UiDashboardWidgetSizeEnabled>,
-}
-
-/// One existing subtree root to clone as part of a copy batch.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiDuplicateNodeSpec {
-    /// Source node id to clone. Also acts as the key used by dependent references.
-    pub source: NodeId,
-    /// Parent receiving the duplicated subtree root.
-    pub new_parent: NodeId,
-    /// Optional sibling after which insertion occurs.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub new_prev_sibling: Option<NodeId>,
-    /// Optional direct parameter values applied to the duplicated root before the batch completes.
-    #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
-    pub initial_params: Vec<UiCreateUserItemInitialParam>,
-}
-
-/// One fresh user item to create as part of a copy batch.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiDuplicateCreateUserItemSpec {
-    /// Source key used by dependent references to address this created item.
-    pub source: NodeId,
-    /// Parent receiving the created item.
-    pub parent: NodeId,
-    /// Runtime node type identifier to instantiate.
-    pub node_type: String,
-    /// Optional explicit label for the new item.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    /// Optional direct parameter values applied to the created root before the batch completes.
-    #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
-    pub initial_params: Vec<UiCreateUserItemInitialParam>,
-}
-
-/// Initializer for an item that depends on roots materialized earlier in the same copy batch.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiDuplicateDependentUserItemInitialParam {
-    /// Direct child decl id on the newly-created dependent item.
-    pub decl_id: DeclId,
-    /// Literal value or a reference resolved from the copy batch source map.
-    pub value: UiDuplicateDependentInitialParamValue,
-}
-
-/// Value source for a dependent item initializer inside a copy batch.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UiDuplicateDependentInitialParamValue {
-    /// Use this parameter value as-is.
-    Literal {
-        /// Parameter value assigned directly to the dependent item.
-        value: ParamValue,
-    },
-    /// Reference the copied root produced from `source`.
-    DuplicatedNodeReference {
-        /// Source key whose copied root becomes the reference target.
-        source: NodeId,
-    },
-}
-
-/// One dependent user item to create after copy-batch roots have been materialized.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiDuplicateDependentUserItem {
-    /// Parent receiving the dependent item.
-    pub parent: NodeId,
-    /// Runtime node type identifier to instantiate.
-    pub node_type: String,
-    /// Optional explicit label for the dependent item.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    /// Initial values applied after references to copied roots have been resolved.
-    #[serde(default, skip_serializing_if = "is_empty_duplicate_dependent_initial_params")]
-    pub initial_params: Vec<UiDuplicateDependentUserItemInitialParam>,
-}
-
-/// Post-edit direct child order for one parent node.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiChildrenOrderPatch {
-    /// Parent whose child list changed.
-    pub parent: NodeId,
-    /// Complete direct child order after the operation.
-    pub children: Vec<NodeId>,
-}
-
-/// Incremental metadata patch for one UI node.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiNodeMetaPatch {
-    /// Replacement display label.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    /// Replacement short script/reference name.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub short_name: Option<String>,
-    /// Replacement enabled state.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub enabled: Option<bool>,
-    /// Replacement disablement capability.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub can_be_disabled: Option<bool>,
-    /// Replacement optional description, where `Some(None)` clears it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<Option<String>>,
-    /// Replacement user-edit permissions.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub user_permissions: Option<NodeUserPermissions>,
-    /// Replacement tag list.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<String>>,
-    /// Replacement presentation hints.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub presentation: Option<PresentationHint>,
-}
-
-impl UiNodeMetaPatch {
-    pub(crate) fn is_empty(&self) -> bool {
-        self.label.is_none()
-            && self.short_name.is_none()
-            && self.enabled.is_none()
-            && self.can_be_disabled.is_none()
-            && self.description.is_none()
-            && self.user_permissions.is_none()
-            && self.tags.is_none()
-            && self.presentation.is_none()
-    }
-}
-
-impl From<&NodeMetaPatch> for UiNodeMetaPatch {
-    fn from(patch: &NodeMetaPatch) -> Self {
+impl From<&EngineNodeMetaPatch> for UiNodeMetaPatch {
+    fn from(patch: &EngineNodeMetaPatch) -> Self {
         Self {
             label: patch.label.clone(),
             short_name: patch.short_name.clone(),
@@ -1111,262 +95,70 @@ impl From<&NodeMetaPatch> for UiNodeMetaPatch {
     }
 }
 
-/// Incremental parameter patch for one UI parameter node.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiParamPatch {
-    /// Replacement parameter value.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub value: Option<ParamValue>,
-    /// Replacement control state.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub control: Option<UiParameterControlStateDto>,
-    /// Replacement runtime constraints.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub constraints: Option<ParameterConstraints>,
+impl From<EngineNodeMetaPatch> for UiNodeMetaPatch {
+    fn from(patch: EngineNodeMetaPatch) -> Self {
+        Self::from(&patch)
+    }
 }
 
-/// One deterministic graph patch operation inside an atomic UI transaction.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UiGraphOp {
-    /// Inserts a node that did not exist in the client's graph.
-    NodeCreated {
-        /// Full UI snapshot for the created node.
-        snapshot: Box<UiNodeDto>,
-        /// Parent receiving the node, if attached.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        parent: Option<NodeId>,
-        /// Direct child index under `parent`, if known.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        index: Option<usize>,
-    },
-    /// Inserts a complete subtree that did not exist in the client's graph.
-    ///
-    /// Used for bulk insertions (N > 8 nodes) to avoid an O(N²) `ui_child_index` scan
-    /// and to reduce the op list to a single entry.
-    SubtreeInserted {
-        /// Root of the inserted subtree.
-        root: NodeId,
-        /// Parent node where `root` was attached.
-        parent: NodeId,
-        /// Full snapshots for all inserted nodes (root and descendants, depth-first).
-        nodes: Vec<UiNodeDto>,
-        /// Final direct child order for `parent` after insertion.
-        parent_children_after: Vec<NodeId>,
-    },
-    /// Removes a subtree from the client's graph.
-    SubtreeRemoved {
-        /// Root of the removed subtree.
-        root: NodeId,
-        /// Root and descendant ids removed by this operation.
-        removed_ids: Vec<NodeId>,
-        /// Post-removal child order for the former parent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        parent_after: Option<UiChildrenOrderPatch>,
-    },
-    /// Moves one existing node between parents or positions.
-    NodeMoved {
-        /// Node that moved.
-        node: NodeId,
-        /// Previous parent before the move.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        old_parent: Option<NodeId>,
-        /// New parent after the move.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        new_parent: Option<NodeId>,
-        /// Post-move child order for the previous parent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        old_parent_after: Option<UiChildrenOrderPatch>,
-        /// Post-move child order for the new parent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        new_parent_after: Option<UiChildrenOrderPatch>,
-    },
-    /// Replaces the direct child order for one parent.
-    ChildrenReordered {
-        /// Parent whose children were reordered.
-        parent: NodeId,
-        /// Complete direct child order after the reorder.
-        children: Vec<NodeId>,
-    },
-    /// Applies an incremental metadata patch to one node.
-    NodeMetaPatched {
-        /// Node whose metadata changed.
-        node: NodeId,
-        /// Metadata fields that changed.
-        patch: UiNodeMetaPatch,
-    },
-    /// Applies an incremental parameter patch.
-    ParamPatched {
-        /// Node owning the parameter in the UI graph.
-        node: NodeId,
-        /// Parameter node that changed.
-        param: NodeId,
-        /// Parameter fields that changed.
-        patch: UiParamPatch,
-    },
-    /// Replaces the UI undo/redo history state.
-    HistoryPatched {
-        /// Current history state after the transaction.
-        history: UiHistoryState,
-    },
-    /// Adds or drops UI logger records.
-    LoggerPatched {
-        /// New logger records appended by the transaction.
-        records_added: Vec<LogRecord>,
-        /// Earliest retained record id after dropping old records.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        dropped_before: Option<u64>,
-    },
+impl From<UiNodeMetaPatch> for EngineNodeMetaPatch {
+    fn from(patch: UiNodeMetaPatch) -> Self {
+        Self {
+            short_name: patch.short_name,
+            enabled: patch.enabled,
+            can_be_disabled: patch.can_be_disabled,
+            label: patch.label,
+            description: patch.description,
+            tags: patch.tags,
+            user_permissions: patch.user_permissions,
+            semantics: None,
+            presentation: patch.presentation,
+        }
+    }
 }
 
-/// Atomic UI graph transaction applied in order against a known graph version.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiGraphTransaction {
-    /// Monotonic transaction id within the current project epoch.
-    pub tx_id: u64,
-    /// Project epoch this transaction belongs to.
-    pub epoch: u64,
-    /// Graph version expected before applying `ops`.
-    pub base_graph_version: u64,
-    /// Graph version after applying `ops`.
-    pub next_graph_version: u64,
-    /// Ordered patch operations applied atomically by the UI.
-    pub ops: Vec<UiGraphOp>,
+impl From<&EngineNodeMetaPatch> for NodeMetaPatch {
+    fn from(patch: &EngineNodeMetaPatch) -> Self {
+        Self {
+            short_name: patch.short_name.clone(),
+            enabled: patch.enabled,
+            can_be_disabled: patch.can_be_disabled,
+            label: patch.label.clone(),
+            description: patch.description.clone(),
+            tags: patch.tags.clone(),
+            user_permissions: patch.user_permissions.clone(),
+            semantics: patch.semantics.as_ref().map(|semantics| SemanticsHint {
+                intent: semantics.intent.clone(),
+                unit: semantics.unit.clone(),
+            }),
+            presentation: patch.presentation.clone(),
+        }
+    }
 }
 
-/// UI-facing event kind.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UiEventKind {
-    /// Graph transaction containing multiple atomic updates.
-    GraphTransaction {
-        /// Atomic graph transaction payload.
-        #[serde(flatten)]
-        transaction: UiGraphTransaction,
-    },
-    /// Parameter changed.
-    ParamChanged {
-        /// Parameter node id.
-        param: NodeId,
-        /// Previous value.
-        old_value: ParamValue,
-        /// New value.
-        new_value: ParamValue,
-    },
-    /// Parameter control state changed.
-    ParamControlChanged {
-        /// Parameter node id.
-        param: NodeId,
-        /// Previous control state.
-        old_state: UiParameterControlStateDto,
-        /// New control state.
-        new_state: UiParameterControlStateDto,
-    },
-    /// Parameter constraints changed.
-    ParamConstraintsChanged {
-        /// Parameter node id.
-        param: NodeId,
-        /// Previous constraints.
-        old_constraints: ParameterConstraints,
-        /// New constraints.
-        new_constraints: Box<ParameterConstraints>,
-    },
-    /// Child added.
-    ChildAdded {
-        /// Parent id.
-        parent: NodeId,
-        /// Child id.
-        child: NodeId,
-        /// Declared slot id.
-        decl_id: DeclId,
-        /// Current direct child order for the parent when available.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        parent_children: Option<Vec<NodeId>>,
-    },
-    /// Child removed.
-    ChildRemoved {
-        /// Parent id.
-        parent: NodeId,
-        /// Child id.
-        child: NodeId,
-    },
-    /// Child replaced.
-    ChildReplaced {
-        /// Parent id.
-        parent: NodeId,
-        /// Old child id.
-        old: NodeId,
-        /// New child id.
-        new: NodeId,
-        /// Declared slot id.
-        decl_id: DeclId,
-    },
-    /// Child moved.
-    ChildMoved {
-        /// Child id.
-        child: NodeId,
-        /// Previous parent id.
-        old_parent: NodeId,
-        /// New parent id.
-        new_parent: NodeId,
-        /// Current direct child order for the previous parent when available.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        old_parent_children: Option<Vec<NodeId>>,
-        /// Current direct child order for the new parent when available.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        new_parent_children: Option<Vec<NodeId>>,
-    },
-    /// Child reordered.
-    ChildReordered {
-        /// Parent id.
-        parent: NodeId,
-        /// Child id.
-        child: NodeId,
-        /// Current direct child order for the parent when available.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        parent_children: Option<Vec<NodeId>>,
-    },
-    /// Node created.
-    NodeCreated {
-        /// Node id.
-        node: NodeId,
-        /// Node snapshot for incremental UI insertion when the node is still live.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        snapshot: Option<Box<UiNodeDto>>,
-    },
-    /// Node deleted.
-    NodeDeleted {
-        /// Node id.
-        node: NodeId,
-    },
-    /// Metadata changed.
-    MetaChanged {
-        /// Node id.
-        node: NodeId,
-        /// Applied patch.
-        patch: NodeMetaPatch,
-    },
-    /// Custom event payload.
-    Custom {
-        /// Topic.
-        topic: String,
-        /// Origin node when known.
-        origin: Option<NodeId>,
-        /// Raw JSON payload.
-        payload: serde_json::Value,
-        /// Replay and transport retention policy.
-        retention: CustomEventRetention,
-    },
+impl From<NodeMetaPatch> for EngineNodeMetaPatch {
+    fn from(patch: NodeMetaPatch) -> Self {
+        Self {
+            short_name: patch.short_name,
+            enabled: patch.enabled,
+            can_be_disabled: patch.can_be_disabled,
+            label: patch.label,
+            description: patch.description,
+            tags: patch.tags,
+            user_permissions: patch.user_permissions,
+            semantics: patch.semantics.map(|semantics| crate::node::SemanticsHint {
+                intent: semantics.intent,
+                unit: semantics.unit,
+            }),
+            presentation: patch.presentation,
+        }
+    }
 }
 
-/// UI-facing event payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiEventDto {
-    /// Event time.
-    pub time: EngineTime,
-    /// Event payload.
-    #[serde(flatten)]
-    pub kind: UiEventKind,
+impl From<EngineNodeMetaPatch> for NodeMetaPatch {
+    fn from(patch: EngineNodeMetaPatch) -> Self {
+        Self::from(&patch)
+    }
 }
 
 impl From<Event> for UiEventDto {
@@ -1435,7 +227,10 @@ impl From<Event> for UiEventDto {
             },
             EventKind::NodeCreated { node } => UiEventKind::NodeCreated { node, snapshot: None },
             EventKind::NodeDeleted { node } => UiEventKind::NodeDeleted { node },
-            EventKind::MetaChanged { node, patch } => UiEventKind::MetaChanged { node, patch },
+            EventKind::MetaChanged { node, patch } => UiEventKind::MetaChanged {
+                node,
+                patch: NodeMetaPatch::from(&patch),
+            },
             EventKind::GraphTransaction { transaction } => UiEventKind::GraphTransaction { transaction },
             EventKind::Custom(custom) => UiEventKind::Custom {
                 topic: custom.topic,
@@ -1447,341 +242,6 @@ impl From<Event> for UiEventDto {
 
         Self { time: event.time, kind }
     }
-}
-
-/// Event replay batch.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiEventBatch {
-    /// Replay cursor used by the request.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub from: Option<EngineTime>,
-    /// Last event timestamp included in this batch.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub to: Option<EngineTime>,
-    /// Latest runtime timing metrics sampled by the host loop.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub runtime: Option<UiRuntimeStatsDto>,
-    /// Delivered events.
-    pub events: Vec<UiEventDto>,
-}
-
-/// Runtime timing metrics exposed to the UI.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiRuntimeStatsDto {
-    /// Engine ticks completed per second over the latest sampling window.
-    pub engine_hz: f64,
-    /// Currently published immutable runtime generation.
-    pub generation_id: u64,
-    /// Current actor control queue depth.
-    pub control_queue_depth: u64,
-    /// Peak actor control queue depth since startup.
-    pub control_queue_peak: u64,
-    /// Control operations admitted since startup.
-    pub control_received: u64,
-    /// Control operations applied since startup.
-    pub control_applied: u64,
-    /// Control operations rejected since startup.
-    pub control_rejected: u64,
-    /// Cumulative actor queue wait time in nanoseconds.
-    pub control_wait_ns: u64,
-    /// Cumulative actor application time in nanoseconds.
-    pub control_apply_ns: u64,
-    /// Generations compiled successfully since startup.
-    pub compilation_applied: u64,
-    /// Generation compile failures since startup.
-    pub compilation_rejected: u64,
-    /// Sparse semantic batches completed.
-    pub sparse_batches: u64,
-    /// Dense semantic batches completed.
-    pub dense_batches: u64,
-    /// Compile-assigned work units completed.
-    pub work_units: u64,
-    /// Authoritative external effects committed.
-    pub effects_committed: u64,
-    /// Non-authoritative external effects suppressed by the routing policy.
-    pub effects_suppressed: u64,
-}
-
-/// UI-originated edit intent.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UiEditIntent {
-    /// Begin a grouped edit session.
-    BeginEdit {
-        /// Client-generated id.
-        client_edit_id: String,
-        /// Optional label.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        label: Option<String>,
-    },
-    /// End a grouped edit session.
-    EndEdit {
-        /// Client-generated id.
-        client_edit_id: String,
-    },
-    /// Set a parameter value.
-    SetParam {
-        /// Target node id.
-        node: NodeId,
-        /// New value.
-        value: ParamValue,
-        /// Requested coalescing behavior.
-        behaviour: ParameterEventBehaviour,
-    },
-    /// Apply inspector text-entry semantics to a string parameter.
-    SetTextParamSmart {
-        /// Target parameter node id.
-        node: NodeId,
-        /// Text entered by the client.
-        value: String,
-        /// Requested coalescing behavior.
-        #[serde(default, skip_serializing_if = "is_default_event_behaviour")]
-        behaviour: ParameterEventBehaviour,
-    },
-    /// Set a parameter control state.
-    SetParamControlState {
-        /// Target parameter node id.
-        node: NodeId,
-        /// New control state payload.
-        state: UiParameterControlStateDto,
-    },
-    /// Replace a parameter's live runtime constraints.
-    SetParamConstraints {
-        /// Target parameter node id.
-        node: NodeId,
-        /// New constraints payload.
-        constraints: ParameterConstraints,
-    },
-    /// Move a node.
-    MoveNode {
-        /// Target node id.
-        node: NodeId,
-        /// New parent id.
-        new_parent: NodeId,
-        /// Optional previous sibling under the new parent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        new_prev_sibling: Option<NodeId>,
-    },
-    /// Remove a node.
-    RemoveNode {
-        /// Target node id.
-        node: NodeId,
-    },
-    /// Remove multiple nodes in one intent transaction.
-    RemoveNodes {
-        /// Target node ids.
-        nodes: Vec<NodeId>,
-    },
-    /// Creates a user item under `parent` from a node type id.
-    CreateUserItem {
-        /// Parent node id.
-        parent: NodeId,
-        /// Runtime node type identifier to instantiate.
-        node_type: String,
-        /// Optional explicit label for the new item.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        label: Option<String>,
-        /// Optional direct parameter values applied before the intent completes.
-        #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
-        initial_params: Vec<UiCreateUserItemInitialParam>,
-    },
-    /// Creates a dashboard container widget from backend-owned defaults.
-    CreateDashboardContainerWidget {
-        /// Dashboard page or container receiving the widget.
-        parent: NodeId,
-        /// Optional explicit label.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        label: Option<String>,
-        /// Optional placement hint.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        placement: Option<UiDashboardWidgetPlacement>,
-        /// Optional child layout kind for the new container.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        layout_kind: Option<String>,
-        /// Optional sibling after which insertion occurs.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        prev_sibling: Option<NodeId>,
-    },
-    /// Creates a dashboard node widget for one target node.
-    CreateDashboardNodeWidget {
-        /// Dashboard page or container receiving the widget.
-        parent: NodeId,
-        /// Target node rendered by the widget.
-        target: NodeId,
-        /// Optional placement hint.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        placement: Option<UiDashboardWidgetPlacement>,
-        /// Optional sibling after which insertion occurs.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        prev_sibling: Option<NodeId>,
-    },
-    /// Creates a generic dashboard widget for one target parameter.
-    CreateDashboardGenericWidget {
-        /// Dashboard page or container receiving the widget.
-        parent: NodeId,
-        /// Target parameter bound by the widget.
-        target: NodeId,
-        /// Optional placement hint.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        placement: Option<UiDashboardWidgetPlacement>,
-        /// Optional sibling after which insertion occurs.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        prev_sibling: Option<NodeId>,
-    },
-    /// Rebinds a dashboard node widget to one target node.
-    BindDashboardNodeWidgetTarget {
-        /// Existing dashboard node widget.
-        widget: NodeId,
-        /// Target node rendered by the widget.
-        target: NodeId,
-    },
-    /// Rebinds a generic dashboard widget to one target parameter.
-    BindDashboardGenericWidgetTarget {
-        /// Existing generic dashboard widget.
-        widget: NodeId,
-        /// Target parameter bound by the widget.
-        target: NodeId,
-    },
-    /// Wraps one dashboard widget in a newly-created container.
-    WrapDashboardWidgetInContainer {
-        /// Existing widget to wrap.
-        widget: NodeId,
-        /// Optional placement hint for the new container.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        placement: Option<UiDashboardWidgetPlacement>,
-        /// Optional child layout kind for the new container.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        layout_kind: Option<String>,
-    },
-    /// Duplicates an existing node subtree under `new_parent`.
-    DuplicateNode {
-        /// Source node id to clone.
-        source: NodeId,
-        /// Parent receiving the duplicated subtree root.
-        new_parent: NodeId,
-        /// Optional sibling after which insertion occurs.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        new_prev_sibling: Option<NodeId>,
-        /// Optional direct parameter values applied to the duplicated root before the intent completes.
-        #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
-        initial_params: Vec<UiCreateUserItemInitialParam>,
-    },
-    /// Materializes copied roots and dependent user items as one edit.
-    DuplicateNodes {
-        /// Existing subtree roots to clone.
-        #[serde(default, skip_serializing_if = "is_empty_duplicate_node_specs")]
-        nodes: Vec<UiDuplicateNodeSpec>,
-        /// Fresh user items to create and expose to dependent references.
-        #[serde(default, skip_serializing_if = "is_empty_duplicate_create_user_item_specs")]
-        created_items: Vec<UiDuplicateCreateUserItemSpec>,
-        /// Items whose initial parameters can reference roots created earlier in the batch.
-        #[serde(default, skip_serializing_if = "is_empty_duplicate_dependent_user_items")]
-        dependent_items: Vec<UiDuplicateDependentUserItem>,
-    },
-    /// Replaces one curve range with a sparse bezier fit of recorded samples.
-    FitAnimationCurvePath {
-        /// Target animation-curve node id.
-        curve: NodeId,
-        /// Recorded path samples.
-        points: Vec<CurveFitPoint>,
-        /// Fit controls.
-        #[serde(default)]
-        options: CurveBezierFitOptions,
-    },
-    /// Patch node metadata.
-    PatchMeta {
-        /// Target node id.
-        node: NodeId,
-        /// Metadata patch.
-        patch: NodeMetaPatch,
-    },
-    /// Ensures one user-context scope exists on `owner`.
-    EnsureUserContextScope {
-        /// Scope owner node id.
-        owner: NodeId,
-    },
-    /// Removes the user-context scope from `owner`.
-    RemoveUserContextScope {
-        /// Scope owner node id.
-        owner: NodeId,
-    },
-    /// Adds or replaces one user-context entry.
-    UpsertUserContextEntry {
-        /// Scope owner node id.
-        owner: NodeId,
-        /// Symbol name.
-        symbol: String,
-        /// Parameter node backing this entry.
-        param: NodeId,
-    },
-    /// Removes one user-context entry by symbol.
-    RemoveUserContextEntry {
-        /// Scope owner node id.
-        owner: NodeId,
-        /// Symbol to remove.
-        symbol: String,
-    },
-    /// Sends an ephemeral typed-by-topic event directly to one runtime node.
-    ///
-    /// This is the public extension point for app-owned UI/runtime coordination. The event is
-    /// delivered through the node inbox, but is not persisted, added to undo history, or echoed
-    /// into the UI replay log.
-    SendNodeEvent {
-        /// Runtime node receiving the event.
-        node: NodeId,
-        /// App-owned event topic interpreted by the target node.
-        topic: String,
-        /// App-owned event payload.
-        payload: serde_json::Value,
-    },
-    /// Request graph reevaluation.
-    ReevaluateGraph,
-    /// Clears retained logger records.
-    ClearLogs,
-    /// Sets logger retention capacity.
-    SetLogMaxEntries {
-        /// Requested maximum number of retained records.
-        max_entries: usize,
-    },
-    /// Undo the last history transaction.
-    Undo,
-    /// Redo the last undone history transaction.
-    Redo,
-}
-
-/// Ack status for a UI edit intent.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub enum UiAckStatus {
-    /// Accepted and applied now.
-    Applied,
-    /// Accepted but staged for later application.
-    Staged,
-    /// Rejected.
-    Rejected,
-}
-
-/// Acknowledgement payload for UI edit intents.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct UiAck {
-    /// Success flag.
-    pub success: bool,
-    /// Ack status.
-    pub status: UiAckStatus,
-    /// Optional error code.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error_code: Option<String>,
-    /// Optional error message.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error_message: Option<String>,
-    /// Optional earliest resulting event timestamp.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub earliest_event_time: Option<EngineTime>,
-    /// Optional completion boundary covering the final event produced by the intent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub latest_event_time: Option<EngineTime>,
-    /// Current undo/redo state after applying the intent.
-    pub history: UiHistoryState,
 }
 
 impl<T: Node> Engine<T> {
@@ -2441,7 +901,7 @@ impl<T: Node> Engine<T> {
                 };
                 engine.edits.push(Edit::PatchMeta {
                     node: param,
-                    patch: NodeMetaPatch {
+                    patch: EngineNodeMetaPatch {
                         enabled: Some(enabled),
                         ..Default::default()
                     },
@@ -3395,7 +1855,10 @@ impl<T: Node> Engine<T> {
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::PatchMeta { node, patch } => {
-                self.edits.push(Edit::PatchMeta { node, patch });
+                self.edits.push(Edit::PatchMeta {
+                    node,
+                    patch: patch.into(),
+                });
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_event_time, result)
             }
@@ -3723,7 +2186,7 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    /// As `ui_node_dto_for_event`, reusing an already-built snapshot — use
+    /// As `ui_node_dto_for_event`, reusing an already-built snapshot â€” use
     /// this when converting many nodes at once to avoid rebuilding it per call.
     pub fn ui_node_dto_for_event_with_catalog_snapshot(
         &self,
@@ -3902,7 +2365,7 @@ impl<T: Node> Engine<T> {
             EventKind::NodeDeleted { node } => UiEventKind::NodeDeleted { node: *node },
             EventKind::MetaChanged { node, patch } => UiEventKind::MetaChanged {
                 node: *node,
-                patch: patch.clone(),
+                patch: NodeMetaPatch::from(patch),
             },
             EventKind::GraphTransaction { transaction } => UiEventKind::GraphTransaction {
                 transaction: transaction.clone(),

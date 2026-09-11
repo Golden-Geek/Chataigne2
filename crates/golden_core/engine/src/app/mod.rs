@@ -16,6 +16,8 @@ use crate::node::{DashboardNode, DeclId, Folder, Node, NodeId, NodeMeta, NodeUui
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeSnapshot};
 
+pub use golden_model::ProjectFileSpec;
+
 /// Declaration id of the app-wide Preferences folder under the project root.
 pub const PREFERENCES_DECL_ID: &str = "preferences";
 /// Metadata tag marking nodes that belong to app-data persistence, not project persistence.
@@ -38,49 +40,6 @@ pub const PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID: &str = "engine_low_frequency
 pub const DEFAULT_ENGINE_MAX_FREQUENCY_HZ: NodeUpdateRate = 200;
 /// Default header warning threshold frequency preference in hertz.
 pub const DEFAULT_ENGINE_LOW_FREQUENCY_HZ: NodeUpdateRate = 60;
-
-/// App-provided project file metadata consumed by hosts and UIs.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProjectFileSpec {
-    /// Human-readable name for one project document, such as `Noisette`.
-    pub display_name: &'static str,
-    /// Preferred filename extension without a leading dot.
-    pub extension: &'static str,
-}
-
-impl ProjectFileSpec {
-    /// Creates one project-file descriptor.
-    pub const fn new(display_name: &'static str, extension: &'static str) -> Self {
-        Self {
-            display_name,
-            extension,
-        }
-    }
-
-    /// Returns the normalized extension used by hosts and transports.
-    pub fn normalized_extension(&self) -> String {
-        let normalized = self.extension.trim().trim_start_matches('.').to_ascii_lowercase();
-        if normalized.is_empty() {
-            return "json".to_string();
-        }
-        normalized
-    }
-
-    /// Returns the human-readable label, falling back to a generic default.
-    pub fn normalized_display_name(&self) -> String {
-        let normalized = self.display_name.trim();
-        if normalized.is_empty() {
-            return "Project".to_string();
-        }
-        normalized.to_string()
-    }
-}
-
-impl Default for ProjectFileSpec {
-    fn default() -> Self {
-        Self::new("Project", "json")
-    }
-}
 
 /// Monotonic identity of one authoritative project installed in a production runtime.
 ///
@@ -730,7 +689,7 @@ where
     T: ProjectNode + From<Folder>,
 {
     let project = to_sparse_project_file(engine)?;
-    Ok(serde_json::to_string_pretty(&project)?)
+    Ok(golden_persistence::encode_project_document(&project)?)
 }
 
 /// Serializes one project with an optional project-owned UI state payload.
@@ -742,7 +701,7 @@ where
     T: ProjectNode + From<Folder>,
 {
     let project = capture_sparse_project_file_with_ui_state(engine, ui_state)?;
-    Ok(serde_json::to_string_pretty(&project)?)
+    Ok(golden_persistence::encode_project_document(&project)?)
 }
 
 /// Captures one owned sparse project document for encoding outside the live engine boundary.
@@ -764,7 +723,7 @@ where
     T: ProjectNode + From<Folder>,
 {
     let project = to_sparse_subtree_file(engine, root)?;
-    Ok(serde_json::to_string_pretty(&project)?)
+    Ok(golden_persistence::encode_project_document(&project)?)
 }
 
 /// Loads one sparse project JSON document by first expanding declared deltas
@@ -804,14 +763,8 @@ where
     T: ProjectNode + From<Folder>,
 {
     let parse_started = std::time::Instant::now();
-    let project: ProjectFile = serde_json::from_str(json)?;
+    let project = golden_persistence::decode_project_document(json)?;
     let parse_elapsed = parse_started.elapsed();
-    if project.version != PROJECT_FILE_VERSION {
-        return Err(ProjectPersistenceError::UnsupportedVersion {
-            found: project.version,
-            expected: PROJECT_FILE_VERSION,
-        });
-    }
     let ui_state = project.ui_state.clone();
     let expand_started = std::time::Instant::now();
     let expanded = expand_sparse_project_file::<T>(project)?;
@@ -936,13 +889,7 @@ pub fn insert_sparse_subtree_json<T>(
 where
     T: ProjectNode + From<Folder>,
 {
-    let project: ProjectFile = serde_json::from_str(json)?;
-    if project.version != PROJECT_FILE_VERSION {
-        return Err(ProjectPersistenceError::UnsupportedVersion {
-            found: project.version,
-            expected: PROJECT_FILE_VERSION,
-        });
-    }
+    let project = golden_persistence::decode_project_document(json)?;
     let expanded = expand_sparse_project_file::<T>(project)?;
     engine.insert_project_subtree_with(expanded, parent, prev_sibling, T::project_decode_node)
 }

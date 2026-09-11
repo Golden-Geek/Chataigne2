@@ -10,8 +10,7 @@ use crate::node::*;
 #[cfg(test)]
 use crate::parameter::ParamValue;
 use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
+pub use golden_model::EngineTime;
 
 /// Engine callback signature used to evaluate custom reference filters.
 pub type ReferenceFilterFn<T> = dyn Fn(&Engine<T>, NodeId, NodeId, NodeId) -> bool + Send + Sync;
@@ -94,20 +93,6 @@ pub(crate) use runtime::ScheduleCompileEntry;
 pub use runtime::runtime_loop_interval_for_frequency_hz;
 /// Per-tick performance counters returned by `Engine::tick_stats`.
 pub use tick_scratch::TickStats;
-
-/// Logical time tracked by the engine.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-pub struct EngineTime {
-    /// Monotonic engine tick counter. Increments only on EngineTick.
-    pub tick: u64,
-
-    /// Micro-step index within the same tick.
-    /// 0 = main tick pass, 1.. = stabilisation rounds or flushImmediate rounds within that same tick.
-    pub micro: u32,
-
-    /// Total ordering within the same (tick, micro).
-    pub seq: u32,
-}
 
 #[derive(Clone, Default)]
 pub(crate) struct ExpressionControlRuntime {

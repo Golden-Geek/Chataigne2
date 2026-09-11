@@ -3,65 +3,12 @@ use ts_rs::TS;
 
 use crate::parameter::ParamValue;
 
+pub use golden_model::{NodeUserPermissions, UserNodeRole};
+
 use super::{DeclId, Node};
 
 fn is_false(value: &bool) -> bool {
     !*value
-}
-
-/// User-edit permissions for UI tooling and editor workflows.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct NodeUserPermissions {
-    /// Whether the node label can be edited by users.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub can_edit_name: bool,
-    /// Whether the node can be removed or duplicated.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub can_remove_and_duplicate: bool,
-    /// Whether parameter constraints can be edited.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub can_edit_constraints: bool,
-    /// Whether metadata tags can be edited.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub can_edit_tags: bool,
-    /// Whether presentation color can be edited.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub can_edit_color: bool,
-}
-
-impl NodeUserPermissions {
-    /// Returns a permission set with every capability disabled.
-    pub const fn none() -> Self {
-        Self {
-            can_edit_name: false,
-            can_remove_and_duplicate: false,
-            can_edit_constraints: false,
-            can_edit_tags: false,
-            can_edit_color: false,
-        }
-    }
-
-    /// Returns a permission set with every capability enabled.
-    pub const fn all() -> Self {
-        Self {
-            can_edit_name: true,
-            can_remove_and_duplicate: true,
-            can_edit_constraints: true,
-            can_edit_tags: true,
-            can_edit_color: true,
-        }
-    }
-}
-
-/// Classification for user-managed structure inside the runtime tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
-#[serde(rename_all = "camelCase")]
-pub enum UserNodeRole {
-    /// Regular runtime node (internal/generated or non-curated).
-    #[default]
-    Regular,
-    /// User-curated item root inside a container.
-    ItemRoot,
 }
 
 /// Declarative container admission rules for user-curated items.

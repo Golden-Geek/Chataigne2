@@ -5,7 +5,7 @@
  */
 export type CurveBezierFitOptions = {
 /**
- * Maximum tolerated absolute value error between the source samples and the fitted bezier curve.
+ * Maximum tolerated absolute value error between source samples and the fitted curve.
  */
 max_value_error: number,
 /**

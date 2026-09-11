@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+golden_values.workspace = true
 serde.workspace = true
 ts-rs.workspace = true
 uuid.workspace = true

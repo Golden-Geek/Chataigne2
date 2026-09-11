@@ -7,6 +7,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub use golden_persistence::PROJECT_FILE_VERSION;
+
 use crate::events::{Event, EventFrame, EventKind};
 use crate::node::{
     DeclId, Node, NodeCreationContext, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
@@ -21,57 +23,17 @@ use super::{Engine, EngineEditError};
 mod duplicate;
 use duplicate::DecodedProjectTree;
 
-/// Version tag emitted in project files created by this engine.
-pub const PROJECT_FILE_VERSION: &str = "1.0";
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum LoadedReadyMode {
     Immediate,
     Deferred,
 }
 
-fn default_project_file_version() -> String {
-    PROJECT_FILE_VERSION.to_string()
-}
-
-fn is_default_user_node_role(value: &UserNodeRole) -> bool {
-    *value == UserNodeRole::Regular
-}
-
 /// Serialized project document containing one rooted node hierarchy.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ProjectFile {
-    /// File format version.
-    #[serde(default = "default_project_file_version")]
-    pub version: String,
-    /// Optional project-owned UI state carried verbatim by hosts.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ui_state: Option<serde_json::Value>,
-    /// Root node record.
-    pub root: ProjectNodeRecord,
-}
+pub type ProjectFile = golden_persistence::ProjectDocument<ProjectNodeMeta>;
 
 /// Serialized node record for full-snapshot persistence.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ProjectNodeRecord {
-    /// Persistent identity.
-    pub uuid: NodeUuid,
-    /// Runtime node type identifier (`Node::get_type()`).
-    #[serde(rename = "type")]
-    pub node_type: String,
-    /// User-facing curation role for this node.
-    #[serde(default, skip_serializing_if = "is_default_user_node_role")]
-    pub user_role: UserNodeRole,
-    /// Persisted metadata fields.
-    #[serde(default, skip_serializing_if = "ProjectNodeMeta::is_empty")]
-    pub meta: ProjectNodeMeta,
-    /// Node-specific payload.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub data: Option<serde_json::Value>,
-    /// Ordered child records.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub children: Vec<ProjectNodeRecord>,
-}
+pub type ProjectNodeRecord = golden_persistence::ProjectNodeRecord<ProjectNodeMeta>;
 
 /// Persisted subset of runtime node metadata.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -283,6 +245,12 @@ impl ProjectNodeMeta {
     }
 }
 
+impl golden_persistence::ProjectMetadata for ProjectNodeMeta {
+    fn is_empty(&self) -> bool {
+        Self::is_empty(self)
+    }
+}
+
 /// Error returned by project save/load operations.
 #[derive(Debug)]
 pub enum ProjectPersistenceError {
@@ -430,6 +398,17 @@ impl From<serde_json::Error> for ProjectPersistenceError {
     }
 }
 
+impl From<golden_persistence::ProjectDocumentCodecError> for ProjectPersistenceError {
+    fn from(value: golden_persistence::ProjectDocumentCodecError) -> Self {
+        match value {
+            golden_persistence::ProjectDocumentCodecError::UnsupportedVersion { found, expected } => {
+                Self::UnsupportedVersion { found, expected }
+            }
+            golden_persistence::ProjectDocumentCodecError::Json(error) => Self::Json(error),
+        }
+    }
+}
+
 impl From<EngineEditError> for ProjectPersistenceError {
     fn from(value: EngineEditError) -> Self {
         Self::Engine(value)
@@ -459,7 +438,7 @@ impl<T: Node> Engine<T> {
         F: FnMut(&T) -> Result<serde_json::Value, String>,
     {
         let project = self.to_project_file_with(encode_data)?;
-        Ok(serde_json::to_string(&project)?)
+        Ok(golden_persistence::encode_project_document_compact(&project)?)
     }
 
     /// Serializes a project snapshot to pretty-printed JSON.
@@ -468,7 +447,7 @@ impl<T: Node> Engine<T> {
         F: FnMut(&T) -> Result<serde_json::Value, String>,
     {
         let project = self.to_project_file_with(encode_data)?;
-        Ok(serde_json::to_string_pretty(&project)?)
+        Ok(golden_persistence::encode_project_document(&project)?)
     }
 
     /// Loads a project from an already parsed project document.
@@ -504,12 +483,7 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        if project.version != PROJECT_FILE_VERSION {
-            return Err(ProjectPersistenceError::UnsupportedVersion {
-                found: project.version,
-                expected: PROJECT_FILE_VERSION,
-            });
-        }
+        golden_persistence::validate_project_document_version(&project)?;
 
         let mut root = Self::decode_node_record_with(None, &project.root, &mut decode_node)?;
         {
@@ -588,7 +562,7 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        let project: ProjectFile = serde_json::from_str(json)?;
+        let project = golden_persistence::decode_project_document(json)?;
         Self::from_project_file_with(project, decode_node)
     }
 
@@ -616,12 +590,7 @@ impl<T: Node> Engine<T> {
     where
         Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        if project.version != PROJECT_FILE_VERSION {
-            return Err(ProjectPersistenceError::UnsupportedVersion {
-                found: project.version,
-                expected: PROJECT_FILE_VERSION,
-            });
-        }
+        golden_persistence::validate_project_document_version(&project)?;
         self.validate_persisted_subtree_destination(parent, prev_sibling, "InsertProjectSubtree")?;
 
         let mut record = project.root;

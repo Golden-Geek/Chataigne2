@@ -13,7 +13,9 @@ golden_io.workspace = true
 golden_model.workspace = true
 golden_parameters.workspace = true
 golden_persistence.workspace = true
+golden_protocol = { path = "../services/protocol" }
 golden_runtime.workspace = true
+golden_script_contract.workspace = true
 golden_values.workspace = true
 arc-swap.workspace = true
 serde = { version = "1", features = ["derive", "rc"] }

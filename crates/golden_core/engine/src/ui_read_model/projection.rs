@@ -219,7 +219,7 @@ pub(super) fn apply_events(projection: &mut ProjectionState, events: &[UiEventDt
             }
             UiEventKind::MetaChanged { node, patch } => {
                 if let Some(dto) = projection.nodes.get_mut(node) {
-                    apply_meta_patch(&mut dto.meta, &UiNodeMetaPatch::from(patch));
+                    apply_event_meta_patch(&mut dto.meta, patch);
                 }
             }
             UiEventKind::Custom { .. } => {}
@@ -349,6 +349,20 @@ fn apply_meta_patch(meta: &mut crate::ui_sync::UiNodeMetaDto, patch: &UiNodeMeta
     if let Some(presentation) = &patch.presentation {
         meta.presentation.clone_from(presentation);
     }
+}
+
+fn apply_event_meta_patch(meta: &mut crate::ui_sync::UiNodeMetaDto, patch: &crate::ui_sync::NodeMetaPatch) {
+    let visible_patch = UiNodeMetaPatch {
+        label: patch.label.clone(),
+        short_name: patch.short_name.clone(),
+        enabled: patch.enabled,
+        can_be_disabled: patch.can_be_disabled,
+        description: patch.description.clone(),
+        user_permissions: patch.user_permissions.clone(),
+        tags: patch.tags.clone(),
+        presentation: patch.presentation.clone(),
+    };
+    apply_meta_patch(meta, &visible_patch);
 }
 
 fn nodes_for_scope(store: &NodeStore, scope: UiSubscriptionScope) -> Vec<UiNodeDto> {

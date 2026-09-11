@@ -13,7 +13,7 @@ use golden_protocol::{
     UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSnapshot,
     UiSnapshotRequest,
 };
-use golden_script::ScriptUiState;
+use golden_script_contract::ScriptUiState;
 use ts_rs::{Config, TS};
 
 #[derive(Debug, Clone)]

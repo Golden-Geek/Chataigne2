@@ -1,5 +1,5 @@
 [package]
-name = "golden_protocol"
+name = "golden_script_contract"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -7,10 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-golden_context.workspace = true
 golden_model.workspace = true
 golden_parameters.workspace = true
-golden_script_contract.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 ts-rs.workspace = true

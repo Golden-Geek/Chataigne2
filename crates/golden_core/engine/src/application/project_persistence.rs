@@ -160,7 +160,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .document
             .materialize::<T>(ui_state)
             .map_err(|error| error.to_string())?;
-        let json = serde_json::to_string_pretty(&project).map_err(|error| error.to_string())?;
+        let json = golden_persistence::encode_project_document(&project).map_err(|error| error.to_string())?;
         let encoded_bytes = json.len();
         let serialize = serialize_started.elapsed();
         let target_path = ticket.info().target.to_string_lossy().into_owned();

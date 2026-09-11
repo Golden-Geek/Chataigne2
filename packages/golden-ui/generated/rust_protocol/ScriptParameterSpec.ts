@@ -14,7 +14,7 @@ export type ScriptParameterSpec = {
  */
 name: string,
 /**
- * Decl-id used when materialized as node.
+ * Declaration id used when materialized as a node.
  */
 decl_id: DeclId,
 /**

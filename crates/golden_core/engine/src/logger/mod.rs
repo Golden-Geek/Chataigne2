@@ -8,8 +8,7 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::node::NodeId;
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
+pub use golden_model::{LogLevel, LogRecord};
 
 /// Topic emitted through UI custom events when a new logger record arrives.
 pub const UI_LOG_RECORD_TOPIC: &str = "__logger.record";
@@ -21,56 +20,6 @@ pub const UI_LOG_MAX_ENTRIES_TOPIC: &str = "__logger.max_entries";
 const DEFAULT_LOG_MAX_ENTRIES: usize = 1024;
 const PROCESS_OUTPUT_QUEUE_CAPACITY: usize = 4_096;
 const PROCESS_OUTPUT_WRITE_BATCH_SIZE: usize = 256;
-
-fn is_default_repeat_count(value: &u32) -> bool {
-    *value <= 1
-}
-
-/// Severity level for a logger record.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "lowercase")]
-pub enum LogLevel {
-    /// Informational message.
-    Info,
-    /// Success message.
-    Success,
-    /// Warning message.
-    Warning,
-    /// Error message.
-    Error,
-}
-
-impl LogLevel {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Info => "info",
-            Self::Success => "success",
-            Self::Warning => "warning",
-            Self::Error => "error",
-        }
-    }
-}
-
-/// One logger entry stored and streamed to the UI.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct LogRecord {
-    /// Monotonic record id.
-    pub id: u64,
-    /// Wall-clock timestamp in unix milliseconds.
-    pub timestamp_ms: u64,
-    /// Severity level.
-    pub level: LogLevel,
-    /// Free-form log tag.
-    pub tag: String,
-    /// Final rendered message.
-    pub message: String,
-    /// Number of consecutive identical messages represented by this record.
-    #[serde(default = "default_repeat_count", skip_serializing_if = "is_default_repeat_count")]
-    pub repeat_count: u32,
-    /// Optional node origin.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub origin: Option<NodeId>,
-}
 
 /// One already-rendered message to append through [`log_messages`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -95,10 +44,6 @@ impl LogMessage {
             message,
         }
     }
-}
-
-fn default_repeat_count() -> u32 {
-    1
 }
 
 #[derive(Default)]

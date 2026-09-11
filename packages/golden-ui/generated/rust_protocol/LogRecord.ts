@@ -3,7 +3,7 @@ import type { LogLevel } from "./LogLevel";
 import type { NodeId } from "./NodeId";
 
 /**
- * One logger entry stored and streamed to the UI.
+ * One logger entry stored and streamed to clients.
  */
 export type LogRecord = {
 /**
@@ -11,7 +11,7 @@ export type LogRecord = {
  */
 id: number,
 /**
- * Wall-clock timestamp in unix milliseconds.
+ * Wall-clock timestamp in Unix milliseconds.
  */
 timestamp_ms: number,
 /**

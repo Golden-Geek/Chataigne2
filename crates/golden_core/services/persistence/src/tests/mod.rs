@@ -4,6 +4,7 @@ use tempfile::tempdir;
 
 use super::{read_recovery_candidates, restore_primary_from_backup, write_file_atomically_with_recovery};
 
+mod project_document;
 mod save_coordinator;
 
 #[test]

@@ -19,6 +19,7 @@ members = [
     "crates/golden_core/runtime/control",
     "crates/golden_core/runtime/io",
     "crates/golden_core/runtime/script",
+    "crates/golden_core/runtime/script-contract",
     "crates/golden_core/services/persistence",
     "crates/golden_core/services/protocol",
     "crates/golden_core/support/codegen",
@@ -57,6 +58,7 @@ golden_model = { path = "crates/golden_core/foundation/model" }
 golden_parameters = { path = "crates/golden_core/foundation/parameters" }
 golden_persistence = { path = "crates/golden_core/services/persistence" }
 golden_runtime = { path = "crates/golden_core/runtime/control" }
+golden_script_contract = { path = "crates/golden_core/runtime/script-contract" }
 golden_values = { path = "crates/golden_core/foundation/values" }
 indexmap = { version = "2", features = ["serde"] }
 regex = "1"
