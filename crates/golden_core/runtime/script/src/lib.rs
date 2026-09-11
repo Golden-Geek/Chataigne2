@@ -1,5 +1,9 @@
-//! Public script authoring and runtime APIs for Golden.
+//! Reusable script authoring and QuickJS runtime APIs for Golden.
 
 #![warn(missing_docs)]
 
-pub use golden_engine::script::*;
+mod quickjs;
+mod types;
+
+pub use quickjs::{QuickJsRuntime, ScriptCancellationHandle};
+pub use types::*;

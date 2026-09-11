@@ -19,7 +19,9 @@ use crate::parameter::{
     coerce_param_value_for_target, coerce_param_value_for_target_reverse,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
-use crate::script::{QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptValue};
+use crate::script::{
+    QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptTreeView, ScriptValue,
+};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 
 use super::history::SetParamControlStateEffect;
@@ -326,8 +328,8 @@ impl ScriptHostBridge for ExpressionScriptHostBridge {
         Err("expression mode cannot emit custom events".to_string())
     }
 
-    fn tree_snapshot(&self) -> Option<Arc<ProcessTreeSnapshot>> {
-        Some(Arc::clone(&self.tree_snapshot))
+    fn tree_snapshot(&self) -> Option<Arc<dyn ScriptTreeView>> {
+        Some(Arc::clone(&self.tree_snapshot) as Arc<dyn ScriptTreeView>)
     }
 
     fn set_node_script_property(&mut self, _node: NodeId, _property: String, _value: ParamValue) -> Result<(), String> {

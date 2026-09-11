@@ -20,3 +20,6 @@ golden_persistence = { path = "services/persistence" }
 golden_protocol = { path = "services/protocol" }
 golden_script = { path = "runtime/script" }
 golden_transport_server = { path = "hosts/transport" }
+
+[dev-dependencies]
+tauri = "2"

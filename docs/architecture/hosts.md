@@ -16,6 +16,22 @@ The default desktop host lives in `golden_core`.
 - Native file dialogs are desktop-only behavior and should remain outside pure engine or persistence layers.
 - Apps may override CLI parsing or bootstrap by calling lower-level `golden_core::app` APIs, but they should not need app-shell host files by default.
 
+The `golden_core` facade is the ready-to-launch full-host surface. It intentionally includes the
+engine, persistence, HTTP/WebSocket transport, Tauri host, native dialogs, protocol, and scripting
+runtime. Consumers that do not need that complete stack should depend on the focused package that
+owns their required surface:
+
+- `golden_engine` for host-independent node execution and application transactions.
+- `golden_protocol` for wire DTOs without the engine, QuickJS, transport, or desktop host.
+- `golden_script` for the QuickJS VM and explicit script-host traits without the engine or desktop.
+- `golden_persistence` for project documents/codecs and file transactions without host dialogs.
+- `golden_audio` for the independent audio engine and native audio adapters; it does not depend on
+  Golden Core or Chataigne.
+
+These are package boundaries, not feature aliases on the full facade. This keeps dependency intent
+visible in each consumer manifest. Crate-external compile fixtures cover the engine transaction,
+protocol, persistence, script runtime, transport-only headless host, and full default-host APIs.
+
 ## Browser And Headless Host
 
 The default built-in browser/headless path also starts from `golden_core`.

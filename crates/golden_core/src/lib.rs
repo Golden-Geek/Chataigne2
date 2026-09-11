@@ -128,6 +128,7 @@ pub mod ui_read_model {
 
 /// Script authoring and runtime integrations.
 pub mod script {
+    pub use golden_engine::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptSource};
     pub use golden_script::*;
 }
 

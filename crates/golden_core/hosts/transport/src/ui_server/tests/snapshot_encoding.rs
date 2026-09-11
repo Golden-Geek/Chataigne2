@@ -7,9 +7,11 @@ use golden_engine::application::{ProductionRuntime, ProjectSaveRequest};
 use golden_engine::define_node_enum;
 use golden_engine::edit::{Edit, NodeTree};
 use golden_engine::engine::{Engine, EngineTime};
-use golden_engine::node::{Folder, NodeMetaPatch};
+use golden_engine::node::Folder;
 use golden_engine::ui_read_model::UiReadModel;
-use golden_protocol::{UiEditIntent, UiProjectFileSpec, UiServerMessage, UiSnapshot, UiSubscriptionScope};
+use golden_protocol::{
+    NodeMetaPatch, UiEditIntent, UiProjectFileSpec, UiServerMessage, UiSnapshot, UiSubscriptionScope,
+};
 
 use super::super::snapshot_encoding::{
     SnapshotEncodingAdmissionError, SnapshotEncodingResult, SnapshotEncodingService, encode_websocket_message,

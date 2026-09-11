@@ -2841,6 +2841,7 @@ dependencies = [
  "golden_script",
  "golden_transport_server",
  "golden_values",
+ "tauri",
 ]
 
 [[package]]
@@ -2867,6 +2868,7 @@ dependencies = [
  "golden_persistence",
  "golden_protocol",
  "golden_runtime",
+ "golden_script",
  "golden_script_contract",
  "golden_values",
  "rquickjs",
@@ -2967,7 +2969,11 @@ dependencies = [
 name = "golden_script"
 version = "0.1.0"
 dependencies = [
- "golden_engine",
+ "golden_model",
+ "golden_parameters",
+ "golden_script_contract",
+ "rquickjs",
+ "serde",
  "serde_json",
 ]
 
