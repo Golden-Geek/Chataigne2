@@ -58,6 +58,7 @@ impl RuntimeSchedule {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DirtySet {
     words: Vec<u64>,
+    dirty_words: Vec<usize>,
     len: usize,
     count: usize,
 }
@@ -65,8 +66,10 @@ pub struct DirtySet {
 impl DirtySet {
     /// Allocates a bitset for a stable work layout.
     pub fn new(len: usize) -> Self {
+        let word_count = len.div_ceil(u64::BITS as usize);
         Self {
-            words: vec![0; len.div_ceil(64)],
+            words: vec![0; word_count],
+            dirty_words: Vec::with_capacity(word_count),
             len,
             count: 0,
         }
@@ -79,8 +82,12 @@ impl DirtySet {
             return Err(SchedulerError::WorkOutOfBounds);
         }
         let bit = 1_u64 << (index % 64);
-        let word = &mut self.words[index / 64];
+        let word_index = index / 64;
+        let word = &mut self.words[word_index];
         if *word & bit == 0 {
+            if *word == 0 {
+                self.dirty_words.push(word_index);
+            }
             *word |= bit;
             self.count += 1;
         }
@@ -90,6 +97,8 @@ impl DirtySet {
     /// Marks every work unit dirty without allocating.
     pub fn mark_all(&mut self) {
         self.words.fill(u64::MAX);
+        self.dirty_words.clear();
+        self.dirty_words.extend(0..self.words.len());
         let trailing = self.words.len() * 64 - self.len;
         if let Some(last) = self.words.last_mut()
             && trailing > 0
@@ -101,7 +110,9 @@ impl DirtySet {
 
     /// Clears the bitset for reuse.
     pub fn clear(&mut self) {
-        self.words.fill(0);
+        for word_index in self.dirty_words.drain(..) {
+            self.words[word_index] = 0;
+        }
         self.count = 0;
     }
 
@@ -133,6 +144,8 @@ pub struct SelectionReport {
     pub mode: ExecutionMode,
     /// Schedule units examined while selecting work.
     pub visited_units: usize,
+    /// Dirty bitset words examined by the sparse path.
+    pub visited_dirty_words: usize,
     /// Dirty work units selected for execution.
     pub selected_units: usize,
 }
@@ -143,12 +156,23 @@ pub struct SelectionReport {
 /// work identities do not pay worker dispatch and synchronization costs.
 pub struct WorkSelector {
     metrics: Arc<RuntimeMetrics>,
+    sparse_word_indices: Vec<usize>,
 }
 
 impl WorkSelector {
     /// Creates a selector that records sparse/dense batch metrics.
     pub fn new(metrics: Arc<RuntimeMetrics>) -> Self {
-        Self { metrics }
+        Self {
+            metrics,
+            sparse_word_indices: Vec::new(),
+        }
+    }
+
+    /// Reserves sparse-selection scratch for a known stable schedule layout.
+    pub fn prepare(&mut self, schedule_work_count: usize) {
+        self.sparse_word_indices.clear();
+        self.sparse_word_indices
+            .reserve(schedule_work_count.div_ceil(u64::BITS as usize));
     }
 
     /// Writes dirty work into caller-owned storage in compile-assigned order.
@@ -163,14 +187,35 @@ impl WorkSelector {
         }
         selected.clear();
         let mode = selection_mode(schedule, dirty);
-        for work in schedule.units() {
-            if dirty.contains(work.id) {
-                selected.push(*work);
+        let (visited_units, visited_dirty_words) = match mode {
+            ExecutionMode::Sparse => {
+                self.sparse_word_indices.clear();
+                self.sparse_word_indices.extend_from_slice(&dirty.dirty_words);
+                self.sparse_word_indices.sort_unstable();
+                for word_index in self.sparse_word_indices.iter().copied() {
+                    let mut word = dirty.words[word_index];
+                    while word != 0 {
+                        let bit_index = word.trailing_zeros() as usize;
+                        let work_index = word_index * u64::BITS as usize + bit_index;
+                        selected.push(schedule.units[work_index]);
+                        word &= word - 1;
+                    }
+                }
+                (selected.len(), self.sparse_word_indices.len())
             }
-        }
+            ExecutionMode::Dense => {
+                for work in schedule.units() {
+                    if dirty.contains(work.id) {
+                        selected.push(*work);
+                    }
+                }
+                (schedule.work_count(), 0)
+            }
+        };
         let report = SelectionReport {
             mode,
-            visited_units: schedule.work_count(),
+            visited_units,
+            visited_dirty_words,
             selected_units: selected.len(),
         };
         self.metrics

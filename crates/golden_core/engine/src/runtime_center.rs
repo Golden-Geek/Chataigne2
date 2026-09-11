@@ -449,7 +449,8 @@ impl<T: Node> ProductionState<T> {
         };
         let compiler = CompilationService::spawn(EngineGenerationCompiler, 2, metrics.clone())
             .map_err(|error| format!("failed to start runtime compiler: {error}"))?;
-        let work_selector = WorkSelector::new(metrics);
+        let mut work_selector = WorkSelector::new(metrics);
+        work_selector.prepare(work_count);
         let initial_saved_document_revision = project_was_saved.then(|| engine.current_history_state_id());
 
         Ok((
@@ -469,7 +470,7 @@ impl<T: Node> ProductionState<T> {
                 input_scratch: Vec::new(),
                 dirty: DirtySet::new(work_count),
                 work_selector,
-                selected_work: Vec::new(),
+                selected_work: Vec::with_capacity(work_count),
                 last_runtime_plane_error: None,
                 project_generation: ProjectGeneration::INITIAL,
                 project_pause_error: None,
@@ -656,6 +657,8 @@ impl<T: Node> ProductionState<T> {
         self.input_work_count = layout.parameters.len();
         self.dirty = DirtySet::new(work_count);
         self.selected_work.clear();
+        self.selected_work.reserve(work_count);
+        self.work_selector.prepare(work_count);
         Ok(())
     }
 
@@ -743,6 +746,8 @@ impl<T: Node> ProductionState<T> {
         self.input_scratch.clear();
         self.dirty = DirtySet::new(work_count);
         self.selected_work.clear();
+        self.selected_work.reserve(work_count);
+        self.work_selector.prepare(work_count);
         self.last_runtime_plane_error = None;
         self.project_generation = project_generation;
         self.project_pause_error = None;

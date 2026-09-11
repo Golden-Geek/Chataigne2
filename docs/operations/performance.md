@@ -18,6 +18,10 @@ nodes.
 - Deterministic work selection is independent from kernel execution. The production engine selects
   ordered work identities directly into retained storage; it does not dispatch identity-only jobs
   to runtime workers. Worker scheduling remains reserved for executors that perform real work.
+- Sparse dirty sets retain touched bitset-word ordinals and clear only those words. Below the
+  measured 50% crossover, selection sorts the touched word ordinals and visits set bits in stable
+  compile order; at and above 50%, it scans the dense schedule. Generation install reserves sparse
+  and selected-work scratch so warmed selection allocates nothing.
 - Value updates coalesce where the contract allows it. Triggers, commands, and effects preserve
   order and use bounded queues.
 - Structural edits use `NodeTree`/`AddNodeTree` for known subtrees and avoid repeated whole-tree
@@ -56,6 +60,19 @@ cargo test --locked -p golden_runtime --test work_selection \
   measure_direct_selection_against_identity_worker_dispatch \
   -- --ignored --nocapture --test-threads=1
 ```
+
+Measure visit counts, sparse/dense crossover, tails, and warmed allocations at 0%, 0.1%, 1%, 10%,
+25%, 50%, and 100% dirty with:
+
+```text
+cargo test --locked -p golden_runtime --test work_selection \
+  measure_sparse_dense_selection_crossover \
+  -- --ignored --nocapture --test-threads=1
+```
+
+The T14 Windows x64 run visits exactly 0/100/1,000/10,000 units at 0%/0.1%/1%/10% dirty, with p95
+0/0/1/14 µs and zero warmed allocations. Sparse/dense p95 converges at 50% (56/55 µs), supporting
+the production threshold. Real app-owned node callbacks are still serial and remain T18 work.
 
 ## UI and graphs
 
