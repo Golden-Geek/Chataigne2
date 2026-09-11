@@ -88,11 +88,11 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T09     | Complete                                                                                           |
 | T10     | Complete                                                                                           |
 | T11     | Complete                                                                                           |
-| T12     | In progress: all capture/encoding boundaries complete; final scale and save/resync contention evidence remains          |
+| T12     | Complete                                                                                           |
 | T13–T19 | Not started                                                                                        |
 
-The current stop point is the T12 background transport-encoding slice. Continue T12 with the final
-scale and contended save/resync qualification.
+T12 is complete, including transport scale and contended save/resync qualification. Continue with
+T13's delta-proportional browser graph indexes and scheduler.
 Exact commands, evidence, and remaining qualification gaps are recorded in
 `docs/progress/audit-remediation-status.md`.
 

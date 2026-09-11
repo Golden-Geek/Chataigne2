@@ -58,6 +58,14 @@ payload. The built-in transport runs that work on one background encoder with ei
 and a 64 MiB encoded-response limit. Same-version whole-graph clients share the completed JSON;
 subtree scopes remain independently encoded so their authorization/scope boundary is preserved.
 
+Measure three-client transport capture, background materialization, encoding, and same-version
+reuse separately with:
+
+```text
+cargo test --locked -p golden_transport_server \
+  measure_transport_snapshot_encoding_at_scale -- --ignored --nocapture --test-threads=1
+```
+
 Project persistence follows the same split. Mutation turns update only affected authored nodes in
 a 256-shard copy-on-write document projection. Save admission captures the immutable roots,
 project generation, and document revision; sparse baseline reconstruction and JSON encoding run

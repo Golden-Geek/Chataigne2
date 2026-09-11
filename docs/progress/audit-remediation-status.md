@@ -4,10 +4,9 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the transport-encoding T12 slice commit: `f5c4993c`
-is checked out with transport encoder, host integration, regression, and documentation changes in
-the working tree. T00–T11 plus the immutable UI read-model, compiler-capture, and persistence-capture
-T12 slices are committed and pushed on `main`.
+Current SHA and patch state before the transport-qualification T12 slice commit: `b6aad441`
+is checked out with qualification regressions and evidence changes in the working tree. T00–T11
+plus every T12 implementation slice are committed and pushed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -21,29 +20,29 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T12 — separate immutable snapshots and encoding from actor progress — in progress. This
-slice completes the background transport encoding boundary. T01's native qualification and T03's
-matching hosted reference baseline remain pending.
+Task: T12 — separate immutable snapshots and encoding from actor progress — complete. This slice
+adds the final transport scale and combined save/resync contention evidence. T01's native
+qualification and T03's matching hosted reference baseline remain pending.
 
-Owning layers and files in this slice: Golden Engine immutable UI capture metadata and the Golden
-transport host's snapshot encoder, HTTP/WS delivery, and bounded outbound queues.
+Owning layers and files in this slice: Golden transport snapshot regressions, manual scale
+measurement, performance documentation, and the audit ledger.
 
-Invariant / implementation decision: snapshot callers clone fixed projection roots with their
-version, revision, project generation, and scope, then admit that capture to one worker with eight
-queued slots. DTO materialization and JSON encoding happen on the worker. One completed whole-graph
-JSON payload is shared by same-version clients; subtree scopes remain independent. The WebSocket
-hub polls completions, and its outbound queue accounts encoded snapshot bytes without serializing
-the DTO on the hub.
+Invariant / implementation decision: qualification uses the real immutable captures, background
+encoder, production runtime save coordinator, atomic file writes, UI edit path, and engine tick
+path. A deterministic gate holds the encoder while three resync captures, three simultaneous saves,
+an edit, and continuing ticks exercise their independent boundaries. The scale measurement submits
+three same-version whole-graph clients at 1k, 10k, and 100k nodes.
 
 Result and remaining work: a one-node mutation shares 255 of 256 project-document shards. The
 manual 1k/10k/100k qualification measured actor capture separately at 12/1/2 microseconds; full
 initial publication at 0/4/63 ms, sparse materialization outside the actor at 16/164/1699 ms, and
 JSON encoding at 0/3/39 ms. Save/edit races preserve the captured value and correct dirty revision,
-and opaque script configuration changes round-trip through the saved document. Deterministic
-transport regressions prove three admitted contended captures, explicit fourth-request rejection,
-old/new revision coherence across an edit, same-version payload reuse, protocol envelope fidelity,
-and one separately bounded WebSocket snapshot. T12 still owns final scale and combined
-save/resync contention evidence.
+and opaque script configuration changes round-trip through the saved document. At 100,002 nodes,
+three transport captures took 2 microseconds each; background materialization took 75 ms, JSON
+encoding 46 ms, and all three replies completed in 147 ms with two cache hits and one shared
+30,867,789-byte payload. Under the deterministic contention gate, three simultaneous saves
+completed in 14 ms while 2,165 engine ticks completed with a 302-microsecond maximum. Old/new
+snapshot revisions and labels remained coherent across the edit. T12 is complete.
 
 ## Task status and dependencies
 
@@ -61,7 +60,7 @@ save/resync contention evidence.
 | T09  | T08                                           | complete                                                     |
 | T10  | T00                                           | complete                                                     |
 | T11  | T04, T08, T09, T10                            | complete                                                     |
-| T12  | T08, T09, T11                                 | in progress: implementation complete; qualification pending  |
+| T12  | T08, T09, T11                                 | complete                                                     |
 | T13  | T03, T10                                      | pending                                                      |
 | T14  | T03, T07, T11                                 | pending                                                      |
 | T15  | T05, T09, T10, T12                            | pending                                                      |
@@ -82,11 +81,11 @@ the current branch contains implementation and verification evidence.
 | F03 — script interruption/effects  | partially fixed | T05 installs nesting-safe monotonic interruption/cancellation, budgets and resource caps, input validation, success-only effect admission, heap quarantine, and clean reload; T15 extraction remains                                                               | Watchdog subprocesses and engine recovery pass. Physical I/O is not claimed rollback-safe after host admission; reusable VM/effect ownership remains pending.                                                                                                      |
 | F04 — project replacement          | fixed           | T08 adds detached prepare/validate/compile, monotonic project generations, exclusive activation, atomic engine/runtime/read-model publication, explicit paused-state failure, stale candidate/compiler fencing, outside-actor retirement, and duplication rollback | Barrier and fault-injection coverage spans decode through resource cleanup. T11 caps concurrent detached-engine retirement and rejects overload before generation allocation or candidate preparation.                                                           |
 | F05 — cache restoration            | fixed           | Scheduled updates and inbox dispatch borrow the cache in place; all fallible scheduled scratch extraction uses one restore boundary; excess callbacks are rejected before invocation                                                                               | Injected budget and edit-absorption failures prove unchanged/changed bindings, node membership, cache contents, accepted-edit policy, and next-tick progress. Panic/unwind recovery is not claimed.                                                                |
-| F06 — unbounded work/lifecycle     | partially fixed | T11 adds dual-bounded I/O, bounded OSC turns, nonblocking actor admission, constant compiler retention/cancellation, bounded HTTP/WebSocket admission, explicit slow-client policy, capacity-reserved project/device retirement, and bounded delayed recovery. T12 bounds completed UI snapshot retention, compiler layouts, and fixed-shard persistence captures. | T11 saturation, recovery, shutdown, and ownership tests pass. T12 still owns contended-client capacity under F10/F06.                                                                                                             |
+| F06 — unbounded work/lifecycle     | fixed           | T11 adds dual-bounded I/O, bounded OSC turns, nonblocking actor admission, constant compiler retention/cancellation, bounded HTTP/WebSocket admission, explicit slow-client policy, capacity-reserved project/device retirement, and bounded delayed recovery. T12 bounds completed UI snapshot retention, compiler layouts, fixed-shard persistence captures, and background transport encoding. | Saturation, recovery, shutdown, ownership, and three-client save/resync contention tests pass with explicit overload and retained-capacity evidence.                                                                                                             |
 | F07 — topology ties                | partially fixed | T07 uses one UUID-ordered global ready frontier and compiles stable bucket/runtime order                                                                                                                                                                           | Equivalent-order, diamond, disconnected, cycle, and conflicting write/trigger fixtures pass. T14/T18 cross-worker real-kernel determinism remains pending.                                                                                                         |
 | F08 — UI index copying             | open            | T13 pending                                                                                                                                                                                                                                                        | Delta-proportional work and browser action-to-paint evidence is missing.                                                                                                                                                                                           |
 | F09 — identity work/full scans     | open            | T14/T18 pending                                                                                                                                                                                                                                                    | Sparse-selection and real-kernel measurements are missing.                                                                                                                                                                                                         |
-| F10 — snapshots/encoding           | partially fixed | T12 uses fixed-shard copy-on-write UI, compiler, and persistence roots; revision/generation-bound captures; one bounded transport encoder with same-version whole-graph JSON reuse; worker-side compiler materialization; outside-actor sparse project materialization/encoding; bounded completed caches; and outside-actor retirement. | Persistence capture scales at 1k/10k/100k with 1–12 µs actor capture in the recorded local run. Final transport scale and combined three-client save/resync contention evidence remain.                                                                  |
+| F10 — snapshots/encoding           | fixed           | T12 uses fixed-shard copy-on-write UI, compiler, and persistence roots; revision/generation-bound captures; one bounded transport encoder with same-version whole-graph JSON reuse; worker-side compiler materialization; outside-actor sparse project materialization/encoding; bounded completed caches; and outside-actor retirement. | Persistence and transport capture scale at 1k/10k/100k. Three simultaneous saves/resyncs preserve coherent revisions while engine ticks and file I/O continue; exact local measurements are recorded below.                                                                  |
 | F11 — concurrent saves             | fixed           | T09 adds monotonic save tickets, normalized destination identity, ordered complete transactions, bounded cross-destination concurrency, generation fencing, and winner-only path/revision publication                                                              | Deterministic barriers cover reversed completion, aliases, Save As, edits, and replacement. Injected write/restore boundaries prove recovery and subsequent saves. T12 retains capture-scaling work under F10, not save-order correctness.                         |
 | F12 — dependency gate              | fixed           | `h2` locked at 0.4.16; `rtrb` constraint and lock at 0.3.5; no advisory suppression added                                                                                                                                                                          | `cargo deny check`, `cargo machete`, and both backend-neutral/realtime Golden Audio suites pass against RustSec DB `5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5` (2026-09-02). No reachable Chataigne exploit was established.                                        |
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13/T14/T19 pending                                                                                                       | All 22 qualification-tool tests pass, including every planned invalid class and a real regression. Historical values are explicitly unqualified; matching hosted reference and product evidence remain open.                                                       |
@@ -189,6 +188,10 @@ the current branch contains implementation and verification evidence.
 | `cargo test --locked -p golden_engine ui_read_model --no-fail-fast` | T12 transport | Windows x64 | passed | All 19 focused immutable read-model tests pass, including revision-race coherence and shared lazy materialization. |
 | `cargo test --locked -p golden_transport_server --no-fail-fast` | T12 transport | Windows x64 | passed | All 40 transport tests pass. New deterministic cases cover bounded three-client contention, fourth-request rejection, old/new revision coherence across an edit, same-version encoded-payload reuse, protocol-envelope fidelity, and separate snapshot output capacity. |
 | `cargo clippy --locked -p golden_engine -p golden_transport_server --all-targets -- -D warnings` | T12 transport | Windows x64 | passed | Immutable capture cache metadata, bounded background encoding, HTTP/WebSocket integration, outbound accounting, and all test targets are warning-free. |
+| `cargo test --locked -p golden_transport_server save_resync_and_engine_ticks_progress_during_three_client_snapshot_contention -- --nocapture --test-threads=1` | T12 qualify | Windows x64 | passed | With the snapshot worker deliberately blocked, three simultaneous saves completed in 14 ms while 2,165 ticks continued; maximum tick time was 302 µs and the edit took 429 µs. Three resync captures retained exactly one active plus two queued jobs and preserved their old/new revisions. |
+| `cargo test --locked -p golden_transport_server measure_transport_snapshot_encoding_at_scale -- --ignored --nocapture --test-threads=1` | T12 qualify | Windows x64 | passed | At 1,002/10,002/100,002 nodes: three captures took 20/2/2 µs each; materialization 0/6/75 ms; JSON encoding 0/5/46 ms; total three-client completion 1/14/147 ms; encoded payload 303,787/3,057,788/30,867,789 bytes; two same-version cache hits at every size. |
+| `cargo test --locked -p golden_transport_server --no-fail-fast` | T12 qualify | Windows x64 | passed | 41 tests pass and the one explicit scale measurement remains ignored by default. |
+| `cargo clippy --locked -p golden_transport_server --all-targets -- -D warnings` | T12 qualify | Windows x64 | passed | The combined persistence/resync/tick regression and scale harness are warning-free. |
 
 ## Preservation and qualification inventory
 
@@ -203,8 +206,7 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready work: finish T12 with transport scale and three-client save/resync contention
-qualification, then start T13's delta-proportional browser graph indexes.
+Next dependency-ready work: start T13's delta-proportional browser graph indexes and scheduler.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.
