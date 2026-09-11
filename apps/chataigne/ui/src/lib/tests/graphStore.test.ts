@@ -91,6 +91,31 @@ describe('graph store scaling', () => {
 		expect(graphIndexMutationCopies(fork)).toBeLessThanOrEqual(30);
 	});
 
+	it('retains repeated versions with bounded changed-path copies', () => {
+		const retained = [
+			new VersionedNodeMap<string>(
+				Array.from({ length: 10_000 }, (_, index) => [index, 'version-0'] as const)
+			)
+		];
+		let copiedTrieNodes = 0;
+
+		for (let version = 1; version <= 1_000; version += 1) {
+			const next = retained[version - 1]?.fork();
+			if (!next) {
+				throw new Error('previous graph index version is missing');
+			}
+			next.set(5_000, `version-${version}`);
+			copiedTrieNodes += graphIndexMutationCopies(next) ?? Number.MAX_VALUE;
+			retained.push(next);
+		}
+
+		expect(retained[0]?.get(5_000)).toBe('version-0');
+		expect(retained[500]?.get(5_000)).toBe('version-500');
+		expect(retained[1_000]?.get(5_000)).toBe('version-1000');
+		expect(retained.every((version) => version.size === 10_000)).toBe(true);
+		expect(copiedTrieNodes).toBeLessThanOrEqual(9_000);
+	});
+
 	it('patches a live parameter without copying the complete graph indexes', () => {
 		const store = createGraphStore();
 		store.loadSnapshot(snapshot());

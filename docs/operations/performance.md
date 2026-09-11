@@ -64,6 +64,10 @@ units, always permits one unit to prevent starvation, and leaves the event and c
 until all units complete. A deterministic clock regression models ten one-millisecond units and
 requires frame slices of exactly 3/3/3/1 under a three-millisecond configured budget.
 
+Persistent index retention is qualified with 1,001 simultaneously live versions of a 10,000-entry
+map. Updating one key per version copies at most nine trie nodes, keeps every historical value
+readable, and bounds the aggregate to 9,000 copied nodes rather than 10,000 entries per version.
+
 The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
 capture a coherent event revision and project generation under a short projection read, then walk
 and clone DTOs after releasing that lock. Whole-graph materialization and transport encoding must

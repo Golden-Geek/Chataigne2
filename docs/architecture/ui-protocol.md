@@ -43,6 +43,8 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
   every pre-existing node, child, parent, or parameter entry. Detached large-event projection still
   publishes all four roots and its cursor atomically. Subtree removals consume the protocol's
   authoritative `removed_ids` list incrementally rather than recursively walking the live tree.
+  Retaining an older published version retains shared trie structure plus only the changed paths;
+  lookups never traverse a version-overlay chain.
 
 ## Rules
 
