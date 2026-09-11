@@ -1271,6 +1271,25 @@ const fromRustEvent = (event: RustUiEventDto): UiEventDto => {
 					nodes: rawNodes.map((n) => fromRustEventNodeSnapshot(n))
 				};
 			}
+			if (isRecord(op) && op.kind === 'paramPatched' && isRecord(op.patch)) {
+				return {
+					...op,
+					patch: {
+						...(op.patch.value === undefined ? {} : { value: fromRustParamValue(op.patch.value) }),
+						...(op.patch.control === undefined
+							? {}
+							: { control: fromRustControlState(op.patch.control) }),
+						...(op.patch.constraints === undefined
+							? {}
+							: {
+									constraints: fromRustConstraints(
+										op.patch.constraints as RustUiParamDto['constraints'],
+										undefined
+									)
+								})
+					}
+				};
+			}
 			return op;
 		});
 		return {

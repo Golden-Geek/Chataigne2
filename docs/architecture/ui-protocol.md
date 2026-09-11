@@ -45,6 +45,10 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
   authoritative `removed_ids` list incrementally rather than recursively walking the live tree.
   Retaining an older published version retains shared trie structure plus only the changed paths;
   lookups never traverse a version-overlay chain.
+- Mixed graph transactions use the same detached projector. Node moves and child-order patches walk
+  their authoritative child lists incrementally; node metadata and parameter patches apply to that
+  detached version before one atomic event/cursor publication. Transport decoding canonicalizes
+  parameter patch values, controls, and constraints before the store sees them.
 
 ## Rules
 

@@ -438,6 +438,11 @@ const reduceEventInPlace = (
 			for (const op of event.kind.ops) {
 				if (op.kind === 'nodeCreated') {
 					upsertNodeSnapshot(state, op.snapshot);
+					if (op.parent === null || op.parent === undefined) {
+						state.parentById.delete(op.snapshot.node_id);
+					} else {
+						state.parentById.set(op.snapshot.node_id, op.parent);
+					}
 					stateChanged = true;
 					requiresRootRecompute = true;
 				} else if (op.kind === 'subtreeInserted') {
@@ -466,10 +471,12 @@ const reduceEventInPlace = (
 						setNodeChildren(state, op.new_parent_after.parent, op.new_parent_after.children);
 						stateChanged = true;
 					}
-					if (op.new_parent_after && op.old_parent_after) {
-						state.parentById.set(op.node, op.new_parent_after.parent);
-						stateChanged = true;
+					if (op.new_parent === null || op.new_parent === undefined) {
+						state.parentById.delete(op.node);
+					} else {
+						state.parentById.set(op.node, op.new_parent);
 					}
+					stateChanged = true;
 					requiresRootRecompute = true;
 				} else if (op.kind === 'childrenReordered') {
 					setNodeChildren(state, op.parent, op.children);

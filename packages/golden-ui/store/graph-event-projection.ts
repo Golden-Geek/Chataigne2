@@ -1,9 +1,5 @@
-import type { UiEventDto, UiGraphOp, UiNodeDto, UiStagedEventWork } from '../types';
+import type { UiEventDto, UiNodeDto, UiStagedEventWork } from '../types';
 import type { GraphState } from './graph.svelte';
-
-type SubtreeInsertedOp = Extract<UiGraphOp, { kind: 'subtreeInserted' }>;
-type SubtreeRemovedOp = Extract<UiGraphOp, { kind: 'subtreeRemoved' }>;
-type ProjectedGraphOp = SubtreeInsertedOp | SubtreeRemovedOp;
 
 export interface GraphEventProjectionResult {
 	workUsed: number;
@@ -51,10 +47,7 @@ const isProjectableTransaction = (
 	event: UiEventDto
 ): event is UiEventDto & {
 	kind: Extract<UiEventDto['kind'], { kind: 'graphTransaction' }>;
-} =>
-	event.kind.kind === 'graphTransaction' &&
-	event.kind.ops.length > 0 &&
-	event.kind.ops.every((op) => op.kind === 'subtreeInserted' || op.kind === 'subtreeRemoved');
+} => event.kind.kind === 'graphTransaction' && event.kind.ops.length > 0;
 
 export const canProjectGraphEventIncrementally = (event: UiEventDto): boolean =>
 	isProjectableTransaction(event);
@@ -179,11 +172,12 @@ export const createIncrementalGraphEventProjection = (
 		lastEventTime: options.event.time,
 		requiresResync: baseState.requiresResync
 	};
-	const ops = options.event.kind.ops as ProjectedGraphOp[];
+	const ops = options.event.kind.ops;
 	let done = false;
 	let opIndex = 0;
 	let nodeIndex = 0;
 	let removedIdIndex = 0;
+	let parentPatchIndex = 0;
 	let nodeTask: NodeProjectionTask | undefined;
 	let parentTask: ParentProjectionTask | undefined;
 	let prepared = false;
@@ -221,6 +215,102 @@ export const createIncrementalGraphEventProjection = (
 				return true;
 			}
 			removedIdIndex = 0;
+			opIndex += 1;
+			return true;
+		}
+		if (op.kind === 'nodeCreated') {
+			if (nodeTask) {
+				if (advanceNodeTask(nextState, nodeTask)) {
+					nodeTask = undefined;
+					nodeIndex = 1;
+				}
+				return true;
+			}
+			if (nodeIndex === 0) {
+				nodeTask = createNodeTask(nextState, op.snapshot);
+				return true;
+			}
+			if (op.parent === null || op.parent === undefined) {
+				nextState.parentById.delete(op.snapshot.node_id);
+				if (nextState.rootId === null) {
+					nextState.rootId = op.snapshot.node_id;
+				}
+			} else {
+				nextState.parentById.set(op.snapshot.node_id, op.parent);
+			}
+			nodeIndex = 0;
+			opIndex += 1;
+			return true;
+		}
+		if (op.kind === 'nodeMoved') {
+			const parentPatches = [op.old_parent_after, op.new_parent_after].filter(
+				(patch): patch is NonNullable<typeof patch> => patch !== null && patch !== undefined
+			);
+			if (parentTask) {
+				if (advanceParentTask(nextState, parentTask)) {
+					parentTask = undefined;
+					parentPatchIndex += 1;
+				}
+				return true;
+			}
+			const patch = parentPatches[parentPatchIndex];
+			if (patch) {
+				parentTask = createParentTask(nextState, patch.parent, patch.children);
+				return true;
+			}
+			if (op.new_parent === null || op.new_parent === undefined) {
+				nextState.parentById.delete(op.node);
+				nextState.rootId = op.node;
+			} else {
+				nextState.parentById.set(op.node, op.new_parent);
+			}
+			parentPatchIndex = 0;
+			opIndex += 1;
+			return true;
+		}
+		if (op.kind === 'childrenReordered') {
+			if (!parentTask) {
+				parentTask = createParentTask(nextState, op.parent, op.children);
+				return true;
+			}
+			if (advanceParentTask(nextState, parentTask)) {
+				parentTask = undefined;
+				opIndex += 1;
+			}
+			return true;
+		}
+		if (op.kind === 'nodeMetaPatched') {
+			const node = nextState.nodesById.get(op.node);
+			if (node) {
+				nextState.nodesById.set(op.node, {
+					...node,
+					meta: { ...node.meta, ...op.patch }
+				});
+			}
+			opIndex += 1;
+			return true;
+		}
+		if (op.kind === 'paramPatched') {
+			const node = nextState.nodesById.get(op.param);
+			if (!node || node.data.kind !== 'parameter') {
+				nextState.requiresResync = true;
+			} else {
+				const param = {
+					...node.data.param,
+					...(op.patch.value === undefined ? {} : { value: op.patch.value }),
+					...(op.patch.control === undefined ? {} : { control: op.patch.control }),
+					...(op.patch.constraints === undefined ? {} : { constraints: op.patch.constraints })
+				};
+				nextState.paramsById.set(op.param, param);
+				nextState.nodesById.set(op.param, {
+					...node,
+					data: { kind: 'parameter', param }
+				});
+			}
+			opIndex += 1;
+			return true;
+		}
+		if (op.kind === 'historyPatched' || op.kind === 'loggerPatched') {
 			opIndex += 1;
 			return true;
 		}

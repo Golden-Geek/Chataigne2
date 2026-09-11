@@ -4,9 +4,9 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state before the retained-version T13 slice commit: `3f8f959e`
-is checked out with a persistent-index retention regression and documentation changes in the working
-tree. T00–T12 and the prior T13 slices are committed and pushed on `main`.
+Current SHA and patch state before the mixed-transaction T13 slice commit: `32d26b89`
+is checked out with graph projector, transport decoder, graph store, regression, and documentation
+changes in the working tree. T00–T12 and the prior T13 slices are committed and pushed on `main`.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -21,20 +21,21 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 ## Current batch
 
 Task: T13 — make large UI transactions proportional to changed data — in progress. This slice
-qualifies repeated retained persistent-index versions.
+completes proportional mixed graph-transaction projection.
 T01's native qualification and T03's matching hosted reference baseline remain pending.
 
-Owning layers and files in this slice: the `golden_ui` persistent graph index and Chataigne UI graph
-store regression.
+Owning layers and files in this slice: the `golden_ui` graph projector, graph store, transport
+decoder, and Chataigne UI scheduler regression.
 
-Invariant / implementation decision: each published version owns only its changed fixed-depth trie
-paths and shares all untouched structure with its predecessor. There is no overlay/version chain,
-so retaining history does not make current lookups dependent on retained version count.
+Invariant / implementation decision: every non-empty graph transaction may use one detached
+persistent version. Large parent-order lists advance one ID at a time; scalar metadata/parameter
+patches apply in one bounded step. Moves use the protocol's explicit `new_parent`, and Rust-shaped
+parameter patch fields become canonical UI values at the transport boundary.
 
-Result and remaining work: 1,001 simultaneously retained versions of a 10,000-entry index preserve
-their exact historical values and sizes while copying at most nine trie nodes per one-key version,
-for at most 9,000 copied nodes total. T13 still owns proportional mixed edits, remaining reset/resync
-variants, and full-workbench action-to-paint evidence.
+Result and remaining work: one transaction moves a child, incrementally rewrites two 999-entry
+orders, patches its metadata, and patches a parameter while the complete prior graph and cursor stay
+published. Exact parent, order, metadata, and canonical parameter state appear together at commit.
+T13 still owns full-workbench action-to-paint evidence.
 
 ## Task status and dependencies
 
@@ -53,7 +54,7 @@ variants, and full-workbench action-to-paint evidence.
 | T10  | T00                                           | complete                                                     |
 | T11  | T04, T08, T09, T10                            | complete                                                     |
 | T12  | T08, T09, T11                                 | complete                                                     |
-| T13  | T03, T10                                      | in progress: indexes, deltas, time, retention complete       |
+| T13  | T03, T10                                      | in progress: implementation complete; workbench evidence open |
 | T14  | T03, T07, T11                                 | pending                                                      |
 | T15  | T05, T09, T10, T12                            | pending                                                      |
 | T16  | T01, T02                                      | pending                                                      |
@@ -75,7 +76,7 @@ the current branch contains implementation and verification evidence.
 | F05 — cache restoration            | fixed           | Scheduled updates and inbox dispatch borrow the cache in place; all fallible scheduled scratch extraction uses one restore boundary; excess callbacks are rejected before invocation                                                                               | Injected budget and edit-absorption failures prove unchanged/changed bindings, node membership, cache contents, accepted-edit policy, and next-tick progress. Panic/unwind recovery is not claimed.                                                                |
 | F06 — unbounded work/lifecycle     | fixed           | T11 adds dual-bounded I/O, bounded OSC turns, nonblocking actor admission, constant compiler retention/cancellation, bounded HTTP/WebSocket admission, explicit slow-client policy, capacity-reserved project/device retirement, and bounded delayed recovery. T12 bounds completed UI snapshot retention, compiler layouts, fixed-shard persistence captures, and background transport encoding. | Saturation, recovery, shutdown, ownership, and three-client save/resync contention tests pass with explicit overload and retained-capacity evidence.                                                                                                             |
 | F07 — topology ties                | partially fixed | T07 uses one UUID-ordered global ready frontier and compiles stable bucket/runtime order                                                                                                                                                                           | Equivalent-order, diamond, disconnected, cycle, and conflicting write/trigger fixtures pass. T14/T18 cross-worker real-kernel determinism remains pending.                                                                                                         |
-| F08 — UI index copying             | partially fixed | T13 publishes fixed-depth persistent node/child/parent/parameter trie roots, projects subtree insertions/removals without copying prior entries, and enforces work-count plus wall-clock frame bounds.                                                                                                                            | Insert/remove scale and deterministic time gates pass; 1,001 retained versions copy at most nine trie nodes each. Mixed-edit and action-to-paint evidence remain.                                                                                                                                                                                    |
+| F08 — UI index copying             | partially fixed | T13 publishes fixed-depth persistent indexes and proportionally projects insert, remove, move, reorder, metadata, and parameter operations under work-count and wall-clock frame bounds.                                                                                                                                        | Scale, time, retention, reset, and mixed-transaction gates pass. Full-workbench action-to-paint evidence remains.                                                                                                                                                                                                                                  |
 | F09 — identity work/full scans     | open            | T14/T18 pending                                                                                                                                                                                                                                                    | Sparse-selection and real-kernel measurements are missing.                                                                                                                                                                                                         |
 | F10 — snapshots/encoding           | fixed           | T12 uses fixed-shard copy-on-write UI, compiler, and persistence roots; revision/generation-bound captures; one bounded transport encoder with same-version whole-graph JSON reuse; worker-side compiler materialization; outside-actor sparse project materialization/encoding; bounded completed caches; and outside-actor retirement. | Persistence and transport capture scale at 1k/10k/100k. Three simultaneous saves/resyncs preserve coherent revisions while engine ticks and file I/O continue; exact local measurements are recorded below.                                                                  |
 | F11 — concurrent saves             | fixed           | T09 adds monotonic save tickets, normalized destination identity, ordered complete transactions, bounded cross-destination concurrency, generation fencing, and winner-only path/revision publication                                                              | Deterministic barriers cover reversed completion, aliases, Save As, edits, and replacement. Injected write/restore boundaries prove recovery and subsequent saves. T12 retains capture-scaling work under F10, not save-order correctness.                         |
@@ -200,6 +201,10 @@ the current branch contains implementation and verification evidence.
 | `npm test` | T13 retention | Windows x64, Node 26 | passed | All 23 UI files and 79 tests pass. |
 | `npm run check` | T13 retention | Windows x64, Node 26 | passed | Svelte check reports 0 errors and 0 warnings. |
 | `npm run lint` | T13 retention | Windows x64, Node 26 | passed | The complete UI tree passes Prettier. |
+| `npx vitest run src/lib/tests/webSocketBatchScheduling.test.ts` | T13 mixed | Windows x64, Node 26 | passed | Nine focused tests pass. A move plus two large order rewrites and scalar patches remains invisible until its exact graph and cursor publish atomically. |
+| `npm test` | T13 mixed | Windows x64, Node 26 | passed | All 23 UI files and 80 tests pass. |
+| `npm run check` | T13 mixed | Windows x64, Node 26 | passed | Svelte check reports 0 errors and 0 warnings. |
+| `npm run lint` | T13 mixed | Windows x64, Node 26 | passed | The complete UI tree passes Prettier. |
 
 ## Preservation and qualification inventory
 
@@ -214,8 +219,7 @@ and dialog checks are unavailable or deliberately not attempted. No real device 
 
 ## Next task
 
-Next dependency-ready work: continue T13 with proportional mixed-edit projection and full-workbench
-action-to-paint qualification.
+Next dependency-ready work: finish T13 with full-workbench action-to-paint qualification.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

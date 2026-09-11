@@ -68,6 +68,11 @@ Persistent index retention is qualified with 1,001 simultaneously live versions 
 map. Updating one key per version copies at most nine trie nodes, keeps every historical value
 readable, and bounds the aggregate to 9,000 copied nodes rather than 10,000 entries per version.
 
+A mixed-transaction regression moves a child between parents, rewrites two 999-entry child orders,
+patches metadata, and patches a parameter in one event. The default scheduler spans the work over
+frames while the prior graph and cursor remain the only published version until every operation is
+complete.
+
 The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
 capture a coherent event revision and project generation under a short projection read, then walk
 and clone DTOs after releasing that lock. Whole-graph materialization and transport encoding must

@@ -89,12 +89,13 @@ For each finished task retain: starting SHA, patch/ending SHA when committed, di
 | T10     | Complete                                                                                           |
 | T11     | Complete                                                                                           |
 | T12     | Complete                                                                                           |
-| T13     | In progress: indexes, insert/remove, frame budget, retention complete                              |
+| T13     | In progress: proportional graph transaction implementation complete                              |
 | T14–T19 | Not started                                                                                        |
 
 T12 is complete, including transport scale and contended save/resync qualification. T13 now has
 persistent graph indexes, proportional atomic insertion/removal paths, and a scheduler wall-clock
-budget with bounded retained versions; continue with mixed-edit and full-workbench qualification.
+budget with bounded retained versions. Mixed moves, reorders, metadata, and parameter patches now
+share that path; continue with full-workbench action-to-paint qualification.
 Exact commands, evidence, and remaining qualification gaps are recorded in
 `docs/progress/audit-remediation-status.md`.
 

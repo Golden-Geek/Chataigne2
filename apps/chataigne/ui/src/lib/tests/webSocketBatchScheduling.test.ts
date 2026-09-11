@@ -170,6 +170,18 @@ const chainGraphSnapshot = (at: EventTime, nodeCount: number): UiSnapshot => ({
 	})
 });
 
+const wideGraphSnapshot = (at: EventTime, childCount: number): UiSnapshot => {
+	const children = Array.from({ length: childCount }, (_, index) => index + 2);
+	return {
+		...graphSnapshot(at),
+		nodes: [
+			graphNode(1, children),
+			...children.slice(0, -1).map((nodeId) => graphNode(nodeId)),
+			parameterNode(children.at(-1) ?? 2)
+		]
+	};
+};
+
 const appendedChainTransaction = (
 	eventAt: EventTime,
 	baseNodeCount: number,
@@ -222,6 +234,41 @@ const removedChainTailTransaction = (
 					parent: firstRemoved - 1,
 					children: []
 				}
+			}
+		]
+	};
+};
+
+const mixedGraphTransaction = (eventAt: EventTime, childCount: number) => {
+	const lastChild = childCount + 1;
+	const rootChildrenAfterMove = Array.from({ length: childCount - 1 }, (_, index) => index + 3);
+	return {
+		time: eventAt,
+		kind: 'graphTransaction',
+		tx_id: 3,
+		epoch: 1,
+		base_graph_version: 2,
+		next_graph_version: 3,
+		ops: [
+			{
+				kind: 'nodeMoved',
+				node: 2,
+				old_parent: 1,
+				new_parent: 3,
+				old_parent_after: { parent: 1, children: rootChildrenAfterMove },
+				new_parent_after: { parent: 3, children: [2] }
+			},
+			{
+				kind: 'childrenReordered',
+				parent: 1,
+				children: [...rootChildrenAfterMove].reverse()
+			},
+			{ kind: 'nodeMetaPatched', node: 2, patch: { label: 'Moved node' } },
+			{
+				kind: 'paramPatched',
+				node: lastChild,
+				param: lastChild,
+				patch: { value: { Int: 77 } }
 			}
 		]
 	};
@@ -732,6 +779,49 @@ describe('websocket event burst scheduling', () => {
 		expect(graph.state.nodesById.size).toBe(500);
 		expect(graph.state.childrenById.get(500)).toEqual([]);
 		expect(graph.state.nodesById.get(501)).toBeUndefined();
+		expect(graph.state.lastEventTime).toEqual(committed);
+		unsubscribe();
+	});
+
+	it('projects a large mixed move, reorder, metadata, and parameter transaction atomically', async () => {
+		const graph = createGraphStore();
+		const initial = time(0);
+		const committed = time(1);
+		graph.loadSnapshot(wideGraphSnapshot(initial, 1_000));
+		const initialState = graph.state;
+		const client = createWebSocketUiClient({
+			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
+		});
+		const unsubscribe = client.subscribe(
+			{ kind: 'wholeGraph' },
+			initial,
+			(batch) => graph.applyBatch(batch),
+			{ createEventWork: (event) => graph.createEventWork(event) }
+		);
+		const socket = FakeWebSocket.instances.at(-1);
+		if (!socket) {
+			throw new Error('websocket was not created');
+		}
+		socket.open();
+		await flushMicrotasks();
+		const subscription = sentSubscribe(socket);
+		receivePlaneDelta(socket, subscription.subscription_id, 'structure', initial, committed, [
+			mixedGraphTransaction(committed, 1_000)
+		]);
+
+		while (frames.length > 0) {
+			runFrame();
+			if (frames.length > 0) {
+				expect(graph.state).toBe(initialState);
+				expect(graph.state.childrenById.get(1)?.[0]).toBe(2);
+			}
+		}
+
+		expect(graph.state.childrenById.get(1)?.slice(0, 3)).toEqual([1_001, 1_000, 999]);
+		expect(graph.state.childrenById.get(3)).toEqual([2]);
+		expect(graph.state.parentById.get(2)).toBe(3);
+		expect(graph.state.nodesById.get(2)?.meta.label).toBe('Moved node');
+		expect(graph.state.paramsById.get(1_001)?.value).toEqual({ kind: 'int', value: 77 });
 		expect(graph.state.lastEventTime).toEqual(committed);
 		unsubscribe();
 	});
