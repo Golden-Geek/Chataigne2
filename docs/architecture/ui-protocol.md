@@ -35,7 +35,9 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
   clears old replay retention and publishes the replacement resync event at that one boundary.
 - One WebSocket replay pass delivers its non-empty data planes in one atomic delta envelope.
   The client stages the whole envelope before rendering and drains large event bursts in bounded
-  animation-frame slices, preserving global event-time order and keeping input responsive.
+  animation-frame slices, preserving global event-time order and keeping input responsive. Detached
+  graph work has both a 512-unit ceiling and a four-millisecond default wall-clock budget per frame;
+  elapsed time is checked at each safe projector work boundary.
 - Published browser graph indexes use fixed-depth persistent numeric tries. Each transaction forks
   the four index roots in constant time and copy-on-writes only touched hash paths; it never clones
   every pre-existing node, child, parent, or parameter entry. Detached large-event projection still

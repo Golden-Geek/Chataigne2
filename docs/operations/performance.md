@@ -58,6 +58,12 @@ permit at most 20 insertion frames and four removal frames, and assert that no d
 root becomes visible. A reconnect during a 1,500-node removal discards the detached version and
 replays from the last committed cursor.
 
+Detached graph projection also has a default four-millisecond wall-clock frame budget in addition
+to its 512-work ceiling. The scheduler checks elapsed monotonic time between individual safe work
+units, always permits one unit to prevent starvation, and leaves the event and cursor unpublished
+until all units complete. A deterministic clock regression models ten one-millisecond units and
+requires frame slices of exactly 3/3/3/1 under a three-millisecond configured budget.
+
 The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
 capture a coherent event revision and project generation under a short projection read, then walk
 and clone DTOs after releasing that lock. Whole-graph materialization and transport encoding must

@@ -2,6 +2,7 @@ import type { UiDataPlane } from '../generated/rust_protocol/UiDataPlane';
 import type { EventTime, UiEventBatch, UiEventDto, UiGraphOp, UiStagedEventWork } from '../types';
 
 const DEFAULT_MAX_WORK_PER_FRAME = 512;
+const DEFAULT_MAX_FRAME_TIME_MS = 4;
 const DEFAULT_MAX_BACKLOG_EVENTS = 8_192;
 const DEFAULT_MAX_BACKLOG_WORK = 131_072;
 const DEFAULT_MAX_BACKLOG_BYTES = 64 * 1024 * 1024;
@@ -16,6 +17,7 @@ export interface StagedEventCost {
 
 export interface StagedFrameBatchLimits {
 	maxWorkPerFrame: number;
+	maxFrameTimeMs: number;
 	maxBacklogEvents: number;
 	maxBacklogWork: number;
 	maxBacklogBytes: number;
@@ -57,6 +59,7 @@ export interface StagedFrameBatchSchedulerOptions {
 	createEventWork?: (event: UiEventDto) => UiStagedEventWork | undefined;
 	estimateEventCost?: (event: UiEventDto) => StagedEventCost;
 	limits?: Partial<StagedFrameBatchLimits>;
+	now?: () => number;
 	isClosed: () => boolean;
 	getCursor: () => EventTime | undefined;
 	setCursor: (cursor: EventTime) => void;
@@ -180,6 +183,7 @@ const normalizeLimits = (
 	limits: Partial<StagedFrameBatchLimits> | undefined
 ): StagedFrameBatchLimits => ({
 	maxWorkPerFrame: Math.max(1, Math.floor(limits?.maxWorkPerFrame ?? DEFAULT_MAX_WORK_PER_FRAME)),
+	maxFrameTimeMs: Math.max(0.1, limits?.maxFrameTimeMs ?? DEFAULT_MAX_FRAME_TIME_MS),
 	maxBacklogEvents: Math.max(1, Math.floor(limits?.maxBacklogEvents ?? DEFAULT_MAX_BACKLOG_EVENTS)),
 	maxBacklogWork: Math.max(1, Math.floor(limits?.maxBacklogWork ?? DEFAULT_MAX_BACKLOG_WORK)),
 	maxBacklogBytes: Math.max(1, Math.floor(limits?.maxBacklogBytes ?? DEFAULT_MAX_BACKLOG_BYTES))
@@ -260,6 +264,8 @@ export const createStagedFrameBatchScheduler = (
 	options: StagedFrameBatchSchedulerOptions
 ): StagedFrameBatchScheduler => {
 	const limits = normalizeLimits(options.limits);
+	const readNow =
+		options.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
 	const eventRuns: StagedEventRun[] = [];
 	const pendingLatest = new Map<string, StagedQueuedEvent>();
 	let nextEventOrder = 0;
@@ -415,8 +421,12 @@ export const createStagedFrameBatchScheduler = (
 			}
 
 			const events: UiEventDto[] = [];
+			const frameStartedAt = readNow();
 			let remainingWork = limits.maxWorkPerFrame;
+			let didWorkThisFrame = false;
 			let projectedEventCompleted = false;
+			const hasFrameTime = (): boolean =>
+				!didWorkThisFrame || readNow() - frameStartedAt < limits.maxFrameTimeMs;
 
 			if (activeWork?.entry.superseded) {
 				cancelActiveWork();
@@ -428,19 +438,16 @@ export const createStagedFrameBatchScheduler = (
 				requeueEntry(interrupted);
 			}
 
-			while (remainingWork > 0) {
+			while (remainingWork > 0 && hasFrameTime()) {
 				if (activeWork) {
-					const result = activeWork.work.advance(remainingWork);
-					const workUsed = Math.max(
-						1,
-						Math.min(
-							remainingWork,
-							Math.ceil(Number.isFinite(result.workUsed) ? result.workUsed : 1)
-						)
-					);
-					remainingWork -= workUsed;
+					// A detached work unit is the projector's smallest safe preemption boundary.
+					// Recheck the clock after every unit so expensive index mutations cannot consume
+					// the complete work-count allowance after the wall-clock allowance is exhausted.
+					const result = activeWork.work.advance(1);
+					remainingWork -= 1;
+					didWorkThisFrame = true;
 					if (!result.done) {
-						break;
+						continue;
 					}
 					events.push(activeWork.entry.event);
 					removeQueuedEntry(activeWork.entry);
@@ -469,6 +476,7 @@ export const createStagedFrameBatchScheduler = (
 				events.push(entry.event);
 				removeQueuedEntry(entry);
 				remainingWork -= Math.min(remainingWork, entry.cost.work);
+				didWorkThisFrame = true;
 			}
 
 			const drained = queuedEvents === 0;
