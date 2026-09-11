@@ -2,6 +2,8 @@ import type { UiEventDto, UiGraphOp, UiNodeDto, UiStagedEventWork } from '../typ
 import type { GraphState } from './graph.svelte';
 
 type SubtreeInsertedOp = Extract<UiGraphOp, { kind: 'subtreeInserted' }>;
+type SubtreeRemovedOp = Extract<UiGraphOp, { kind: 'subtreeRemoved' }>;
+type ProjectedGraphOp = SubtreeInsertedOp | SubtreeRemovedOp;
 
 export interface GraphEventProjectionResult {
 	workUsed: number;
@@ -45,17 +47,17 @@ interface GraphProjectionOptions {
 	onCancelled: () => void;
 }
 
-const isSubtreeOnlyTransaction = (
+const isProjectableTransaction = (
 	event: UiEventDto
 ): event is UiEventDto & {
 	kind: Extract<UiEventDto['kind'], { kind: 'graphTransaction' }>;
 } =>
 	event.kind.kind === 'graphTransaction' &&
 	event.kind.ops.length > 0 &&
-	event.kind.ops.every((op) => op.kind === 'subtreeInserted');
+	event.kind.ops.every((op) => op.kind === 'subtreeInserted' || op.kind === 'subtreeRemoved');
 
 export const canProjectGraphEventIncrementally = (event: UiEventDto): boolean =>
-	isSubtreeOnlyTransaction(event);
+	isProjectableTransaction(event);
 
 const createNodeTask = (state: GraphState, node: UiNodeDto): NodeProjectionTask => ({
 	node,
@@ -106,12 +108,16 @@ const advanceNodeTask = (state: GraphState, task: NodeProjectionTask): boolean =
 	return true;
 };
 
-const createParentTask = (state: GraphState, op: SubtreeInsertedOp): ParentProjectionTask => ({
-	parent: op.parent,
+const createParentTask = (
+	state: GraphState,
+	parent: number,
+	sourceChildren: number[]
+): ParentProjectionTask => ({
+	parent,
 	children: [],
 	nextChildren: new Set(),
-	sourceChildren: op.parent_children_after,
-	previousChildren: state.childrenById.get(op.parent) ?? [],
+	sourceChildren,
+	previousChildren: state.childrenById.get(parent) ?? [],
 	childIndex: 0,
 	previousIndex: 0,
 	phase: 'copyChildren'
@@ -159,7 +165,7 @@ const advanceParentTask = (state: GraphState, task: ParentProjectionTask): boole
 export const createIncrementalGraphEventProjection = (
 	options: GraphProjectionOptions
 ): GraphEventProjectionWork | undefined => {
-	if (!isSubtreeOnlyTransaction(options.event)) {
+	if (!isProjectableTransaction(options.event)) {
 		return undefined;
 	}
 
@@ -173,10 +179,11 @@ export const createIncrementalGraphEventProjection = (
 		lastEventTime: options.event.time,
 		requiresResync: baseState.requiresResync
 	};
-	const ops = options.event.kind.ops as SubtreeInsertedOp[];
+	const ops = options.event.kind.ops as ProjectedGraphOp[];
 	let done = false;
 	let opIndex = 0;
 	let nodeIndex = 0;
+	let removedIdIndex = 0;
 	let nodeTask: NodeProjectionTask | undefined;
 	let parentTask: ParentProjectionTask | undefined;
 	let prepared = false;
@@ -187,6 +194,35 @@ export const createIncrementalGraphEventProjection = (
 		if (!op) {
 			done = true;
 			return false;
+		}
+		if (op.kind === 'subtreeRemoved') {
+			const removedId = op.removed_ids[removedIdIndex];
+			if (removedId !== undefined) {
+				nextState.childrenById.delete(removedId);
+				nextState.parentById.delete(removedId);
+				nextState.nodesById.delete(removedId);
+				nextState.paramsById.delete(removedId);
+				if (nextState.rootId === removedId) {
+					nextState.rootId = null;
+				}
+				removedIdIndex += 1;
+				return true;
+			}
+			if (!parentTask && op.parent_after) {
+				parentTask = createParentTask(nextState, op.parent_after.parent, op.parent_after.children);
+				return true;
+			}
+			if (parentTask) {
+				if (advanceParentTask(nextState, parentTask)) {
+					parentTask = undefined;
+					removedIdIndex = 0;
+					opIndex += 1;
+				}
+				return true;
+			}
+			removedIdIndex = 0;
+			opIndex += 1;
+			return true;
 		}
 		if (nodeTask) {
 			if (advanceNodeTask(nextState, nodeTask)) {
@@ -205,7 +241,7 @@ export const createIncrementalGraphEventProjection = (
 			return false;
 		}
 		if (!parentTask) {
-			parentTask = createParentTask(nextState, op);
+			parentTask = createParentTask(nextState, op.parent, op.parent_children_after);
 			return true;
 		}
 		if (advanceParentTask(nextState, parentTask)) {

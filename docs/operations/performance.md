@@ -52,9 +52,11 @@ stores limit work to visible nodes; a 10,000-node document must not mount the wh
 
 The browser graph store uses fixed-depth persistent numeric tries for node, child, parent, and
 parameter indexes. Fork cost is independent of existing graph size, and mutations copy only touched
-trie paths. The default 512-work frame scheduler regression inserts the same 600-node chain into
-1k, 10k, and 100k existing-node graphs, requires identical frame counts at every size, permits at
-most 20 frames, and asserts that no detached intermediate root becomes visible.
+trie paths. The default 512-work frame scheduler regressions insert and remove the same 600-node
+chain against 1k, 10k, and 100k existing-node graphs, require identical frame counts at every size,
+permit at most 20 insertion frames and four removal frames, and assert that no detached intermediate
+root becomes visible. A reconnect during a 1,500-node removal discards the detached version and
+replays from the last committed cursor.
 
 The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
 capture a coherent event revision and project generation under a short projection read, then walk

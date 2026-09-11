@@ -39,7 +39,8 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
 - Published browser graph indexes use fixed-depth persistent numeric tries. Each transaction forks
   the four index roots in constant time and copy-on-writes only touched hash paths; it never clones
   every pre-existing node, child, parent, or parameter entry. Detached large-event projection still
-  publishes all four roots and its cursor atomically.
+  publishes all four roots and its cursor atomically. Subtree removals consume the protocol's
+  authoritative `removed_ids` list incrementally rather than recursively walking the live tree.
 
 ## Rules
 

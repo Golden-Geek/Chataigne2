@@ -200,6 +200,33 @@ const appendedChainTransaction = (
 	};
 };
 
+const removedChainTailTransaction = (
+	eventAt: EventTime,
+	baseNodeCount: number,
+	removedNodeCount: number
+) => {
+	const firstRemoved = baseNodeCount - removedNodeCount + 1;
+	return {
+		time: eventAt,
+		kind: 'graphTransaction',
+		tx_id: 2,
+		epoch: 1,
+		base_graph_version: 1,
+		next_graph_version: 2,
+		ops: [
+			{
+				kind: 'subtreeRemoved',
+				root: firstRemoved,
+				removed_ids: Array.from({ length: removedNodeCount }, (_, index) => firstRemoved + index),
+				parent_after: {
+					parent: firstRemoved - 1,
+					children: []
+				}
+			}
+		]
+	};
+};
+
 const subtreeTransaction = (eventAt: EventTime, nodeCount: number) => {
 	const firstNode = 2;
 	const lastNode = firstNode + nodeCount - 1;
@@ -584,6 +611,129 @@ describe('websocket event burst scheduling', () => {
 
 		expect(new Set(frameCounts).size).toBe(1);
 		expect(Math.max(...mutationCopies) - Math.min(...mutationCopies)).toBeLessThan(100);
+	});
+
+	it('removes a fixed 600-node tail independently of a 1k, 10k, or 100k base graph', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		const frameCounts: number[] = [];
+
+		for (const baseNodeCount of [1_000, 10_000, 100_000]) {
+			const graph = createGraphStore();
+			const initial = time(baseNodeCount);
+			const committed = time(baseNodeCount + 1);
+			graph.loadSnapshot(chainGraphSnapshot(initial, baseNodeCount));
+			const initialState = graph.state;
+			const client = createWebSocketUiClient({
+				webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
+			});
+			const unsubscribe = client.subscribe(
+				{ kind: 'wholeGraph' },
+				initial,
+				(batch) => graph.applyBatch(batch),
+				{ createEventWork: (event) => graph.createEventWork(event) }
+			);
+			const socket = FakeWebSocket.instances.at(-1);
+			if (!socket) {
+				throw new Error('websocket was not created');
+			}
+			socket.open();
+			await flushMicrotasks();
+			const subscription = sentSubscribe(socket);
+			receivePlaneDelta(socket, subscription.subscription_id, 'structure', initial, committed, [
+				removedChainTailTransaction(committed, baseNodeCount, 600)
+			]);
+
+			let frameCount = 0;
+			while (frames.length > 0) {
+				runFrame();
+				frameCount += 1;
+				if (frames.length > 0) {
+					expect(graph.state).toBe(initialState);
+					expect(graph.state.nodesById.size).toBe(baseNodeCount);
+				}
+			}
+
+			const firstRemoved = baseNodeCount - 599;
+			expect(graph.state.nodesById.size).toBe(baseNodeCount - 600);
+			expect(graph.state.childrenById.get(firstRemoved - 1)).toEqual([]);
+			expect(graph.state.nodesById.get(firstRemoved)).toBeUndefined();
+			expect(graph.state.parentById.get(firstRemoved)).toBeUndefined();
+			expect(graph.state.lastEventTime).toEqual(committed);
+			frameCounts.push(frameCount);
+			unsubscribe();
+		}
+
+		expect(new Set(frameCounts).size).toBe(1);
+		expect(frameCounts[0]).toBeLessThanOrEqual(4);
+	});
+
+	it('discards a partial large removal and replays it from the last committed cursor', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		const graph = createGraphStore();
+		const initial = time(0);
+		const committed = time(1);
+		graph.loadSnapshot(chainGraphSnapshot(initial, 2_000));
+		const initialState = graph.state;
+		const client = createWebSocketUiClient({
+			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
+		});
+		const unsubscribe = client.subscribe(
+			{ kind: 'wholeGraph' },
+			initial,
+			(batch) => graph.applyBatch(batch),
+			{ createEventWork: (event) => graph.createEventWork(event) }
+		);
+		const firstSocket = FakeWebSocket.instances.at(-1);
+		if (!firstSocket) {
+			throw new Error('websocket was not created');
+		}
+		firstSocket.open();
+		await flushMicrotasks();
+		const firstSubscription = sentSubscribe(firstSocket);
+		const transaction = removedChainTailTransaction(committed, 2_000, 1_500);
+		receivePlaneDelta(
+			firstSocket,
+			firstSubscription.subscription_id,
+			'structure',
+			initial,
+			committed,
+			[transaction]
+		);
+
+		runFrame();
+		expect(graph.state).toBe(initialState);
+		expect(graph.state.nodesById.size).toBe(2_000);
+		firstSocket.close();
+		await vi.advanceTimersByTimeAsync(251);
+
+		const secondSocket = FakeWebSocket.instances.at(-1);
+		if (!secondSocket || secondSocket === firstSocket) {
+			throw new Error('reconnect websocket was not created');
+		}
+		secondSocket.open();
+		await flushMicrotasks();
+		const secondSubscription = sentSubscribe(secondSocket);
+		expect(secondSubscription.from).toEqual(initial);
+		receivePlaneDelta(
+			secondSocket,
+			secondSubscription.subscription_id,
+			'structure',
+			initial,
+			committed,
+			[transaction]
+		);
+		while (frames.length > 0) {
+			runFrame();
+			if (frames.length > 0) {
+				expect(graph.state).toBe(initialState);
+			}
+		}
+
+		expect(graph.state.nodesById.size).toBe(500);
+		expect(graph.state.childrenById.get(500)).toEqual([]);
+		expect(graph.state.nodesById.get(501)).toBeUndefined();
+		expect(graph.state.lastEventTime).toEqual(committed);
+		unsubscribe();
 	});
 
 	it('bounds sustained value-plane input by keeping only the newest value per parameter', async () => {
