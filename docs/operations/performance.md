@@ -54,7 +54,9 @@ The Golden UI read model publishes fixed-shard copy-on-write projection roots. S
 capture a coherent event revision and project generation under a short projection read, then walk
 and clone DTOs after releasing that lock. Whole-graph materialization and transport encoding must
 never run on the control actor, and completed whole-graph snapshot retention stays bounded to one
-payload.
+payload. The built-in transport runs that work on one background encoder with eight queued captures
+and a 64 MiB encoded-response limit. Same-version whole-graph clients share the completed JSON;
+subtree scopes remain independently encoded so their authorization/scope boundary is preserved.
 
 Project persistence follows the same split. Mutation turns update only affected authored nodes in
 a 256-shard copy-on-write document projection. Save admission captures the immutable roots,

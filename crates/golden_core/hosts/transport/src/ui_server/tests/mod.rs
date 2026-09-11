@@ -9,6 +9,8 @@ use serde_json::json;
 use super::runtime_pacer::DeadlineSchedule;
 use super::*;
 
+mod snapshot_encoding;
+
 #[test]
 fn runtime_pacer_keeps_an_absolute_deadline_across_ordinary_wake_lateness() {
     let origin = Instant::now();

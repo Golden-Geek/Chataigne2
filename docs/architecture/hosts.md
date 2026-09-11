@@ -42,7 +42,8 @@ payloads. Ordered commands are never coalesced or silently discarded.
 | UI TCP/HTTP connections | 16 total | 16 MiB request including 32 KiB headers | Return HTTP 503 above connection capacity; reject oversized requests | One request; 3 s read/write timeout |
 | WebSocket hub commands | 64 | 1 MiB inbound frame; 256 intents per batch | Return a request-correlated overload error | 32 commands, then publish |
 | WebSocket subscriptions | 16 clients; 32 subscriptions each | Scope and interest per subscription | Close excess clients; reject excess subscription ids | Included in each publish turn |
-| WebSocket client output | 64 per client | 4 MiB serialized weight per client | Coalesce latest-value planes; disconnect on reliable overflow | Drained by the client socket loop |
+| UI snapshot encoding | 1 active + 8 queued | One immutable capture each; 64 MiB encoded result | Return a request-correlated HTTP/WS overload error | One capture; same-version whole-graph results reuse one cached payload |
+| WebSocket client output | 64 per client | 4 MiB ordinary serialized weight plus one 64 MiB snapshot | Coalesce latest-value planes; disconnect on reliable overflow | Drained by the client socket loop |
 | OSC output commands | 256 | One UDP message per item | Reject synchronously with an overload error | 256 commands |
 | OSC input events | 2,048 | 2 MiB decoded datagram weight | Reject new datagram event; count rejection | 256 datagrams / 1,024 events |
 | Serial input events | 2,048 | 2 MiB received bytes | Reject new read event; count rejection | 1,024 events |
@@ -61,6 +62,10 @@ a fixed task ceiling. Its WebSocket hub never drains an unbounded producer backl
 publication, and a `Received` control phase is emitted only after the corresponding command has
 entered the hub mailbox. Reliable outbound overflow disconnects the lagging client so reconnect and
 snapshot/resync can restore a coherent view; only explicitly latest-wins planes may be superseded.
+Snapshot requests clone only the fixed projection roots on the caller. One reusable transport
+worker performs DTO materialization and JSON encoding, while the WebSocket hub continues accepting
+control and replay work. Its queue and encoded size are explicit, and only the newest completed
+whole-graph version remains cached.
 `golden_io::RetirementPool` reserves capacity before ownership moves. Cleanup threads are therefore
 limited even if native shutdown never returns, and admission failure gives the caller its original
 resource back. Production project replacement permits two concurrent detached-engine retirements;

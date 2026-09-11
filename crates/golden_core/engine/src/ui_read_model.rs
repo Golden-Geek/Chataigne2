@@ -97,6 +97,14 @@ pub struct UiSnapshotCapture {
 }
 
 impl UiSnapshotCapture {
+    /// Internal projection version represented by this immutable capture.
+    ///
+    /// Consumers may use this value as a bounded cache key. It is meaningful only for captures
+    /// produced by the same read model instance.
+    pub fn version(&self) -> u64 {
+        self.projection.version
+    }
+
     /// Event cursor represented by this immutable capture.
     pub fn revision(&self) -> EngineTime {
         self.projection.header.at
@@ -105,6 +113,11 @@ impl UiSnapshotCapture {
     /// Project generation represented by this immutable capture.
     pub fn project_generation(&self) -> ProjectGeneration {
         self.projection.header.project_generation
+    }
+
+    /// Scope represented by this immutable capture.
+    pub fn scope(&self) -> &UiSubscriptionScope {
+        &self.scope
     }
 
     /// Materializes the requested snapshot without accessing the live read model.

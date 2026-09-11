@@ -21,8 +21,12 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
   JSON encoding happen after that lock is released.
 - Each immutable capture owns its event revision and project generation alongside its projection
   roots. Later edits copy only affected shards, so a slow snapshot consumer cannot observe a mix of
-  revisions or block publication for whole-graph materialization. At most one completed whole-graph
-  payload is cached, and superseded project read-model state is retired outside the control actor.
+  revisions or block publication for whole-graph materialization. The transport admits captures to
+  one bounded background encoder, retains at most one completed whole-graph JSON payload, and shares
+  that immutable payload across clients requesting the same version. HTTP request workers wait only
+  for their admitted result; the WebSocket hub polls completions and continues control/replay work.
+  Superseded read-model and encoded state is dropped on background workers rather than the control
+  actor.
 - Production mutations collect and publish their projection delta within the same ordered control
   actor turn. A later mutation or project replacement therefore cannot publish ahead of an older
   capture.

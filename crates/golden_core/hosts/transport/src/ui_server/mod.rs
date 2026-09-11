@@ -43,11 +43,16 @@ mod admission;
 mod outbound_queue;
 mod pending_value_events;
 mod runtime_pacer;
+mod snapshot_encoding;
 
 use admission::ConnectionLimiter;
 use outbound_queue::{DEFAULT_OUTBOUND_CAPACITY, QueuePushResult, WsOutboundQueue};
 use pending_value_events::PendingValueEvents;
 use runtime_pacer::RuntimeLoopPacer;
+use snapshot_encoding::{
+    PendingWsSnapshots, SnapshotEncodingResult, SnapshotEncodingService, WsSnapshotCompletion,
+    encode_websocket_message, receive_encoded_snapshot,
+};
 
 const MAX_CONNECTIONS: usize = 16;
 const HTTP_MAX_HEADER_BYTES: usize = 32 * 1024;
@@ -164,6 +169,7 @@ struct ServerState<T: ProjectLifecycle> {
     runtime: ProductionRuntime<T>,
     read_model: Arc<UiReadModel>,
     ws_hub: WsHubHandle,
+    snapshot_encoding: SnapshotEncodingService,
     frontend_assets: &'static [UiAsset],
     preferences: Option<UiPreferencesConfig>,
 }
@@ -174,6 +180,7 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
             runtime: self.runtime.clone(),
             read_model: self.read_model.clone(),
             ws_hub: self.ws_hub.clone(),
+            snapshot_encoding: self.snapshot_encoding.clone(),
             frontend_assets: self.frontend_assets,
             preferences: self.preferences.clone(),
         }
@@ -294,6 +301,7 @@ struct WsHubContext<T: ProjectLifecycle> {
     preferences: Option<UiPreferencesConfig>,
     session_id: String,
     readiness: Arc<UiSessionReadiness>,
+    snapshot_encoding: SnapshotEncodingService,
 }
 
 #[derive(Default)]
@@ -419,6 +427,10 @@ enum WsHubCommand {
 #[allow(clippy::large_enum_variant)]
 enum WsOutbound {
     Message(WsServerMessage),
+    Snapshot {
+        request_id: String,
+        snapshot: SnapshotEncodingResult,
+    },
     Ping(Vec<u8>),
     Close,
 }
@@ -449,6 +461,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
         project_host::save_preferences(&runtime, preferences).map_err(Error::other)?;
     }
     let read_model = runtime.read_model();
+    let snapshot_encoding = SnapshotEncodingService::spawn()?;
     spawn_runtime_loop(runtime.clone(), read_model.clone());
     let ws_hub = spawn_ws_hub(
         runtime.clone(),
@@ -457,6 +470,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
         config.value_flush_interval.max(Duration::from_millis(1)),
         config.preferences.clone(),
         make_server_session_id(),
+        snapshot_encoding.clone(),
     );
 
     let listener = TcpListener::bind(&config.bind_addr)?;
@@ -470,6 +484,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
         runtime,
         read_model,
         ws_hub,
+        snapshot_encoding,
         frontend_assets: config.frontend_assets,
         preferences: config.preferences,
     };
@@ -583,6 +598,7 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     value_flush_interval: Duration,
     preferences: Option<UiPreferencesConfig>,
     session_id: String,
+    snapshot_encoding: SnapshotEncodingService,
 ) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::sync_channel::<WsHubCommand>(WS_HUB_COMMAND_CAPACITY);
     let readiness = Arc::new(UiSessionReadiness::default());
@@ -594,6 +610,7 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
             preferences,
             session_id,
             readiness: readiness_for_hub,
+            snapshot_encoding,
         };
         ws_hub_loop(context, cmd_rx, dispatch_interval, value_flush_interval)
     });
@@ -610,21 +627,38 @@ fn ws_hub_loop<T: ProjectLifecycle>(
     let mut client_instances = HashMap::<String, u64>::new();
     let mut origins = HashMap::<EngineTime, WsEventOrigin>::new();
     let mut last_value_flush_at = Instant::now();
+    let mut pending_snapshots = PendingWsSnapshots::default();
 
     loop {
         match cmd_rx.recv_timeout(dispatch_interval) {
             Ok(command) => {
-                handle_ws_hub_command(&context, &mut clients, &mut client_instances, &mut origins, command);
+                handle_ws_hub_command(
+                    &context,
+                    &mut clients,
+                    &mut client_instances,
+                    &mut origins,
+                    &mut pending_snapshots,
+                    command,
+                );
                 for _ in 1..WS_HUB_SERVICE_BUDGET {
                     let Ok(next) = cmd_rx.try_recv() else {
                         break;
                     };
-                    handle_ws_hub_command(&context, &mut clients, &mut client_instances, &mut origins, next);
+                    handle_ws_hub_command(
+                        &context,
+                        &mut clients,
+                        &mut client_instances,
+                        &mut origins,
+                        &mut pending_snapshots,
+                        next,
+                    );
                 }
             }
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => break,
         }
+
+        collect_ws_snapshot_completions(&mut pending_snapshots, &mut clients);
 
         let value_flush_due = last_value_flush_at.elapsed() >= value_flush_interval;
         if dispatch_ws_batches(&context.read_model, &mut clients, &mut origins, value_flush_due) {
@@ -638,6 +672,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
     clients: &mut HashMap<u64, WsClientState>,
     client_instances: &mut HashMap<String, u64>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
+    pending_snapshots: &mut PendingWsSnapshots,
     command: WsHubCommand,
 ) {
     match command {
@@ -701,6 +736,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             }
         }
         WsHubCommand::UnregisterClient { client_id } => {
+            pending_snapshots.remove_client(client_id);
             let removed = clients.remove(&client_id);
             let subscription_count = removed.as_ref().map_or(0, |client| client.subscriptions.len());
             if let Some(client_instance_id) = removed.as_ref().and_then(|client| client.client_instance_id.as_ref()) {
@@ -769,23 +805,18 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             request_id,
             scope,
         } => {
-            let started = Instant::now();
-            let snapshot = context.read_model.snapshot_for_scope(scope);
-            let build = started.elapsed();
-            if build >= Duration::from_millis(100) {
-                eprintln!(
-                    "[ui-ws] snapshot request_id={request_id} build_ms={}",
-                    build.as_millis()
-                );
+            let capture = context.read_model.capture_snapshot(scope);
+            match pending_snapshots.submit(&context.snapshot_encoding, client_id, request_id.clone(), capture) {
+                Ok(()) => {}
+                Err(error) => send_to_client(
+                    clients,
+                    client_id,
+                    WsServerMessage::Error {
+                        message: error.to_string(),
+                        request_id: Some(request_id),
+                    },
+                ),
             }
-            send_to_client(
-                clients,
-                client_id,
-                WsServerMessage::Snapshot {
-                    request_id,
-                    snapshot: Box::new(snapshot),
-                },
-            );
         }
         WsHubCommand::Replay {
             client_id,
@@ -1200,6 +1231,63 @@ fn send_to_client(clients: &mut HashMap<u64, WsClientState>, client_id: u64, mes
     }
 }
 
+fn collect_ws_snapshot_completions(
+    pending_snapshots: &mut PendingWsSnapshots,
+    clients: &mut HashMap<u64, WsClientState>,
+) {
+    pending_snapshots.drain_ready(|completion| {
+        match completion {
+            WsSnapshotCompletion::Encoded {
+                client_id,
+                request_id,
+                snapshot,
+            } => {
+                eprintln!(
+                    "[ui-ws] snapshot request_id={} revision={:?} project_generation={} nodes={} bytes={} materialize_ms={} encode_ms={} cache_hit={}",
+                    request_id,
+                    snapshot.revision,
+                    snapshot.project_generation,
+                    snapshot.node_count,
+                    snapshot.encoded.len(),
+                    snapshot.materialize_elapsed.as_millis(),
+                    snapshot.encode_elapsed.as_millis(),
+                    snapshot.cache_hit,
+                );
+                send_ws_snapshot(clients, client_id, request_id, snapshot);
+            }
+            WsSnapshotCompletion::Failed {
+                client_id,
+                request_id,
+                message,
+            } => send_to_client(
+                clients,
+                client_id,
+                WsServerMessage::Error {
+                    message,
+                    request_id: Some(request_id),
+                },
+            ),
+        }
+    });
+}
+
+fn send_ws_snapshot(
+    clients: &mut HashMap<u64, WsClientState>,
+    client_id: u64,
+    request_id: String,
+    snapshot: SnapshotEncodingResult,
+) {
+    let result = clients
+        .get(&client_id)
+        .map(|client| client.outbound.push(WsOutbound::Snapshot { request_id, snapshot }));
+    if result == Some(QueuePushResult::Full) {
+        eprintln!("[ui-ws] disconnecting slow client {client_id}: snapshot outbound capacity exhausted");
+        if let Some(client) = clients.remove(&client_id) {
+            let _ = client.outbound.push(WsOutbound::Close);
+        }
+    }
+}
+
 fn make_server_session_id() -> String {
     let epoch_nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1287,28 +1375,40 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             };
             let cancel_edit_elapsed = cancel_edit_started.elapsed();
 
-            let build_started = Instant::now();
-            let snapshot = state.read_model.snapshot_for_scope(scope.clone());
-            let build_elapsed = build_started.elapsed();
-
-            let serialize_started = Instant::now();
-            let body = serde_json::to_vec(&snapshot)
-                .map_err(|err| Error::new(ErrorKind::InvalidData, format!("failed to serialize json: {err}")))?;
-            let serialize_elapsed = serialize_started.elapsed();
+            let capture_started = Instant::now();
+            let capture = state.read_model.capture_snapshot(scope.clone());
+            let capture_elapsed = capture_started.elapsed();
+            let encoded = match state.snapshot_encoding.try_encode(capture) {
+                Ok(receiver) => receive_encoded_snapshot(receiver)?,
+                Err(error) => {
+                    write_json_error(stream, "503 Service Unavailable", &error.to_string())?;
+                    return Ok(());
+                }
+            };
 
             let write_response_started = Instant::now();
-            let write_result = write_response(stream, "200 OK", "application/json; charset=utf-8", &body);
+            let write_result = write_response(
+                stream,
+                "200 OK",
+                "application/json; charset=utf-8",
+                encoded.encoded.as_bytes(),
+            );
             let write_response_elapsed = write_response_started.elapsed();
 
             eprintln!(
-                "[ui-http] snapshot scope={scope:?} nodes={} bytes={} request_parse_ms={} lock_wait_ms={} cancel_edit_ms={} build_ms={} serialize_ms={} write_response_ms={} cancel_active_edit_session={} total_ms={}",
-                snapshot.nodes.len(),
-                body.len(),
+                "[ui-http] snapshot scope={scope:?} revision={:?} project_generation={} version={} nodes={} bytes={} request_parse_ms={} lock_wait_ms={} cancel_edit_ms={} capture_us={} materialize_ms={} encode_ms={} cache_hit={} write_response_ms={} cancel_active_edit_session={} total_ms={}",
+                encoded.revision,
+                encoded.project_generation,
+                encoded.version,
+                encoded.node_count,
+                encoded.encoded.len(),
                 request_parse_elapsed.as_millis(),
                 lock_wait_elapsed.as_millis(),
                 cancel_edit_elapsed.as_millis(),
-                build_elapsed.as_millis(),
-                serialize_elapsed.as_millis(),
+                capture_elapsed.as_micros(),
+                encoded.materialize_elapsed.as_millis(),
+                encoded.encode_elapsed.as_millis(),
+                encoded.cache_hit,
                 write_response_elapsed.as_millis(),
                 cancel_active_edit_session,
                 request_started.elapsed().as_millis()
@@ -1739,25 +1839,16 @@ fn send_ws_outbound(
     let close_requested = matches!(outbound, WsOutbound::Close);
     let message = match outbound {
         WsOutbound::Message(message) => {
-            let snapshot_request_id = match &message {
-                WsServerMessage::Snapshot { request_id, .. } => Some(request_id.clone()),
-                _ => None,
-            };
-            let serialize_started = Instant::now();
             let text = serde_json::to_string(&message).map_err(|err| {
                 Error::new(
                     ErrorKind::InvalidData,
                     format!("failed to serialize websocket message: {err}"),
                 )
             })?;
-            if let Some(request_id) = snapshot_request_id {
-                eprintln!(
-                    "[ui-ws] snapshot request_id={request_id} serialize_ms={} bytes={}",
-                    serialize_started.elapsed().as_millis(),
-                    text.len()
-                );
-            }
             Message::text(text)
+        }
+        WsOutbound::Snapshot { request_id, snapshot } => {
+            Message::text(encode_websocket_message(&request_id, &snapshot)?)
         }
         WsOutbound::Ping(payload) => Message::Ping(payload.into()),
         WsOutbound::Close => Message::Close(None),

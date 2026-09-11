@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use golden_protocol::{UiDataPlane, UiEventKind, UiServerMessage};
 
 use super::WsOutbound;
+use super::snapshot_encoding::MAX_ENCODED_SNAPSHOT_BYTES;
 
 pub(super) const DEFAULT_OUTBOUND_CAPACITY: usize = 64;
 pub(super) const DEFAULT_OUTBOUND_BYTES_CAPACITY: usize = 4 * 1024 * 1024;
@@ -18,12 +19,15 @@ pub(super) enum QueuePushResult {
 pub(super) struct WsOutboundQueue {
     capacity: usize,
     bytes_capacity: usize,
+    snapshot_bytes_capacity: usize,
     queue: Mutex<OutboundState>,
 }
 
 struct OutboundState {
     entries: VecDeque<WeightedOutbound>,
     retained_bytes: usize,
+    retained_snapshot_bytes: usize,
+    snapshot_entries: usize,
 }
 
 struct WeightedOutbound {
@@ -42,16 +46,20 @@ impl WsOutboundQueue {
         Self {
             capacity,
             bytes_capacity,
+            snapshot_bytes_capacity: MAX_ENCODED_SNAPSHOT_BYTES + 1024,
             queue: Mutex::new(OutboundState {
                 entries: VecDeque::with_capacity(capacity),
                 retained_bytes: 0,
+                retained_snapshot_bytes: 0,
+                snapshot_entries: 0,
             }),
         }
     }
 
     pub(super) fn push(&self, outbound: WsOutbound) -> QueuePushResult {
         let bytes = outbound_retained_bytes(&outbound);
-        if bytes > self.bytes_capacity {
+        let snapshot = matches!(&outbound, WsOutbound::Snapshot { .. });
+        if (!snapshot && bytes > self.bytes_capacity) || (snapshot && bytes > self.snapshot_bytes_capacity) {
             return QueuePushResult::Full;
         }
         let mut state = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -59,6 +67,18 @@ impl WsOutboundQueue {
         if matches!(outbound, WsOutbound::Close) {
             state.entries.clear();
             state.retained_bytes = bytes;
+            state.retained_snapshot_bytes = 0;
+            state.snapshot_entries = 0;
+            state.entries.push_back(WeightedOutbound { outbound, bytes });
+            return QueuePushResult::Queued;
+        }
+
+        if snapshot {
+            if state.entries.len() >= self.capacity || state.snapshot_entries > 0 {
+                return QueuePushResult::Full;
+            }
+            state.retained_snapshot_bytes += bytes;
+            state.snapshot_entries += 1;
             state.entries.push_back(WeightedOutbound { outbound, bytes });
             return QueuePushResult::Queued;
         }
@@ -143,7 +163,12 @@ impl WsOutboundQueue {
     pub(super) fn pop(&self) -> Option<WsOutbound> {
         let mut state = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let queued = state.entries.pop_front()?;
-        state.retained_bytes -= queued.bytes;
+        if matches!(&queued.outbound, WsOutbound::Snapshot { .. }) {
+            state.retained_snapshot_bytes -= queued.bytes;
+            state.snapshot_entries -= 1;
+        } else {
+            state.retained_bytes -= queued.bytes;
+        }
         Some(queued.outbound)
     }
 
@@ -158,16 +183,19 @@ impl WsOutboundQueue {
 
     #[cfg(test)]
     pub(super) fn retained_bytes(&self) -> usize {
-        self.queue
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .retained_bytes
+        let state = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.retained_bytes + state.retained_snapshot_bytes
     }
 }
 
 fn outbound_retained_bytes(outbound: &WsOutbound) -> usize {
     match outbound {
         WsOutbound::Message(message) => serde_json::to_vec(message).map_or(usize::MAX, |bytes| bytes.len()),
+        WsOutbound::Snapshot { request_id, snapshot } => snapshot
+            .encoded
+            .len()
+            .saturating_add(request_id.len())
+            .saturating_add(64),
         WsOutbound::Ping(payload) => payload.len(),
         WsOutbound::Close => 1,
     }
@@ -182,6 +210,7 @@ fn outbound_subscription_id(outbound: &WsOutbound) -> Option<&str> {
         WsOutbound::Message(
             UiServerMessage::Delta { subscription_id, .. } | UiServerMessage::ResyncRequired { subscription_id, .. },
         ) => Some(subscription_id),
+        WsOutbound::Snapshot { .. } => None,
         _ => None,
     }
 }
