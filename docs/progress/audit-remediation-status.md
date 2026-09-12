@@ -374,6 +374,20 @@ ticks. A separate ten-root duplicate run measured 1,001/318/514 ms for duplicate
 conditions from the earlier samples, not an isolated effect size, p95, or action-to-paint pass.
 The active-runtime and full-workbench product gates remain open.
 
+The process-tree builder now moves the fields from an owned parameter state into its node record
+instead of cloning a full editor parameter snapshot and cloning three fields again. Built-in
+parameters expose only value, constraints, and control state to this path; custom nodes retain a
+full-snapshot fallback. Child declaration indexes are built only for parents wider than 16
+siblings, with an ordered scan for smaller parents. A focused test covers the 16/17-child boundary
+and first-match semantics. Separate traces of the same 100k fixture measured roughly 118-140 ms
+for node cloning and 45-50 ms for child indexing before these changes, versus 100-121 ms and
+16-22 ms afterward. One mixed-parent remove/undo/redo run measured 578/402/257 ms for the actions
+and 349/506/718 ms for following ticks; one ten-root duplicate run measured 815/270/408 ms and
+517/684/756 ms respectively. The retained 1k/10k/100k authored-graph qualification under
+`target/qualification/authored-graph-scale/20260912T215114Z/` passed. These are separate local
+diagnostic samples, not p95 or action-to-paint proof. The active-runtime and full-workbench gates
+remain open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |

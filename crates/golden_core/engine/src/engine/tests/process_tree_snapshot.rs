@@ -117,6 +117,35 @@ fn snapshot_indexes_children_in_sibling_order_and_preserves_first_decl_match() {
 }
 
 #[test]
+fn declaration_lookup_preserves_order_across_small_and_wide_parents() {
+    for child_count in [16_u64, 17] {
+        let root = NodeId(1);
+        let mut root_node = snapshot_node(root, NodeUuid(Uuid::from_u128(1)), None);
+        root_node.first_child = Some(NodeId(2));
+        root_node.child_count = child_count as usize;
+        let mut nodes = HashMap::from([(root, root_node)]);
+        for index in 0..child_count {
+            let id = NodeId(index + 2);
+            let mut child = snapshot_node(id, NodeUuid(Uuid::from_u128(u128::from(id.0))), None);
+            child.parent = Some(root);
+            child.next_sibling = (index + 1 < child_count).then_some(NodeId(id.0 + 1));
+            child.decl_id = match index {
+                0 => "nested/match".to_owned(),
+                1 => "match".to_owned(),
+                _ => format!("child_{index}"),
+            };
+            nodes.insert(id, child);
+        }
+
+        let snapshot = ProcessTreeSnapshot::new(root, nodes);
+        assert_eq!(snapshot.find_child_by_decl_id(root, "nested/match"), Some(NodeId(2)));
+        assert_eq!(snapshot.find_child_by_decl_id(root, "match"), Some(NodeId(2)));
+        assert_eq!(snapshot.find_child_by_decl_id(root, "child_2"), Some(NodeId(4)));
+        assert_eq!(snapshot.find_child_by_decl_id(root, "missing"), None);
+    }
+}
+
+#[test]
 fn snapshot_child_index_stops_a_cycle_after_the_inline_sibling_limit() {
     let root = NodeId(1);
     let mut root_node = snapshot_node(root, NodeUuid(Uuid::from_u128(1)), None);

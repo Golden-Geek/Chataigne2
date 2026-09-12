@@ -9,6 +9,26 @@ fn parameter_nodes_are_not_disableable_by_default() {
 }
 
 #[test]
+fn process_tree_parameter_state_matches_full_runtime_fields() {
+    let mut parameter = Parameter::new(
+        "Message",
+        ParamValue::Str("current".to_owned()),
+        ParameterChangeCheck::ValueChange,
+    );
+    parameter.default_value = ParamValue::Str("default".to_owned());
+    let full = parameter
+        .engine_param_snapshot()
+        .expect("parameter has a full snapshot");
+    let process = parameter
+        .engine_process_tree_parameter_state()
+        .expect("parameter has process-tree state");
+
+    assert_eq!(process.value, full.value);
+    assert_eq!(process.constraints, full.constraints);
+    assert_eq!(process.control, full.control);
+}
+
+#[test]
 fn sparse_overlay_keeps_a_read_only_dynamic_default_as_the_current_value() {
     let empty = ParamValue::Reference(crate::node::NodeReference::default());
     let mut baseline = Parameter::new("Channel", empty, ParameterChangeCheck::ValueChange);

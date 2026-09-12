@@ -8,7 +8,7 @@ use crate::{
     parameter::{
         ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterSnapshot,
     },
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::{ProcessCtx, ProcessTreeParameterState, ProcessTreeSnapshot},
     script::{ScriptHostPolicy, ScriptNodeConfig, ScriptUiState},
 };
 
@@ -258,6 +258,11 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_param_snapshot(&self) -> Option<ParameterSnapshot> {
         None
+    }
+
+    #[doc(hidden)]
+    fn engine_process_tree_parameter_state(&self) -> Option<ProcessTreeParameterState> {
+        self.engine_param_snapshot().map(ProcessTreeParameterState::from)
     }
 
     #[doc(hidden)]

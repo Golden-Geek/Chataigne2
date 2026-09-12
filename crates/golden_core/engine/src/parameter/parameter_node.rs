@@ -7,7 +7,7 @@ use crate::{
         NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, UserContainerRules,
     },
     parameter::ParameterAnimationControlNode,
-    process_ctx::ProcessCtx,
+    process_ctx::{ProcessCtx, ProcessTreeParameterState},
 };
 
 use super::{
@@ -578,6 +578,14 @@ impl Node for Parameter {
 
     fn engine_param_snapshot(&self) -> Option<crate::parameter::ParameterSnapshot> {
         Some(self.snapshot())
+    }
+
+    fn engine_process_tree_parameter_state(&self) -> Option<ProcessTreeParameterState> {
+        Some(ProcessTreeParameterState {
+            value: self.value.clone(),
+            constraints: self.constraints.clone(),
+            control: self.control.clone(),
+        })
     }
 
     fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {

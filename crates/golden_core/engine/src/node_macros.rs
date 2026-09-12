@@ -879,6 +879,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_process_tree_parameter_state(&self) -> Option<$crate::process_ctx::ProcessTreeParameterState> {
+                $crate::__dispatch_node_enum!(self, engine_process_tree_parameter_state; $($variant),*)
+            }
+
+            #[inline(always)]
             fn engine_dashboard_widget_target_descriptor(&self) -> $crate::node::DashboardWidgetTargetDescriptor {
                 $crate::__dispatch_node_enum!(self, engine_dashboard_widget_target_descriptor; $($variant),*)
             }

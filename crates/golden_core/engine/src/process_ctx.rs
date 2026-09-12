@@ -11,8 +11,34 @@ use crate::node::{
     DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning,
     PresentationHint,
 };
-use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour};
+use crate::parameter::{
+    ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot,
+};
 use serde::Serialize;
+
+/// Parameter fields needed by a process-tree callback snapshot.
+///
+/// The full parameter DTO also carries editor defaults and UI hints; cloning those
+/// for every runtime tree snapshot adds work without making them observable here.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProcessTreeParameterState {
+    /// Current runtime value.
+    pub value: ParamValue,
+    /// Runtime value constraints.
+    pub constraints: ParameterConstraints,
+    /// Active parameter control state.
+    pub control: ParameterControlState,
+}
+
+impl From<ParameterSnapshot> for ProcessTreeParameterState {
+    fn from(snapshot: ParameterSnapshot) -> Self {
+        Self {
+            value: snapshot.value,
+            constraints: snapshot.constraints,
+            control: snapshot.control,
+        }
+    }
+}
 
 /// Read-only node record available during callback execution.
 #[derive(Clone, Debug, PartialEq)]
@@ -182,6 +208,9 @@ impl ProcessTreeSnapshot {
     }
 
     fn build_child_indexes(nodes: &HashMap<NodeId, ProcessTreeNodeSnapshot>) -> Arc<ProcessTreeChildIndexes> {
+        // Most folders are small; index only wide parents to avoid one map and
+        // cloned declaration strings per folder on every full-tree snapshot.
+        const DECL_INDEX_THRESHOLD: usize = 16;
         let parent_ids = nodes
             .iter()
             .filter_map(|(node_id, node)| node.first_child.map(|_| *node_id));
@@ -216,25 +245,24 @@ impl ProcessTreeSnapshot {
                 child = nodes.get(&child_id).and_then(|node| node.next_sibling);
             }
 
-            let mut decl_ids = HashMap::new();
-            for child_id in &child_ids {
-                let Some(child) = nodes.get(child_id) else {
-                    break;
-                };
-                decl_ids
-                    .entry(child.decl_id.clone().into_boxed_str())
-                    .or_insert(*child_id);
-                if let Some(short_decl_id) = child.decl_id.rsplit('/').next()
-                    && short_decl_id != child.decl_id
-                {
-                    decl_ids.entry(short_decl_id.into()).or_insert(*child_id);
+            if child_ids.len() > DECL_INDEX_THRESHOLD {
+                let mut decl_ids = HashMap::with_capacity(child_ids.len());
+                for child_id in &child_ids {
+                    let Some(child) = nodes.get(child_id) else {
+                        break;
+                    };
+                    decl_ids
+                        .entry(child.decl_id.clone().into_boxed_str())
+                        .or_insert(*child_id);
+                    if let Some(short_decl_id) = child.decl_id.rsplit('/').next()
+                        && short_decl_id != child.decl_id
+                    {
+                        decl_ids.entry(short_decl_id.into()).or_insert(*child_id);
+                    }
                 }
-            }
-
-            child_ids_by_parent.insert(parent, child_ids.into_boxed_slice());
-            if !decl_ids.is_empty() {
                 child_ids_by_decl_id.insert(parent, decl_ids);
             }
+            child_ids_by_parent.insert(parent, child_ids.into_boxed_slice());
         }
 
         Arc::new(ProcessTreeChildIndexes {
@@ -284,11 +312,16 @@ impl ProcessTreeSnapshot {
     /// Declared child ids can be stored as full paths such as `parameters/receiver`;
     /// callers may pass either the full declaration id or its final path segment.
     pub fn find_child_by_decl_id(&self, parent: NodeId, decl_id: &str) -> Option<NodeId> {
-        self.child_indexes
-            .ids_by_decl_id
-            .get(&parent)
-            .and_then(|children| children.get(decl_id))
-            .copied()
+        if let Some(children) = self.child_indexes.ids_by_decl_id.get(&parent) {
+            return children.get(decl_id).copied();
+        }
+        for child_id in self.child_ids_slice(parent) {
+            let child = self.nodes.get(child_id)?;
+            if child.decl_id == decl_id || child.decl_id.rsplit('/').next() == Some(decl_id) {
+                return Some(*child_id);
+            }
+        }
+        None
     }
 
     /// Borrows all direct child node ids for `parent` in sibling order.

@@ -750,7 +750,11 @@ impl<T: Node> Engine<T> {
         for (node_id, node) in self.nodes.iter() {
             let node_data = node.node_data();
             let descriptor = node.engine_script_descriptor();
-            let parameter_snapshot = node.engine_param_snapshot();
+            let parameter_state = node.engine_process_tree_parameter_state();
+            let (param_value, param_constraints, param_control) = match parameter_state {
+                Some(state) => (Some(state.value), Some(state.constraints), Some(state.control)),
+                None => (None, None, None),
+            };
             let dashboard_widget_target = node.engine_dashboard_widget_target_descriptor();
             node_ids_by_uuid.entry(node_data.meta.uuid).or_insert(node_id);
             nodes.insert(
@@ -772,9 +776,9 @@ impl<T: Node> Engine<T> {
                     enabled: node_data.effective_enabled,
                     can_be_disabled: node_data.meta.can_be_disabled,
                     child_count: 0,
-                    param_value: parameter_snapshot.as_ref().map(|snapshot| snapshot.value.clone()),
-                    param_constraints: parameter_snapshot.as_ref().map(|snapshot| snapshot.constraints.clone()),
-                    param_control: parameter_snapshot.as_ref().map(|snapshot| snapshot.control.clone()),
+                    param_value,
+                    param_constraints,
+                    param_control,
                     dashboard_widget_target,
                     script_properties: descriptor.properties,
                     script_methods: descriptor.methods,

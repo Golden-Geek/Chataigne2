@@ -62,6 +62,10 @@ Project load and imported-subtree insertion initialize each node's cache from it
 parent before lifecycle callbacks. Process-tree snapshots project that cached effective state
 directly; live metadata changes must therefore use engine edits rather than mutating an attached
 node's metadata behind the engine's back.
+Process-tree parameter projection carries only value, constraints, and control state; full UI
+parameter snapshots still carry editor defaults and hints. Child-order slices remain indexed for
+every parent, while declaration IDs use a hash index only above 16 siblings. Smaller parents use
+a bounded ordered scan, preserving first-match semantics without allocating an index per folder.
 
 `RecordingModuleIo` captures versioned inputs and authoritative outputs using an injected clock.
 Deterministic clocks keep protocol and hardware fixtures repeatable without putting polling or
