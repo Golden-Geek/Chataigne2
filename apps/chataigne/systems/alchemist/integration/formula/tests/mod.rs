@@ -33,6 +33,7 @@ use super::{
 use crate::app::{AppEngine, AppNode};
 
 mod inbox_batch;
+mod snapshot_cache;
 
 #[test]
 fn trigger_parameter_snapshot_materializes_idle() {

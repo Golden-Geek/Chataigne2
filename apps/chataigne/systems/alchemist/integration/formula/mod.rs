@@ -187,7 +187,10 @@ impl Node for AlchemistConnection {
         show_in_inspector_content = false
     );
 )]
-pub struct AlchemistFormulaDefinition {}
+pub struct AlchemistFormulaDefinition {
+    #[state(default = ANodeMaterializationCache::default())]
+    anode_materialization: ANodeMaterializationCache,
+}
 
 const FORMULA_BULK_INBOX_THRESHOLD: usize = 32;
 
@@ -351,6 +354,7 @@ impl Node for AlchemistFormulaDefinition {
         ctx: &mut ProcessCtx,
         _context: NodeCreationContext,
     ) {
+        self.anode_materialization.invalidate();
         self.reconcile_external_formula_file_parameter(ctx);
         self.reconcile_external_formula_operation_parameters(ctx);
         self.reconcile_formula_copy_source_parameter(ctx);
@@ -372,6 +376,12 @@ impl Node for AlchemistFormulaDefinition {
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        let formula_id = self.id();
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            self.anode_materialization.observe_events(snapshot, formula_id, &ctx.events);
+        } else {
+            self.anode_materialization.invalidate();
+        }
         if !formula_inbox_requires_bulk(&ctx.events) {
             self.dispatch_inbox(ctx);
             return;

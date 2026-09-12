@@ -47,11 +47,14 @@ impl AlchemistFormulaDefinition {
     }
 
     pub(super) fn sync_anode_sockets(
-        &self,
+        &mut self,
         ctx: &mut ProcessCtx,
         skip_anode: Option<NodeId>,
     ) -> Option<AlchemistFormula> {
         let snapshot = ctx.tree_snapshot_arc()?;
+        if ctx.events.is_empty() {
+            self.anode_materialization.invalidate();
+        }
         let trace = std::env::var_os("GOLDEN_PERF_TRACE").is_some();
         let phase_started = trace.then(std::time::Instant::now);
         let nodes = registry();
@@ -80,7 +83,8 @@ impl AlchemistFormulaDefinition {
         }
         let auto_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
         let phase_started = trace.then(std::time::Instant::now);
-        let formula = formula_from_snapshot(&snapshot, self.id()).ok()?;
+        let formula_id = self.id();
+        let formula = formula_from_snapshot_cached(&snapshot, formula_id, &mut self.anode_materialization).ok()?;
         let materialize_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
         let phase_started = trace.then(std::time::Instant::now);
         let value_types = value_types();

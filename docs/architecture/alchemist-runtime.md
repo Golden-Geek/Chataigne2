@@ -106,6 +106,13 @@ batching its ANodes, property bindings, and connections into one typed
 transaction. Transition guard and effect runtimes also store and compile typed
 documents directly.
 
+The live Formula node keeps an app-owned cache of pre-surface ANode instances.
+Inbox edits invalidate the affected ANode roots, including layout edits that do
+not immediately reconcile. Materialization reuses unchanged instances but still
+reads connections and surfaces, solves types, and commits a validated typed
+graph. Unknown deletions or transaction shapes force full ANode extraction; a
+failed materialization leaves the prior cache intact.
+
 Formula persistence accepts only the versioned typed graph envelope. Tests
 construct typed document fixtures directly, and no compatibility graph model is
 compiled into production.

@@ -414,6 +414,21 @@ unchanged ANode materialization would require explicit invalidation for config, 
 surface, and history; the current trace does not establish a safe incremental path or a product
 gate pass.
 
+The live Formula node now caches pre-surface ANode instances and invalidates them from inbox
+events, including layout edits that defer reconciliation. Connections, surface construction,
+type solving, and typed-graph validation still run on every materialization; unclassifiable
+deletions and transaction shapes fall back to full ANode extraction. Focused tests compare cached
+and full results through type edits, deferred layout edits, removal, connection creation, and
+fallback. In one later 100k mixed-parent removal probe, each edited Formula reused about 7,133
+unchanged ANodes: extraction measured 6-8 ms and bulk socket sync 63-69 ms, versus the separate
+pre-cache samples of 41-46 ms and 90-106 ms. A separate 100k duplicate/undo/redo probe passed
+with roughly 7.1k reused ANodes per edit; its post-edit ticks measured 355/619/652 ms. Other
+runtime consumers still materialize the graph afresh, and these isolated samples do not satisfy
+the full-workbench p95 action-to-paint or recovery gates.
+The source-fingerprinted authored-graph load/tick/save/reload report under
+`target/qualification/authored-graph-scale/20260912T230825Z/` passed its 1k, 10k, and 100k
+fixtures with the cache in place; it does not exercise live UI transport or browser paint.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |

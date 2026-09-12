@@ -218,9 +218,125 @@ pub(crate) fn anode_from_snapshot(
     Ok(instance)
 }
 
+#[derive(Default)]
+pub(super) struct ANodeMaterializationCache {
+    nodes: HashMap<NodeId, Arc<ANodeInstance>>,
+    dirty: HashSet<NodeId>,
+    invalidate_all: bool,
+}
+
+impl ANodeMaterializationCache {
+    #[cfg(test)]
+    pub(super) fn cached_instance(&self, node: NodeId) -> Option<&Arc<ANodeInstance>> {
+        self.nodes.get(&node)
+    }
+
+    pub(super) fn invalidate(&mut self) {
+        self.invalidate_all = true;
+        self.dirty.clear();
+    }
+
+    pub(super) fn observe_events(
+        &mut self,
+        snapshot: &ProcessTreeSnapshot,
+        formula_node: NodeId,
+        events: &EventFrame,
+    ) {
+        if self.nodes.is_empty() || self.invalidate_all {
+            return;
+        }
+        for event in events.iter() {
+            let known = match &event.kind {
+                EventKind::ParamChanged { param, .. }
+                | EventKind::ParamControlChanged { param, .. }
+                | EventKind::ParamConstraintsChanged { param, .. } => {
+                    self.observe_live_node(snapshot, formula_node, *param)
+                }
+                EventKind::MetaChanged { node, .. } | EventKind::NodeCreated { node } => {
+                    self.observe_live_node(snapshot, formula_node, *node)
+                }
+                EventKind::NodeDeleted { node } => {
+                    self.nodes.contains_key(node)
+                        || self.observe_live_node(snapshot, formula_node, *node)
+                }
+                EventKind::ChildAdded { parent, child, .. }
+                | EventKind::ChildReordered { parent, child } => {
+                    self.observe_live_node(snapshot, formula_node, *parent)
+                        && self.observe_live_node(snapshot, formula_node, *child)
+                }
+                EventKind::ChildRemoved { parent, child } => {
+                    let parent_known = self.observe_live_node(snapshot, formula_node, *parent)
+                        || self.nodes.contains_key(parent);
+                    if snapshot.node(*child).is_some() {
+                        self.observe_live_node(snapshot, formula_node, *child);
+                    }
+                    parent_known
+                }
+                EventKind::ChildReplaced { parent, new, .. } => {
+                    self.observe_live_node(snapshot, formula_node, *parent)
+                        && self.observe_live_node(snapshot, formula_node, *new)
+                }
+                EventKind::ChildMoved {
+                    child,
+                    old_parent,
+                    new_parent,
+                } => {
+                    self.observe_live_node(snapshot, formula_node, *child)
+                        && (self.observe_live_node(snapshot, formula_node, *old_parent)
+                            || self.nodes.contains_key(old_parent))
+                        && self.observe_live_node(snapshot, formula_node, *new_parent)
+                }
+                EventKind::GraphTransaction { .. } => false,
+                EventKind::Custom(_) => true,
+            };
+            if !known {
+                self.invalidate_all = true;
+                self.dirty.clear();
+                break;
+            }
+        }
+    }
+
+    fn observe_live_node(
+        &mut self,
+        snapshot: &ProcessTreeSnapshot,
+        formula_node: NodeId,
+        node: NodeId,
+    ) -> bool {
+        if snapshot.node(node).is_none() {
+            return false;
+        }
+        if let Some(anode) = direct_child_under(snapshot, formula_node, node) {
+            if snapshot
+                .node(anode)
+                .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
+            {
+                self.dirty.insert(anode);
+            }
+        }
+        true
+    }
+}
+
+pub(super) fn formula_from_snapshot_cached(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    cache: &mut ANodeMaterializationCache,
+) -> Result<AlchemistFormula, String> {
+    formula_from_snapshot_inner(snapshot, formula_node, Some(cache))
+}
+
 pub(crate) fn formula_from_snapshot(
-	snapshot: &ProcessTreeSnapshot,
-	formula_node: NodeId,
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+) -> Result<AlchemistFormula, String> {
+    formula_from_snapshot_inner(snapshot, formula_node, None)
+}
+
+fn formula_from_snapshot_inner(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    cache: Option<&mut ANodeMaterializationCache>,
 ) -> Result<AlchemistFormula, String> {
     let formula_snapshot = snapshot
         .node(formula_node)
@@ -240,6 +356,8 @@ pub(crate) fn formula_from_snapshot(
     let mut anodes_by_uuid = HashMap::<NodeUuid, ANodeId>::new();
     let mut anodes = Vec::new();
     let mut connections = Vec::new();
+    let mut next_cached = cache.as_ref().map(|_| HashMap::with_capacity(child_count));
+    let mut reused_anodes = 0usize;
 
     for child in snapshot.child_ids(formula_node) {
         let Some(child_snapshot) = snapshot.node(child) else {
@@ -248,7 +366,21 @@ pub(crate) fn formula_from_snapshot(
         if child_snapshot.node_type != ANODE_NODE_TYPE {
             continue;
         }
-        let instance = anode_from_snapshot(snapshot, child)?;
+        let cached = cache
+            .as_ref()
+            .filter(|cache| !cache.invalidate_all && !cache.dirty.contains(&child))
+            .and_then(|cache| cache.nodes.get(&child))
+            .cloned();
+        let instance = match cached.as_deref() {
+            Some(instance) => {
+                reused_anodes += 1;
+                instance.clone()
+            }
+            None => anode_from_snapshot(snapshot, child)?,
+        };
+        if let Some(next_cached) = next_cached.as_mut() {
+            next_cached.insert(child, cached.unwrap_or_else(|| Arc::new(instance.clone())));
+        }
         anodes_by_uuid.insert(child_snapshot.uuid, instance.id);
         anodes.push(instance);
     }
@@ -325,10 +457,16 @@ pub(crate) fn formula_from_snapshot(
     transaction
         .commit(&mut graph, &domain)
         .map_err(|error| error.to_string())?;
+    if let (Some(cache), Some(next_cached)) = (cache, next_cached) {
+        cache.nodes = next_cached;
+        cache.dirty.clear();
+        cache.invalidate_all = false;
+    }
     if let Some(started) = phase_started {
         eprintln!(
-            "[formula] materialize children={} anodes_us={} connections_us={} surface_us={} transaction_us={} commit_us={}",
+            "[formula] materialize children={} reused_anodes={} anodes_us={} connections_us={} surface_us={} transaction_us={} commit_us={}",
             child_count,
+            reused_anodes,
             anodes_us,
             connections_us,
             surface_us,
