@@ -741,6 +741,8 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn build_process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {
+        let trace = self.nodes.len() >= 10_000 && *runtime::PERF_TRACE_ENABLED;
+        let started = trace.then(Instant::now);
         let mut nodes = HashMap::with_capacity(self.nodes.len());
         let mut node_ids_by_uuid = HashMap::with_capacity(self.nodes.len());
         for (node_id, node) in self.nodes.iter() {
@@ -775,6 +777,7 @@ impl<T: Node> Engine<T> {
                 },
             );
         }
+        let cloned = trace.then(Instant::now);
 
         let parent_ids: Vec<NodeId> = nodes.values().filter_map(|node| node.parent).collect();
         for parent_id in parent_ids {
@@ -782,6 +785,7 @@ impl<T: Node> Engine<T> {
                 parent.child_count = parent.child_count.saturating_add(1);
             }
         }
+        let counted = trace.then(Instant::now);
 
         if nodes.contains_key(&self.root) {
             let mut stack = vec![(self.root, true)];
@@ -814,12 +818,24 @@ impl<T: Node> Engine<T> {
                 }
             }
         }
+        let enabled = trace.then(Instant::now);
 
-        Arc::new(ProcessTreeSnapshot::from_indexed_nodes(
+        let snapshot = Arc::new(ProcessTreeSnapshot::from_indexed_nodes(
             self.root,
             nodes,
             node_ids_by_uuid,
-        ))
+        ));
+        if let (Some(started), Some(cloned), Some(counted), Some(enabled)) = (started, cloned, counted, enabled) {
+            eprintln!(
+                "[engine] process_snapshot nodes={} clone_us={} count_us={} enabled_us={} indexes_us={}",
+                self.nodes.len(),
+                cloned.duration_since(started).as_micros(),
+                counted.duration_since(cloned).as_micros(),
+                enabled.duration_since(counted).as_micros(),
+                enabled.elapsed().as_micros(),
+            );
+        }
+        snapshot
     }
 
     /// Builds a read-only snapshot of the current node tree.

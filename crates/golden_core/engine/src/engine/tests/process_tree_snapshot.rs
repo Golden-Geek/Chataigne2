@@ -117,6 +117,26 @@ fn snapshot_indexes_children_in_sibling_order_and_preserves_first_decl_match() {
 }
 
 #[test]
+fn snapshot_child_index_stops_a_cycle_after_the_inline_sibling_limit() {
+    let root = NodeId(1);
+    let mut root_node = snapshot_node(root, NodeUuid(Uuid::from_u128(1)), None);
+    root_node.first_child = Some(NodeId(2));
+    root_node.child_count = 10;
+    let mut nodes = HashMap::from([(root, root_node)]);
+    for index in 0..10_u64 {
+        let id = NodeId(index + 2);
+        let mut node = snapshot_node(id, NodeUuid(Uuid::from_u128(u128::from(id.0))), None);
+        node.parent = Some(root);
+        node.next_sibling = Some(if index == 9 { NodeId(5) } else { NodeId(id.0 + 1) });
+        nodes.insert(id, node);
+    }
+
+    let snapshot = ProcessTreeSnapshot::new(root, nodes);
+    let expected = (2..12).map(NodeId).collect::<Vec<_>>();
+    assert_eq!(snapshot.child_ids_slice(root), expected.as_slice());
+}
+
+#[test]
 fn snapshot_child_indexes_keep_twenty_thousand_sibling_lookups_linear() {
     const CHILD_COUNT: u64 = 20_000;
     const PERFORMANCE_BUDGET: Duration = Duration::from_secs(5);

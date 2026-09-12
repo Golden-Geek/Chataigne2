@@ -191,10 +191,26 @@ impl ProcessTreeSnapshot {
         for parent in parent_ids {
             let mut child_ids = Vec::new();
             let mut child = nodes.get(&parent).and_then(|node| node.first_child);
-            let mut visited = HashSet::new();
+            // Most declared folders have only a few children; reserve a hash set for
+            // long sibling chains while still detecting malformed short cycles.
+            let mut short_chain = [NodeId(0); 8];
+            let mut short_len = 0;
+            let mut visited = None::<HashSet<NodeId>>;
             while let Some(child_id) = child {
-                if !visited.insert(child_id) {
+                if let Some(visited) = visited.as_mut() {
+                    if !visited.insert(child_id) {
+                        break;
+                    }
+                } else if short_chain[..short_len].contains(&child_id) {
                     break;
+                } else if short_len < short_chain.len() {
+                    short_chain[short_len] = child_id;
+                    short_len += 1;
+                } else {
+                    let mut long_chain = HashSet::with_capacity(short_chain.len() * 2);
+                    long_chain.extend(short_chain);
+                    long_chain.insert(child_id);
+                    visited = Some(long_chain);
                 }
                 child_ids.push(child_id);
                 child = nodes.get(&child_id).and_then(|node| node.next_sibling);
