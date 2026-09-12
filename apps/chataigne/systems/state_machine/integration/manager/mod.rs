@@ -1263,6 +1263,12 @@ pub(crate) struct StateMachineRuntimePerfStats {
     pub formula_compiles: u64,
     pub debug_samples_captured: u64,
     #[cfg(test)]
+    pub formula_cache_refresh_ns: u64,
+    #[cfg(test)]
+    pub formula_catalog_build_ns: u64,
+    #[cfg(test)]
+    pub runtime_cache_rebuild_ns: u64,
+    #[cfg(test)]
     pub processor_input_preparation_ns: u64,
     #[cfg(test)]
     pub processor_evaluation_ns: u64,
@@ -1555,6 +1561,9 @@ impl Node for StateMachineManager {
         for library in formula_libraries(&snapshot) {
             ctx.add_event_listener_subtree(self.id(), library, u32::MAX);
         }
+        // The ready snapshot contains the loaded formula graph. Materialize it during
+        // activation; later structure events invalidate the cache as usual.
+        self.refresh_formula_cache(&snapshot);
         self.runtime_cache.topology_dirty = true;
         self.runtime_cache.context_provider_dirty = true;
     }
@@ -2026,6 +2035,8 @@ impl StateMachineManager {
     }
 
     fn refresh_formula_cache(&mut self, snapshot: &ProcessTreeSnapshot) {
+        #[cfg(test)]
+        let started = std::time::Instant::now();
         if self.runtime_cache.formula_catalog_dirty || !self.runtime_cache.formula_catalog_initialized {
             let previous_project_formula_ids = self
                 .runtime_cache
@@ -2047,6 +2058,11 @@ impl StateMachineManager {
             self.runtime_cache.formula_catalog_initialized = true;
             self.runtime_cache.formula_catalog_dirty = false;
             self.runtime_cache.structure_dirty.clear();
+            #[cfg(test)]
+            {
+                self.runtime_cache.perf_stats.formula_cache_refresh_ns +=
+                    started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+            }
             return;
         }
 
@@ -2068,6 +2084,11 @@ impl StateMachineManager {
                 .compiled_formulas
                 .retain(|key, _| key.formula_id != formula.id);
             Arc::make_mut(&mut self.runtime_cache.formulas).insert(formula_uuid, formula);
+        }
+        #[cfg(test)]
+        {
+            self.runtime_cache.perf_stats.formula_cache_refresh_ns +=
+                started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
         }
     }
 
@@ -2191,11 +2212,21 @@ impl StateMachineManager {
         let formula_materialization_needed = cache_rebuilt || overrides_dirty || rebuild_processor_overviews;
         let formula_snapshot = formula_materialization_needed.then(|| Arc::clone(&self.runtime_cache.formulas));
         let formula_catalog = formula_materialization_needed.then(|| {
+            #[cfg(test)]
+            let started = std::time::Instant::now();
             self.runtime_cache.perf_stats.formula_catalog_builds += 1;
-            FormulaCatalog::from_snapshot(snapshot)
+            let catalog = FormulaCatalog::from_snapshot(snapshot);
+            #[cfg(test)]
+            {
+                self.runtime_cache.perf_stats.formula_catalog_build_ns +=
+                    started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+            }
+            catalog
         });
 
         let dirty_processor_overrides = if cache_rebuilt {
+            #[cfg(test)]
+            let started = std::time::Instant::now();
             self.rebuild_runtime_cache(
                 ctx,
                 snapshot,
@@ -2208,6 +2239,11 @@ impl StateMachineManager {
                 provider.as_ref(),
                 active_processor_nodes.as_ref(),
             );
+            #[cfg(test)]
+            {
+                self.runtime_cache.perf_stats.runtime_cache_rebuild_ns +=
+                    started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+            }
             HashSet::new()
         } else if overrides_dirty {
             self.refresh_dirty_processor_overrides(

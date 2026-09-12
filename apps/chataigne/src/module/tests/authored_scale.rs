@@ -33,6 +33,35 @@ fn graph_root_uuids(engine: &AppEngine) -> HashSet<String> {
         .collect()
 }
 
+fn manager_formula_materializations(engine: &AppEngine) -> u64 {
+    engine
+        .nodes
+        .iter()
+        .find_map(|(_, node)| match node {
+            AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats().formula_materializations),
+            _ => None,
+        })
+        .expect("project should contain a state-machine manager")
+}
+
+#[test]
+fn initial_formula_cache_is_ready_before_the_first_runtime_tick() {
+    let _performance_guard = lock_performance_test();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("samples")
+        .join("test_simple_load.noisette");
+    let mut engine = load_sparse_project_file::<AppNode, _>(&fixture).expect("sample project should load");
+    configure_loaded_engine(&mut engine).expect("sample project should configure");
+    prepare_engine_for_runtime(&mut engine).expect("sample project should prepare");
+
+    let prepared = manager_formula_materializations(&engine);
+    assert!(prepared > 0, "activation should materialize the project formulas");
+
+    engine.run_tick(Duration::from_millis(8)).expect("first runtime tick should run");
+    assert_eq!(manager_formula_materializations(&engine), prepared);
+}
+
 #[test]
 #[ignore = "manual T19 authored-node product load and reload qualification"]
 fn authored_graph_project_loads_ticks_and_round_trips() {
@@ -85,6 +114,16 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
         tick_snapshot_nodes_cloned.push(stats.snapshot_nodes_cloned);
         tick_edits_applied.push(stats.edits_applied);
     }
+    let manager_stats = engine.nodes.iter().find_map(|(_, node)| match node {
+        AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats()),
+        _ => None,
+    }).expect("authored project should contain a state-machine manager");
+    println!(
+        "AUTHORED_SCALE_MANAGER_PHASES_NS={} {} {}",
+        manager_stats.formula_cache_refresh_ns,
+        manager_stats.formula_catalog_build_ns,
+        manager_stats.runtime_cache_rebuild_ns,
+    );
 
     let started = Instant::now();
     let saved = to_sparse_project_json_pretty(&engine).expect("authored project should save");

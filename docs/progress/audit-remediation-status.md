@@ -14,9 +14,10 @@ test-only T18 processor phase instrumentation, opt-in compiled-kernel probe, and
 measurements, processor presentation and multiplex test splits, and the opt-in stateful
 100k-lane scale harness, test-only 1/2/4/8-worker comparison with reordered contexts, focused
 distinct-state reorder regression, and unchanged-input requested-evaluation probe are committed.
-Their source-pinned measurements are the current documentation patch. T19 now has a
-source-fingerprinted direct product-Formula qualification runner. The current T19 patch adds
-persisted full-workbench graph scale qualification; full-product qualification remains open.
+Their source-pinned measurements are the current documentation patch. T19 now has
+source-fingerprinted direct product-Formula and persisted full-workbench graph qualifications.
+Activation prepares the initial project-formula cache before timed ticks; full-product
+qualification remains open.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -229,29 +230,33 @@ and that every cloned Formula graph-root UUID survives save/reload. All 39 quali
 pass, including malformed and missing-result checks.
 
 The local source-fingerprinted report is
-`target/qualification/authored-graph-scale/20260912T153435Z/authored-graph-scale-report.json`
-(schema 2; tested tree `409ac444e4a09fc3d680784b424e7af9fe5c1ad9`, default `asio,jack,realtime`,
+`target/qualification/authored-graph-scale/20260912T155725Z/authored-graph-scale-report.json`
+(schema 2; tested tree `396eb213a4d37346ebba713000c4c92ccdbfeea6`, default `asio,jack,realtime`,
 optimized app test with UI asset build skipped). Functional checks pass on this Windows x64 host:
 
 | Minimum live nodes | Loaded / prepared / reloaded | Cloned graph roots preserved | Load / prepare / save / reload ms | Tick 1 / ticks 2–5 ms | Reload RSS |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 29 / 45 / 13 / 20 | 1.44 / 0.005, 0.041, 0.034, 0.002 | 26 MB |
-| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 220 / 411 / 105 / 216 | 5.00 / 0.005, 0.030, 0.026, 0.002 | 72 MB |
-| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,416 / 6,464 / 1,264 / 2,974 | 61.80 / 0.009, 0.059, 0.036, 0.003 | 512 MB |
+| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 28 / 46 / 13 / 23 | 0.643 / 0.005, 0.029, 0.031, 0.002 | 26 MB |
+| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 238 / 468 / 121 / 250 | 0.698 / 0.005, 0.027, 0.031, 0.002 | 72 MB |
+| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,752 / 7,033 / 1,301 / 3,039 | 0.887 / 0.006, 0.047, 0.046, 0.003 | 516 MB |
 
-The 100k startup tick still exceeds the test's 8 ms interval; **functional PASS is not a
-real-time, interaction, or release-capacity pass**. A callback-level trace identified the
+All five ticks in this short sample meet the test's 8 ms interval, but **functional PASS is not a
+real-time tail-latency, interaction, or release-capacity pass**. A callback-level trace identified the
 state-machine manager as the remaining recurring requester. Its own generated condition-validity
 result was being classified as a user processor override, dirtying the next tick. After correcting
 that boundary and removing snapshot demand from callbacks that do not read the tree, each size
 needs only one initial process-tree snapshot. Golden runtime activation now builds that snapshot
 and the parameter-control index before timed ticks, discards any older tick-scoped snapshot, and
 reuses the prepared snapshot only if no intervening edits invalidate it. Custom signals no longer
-force a structural control-index scan. All five timed ticks at every size now build zero snapshots;
-the 1k and 10k first ticks met 8 ms in this local sample. At 100k, an opt-in trace attributes the
-remaining roughly 62 ms first tick to the state-machine scheduled callback, with zero control-index
-rebuilds. Preparation/activation still does synchronous work, and the short tick sample does not
-establish a tail-latency bound. This is separate from T12's bounded
+force a structural control-index scan. All five timed ticks at every size now build zero snapshots.
+Test-only phase timing isolated about 65 ms of the former 100k first tick to initial project-formula
+materialization in the app-owned state-machine manager. It now builds that cache in its node-ready
+activation callback and invalidates it on subsequent formula structure events. A focused sample
+test confirms materializations happen before tick one and are not repeated on that tick. The 100k
+first tick fell from 61.80 ms in the previous full report to 0.887 ms here; preparation remains
+synchronous at 7.03 s, and the short tick sample does not establish a tail-latency bound. Large
+live edits, UI actions, transport fan-out, and recovery remain separate qualifications. This is
+separate from T12's bounded
 UI/transport/persistence snapshots.
 
 The manager tracks its own generated validity output between snapshots, so a later true-to-false
@@ -294,7 +299,7 @@ have SHA-256 hashes in the report; no physical or cross-platform claim follows f
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; tick, end-to-end, platform, and physical evidence pending |
+| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; five sampled ticks meet 8 ms at 1k/10k/100k, while tail latency, live edits, end-to-end, platform, and physical evidence remain open |
 
 ## Finding status
 
@@ -492,9 +497,8 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to move the remaining first-tick state-machine callback work out of the real-time
-path, resolve round-trip drift, then exercise
-Formula/state/graph editing, UI/transport, multi-client and recovery paths at scale. Cross-platform,
+T19 next needs to resolve the remaining one-node round-trip drift and exercise large live
+Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and

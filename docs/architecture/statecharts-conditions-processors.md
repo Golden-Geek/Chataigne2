@@ -30,6 +30,10 @@ with its own migratable condition runtime. Inspector DTOs are projected from com
 so preview capture cannot invoke a second condition implementation.
 
 Processor formulas compile once per semantic formula key and are shared by identical instances.
+The app-owned state-machine manager materializes its initial project-formula cache during its
+node-ready activation callback, before the first scheduled runtime tick. Formula structure
+events invalidate that cache; active processor compilation and evaluation still occur on the
+runtime path. This preparation is synchronous and can be substantial for a large authored graph.
 The lane compiler combines inherited context axes, context-linked properties, and output axes into
 a stable execution plan. Stateful memory is keyed by `ContextKey`, retained only for active lanes,
 and initialized only for new lanes.
