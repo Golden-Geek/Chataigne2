@@ -39,7 +39,15 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="golden-audio-consumer-") as temporary:
         consumer = Path(temporary)
         (consumer / "src").mkdir()
-        repository_uri = repository.as_uri()
+        # Cargo/libgit2 clones every advertised ref from a file:// dependency.
+        # Codex's local checkpoint refs can exceed Windows path limits even
+        # though the reviewed source tree itself is portable. Fetch only the
+        # exact commit into a disposable, single-ref Git origin.
+        source_mirror = consumer / "source.git"
+        run("git", "init", "--bare", str(source_mirror))
+        run("git", "-C", str(source_mirror), "fetch", "--no-tags", "--depth=1", repository.as_uri(), revision)
+        run("git", "-C", str(source_mirror), "update-ref", "refs/heads/qualification", revision)
+        repository_uri = source_mirror.as_uri()
         (consumer / "Cargo.toml").write_text(
             "\n".join(
                 [
@@ -119,6 +127,7 @@ def main() -> int:
             "schema_version": 1,
             "status": "PASS",
             "repository_revision": revision,
+            "repository_source": repository.as_uri(),
             "golden_audio_source": audio_package["source"],
             "cpal_version": cpal_package["version"],
             "cpal_manifest_suffix": expected_suffix.as_posix(),
