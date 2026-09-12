@@ -343,16 +343,15 @@ undo adds no redundant ready-lifecycle snapshot. One later 100k local run measur
 undo and 644 ms duplicate redo, compared with separate earlier samples of roughly 830 ms and
 1,042 ms. The same later runs measured 1,047 ms initial removal and 1,339 ms initial duplicate,
 so neither full action nor post-edit ticks pass the product gate; these are not p95 comparisons.
-The effective-enabled cache cannot yet replace the snapshot's full-tree enabled traversal:
-metadata and cross-parent move history previously restored visible fields without reconciling
-cached inherited state or invoking enabled-change callbacks. Replay now does both, with focused
-parent/child callback and cache regressions through undo/redo. Other restoration paths still need
-invariant coverage before using the cache as snapshot truth.
-The node-replacement path now inherits the live effective state before reconciling its new
-metadata and descendants; undo/redo do the same. A disabled root initializes its cache from
-metadata, and enabled-change callbacks receive a snapshot after all changed cache values have
-been applied. Focused replacement, disabled-parent, and root regressions pass. Snapshot readers
-still derive inherited state from the tree while other restoration paths are audited.
+The effective-enabled cache previously could not replace the snapshot's full-tree enabled
+traversal: metadata/move history and node replacement could leave inherited state stale. Those
+edit and replay paths now reconcile affected subtrees and callbacks. Project load and imported
+subtree insertion initialize each decoded node's cache from its attached parent before lifecycle
+callbacks, and disabled roots initialize from their own metadata. Process-tree snapshots now
+project the cache directly, removing the full enabled-state traversal. Focused tests compare
+every cached and projected value against a parent-chain reference through metadata, move,
+replacement, add/remove replay, load, and import paths; the full engine and app suites pass.
+Live metadata still must flow through engine edits rather than direct mutation of attached nodes.
 
 An ignored active-runtime mixed-parent removal probe adds a two-node independent branch to the
 persisted authored fixture, selects one descendant before its selected ANode parent, and removes
@@ -365,6 +364,15 @@ one graph transaction with a final patch for each parent; a nested-removal regre
 stepwise replay, and the browser store checks both parent patches. These are separate single-run
 diagnostics, not p95 or action-to-paint qualification. The 100k post-edit ticks still measured
 427/601/824 ms after remove/undo/redo, so the product gate remains open.
+
+After removing the snapshot enabled traversal, the retained authored-graph qualification at
+`target/qualification/authored-graph-scale/20260912T212141Z/` passed at 1k/10k/100k; its five
+sampled 100k startup/warmed ticks were 738/5/37/31/2 µs. One separate 100k live mixed-parent
+removal run measured 700/496/315 ms for remove/undo/redo and 400/548/791 ms for the following
+ticks. A separate ten-root duplicate run measured 1,001/318/514 ms for duplicate/undo/redo and
+570/774/893 ms for the following ticks. These are single-run diagnostics with different run
+conditions from the earlier samples, not an isolated effect size, p95, or action-to-paint pass.
+The active-runtime and full-workbench product gates remain open.
 
 ## Task status and dependencies
 

@@ -767,7 +767,9 @@ impl<T: Node> Engine<T> {
                     label: node_data.meta.label.clone(),
                     tags: node_data.meta.tags.clone(),
                     presentation: node_data.meta.presentation.clone(),
-                    enabled: node_data.meta.enabled,
+                    // Attachment and metadata/replay edits maintain this cache; snapshot
+                    // construction must not walk the whole graph a second time.
+                    enabled: node_data.effective_enabled,
                     can_be_disabled: node_data.meta.can_be_disabled,
                     child_count: 0,
                     param_value: parameter_snapshot.as_ref().map(|snapshot| snapshot.value.clone()),
@@ -789,52 +791,18 @@ impl<T: Node> Engine<T> {
         }
         let counted = trace.then(Instant::now);
 
-        if nodes.contains_key(&self.root) {
-            let mut stack = vec![(self.root, true)];
-            let mut visited = HashSet::<NodeId>::new();
-            while let Some((node_id, ancestors_enabled)) = stack.pop() {
-                if !visited.insert(node_id) {
-                    continue;
-                }
-
-                let (first_child, effective_enabled) = match nodes.get(&node_id) {
-                    Some(node) => (node.first_child, ancestors_enabled && node.enabled),
-                    None => continue,
-                };
-
-                if let Some(node) = nodes.get_mut(&node_id) {
-                    node.enabled = effective_enabled;
-                }
-
-                let mut child = first_child;
-                let mut sibling_chain = HashSet::<NodeId>::new();
-                while let Some(child_id) = child {
-                    if !sibling_chain.insert(child_id) {
-                        break;
-                    }
-                    let next_sibling = nodes.get(&child_id).and_then(|node| node.next_sibling);
-                    if nodes.contains_key(&child_id) {
-                        stack.push((child_id, effective_enabled));
-                    }
-                    child = next_sibling;
-                }
-            }
-        }
-        let enabled = trace.then(Instant::now);
-
         let snapshot = Arc::new(ProcessTreeSnapshot::from_indexed_nodes(
             self.root,
             nodes,
             node_ids_by_uuid,
         ));
-        if let (Some(started), Some(cloned), Some(counted), Some(enabled)) = (started, cloned, counted, enabled) {
+        if let (Some(started), Some(cloned), Some(counted)) = (started, cloned, counted) {
             eprintln!(
-                "[engine] process_snapshot nodes={} clone_us={} count_us={} enabled_us={} indexes_us={}",
+                "[engine] process_snapshot nodes={} clone_us={} count_us={} indexes_us={}",
                 self.nodes.len(),
                 cloned.duration_since(started).as_micros(),
                 counted.duration_since(cloned).as_micros(),
-                enabled.duration_since(counted).as_micros(),
-                enabled.elapsed().as_micros(),
+                counted.elapsed().as_micros(),
             );
         }
         snapshot

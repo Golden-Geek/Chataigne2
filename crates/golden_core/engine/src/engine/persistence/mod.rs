@@ -762,13 +762,21 @@ impl<T: Node> Engine<T> {
         let mut prev_sibling = None;
 
         for child_record in children {
-            let child = {
+            let mut child = {
                 let parent_node = self
                     .nodes
                     .get(parent)
                     .ok_or(ProjectPersistenceError::MissingNode(parent))?;
                 Self::decode_node_record_with(Some(parent_node), child_record, decode_node)?
             };
+            let parent_enabled = self
+                .nodes
+                .get(parent)
+                .ok_or(ProjectPersistenceError::MissingNode(parent))?
+                .node_data()
+                .effective_enabled;
+            let effective_enabled = parent_enabled && child.node_data().meta.enabled;
+            child.node_data_mut().effective_enabled = effective_enabled;
             let child_id = self.nodes.insert(child);
             self.register_node_uuid(child_id);
             self.attach_node(0, "LoadProject", child_id, parent, prev_sibling)?;
@@ -849,7 +857,16 @@ impl<T: Node> Engine<T> {
         tree: DecodedProjectTree<T>,
         operation: &'static str,
     ) -> Result<NodeId, ProjectPersistenceError> {
-        let node_id = self.nodes.insert(tree.node);
+        let mut node = tree.node;
+        let parent_enabled = self
+            .nodes
+            .get(parent)
+            .ok_or(ProjectPersistenceError::MissingNode(parent))?
+            .node_data()
+            .effective_enabled;
+        let effective_enabled = parent_enabled && node.node_data().meta.enabled;
+        node.node_data_mut().effective_enabled = effective_enabled;
+        let node_id = self.nodes.insert(node);
         self.register_node_uuid(node_id);
         self.attach_node(0, operation, node_id, parent, prev_sibling)?;
         self.populate_param_cache_entry(node_id);

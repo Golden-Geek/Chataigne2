@@ -58,8 +58,10 @@ History replay restores the engine's effective-enabled cache and node callbacks 
 toggle, cross-parent move, or node replacement changes a subtree's inherited enabled state.
 Replacement also inherits the live node's cached state before reconciling descendants, including
 under a disabled parent. Callbacks receive a snapshot after all changed cache values are applied.
-Snapshot readers still derive effective state from the current tree until every restoration path
-is verified against the cache.
+Project load and imported-subtree insertion initialize each node's cache from its attached
+parent before lifecycle callbacks. Process-tree snapshots project that cached effective state
+directly; live metadata changes must therefore use engine edits rather than mutating an attached
+node's metadata behind the engine's back.
 
 `RecordingModuleIo` captures versioned inputs and authoritative outputs using an injected clock.
 Deterministic clocks keep protocol and hardware fixtures repeatable without putting polling or
