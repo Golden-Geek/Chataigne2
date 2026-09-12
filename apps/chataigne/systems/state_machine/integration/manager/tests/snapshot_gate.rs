@@ -9,11 +9,59 @@ use golden_core::{
     process_ctx::{ExecutionPhase, ProcessCtx},
 };
 
-use crate::app::AppNode;
+use crate::app::{AppNode, StateMachineState};
 
 use super::super::{
     is_condition_valid_result, runtime_param_change_requires_snapshot, set_condition_valid_param, StateMachineManager,
 };
+
+#[test]
+fn formula_children_do_not_reconcile_state_network_topology() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("samples")
+        .join("test_simple_load.noisette");
+    let engine = load_sparse_project_file::<AppNode, _>(fixture).expect("product fixture should load");
+    let snapshot = engine.process_tree_snapshot();
+    let formula = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == "alchemist_formula")
+        .map(|(id, _)| id)
+        .expect("fixture should contain a formula");
+    let formula_child = snapshot
+        .child_ids(formula)
+        .into_iter()
+        .next()
+        .expect("formula should have a child");
+    let state = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineState::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("fixture should contain a state");
+    let state_parent = snapshot.node(state).and_then(|node| node.parent).expect("state should have a parent");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("fixture should contain a manager");
+    let mut manager = StateMachineManager::new();
+    manager.node_data_mut().id = manager_id;
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+    ctx.set_tree_snapshot(snapshot);
+
+    assert!(!manager.child_change_affects_state_topology(&ctx, formula, formula_child));
+    assert!(manager.child_change_affects_state_topology(&ctx, state_parent, state));
+}
 
 #[test]
 fn generated_condition_validity_does_not_dirty_processor_overrides() {

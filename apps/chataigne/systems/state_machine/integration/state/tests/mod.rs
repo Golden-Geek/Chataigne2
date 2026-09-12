@@ -11,6 +11,8 @@ use golden_core::{
 use super::StateMachineState;
 use crate::app::StateMachineManager;
 
+mod snapshot_gate;
+
 #[test]
 fn state_defaults_are_ready_for_canvas_authoring() {
     let state = StateMachineState::new();

@@ -1620,11 +1620,14 @@ impl Node for StateMachineManager {
         parent: golden_core::node::NodeId,
         child: golden_core::node::NodeId,
     ) {
+        let reconcile_state_networks = self.child_change_affects_state_topology(ctx, parent, child);
         self.mark_command_dependency_dirty(ctx, child);
         self.mark_command_dependency_dirty(ctx, parent);
         self.mark_runtime_structure_dirty(ctx, child);
         self.mark_runtime_structure_dirty(ctx, parent);
-        crate::app::systems_state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+        if reconcile_state_networks {
+            crate::app::systems_state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+        }
     }
 
     fn on_child_removed(
@@ -1633,11 +1636,14 @@ impl Node for StateMachineManager {
         parent: golden_core::node::NodeId,
         child: golden_core::node::NodeId,
     ) {
+        let reconcile_state_networks = self.child_change_affects_state_topology(ctx, parent, child);
         self.mark_command_dependency_dirty(ctx, child);
         self.mark_command_dependency_dirty(ctx, parent);
         self.mark_runtime_structure_dirty(ctx, child);
         self.mark_runtime_structure_dirty(ctx, parent);
-        crate::app::systems_state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+        if reconcile_state_networks {
+            crate::app::systems_state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+        }
     }
 
     fn on_node_created(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
@@ -1862,6 +1868,15 @@ impl StateMachineManager {
         }) {
             self.runtime_cache.preview_demand_dirty = true;
         }
+    }
+
+    fn child_change_affects_state_topology(&self, ctx: &ProcessCtx, parent: NodeId, child: NodeId) -> bool {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return true;
+        };
+        [parent, child].into_iter().any(|node| {
+            self.runtime_invalidation_for_change(snapshot, node) == RuntimeInvalidation::Topology
+        })
     }
 
     fn mark_runtime_structure_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) {

@@ -1,5 +1,6 @@
 use golden_core::{
     color::Color,
+    events::{EventFrame, EventKind},
     item, node,
     node::{
         Node, NodeId, NodeMetaPatch, NodeUserPermissions, UserContainerRules, UserContextNode,
@@ -48,6 +49,16 @@ pub struct StateMachineState {}
     contextualizable = golden_core::node::UserContextHostPolicy::multiplex_contextualizable()
 )]
 impl Node for StateMachineState {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        events.iter().any(|event| {
+            matches!(
+                &event.kind,
+                EventKind::MetaChanged { node, patch }
+                    if *node == self.id() && patch.enabled.is_some()
+            )
+        })
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[USER_CONTEXT_ITEM_KIND]))
     }

@@ -294,7 +294,11 @@ took 3,670 ms and redo 10,834 ms for the same ten roots. Same-parent multi-add r
 one destroy pass for undo and one UI catalog snapshot plus ready batch for redo. A subsequent
 100k run measured 383 ms undo and 1,042 ms redo; duplicate, post-duplicate tick, post-undo tick,
 and post-redo tick were 1,304 ms, 1,221 ms, 1,602 ms, and 1,590 ms respectively. These are
-single local diagnostics, not tail-latency or action-to-paint qualification. The
+single local diagnostics, not tail-latency or action-to-paint qualification. Further app-owned
+state-machine event gating removed a second full-tree snapshot for unrelated custom events and
+skipped state-network traversal for Formula child edits. One later 100k run measured 852 ms
+post-duplicate, 1,076 ms post-undo, and 1,204 ms post-redo ticks; remaining dispatch work still
+exceeds the product gate. The
 600-node full-workbench action target and sparse/dense edit, transport, and browser gates remain
 open; this is not a live-edit capacity pass.
 

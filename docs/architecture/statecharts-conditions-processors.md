@@ -45,6 +45,9 @@ condition, input, filter, or output implementations.
 Formula inbox frames with multiple structural edits coalesce socket reconciliation, validation,
 and external-file synchronization into one pass. Single structural edits and small ordinary
 parameter frames retain their direct dispatch path; large frames use the same bulk path.
+State nodes request an inbox tree snapshot only for their own enabled metadata changes, which
+can reconcile state-network activity. The state-machine manager still invalidates its runtime
+cache for Formula edits, but only state-topology child changes trigger the full network walk.
 
 ## Scale and safety
 
