@@ -21,6 +21,7 @@ pub use golden_protocol::*;
 
 mod conversion;
 mod creation;
+mod removal;
 mod snapshot;
 
 pub(crate) const UI_USER_CONTEXT_SCOPE_TOPIC: &str = "__user_context.scope_changed";
@@ -161,16 +162,17 @@ impl<T: Node> Engine<T> {
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::RemoveNodes { nodes } => {
+                let roots = match self.normalize_ui_remove_roots(nodes) {
+                    Ok(roots) => roots,
+                    Err(err) => return self.finish_ui_apply_now(before_event_time, Err(err)),
+                };
                 let result = self.apply_implicit_ui_edit_session(
                     "Remove nodes",
                     "__ui-remove-nodes",
                     ui_client_instance_id,
                     |engine| {
-                        let mut seen = HashSet::<NodeId>::new();
-                        for node in nodes {
-                            if seen.insert(node) {
-                                engine.edits.push(Edit::RemoveNode { node });
-                            }
+                        for node in roots {
+                            engine.edits.push(Edit::RemoveNode { node });
                         }
                         engine.apply_ui_stabilization_to_fixed_point(16)
                     },

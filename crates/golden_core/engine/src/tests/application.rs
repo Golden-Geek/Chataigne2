@@ -824,6 +824,100 @@ fn remove_nodes_batch_restores_nonadjacent_siblings_in_one_ui_transaction() {
 }
 
 #[test]
+fn remove_nodes_collapses_selected_descendants_regardless_of_selection_order() {
+    for descendants_first in [true, false] {
+        let mut engine = Engine::new(Folder::new("Root"));
+        engine.add_node(Folder::new("A"), None);
+        engine.add_node(Folder::new("B"), None);
+        engine.apply_edits().expect("parents should attach");
+        let root = engine.root;
+        let parents = engine.ui_direct_children(root).expect("root children");
+        engine.add_node(Folder::new("A child"), Some(parents[0]));
+        engine.add_node(Folder::new("B child"), Some(parents[1]));
+        engine.apply_edits().expect("children should attach");
+        let a_child = engine.ui_direct_children(parents[0]).expect("A child")[0];
+        let b_child = engine.ui_direct_children(parents[1]).expect("B child")[0];
+        engine.clear_history();
+
+        let nodes = if descendants_first {
+            vec![a_child, parents[1], parents[0], b_child]
+        } else {
+            vec![parents[0], a_child, b_child, parents[1]]
+        };
+        let acknowledgement = engine.apply_ui_intent(UiEditIntent::RemoveNodes { nodes });
+        assert!(acknowledgement.success, "remove should succeed: {acknowledgement:?}");
+        assert_eq!(engine.undo_len(), 1);
+        assert_eq!(engine.ui_direct_children(root), Some(vec![]));
+
+        assert!(engine.undo().expect("undo should succeed"));
+        assert_eq!(engine.ui_direct_children(root), Some(parents.clone()));
+        assert_eq!(engine.ui_direct_children(parents[0]), Some(vec![a_child]));
+        assert_eq!(engine.ui_direct_children(parents[1]), Some(vec![b_child]));
+
+        assert!(engine.redo().expect("redo should succeed"));
+        assert_eq!(engine.ui_direct_children(root), Some(vec![]));
+    }
+}
+
+#[test]
+fn remove_nodes_mixed_parent_selection_replays_exact_sibling_order() {
+    let mut engine = Engine::new(Folder::new("Root"));
+    engine.add_node(Folder::new("A"), None);
+    engine.add_node(Folder::new("B"), None);
+    engine.apply_edits().expect("parents should attach");
+    let parents = engine.ui_direct_children(engine.root).expect("root children");
+    for parent in &parents {
+        engine.add_node(Folder::new("First"), Some(*parent));
+        engine.add_node(Folder::new("Second"), Some(*parent));
+    }
+    engine.apply_edits().expect("children should attach");
+    let a_children = engine.ui_direct_children(parents[0]).expect("A children");
+    let b_children = engine.ui_direct_children(parents[1]).expect("B children");
+    engine.clear_history();
+
+    let acknowledgement = engine.apply_ui_intent(UiEditIntent::RemoveNodes {
+        nodes: vec![a_children[0], b_children[1]],
+    });
+    assert!(acknowledgement.success, "remove should succeed: {acknowledgement:?}");
+    assert_eq!(engine.undo_len(), 1);
+    assert_eq!(engine.ui_direct_children(parents[0]), Some(vec![a_children[1]]));
+    assert_eq!(engine.ui_direct_children(parents[1]), Some(vec![b_children[0]]));
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(engine.ui_direct_children(parents[0]), Some(a_children.clone()));
+    assert_eq!(engine.ui_direct_children(parents[1]), Some(b_children.clone()));
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(engine.ui_direct_children(parents[0]), Some(vec![a_children[1]]));
+    assert_eq!(engine.ui_direct_children(parents[1]), Some(vec![b_children[0]]));
+}
+
+#[test]
+fn remove_nodes_rejects_any_invalid_target_before_removing_valid_nodes() {
+    let mut engine: Engine<FacadeTestNode> = Engine::new(Folder::new("Root").into());
+    engine.add_node(Folder::new("A").into(), None);
+    engine.add_node(Folder::new("B").into(), None);
+    engine.apply_edits().expect("parents should attach");
+    let root = engine.root;
+    let first = engine.ui_direct_children(root).expect("root children")[0];
+    engine.clear_history();
+    engine.clear_ui_event_log();
+
+    assert_rejected_intent_is_atomic(
+        &mut engine,
+        UiEditIntent::RemoveNodes {
+            nodes: vec![first, NodeId(u64::MAX)],
+        },
+    );
+    assert_rejected_intent_is_atomic(
+        &mut engine,
+        UiEditIntent::RemoveNodes {
+            nodes: vec![first, root],
+        },
+    );
+}
+
+#[test]
 fn duplicate_nodes_batch_rolls_back_all_roots_when_later_lifecycle_fails() {
     FAILED_DUPLICATE_OWNER_RELEASED.store(false, Ordering::SeqCst);
     let root: FacadeTestNode = Folder::new("Root").into();

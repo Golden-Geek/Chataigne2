@@ -329,6 +329,14 @@ multi-removal projection with the final parent-order patch. These are single loc
 samples, not p95 or action-to-paint evidence. The 100k removal action and runtime ticks still
 exceed the provisional 500 ms diagnostic threshold; the 600-node full-workbench product target
 and sparse/dense edit, transport, browser, platform, and physical gates remain open.
+An opt-in trace of the same 100k removal workflow attributed about 187-197 ms of each edit tick
+to a required whole-tree dispatch snapshot and about 106-118 ms to the Formula recipient's
+structural callback. Undo's created ANode also requested that snapshot. The snapshot cannot be
+gated off for these structural events without replacing the data those callbacks read.
+The `RemoveNodes` intent now validates every selected target before opening an edit session and
+collapses selected descendants under their outermost selected roots. Focused Golden Engine tests
+cover descendant-first selection, exact mixed-parent replay, and atomic rejection of missing or
+root targets; large mixed-selection and browser qualification remain open.
 
 ## Task status and dependencies
 
@@ -552,7 +560,7 @@ Next dependency-ready work: continue T17's documented cohesive source splits, es
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
 T19 next needs to reduce remaining active-runtime event/snapshot costs and qualify nested/mixed
-selection behavior, then exercise large live Formula/state/graph edits, UI/transport, multi-client,
+selection at scale, then exercise large live Formula/state/graph edits, UI/transport, multi-client,
 and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 
