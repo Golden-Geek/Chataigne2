@@ -4,7 +4,7 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-covers 1196 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
+covers 1197 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
 `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
 history, App Control, received-value, formula integration, processor presentation, and multiplex

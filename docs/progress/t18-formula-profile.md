@@ -140,14 +140,35 @@ for 1,000×100 and 445–446 MB for 10,000×10 at eight workers) are not indepen
 comparisons. Separate-process serial RSS is in the pilot table above. No worker count reaches a
 10 ms direct-evaluation budget at 100k lanes.
 
-Reproduce with the same app command and `multiplex_formula_workers_1000_by_100` or
-`multiplex_formula_workers_10000_by_10`, plus `-- --ignored --nocapture`. The full feature-enabled
-app suite passes 513 active tests with four scale/worker tests ignored by default; the 150
-Alchemist tests and strict app Clippy in both feature modes also pass.
+At `258695d5`, two more ignored worker tests rotated each processor's stable context keys after
+tick two. One source-pinned invocation of each partition passed: every 1/2/4/8-worker tick still
+matched the serial context sequence, ordered effects, diagnostics, and complete final lane
+memory. The reorder actually changed the emitted context order and remained stable on tick four.
+The warmed direct-evaluation medians were 152/105/74/40 ms (1,000×100) and 164/102/61/37 ms
+(10,000×10) for 1/2/4/8 workers. These are single-invocation observations, not new latency
+percentiles. All lanes use the same captured Formula inputs, so this does **not** yet prove that
+lane-distinct state values follow their identities across a reorder.
+
+At `2ae31055`, a separate focused processor regression binds a Boolean Formula property to two
+context keys. The keys initialize with different values and distinct retained state, then their
+order reverses; neither key replays its trigger edge. This proves key-bound state identity for
+that small processor case, while the 100k-lane persisted `Action` Formula comparison still uses
+identical captured inputs in every lane.
+
+Reproduce with the same app command and `multiplex_formula_workers_1000_by_100`,
+`multiplex_formula_workers_10000_by_10`, or their `multiplex_formula_workers_reordered_...`
+variants, plus `-- --ignored --nocapture`. The full feature-enabled app suite passes 513 active
+tests with six scale/worker tests ignored by default when run without an explicit serial
+test-thread flag; the 150 Alchemist tests and strict app Clippy in both feature modes also pass.
+An explicit `--test-threads=1` enables strict 5/6 ms real-time assertions in the app tests. Two
+full-suite runs with this instrumented feature missed one or both average budgets (5.8–6.0 ms),
+while the two affected tests passed in isolation at 4.8 and 5.0 ms. The opt-in kernel timing
+perturbs tick cost, and these mixed outcomes are not release real-time qualification.
 
 The 1,016-lane full-tick sample still does not justify a production worker pool by itself.
 The 100k-lane test shows a useful isolated compute speedup, but not a real-time capacity claim or
 a safe production commit boundary. Sparse-dirty crossover, state-machine transitions, conflicting
-effect targets, triggering, context reorder, generation replacement, cancellation without partial
-state commit, persistent-worker costs, and full end-to-end tick evidence remain open. Only a
+effect targets, triggering, lane-distinct state in the 100k-lane product Formula, generation replacement,
+cancellation without partial state commit, persistent-worker costs, and full end-to-end tick
+evidence remain open. Only a
 solution satisfying those boundaries should replace or augment the serial production path.

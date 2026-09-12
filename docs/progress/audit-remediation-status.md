@@ -4,7 +4,7 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `2e345617` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `2ae31055` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
@@ -12,7 +12,8 @@ splits, are committed. The App Control node and received-value splits and T18 in
 product-runtime baseline, formula integration, and app-node codegen splits are also committed. The
 test-only T18 processor phase instrumentation, opt-in compiled-kernel probe, and source-pinned
 measurements, processor presentation and multiplex test splits, and the opt-in stateful
-100k-lane scale harness and test-only 1/2/4/8-worker comparison are committed. Their
+100k-lane scale harness and test-only 1/2/4/8-worker comparison, including reordered contexts,
+and the focused distinct-state reorder regression are committed. Their
 source-pinned measurements are the current documentation patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
@@ -170,6 +171,20 @@ copied condition, retained serial-memory comparison, and absent engine/output co
 prevent a production or 10 ms capacity claim. Sparse/cancellation/generation and full-tick
 evidence remain open.
 
+At `258695d5`, one run per 100k-lane shape rotated stable lane keys midway through four ticks.
+Serial and 2/4/8-worker variants again matched exact context and effect order, diagnostics, and
+retained lane memory. The captured input is identical across lanes, so lane-distinct state
+identity under reorder remains unproven. The feature-enabled 513-test functional suite and
+strict app Clippy pass. Two explicitly serial full-suite runs with kernel timing enabled missed
+one or both strict 5/6 ms averages; the same two tests passed when run alone. Instrumented full
+suite timing is not release qualification and the production parallel boundary remains open.
+
+At `2ae31055`, a focused two-lane processor regression binds a Boolean Formula property to
+distinct context values, verifies retained memories differ, and reverses lane order without
+replaying either trigger edge. All 72 default and 73 profiling-enabled processor tests pass,
+as does strict profiling-enabled processor Clippy. This closes the small key-identity test gap,
+not the lane-distinct 100k-lane product or production generation/cancellation boundaries.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -192,7 +207,7 @@ evidence remain open.
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
-| T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel and 100k-lane stateful partition pilots captured; test-only worker equivalence passed, sparse/lifecycle/production boundary pending |
+| T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel and 100k-lane stateful partition pilots captured; test-only worker/reorder equivalence and focused distinct-state identity passed, sparse/lifecycle/production boundary pending |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
 ## Finding status
