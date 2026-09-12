@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
@@ -37,7 +39,7 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
     )
 
 
-def live_output(case: str, target: int = 1_000) -> str:
+def live_output(case: str, target: int = 1_000, roots: int = 10) -> str:
     prefix = authored_graph_scale.LIVE_EDIT_CASES[case][1]
     action = "duplicate" if case == "duplicate" else "remove"
     row = {
@@ -51,21 +53,43 @@ def live_output(case: str, target: int = 1_000) -> str:
     }
     if case == "duplicate":
         row.update({
-            "duplicate_roots": 10,
-            "inserted_nodes": 140,
+            "duplicate_roots": roots,
+            "inserted_nodes": roots * 14,
             **{field: [0, 1, 2] for field in authored_graph_scale.LIVE_EDIT_PHASE_FIELDS},
         })
     else:
-        row.update({"removed_roots": 11 if case == "mixed_remove" else 10, "removed_nodes": 141})
+        row.update({
+            "removed_roots": roots + (case == "mixed_remove"),
+            "removed_nodes": roots * 14 + (case == "mixed_remove"),
+        })
     return f"{prefix}{json.dumps(row)}\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured"
 
 
 class AuthoredGraphScaleTests(unittest.TestCase):
+    def test_rejects_live_root_count_without_live_edit_mode(self) -> None:
+        errors = StringIO()
+        with redirect_stderr(errors), self.assertRaises(SystemExit) as exit_error:
+            authored_graph_scale.main(["--live-edit-roots", "43"])
+        self.assertEqual(exit_error.exception.code, 2)
+        self.assertIn("requires --live-edits", errors.getvalue())
+
     def test_parses_all_live_edit_cases(self) -> None:
         for case in authored_graph_scale.LIVE_EDIT_CASES:
             with self.subTest(case=case):
                 row = authored_graph_scale.parse_live_edit_result(live_output(case), case, 1_000)
                 self.assertEqual(row["base_nodes"], 1_100)
+
+    def test_requires_600_record_edit_when_requested(self) -> None:
+        for case in authored_graph_scale.LIVE_EDIT_CASES:
+            with self.subTest(case=case):
+                output = live_output(case, target=10_000, roots=43)
+                expected = 43 * 14 + (case == "mixed_remove")
+                row = authored_graph_scale.parse_live_edit_result(output, case, 10_000, 43, expected)
+                self.assertGreaterEqual(row["inserted_nodes" if case == "duplicate" else "removed_nodes"], 600)
+                with self.assertRaisesRegex(ValueError, "expected roots"):
+                    authored_graph_scale.parse_live_edit_result(output, case, 10_000, 43, expected + 1)
+                with self.assertRaisesRegex(ValueError, "expected roots"):
+                    authored_graph_scale.parse_live_edit_result(output, case, 10_000, 43, expected - 1)
 
     def test_rejects_missing_or_unverified_live_edit_evidence(self) -> None:
         for case in authored_graph_scale.LIVE_EDIT_CASES:
@@ -100,9 +124,11 @@ class AuthoredGraphScaleTests(unittest.TestCase):
                 args=[], returncode=0, stdout="test result: ok. 1 passed; 0 failed;", stderr="",
             )
             with patch.object(authored_graph_scale.subprocess, "run", return_value=completed):
-                row = authored_graph_scale.run_live_edit_case(root, output_dir, 1_000, {}, "duplicate")
+                row = authored_graph_scale.run_live_edit_case(root, output_dir, 1_000, {}, "duplicate", 43, 602)
             self.assertEqual(row["status"], "FAIL")
             self.assertIn("one passing", row["parse_error"])
+            self.assertEqual(row["requested_roots"], 43)
+            self.assertEqual(row["expected_edited_nodes"], 602)
             self.assertTrue((output_dir / "authored-1000-duplicate.log").exists())
 
     def test_parses_one_complete_product_result(self) -> None:

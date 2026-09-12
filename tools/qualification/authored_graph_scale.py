@@ -113,7 +113,9 @@ def parse_result(output: str, target: int, graph_roots: int) -> dict[str, Any]:
     return row
 
 
-def parse_live_edit_result(output: str, case: str, target: int) -> dict[str, Any]:
+def parse_live_edit_result(
+    output: str, case: str, target: int, requested_roots: int = 10, expected_edited_nodes: int = 0,
+) -> dict[str, Any]:
     if case not in LIVE_EDIT_CASES:
         raise ValueError(f"unknown live edit case: {case}")
     _, prefix, _ = LIVE_EDIT_CASES[case]
@@ -141,11 +143,15 @@ def parse_live_edit_result(output: str, case: str, target: int) -> dict[str, Any
         raise ValueError(f"{case} live edit measurements must be nonnegative integers")
     if row["base_nodes"] < target:
         raise ValueError(f"{case} live edit missed the live-node target")
-    root_count = 11 if case == "mixed_remove" else 10
+    root_count = requested_roots + (case == "mixed_remove")
     measured_roots = row["duplicate_roots"] if case == "duplicate" else row["removed_roots"]
     measured_nodes = row["inserted_nodes"] if case == "duplicate" else row["removed_nodes"]
-    if measured_roots != root_count or measured_nodes < root_count:
-        raise ValueError(f"{case} live edit did not mutate the expected roots")
+    if (
+        measured_roots != root_count
+        or measured_nodes < root_count
+        or (expected_edited_nodes and measured_nodes != expected_edited_nodes)
+    ):
+        raise ValueError(f"{case} live edit did not mutate the expected roots and records")
     if case == "duplicate" and any(
         not isinstance(row[field], list)
         or len(row[field]) != 3
@@ -173,11 +179,12 @@ def resolve_output_dir(root: Path, value: Path | None) -> Path:
 
 def run_live_edit_case(
     root: Path, output_dir: Path, target: int, environment: dict[str, str], case: str,
+    requested_roots: int, expected_edited_nodes: int,
 ) -> dict[str, Any]:
     test_name, _, count_variable = LIVE_EDIT_CASES[case]
     command = TEST_COMMAND_BASE + (test_name, "--", "--ignored", "--nocapture", "--test-threads=1")
     case_environment = environment.copy()
-    case_environment[count_variable] = "10"
+    case_environment[count_variable] = str(requested_roots)
     result = subprocess.run(
         command, cwd=root, env=case_environment, capture_output=True,
         check=False, text=True, encoding="utf-8",
@@ -189,7 +196,7 @@ def run_live_edit_case(
     parse_error = None
     measured = None
     try:
-        measured = parse_live_edit_result(output, case, target)
+        measured = parse_live_edit_result(output, case, target, requested_roots, expected_edited_nodes)
     except ValueError as error:
         parse_error = str(error)
     return {
@@ -198,14 +205,19 @@ def run_live_edit_case(
         "status": "PASS" if result.returncode == 0 and parse_error is None else "FAIL",
         "exit_code": result.returncode,
         "command": list(command),
-        "requested_roots": 10,
+        "requested_roots": requested_roots,
+        "expected_edited_nodes": expected_edited_nodes,
         "log": {"path": log_path.relative_to(root).as_posix(), "sha256": sha256_bytes(log_bytes)},
         "measured_result": measured,
         "parse_error": parse_error,
     }
 
 
-def build_report(root: Path, output_dir: Path, include_live_edits: bool = False) -> dict[str, Any]:
+def build_report(
+    root: Path, output_dir: Path, include_live_edits: bool = False, live_edit_roots: int = 10,
+) -> dict[str, Any]:
+    if live_edit_roots < 1:
+        raise ValueError("live edit root count must be positive")
     started_at = utc_now()
     tested_tree_sha = working_tree_sha(root)
     commit_sha = command_output(root, ("git", "rev-parse", "HEAD"))
@@ -245,7 +257,10 @@ def build_report(root: Path, output_dir: Path, include_live_edits: bool = False)
         except ValueError as error:
             parse_error = str(error)
         live_edits = [
-            run_live_edit_case(root, output_dir, target, scenario_env, case)
+            run_live_edit_case(
+                root, output_dir, target, scenario_env, case, live_edit_roots,
+                live_edit_roots * metadata["graphNodeSubtreeRecordCount"] + (case == "mixed_remove"),
+            )
             for case in LIVE_EDIT_CASES
         ] if include_live_edits else []
         scenarios.append({
@@ -278,8 +293,10 @@ def build_report(root: Path, output_dir: Path, include_live_edits: bool = False)
         "graph compilation and evaluation across all cloned Constant ANodes",
     ]
     if include_live_edits:
-        scope += "; ten-root duplicate/remove/mixed-parent remove with undo, redo, and active ticks"
-        not_covered.append("600-node full-workbench insertion, sparse/dense parameter edits, and live edit p95 tails")
+        scope += f"; {live_edit_roots}-root duplicate/remove/mixed-parent remove with undo, redo, and active ticks"
+        not_covered.append(
+            "600-node full-workbench action-to-paint, sparse/dense parameter edits, and live edit p95 tails"
+        )
     else:
         not_covered.append("live edit and undo/redo at these scales")
     return {
@@ -291,6 +308,7 @@ def build_report(root: Path, output_dir: Path, include_live_edits: bool = False)
         "tested_tree_sha": tested_tree_sha,
         "command": list(TEST_COMMAND),
         "live_edits_requested": include_live_edits,
+        "live_edit_roots": live_edit_roots if include_live_edits else None,
         "features": {"default": manifest["features"]["default"], "ui_assets_skipped": True},
         "profile": "optimized-test",
         "source_fixture": {"path": DEFAULT_SOURCE.as_posix(), "sha256": source_sha},
@@ -311,11 +329,20 @@ def main(arguments: Sequence[str] | None = None) -> int:
         "--live-edits", action="store_true",
         help="include three active edit/history probes at each scale",
     )
+    parser.add_argument(
+        "--live-edit-roots", type=int,
+        help="ANode roots per edit case (43 roots insert 602 records in the current fixture)",
+    )
     options = parser.parse_args(arguments)
+    if options.live_edit_roots is not None and not options.live_edits:
+        parser.error("--live-edit-roots requires --live-edits")
     root = options.root.resolve()
     try:
         output_dir = resolve_output_dir(root, options.output_dir)
-        report = build_report(root, output_dir, include_live_edits=options.live_edits)
+        report = build_report(
+            root, output_dir, include_live_edits=options.live_edits,
+            live_edit_roots=10 if options.live_edit_roots is None else options.live_edit_roots,
+        )
     except (OSError, ValueError) as error:
         print(f"Authored graph qualification error: {error}", file=sys.stderr)
         return 2

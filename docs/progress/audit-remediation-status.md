@@ -441,6 +441,15 @@ respectively. These are diagnostic actions and ticks, not p95 action-to-paint; 6
 sparse/dense parameter edits, transport, browser, recovery, platform, and physical gates remain
 open.
 
+The same runner accepts `--live-edit-roots 43` to exercise a fixed 602-record product Formula
+edit (603 records for the mixed-parent case) at all three authored graph sizes. The
+source-fingerprinted `target/qualification/authored-graph-scale/20260912T232610Z/` matrix passed
+all twelve startup/live cases and verified exact edited-record counts. Its single 10k backend
+duplicate/remove/mixed-remove actions measured 81/43/45 ms; at 100k they measured
+838/593/527 ms, with following edit ticks of 359/297/284 ms and redo ticks of 619/612/593 ms.
+This covers the backend edit/history shape, not browser paint, transport, parameter-dense
+mutation, or p95 action-to-paint. The proposed full-workbench 100k gate remains open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
