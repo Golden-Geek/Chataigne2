@@ -244,19 +244,24 @@ impl<T: Node> Engine<T> {
                         .iter()
                         .take(4)
                         .map(|event| match &event.kind {
-                            EventKind::ParamChanged { .. } => "ParamChanged",
-                            EventKind::ParamControlChanged { .. } => "ParamControlChanged",
-                            EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged",
-                            EventKind::ChildAdded { .. } => "ChildAdded",
-                            EventKind::ChildRemoved { .. } => "ChildRemoved",
-                            EventKind::ChildReplaced { .. } => "ChildReplaced",
-                            EventKind::ChildMoved { .. } => "ChildMoved",
-                            EventKind::ChildReordered { .. } => "ChildReordered",
-                            EventKind::NodeCreated { .. } => "NodeCreated",
-                            EventKind::NodeDeleted { .. } => "NodeDeleted",
-                            EventKind::MetaChanged { .. } => "MetaChanged",
-                            EventKind::GraphTransaction { .. } => "GraphTransaction",
-                            EventKind::Custom(_) => "Custom",
+                            EventKind::ParamChanged { param, .. } => {
+                                let node = self.nodes.get(*param);
+                                let node_type = node.map(Node::get_type).unwrap_or("<missing>");
+                                let decl_id = node.map(|node| node.node_data().meta.decl_id.0.as_str()).unwrap_or("");
+                                format!("ParamChanged({node_type}:{decl_id})")
+                            }
+                            EventKind::ParamControlChanged { .. } => "ParamControlChanged".to_owned(),
+                            EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged".to_owned(),
+                            EventKind::ChildAdded { .. } => "ChildAdded".to_owned(),
+                            EventKind::ChildRemoved { .. } => "ChildRemoved".to_owned(),
+                            EventKind::ChildReplaced { .. } => "ChildReplaced".to_owned(),
+                            EventKind::ChildMoved { .. } => "ChildMoved".to_owned(),
+                            EventKind::ChildReordered { .. } => "ChildReordered".to_owned(),
+                            EventKind::NodeCreated { .. } => "NodeCreated".to_owned(),
+                            EventKind::NodeDeleted { .. } => "NodeDeleted".to_owned(),
+                            EventKind::MetaChanged { .. } => "MetaChanged".to_owned(),
+                            EventKind::GraphTransaction { .. } => "GraphTransaction".to_owned(),
+                            EventKind::Custom(_) => "Custom".to_owned(),
                         })
                         .collect::<Vec<_>>()
                         .join("+");

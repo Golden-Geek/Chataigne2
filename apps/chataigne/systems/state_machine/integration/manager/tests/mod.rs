@@ -55,6 +55,7 @@ use super::{
 
 mod command_dispatch;
 mod context_cache;
+mod snapshot_gate;
 
 fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
     let default_item = items.first().cloned().expect("test context axes need an item");

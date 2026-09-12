@@ -154,7 +154,7 @@ fn external_command_plan_dependency_survives_mutation_and_target_removal() {
         "an unrelated sibling must not invalidate the target plan"
     );
     assert!(
-        !runtime_param_change_requires_snapshot(false, false, true),
+        !runtime_param_change_requires_snapshot(false, false, true, false),
         "an event known to come only from a command parent listener must stay snapshot-free"
     );
     if cache.depends_on_change(Some(previous.as_ref()), None, unrelated) {
@@ -174,6 +174,7 @@ fn external_command_plan_dependency_survives_mutation_and_target_removal() {
             false,
             false,
             cache.observes_change(Some(previous.as_ref()), target),
+            false,
         );
         assert!(
             !requires_snapshot,

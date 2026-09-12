@@ -351,6 +351,7 @@ struct ProcessorRuntimeInputContext<'a> {
     input_manager_signal_ticks: &'a mut HashMap<NodeId, u64>,
     condition_manager_values: &'a mut HashMap<ConditionLaneKey, ConditionManagerValue>,
     condition_manager_valid_states: &'a mut HashMap<ConditionLaneKey, bool>,
+    condition_valid_param_values: &'a mut HashMap<NodeId, bool>,
     condition_manager_axes: &'a mut HashMap<NodeId, AxisSet>,
     compiled_conditions: &'a mut HashMap<NodeId, CompiledManagerCondition>,
     condition_runtimes: &'a mut HashMap<ConditionLaneKey, ConditionRuntime>,
@@ -1448,6 +1449,7 @@ struct StateMachineRuntimeCache {
     input_manager_signal_ticks: HashMap<NodeId, u64>,
     condition_manager_values: HashMap<ConditionLaneKey, ConditionManagerValue>,
     condition_manager_valid_states: HashMap<ConditionLaneKey, bool>,
+    condition_valid_param_values: HashMap<NodeId, bool>,
     condition_manager_axes: HashMap<NodeId, AxisSet>,
     compiled_conditions: HashMap<NodeId, CompiledManagerCondition>,
     condition_runtimes: HashMap<ConditionLaneKey, ConditionRuntime>,
@@ -1586,6 +1588,10 @@ impl Node for StateMachineManager {
                 self.runtime_cache.context_provider_params.contains(param),
                 self.runtime_cache.source_listener_param_uuids.contains_key(param),
                 self.command_listener_observes_cached(*param),
+                self.runtime_cache
+                    .runtime_snapshot
+                    .as_deref()
+                    .is_some_and(|snapshot| is_condition_valid_result(snapshot, *param)),
             ),
             EventKind::Custom(_) => false,
             _ => true,
@@ -1636,6 +1642,16 @@ impl Node for StateMachineManager {
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        let condition_valid_result = self
+            .runtime_cache
+            .runtime_snapshot
+            .as_deref()
+            .is_some_and(|snapshot| is_condition_valid_result(snapshot, param));
+        if condition_valid_result {
+            if let Some(value) = latest_param_value(ctx, param).and_then(|value| value.as_bool()) {
+                self.runtime_cache.condition_valid_param_values.insert(param, value);
+            }
+        }
         if self.command_target_contains_cached(param) {
             if let Some(value) = latest_param_value(ctx, param) {
                 self.runtime_cache.command_listener_values.insert(param, value);
@@ -1643,7 +1659,7 @@ impl Node for StateMachineManager {
         }
         self.mark_context_provider_param_dirty(param);
         let source_signal_dirty = self.mark_input_source_param_dirty(ctx, param);
-        if source_signal_dirty {
+        if source_signal_dirty || condition_valid_result {
             return;
         }
         if self.mark_processor_override_dirty(ctx, param) {
@@ -1684,8 +1700,21 @@ fn runtime_param_change_requires_snapshot(
     context_provider_param: bool,
     known_source_listener_param: bool,
     observed_by_command_listener: bool,
+    condition_valid_result: bool,
 ) -> bool {
-    context_provider_param || (!known_source_listener_param && !observed_by_command_listener)
+    context_provider_param || (!known_source_listener_param && !observed_by_command_listener && !condition_valid_result)
+}
+
+fn is_condition_valid_result(snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
+    // The runtime writes this derived result itself. Its feedback event must not be
+    // mistaken for a user-authored processor surface override.
+    let Some(parent) = snapshot.node(param).and_then(|node| node.parent) else {
+        return false;
+    };
+    snapshot
+        .node(parent)
+        .is_some_and(|node| node.node_type == CONDITION_MANAGER_NODE_TYPE)
+        && snapshot.find_child_by_decl_id(parent, "valid") == Some(param)
 }
 
 impl StateMachineManager {
@@ -2060,6 +2089,7 @@ impl StateMachineManager {
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.runtime_cache.runtime_snapshot = Some(snapshot);
             self.runtime_cache.command_listener_values.clear();
+            self.runtime_cache.condition_valid_param_values.clear();
             self.runtime_cache.command_dispatch_snapshot_dirty = false;
         }
         let Some(snapshot) = self.runtime_cache.runtime_snapshot.as_ref().map(Arc::clone) else {
@@ -2235,6 +2265,7 @@ impl StateMachineManager {
             ctx,
             snapshot,
             &mut self.runtime_cache.transient_condition_valid_resets,
+            &mut self.runtime_cache.condition_valid_param_values,
         );
         let processor_overview_sample_due = processor_overview_active
             && processor_overview_publish_due(
@@ -2327,6 +2358,7 @@ impl StateMachineManager {
                 input_manager_signal_ticks: &mut self.runtime_cache.input_manager_signal_ticks,
                 condition_manager_values: &mut self.runtime_cache.condition_manager_values,
                 condition_manager_valid_states: &mut self.runtime_cache.condition_manager_valid_states,
+                condition_valid_param_values: &mut self.runtime_cache.condition_valid_param_values,
                 condition_manager_axes: &mut self.runtime_cache.condition_manager_axes,
                 compiled_conditions: &mut self.runtime_cache.compiled_conditions,
                 condition_runtimes: &mut self.runtime_cache.condition_runtimes,
@@ -2726,6 +2758,7 @@ impl StateMachineManager {
                         input_manager_signal_ticks: &mut self.runtime_cache.input_manager_signal_ticks,
                         condition_manager_values: &mut self.runtime_cache.condition_manager_values,
                         condition_manager_valid_states: &mut self.runtime_cache.condition_manager_valid_states,
+                        condition_valid_param_values: &mut self.runtime_cache.condition_valid_param_values,
                         condition_manager_axes: &mut self.runtime_cache.condition_manager_axes,
                         compiled_conditions: &mut self.runtime_cache.compiled_conditions,
                         condition_runtimes: &mut self.runtime_cache.condition_runtimes,
@@ -4750,6 +4783,7 @@ fn collect_condition_manager_runtime_input(
             manager,
             validity,
             context.transient_condition_valid_resets,
+            context.condition_valid_param_values,
         );
         let previous = context
             .condition_manager_valid_states
@@ -5058,21 +5092,23 @@ fn set_condition_validity_param(
     condition: NodeId,
     validity: ConditionValidity,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
+    condition_valid_param_values: &mut HashMap<NodeId, bool>,
 ) {
     if validity.current != validity.settled {
-        set_condition_valid_param(ctx, snapshot, condition, validity.current);
+        set_condition_valid_param(ctx, snapshot, condition, validity.current, condition_valid_param_values);
         transient_condition_valid_resets.insert(condition, ctx.time.tick.saturating_add(CONDITION_PULSE_HOLD_TICKS));
         return;
     }
 
     transient_condition_valid_resets.remove(&condition);
-    set_condition_valid_param(ctx, snapshot, condition, validity.settled);
+    set_condition_valid_param(ctx, snapshot, condition, validity.settled, condition_valid_param_values);
 }
 
 fn reset_due_transient_condition_valid_params(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
+    condition_valid_param_values: &mut HashMap<NodeId, bool>,
 ) {
     let now = ctx.time.tick;
     let due = transient_condition_valid_resets
@@ -5082,20 +5118,29 @@ fn reset_due_transient_condition_valid_params(
 
     for node in due {
         transient_condition_valid_resets.remove(&node);
-        set_condition_valid_param(ctx, snapshot, node, false);
+        set_condition_valid_param(ctx, snapshot, node, false, condition_valid_param_values);
     }
 }
 
-fn set_condition_valid_param(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, condition: NodeId, valid: bool) {
+fn set_condition_valid_param(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    condition: NodeId,
+    valid: bool,
+    condition_valid_param_values: &mut HashMap<NodeId, bool>,
+) {
     let Some(valid_param) = snapshot.find_child_by_decl_id(condition, "valid") else {
         return;
     };
-    let current = snapshot
-        .node(valid_param)
-        .and_then(|node| node.param_value.as_ref())
-        .and_then(ParamValue::as_bool);
+    let current = condition_valid_param_values.get(&valid_param).copied().or_else(|| {
+        snapshot
+            .node(valid_param)
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(ParamValue::as_bool)
+    });
     if current != Some(valid) {
         ctx.set_param(valid_param, ParamValue::Bool(valid));
+        condition_valid_param_values.insert(valid_param, valid);
     }
 }
 

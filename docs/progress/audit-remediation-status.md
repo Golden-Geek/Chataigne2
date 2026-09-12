@@ -229,24 +229,35 @@ and that every cloned Formula graph-root UUID survives save/reload. All 39 quali
 pass, including malformed and missing-result checks.
 
 The local source-fingerprinted report is
-`target/qualification/authored-graph-scale/20260912T135200Z/authored-graph-scale-report.json`
-(schema 2; tested tree `fd21b8b25446fd1ea26f12cffbe587c8b69e99ce`, default `asio,jack,realtime`,
+`target/qualification/authored-graph-scale/20260912T144950Z/authored-graph-scale-report.json`
+(schema 2; tested tree `473259fba736b906175d7e5d16bb45d5f124b43a`, default `asio,jack,realtime`,
 optimized app test with UI asset build skipped). Functional checks pass on this Windows x64 host:
 
 | Minimum live nodes | Loaded / prepared / reloaded | Cloned graph roots preserved | Load / prepare / save / reload ms | Tick 1 / ticks 2–5 ms | Reload RSS |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 27 / 42 / 13 / 21 | 7.11 / 2.33, 0.03, 2.29, 2.02 | 26 MB |
-| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 226 / 392 / 106 / 208 | 56.27 / 24.55, 0.05, 23.95, 22.40 | 73 MB |
-| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,429 / 5,428 / 1,061 / 2,383 | 692.39 / 273.89, 0.06, 299.86, 275.45 | 517 MB |
+| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 27 / 44 / 14 / 23 | 4.49 / 0.005, 0.043, 0.034, 0.002 | 26 MB |
+| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 272 / 458 / 108 / 255 | 37.25 / 0.010, 0.043, 0.045, 0.002 | 73 MB |
+| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,659 / 6,237 / 1,351 / 3,180 | 498.43 / 0.019, 0.078, 0.092, 0.002 | 518 MB |
 
-The 10k and 100k startup ticks and three of four later ticks exceed the test's 8 ms interval;
-**functional PASS is not a real-time, interaction, or release-capacity pass**. The slow later
-ticks each clone one full process-tree snapshot (10,247 or 100,239 records); the near-idle third
-tick clones none. `GOLDEN_PERF_TRACE=1` corroborated two snapshots on the first tick and recurring
-full snapshots alongside state-machine edits. The state-machine manager's snapshot-demand path is
-the likely owner of the recurring cost, an inference from its 125 Hz schedule and dirty-state
-gate; a callback-level trace has not yet proved sole ownership. This is separate from T12's
-bounded UI/transport/persistence snapshots and remains an open engine-loop scaling problem.
+The 10k and 100k startup ticks still exceed the test's 8 ms interval; **functional PASS is not a
+real-time, interaction, or release-capacity pass**. A callback-level trace identified the
+state-machine manager as the remaining recurring requester. Its own generated condition-validity
+result was being classified as a user processor override, dirtying the next tick. After correcting
+that boundary and removing snapshot demand from callbacks that do not read the tree, each size
+builds one startup process-tree snapshot and zero snapshots on the four warmed ticks. At 100k,
+that removes four full-tree clones (100,239 nodes each) from the five-tick run. The first tick
+still spends about 0.5 s and needs a separate startup-snapshot design; the short warmed sample
+does not establish a tail-latency bound. This is separate from T12's bounded
+UI/transport/persistence snapshots.
+The manager tracks its own generated validity output between snapshots, so a later true-to-false
+transition is not hidden by a stale value in the retained startup snapshot.
+
+The broad app suite is not clean on this host: the most recent serial run had 516 passes,
+one ignored test, and two multiplex real-time timing failures (5.72 and 6.66 ms means against
+the 5 ms development budget). The active multiplex case passed in isolation at 4.90 ms on a
+repeat run, and its production variant passed in isolation at 4.93 ms; the full-suite timing
+gate remains open. Strict app Clippy, 39 qualification-tool tests, and 415 active Golden Engine
+unit tests pass. The 516 other app tests pass when those two timing cases are excluded.
 
 Preparation adds 157 nodes at each size and
 sparse reload retains one more node than initial load; the authored graph roots are stable, but
@@ -476,7 +487,7 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to resolve the authored-graph tick overrun and round-trip drift, then exercise
+T19 next needs to resolve the authored-graph startup tick overrun and round-trip drift, then exercise
 Formula/state/graph editing, UI/transport, multi-client and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 

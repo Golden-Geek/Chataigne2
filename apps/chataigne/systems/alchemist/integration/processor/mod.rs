@@ -956,6 +956,8 @@ pub struct StateProcessor {
     formula_source: ProcessorFormulaSourceState,
     #[state(default = None)]
     subscribed_formula: Option<NodeId>,
+    #[state(default = HashSet::new())]
+    condition_valid_params: HashSet<NodeId>,
 }
 
 #[node(
@@ -992,6 +994,7 @@ impl Node for StateProcessor {
         _context: NodeCreationContext,
     ) {
         self.refresh_formula_subscription(ctx);
+        self.refresh_condition_valid_params(ctx);
         self.reconcile_formula(ctx);
     }
 
@@ -1001,6 +1004,9 @@ impl Node for StateProcessor {
         param: NodeId,
         _old_value: ParamValue,
     ) {
+        if self.condition_valid_params.contains(&param) {
+            return;
+        }
         if param == self.formula.id() {
             self.sync_formula_source_from_reference();
             self.refresh_formula_subscription(ctx);
@@ -1009,10 +1015,12 @@ impl Node for StateProcessor {
     }
 
     fn on_node_created(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
+        self.refresh_condition_valid_params(ctx);
         self.reconcile_formula(ctx);
     }
 
     fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
+        self.refresh_condition_valid_params(ctx);
         self.refresh_formula_subscription(ctx);
         self.reconcile_formula(ctx);
     }
@@ -1023,6 +1031,7 @@ impl Node for StateProcessor {
         _parent: NodeId,
         _child: NodeId,
     ) {
+        self.refresh_condition_valid_params(ctx);
         self.reconcile_formula(ctx);
     }
 
@@ -1032,6 +1041,7 @@ impl Node for StateProcessor {
         _parent: NodeId,
         _child: NodeId,
     ) {
+        self.refresh_condition_valid_params(ctx);
         self.reconcile_formula(ctx);
     }
 
@@ -1049,9 +1059,11 @@ impl Node for StateProcessor {
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        events
-            .iter()
-            .any(|event| !matches!(event.kind, EventKind::Custom(_)))
+        events.iter().any(|event| match &event.kind {
+            EventKind::Custom(_) => false,
+            EventKind::ParamChanged { param, .. } => !self.condition_valid_params.contains(param),
+            _ => true,
+        })
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -1060,6 +1072,28 @@ impl Node for StateProcessor {
 }
 
 impl StateProcessor {
+    fn refresh_condition_valid_params(&mut self, ctx: &ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+        self.condition_valid_params = Self::condition_valid_params_in_snapshot(snapshot, self.id());
+    }
+
+    fn condition_valid_params_in_snapshot(snapshot: &ProcessTreeSnapshot, processor: NodeId) -> HashSet<NodeId> {
+        let mut valid_params = HashSet::new();
+        for child in snapshot.child_ids_slice(processor) {
+            if snapshot
+                .node(*child)
+                .is_some_and(|node| node.node_type == ConditionManager::NODE_TYPE)
+            {
+                if let Some(valid) = snapshot.find_child_by_decl_id(*child, "valid") {
+                    valid_params.insert(valid);
+                }
+            }
+        }
+        valid_params
+    }
+
     fn set_formula_source(&mut self, source: FormulaSourceRef) {
         self.formula_source = ProcessorFormulaSourceState::from_source(&source);
         let FormulaSourceRef::ProjectNode(reference) = source;

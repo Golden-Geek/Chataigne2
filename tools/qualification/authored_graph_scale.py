@@ -173,7 +173,7 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
         "started_at": started_at,
         "finished_at": utc_now(),
         "scenarios": scenarios,
-        "scope": "persisted Chataigne full-workbench load, one engine tick, sparse save and reload",
+        "scope": "persisted Chataigne full-workbench load, five engine ticks, sparse save and reload",
         "not_covered": [
             "tick tail distribution, interaction, UI paint, transport and multi-client behavior",
             "graph compilation and evaluation across all cloned Constant ANodes",

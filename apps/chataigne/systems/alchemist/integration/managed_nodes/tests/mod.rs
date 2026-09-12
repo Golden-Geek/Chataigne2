@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use golden_core::edit::Edit;
 use golden_core::engine::EngineTime;
-use golden_core::node::{Folder, Node, NodeId};
+use golden_core::events::{Event, EventFrame, EventKind};
+use golden_core::node::{DeclId, Folder, Node, NodeId};
 use golden_core::parameter::{ParamValue, ParameterEventBehaviour};
 use golden_core::process_ctx::{ExecutionPhase, ProcessCtx};
 use golden_core::ui_sync::UiEditIntent;
@@ -58,6 +61,37 @@ fn condition_manager_accepts_all_operators() {
         cm.operator.apply_runtime_value(&ParamValue::Str(op.to_string()));
         assert_eq!(cm.operator.get_ref().as_str(), op);
     }
+}
+
+#[test]
+fn condition_manager_snapshot_gate_only_accepts_child_structure_changes() {
+    let manager = ConditionManager::new();
+    let time = EngineTime {
+        tick: 1,
+        micro: 0,
+        seq: 0,
+    };
+    let event = |kind| Arc::new(Event { time, kind });
+    let value_change = event(EventKind::ParamChanged {
+        param: NodeId(2),
+        old_value: ParamValue::Bool(false),
+        new_value: ParamValue::Bool(true),
+    });
+    assert!(!manager.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![value_change.clone()])));
+
+    let child_added = event(EventKind::ChildAdded {
+        parent: manager.id(),
+        child: NodeId(3),
+        decl_id: DeclId("condition".to_owned()),
+    });
+    assert!(manager.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![child_added.clone()])));
+    assert!(manager.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![value_change, child_added])));
+
+    let child_removed = event(EventKind::ChildRemoved {
+        parent: manager.id(),
+        child: NodeId(3),
+    });
+    assert!(manager.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![child_removed])));
 }
 
 #[test]

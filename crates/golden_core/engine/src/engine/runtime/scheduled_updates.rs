@@ -74,6 +74,25 @@ impl<T: Node> Engine<T> {
                 .get(*node_id)
                 .is_some_and(|node| node.needs_update() && node.update_requires_tree_snapshot())
         });
+        if needs_tree_snapshot && *PERF_TRACE_ENABLED && (self.time.tick <= 5 || self.time.tick.is_multiple_of(60)) {
+            let mut requester_count = 0usize;
+            let mut sampled_requesters = Vec::new();
+            for node_id in &due_nodes {
+                if let Some(node) = self.nodes.get(*node_id)
+                    && node.needs_update()
+                    && node.update_requires_tree_snapshot()
+                {
+                    requester_count += 1;
+                    if sampled_requesters.len() < 8 {
+                        sampled_requesters.push(format!("{}:{}", node_id.0, node.get_type()));
+                    }
+                }
+            }
+            eprintln!(
+                "[engine] scheduled_snapshot_request tick={} requesters={} sample={sampled_requesters:?}",
+                self.time.tick, requester_count
+            );
+        }
         let tree_snapshot = needs_tree_snapshot.then(|| self.get_or_build_tick_snapshot());
 
         let mut callback_count = 0usize;

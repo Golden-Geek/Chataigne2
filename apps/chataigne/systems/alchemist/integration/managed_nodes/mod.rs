@@ -297,6 +297,12 @@ impl Node for ConditionManager {
         crate::app::systems_alchemist_conditions::sync_condition_operator_visibility(ctx, self.id());
     }
 
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. }))
+    }
+
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
             EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } => u32::MAX,

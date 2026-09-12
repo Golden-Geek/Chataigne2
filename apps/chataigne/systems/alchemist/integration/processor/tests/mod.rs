@@ -3,3 +3,4 @@ use super::*;
 
 mod catalog;
 mod processor;
+mod snapshot_gate;
