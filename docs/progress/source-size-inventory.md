@@ -45,7 +45,7 @@ avoid mixing large structural moves into runtime race fixes.
 | 13,350 | `crates/golden_core/engine/src/engine/tests/engine.rs` | Split focused test suites |
 | 6,423 | `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte` | Decompose presentation and state |
 | 5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte` | Decompose presentation and state |
-| 5,188 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Split cohesive Rust module |
+| 5,212 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Split cohesive Rust module |
 | 5,056 | `crates/golden_core/support/macros/src/lib.rs` | Split macro families |
 | 3,533 | `packages/golden-graph-ui/components/GraphCanvas.svelte` | Decompose presentation and state |
 | 3,152 | `apps/chataigne/src/module/modules/protocol/midi/midi_module/mod.rs` | Split cohesive Rust module |
