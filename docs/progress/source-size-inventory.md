@@ -4,11 +4,12 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-covers 1179 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
+covers 1188 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
 `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
-history, App Control, and received-value splits. The 44-file audit count was a historical baseline;
-48 files currently exceed 1,000 lines. No oversized runtime or test-source exception is approved yet.
+history, App Control, received-value, and formula integration splits. The 44-file audit count was
+a historical baseline; 47 files currently exceed 1,000 lines. No oversized runtime or test-source
+exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
 `script/mod.rs` (under 1,000 lines), while template expansion and the engine-to-VM host bridge
@@ -27,6 +28,12 @@ Chataigne's received-value adapter now keeps batched subtree planning in its mai
 isolates incremental single/multi-message application, including retry-on-parent-materialization,
 in `received_values/incremental.rs`.
 
+The app-owned Alchemist formula integration now keeps node lifecycle/registration in its root
+(572 lines) and moves ANode/socket behavior, property surfaces, construction, value conversion,
+snapshot reconstruction, external-file workflow, reconciliation, and library watching into
+separate modules (all under 1,000 lines). App-node codegen registers the child node types through
+the root module's public re-exports. A generator regression test covers this boundary.
+
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
 avoid mixing large structural moves into runtime race fixes.
@@ -39,7 +46,6 @@ avoid mixing large structural moves into runtime race fixes.
 | 6,423 | `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte` | Decompose presentation and state |
 | 5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte` | Decompose presentation and state |
 | 5,188 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Split cohesive Rust module |
-| 5,096 | `apps/chataigne/systems/alchemist/integration/formula/mod.rs` | Split cohesive Rust module |
 | 5,056 | `crates/golden_core/support/macros/src/lib.rs` | Split macro families |
 | 3,533 | `packages/golden-graph-ui/components/GraphCanvas.svelte` | Decompose presentation and state |
 | 3,152 | `apps/chataigne/src/module/modules/protocol/midi/midi_module/mod.rs` | Split cohesive Rust module |

@@ -15,6 +15,13 @@ The app must not clone or patch a Formula graph for each processor instance.
 The graph is authored once, compiled into a reusable plan, and evaluated with
 runtime frames supplied by the processor lane currently being executed.
 
+The Chataigne-owned formula node adapter is rooted at
+`apps/chataigne/systems/alchemist/integration/formula/mod.rs`. It owns node lifecycle and
+registration; focused sibling modules own ANode/socket behavior, property surfaces, construction,
+value conversion, snapshot reconstruction, external-file workflow, reconciliation, and the Formula
+Library watcher. These files adapt the typed Alchemist model to Golden node contracts; formula
+compilation and evaluation remain in the Alchemist crate.
+
 ## Formula Catalog And Library
 
 The Formula Catalog resolves every formula source the processor runtime may use:

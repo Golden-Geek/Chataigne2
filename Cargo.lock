@@ -2811,6 +2811,7 @@ dependencies = [
  "golden_graph",
  "golden_protocol",
  "golden_script_contract",
+ "tempfile",
  "ts-rs",
 ]
 

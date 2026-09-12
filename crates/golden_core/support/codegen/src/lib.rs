@@ -44,6 +44,8 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
 }
 
 /// Scans named source roots and writes one generated application node registry.
+/// Node-bearing child files declared by a node-bearing `mod.rs` are registered
+/// through that module's public node re-exports.
 pub fn generate_app_nodes_from_roots(source_roots: &[AppNodeSourceRoot<'_>], out_file: &Path) {
     let mut rust_files = Vec::new();
     for source_root in source_roots {
@@ -54,6 +56,15 @@ pub fn generate_app_nodes_from_roots(source_roots: &[AppNodeSourceRoot<'_>], out
         rust_files.extend(source_files.into_iter().map(|path| (source_root, path)));
     }
     rust_files.sort_by(|(_, left), (_, right)| left.cmp(right));
+
+    let node_module_files = rust_files
+        .iter()
+        .filter_map(|(_, path)| {
+            let source =
+                fs::read_to_string(path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
+            declares_node_type(&strip_for_scanning(&source)).then(|| path.clone())
+        })
+        .collect::<HashSet<_>>();
 
     let mut entries = Vec::new();
     for (source_root, path) in rust_files {
@@ -68,15 +79,19 @@ pub fn generate_app_nodes_from_roots(source_roots: &[AppNodeSourceRoot<'_>], out
             continue;
         }
 
-        let module = module_name_from_relative(source_root.root, &path);
+        // A node-bearing child of a node-bearing `mod.rs` belongs to that Rust module,
+        // not a second generated top-level module. The root re-exports its public nodes.
+        let registration_root = registration_root_for_node(source_root.root, &path, &node_module_files);
+        let module = module_name_from_relative(source_root.root, &registration_root);
         let module = if source_root.module_prefix.is_empty() {
             module
         } else {
             format!("{}_{}", source_root.module_prefix, module)
         };
         let source_path = normalize_absolute_path(
-            path.canonicalize()
-                .unwrap_or_else(|err| panic!("failed to canonicalize {}: {}", path.display(), err)),
+            registration_root
+                .canonicalize()
+                .unwrap_or_else(|err| panic!("failed to canonicalize {}: {}", registration_root.display(), err)),
         );
 
         let type_names = extract_struct_names(&source);
@@ -102,6 +117,29 @@ pub fn generate_app_nodes_from_roots(source_roots: &[AppNodeSourceRoot<'_>], out
 
     let generated = render_registry(&entries);
     fs::write(out_file, generated).unwrap_or_else(|err| panic!("failed to write {}: {}", out_file.display(), err));
+}
+
+fn registration_root_for_node(source_root: &Path, path: &Path, node_module_files: &HashSet<PathBuf>) -> PathBuf {
+    let Some(directory) = path.parent() else {
+        return path.to_path_buf();
+    };
+    if !directory.starts_with(source_root) {
+        return path.to_path_buf();
+    }
+    let parent_module = directory.join("mod.rs");
+    if parent_module == path || !node_module_files.contains(&parent_module) {
+        return path.to_path_buf();
+    }
+    let Some(child_name) = path.file_stem().and_then(|stem| stem.to_str()) else {
+        return path.to_path_buf();
+    };
+    let parent_source = fs::read_to_string(&parent_module)
+        .unwrap_or_else(|err| panic!("failed to read {}: {}", parent_module.display(), err));
+    if strip_for_scanning(&parent_source).contains(&format!("mod {child_name};")) {
+        parent_module
+    } else {
+        path.to_path_buf()
+    }
 }
 
 /// Exports Rust-owned UI transport bindings into the TypeScript workspace.
