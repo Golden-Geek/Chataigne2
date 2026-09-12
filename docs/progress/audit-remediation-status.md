@@ -397,6 +397,13 @@ test covers background completion and full-capacity fallback. In a separate run 
 before; remove and redo ticks were 349 and 693 ms. These are local single-run diagnostics, not
 p95 or action-to-paint evidence, and the product gate remains open.
 
+The same 100k mixed-parent trace exposed 56-62 ms per post-edit tick in generic schedule
+resolution: topological sorting inserted every passive leaf into an ordered frontier. Resolution
+now sorts only scheduled nodes and dependency participants, while still validating dependencies
+against all live nodes and rejecting passive cycles. In a separate local run of the same fixture,
+resolve took 2 ms per edit tick; whole ticks remained 288-674 ms. These are single diagnostic
+samples, not p95 or action-to-paint qualification.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |

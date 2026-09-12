@@ -175,6 +175,76 @@ fn cycle_diagnostics_use_stable_identity_order_across_materialization_orders() {
     assert_eq!(cycle_labels, vec![vec!["x", "y"], vec!["x", "y"]]);
 }
 
+#[test]
+fn sparse_schedule_ignores_unreferenced_passive_leaves() {
+    let mut engine = Engine::new(TopologyNode::new("root", 1, NodeExecutionRule::passive()));
+    for index in 0..1000 {
+        engine.add_node(
+            TopologyNode::new(format!("leaf_{index}"), index + 2, NodeExecutionRule::passive()),
+            None,
+        );
+    }
+    engine.add_node(
+        TopologyNode::new("active", 1002, NodeExecutionRule::periodic(100)),
+        None,
+    );
+    engine.apply_edits().expect("sparse topology should attach");
+
+    let active = node_id_by_label(&engine, "active");
+    engine.resolve().expect("sparse topology should resolve");
+    assert_eq!(engine.schedule_topology(), &[active]);
+}
+
+#[test]
+fn passive_dependency_chain_orders_scheduled_dependents() {
+    let mut engine = Engine::new(TopologyNode::new("root", 1, NodeExecutionRule::passive()));
+    engine.add_node(TopologyNode::new("first", 2, NodeExecutionRule::passive()), None);
+    engine.add_node(TopologyNode::new("middle", 3, NodeExecutionRule::passive()), None);
+    engine.add_node(TopologyNode::new("active", 4, NodeExecutionRule::periodic(100)), None);
+    engine.apply_edits().expect("dependency chain should attach");
+
+    let first = node_id_by_label(&engine, "first");
+    let middle = node_id_by_label(&engine, "middle");
+    let active = node_id_by_label(&engine, "active");
+    engine.nodes.get_mut(middle).expect("middle should exist").rule =
+        NodeExecutionRule::passive().with_dependencies([first]);
+    engine.nodes.get_mut(active).expect("active should exist").rule =
+        NodeExecutionRule::periodic(100).with_dependencies([middle]);
+
+    engine.resolve().expect("dependency chain should resolve");
+    assert_eq!(engine.schedule_topology(), &[active]);
+}
+
+#[test]
+fn passive_dependency_cycles_and_missing_nodes_still_fail_resolution() {
+    let mut engine = Engine::new(TopologyNode::new("root", 1, NodeExecutionRule::passive()));
+    engine.add_node(TopologyNode::new("first", 2, NodeExecutionRule::passive()), None);
+    engine.add_node(TopologyNode::new("second", 3, NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("passive dependencies should attach");
+
+    let first = node_id_by_label(&engine, "first");
+    let second = node_id_by_label(&engine, "second");
+    engine.nodes.get_mut(first).expect("first should exist").rule =
+        NodeExecutionRule::passive().with_dependencies([second]);
+    engine.nodes.get_mut(second).expect("second should exist").rule =
+        NodeExecutionRule::passive().with_dependencies([first]);
+
+    let EngineRuntimeError::DependencyCycle { nodes } = engine.resolve().expect_err("passive cycle should be rejected")
+    else {
+        panic!("passive cycle should report DependencyCycle");
+    };
+    assert_eq!(nodes, vec![first, second]);
+
+    let missing = NodeId(u64::MAX);
+    engine.nodes.get_mut(second).expect("second should exist").rule =
+        NodeExecutionRule::passive().with_dependencies([missing]);
+    assert!(matches!(
+        engine.resolve(),
+        Err(EngineRuntimeError::MissingDependency { node, dependency })
+            if node == second && dependency == missing
+    ));
+}
+
 #[derive(Debug)]
 struct EffectObserver {
     node_data: NodeData,

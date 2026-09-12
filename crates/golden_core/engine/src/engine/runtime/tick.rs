@@ -271,10 +271,9 @@ impl<T: Node> Engine<T> {
     pub(super) fn collect_execution_rules(&self) -> HashMap<NodeId, NodeExecutionRule> {
         self.nodes
             .iter()
-            .filter_map(|(node_id, node)| {
-                self.is_enabled(node_id, true)
-                    .then_some((node_id, node.execution_rule()))
-            })
+            .filter(|(_, node)| node.node_data().effective_enabled)
+            .map(|(node_id, node)| (node_id, node.execution_rule()))
+            .filter(|(_, rule)| rule.update_rate.is_some() || !rule.dependencies.is_empty())
             .collect()
     }
 
@@ -282,7 +281,15 @@ impl<T: Node> Engine<T> {
         &self,
         rules: &HashMap<NodeId, NodeExecutionRule>,
     ) -> Result<Vec<NodeId>, EngineRuntimeError> {
-        let mut indegree: HashMap<NodeId, usize> = self.nodes.keys().map(|node_id| (node_id, 0usize)).collect(); // PERF-EXCEPTION: resolve only, gated by runtime_resolve_pending; never called in steady-state ticks.
+        // Passive leaves cannot affect ordering or form a dependency cycle. Keep
+        // them out of the sorted frontier, but still validate every referenced
+        // dependency against the full live node store.
+        let mut indegree: HashMap<NodeId, usize> = rules.keys().map(|node_id| (*node_id, 0usize)).collect();
+        for rule in rules.values() {
+            for dependency in &rule.dependencies {
+                indegree.entry(*dependency).or_insert(0);
+            }
+        }
         let mut outgoing: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
 
         let mut rule_nodes = rules.keys().copied().collect::<Vec<_>>();
@@ -291,7 +298,7 @@ impl<T: Node> Engine<T> {
             let rule = &rules[&node_id];
             let mut dedupe = HashSet::new();
             for dependency in &rule.dependencies {
-                if !indegree.contains_key(dependency) {
+                if !self.nodes.contains(*dependency) {
                     return Err(EngineRuntimeError::MissingDependency {
                         node: node_id,
                         dependency: *dependency,
