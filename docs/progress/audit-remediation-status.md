@@ -4,7 +4,7 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `534865de` contains T00–T15, the T16 audio-artifact wiring and independent
+Previous evidence baseline SHA: `2db5a0ac` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
@@ -15,8 +15,8 @@ measurements, processor presentation and multiplex test splits, and the opt-in s
 100k-lane scale harness, test-only 1/2/4/8-worker comparison with reordered contexts, focused
 distinct-state reorder regression, and unchanged-input requested-evaluation probe are committed.
 Their source-pinned measurements are the current documentation patch. T19 now has a
-source-fingerprinted direct product-Formula qualification runner; full-product qualification
-remains open.
+source-fingerprinted direct product-Formula qualification runner. The current T19 patch adds
+persisted full-workbench graph scale qualification; full-product qualification remains open.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -218,6 +218,35 @@ requested medians of 95/104 ms, and eight-worker non-reordered medians of 64/48 
 end-to-end tick capacity. The report explicitly lists missing engine/output/UI/transport,
 sparse-dirty crossover, and generation/cancellation evidence.
 
+## T19 persisted authored-graph scale
+
+`python tools/qualification/authored_graph_scale.py` builds deterministic streamed fixtures from
+the real `test_simple_load.noisette` workbench, then requires the Chataigne app to load, prepare,
+tick, sparsely save, and reload each fixture. The generator reports serialized records separately
+from live engine nodes: sparse project loading prunes declared records, so serialized count is not
+an authored-node capacity claim. The app test verifies the 1k/10k/100k minimum live-node thresholds
+and that every cloned Formula graph-root UUID survives save/reload. All 38 qualification-tool tests
+pass, including malformed and missing-result checks.
+
+The local source-fingerprinted report is
+`target/qualification/authored-graph-scale/20260912T133500Z/authored-graph-scale-report.json`
+(tested tree `3dd1709cb11df75c8927e32c496213723b21d060`, default `asio,jack,realtime`,
+optimized app test with UI asset build skipped). Functional checks pass on this Windows x64 host:
+
+| Minimum live nodes | Loaded / prepared / reloaded | Cloned graph roots preserved | Load / prepare / save / reload ms | One tick | Reload RSS |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 27 / 42 / 13 / 20 | 6.15 ms | 26 MB |
+| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 221 / 393 / 108 / 209 | 59.14 ms | 71 MB |
+| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,448 / 5,519 / 1,082 / 2,467 | 703.07 ms | 515 MB |
+
+The 10k and 100k single ticks exceed the test's 8 ms interval; **functional PASS is not a
+real-time, interaction, or release-capacity pass**. Preparation adds 157 nodes at each size and
+sparse reload retains one more node than initial load; the authored graph roots are stable, but
+the one-node drift and full descendant/value equivalence still need investigation. The fixture
+does not exercise all graph clones through Formula evaluation, graph edits/undo, UI paint,
+transport, recovery, or multi-client reconnect. Each scenario's generated fixture and raw log
+have SHA-256 hashes in the report; no physical or cross-platform claim follows from it.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -241,7 +270,7 @@ sparse-dirty crossover, and generation/cancellation evidence.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | direct product-Formula qualification report passes; end-to-end, authored-node, platform, and physical evidence pending |
+| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; tick, end-to-end, platform, and physical evidence pending |
 
 ## Finding status
 
@@ -439,8 +468,9 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs end-to-end Formula/state/graph capacity, authored-node stress, cross-platform,
-native-host, and physical-product evidence rather than another direct-kernel-only result.
+T19 next needs to resolve the authored-graph tick overrun and round-trip drift, then exercise
+Formula/state/graph editing, UI/transport, multi-client and recovery paths at scale. Cross-platform,
+native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

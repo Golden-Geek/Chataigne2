@@ -71,7 +71,7 @@ def _replace_uuids(value: Any, mapping: dict[str, str]) -> Any:
 def _clone_anode(template: dict[str, Any], clone_index: int, columns: int) -> dict[str, Any]:
     mapping: dict[str, str] = {}
     _collect_uuid_mapping(template, clone_index, mapping)
-    clone = _replace_uuids(copy.deepcopy(template), mapping)
+    clone = _replace_uuids(template, mapping)
     clone["meta"]["label"] = f"Scale Constant {clone_index + 1:05d}"
     clone["meta"]["decl_id"] = f"scale_constant_{clone_index + 1:05d}"
     clone["meta"]["short_name"] = f"scale_constant_{clone_index + 1:05d}"
@@ -120,10 +120,9 @@ def _promote_graph_editor(document: dict[str, Any]) -> None:
     document["ui_state"]["selected_node_ids"] = []
 
 
-def build_fixture(source: dict[str, Any], graph_node_count: int) -> tuple[dict[str, Any], dict[str, Any]]:
-    if graph_node_count < 1:
-        raise ValueError("graph_node_count must be positive")
-
+def _prepare_fixture(
+    source: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
     document = copy.deepcopy(source)
     library = _find_child(document["root"], "alchemist_formula_library")
     formula = _find_formula(library, FORMULA_LABEL)
@@ -150,28 +149,89 @@ def build_fixture(source: dict[str, Any], graph_node_count: int) -> tuple[dict[s
             "external_formula_delete_file",
         }
     ]
-    columns = 100
-    clones = [_clone_anode(template, index, columns) for index in range(graph_node_count)]
-    formula["children"] = [*preserved, *clones]
+    formula["children"] = preserved
     _promote_graph_editor(document)
+    return document, formula, template, preserved
 
-    metadata = {
+
+def _tree_node_count(node: dict[str, Any]) -> int:
+    return 1 + sum(_tree_node_count(child) for child in _children(node))
+
+
+def _metadata(
+    document: dict[str, Any], template: dict[str, Any], graph_node_count: int,
+) -> dict[str, Any]:
+    columns = 100
+    base_node_count = _tree_node_count(document["root"])
+    clone_node_count = _tree_node_count(template)
+    return {
         "contract": CONTRACT,
         "formula": FORMULA_LABEL,
         "graphNodeCount": graph_node_count,
+        "serializedRecordCount": base_node_count + graph_node_count * clone_node_count,
+        "graphNodeSubtreeRecordCount": clone_node_count,
         "columns": columns,
         "rows": (graph_node_count + columns - 1) // columns,
         "nodeSpacingRem": {"x": 15.0, "y": 10.0},
         "template": "constant",
     }
+
+
+def build_fixture(source: dict[str, Any], graph_node_count: int) -> tuple[dict[str, Any], dict[str, Any]]:
+    if graph_node_count < 1:
+        raise ValueError("graph_node_count must be positive")
+
+    document, formula, template, preserved = _prepare_fixture(source)
+    metadata = _metadata(document, template, graph_node_count)
+    columns = metadata["columns"]
+    formula["children"] = [
+        *preserved,
+        *(_clone_anode(template, index, columns) for index in range(graph_node_count)),
+    ]
     return document, metadata
 
 
-def write_fixture(source_path: Path, output_path: Path, graph_node_count: int) -> dict[str, Any]:
+def write_fixture(
+    source_path: Path,
+    output_path: Path,
+    graph_node_count: int | None = None,
+    *,
+    minimum_live_nodes: int | None = None,
+) -> dict[str, Any]:
+    if (graph_node_count is None) == (minimum_live_nodes is None):
+        raise ValueError("choose exactly one graph node count or minimum live nodes")
+    if graph_node_count is not None and graph_node_count < 1:
+        raise ValueError("graph_node_count must be positive")
+    if minimum_live_nodes is not None and minimum_live_nodes < 1:
+        raise ValueError("minimum_live_nodes must be positive")
+    if output_path.exists():
+        raise ValueError(f"refusing to replace existing graph fixture: {output_path}")
     source = json.loads(source_path.read_text(encoding="utf-8"))
-    document, metadata = build_fixture(source, graph_node_count)
+    document, formula, template, preserved = _prepare_fixture(source)
+    if minimum_live_nodes is not None:
+        clone_node_count = _tree_node_count(template)
+        # This is only a fixture-sizing hint. App loading may prune declared records;
+        # the product test must verify the resulting live-node threshold.
+        graph_node_count = (minimum_live_nodes + clone_node_count - 1) // clone_node_count
+    assert graph_node_count is not None
+    metadata = _metadata(document, template, graph_node_count)
+    if minimum_live_nodes is not None:
+        metadata["minimumLiveNodeTarget"] = minimum_live_nodes
+    placeholder = "__chataigne_streamed_graph_nodes__"
+    formula["children"] = [*preserved, placeholder]
+    serialized = json.dumps(document, separators=(",", ":"))
+    needle = json.dumps(placeholder)
+    if serialized.count(needle) != 1:
+        raise ValueError("graph fixture streaming placeholder is not unique")
+    prefix, suffix = serialized.split(needle, 1)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(document, separators=(",", ":")), encoding="utf-8")
+    with output_path.open("w", encoding="utf-8", newline="") as output:
+        output.write(prefix)
+        for index in range(graph_node_count):
+            if index:
+                output.write(",")
+            output.write(json.dumps(_clone_anode(template, index, metadata["columns"]), separators=(",", ":")))
+        output.write(suffix)
     return {**metadata, "output": str(output_path), "bytes": output_path.stat().st_size}
 
 
@@ -179,11 +239,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--graph-node-count", type=int, default=DEFAULT_GRAPH_NODE_COUNT)
+    count = parser.add_mutually_exclusive_group()
+    count.add_argument("--graph-node-count", type=int)
+    count.add_argument("--minimum-live-nodes", type=int)
     args = parser.parse_args()
+    graph_node_count = (
+        DEFAULT_GRAPH_NODE_COUNT
+        if args.graph_node_count is None and args.minimum_live_nodes is None
+        else args.graph_node_count
+    )
     print(
         json.dumps(
-            write_fixture(args.source, args.output, args.graph_node_count),
+            write_fixture(
+                args.source,
+                args.output,
+                graph_node_count,
+                minimum_live_nodes=args.minimum_live_nodes,
+            ),
             indent=2,
             sort_keys=True,
         )

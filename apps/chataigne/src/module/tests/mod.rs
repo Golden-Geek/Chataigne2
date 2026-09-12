@@ -2,6 +2,7 @@ use std::sync::{Mutex, MutexGuard};
 
 mod multiplex;
 mod runtime_scaling;
+mod authored_scale;
 
 static PERFORMANCE_TEST_LOCK: Mutex<()> = Mutex::new(());
 

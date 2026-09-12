@@ -4,11 +4,12 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-includes 1,217 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
+includes 1,220 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
 files under `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
 history, App Control, received-value, formula integration, processor presentation, and multiplex
-test splits. The 44-file audit count was a historical baseline; 46 files currently exceed 1,000
+test splits and the T19 authored-graph qualification harness. The 44-file audit count was a
+historical baseline; 46 files currently exceed 1,000
 lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
