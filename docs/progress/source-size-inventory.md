@@ -4,10 +4,10 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-covers 1175 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
+covers 1178 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
 `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
-history, and App Control runtime splits. The 44-file audit count was a historical baseline; 50 files
+history, and App Control splits. The 44-file audit count was a historical baseline; 49 files
 currently exceed 1,000 lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
@@ -19,6 +19,9 @@ Engine persistence now keeps its record/lifecycle application apart from metadat
 types. Engine history keeps captured effects and the public history API apart from undo/redo replay.
 The Chataigne App Control runtime now delegates platform window enumeration and actions to a
 focused Windows-aware adapter; its process, folder-watch, and worker orchestration stay together.
+Its module node keeps lifecycle and event coordination, while watch processing, watch structure,
+and script request parsing have focused modules. All touched App Control sources are under 1,000
+lines.
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
 avoid mixing large structural moves into runtime race fixes.
@@ -42,7 +45,6 @@ avoid mixing large structural moves into runtime race fixes.
 | 2,362 | `crates/golden_core/hosts/transport/src/ui_server/mod.rs` | Split cohesive Rust module |
 | 2,325 | `crates/golden_core/engine/src/engine/controls.rs` | Split cohesive Rust module |
 | 2,046 | `crates/golden_core/engine/src/app/mod.rs` | Split cohesive Rust module |
-| 2,031 | `apps/chataigne/src/module/modules/system/app_control/app_control/mod.rs` | Split cohesive Rust module |
 | 1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte` | Decompose presentation and state |
 | 1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs` | Split focused test suites |
 | 1,773 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs` | Split focused test suites |
