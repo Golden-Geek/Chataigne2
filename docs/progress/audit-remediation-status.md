@@ -4,12 +4,12 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `53b23b49` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `22e1a439` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
-splits, are committed. The App Control node split is also committed; the received-value split and
-refreshed count are the current patch.
+splits, are committed. The App Control node and received-value splits are also committed. The T18
+initial product-runtime baseline is the current patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -97,6 +97,24 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
 - After the received-value split, the same default-feature check, strict app Clippy, and all 513
   app unit tests pass again.
 
+## T18 initial profiling boundary
+
+On Windows x64 at `22e1a439`, default app features (`asio,jack,realtime`), the optimized
+test-profile product sample measured one serial
+production multiplex run at average 5,261 µs, p95 8,103 µs, p99 9,120 µs, maximum 12,567 µs,
+and one 10 ms deadline miss. The active sample's serial engine run measured average 4,849 µs,
+p95 7,160 µs, p99 7,948 µs, maximum 8,597 µs, and no deadline misses. Its separate
+engine-plus-incremental-publication measure averaged 4,864 µs with p95 7,174 µs and p99 7,963 µs.
+Both used the real `test_multiplex.noisette` fixture and passed their regression tests. These are
+single-run end-to-end observations, not isolated formula/lane compute timings, and their different
+measurement scopes cannot be subtracted to infer formula cost. Pure compute profiling, batching
+crossover, worker equivalence, and CPU/memory measurements remain open before any parallel path
+decision.
+Reproduce with `./tools/asio.ps1 -- cargo test --locked -p Chataigne2 --bin Chataigne2
+--target-dir target/t16-app-default <test-name> -- --nocapture --test-threads=1`, using
+`multiplex_sample_production_runtime_stays_realtime` and
+`multiplex_sample_active_runtime_stays_realtime` as the respective test names.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -119,7 +137,7 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/received-value adapters split; more cohesive splits pending |
-| T18  | T07, T11, T14, T15; informed by T12/T13       | pending                                                      |
+| T18  | T07, T11, T14, T15; informed by T12/T13       | initial product-runtime baseline; isolated compute profiling pending |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
 ## Finding status
@@ -316,8 +334,8 @@ installed hosts; no physical stream was opened.
 ## Next task
 
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
-projection/canvas and app-owned formula/state integration. T18 then profiles real app-owned
-formula/lane computation before deciding whether parallel execution is justified. T19 retains the
+projection/canvas and app-owned formula/state integration. T18 must isolate real app-owned
+formula/lane compute costs before deciding whether parallel execution is justified. T19 retains the
 exact-artifact cross-platform and physical-product evidence gate.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
