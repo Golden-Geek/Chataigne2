@@ -2,6 +2,7 @@
 
 pub mod alchemist;
 mod input_set;
+mod kernel_profile;
 mod managed_formula;
 mod manager;
 mod output_set;
@@ -13,6 +14,8 @@ pub mod value_set;
 mod value_set_pipeline;
 
 pub use input_set::{INPUT_SOURCE_FIELD, InputSetError, InputSetItem, InputSetMaterialization, InputSetRuntime};
+#[cfg(feature = "kernel-profiling")]
+pub use kernel_profile::{ProcessorKernelProfile, processor_kernel_profile_snapshot};
 pub use managed_formula::{ManagedFormulaError, ManagedFormulaRuntime};
 pub use manager::{
     ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,

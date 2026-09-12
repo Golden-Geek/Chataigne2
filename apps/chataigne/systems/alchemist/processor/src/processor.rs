@@ -19,7 +19,7 @@ use chataigne_state_machine_model::StateId;
 use golden_values::{StableRef, Value as RuntimeValue};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::ManagedFormulaRuntime;
+use crate::{ManagedFormulaRuntime, kernel_profile::profile_kernel};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -823,32 +823,22 @@ impl ProcessorRuntime {
                     self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
                 {
                     let mut debug = DebugCaptureSink::new(capture_mode);
+                    let frame = EvaluationFrame {
+                        ctx,
+                        properties: &properties,
+                        context: &context,
+                        debug: &mut debug,
+                        force_process_unchanged_inputs,
+                        capture_unchanged_outputs,
+                    };
                     let preview = match self.lanes.memory_for_key(context_key, &compiled.graph) {
-                        Some(memory) => evaluate_compiled_graph(
-                            &compiled.graph,
-                            memory,
-                            EvaluationFrame {
-                                ctx,
-                                properties: &properties,
-                                context: &context,
-                                debug: &mut debug,
-                                force_process_unchanged_inputs,
-                                capture_unchanged_outputs,
-                            },
-                        ),
-                        None => evaluate_compiled_graph_fresh_reusing(
-                            &compiled.graph,
-                            self.stateless_scratch
-                                .get_or_insert_with(|| AlchemistMemory::for_graph(&compiled.graph)),
-                            EvaluationFrame {
-                                ctx,
-                                properties: &properties,
-                                context: &context,
-                                debug: &mut debug,
-                                force_process_unchanged_inputs,
-                                capture_unchanged_outputs,
-                            },
-                        ),
+                        Some(memory) => profile_kernel(|| evaluate_compiled_graph(&compiled.graph, memory, frame)),
+                        None => {
+                            let scratch = self
+                                .stateless_scratch
+                                .get_or_insert_with(|| AlchemistMemory::for_graph(&compiled.graph));
+                            profile_kernel(|| evaluate_compiled_graph_fresh_reusing(&compiled.graph, scratch, frame))
+                        }
                     };
                     output.debug_samples = preview.debug_samples;
                 }
@@ -909,38 +899,26 @@ impl ProcessorRuntime {
                         };
                     }
                 };
+                let frame = EvaluationFrame {
+                    ctx,
+                    properties: &properties,
+                    context: &context,
+                    debug: &mut debug,
+                    force_process_unchanged_inputs,
+                    capture_unchanged_outputs,
+                };
                 let output = if stateless {
-                    evaluate_compiled_graph_fresh_reusing(
-                        &compiled.graph,
-                        self.stateless_scratch
-                            .get_or_insert_with(|| AlchemistMemory::for_graph(&compiled.graph)),
-                        EvaluationFrame {
-                            ctx,
-                            properties: &properties,
-                            context: &context,
-                            debug: &mut debug,
-                            force_process_unchanged_inputs,
-                            capture_unchanged_outputs,
-                        },
-                    )
+                    let scratch = self
+                        .stateless_scratch
+                        .get_or_insert_with(|| AlchemistMemory::for_graph(&compiled.graph));
+                    profile_kernel(|| evaluate_compiled_graph_fresh_reusing(&compiled.graph, scratch, frame))
                 } else {
                     let memory_key = context_key.project(&plan.required_memory_axes);
                     let memory = self
                         .lanes
                         .memory_for_key(memory_key, &compiled.graph)
                         .expect("stateful lane pools materialize memory for every active key");
-                    evaluate_compiled_graph(
-                        &compiled.graph,
-                        memory,
-                        EvaluationFrame {
-                            ctx,
-                            properties: &properties,
-                            context: &context,
-                            debug: &mut debug,
-                            force_process_unchanged_inputs,
-                            capture_unchanged_outputs,
-                        },
-                    )
+                    profile_kernel(|| evaluate_compiled_graph(&compiled.graph, memory, frame))
                 };
                 ProcessorLaneOutput {
                     context_key: (!context_key.is_default_lane()).then_some(context_key),
@@ -999,17 +977,18 @@ impl ProcessorRuntime {
         context_provider: &dyn ProcessorContextProvider,
     ) -> Result<RuntimePropertyFrame, RuntimePropertyFrameError> {
         let mut overrides = IndexMap::new();
+        for (surface_item, binding) in &processor.context_property_bindings {
+            let property_id = FormulaPropertyId::new(surface_item.as_str());
+            if compiled.properties.get(&property_id).is_some()
+                && let Some(value) = context_provider.resolve_context_value(context_key, &binding.axis, &binding.path)
+            {
+                overrides.insert(property_id, value);
+            }
+        }
         for (surface_item, value) in &processor.formula_instance.overrides.values {
             let property_id = FormulaPropertyId::new(surface_item.as_str());
             if compiled.properties.get(&property_id).is_some() {
-                let value = processor
-                    .context_property_bindings
-                    .get(surface_item)
-                    .and_then(|binding| {
-                        context_provider.resolve_context_value(context_key, &binding.axis, &binding.path)
-                    })
-                    .unwrap_or_else(|| value.clone());
-                overrides.insert(property_id, value);
+                overrides.entry(property_id).or_insert_with(|| value.clone());
             }
         }
         RuntimePropertyFrame::with_overrides(&compiled.properties, &overrides)

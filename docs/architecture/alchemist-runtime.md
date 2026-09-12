@@ -300,7 +300,7 @@ the hot runtime key so reorder operations cannot move memory to the wrong lane.
 
 Chataigne owns `ProcessorContextProvider`. The provider exposes available axes,
 iterates the keys required by the current processor execution plan, and resolves
-context values for future property/input binding work. `ProcessorRuntime`
+context values for property bindings. `ProcessorRuntime`
 retains a shared compiled Formula and a sparse `LaneRuntimePool`; lifecycle
 memory resets clear the whole pool and the next evaluation lazily recreates only
 the lanes that are still used.
@@ -308,7 +308,10 @@ the lanes that are still used.
 During evaluation, `ProcessorRuntime` receives the live `Processor` instance and
 resolves a fresh `RuntimePropertyFrame` for each evaluated context key. Constant
 processor overrides therefore change the property frame without changing the
-compiled Formula arc or the lane memory pool.
+compiled Formula arc or the lane memory pool. A resolved context property binding
+takes precedence over an explicit processor override; if the binding has no value,
+the explicit override or Formula default applies. A binding does not require an
+explicit override to be effective.
 
 Formula lane analysis is computed during compilation. Node declarations may
 declare direct context axes; those axes propagate through compiled input sources

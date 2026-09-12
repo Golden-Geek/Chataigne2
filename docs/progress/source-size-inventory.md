@@ -77,7 +77,7 @@ avoid mixing large structural moves into runtime race fixes.
 | 1,230 | `apps/chataigne/src/module/modules/controllers/gamepad/gamepad/mod.rs` | Split cohesive Rust module |
 | 1,225 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs` | Split focused test suites |
 | 1,166 | `apps/chataigne/src/module/modules/protocol/midi/commands/mod.rs` | Split cohesive Rust module |
-| 1,164 | `apps/chataigne/systems/alchemist/processor/src/processor.rs` | Split cohesive Rust module |
+| 1,143 | `apps/chataigne/systems/alchemist/processor/src/processor.rs` | Split cohesive Rust module |
 | 1,139 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mod.rs` | Split cohesive Rust module |
 | 1,110 | `packages/golden-ui/components/panels/logger/LoggerPanel.svelte` | Decompose presentation and state |
 | 1,095 | `apps/chataigne/src/module/modules/generators/signals/mod.rs` | Split cohesive Rust module |

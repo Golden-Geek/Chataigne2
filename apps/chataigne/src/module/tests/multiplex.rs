@@ -462,10 +462,14 @@ fn multiplex_sample_active_runtime_stays_realtime() {
     let provider_rebuilds_before = context_provider_rebuilds(&engine);
     let debug_samples_before = state_machine_debug_samples_captured(&engine);
     let processor_stats_before = state_machine_processor_runtime_stats(&engine);
+    #[cfg(feature = "kernel-profiling")]
+    let kernel_before = chataigne_state_machine::processor_kernel_profile_snapshot();
     let measurements = measure_multiplex_source_ticks(&mut engine, source, MEASURED, Some(&read_model));
     let provider_rebuilds_after = context_provider_rebuilds(&engine);
     let debug_samples_after = state_machine_debug_samples_captured(&engine);
     let processor_stats = state_machine_processor_runtime_stats(&engine).since(processor_stats_before);
+    #[cfg(feature = "kernel-profiling")]
+    let kernel_after = chataigne_state_machine::processor_kernel_profile_snapshot();
     let negative_source_avg_us = measurements.elapsed_us.iter().step_by(2).sum::<u64>() / (MEASURED / 2) as u64;
     let positive_source_avg_us = measurements.elapsed_us.iter().skip(1).step_by(2).sum::<u64>() / (MEASURED / 2) as u64;
     let mut elapsed_us = measurements.elapsed_us;
@@ -477,6 +481,20 @@ fn multiplex_sample_active_runtime_stays_realtime() {
     let p95_us = percentile_us(&elapsed_us, 95);
     let p99_us = percentile_us(&elapsed_us, 99);
     let deadline_misses = elapsed_us.iter().filter(|elapsed| **elapsed >= 10_000).count();
+    #[cfg(feature = "kernel-profiling")]
+    {
+        let kernel_ns = kernel_after.elapsed_ns - kernel_before.elapsed_ns;
+        let kernel_evaluations = kernel_after.evaluations - kernel_before.evaluations;
+        assert!(kernel_evaluations > 0, "the sample must exercise compiled formula evaluation");
+        assert!(kernel_evaluations <= processor_stats.lanes_evaluated);
+        eprintln!(
+            "multiplex kernel: elapsed_us={} evaluations={} tick_share_pct={:.1} evaluation_phase_share_pct={:.1}",
+            kernel_ns / 1_000,
+            kernel_evaluations,
+            kernel_ns as f64 / (total_us * 1_000) as f64 * 100.0,
+            kernel_ns as f64 / processor_stats.evaluation_ns as f64 * 100.0,
+        );
+    }
     let mut published_elapsed_us = measurements.published_elapsed_us;
     published_elapsed_us.sort_unstable();
     let published_avg_us = published_elapsed_us.iter().sum::<u64>() / published_elapsed_us.len() as u64;

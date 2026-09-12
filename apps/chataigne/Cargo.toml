@@ -28,6 +28,8 @@ default = ["asio", "jack", "realtime"]
 asio = ["golden_audio/asio"]
 jack = ["golden_audio/jack"]
 realtime = ["golden_audio/realtime"]
+# Opt-in, thread-local compiled-formula timing for T18 qualification only.
+kernel-profiling = ["chataigne_state_machine/kernel-profiling"]
 
 # Real Elgato Stream Deck hardware support (native hidapi 2.x + image).
 # Off by default so engine-only builds/CI stay free of native deps.

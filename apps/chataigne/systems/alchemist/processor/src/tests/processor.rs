@@ -468,6 +468,36 @@ fn reusable_stateless_scratch_keeps_multiplex_lanes_independent() {
     assert_eq!(first_float(&outputs[1].output), Some(9.0));
     assert_eq!(runtime.stateless_scratch_address(), Some(scratch_address));
     assert_eq!(runtime.lanes.memory_count(), 0);
+
+    processor
+        .formula_instance
+        .overrides
+        .values
+        .insert(SurfaceItemId::new("amount"), RuntimeValue::Float(7.5));
+    let bound_outputs = runtime.evaluate_processor_with_context_provider_and_capture(
+        &processor,
+        &evaluation_ctx(2, &inputs, &registries),
+        &provider,
+        &capture_all(),
+    );
+    assert_eq!(first_float(&bound_outputs[0].output), Some(2.0));
+    assert_eq!(first_float(&bound_outputs[1].output), Some(9.0));
+
+    processor.context_property_bindings.insert(
+        SurfaceItemId::new("amount"),
+        ProcessorContextPropertyBinding {
+            axis: ContextAxisId::new("device"),
+            path: ContextValuePath::new(["missing"]),
+        },
+    );
+    let fallback_outputs = runtime.evaluate_processor_with_context_provider_and_capture(
+        &processor,
+        &evaluation_ctx(3, &inputs, &registries),
+        &provider,
+        &capture_all(),
+    );
+    assert_eq!(first_float(&fallback_outputs[0].output), Some(7.5));
+    assert_eq!(first_float(&fallback_outputs[1].output), Some(7.5));
 }
 
 #[test]

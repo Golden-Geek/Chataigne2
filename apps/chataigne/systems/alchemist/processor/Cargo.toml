@@ -8,6 +8,7 @@ license.workspace = true
 default = ["serde"]
 serde = []
 testkit = ["dep:golden_graph"]
+kernel-profiling = []
 
 [dependencies]
 chataigne_alchemist.workspace = true
