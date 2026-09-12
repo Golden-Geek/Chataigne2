@@ -11,6 +11,11 @@ The project document, version, and JSON codec are defined in `golden_persistence
 duplicate-tree handling to `duplicate.rs`. None of these engine adapters owns the file format or
 native path-selection workflow.
 
+Multi-root duplicate actions prepare each detached subtree before mutation, then insert the
+whole batch under one rollback checkpoint. Loaded-node attached/init/ready callbacks replay in
+creation-context groups, so a paste does not rebuild a full process-tree snapshot for each root.
+Each inserted root retains its insertion-time sibling anchors for a single undo transaction.
+
 ## Save transaction
 
 1. The control actor captures an owned sparse document with its `ProjectGeneration` and authored

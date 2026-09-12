@@ -42,6 +42,10 @@ The state-machine runtime selects lifecycle and transition work, then dispatches
 Alchemist processor and output-intent path used elsewhere. It does not own alternate Formula,
 condition, input, filter, or output implementations.
 
+Formula inbox frames with multiple structural edits coalesce socket reconciliation, validation,
+and external-file synchronization into one pass. Single structural edits and small ordinary
+parameter frames retain their direct dispatch path; large frames use the same bulk path.
+
 ## Scale and safety
 
 Compiled conditions do not walk editable condition nodes in steady state. Formula kernels are

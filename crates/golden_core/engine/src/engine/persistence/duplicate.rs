@@ -655,6 +655,88 @@ impl<T: Node> Engine<T> {
         Ok(CommittedProjectSubtree { root, node_ids, effect })
     }
 
+    /// Commits one user action's independent roots with one rollback checkpoint and
+    /// one lifecycle replay per creation-context run. Inserting each root through
+    /// `commit_prepared_project_subtree` would rebuild whole-tree snapshots and clone
+    /// the live parameter set once per root on a large paste.
+    pub(crate) fn commit_prepared_project_subtree_batch(
+        &mut self,
+        prepared: Vec<(PreparedProjectSubtree<T>, NodeCreationContext)>,
+        operation: &'static str,
+    ) -> Result<Vec<NodeId>, ProjectPersistenceError> {
+        if prepared.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let checkpoint = self.project_subtree_commit_checkpoint();
+        let mut roots = Vec::with_capacity(prepared.len());
+        let result = (|| {
+            let mut inserted = Vec::with_capacity(prepared.len());
+            for (subtree, context) in prepared {
+                let PreparedProjectSubtree {
+                    parent,
+                    prev_sibling,
+                    tree,
+                    blueprint_meta,
+                    has_explicit_initial_params,
+                } = subtree;
+                let context = if context == NodeCreationContext::Duplicate && has_explicit_initial_params {
+                    NodeCreationContext::DuplicateWithInitialParams
+                } else {
+                    context
+                };
+                let root = self.insert_decoded_project_tree(parent, prev_sibling, tree, operation)?;
+                let effect = AddNodeEffect {
+                    node: root,
+                    parent,
+                    prev_sibling: self.nodes.get(root).and_then(|node| node.node_data().prev_sibling),
+                    next_sibling: self.nodes.get(root).and_then(|node| node.node_data().next_sibling),
+                };
+                roots.push(root);
+                inserted.push((root, context, blueprint_meta, effect));
+            }
+
+            let mut start = 0;
+            while start < inserted.len() {
+                let context = inserted[start].1;
+                let mut end = start + 1;
+                while end < inserted.len() && inserted[end].1 == context {
+                    end += 1;
+                }
+                self.replay_loaded_subtrees_lifecycle(&roots[start..end], context, LoadedReadyMode::Immediate)?;
+                start = end;
+            }
+
+            let mut committed = Vec::with_capacity(inserted.len());
+            for (root, _, blueprint_meta, effect) in inserted {
+                let node_ids = self.collect_loaded_subtree_node_ids(root)?;
+                if let Some(mut blueprint_meta) = blueprint_meta {
+                    blueprint_meta.decl_index = node_ids
+                        .iter()
+                        .filter_map(|node_id| {
+                            self.nodes
+                                .get(*node_id)
+                                .map(|node| (node.node_data().meta.decl_id.clone(), *node_id))
+                        })
+                        .collect();
+                    self.blueprints.register_instance(root, blueprint_meta);
+                }
+                committed.push(CommittedProjectSubtree { root, node_ids, effect });
+            }
+            self.queue_loaded_subtree_structure_events(&roots)?;
+            self.finalize_committed_project_subtrees(committed)?;
+            Ok::<_, ProjectPersistenceError>(())
+        })();
+
+        match result {
+            Ok(()) => Ok(roots),
+            Err(error) => {
+                self.rollback_committed_project_subtrees(roots, checkpoint);
+                Err(error)
+            }
+        }
+    }
+
     pub(crate) fn finalize_committed_project_subtrees(
         &mut self,
         committed: Vec<CommittedProjectSubtree>,

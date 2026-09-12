@@ -268,19 +268,32 @@ require exact live-node-count equality after reload. All three sizes pass that s
 The manager tracks its own generated validity output between snapshots, so a later true-to-false
 transition is not hidden by a stale value in the retained startup snapshot.
 
-The broad app suite is not clean on this host: the most recent serial run had 517 passes,
-one ignored test, and one multiplex active-runtime timing failure (5.31 ms mean against
-the 5 ms development budget). The production variant passed in that run; the full-suite
-timing gate remains open. Strict app/engine Clippy, 39 qualification-tool tests, and 420
-active Golden Engine unit tests pass. The 516 non-timing app tests pass when both multiplex
-timing cases are excluded.
-
-Preparation adds 157 nodes at each size and
-sparse reload retains one more node than initial load; the authored graph roots are stable, but
-the one-node drift and full descendant/value equivalence still need investigation. The fixture
-does not exercise all graph clones through Formula evaluation, graph edits/undo, UI paint,
-transport, recovery, or multi-client reconnect. Each scenario's generated fixture and raw log
+The latest full suite has 520 active app passes and two ignored manual T19 scale cases; the
+previous intermittent multiplex active-runtime timing failure did not reproduce in this run.
+Strict app/engine Clippy, 40 qualification-tool tests, and 422 active Golden Engine unit tests
+pass. Preparation adds 156 runtime nodes at each authored-graph size. Sparse reload now has the
+same live-node count as initial load, while full descendant/value equivalence remains open. The
+persisted fixture test does not exercise all graph clones through Formula evaluation, live
+edits/undo, UI paint, transport, recovery, or multi-client reconnect. Each scenario's generated fixture and raw log
 have SHA-256 hashes in the report; no physical or cross-platform claim follows from it.
+
+## T19 live graph edit baseline
+
+An ignored app test uses the product `DuplicateNodes` batch path on loaded, active authored
+Formula fixtures. It duplicates ten independent Constant ANode roots (140 live records) as one
+history transaction, then asserts exact formula child-UUID order across undo and redo. On this
+Windows x64 optimized app-test build, the generic engine's old per-root checkpoint/lifecycle path
+took 1,026 ms at 10k live nodes and 15,798 ms at 100k. The batched path takes 98 ms and 1,395 ms
+respectively. These are individual local diagnostic runs, not p95 or action-to-paint evidence.
+One checkpoint and one lifecycle pass per creation-context group remove the repeated whole-tree
+work during paste. The probe now also ticks the active runtime after duplicate, undo, and redo.
+At 100k, batching multiple structural formula events into one reconciliation lowered the
+post-duplicate tick from 4,341 ms to 1,421 ms and the post-undo tick from 3,351 ms to 1,849 ms
+in separate local runs; the latest post-redo tick was 1,974 ms. Undo itself still takes 3,670 ms
+and redo 10,834 ms for the same ten roots:
+history replays roots individually, including full-tree destroy/ready or UI snapshot work. The
+600-node full-workbench action target and sparse/dense edit, transport, and browser gates remain
+open; this is not a live-edit capacity pass.
 
 ## Task status and dependencies
 
@@ -305,7 +318,7 @@ have SHA-256 hashes in the report; no physical or cross-platform claim follows f
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; five sampled ticks meet 8 ms at 1k/10k/100k, while tail latency, live edits, end-to-end, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; five sampled ticks meet 8 ms at 1k/10k/100k; ten-root live duplicate/undo/redo preserves order but exceeds product action budgets, while tail latency, end-to-end, platform, and physical evidence remain open |
 
 ## Finding status
 
@@ -503,8 +516,9 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to exercise large live Formula/state/graph edits, UI/transport, multi-client, and
-recovery paths at scale. Cross-platform,
+T19 next needs to batch history replay for multi-root edits and reduce remaining active-runtime
+event/snapshot costs, then exercise large live
+Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and

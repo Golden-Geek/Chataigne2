@@ -369,18 +369,34 @@ impl<T: Node> Engine<T> {
         creation_context: NodeCreationContext,
         ready_mode: LoadedReadyMode,
     ) -> Result<(), ProjectPersistenceError> {
-        let mut loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        self.replay_loaded_subtrees_lifecycle(&[root], creation_context, ready_mode)
+    }
+
+    fn replay_loaded_subtrees_lifecycle(
+        &mut self,
+        roots: &[NodeId],
+        creation_context: NodeCreationContext,
+        ready_mode: LoadedReadyMode,
+    ) -> Result<(), ProjectPersistenceError> {
+        let collect_nodes = |engine: &Self| -> Result<Vec<NodeId>, ProjectPersistenceError> {
+            let mut node_ids = Vec::new();
+            for root in roots {
+                node_ids.extend(engine.collect_loaded_subtree_node_ids(*root)?);
+            }
+            Ok(node_ids)
+        };
+        let mut loaded_node_ids = collect_nodes(self)?;
 
         self.prune_loaded_duplicate_declared_children(loaded_node_ids.as_slice())?;
-        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        loaded_node_ids = collect_nodes(self)?;
 
         self.run_node_attached_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
         self.reconcile_loaded_declared_children(loaded_node_ids.as_slice(), creation_context)?;
-        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        loaded_node_ids = collect_nodes(self)?;
         self.prune_loaded_duplicate_declared_children(loaded_node_ids.as_slice())?;
-        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        loaded_node_ids = collect_nodes(self)?;
         self.reconcile_loaded_declared_children(loaded_node_ids.as_slice(), creation_context)?;
-        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        loaded_node_ids = collect_nodes(self)?;
         self.run_node_init_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
 
         match ready_mode {

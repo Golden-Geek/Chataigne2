@@ -14,7 +14,9 @@ use crate::application::{
 };
 use crate::define_node_enum;
 use crate::engine::Engine;
-use crate::node::{DeclId, Folder, Node, NodeId, NodeScriptDescriptor, USER_CONTEXT_NODE_TYPE, UserContextNode};
+use crate::node::{
+    DeclId, FOLDER_NODE_TYPE, Folder, Node, NodeId, NodeScriptDescriptor, USER_CONTEXT_NODE_TYPE, UserContextNode,
+};
 use crate::parameter::ParamValue;
 use crate::script::{ScriptNode, ScriptNodeConfig, ScriptSource};
 use crate::ui_sync::{
@@ -678,6 +680,90 @@ fn rejected_duplicate_nodes_dependency_leaves_all_planned_roots_uncommitted() {
             }],
         },
     );
+}
+
+#[test]
+fn duplicate_nodes_batch_preserves_sibling_order_through_one_undo_and_redo() {
+    let (mut engine, container, items) = atomic_duplicate_engine();
+    engine.clear_history();
+    let before = engine.ui_direct_children(container).expect("container children");
+    let acknowledgement = apply_ui_intent_to_engine(
+        &mut engine,
+        UiEditIntent::DuplicateNodes {
+            nodes: items
+                .into_iter()
+                .map(|source| UiDuplicateNodeSpec {
+                    source,
+                    new_parent: container,
+                    new_prev_sibling: None,
+                    initial_params: Vec::new(),
+                })
+                .collect(),
+            created_items: Vec::new(),
+            dependent_items: Vec::new(),
+        },
+        Some("batch-history-test"),
+    );
+    assert!(acknowledgement.success);
+    assert_eq!(engine.undo_len(), 1);
+    let after = engine
+        .ui_direct_children(container)
+        .expect("container children after duplicate");
+    assert_eq!(after.len(), before.len() + 2);
+
+    assert!(engine.undo().expect("batch undo should succeed"));
+    assert_eq!(engine.ui_direct_children(container), Some(before));
+    assert!(engine.redo().expect("batch redo should succeed"));
+    assert_eq!(engine.ui_direct_children(container), Some(after));
+}
+
+#[test]
+fn duplicate_nodes_batch_rolls_back_all_roots_when_later_lifecycle_fails() {
+    FAILED_DUPLICATE_OWNER_RELEASED.store(false, Ordering::SeqCst);
+    let root: FacadeTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+    engine.add_node(Folder::new("Valid source").into(), None);
+    engine.add_node(DuplicateLifecycleFailure::new().into(), None);
+    engine.apply_edits().expect("sources should attach");
+    let sources = engine.ui_direct_children(engine.root).expect("root children");
+    assert_eq!(sources.len(), 2);
+    let valid = *sources
+        .iter()
+        .find(|source| {
+            engine
+                .nodes
+                .get(**source)
+                .is_some_and(|node| node.get_type() == FOLDER_NODE_TYPE)
+        })
+        .expect("valid source");
+    let failing = *sources
+        .iter()
+        .find(|source| {
+            engine
+                .nodes
+                .get(**source)
+                .is_some_and(|node| node.get_type() == "duplicate_lifecycle_failure")
+        })
+        .expect("failing source");
+    let root = engine.root;
+
+    assert_rejected_intent_is_atomic(
+        &mut engine,
+        UiEditIntent::DuplicateNodes {
+            nodes: [valid, failing]
+                .into_iter()
+                .map(|source| UiDuplicateNodeSpec {
+                    source,
+                    new_parent: root,
+                    new_prev_sibling: None,
+                    initial_params: Vec::new(),
+                })
+                .collect(),
+            created_items: Vec::new(),
+            dependent_items: Vec::new(),
+        },
+    );
+    assert!(FAILED_DUPLICATE_OWNER_RELEASED.load(Ordering::SeqCst));
 }
 
 #[test]

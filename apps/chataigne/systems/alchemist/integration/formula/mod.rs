@@ -25,7 +25,7 @@ use golden_core::{
     color::Color,
     edit::{Edit, NodeTree},
     engine::NodeExecutionRule,
-    events::{Event, EventKind},
+    events::{Event, EventFrame, EventKind},
     item, node,
     node::{
         DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
@@ -191,6 +191,15 @@ pub struct AlchemistFormulaDefinition {}
 
 const FORMULA_BULK_INBOX_THRESHOLD: usize = 32;
 
+fn formula_inbox_requires_bulk(events: &EventFrame) -> bool {
+    events.len() >= FORMULA_BULK_INBOX_THRESHOLD
+        || events
+            .iter()
+            .filter(|event| matches!(&event.kind, EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. }))
+            .nth(1)
+            .is_some()
+}
+
 impl AlchemistFormulaDefinition {
     fn dispatch_bulk_inbox(&mut self, ctx: &mut ProcessCtx) {
         let param_changes = ctx
@@ -350,7 +359,7 @@ impl Node for AlchemistFormulaDefinition {
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
-        if ctx.events.len() < FORMULA_BULK_INBOX_THRESHOLD {
+        if !formula_inbox_requires_bulk(&ctx.events) {
             self.dispatch_inbox(ctx);
             return;
         }

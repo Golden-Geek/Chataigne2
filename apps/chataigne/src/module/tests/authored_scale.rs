@@ -2,10 +2,11 @@ use std::{collections::HashSet, path::PathBuf, time::{Duration, Instant}};
 
 use golden_core::{
     app::{
-        configure_loaded_engine, from_sparse_project_json, load_sparse_project_file,
+        configure_loaded_engine, from_sparse_project_json, load_sparse_project_file, ProjectNode,
         prepare_engine_for_runtime, to_sparse_project_json_pretty,
     },
-    node::Node,
+    node::{Node, NodeId, NodeUuid},
+    ui_sync::UiDuplicateNodeSpec,
 };
 use sysinfo::{ProcessesToUpdate, System, get_current_pid};
 
@@ -31,6 +32,17 @@ fn graph_root_uuids(engine: &AppEngine) -> HashSet<String> {
                 .then(|| meta.uuid.0.to_string())
         })
         .collect()
+}
+
+fn direct_child_uuids(engine: &AppEngine, parent: NodeId) -> Vec<NodeUuid> {
+    let mut uuids = Vec::new();
+    let mut child = engine.nodes.get(parent).expect("parent should exist").node_data().first_child;
+    while let Some(id) = child {
+        let node = engine.nodes.get(id).expect("child should exist");
+        uuids.push(node.node_data().meta.uuid);
+        child = node.node_data().next_sibling;
+    }
+    uuids
 }
 
 fn manager_formula_materializations(engine: &AppEngine) -> u64 {
@@ -164,6 +176,97 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
             "load_rss_mb": load_rss_mb,
             "prepare_rss_mb": prepare_rss_mb,
             "reload_rss_mb": reload_rss_mb,
+        })
+    );
+}
+
+#[test]
+#[ignore = "manual T19 active authored-graph duplication qualification"]
+fn authored_graph_duplicates_and_replays_one_live_edit() {
+    let _performance_guard = lock_performance_test();
+    let fixture = PathBuf::from(
+        std::env::var_os("CHATAIGNE_AUTHORED_SCALE_FIXTURE")
+            .expect("set CHATAIGNE_AUTHORED_SCALE_FIXTURE to a generated project path"),
+    );
+    let duplicate_count = std::env::var("CHATAIGNE_AUTHORED_SCALE_DUPLICATES")
+        .expect("set CHATAIGNE_AUTHORED_SCALE_DUPLICATES")
+        .parse::<usize>()
+        .expect("duplicate count must be an integer");
+    let mut engine = load_sparse_project_file::<AppNode, _>(&fixture).expect("authored project should load");
+    configure_loaded_engine(&mut engine).expect("authored project should configure");
+    prepare_engine_for_runtime(&mut engine).expect("authored project should prepare");
+    engine.run_tick(Duration::from_millis(8)).expect("authored project should warm");
+    let mut sources = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.node_data().meta.decl_id.0.starts_with("scale_constant_"))
+        .map(|(id, node)| (node.node_data().meta.decl_id.0.clone(), id, node.node_data().parent))
+        .collect::<Vec<_>>();
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
+    assert!(sources.len() >= duplicate_count);
+    let formula = sources[0].2.expect("graph root should belong to a formula");
+    let children_before = direct_child_uuids(&engine, formula);
+    let roots_before = graph_root_uuids(&engine);
+    let live_nodes_before = engine.nodes.iter().count();
+    let specs = sources
+        .iter()
+        .take(duplicate_count)
+        .map(|(_, source, parent)| UiDuplicateNodeSpec {
+            source: *source,
+            new_parent: parent.expect("graph root should belong to a formula"),
+            new_prev_sibling: None,
+            initial_params: Vec::new(),
+        })
+        .collect();
+
+    let started = Instant::now();
+    let duplicates = engine
+        .ui_apply_duplicate_nodes_with_dependent_user_items(
+            specs,
+            Vec::new(),
+            Vec::new(),
+            |node| node.project_encode_data(),
+            AppNode::project_decode_node,
+        )
+        .expect("one batch should duplicate every graph root");
+    let duplicate_ms = started.elapsed().as_millis();
+    assert_eq!(duplicates.len(), duplicate_count);
+    assert_eq!(engine.undo_len(), 1, "paste should create one undo transaction");
+    let live_nodes_after = engine.nodes.iter().count();
+    let children_after = direct_child_uuids(&engine, formula);
+    assert_eq!(graph_root_uuids(&engine), roots_before, "original graph roots must remain stable");
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("duplicated graph should tick");
+    let duplicate_tick_ms = started.elapsed().as_millis();
+
+    let started = Instant::now();
+    assert!(engine.undo().expect("undo should succeed"));
+    let undo_ms = started.elapsed().as_millis();
+    assert_eq!(engine.nodes.iter().count(), live_nodes_before);
+    assert_eq!(direct_child_uuids(&engine, formula), children_before);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("undone graph should tick");
+    let undo_tick_ms = started.elapsed().as_millis();
+    let started = Instant::now();
+    assert!(engine.redo().expect("redo should succeed"));
+    let redo_ms = started.elapsed().as_millis();
+    assert_eq!(engine.nodes.iter().count(), live_nodes_after);
+    assert_eq!(direct_child_uuids(&engine, formula), children_after);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("redone graph should tick");
+    let redo_tick_ms = started.elapsed().as_millis();
+    println!(
+        "AUTHORED_LIVE_EDIT_RESULT={}",
+        serde_json::json!({
+            "base_nodes": live_nodes_before,
+            "duplicate_roots": duplicate_count,
+            "inserted_nodes": live_nodes_after - live_nodes_before,
+            "duplicate_ms": duplicate_ms,
+            "duplicate_tick_ms": duplicate_tick_ms,
+            "undo_ms": undo_ms,
+            "undo_tick_ms": undo_tick_ms,
+            "redo_ms": redo_ms,
+            "redo_tick_ms": redo_tick_ms,
         })
     );
 }

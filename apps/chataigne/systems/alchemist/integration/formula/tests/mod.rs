@@ -32,6 +32,8 @@ use super::{
 };
 use crate::app::{AppEngine, AppNode};
 
+mod inbox_batch;
+
 #[test]
 fn trigger_parameter_snapshot_materializes_idle() {
     let value = param_to_runtime_value(&ParamValue::Trigger(), &ValueTypeId::new("trigger"))
