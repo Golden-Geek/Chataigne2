@@ -429,6 +429,18 @@ The source-fingerprinted authored-graph load/tick/save/reload report under
 `target/qualification/authored-graph-scale/20260912T230825Z/` passed its 1k, 10k, and 100k
 fixtures with the cache in place; it does not exercise live UI transport or browser paint.
 
+The authored-graph qualification now supports `--live-edits`, running ten-root duplicate,
+same-parent removal, and mixed-parent/descendant removal with undo, redo, and active ticks at
+each of 1k/10k/100k. It retains per-case commands, exact fixture/log hashes, parsed counts,
+and explicit missing-evidence failures. The source-fingerprinted report under
+`target/qualification/authored-graph-scale/20260912T231503Z/` passed all twelve startup/live
+scenarios while declaring `product_qualification: OPEN`. Its single 100k samples measured
+784/251/394 ms for duplicate/undo/redo, 546/396/254 ms for removal, and 531/391/248 ms for
+mixed removal; the following ticks were 341/587/612, 290/348/597, and 283/338/588 ms
+respectively. These are diagnostic actions and ticks, not p95 action-to-paint; 600-node insertion,
+sparse/dense parameter edits, transport, browser, recovery, platform, and physical gates remain
+open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |

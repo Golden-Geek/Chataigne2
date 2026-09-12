@@ -4,6 +4,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from subprocess import CompletedProcess
+from unittest.mock import patch
 
 from tools.qualification import authored_graph_scale
 
@@ -35,7 +37,74 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
     )
 
 
+def live_output(case: str, target: int = 1_000) -> str:
+    prefix = authored_graph_scale.LIVE_EDIT_CASES[case][1]
+    action = "duplicate" if case == "duplicate" else "remove"
+    row = {
+        "base_nodes": target + 100,
+        f"{action}_ms": 71,
+        f"{action}_tick_ms": 89,
+        "undo_ms": 37,
+        "undo_tick_ms": 43,
+        "redo_ms": 35,
+        "redo_tick_ms": 46,
+    }
+    if case == "duplicate":
+        row.update({
+            "duplicate_roots": 10,
+            "inserted_nodes": 140,
+            **{field: [0, 1, 2] for field in authored_graph_scale.LIVE_EDIT_PHASE_FIELDS},
+        })
+    else:
+        row.update({"removed_roots": 11 if case == "mixed_remove" else 10, "removed_nodes": 141})
+    return f"{prefix}{json.dumps(row)}\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured"
+
+
 class AuthoredGraphScaleTests(unittest.TestCase):
+    def test_parses_all_live_edit_cases(self) -> None:
+        for case in authored_graph_scale.LIVE_EDIT_CASES:
+            with self.subTest(case=case):
+                row = authored_graph_scale.parse_live_edit_result(live_output(case), case, 1_000)
+                self.assertEqual(row["base_nodes"], 1_100)
+
+    def test_rejects_missing_or_unverified_live_edit_evidence(self) -> None:
+        for case in authored_graph_scale.LIVE_EDIT_CASES:
+            output = live_output(case)
+            with self.subTest(case=case):
+                with self.assertRaisesRegex(ValueError, "one passing"):
+                    authored_graph_scale.parse_live_edit_result(output + "\n" + output, case, 1_000)
+                with self.assertRaisesRegex(ValueError, "one passing"):
+                    authored_graph_scale.parse_live_edit_result(output.replace("1 passed", "0 passed"), case, 1_000)
+                with self.assertRaisesRegex(ValueError, "fields differ"):
+                    authored_graph_scale.parse_live_edit_result(output.replace('"undo_ms": 37, ', ""), case, 1_000)
+                with self.assertRaisesRegex(ValueError, "missed the live-node target"):
+                    authored_graph_scale.parse_live_edit_result(output, case, 10_000)
+
+    def test_rejects_invalid_live_edit_counts_and_phase_series(self) -> None:
+        output = live_output("duplicate")
+        with self.assertRaisesRegex(ValueError, "expected roots"):
+            invalid = output.replace('"duplicate_roots": 10', '"duplicate_roots": 9')
+            authored_graph_scale.parse_live_edit_result(invalid, "duplicate", 1_000)
+        with self.assertRaisesRegex(ValueError, "nonnegative integers"):
+            invalid = output.replace('"undo_ms": 37', '"undo_ms": -1')
+            authored_graph_scale.parse_live_edit_result(invalid, "duplicate", 1_000)
+        with self.assertRaisesRegex(ValueError, "phase counters"):
+            authored_graph_scale.parse_live_edit_result(output.replace("[0, 1, 2]", "[0, 1]", 1), "duplicate", 1_000)
+
+    def test_live_edit_runner_marks_missing_result_as_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output_dir = root / "target" / "live"
+            output_dir.mkdir(parents=True)
+            completed = CompletedProcess(
+                args=[], returncode=0, stdout="test result: ok. 1 passed; 0 failed;", stderr="",
+            )
+            with patch.object(authored_graph_scale.subprocess, "run", return_value=completed):
+                row = authored_graph_scale.run_live_edit_case(root, output_dir, 1_000, {}, "duplicate")
+            self.assertEqual(row["status"], "FAIL")
+            self.assertIn("one passing", row["parse_error"])
+            self.assertTrue((output_dir / "authored-1000-duplicate.log").exists())
+
     def test_parses_one_complete_product_result(self) -> None:
         row = authored_graph_scale.parse_result(complete_output(), 1_000, 72)
         self.assertEqual(row["authored_nodes"], 1_088)
