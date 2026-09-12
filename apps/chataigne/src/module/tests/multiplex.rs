@@ -132,7 +132,11 @@ fn state_machine_debug_samples_captured(engine: &crate::app::AppEngine) -> u64 {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct ProcessorBatchStats {
+struct ProcessorRuntimeStats {
+    input_preparation_ns: u64,
+    evaluation_ns: u64,
+    evaluation_calls: u64,
+    lanes_evaluated: u64,
     command_batches: u64,
     batched_executions: u64,
     rejected_executions: u64,
@@ -140,9 +144,13 @@ struct ProcessorBatchStats {
     budget_rejected_intents: u64,
 }
 
-impl ProcessorBatchStats {
+impl ProcessorRuntimeStats {
     fn since(self, previous: Self) -> Self {
         Self {
+            input_preparation_ns: self.input_preparation_ns - previous.input_preparation_ns,
+            evaluation_ns: self.evaluation_ns - previous.evaluation_ns,
+            evaluation_calls: self.evaluation_calls - previous.evaluation_calls,
+            lanes_evaluated: self.lanes_evaluated - previous.lanes_evaluated,
             command_batches: self.command_batches - previous.command_batches,
             batched_executions: self.batched_executions - previous.batched_executions,
             rejected_executions: self.rejected_executions - previous.rejected_executions,
@@ -152,14 +160,18 @@ impl ProcessorBatchStats {
     }
 }
 
-fn state_machine_processor_batch_stats(engine: &crate::app::AppEngine) -> ProcessorBatchStats {
+fn state_machine_processor_runtime_stats(engine: &crate::app::AppEngine) -> ProcessorRuntimeStats {
     engine
         .nodes
         .iter()
         .find_map(|(_, node)| match node {
             AppNode::StateMachineManager(manager) => {
                 let stats = manager.runtime_perf_stats();
-                Some(ProcessorBatchStats {
+                Some(ProcessorRuntimeStats {
+                    input_preparation_ns: stats.processor_input_preparation_ns,
+                    evaluation_ns: stats.processor_evaluation_ns,
+                    evaluation_calls: stats.processor_evaluation_calls,
+                    lanes_evaluated: stats.processor_lanes_evaluated,
                     command_batches: stats.processor_command_batches,
                     batched_executions: stats.processor_batched_executions,
                     rejected_executions: stats.processor_rejected_command_executions,
@@ -449,11 +461,11 @@ fn multiplex_sample_active_runtime_stays_realtime() {
     let read_model = UiReadModel::from_engine(&engine, ProjectFileSpec::new("Noisette", "noisette"));
     let provider_rebuilds_before = context_provider_rebuilds(&engine);
     let debug_samples_before = state_machine_debug_samples_captured(&engine);
-    let batch_stats_before = state_machine_processor_batch_stats(&engine);
+    let processor_stats_before = state_machine_processor_runtime_stats(&engine);
     let measurements = measure_multiplex_source_ticks(&mut engine, source, MEASURED, Some(&read_model));
     let provider_rebuilds_after = context_provider_rebuilds(&engine);
     let debug_samples_after = state_machine_debug_samples_captured(&engine);
-    let batch_stats = state_machine_processor_batch_stats(&engine).since(batch_stats_before);
+    let processor_stats = state_machine_processor_runtime_stats(&engine).since(processor_stats_before);
     let negative_source_avg_us = measurements.elapsed_us.iter().step_by(2).sum::<u64>() / (MEASURED / 2) as u64;
     let positive_source_avg_us = measurements.elapsed_us.iter().skip(1).step_by(2).sum::<u64>() / (MEASURED / 2) as u64;
     let mut elapsed_us = measurements.elapsed_us;
@@ -475,15 +487,43 @@ fn multiplex_sample_active_runtime_stays_realtime() {
         .filter(|elapsed| **elapsed >= 10_000)
         .count();
     eprintln!(
-        "multiplex runtime: avg={avg_us}us negative_avg={negative_source_avg_us}us positive_avg={positive_source_avg_us}us p95={p95_us}us p99={p99_us}us min={min_us}us max={max_us}us deadline_misses={deadline_misses} published_avg={published_avg_us}us published_p95={published_p95_us}us published_p99={published_p99_us}us published_deadline_misses={published_deadline_misses} published_events={} callbacks={} callback_ticks={} snapshot_builds={} provider_rebuilds={} budget_rejected_actions={} budget_rejected_intents={}",
+        concat!(
+            "multiplex runtime: avg={avg_us}us negative_avg={negative_source_avg_us}us ",
+            "positive_avg={positive_source_avg_us}us p95={p95_us}us p99={p99_us}us ",
+            "min={min_us}us max={max_us}us deadline_misses={deadline_misses} ",
+            "published_avg={published_avg_us}us published_p95={published_p95_us}us ",
+            "published_p99={published_p99_us}us published_deadline_misses={published_deadline_misses} ",
+            "published_events={} callbacks={} callback_ticks={} snapshot_builds={} ",
+            "provider_rebuilds={} budget_rejected_actions={} budget_rejected_intents={} ",
+            "processor_input_us={} processor_eval_us={} processor_eval_calls={} ",
+            "processor_lanes={} processor_eval_tick_share_pct={:.1}"
+        ),
         measurements.published_events,
         measurements.callbacks_fired,
         measurements.ticks_with_callbacks,
         measurements.snapshot_builds,
         provider_rebuilds_after - provider_rebuilds_before,
-        batch_stats.budget_rejected_actions,
-        batch_stats.budget_rejected_intents,
+        processor_stats.budget_rejected_actions,
+        processor_stats.budget_rejected_intents,
+        processor_stats.input_preparation_ns / 1_000,
+        processor_stats.evaluation_ns / 1_000,
+        processor_stats.evaluation_calls,
+        processor_stats.lanes_evaluated,
+        processor_stats.evaluation_ns as f64 / (total_us * 1_000) as f64 * 100.0,
+        avg_us = avg_us,
+        negative_source_avg_us = negative_source_avg_us,
+        positive_source_avg_us = positive_source_avg_us,
+        p95_us = p95_us,
+        p99_us = p99_us,
+        min_us = min_us,
+        max_us = max_us,
+        deadline_misses = deadline_misses,
+        published_avg_us = published_avg_us,
+        published_p95_us = published_p95_us,
+        published_p99_us = published_p99_us,
+        published_deadline_misses = published_deadline_misses,
     );
+    assert!(processor_stats.evaluation_calls > 0 && processor_stats.lanes_evaluated > 0);
     assert_eq!(
         measurements.ticks_with_callbacks, MEASURED,
         "every dirty measured tick must execute scheduled runtime work"
@@ -497,21 +537,21 @@ fn multiplex_sample_active_runtime_stays_realtime() {
         "the all-processor overview must not enable Alchemist debug capture"
     );
     assert!(
-        batch_stats.batched_executions > 0,
+        processor_stats.batched_executions > 0,
         "the sample's output containers should use ordered command batches"
     );
     assert!(
-        batch_stats.command_batches.saturating_mul(8) < batch_stats.batched_executions,
+        processor_stats.command_batches.saturating_mul(8) < processor_stats.batched_executions,
         "command batching must collapse lane fan-out: {} batches for {} executions",
-        batch_stats.command_batches,
-        batch_stats.batched_executions,
+        processor_stats.command_batches,
+        processor_stats.batched_executions,
     );
     assert_eq!(
-        batch_stats.rejected_executions, 0,
+        processor_stats.rejected_executions, 0,
         "the checked multiplex sample must not emit non-finite command overrides"
     );
     assert_eq!(
-        (batch_stats.budget_rejected_actions, batch_stats.budget_rejected_intents,),
+        (processor_stats.budget_rejected_actions, processor_stats.budget_rejected_intents,),
         (0, 0),
         "the checked multiplex sample must fit within the explicit per-tick command budget"
     );

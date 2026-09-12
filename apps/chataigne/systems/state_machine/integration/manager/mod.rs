@@ -1262,6 +1262,14 @@ pub(crate) struct StateMachineRuntimePerfStats {
     pub formula_compiles: u64,
     pub debug_samples_captured: u64,
     #[cfg(test)]
+    pub processor_input_preparation_ns: u64,
+    #[cfg(test)]
+    pub processor_evaluation_ns: u64,
+    #[cfg(test)]
+    pub processor_evaluation_calls: u64,
+    #[cfg(test)]
+    pub processor_lanes_evaluated: u64,
+    #[cfg(test)]
     pub processor_command_batches: u64,
     #[cfg(test)]
     pub processor_batched_executions: u64,
@@ -2326,7 +2334,14 @@ impl StateMachineManager {
                 next_trigger_edge_id: &mut self.runtime_cache.next_trigger_edge_id,
                 ctx,
             };
+            #[cfg(test)]
+            let input_preparation_started = std::time::Instant::now();
             let inputs = processor_runtime_inputs(&mut input_context);
+            #[cfg(test)]
+            {
+                self.runtime_cache.perf_stats.processor_input_preparation_ns +=
+                    input_preparation_started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+            }
             if !evaluates_without_overview {
                 let Some(overview_lane) = overview_lane_capture else {
                     continue;
@@ -2367,6 +2382,8 @@ impl StateMachineManager {
                 inputs: &inputs,
                 registries: &registries,
             };
+            #[cfg(test)]
+            let evaluation_started = std::time::Instant::now();
             let lanes = if preview_plan.refresh_lane_catalog || preview_needs_hydration {
                 runtime_processor
                     .runtime
@@ -2386,6 +2403,13 @@ impl StateMachineManager {
                         &capture,
                     )
             };
+            #[cfg(test)]
+            {
+                self.runtime_cache.perf_stats.processor_evaluation_ns +=
+                    evaluation_started.elapsed().as_nanos().min(u64::MAX as u128) as u64;
+                self.runtime_cache.perf_stats.processor_evaluation_calls += 1;
+                self.runtime_cache.perf_stats.processor_lanes_evaluated += lanes.len() as u64;
+            }
             if let Some(requested) = requested_processor_lanes {
                 let returned = lanes
                     .iter()
