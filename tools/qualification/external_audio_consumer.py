@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 def run(*args: str, cwd: Path | None = None) -> str:
-    result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
+    result = subprocess.run(args, cwd=cwd, text=True, encoding="utf-8", errors="replace", capture_output=True)
     if result.returncode != 0:
         rendered = " ".join(args)
         raise SystemExit(

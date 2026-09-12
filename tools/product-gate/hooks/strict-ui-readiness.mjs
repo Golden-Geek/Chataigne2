@@ -27,13 +27,19 @@ async function launchBrowser(chromium) {
   const configuredExecutable = process.env.GC_UI_BROWSER_EXECUTABLE?.trim();
   const configuredChannel = process.env.GC_UI_BROWSER_CHANNEL?.trim();
   if (configuredExecutable) {
-    return chromium.launch({ headless: true, executablePath: configuredExecutable });
+    return chromium.launch({
+      headless: true,
+      executablePath: configuredExecutable,
+    });
   }
   if (configuredChannel) {
     return chromium.launch({ headless: true, channel: configuredChannel });
   }
 
-  const attempts = process.platform === "win32" ? [{ channel: "msedge" }, {}] : [{ channel: "chrome" }, {}];
+  const attempts =
+    process.platform === "win32"
+      ? [{ channel: "msedge" }, {}]
+      : [{ channel: "chrome" }, {}];
   const errors = [];
   for (const attempt of attempts) {
     try {
@@ -42,19 +48,30 @@ async function launchBrowser(chromium) {
       errors.push(error instanceof Error ? error.message : String(error));
     }
   }
-  throw new Error(`no usable Chromium browser was found:\n${errors.join("\n")}`);
+  throw new Error(
+    `no usable Chromium browser was found:\n${errors.join("\n")}`,
+  );
 }
 
 const argumentsMap = readArguments(process.argv.slice(2));
-const repositoryRoot = path.resolve(requiredArgument(argumentsMap, "repository-root"));
+const repositoryRoot = path.resolve(
+  requiredArgument(argumentsMap, "repository-root"),
+);
 const url = requiredArgument(argumentsMap, "url");
-const screenshotPath = path.resolve(requiredArgument(argumentsMap, "screenshot"));
-const timeoutMs = Number.parseInt(argumentsMap.get("timeout-ms") ?? "60000", 10);
+const screenshotPath = path.resolve(
+  requiredArgument(argumentsMap, "screenshot"),
+);
+const timeoutMs = Number.parseInt(
+  argumentsMap.get("timeout-ms") ?? "60000",
+  10,
+);
 if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
   throw new Error("--timeout-ms must be a positive integer");
 }
 
-const requireFromUi = createRequire(path.join(repositoryRoot, "apps", "chataigne", "ui", "package.json"));
+const requireFromUi = createRequire(
+  path.join(repositoryRoot, "apps", "chataigne", "ui", "package.json"),
+);
 const { chromium } = requireFromUi("playwright-core");
 const result = {
   url,
@@ -70,7 +87,9 @@ const result = {
 
 const browser = await launchBrowser(chromium);
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 900 },
+  });
   page.on("console", (message) => {
     if (message.type() === "error") {
       result.consoleErrors.push(message.text());
@@ -78,7 +97,9 @@ try {
   });
   page.on("pageerror", (error) => result.pageErrors.push(error.message));
   page.on("requestfailed", (request) => {
-    result.requestFailures.push(`${request.url()}: ${request.failure()?.errorText ?? "request failed"}`);
+    result.requestFailures.push(
+      `${request.url()}: ${request.failure()?.errorText ?? "request failed"}`,
+    );
   });
   page.on("websocket", (socket) => {
     result.websocketCount += 1;
@@ -116,13 +137,20 @@ try {
   console.log(JSON.stringify(result, null, 2));
 
   const failures = [];
-  if (!result.loadingOverlayGone) failures.push("the runtime startup overlay never completed");
-  if (result.websocketCount === 0) failures.push("the mounted UI opened no runtime WebSocket");
-  if (result.receivedFrames === 0) failures.push("the mounted UI received no runtime WebSocket frame");
-  if (result.bodyLength <= 100) failures.push("the mounted workbench remained empty");
-  if (result.consoleErrors.length > 0) failures.push("browser console errors were recorded");
-  if (result.pageErrors.length > 0) failures.push("uncaught page errors were recorded");
-  if (result.requestFailures.length > 0) failures.push("browser request failures were recorded");
+  if (!result.loadingOverlayGone)
+    failures.push("the runtime startup overlay never completed");
+  if (result.websocketCount === 0)
+    failures.push("the mounted UI opened no runtime WebSocket");
+  if (result.receivedFrames === 0)
+    failures.push("the mounted UI received no runtime WebSocket frame");
+  if (result.bodyLength <= 100)
+    failures.push("the mounted workbench remained empty");
+  if (result.consoleErrors.length > 0)
+    failures.push("browser console errors were recorded");
+  if (result.pageErrors.length > 0)
+    failures.push("uncaught page errors were recorded");
+  if (result.requestFailures.length > 0)
+    failures.push("browser request failures were recorded");
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
   }
