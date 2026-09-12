@@ -81,19 +81,19 @@ fn process_cpu_millis(system: &mut System) -> u64 {
         .accumulated_cpu_time()
 }
 
-fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize) {
+fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize, reorder_contexts: bool) {
     let _performance_guard = lock_performance_test();
     let fixture = sample_fixture();
-    let provider = ScaleContextProvider::new(lanes_per_processor);
     let registries = RuntimeRegistries {
         value_types: chataigne_state_machine::alchemist::shared_value_type_registry(),
     };
-    let mut expected_contexts = None;
+    let mut expected_contexts = Vec::new();
     let mut expected_effects: Vec<(Vec<RuntimeIntent>, Vec<RuntimeDiagnostic>)> = Vec::new();
     let mut expected_lane_memory: Option<Vec<LaneRuntimePool>> = None;
     let mut system = System::new();
 
     for workers in [1, 2, 4, 8] {
+        let mut provider = ScaleContextProvider::new(lanes_per_processor);
         let rss_before_build = resident_bytes(&mut system);
         let mut processors = build_processors(&fixture, &provider, processor_count);
         let mut warmed_tick_us = Vec::new();
@@ -101,6 +101,9 @@ fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize) {
         let mut kernel_ns = 0;
         let mut kernel_evaluations = 0;
         for tick in 1..=4 {
+            if reorder_contexts && tick == 3 {
+                provider.keys.rotate_left(lanes_per_processor / 3);
+            }
             let ctx = EvaluationCtx {
                 logical_tick: tick,
                 delta_time: Duration::from_millis(8),
@@ -115,13 +118,14 @@ fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize) {
             let cpu_after = process_cpu_millis(&mut system);
             assert_eq!(output.contexts.len(), 100_000);
             assert!(output.diagnostics.is_empty(), "the real Formula fixture must evaluate without diagnostics");
-            if let Some(contexts) = &expected_contexts {
+            if workers == 1 {
+                expected_contexts.push(output.contexts);
+            } else {
+                let contexts = &expected_contexts[(tick - 1) as usize];
                 assert!(
                     output.contexts == *contexts,
                     "context order differs with {workers} workers on tick {tick}"
                 );
-            } else {
-                expected_contexts = Some(output.contexts);
             }
             if workers == 1 {
                 expected_effects.push((output.intents, output.diagnostics));
@@ -139,6 +143,10 @@ fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize) {
                 kernel_ns += output.kernel_ns;
                 kernel_evaluations += output.kernel_evaluations;
             }
+        }
+        if workers == 1 && reorder_contexts {
+            assert!(expected_contexts[1] != expected_contexts[2], "the fixture must change context order");
+            assert!(expected_contexts[2] == expected_contexts[3], "reordered context order must remain stable");
         }
         assert_eq!(kernel_evaluations, 300_000);
         let memory_count = processors
@@ -162,6 +170,7 @@ fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize) {
         warmed_tick_us.sort_unstable();
         eprintln!(
             "formula workers: processors={processor_count} lanes_per_processor={lanes_per_processor} \
+             reorder_contexts={reorder_contexts} \
              workers={workers} tick_us={warmed_tick_us:?} process_cpu_ms={warmed_cpu_ms:?} \
              kernel_thread_ms={} kernel_evaluations={kernel_evaluations} ordered_effects={} \
              rss_before_mb={} rss_after_mb={}",
@@ -176,11 +185,23 @@ fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize) {
 #[test]
 #[ignore = "manual T18 product-formula worker qualification"]
 fn multiplex_formula_workers_1000_by_100() {
-    compare_worker_counts(1_000, 100);
+    compare_worker_counts(1_000, 100, false);
 }
 
 #[test]
 #[ignore = "manual T18 product-formula worker qualification"]
 fn multiplex_formula_workers_10000_by_10() {
-    compare_worker_counts(10_000, 10);
+    compare_worker_counts(10_000, 10, false);
+}
+
+#[test]
+#[ignore = "manual T18 product-formula reordered-context worker qualification"]
+fn multiplex_formula_workers_reordered_1000_by_100() {
+    compare_worker_counts(1_000, 100, true);
+}
+
+#[test]
+#[ignore = "manual T18 product-formula reordered-context worker qualification"]
+fn multiplex_formula_workers_reordered_10000_by_10() {
+    compare_worker_counts(10_000, 10, true);
 }
