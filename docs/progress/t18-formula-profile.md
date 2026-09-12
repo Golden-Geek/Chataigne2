@@ -27,8 +27,8 @@ and counters exist only in the app's unit-test build, so production hot paths ar
 
 This evaluation phase is an *upper bound* on work eligible for parallel pure-graph kernels. Even
 if the entire phase scaled perfectly to eight workers with zero dispatch cost, the measured
-one-thousand-lane sample could improve by at most about 1.4× by Amdahl's law. The actual pure
-kernel share is lower and has not yet been isolated. Input preparation alone took about 23–25%
+one-thousand-lane sample could improve by at most about 1.4× by Amdahl's law. The later
+opt-in probe below narrowed the compiled-kernel share. Input preparation alone took about 23–25%
 of measured tick time and is not covered by a parallel graph kernel.
 
 Reproduce one run with:
@@ -70,9 +70,48 @@ $env:GC_SKIP_UI_BUILD='1'
 ./tools/asio.ps1 -- cargo test --locked -p Chataigne2 --bin Chataigne2 --features kernel-profiling --target-dir target/t16-app-default multiplex_sample_active_runtime_stays_realtime -- --nocapture
 ```
 
-No parallel production evaluator is justified by this sample alone. Before changing execution,
-measure the pure compiled-graph portion and end-to-end ticks on both 1k×100 and 10k×10 real
-formula/lane partitions, including stateful and sparse-dirty variants. Compare one, two, four,
-and eight workers with deterministic effect order, generation replacement, cancellation, CPU,
-retained memory, and a serial crossover. If the improvement does not survive those checks,
-retain the serial path and record parallel compute as deferred.
+### Stateful 100k-lane partition pilot
+
+At `1af6e8f1`, two ignored, manually invoked app tests load the persisted
+`test_multiplex.noisette` sample (SHA-256
+`5EBD05F9390462B5D666C6B54E833BF30F97D6AD2B391146C288861202F09390`). A test-only
+manager hook captures one real dirty-tick input snapshot from all eight processors. Each test
+shares the sample's compiled three-node stateful `Action` Formula across new processors, uses
+one synthetic `scale_lane` axis, clears the copied processor condition to isolate Formula work,
+and forces dense evaluation. These are direct processor evaluations, not complete engine ticks;
+they do not include context-provider construction, output dispatch, UI publication, or transport.
+
+Each invocation builds 100,000 lanes, runs one warmup and three measured ticks, verifies exactly
+300,000 measured compiled calls and 100,000 retained lane memories, and reports process RSS.
+Four serial invocations per shape passed with zero runtime diagnostics. The median is the middle
+of just three warmed ticks per invocation, so this is a partition/phase pilot, not a p95/p99
+latency qualification.
+
+| Shape | Run | Warmed tick median | Three-tick range | Kernel total / three ticks | RSS after evaluation |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1,000×100 | 1 | 154.9 ms | 149.6–159.9 ms | 359 ms | 183 MB |
+| 1,000×100 | 2 | 148.4 ms | 144.4–152.0 ms | 344 ms | 183 MB |
+| 1,000×100 | 3 | 145.3 ms | 145.1–145.4 ms | 337 ms | 182 MB |
+| 1,000×100 | 4 | 147.1 ms | 146.3–152.1 ms | 342 ms | 184 MB |
+| 10,000×10 | 1 | 155.6 ms | 155.4–156.9 ms | 337 ms | 222 MB |
+| 10,000×10 | 2 | 163.7 ms | 156.8–174.1 ms | 359 ms | 222 MB |
+| 10,000×10 | 3 | 157.3 ms | 156.7–158.9 ms | 341 ms | 222 MB |
+| 10,000×10 | 4 | 159.4 ms | 159.1–159.6 ms | 346 ms | 223 MB |
+
+The higher processor-count partition allocates about 22–24 MB more before evaluation and
+retains about 39–40 MB more afterward. Kernel calls account for roughly 72–77% of these direct
+evaluation timings, versus about 25% of full tick time in the 1,016-lane sample. None of the
+100k-lane serial passes approaches a 10 ms tick budget; even ideal eight-way acceleration of
+the measured kernel alone would not reach it. The test holds no device or engine callback on a
+worker thread, and no production parallel path has been added.
+
+Reproduce each shape with `--features kernel-profiling` and the test name
+`multiplex_formula_scale_1000_by_100` or `multiplex_formula_scale_10000_by_10`, adding
+`-- --ignored --nocapture` to the app test command above.
+
+The 1,016-lane sample does not justify a production worker pool by itself. The 100k-lane pilot
+does justify measuring worker crossover, but it does not establish a real-time capacity claim.
+Before changing production execution, compare one, two, four, and eight workers with ordered
+effects, stateful and sparse-dirty equivalence, generation replacement, cancellation, CPU,
+retained memory, and end-to-end tick evidence. If useful improvement does not survive those
+checks, retain the serial path and record parallel compute as deferred.
