@@ -234,6 +234,9 @@ pub(crate) fn formula_from_snapshot(
 
     let graph_id =
         chataigne_alchemist::AlchemistGraphId::from_uuid(formula_snapshot.uuid.0);
+    let child_count = snapshot.child_ids_slice(formula_node).len();
+    let trace = child_count >= 1000 && std::env::var_os("GOLDEN_PERF_TRACE").is_some();
+    let phase_started = trace.then(std::time::Instant::now);
     let mut anodes_by_uuid = HashMap::<NodeUuid, ANodeId>::new();
     let mut anodes = Vec::new();
     let mut connections = Vec::new();
@@ -249,6 +252,9 @@ pub(crate) fn formula_from_snapshot(
         anodes_by_uuid.insert(child_snapshot.uuid, instance.id);
         anodes.push(instance);
     }
+
+    let anodes_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+    let phase_started = trace.then(std::time::Instant::now);
 
     for child in snapshot.child_ids(formula_node) {
         let Some(child_snapshot) = snapshot.node(child) else {
@@ -277,12 +283,17 @@ pub(crate) fn formula_from_snapshot(
         ));
     }
 
+    let connections_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+    let phase_started = trace.then(std::time::Instant::now);
+
     let properties = formula_property_schema_from_snapshot(snapshot, formula_node);
     let surface = formula_surface_from_snapshot(
         snapshot,
         formula_node,
         &mut anodes,
     )?;
+    let surface_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+    let phase_started = trace.then(std::time::Instant::now);
     let domain = chataigne_alchemist::AlchemistGraphDomain::new(
         (*registry()).clone(),
         (*value_types()).clone(),
@@ -309,9 +320,22 @@ pub(crate) fn formula_from_snapshot(
             target,
         );
     }
+    let transaction_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+    let phase_started = trace.then(std::time::Instant::now);
     transaction
         .commit(&mut graph, &domain)
         .map_err(|error| error.to_string())?;
+    if let Some(started) = phase_started {
+        eprintln!(
+            "[formula] materialize children={} anodes_us={} connections_us={} surface_us={} transaction_us={} commit_us={}",
+            child_count,
+            anodes_us,
+            connections_us,
+            surface_us,
+            transaction_us,
+            started.elapsed().as_micros()
+        );
+    }
 
     Ok(AlchemistFormula {
         id: FormulaId::new(formula_snapshot.uuid.0.to_string()),

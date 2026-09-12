@@ -52,6 +52,8 @@ impl AlchemistFormulaDefinition {
         skip_anode: Option<NodeId>,
     ) -> Option<AlchemistFormula> {
         let snapshot = ctx.tree_snapshot_arc()?;
+        let trace = std::env::var_os("GOLDEN_PERF_TRACE").is_some();
+        let phase_started = trace.then(std::time::Instant::now);
         let nodes = registry();
         for child in snapshot.child_ids(self.id()) {
             if Some(child) == skip_anode {
@@ -76,7 +78,11 @@ impl AlchemistFormulaDefinition {
             };
             sync_auto_input_count(ctx, &snapshot, child, config_folder, &type_id);
         }
+        let auto_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+        let phase_started = trace.then(std::time::Instant::now);
         let formula = formula_from_snapshot(&snapshot, self.id()).ok()?;
+        let materialize_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+        let phase_started = trace.then(std::time::Instant::now);
         let value_types = value_types();
         let solved = solve_document_types(
             &formula.graph,
@@ -86,6 +92,8 @@ impl AlchemistFormulaDefinition {
                 properties: Some(&formula.properties),
             },
         );
+        let solve_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+        let phase_started = trace.then(std::time::Instant::now);
         let signature_ctx = SignatureCtx {
             value_types,
             properties: Some(&formula.properties),
@@ -213,6 +221,16 @@ impl AlchemistFormulaDefinition {
                     ),
                 );
             }
+        }
+        if let Some(started) = phase_started {
+            eprintln!(
+                "[formula] socket_sync children={} auto_us={} materialize_us={} solve_us={} sockets_us={}",
+                snapshot.child_ids_slice(self.id()).len(),
+                auto_us,
+                materialize_us,
+                solve_us,
+                started.elapsed().as_micros()
+            );
         }
         Some(formula)
     }

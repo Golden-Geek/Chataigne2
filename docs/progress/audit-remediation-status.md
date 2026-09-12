@@ -404,6 +404,16 @@ against all live nodes and rejecting passive cycles. In a separate local run of 
 resolve took 2 ms per edit tick; whole ticks remained 288-674 ms. These are single diagnostic
 samples, not p95 or action-to-paint qualification.
 
+Trace-only Formula phase counters on the same 100k authored fixture localize the next backend
+cost. Each structural reconciliation of about 7.1k ANode children spent roughly 90-106 ms in
+socket sync: 52-55 ms materializing the Formula graph, 8-10 ms solving types, and 24-26 ms
+checking sockets. Within materialization, ANode extraction took 41-46 ms; graph transaction
+assembly and commit together took about 9-10 ms. A trial that skipped a duplicate signature
+construction for unforced bindings showed no clear improvement and was reverted. Reusing
+unchanged ANode materialization would require explicit invalidation for config, connections,
+surface, and history; the current trace does not establish a safe incremental path or a product
+gate pass.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
