@@ -25,10 +25,11 @@ call those installers.
 
 ## Generated data policy
 
-Cargo always uses the single root `target` directory. The development and test profiles disable
-incremental compilation and dependency debug information to prevent feature/profile variants from
-accumulating hundreds of gigabytes. The workspace budget for all recognized generated data is
-25 GiB.
+Cargo always uses the single root `target` directory. The default development profile keeps an
+incremental cache for workspace crates to speed up edits. The optimized development and test
+profiles disable it, and all development profiles omit dependency debug information. The separate
+profile outputs and incremental cache consume disk space, so the workspace budget for all
+recognized generated data remains 25 GiB.
 
 The checked-in rust-analyzer settings also share that target and use a focused `cargo check` during
 editing. Workspace-wide Clippy and all-target checks belong to explicit quality gates; running them

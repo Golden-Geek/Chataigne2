@@ -79,9 +79,10 @@ checks below.
 
 ### Development runtime and hot paths
 
-- Root development and test profiles use `opt-level = 3`, line-table debug
-  information, and no incremental cache. This is intentional so development
-  runtime performance represents the shipped hot path.
+- The optimized development (`dev-perf`) and test profiles use `opt-level = 3`,
+  line-table debug information, and no incremental cache so performance checks
+  represent the shipped hot path. Ordinary development uses incremental
+  compilation and `opt-level = 1` for faster editing.
 - Shared registries use one-time initialization instead of rebuilding common
   declarations.
 - Alchemist processor execution reuses stateless scratch memory and avoids
@@ -410,6 +411,6 @@ Also:
   Svelte check, lint, or multiplex benchmark result is available for the
   current interrupted tree.
 
-The first optimized compile is expected to be slower because dev/test now use
-`opt-level = 3`; this is the deliberate compile-time tradeoff for representative
-development runtime performance.
+The first optimized compile is expected to be slower because `dev-perf` and
+test use `opt-level = 3`; this is the deliberate compile-time tradeoff for
+representative development runtime performance.
