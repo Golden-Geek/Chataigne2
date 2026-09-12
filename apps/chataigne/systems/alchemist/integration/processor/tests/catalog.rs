@@ -391,7 +391,8 @@ fn renaming_shared_formula_moves_file_and_keeps_formula_uuid() {
         patch: NodeMetaPatch {
             label: Some("New Shared".to_owned()),
             ..Default::default()
-        },
+        }
+        .into(),
     });
     assert!(ack.success, "shared formula rename should succeed: {ack:?}");
     engine
@@ -574,7 +575,8 @@ fn shared_formula_renamed_from_another_session_preserves_file_uuid() {
         patch: NodeMetaPatch {
             label: Some("New Shared".to_owned()),
             ..Default::default()
-        },
+        }
+        .into(),
     });
     assert!(
         ack.success,

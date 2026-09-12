@@ -571,7 +571,8 @@ fn materialized_anode_preserves_enabled_state() {
         patch: NodeMetaPatch {
             enabled: Some(false),
             ..NodeMetaPatch::default()
-        },
+        }
+        .into(),
     });
     assert!(ack.success, "ANode disable should succeed: {ack:?}");
 
@@ -779,7 +780,8 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
             label: Some("Intensity".into()),
             presentation: Some(property_presentation.clone()),
             ..NodeMetaPatch::default()
-        },
+        }
+        .into(),
     });
     assert!(ack.success, "Property rename should succeed: {ack:?}");
     engine
@@ -1373,7 +1375,8 @@ fn forced_value_type_updates_all_forceable_numeric_nodes() {
                 patch: NodeMetaPatch {
                     enabled: Some(true),
                     ..NodeMetaPatch::default()
-                },
+                }
+                .into(),
             });
             assert!(ack.success, "Value Type enable should succeed: {ack:?}");
             let ack = engine.apply_ui_intent(UiEditIntent::SetParam {

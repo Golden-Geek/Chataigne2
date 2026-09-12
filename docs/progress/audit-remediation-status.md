@@ -4,10 +4,9 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current SHA and patch state: `18691c4e` contains the persistence, foundation, protocol, and
-script-contract boundary extraction. The reusable QuickJS runtime, public-host fixtures, and final
-T15 documentation described below are in the working tree. T00-T14 and the first T15 boundary slice
-are committed on `main`.
+Current committed SHA: `52e710d9` contains T00–T15, the T16 audio-artifact wiring and independent
+Git-consumer qualification, and removal of the four obsolete gitlinks. The app fixture corrections,
+expanded cross-platform artifact gate, and this status update are the current patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -21,32 +20,41 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T15 — move reusable contracts into their owning crates — complete. The completed slices move
-project hierarchy/version/JSON codecs into `golden_persistence`, neutral model values into
-`golden_model`, canonical wire DTOs into `golden_protocol`, and QuickJS-free script manifest/UI
-declarations into `golden_script_contract`. The reusable QuickJS VM, interruption/deadline/budget
-enforcement, effect journal, and tree/host contracts now live in `golden_script`.
+Task: T16 — ordinary desktop audio artifacts are implemented and qualified locally on Windows x64.
+The app forwards ASIO, JACK, and realtime through `golden_audio`; the canonical toolchain manifest,
+bootstrap verifiers, developer setup, docs, and CI artifact matrix agree. The reusable crate keeps
+its native-only `desktop` default. Native PipeWire remains an explicit Linux option. A clean,
+manifest-pinned ASIO SDK setup replaces the stale incomplete local SDK. The app's actual default
+test artifact contains WASAPI, ASIO, and JACK; its headless runtime reached the ready health state
+while JACK was absent. A standalone consumer from a clean Git revision compiled with all ordinary
+audio features and resolved the reviewed vendored CPAL ASIO patch.
 
-Owning layers and files in these slices: `golden_model`, `golden_persistence`, `golden_protocol`,
-`golden_script_contract`, `golden_script`, code generation, public host facades, and the focused
-`golden_engine` adapters.
+T15 remains complete: persistence, protocol, script, transport-only headless, and default full-host
+external contracts and dependency checks passed. A T16 app-test build exposed six stale Alchemist
+test fixtures using engine metadata patches at a protocol intent boundary; those now use the public
+typed conversion, and all 513 app unit tests pass. The six-platform hosted app catalog gate has not
+run on this patch, and no named physical stream, hotplug, or continuity test has been executed.
 
-Invariant / implementation decision: persistence owns a typed, app-agnostic
-`ProjectDocument<M>` / `ProjectNodeRecord<M>` hierarchy and codecs. Protocol declarations are split
-into cohesive files and import only foundation/script-contract crates; engine application and
-projection remain engine-owned adapters. Shared logical time, presentation, logging, retention,
-curve-fit, curation, and project-file metadata no longer originate in engine modules. Generated
-TypeScript remains Rust-owned and is regenerated in the same change. Engine-specific `ScriptNode`
-configuration and graph bindings remain in the engine adapter; the full `golden_core` facade
-composes them with the reusable runtime.
+## T16 local qualification evidence
 
-Result: persistence has crate-external round-trip coverage; protocol has a crate-external wire
-consumer; script has public fake-host contract and watchdog safety suites; headless transport and
-the full default host have crate-external compile consumers. Protocol/codegen, script, headless,
-audio, and full-facade dependency-direction checks pass. All 415 active engine regressions, 41
-active transport regressions, public consumers, the no-default-feature Chataigne app check, and
-complete Svelte checks pass. The default-feature app check remains limited by the pre-existing
-incomplete local ASIO SDK (`asiodrivers.h` absent), which T16 owns.
+- Windows x64, Rust 1.97.0, default app features `asio,jack,realtime`: Cargo feature tree resolves
+  `golden_audio` and vendored CPAL with those features; `cargo check --locked -p Chataigne2` passes
+  with the pinned official ASIO SDK and prebuilt UI.
+- `cargo test --locked -p golden_audio --features asio,jack,realtime`: 137 unit tests plus all
+  integration suites pass. The no-stream backend probe reports ASIO and WASAPI `Available` and
+  JACK `MissingServer`; this is discovery evidence, not a physical-stream claim.
+- `cargo test --locked -p Chataigne2 --test default_audio_hosts` passes against the compiled app
+  catalog. `cargo test --locked -p Chataigne2 --bin Chataigne2` passes all 513 tests, including 33
+  Sound Card tests. The exact default-feature headless binary returned HTTP 200 at
+  `/api/ui/health`, with `backend_ready` and `engine_read_model_ready` both true.
+- `tools/qualification/external_audio_consumer.py` passes from clean commit `52e710d9`: a
+  standalone Git consumer compiles `desktop,asio,jack,realtime` and resolves
+  `vendor/cpal-0.18.1/Cargo.toml` with the exact-driver source patch. The report is at
+  `target/qualification/t16-external-audio.json` (local, ignored by Git).
+- PowerShell bootstrap and product-gate contract verifiers, Rust formatting, and CI workflow
+  Prettier check pass. Bash bootstrap verification is not claimed locally because this Windows
+  checkout converts `.sh` working-tree line endings to CRLF; hosted Unix checkout verification
+  remains pending.
 
 ## Task status and dependencies
 
@@ -68,8 +76,8 @@ incomplete local ASIO SDK (`asiodrivers.h` absent), which T16 owns.
 | T13  | T03, T10                                      | complete                                                     |
 | T14  | T03, T07, T11                                 | complete                                                     |
 | T15  | T05, T09, T10, T12                            | complete                                                     |
-| T16  | T01, T02                                      | pending                                                      |
-| T17  | T00; behavior fixes before related extraction | pending                                                      |
+| T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
+| T17  | T00; behavior fixes before related extraction | orphan gitlinks removed; inventory and cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | pending                                                      |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
@@ -94,8 +102,8 @@ the current branch contains implementation and verification evidence.
 | F12 — dependency gate              | fixed           | `h2` locked at 0.4.16; `rtrb` constraint and lock at 0.3.5; no advisory suppression added                                                                                                                                                                                                                                                                                                         | `cargo deny check`, `cargo machete`, and both backend-neutral/realtime Golden Audio suites pass against RustSec DB `5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5` (2026-09-02). No reachable Chataigne exploit was established.                                   |
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
 | F14 — facades/edit acknowledgement | fixed           | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 puts codecs, wire DTOs, script declarations, and VM/runtime primitives in their owning crates while engine application stays in adapters; the full facade composes the ready-to-launch host.                                                           | Persistence, protocol, script fake-host, headless-host, and full-host external consumers pass. Focused dependency trees exclude forbidden engine, QuickJS, desktop, Tauri, audio, and Chataigne edges as applicable.                                      |
-| F15 — ordinary audio portability   | open            | T16 pending                                                                                                                                                                                                                                                                                                                                                                                       | Windows host CI passed, but artifact feature forwarding and external-consumer portability remain unqualified.                                                                                                                                                 |
-| F16 — gitlinks/docs/source size    | open            | T17 pending                                                                                                                                                                                                                                                                                                                                                                                       | Four mode-160000 entries are confirmed present without a usable `.gitmodules`; current oversized-file inventory is pending.                                                                                                                                   |
+| F15 — ordinary audio portability | partially fixed | Default app forwards ASIO/JACK/realtime; canonical matrix, pinned SDK, app catalog test, and standalone Git/CPAL consumer are in place. | Windows x64 default artifact, headless startup, JACK missing-server state, 513 app tests, and external consumer pass. Hosted six-platform artifact gate and named physical streams remain unrun. |
+| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed from the index without deleting the clean local nested checkouts; the UI readiness hook uses the current UI package path. | Fresh Git consumer no longer fails on missing submodule URLs. Oversized-file inventory, cohesive splits, and progress-note reconciliation remain open. |
 
 ## Commands and results
 
@@ -260,14 +268,16 @@ semantics, transport/reconnect, persistence, host workflows, and audio continuit
 must use null/mock/synthetic endpoints unless separate real-device authorization is given.
 
 This session can run Windows x64 checks. Linux x64/ARM64 and macOS x64/ARM64 are CI-only here;
-Raspberry Pi targets and all physical ASIO/JACK/audio-device, hotplug, native webview, focus, DPI,
-and dialog checks are unavailable or deliberately not attempted. No real device was probed.
+Raspberry Pi targets and all physical audio streams, hotplug, native webview, focus, DPI, and
+dialog checks are unavailable or deliberately not attempted. The no-stream backend probe inspected
+installed hosts; no physical stream was opened.
 
 ## Next task
 
-Next dependency-ready work: continue T15 by extracting the reusable QuickJS VM, budgets, deadlines,
-and effect journal into `golden_script` behind explicit host contracts, then prove the boundary with
-a tiny fake host and lightweight public runtime consumers.
+Next dependency-ready work: finish T17's current oversized-file inventory, split cohesive
+responsibilities near the already changed boundaries, and reconcile outdated progress notes. T18
+then profiles real app-owned formula/lane computation before deciding whether parallel execution
+is justified. T19 retains the exact-artifact cross-platform and physical-product evidence gate.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

@@ -1580,7 +1580,8 @@ fn processor_mirrors_formula_icon() {
                 ..PresentationHint::default()
             }),
             ..NodeMetaPatch::default()
-        },
+        }
+        .into(),
     });
     assert!(ack.success, "Formula icon patch should succeed: {ack:?}");
     engine

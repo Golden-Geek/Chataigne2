@@ -276,6 +276,11 @@ jobs:
         env:
           GC_UI_ASSUME_BUILT: 1
         run: cargo build --target ${{ matrix.target }}
+      - name: Verify ordinary desktop audio hosts
+        if: ${{ matrix.id != 'rpi-armhf' }}
+        env:
+          GC_UI_ASSUME_BUILT: 1
+        run: cargo test --locked -p Chataigne2 --test default_audio_hosts --target ${{ matrix.target }}
       - name: Portable headless compatibility check (Linux armhf)
         if: ${{ matrix.id == 'rpi-armhf' }}
         shell: bash
