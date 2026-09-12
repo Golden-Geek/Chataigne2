@@ -59,37 +59,17 @@ impl<T: Node> HistoryStep<T> {
                 undo_add_node(engine, step, true)?;
             }
             Self::RemoveNode(step) => {
-                const OP: &str = "UndoRemoveNode";
-
-                let Some(detached_nodes) = step.detached_nodes.take() else {
-                    return Ok(());
-                };
-
-                let created_ids: Vec<NodeId> = detached_nodes.iter().map(|(id, _)| *id).collect();
-                for (id, node) in detached_nodes {
-                    engine.nodes.reattach(id, node);
-                    engine.register_node_uuid(id);
-                    engine.populate_param_cache_entry(id);
+                if let Some(ready_ids) = restore_remove_node(engine, step)? {
+                    push_history_subtree_inserted_ui_event(
+                        engine,
+                        "UndoRemoveNode",
+                        step.node,
+                        step.parent,
+                        &ready_ids,
+                    )?;
+                    emit_restored_remove_node_events(engine, step, &ready_ids)?;
+                    engine.run_node_ready_for_subtree(ready_ids.as_slice(), crate::node::NodeCreationContext::Fresh)?;
                 }
-
-                attach_node_for_history(engine, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
-
-                let mut ready_ids = created_ids;
-                ready_ids.reverse();
-
-                push_history_subtree_inserted_ui_event(engine, OP, step.node, step.parent, &ready_ids)?;
-
-                for node in ready_ids.iter().copied() {
-                    engine.emit_inbox_event(EventKind::NodeCreated { node });
-                }
-                let decl_id = child_decl_id(engine, 0, OP, step.node)?;
-                engine.emit_inbox_event(EventKind::ChildAdded {
-                    parent: step.parent,
-                    child: step.node,
-                    decl_id,
-                });
-
-                engine.run_node_ready_for_subtree(ready_ids.as_slice(), crate::node::NodeCreationContext::Fresh)?;
             }
             Self::MoveNode(step) => {
                 const OP: &str = "UndoMoveNode";
@@ -288,41 +268,7 @@ impl<T: Node> HistoryStep<T> {
                 }
             }
             Self::RemoveNode(step) => {
-                const OP: &str = "RedoRemoveNode";
-
-                if step.detached_nodes.is_some() {
-                    return Ok(());
-                }
-
-                let subtree = engine.collect_subtree(0, OP, step.node)?;
-                engine.run_destroy_for_subtree(subtree.as_slice());
-                let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
-                engine.detach_node(0, OP, step.node)?;
-
-                let mut detached_nodes = Vec::with_capacity(subtree.len());
-                let removed_ids = subtree.clone();
-                for removed in subtree.into_iter().rev() {
-                    engine.unregister_node_uuid(removed);
-                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: removed,
-                    })?;
-                    detached_nodes.push((removed, detached));
-                    engine.purge_param_cache_entry(removed);
-                    engine.emit_inbox_event(EventKind::NodeDeleted { node: removed });
-                }
-
-                engine.emit_inbox_event(EventKind::ChildRemoved {
-                    parent,
-                    child: step.node,
-                });
-                push_history_subtree_removed_ui_event(engine, step.node, removed_ids, parent);
-
-                step.parent = parent;
-                step.prev_sibling = prev_sibling;
-                step.next_sibling = next_sibling;
-                step.detached_nodes = Some(detached_nodes);
+                redo_remove_node(engine, step, true)?;
             }
             Self::MoveNode(step) => {
                 const OP: &str = "RedoMoveNode";
@@ -663,6 +609,94 @@ pub(super) fn emit_added_node_events<T: Node>(
         decl_id,
     });
     Ok(())
+}
+
+pub(super) fn restore_remove_node<T: Node>(
+    engine: &mut Engine<T>,
+    step: &mut RemoveNodeHistory<T>,
+) -> Result<Option<Vec<NodeId>>, EngineEditError> {
+    const OP: &str = "UndoRemoveNode";
+    let Some(detached_nodes) = step.detached_nodes.take() else {
+        return Ok(None);
+    };
+
+    let created_ids: Vec<NodeId> = detached_nodes.iter().map(|(id, _)| *id).collect();
+    for (id, node) in detached_nodes {
+        engine.nodes.reattach(id, node);
+        engine.register_node_uuid(id);
+        engine.populate_param_cache_entry(id);
+    }
+    attach_node_for_history(engine, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
+
+    let mut ready_ids = created_ids;
+    ready_ids.reverse();
+    Ok(Some(ready_ids))
+}
+
+pub(super) fn emit_restored_remove_node_events<T: Node>(
+    engine: &mut Engine<T>,
+    step: &RemoveNodeHistory<T>,
+    ready_ids: &[NodeId],
+) -> Result<(), EngineEditError> {
+    for node in ready_ids.iter().copied() {
+        engine.emit_inbox_event(EventKind::NodeCreated { node });
+    }
+    let decl_id = child_decl_id(engine, 0, "UndoRemoveNode", step.node)?;
+    engine.emit_inbox_event(EventKind::ChildAdded {
+        parent: step.parent,
+        child: step.node,
+        decl_id,
+    });
+    Ok(())
+}
+
+pub(super) fn redo_remove_node<T: Node>(
+    engine: &mut Engine<T>,
+    step: &mut RemoveNodeHistory<T>,
+    run_destroy: bool,
+) -> Result<Option<(NodeId, Vec<NodeId>, NodeId)>, EngineEditError> {
+    const OP: &str = "RedoRemoveNode";
+    if step.detached_nodes.is_some() {
+        return Ok(None);
+    }
+
+    let subtree = engine.collect_subtree(0, OP, step.node)?;
+    if run_destroy {
+        engine.run_destroy_for_subtree(subtree.as_slice());
+    }
+    let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
+    engine.detach_node(0, OP, step.node)?;
+
+    let mut detached_nodes = Vec::with_capacity(subtree.len());
+    let removed_ids = subtree.clone();
+    for removed in subtree.into_iter().rev() {
+        engine.unregister_node_uuid(removed);
+        let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
+            edit_index: 0,
+            operation: OP,
+            node: removed,
+        })?;
+        detached_nodes.push((removed, detached));
+        engine.purge_param_cache_entry(removed);
+        engine.emit_inbox_event(EventKind::NodeDeleted { node: removed });
+    }
+
+    engine.emit_inbox_event(EventKind::ChildRemoved {
+        parent,
+        child: step.node,
+    });
+    let removed = if run_destroy {
+        push_history_subtree_removed_ui_event(engine, step.node, removed_ids, parent);
+        None
+    } else {
+        Some((step.node, removed_ids, parent))
+    };
+
+    step.parent = parent;
+    step.prev_sibling = prev_sibling;
+    step.next_sibling = next_sibling;
+    step.detached_nodes = Some(detached_nodes);
+    Ok(removed)
 }
 
 fn push_history_subtree_inserted_ui_event<T: Node>(

@@ -6,7 +6,7 @@ use golden_core::{
         prepare_engine_for_runtime, to_sparse_project_json_pretty,
     },
     node::{Node, NodeId, NodeUuid},
-    ui_sync::UiDuplicateNodeSpec,
+    ui_sync::{UiDuplicateNodeSpec, UiEditIntent},
 };
 use sysinfo::{ProcessesToUpdate, System, get_current_pid};
 
@@ -291,6 +291,86 @@ fn authored_graph_duplicates_and_replays_one_live_edit() {
             "manager_phase_ns_after_duplicate": phase_ns_after_duplicate,
             "manager_phase_ns_after_undo": phase_ns_after_undo,
             "manager_phase_ns_after_redo": phase_ns_after_redo,
+        })
+    );
+}
+
+#[test]
+#[ignore = "manual T19 active authored-graph multi-root removal qualification"]
+fn authored_graph_removes_and_replays_one_live_edit() {
+    let _performance_guard = lock_performance_test();
+    let fixture = PathBuf::from(
+        std::env::var_os("CHATAIGNE_AUTHORED_SCALE_FIXTURE")
+            .expect("set CHATAIGNE_AUTHORED_SCALE_FIXTURE to a generated project path"),
+    );
+    let remove_count = std::env::var("CHATAIGNE_AUTHORED_SCALE_REMOVALS")
+        .expect("set CHATAIGNE_AUTHORED_SCALE_REMOVALS")
+        .parse::<usize>()
+        .expect("removal count must be an integer");
+    let mut engine = load_sparse_project_file::<AppNode, _>(&fixture).expect("authored project should load");
+    configure_loaded_engine(&mut engine).expect("authored project should configure");
+    prepare_engine_for_runtime(&mut engine).expect("authored project should prepare");
+    engine.run_tick(Duration::from_millis(8)).expect("authored project should warm");
+
+    let mut sources = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.node_data().meta.decl_id.0.starts_with("scale_constant_"))
+        .map(|(id, node)| (node.node_data().meta.decl_id.0.clone(), id, node.node_data().parent))
+        .collect::<Vec<_>>();
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
+    assert!(sources.len() >= remove_count);
+    let formula = sources[0].2.expect("graph root should belong to a formula");
+    let children_before = direct_child_uuids(&engine, formula);
+    let roots_before = graph_root_uuids(&engine);
+    let live_nodes_before = engine.nodes.iter().count();
+    let nodes = sources.iter().take(remove_count).map(|(_, id, _)| *id).collect::<Vec<_>>();
+    assert!(sources.iter().take(remove_count).all(|(_, _, parent)| *parent == Some(formula)));
+
+    let started = Instant::now();
+    let acknowledgement = engine.apply_ui_intent(UiEditIntent::RemoveNodes { nodes });
+    let remove_ms = started.elapsed().as_millis();
+    assert!(acknowledgement.success, "remove intent should succeed: {acknowledgement:?}");
+    assert_eq!(engine.undo_len(), 1, "multi-select delete should create one undo transaction");
+    let live_nodes_after = engine.nodes.iter().count();
+    let children_after = direct_child_uuids(&engine, formula);
+    assert_eq!(children_after.len() + remove_count, children_before.len());
+    assert_eq!(graph_root_uuids(&engine).len() + remove_count, roots_before.len());
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("removed graph should tick");
+    let remove_tick_ms = started.elapsed().as_millis();
+
+    let started = Instant::now();
+    assert!(engine.undo().expect("undo should succeed"));
+    let undo_ms = started.elapsed().as_millis();
+    assert_eq!(engine.nodes.iter().count(), live_nodes_before);
+    assert_eq!(direct_child_uuids(&engine, formula), children_before);
+    assert_eq!(graph_root_uuids(&engine), roots_before);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("restored graph should tick");
+    let undo_tick_ms = started.elapsed().as_millis();
+
+    let started = Instant::now();
+    assert!(engine.redo().expect("redo should succeed"));
+    let redo_ms = started.elapsed().as_millis();
+    assert_eq!(engine.nodes.iter().count(), live_nodes_after);
+    assert_eq!(direct_child_uuids(&engine, formula), children_after);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("removed graph should tick after redo");
+    let redo_tick_ms = started.elapsed().as_millis();
+
+    println!(
+        "AUTHORED_LIVE_REMOVE_RESULT={}",
+        serde_json::json!({
+            "base_nodes": live_nodes_before,
+            "removed_roots": remove_count,
+            "removed_nodes": live_nodes_before - live_nodes_after,
+            "remove_ms": remove_ms,
+            "remove_tick_ms": remove_tick_ms,
+            "undo_ms": undo_ms,
+            "undo_tick_ms": undo_tick_ms,
+            "redo_ms": redo_ms,
+            "redo_tick_ms": redo_tick_ms,
         })
     );
 }

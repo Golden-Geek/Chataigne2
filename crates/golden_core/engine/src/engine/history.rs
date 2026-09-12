@@ -108,6 +108,9 @@ impl<T: Node> HistoryTransaction<T> {
         if self.is_same_parent_add_batch() {
             return self.undo_add_batch(engine);
         }
+        if self.is_same_parent_remove_batch() {
+            return self.undo_remove_batch(engine);
+        }
         for step in self.steps.iter_mut().rev() {
             step.undo(engine)?;
         }
@@ -118,6 +121,9 @@ impl<T: Node> HistoryTransaction<T> {
     fn redo(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
         if self.is_same_parent_add_batch() {
             return self.redo_add_batch(engine);
+        }
+        if self.is_same_parent_remove_batch() {
+            return self.redo_remove_batch(engine);
         }
         for step in self.steps.iter_mut() {
             step.redo(engine)?;

@@ -268,7 +268,7 @@ require exact live-node-count equality after reload. All three sizes pass that s
 The manager tracks its own generated validity output between snapshots, so a later true-to-false
 transition is not hidden by a stale value in the retained startup snapshot.
 
-The latest full suite has 520 active app passes and two ignored manual T19 scale cases; the
+The latest full suite has 522 active app passes and three ignored manual T19 scale cases; the
 previous intermittent multiplex active-runtime timing failure did not reproduce in this run.
 Strict app/engine Clippy, 40 qualification-tool tests, and 422 active Golden Engine unit tests
 pass. Preparation adds 156 runtime nodes at each authored-graph size. Sparse reload now has the
@@ -314,6 +314,22 @@ snapshot cost, and the
 600-node full-workbench action target and sparse/dense edit, transport, and browser gates remain
 open; this is not a live-edit capacity pass.
 
+## T19 live multi-root removal baseline
+
+The ignored active-runtime removal probe selects ten independent Constant ANode roots under one
+Formula, removes them through `RemoveNodes` as one history transaction, and checks exact sibling
+order and graph-root count through undo and redo. The 100k authored fixture removes 140 live
+records from 100,239. Before removal batching, one local run measured 3,285 ms remove,
+8,751 ms undo, and 2,838 ms redo. A later run with same-parent destroy, history replay, and UI
+graph-transaction batching measured 746, 827, and 319 ms respectively; the first active ticks
+after those edits measured 423, 571, and 824 ms. On the 10k fixture, the batched run measured
+57, 66, and 26 ms for remove, undo, and redo. Generic Golden Engine tests cover nonadjacent
+sibling removal and one UI graph transaction for each replay direction; the app UI test covers
+multi-removal projection with the final parent-order patch. These are single local diagnostic
+samples, not p95 or action-to-paint evidence. The 100k removal action and runtime ticks still
+exceed the provisional 500 ms diagnostic threshold; the 600-node full-workbench product target
+and sparse/dense edit, transport, browser, platform, and physical gates remain open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -337,7 +353,7 @@ open; this is not a live-edit capacity pass.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; five sampled ticks meet 8 ms at 1k/10k/100k; ten-root live duplicate/undo/redo preserves order but exceeds product action budgets, while tail latency, end-to-end, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; five sampled ticks meet 8 ms at 1k/10k/100k; ten-root live duplicate and removal replay preserve order but exceed product action budgets, while tail latency, end-to-end, platform, and physical evidence remain open |
 
 ## Finding status
 
@@ -535,8 +551,9 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to reduce remaining active-runtime event/snapshot costs, then exercise large live
-Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
+T19 next needs to reduce remaining active-runtime event/snapshot costs and qualify nested/mixed
+selection behavior, then exercise large live Formula/state/graph edits, UI/transport, multi-client,
+and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and

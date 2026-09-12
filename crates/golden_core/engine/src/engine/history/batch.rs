@@ -1,4 +1,7 @@
-use super::replay::{emit_added_node_events, restore_add_node, undo_add_node};
+use super::replay::{
+    emit_added_node_events, emit_restored_remove_node_events, redo_remove_node, restore_add_node, restore_remove_node,
+    undo_add_node,
+};
 use super::*;
 use crate::node::NodeCreationContext;
 
@@ -14,6 +17,19 @@ impl<T: Node> HistoryTransaction<T> {
         self.steps
             .iter()
             .all(|step| matches!(step, HistoryStep::AddNode(add) if add.parent == first.parent))
+    }
+
+    /// Same-parent removals are disjoint and can share lifecycle and UI snapshots.
+    pub(super) fn is_same_parent_remove_batch(&self) -> bool {
+        if self.steps.len() < 2 {
+            return false;
+        }
+        let HistoryStep::RemoveNode(first) = &self.steps[0] else {
+            return false;
+        };
+        self.steps
+            .iter()
+            .all(|step| matches!(step, HistoryStep::RemoveNode(remove) if remove.parent == first.parent))
     }
 
     pub(super) fn undo_add_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
@@ -59,29 +75,61 @@ impl<T: Node> HistoryTransaction<T> {
             restored.push((add.node, add.parent, ready_ids));
         }
 
-        let catalog_snapshot = engine.build_process_tree_snapshot();
-        let mut ops = Vec::with_capacity(restored.len());
-        for (root, parent, ready_ids) in restored {
-            let mut nodes = Vec::with_capacity(ready_ids.len());
-            for node_id in ready_ids {
-                let snapshot = engine
-                    .ui_node_dto_for_event_with_catalog_snapshot(node_id, catalog_snapshot.as_ref())
-                    .ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: "RedoAddNode",
-                        node: node_id,
-                    })?;
-                nodes.push(snapshot);
-            }
-            ops.push(UiGraphOp::SubtreeInserted {
-                root,
-                parent,
-                nodes,
-                parent_children_after: engine.ui_direct_children(parent).unwrap_or_default(),
-            });
-        }
-        engine.push_ui_graph_transaction(ops);
+        push_restored_subtrees_ui_transaction(engine, &restored, "RedoAddNode")?;
         engine.run_node_ready_for_batch(&all_ready_ids, NodeCreationContext::Fresh)
+    }
+
+    pub(super) fn undo_remove_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
+        if self
+            .steps
+            .iter()
+            .any(|step| matches!(step, HistoryStep::RemoveNode(remove) if remove.detached_nodes.is_none()))
+        {
+            return self.undo_steps_individually(engine);
+        }
+
+        let mut restored = Vec::with_capacity(self.steps.len());
+        let mut all_ready_ids = Vec::new();
+        for step in self.steps.iter_mut().rev() {
+            let HistoryStep::RemoveNode(remove) = step else {
+                unreachable!("batch eligibility was checked");
+            };
+            let ready_ids = restore_remove_node(engine, remove)?.expect("all removals have detached payloads");
+            emit_restored_remove_node_events(engine, remove, &ready_ids)?;
+            all_ready_ids.extend(ready_ids.iter().copied());
+            restored.push((remove.node, remove.parent, ready_ids));
+        }
+
+        push_restored_subtrees_ui_transaction(engine, &restored, "UndoRemoveNode")?;
+        engine.run_node_ready_for_batch(&all_ready_ids, NodeCreationContext::Fresh)
+    }
+
+    pub(super) fn redo_remove_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
+        if self
+            .steps
+            .iter()
+            .any(|step| matches!(step, HistoryStep::RemoveNode(remove) if remove.detached_nodes.is_some()))
+        {
+            return self.redo_steps_individually(engine);
+        }
+
+        let mut all_nodes = Vec::new();
+        for step in self.steps.iter().rev() {
+            let HistoryStep::RemoveNode(remove) = step else {
+                unreachable!("batch eligibility was checked");
+            };
+            all_nodes.extend(engine.collect_subtree(0, "RedoRemoveNode", remove.node)?);
+        }
+        engine.run_destroy_for_subtree(&all_nodes);
+        let mut removed = Vec::with_capacity(self.steps.len());
+        for step in &mut self.steps {
+            let HistoryStep::RemoveNode(remove) = step else {
+                unreachable!("batch eligibility was checked");
+            };
+            removed.push(redo_remove_node(engine, remove, false)?.expect("all removals are attached"));
+        }
+        engine.push_removed_subtrees_ui_batch(removed);
+        Ok(())
     }
 
     fn undo_steps_individually(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
@@ -97,4 +145,34 @@ impl<T: Node> HistoryTransaction<T> {
         }
         Ok(())
     }
+}
+
+fn push_restored_subtrees_ui_transaction<T: Node>(
+    engine: &mut Engine<T>,
+    restored: &[(NodeId, NodeId, Vec<NodeId>)],
+    operation: &'static str,
+) -> Result<(), EngineEditError> {
+    let catalog_snapshot = engine.build_process_tree_snapshot();
+    let mut ops = Vec::with_capacity(restored.len());
+    for (root, parent, ready_ids) in restored {
+        let mut nodes = Vec::with_capacity(ready_ids.len());
+        for node_id in ready_ids {
+            let snapshot = engine
+                .ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot.as_ref())
+                .ok_or(EngineEditError::NodeNotFound {
+                    edit_index: 0,
+                    operation,
+                    node: *node_id,
+                })?;
+            nodes.push(snapshot);
+        }
+        ops.push(UiGraphOp::SubtreeInserted {
+            root: *root,
+            parent: *parent,
+            nodes,
+            parent_children_after: engine.ui_direct_children(*parent).unwrap_or_default(),
+        });
+    }
+    engine.push_ui_graph_transaction(ops);
+    Ok(())
 }

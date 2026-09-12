@@ -1,12 +1,87 @@
 use super::*;
+use crate::edit::{Edit, EditRequest};
+use std::collections::HashSet;
 
 impl<T: Node> Engine<T> {
+    /// Collects a pure same-parent removal drain in reverse request order so one
+    /// destroy pass preserves each root's previous callback ordering.
+    pub(crate) fn same_parent_remove_batch_nodes(&self, requests: &[EditRequest]) -> Option<Vec<NodeId>> {
+        if requests.len() < 2 {
+            return None;
+        }
+        let mut parent = None;
+        let mut seen = HashSet::with_capacity(requests.len());
+        let mut roots = Vec::with_capacity(requests.len());
+        for request in requests {
+            let Edit::RemoveNode { node } = &request.edit else {
+                return None;
+            };
+            let node = *node;
+            if !seen.insert(node) {
+                return None;
+            }
+            let root_parent = self.node_position(0, "RemoveNode", node).ok()?.0;
+            if let Some(parent) = parent {
+                if root_parent != parent {
+                    return None;
+                }
+            } else {
+                parent = Some(root_parent);
+            }
+            roots.push(node);
+        }
+
+        let mut all_nodes = Vec::new();
+        for root in roots.into_iter().rev() {
+            all_nodes.extend(self.collect_subtree(0, "RemoveNode", root).ok()?);
+        }
+        Some(all_nodes)
+    }
+
     /// Applies a remove-node edit and returns history data required for undo/redo.
     pub(crate) fn apply_remove_node(
         &mut self,
         edit_index: usize,
         node: NodeId,
         creation_context: Option<NodeCreationContext>,
+    ) -> Result<RemoveNodeEffect<T>, EngineEditError> {
+        self.apply_remove_node_inner(edit_index, node, creation_context, true, true)
+    }
+
+    pub(crate) fn apply_remove_node_after_batch_destroy(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<RemoveNodeEffect<T>, EngineEditError> {
+        self.apply_remove_node_inner(edit_index, node, creation_context, false, false)
+    }
+
+    pub(crate) fn push_removed_subtrees_ui_batch(&mut self, removed: Vec<(NodeId, Vec<NodeId>, NodeId)>) {
+        if removed.is_empty() {
+            return;
+        }
+        let mut ops = Vec::with_capacity(removed.len());
+        let last_index = removed.len() - 1;
+        for (index, (root, removed_ids, parent)) in removed.into_iter().enumerate() {
+            ops.push(UiGraphOp::SubtreeRemoved {
+                root,
+                removed_ids,
+                parent_after: (index == last_index)
+                    .then(|| self.ui_children_order_patch(parent))
+                    .flatten(),
+            });
+        }
+        self.push_ui_graph_transaction(ops);
+    }
+
+    fn apply_remove_node_inner(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        creation_context: Option<NodeCreationContext>,
+        run_destroy: bool,
+        emit_ui: bool,
     ) -> Result<RemoveNodeEffect<T>, EngineEditError> {
         const OP: &str = "RemoveNode";
 
@@ -21,7 +96,9 @@ impl<T: Node> Engine<T> {
         let (parent, prev_sibling, next_sibling) = self.node_position(edit_index, OP, node)?;
         let subtree = self.collect_subtree(edit_index, OP, node)?;
         let removed_ids = subtree.clone();
-        self.run_destroy_for_subtree(subtree.as_slice());
+        if run_destroy {
+            self.run_destroy_for_subtree(subtree.as_slice());
+        }
         self.detach_node(edit_index, OP, node)?;
 
         let mut detached_nodes = Vec::with_capacity(subtree.len());
@@ -41,7 +118,7 @@ impl<T: Node> Engine<T> {
         self.emit_inbox_event(EventKind::ChildRemoved { parent, child: node });
         // Project load discards UI graph transactions before the engine goes live,
         // so skip building removal ops (see the matching gate in apply_add_node).
-        if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
+        if emit_ui && !creation_context.is_some_and(NodeCreationContext::is_project_load) {
             self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeRemoved {
                 root: node,
                 removed_ids,

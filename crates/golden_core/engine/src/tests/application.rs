@@ -742,6 +742,88 @@ fn duplicate_nodes_batch_preserves_sibling_order_through_one_undo_and_redo() {
 }
 
 #[test]
+fn remove_nodes_batch_restores_nonadjacent_siblings_in_one_ui_transaction() {
+    let mut engine = Engine::new(Folder::new("Root"));
+    for label in ["A", "B", "C"] {
+        engine.add_node(Folder::new(label), None);
+    }
+    engine.apply_edits().expect("siblings should attach");
+    let root = engine.root;
+    let before = engine.ui_direct_children(root).expect("root children");
+    engine.clear_history();
+    engine.clear_ui_event_log();
+
+    let acknowledgement = engine.apply_ui_intent(UiEditIntent::RemoveNodes {
+        nodes: vec![before[0], before[2]],
+    });
+    assert!(acknowledgement.success, "remove should succeed: {acknowledgement:?}");
+    assert_eq!(engine.undo_len(), 1);
+    assert_eq!(engine.ui_direct_children(root), Some(vec![before[1]]));
+    let removal_batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let removal_transactions = removal_batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(removal_transactions.len(), 1);
+    assert_eq!(removal_transactions[0].ops.len(), 2);
+    assert!(matches!(
+        &removal_transactions[0].ops[0],
+        UiGraphOp::SubtreeRemoved { parent_after: None, .. }
+    ));
+    assert!(matches!(
+        &removal_transactions[0].ops[1],
+        UiGraphOp::SubtreeRemoved { parent_after: Some(patch), .. }
+            if patch.parent == root && patch.children == vec![before[1]]
+    ));
+
+    engine.clear_ui_event_log();
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(engine.ui_direct_children(root), Some(before.clone()));
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let graph_transactions = batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(graph_transactions.len(), 1);
+    assert_eq!(graph_transactions[0].ops.len(), 2);
+    assert!(graph_transactions[0].ops.iter().all(
+        |op| matches!(op, UiGraphOp::SubtreeInserted { parent_children_after, .. } if parent_children_after == &before)
+    ));
+
+    engine.clear_ui_event_log();
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(engine.ui_direct_children(root), Some(vec![before[1]]));
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let graph_transactions = batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(graph_transactions.len(), 1);
+    assert_eq!(graph_transactions[0].ops.len(), 2);
+    assert!(matches!(
+        &graph_transactions[0].ops[0],
+        UiGraphOp::SubtreeRemoved { parent_after: None, .. }
+    ));
+    assert!(matches!(
+        &graph_transactions[0].ops[1],
+        UiGraphOp::SubtreeRemoved { parent_after: Some(patch), .. }
+            if patch.parent == root && patch.children == vec![before[1]]
+    ));
+}
+
+#[test]
 fn duplicate_nodes_batch_rolls_back_all_roots_when_later_lifecycle_fails() {
     FAILED_DUPLICATE_OWNER_RELEASED.store(false, Ordering::SeqCst);
     let root: FacadeTestNode = Folder::new("Root").into();

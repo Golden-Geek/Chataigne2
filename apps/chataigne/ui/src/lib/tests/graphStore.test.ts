@@ -74,6 +74,51 @@ const snapshot = (): UiSnapshot =>
 	}) as UiSnapshot;
 
 describe('graph store scaling', () => {
+	it('applies one multi-root removal transaction with a final parent order patch', () => {
+		const store = createGraphStore();
+		const original = snapshot();
+		const root = { ...parameterNode(), children: [2, 3, 4] };
+		const children = [2, 3, 4].map((nodeId) => ({
+			...parameterNode(),
+			node_id: nodeId,
+			uuid: `00000000-0000-0000-0000-${String(nodeId).padStart(12, '0')}`,
+			children: []
+		}));
+		store.loadSnapshot({ ...original, nodes: [root, ...children] });
+
+		const changed = store.applyBatch({
+			from: eventTime(0),
+			to: eventTime(1),
+			events: [
+				{
+					time: eventTime(1),
+					kind: {
+						kind: 'graphTransaction',
+						tx_id: 1,
+						epoch: 1,
+						base_graph_version: 0,
+						next_graph_version: 1,
+						ops: [
+							{ kind: 'subtreeRemoved', root: 2, removed_ids: [2] },
+							{
+								kind: 'subtreeRemoved',
+								root: 4,
+								removed_ids: [4],
+								parent_after: { parent: 1, children: [3] }
+							}
+						]
+					}
+				}
+			]
+		});
+
+		expect(changed).toBe(true);
+		expect(store.state.childrenById.get(1)).toEqual([3]);
+		expect(store.state.nodesById.has(2)).toBe(false);
+		expect(store.state.nodesById.has(3)).toBe(true);
+		expect(store.state.nodesById.has(4)).toBe(false);
+	});
+
 	it('forks numeric indexes without copying prior entries', () => {
 		const original = new VersionedNodeMap<string>(
 			Array.from({ length: 10_000 }, (_, index) => [index, `value-${index}`] as const)

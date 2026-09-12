@@ -94,7 +94,17 @@ impl<T: Node> Engine<T> {
         let mut missing_reference_warning_dirty = false;
         let mut user_context_graph_dirty = false;
 
-        for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
+        let requests = self.edits.drain();
+        let remove_batch_nodes = self.same_parent_remove_batch_nodes(&requests);
+        let batch_destroyed = remove_batch_nodes.is_some();
+        let emit_remove_batch_ui =
+            batch_destroyed && !creation_context.is_some_and(NodeCreationContext::is_project_load);
+        let mut removed_batch_ui = Vec::new();
+        if let Some(node_ids) = remove_batch_nodes {
+            self.run_destroy_for_subtree(&node_ids);
+        }
+
+        for (edit_index, request) in requests.into_iter().enumerate() {
             let project_dirty_node = opaque_project_dirty_node(&request.edit);
             let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request
                 .edit
@@ -277,8 +287,24 @@ impl<T: Node> Engine<T> {
                 Edit::RemoveNode { node } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
-                    let effect = self.apply_remove_node(edit_index, node, creation_context)?;
-                    (Ok(Some(effect.into())), true)
+                    let result = if batch_destroyed {
+                        self.apply_remove_node_after_batch_destroy(edit_index, node, creation_context)
+                    } else {
+                        self.apply_remove_node(edit_index, node, creation_context)
+                    };
+                    match result {
+                        Ok(effect) => {
+                            if emit_remove_batch_ui {
+                                removed_batch_ui.push((
+                                    effect.node,
+                                    effect.detached_nodes.iter().rev().map(|(id, _)| *id).collect(),
+                                    effect.parent,
+                                ));
+                            }
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Err(err) => (Err(err), false),
+                    }
                 }
                 Edit::MoveNode {
                     node,
@@ -367,12 +393,19 @@ impl<T: Node> Engine<T> {
                     }
                 }
                 Err(err) => {
+                    if emit_remove_batch_ui {
+                        self.push_removed_subtrees_ui_batch(std::mem::take(&mut removed_batch_ui));
+                    }
                     if capture_history && !transaction.is_empty() {
                         self.push_undo_transaction(transaction);
                     }
                     return Err(err);
                 }
             }
+        }
+
+        if emit_remove_batch_ui {
+            self.push_removed_subtrees_ui_batch(removed_batch_ui);
         }
 
         if capture_history && !transaction.is_empty() {
