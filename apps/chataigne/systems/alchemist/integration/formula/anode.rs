@@ -5,6 +5,10 @@ pub struct AlchemistInputSocket {}
 
 #[node("alchemist_input_socket", from_struct)]
 impl Node for AlchemistInputSocket {
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
         self.node_data_mut().meta.can_be_disabled = false;
@@ -20,6 +24,10 @@ pub struct AlchemistOutputSocket {}
 
 #[node("alchemist_output_socket", from_struct)]
 impl Node for AlchemistOutputSocket {
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
         self.node_data_mut().meta.can_be_disabled = false;
@@ -50,14 +58,19 @@ pub struct AlchemistANode {}
 
 #[node("alchemist_anode", from_struct)]
 impl Node for AlchemistANode {
+    // Attachment binds declared children; ready reconciles the authored surface.
+    // Init only adjusts metadata, so it must not force a whole-graph snapshot.
+    fn init_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn user_item_kind(&self) -> &str {
         ANODE_ITEM_KIND
     }
 
-    fn init(&mut self, ctx: &mut ProcessCtx) {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
         self.node_data_mut().meta.can_be_disabled = true;
-        self.reconcile_structure(ctx);
     }
 
     fn on_node_ready(

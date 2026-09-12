@@ -450,6 +450,19 @@ duplicate/remove/mixed-remove actions measured 81/43/45 ms; at 100k they measure
 This covers the backend edit/history shape, not browser paint, transport, parameter-dense
 mutation, or p95 action-to-paint. The proposed full-workbench 100k gate remains open.
 
+The ANode lifecycle now reconciles its authored structure at ready, not redundantly at init;
+socket metadata initialization likewise does not request a tree snapshot. The fixed 602-record
+100k duplicate probe still passed its structure and undo/redo assertions, and its init-stage
+100k-node snapshot disappeared. One local backend duplicate sample fell from 834 to 648 ms;
+the following tick measured 368 ms. These are single diagnostic samples, not an end-to-end
+latency qualification, and the full-workbench gate remains open.
+
+The source-fingerprinted `target/qualification/authored-graph-scale/20260912T234031Z/` matrix
+passed all twelve startup/live scenarios with this change. Its single 100k duplicate action
+measured 630 ms for the 602-record insert, followed by a 371 ms tick; same-parent and mixed
+removal actions measured 618 and 542 ms. The report still declares
+`product_qualification: OPEN`.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
