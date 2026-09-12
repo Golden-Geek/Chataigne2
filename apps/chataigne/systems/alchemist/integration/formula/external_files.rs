@@ -568,8 +568,8 @@ impl AlchemistFormulaDefinition {
                 };
                 formula.reconcile_properties(ctx);
                 formula.sync_property_getters(ctx);
-                formula.sync_anode_sockets(ctx, None);
-                formula.validate(ctx);
+                let materialized_formula = formula.sync_anode_sockets(ctx, None);
+                formula.validate(ctx, materialized_formula);
                 formula.enforce_external_formula_permissions(ctx);
                 Ok(())
             }),

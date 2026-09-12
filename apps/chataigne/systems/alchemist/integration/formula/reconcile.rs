@@ -46,10 +46,12 @@ impl AlchemistFormulaDefinition {
         }
     }
 
-    pub(super) fn sync_anode_sockets(&self, ctx: &mut ProcessCtx, skip_anode: Option<NodeId>) {
-        let Some(snapshot) = ctx.tree_snapshot_arc() else {
-            return;
-        };
+    pub(super) fn sync_anode_sockets(
+        &self,
+        ctx: &mut ProcessCtx,
+        skip_anode: Option<NodeId>,
+    ) -> Option<AlchemistFormula> {
+        let snapshot = ctx.tree_snapshot_arc()?;
         let nodes = registry();
         for child in snapshot.child_ids(self.id()) {
             if Some(child) == skip_anode {
@@ -74,9 +76,7 @@ impl AlchemistFormulaDefinition {
             };
             sync_auto_input_count(ctx, &snapshot, child, config_folder, &type_id);
         }
-        let Ok(formula) = formula_from_snapshot(&snapshot, self.id()) else {
-            return;
-        };
+        let formula = formula_from_snapshot(&snapshot, self.id()).ok()?;
         let value_types = value_types();
         let solved = solve_document_types(
             &formula.graph,
@@ -214,6 +214,7 @@ impl AlchemistFormulaDefinition {
                 );
             }
         }
+        Some(formula)
     }
 
     pub(super) fn sync_property_getters(&self, ctx: &mut ProcessCtx) {
@@ -273,24 +274,32 @@ impl AlchemistFormulaDefinition {
         }
     }
 
-    pub(super) fn validate(&mut self, ctx: &mut ProcessCtx) {
+    pub(super) fn validate(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        materialized_formula: Option<AlchemistFormula>,
+    ) {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return;
         };
         let anode_node_ids = formula_anode_node_ids(snapshot, self.id());
         let mut node_diagnostics = HashMap::<NodeId, Vec<String>>::new();
-        let result = formula_from_snapshot(snapshot, self.id()).map(|formula| {
-            let value_types = value_types();
-            let nodes = registry();
-            compile_graph(
-                &formula.graph,
-                &CompileCtx {
-                    value_types,
-                    nodes,
-                    properties: Some(&formula.properties),
-                },
-            )
-        });
+        // Retry extraction only after socket sync failed, preserving the validation error.
+        let result = materialized_formula
+            .map(Ok)
+            .unwrap_or_else(|| formula_from_snapshot(snapshot, self.id()))
+            .map(|formula| {
+                let value_types = value_types();
+                let nodes = registry();
+                compile_graph(
+                    &formula.graph,
+                    &CompileCtx {
+                        value_types,
+                        nodes,
+                        properties: Some(&formula.properties),
+                    },
+                )
+            });
         let (valid, diagnostics) = match result {
             Ok(compilation) => {
                 for diagnostic in &compilation.diagnostics {

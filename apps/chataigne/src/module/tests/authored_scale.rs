@@ -56,6 +56,22 @@ fn manager_formula_materializations(engine: &AppEngine) -> u64 {
         .expect("project should contain a state-machine manager")
 }
 
+fn manager_live_edit_phase_ns(engine: &AppEngine) -> [u64; 3] {
+    let stats = engine
+        .nodes
+        .iter()
+        .find_map(|(_, node)| match node {
+            AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats()),
+            _ => None,
+        })
+        .expect("project should contain a state-machine manager");
+    [
+        stats.formula_cache_refresh_ns,
+        stats.formula_catalog_build_ns,
+        stats.runtime_cache_rebuild_ns,
+    ]
+}
+
 #[test]
 fn initial_formula_cache_is_ready_before_the_first_runtime_tick() {
     let _performance_guard = lock_performance_test();
@@ -208,6 +224,7 @@ fn authored_graph_duplicates_and_replays_one_live_edit() {
     let children_before = direct_child_uuids(&engine, formula);
     let roots_before = graph_root_uuids(&engine);
     let live_nodes_before = engine.nodes.iter().count();
+    let phase_ns_before = manager_live_edit_phase_ns(&engine);
     let specs = sources
         .iter()
         .take(duplicate_count)
@@ -238,6 +255,7 @@ fn authored_graph_duplicates_and_replays_one_live_edit() {
     let started = Instant::now();
     engine.run_tick(Duration::from_millis(8)).expect("duplicated graph should tick");
     let duplicate_tick_ms = started.elapsed().as_millis();
+    let phase_ns_after_duplicate = manager_live_edit_phase_ns(&engine);
 
     let started = Instant::now();
     assert!(engine.undo().expect("undo should succeed"));
@@ -247,6 +265,7 @@ fn authored_graph_duplicates_and_replays_one_live_edit() {
     let started = Instant::now();
     engine.run_tick(Duration::from_millis(8)).expect("undone graph should tick");
     let undo_tick_ms = started.elapsed().as_millis();
+    let phase_ns_after_undo = manager_live_edit_phase_ns(&engine);
     let started = Instant::now();
     assert!(engine.redo().expect("redo should succeed"));
     let redo_ms = started.elapsed().as_millis();
@@ -255,6 +274,7 @@ fn authored_graph_duplicates_and_replays_one_live_edit() {
     let started = Instant::now();
     engine.run_tick(Duration::from_millis(8)).expect("redone graph should tick");
     let redo_tick_ms = started.elapsed().as_millis();
+    let phase_ns_after_redo = manager_live_edit_phase_ns(&engine);
     println!(
         "AUTHORED_LIVE_EDIT_RESULT={}",
         serde_json::json!({
@@ -267,6 +287,10 @@ fn authored_graph_duplicates_and_replays_one_live_edit() {
             "undo_tick_ms": undo_tick_ms,
             "redo_ms": redo_ms,
             "redo_tick_ms": redo_tick_ms,
+            "manager_phase_ns_before": phase_ns_before,
+            "manager_phase_ns_after_duplicate": phase_ns_after_duplicate,
+            "manager_phase_ns_after_undo": phase_ns_after_undo,
+            "manager_phase_ns_after_redo": phase_ns_after_redo,
         })
     );
 }

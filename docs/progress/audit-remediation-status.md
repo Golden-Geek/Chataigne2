@@ -298,7 +298,13 @@ single local diagnostics, not tail-latency or action-to-paint qualification. Fur
 state-machine event gating removed a second full-tree snapshot for unrelated custom events and
 skipped state-network traversal for Formula child edits. One later 100k run measured 852 ms
 post-duplicate, 1,076 ms post-undo, and 1,204 ms post-redo ticks; remaining dispatch work still
-exceeds the product gate. The
+exceeds the product gate. The ignored live-edit probe now records manager Formula cache refresh,
+catalog build, and runtime rebuild phase counters across the edit sequence. Tracing the same 100k
+fixture showed socket sync at about 103-118 ms and validation at about 81-85 ms per structural
+edit. Reusing socket sync's materialized Formula in validation reduced the latter to about 20-21 ms
+and the traced Formula callback to about 125-139 ms; one run's post-duplicate tick measured
+766 ms, with 1,043 ms post-undo and 1,176 ms post-redo. The full-tree dispatch snapshot still
+costs about 0.25 s per structural edit, and the
 600-node full-workbench action target and sparse/dense edit, transport, and browser gates remain
 open; this is not a live-edit capacity pass.
 

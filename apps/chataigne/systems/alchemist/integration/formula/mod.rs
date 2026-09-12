@@ -296,9 +296,22 @@ impl AlchemistFormulaDefinition {
         if needs_property_getters {
             self.sync_property_getters(ctx);
         }
+        let trace = std::env::var_os("GOLDEN_PERF_TRACE").is_some();
+        let sync_started = trace.then(std::time::Instant::now);
+        let materialized_formula = needs_reconcile.then(|| self.sync_anode_sockets(ctx, None)).flatten();
+        let sync_us = sync_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
+        let validate_started = trace.then(std::time::Instant::now);
         if needs_reconcile {
-            self.sync_anode_sockets(ctx, None);
-            self.validate(ctx);
+            self.validate(ctx, materialized_formula);
+        }
+        if let Some(started) = validate_started {
+            eprintln!(
+                "[formula] bulk_inbox events={} reconcile={} sync_us={} validate_us={}",
+                ctx.events.len(),
+                needs_reconcile,
+                sync_us,
+                started.elapsed().as_micros()
+            );
         }
         if has_child_added && self.is_read_only_external_formula() {
             self.enforce_external_formula_permissions(ctx);
@@ -352,8 +365,8 @@ impl Node for AlchemistFormulaDefinition {
         }
         self.reconcile_properties(ctx);
         self.sync_property_getters(ctx);
-        self.sync_anode_sockets(ctx, None);
-        self.validate(ctx);
+        let materialized_formula = self.sync_anode_sockets(ctx, None);
+        self.validate(ctx, materialized_formula);
         self.enforce_external_formula_permissions(ctx);
         self.schedule_external_formula_permission_enforcement(ctx);
     }
@@ -412,8 +425,8 @@ impl Node for AlchemistFormulaDefinition {
                     !is_anode_type_variable_config_param(snapshot, *anode, param)
                 })
         });
-        self.sync_anode_sockets(ctx, skip_anode);
-        self.validate(ctx);
+        let materialized_formula = self.sync_anode_sockets(ctx, skip_anode);
+        self.validate(ctx, materialized_formula);
         self.save_external_formula_file(ctx);
     }
 
@@ -423,8 +436,8 @@ impl Node for AlchemistFormulaDefinition {
         _parent: NodeId,
         _child: NodeId,
     ) {
-        self.sync_anode_sockets(ctx, None);
-        self.validate(ctx);
+        let materialized_formula = self.sync_anode_sockets(ctx, None);
+        self.validate(ctx, materialized_formula);
         if self.is_read_only_external_formula() {
             self.enforce_external_formula_subtree_permissions(ctx, _child);
             self.schedule_external_formula_permission_enforcement(ctx);
@@ -439,8 +452,8 @@ impl Node for AlchemistFormulaDefinition {
         _child: NodeId,
     ) {
         self.remove_dangling_connections(ctx);
-        self.sync_anode_sockets(ctx, None);
-        self.validate(ctx);
+        let materialized_formula = self.sync_anode_sockets(ctx, None);
+        self.validate(ctx, materialized_formula);
         self.save_external_formula_file(ctx);
     }
 
@@ -472,8 +485,8 @@ impl Node for AlchemistFormulaDefinition {
         }) {
             self.sync_property_getters(ctx);
         }
-        self.sync_anode_sockets(ctx, None);
-        self.validate(ctx);
+        let materialized_formula = self.sync_anode_sockets(ctx, None);
+        self.validate(ctx, materialized_formula);
         match shared_formula_rename {
             Some(SharedFormulaFileRename::Renamed(path)) => {
                 self.save_external_formula_file_to_path(ctx, path.as_path());
