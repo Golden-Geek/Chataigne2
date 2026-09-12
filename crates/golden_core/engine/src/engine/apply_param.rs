@@ -158,7 +158,7 @@ impl<T: Node> Engine<T> {
 
         // The tick snapshot caches param_constraints; invalidate it so subsequent
         // CallNodeMutation closures compare against the updated constraints.
-        self.tick_tree_snapshot = None;
+        self.clear_tick_tree_snapshot();
 
         self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value);
         self.emit_param_constraints_event(node, old_snapshot.constraints.clone(), new_snapshot.constraints.clone());

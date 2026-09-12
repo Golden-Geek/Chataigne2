@@ -61,8 +61,8 @@ impl<T: Node> Engine<T> {
     {
         let tick_started = Instant::now();
         self.tick_scratch.clear_stats();
-        self.tick_tree_snapshot = None;
-        let prepared_first_tick_snapshot = self.prepared_first_tick_snapshot.take();
+        self.clear_tick_tree_snapshot();
+        let mut prepared_first_tick_snapshot = self.prepared_first_tick_snapshot.take();
         self.tick_scratch.clear_scheduled();
         let preamble_ms = tick_started.elapsed().as_millis();
 
@@ -121,7 +121,10 @@ impl<T: Node> Engine<T> {
             && self.edits.pending.is_empty()
             && self.tick_tree_snapshot.is_none()
         {
-            self.tick_tree_snapshot = prepared_first_tick_snapshot;
+            self.tick_tree_snapshot = prepared_first_tick_snapshot.take();
+        }
+        if let Some(snapshot) = prepared_first_tick_snapshot {
+            self.retire_process_tree_snapshot(snapshot);
         }
 
         let scheduled_started = Instant::now();

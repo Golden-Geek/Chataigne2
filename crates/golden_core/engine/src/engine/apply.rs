@@ -86,7 +86,7 @@ impl<T: Node> Engine<T> {
     ) -> Result<(), EngineEditError> {
         self.absorb_external_edits()?;
         if !self.edits.pending.is_empty() {
-            self.prepared_first_tick_snapshot = None;
+            self.clear_prepared_first_tick_snapshot();
         }
 
         let mut transaction = HistoryTransaction::new();

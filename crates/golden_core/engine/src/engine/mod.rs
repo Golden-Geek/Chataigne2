@@ -1,5 +1,6 @@
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -10,6 +11,7 @@ use crate::node::*;
 #[cfg(test)]
 use crate::parameter::ParamValue;
 use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
+use golden_io::RetirementPool;
 pub use golden_model::EngineTime;
 
 /// Engine callback signature used to evaluate custom reference filters.
@@ -208,6 +210,8 @@ pub struct Engine<T: Node> {
     /// One-use snapshot built after runtime activation so the first scheduled update does
     /// not clone the whole tree. Discarded if edits or inbox work precede that update.
     pub(crate) prepared_first_tick_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    /// Caps concurrent off-thread releases of large immutable process snapshots.
+    snapshot_retirements: RetirementPool,
     /// Cached map of parameter node → current value, used by `run_scheduled_updates` so
     /// N due nodes share the same resolution table rather than rebuilding per node.
     ///
@@ -314,6 +318,7 @@ impl<T: Node> Engine<T> {
             control_index_dirty: true,
             tick_tree_snapshot: None,
             prepared_first_tick_snapshot: None,
+            snapshot_retirements: RetirementPool::new(NonZeroUsize::new(2).expect("retirement capacity is nonzero")),
             parameter_values_cache,
             tick_scratch: tick_scratch::TickScratch::default(),
             tick_accumulator: Duration::ZERO,
@@ -711,6 +716,14 @@ impl<T: Node> Engine<T> {
         self.tick_scratch.stats
     }
 
+    /// Returns bounded process-snapshot cleanup occupancy and rejection counters.
+    ///
+    /// A rejected retirement falls back to synchronous release instead of retaining
+    /// an unbounded backlog.
+    pub fn process_snapshot_retirement_metrics(&self) -> golden_io::RetirementMetricsSnapshot {
+        self.snapshot_retirements.metrics()
+    }
+
     /// Returns a cached snapshot for the current tick, building it on first call.
     /// Used by `apply_call_node_mutation` so N mutations share one build per tick.
     pub(crate) fn get_or_build_tick_snapshot(&mut self) -> Arc<ProcessTreeSnapshot> {
@@ -727,10 +740,36 @@ impl<T: Node> Engine<T> {
         snapshot
     }
 
+    pub(crate) fn retire_process_tree_snapshot(&self, snapshot: Arc<ProcessTreeSnapshot>) {
+        const RETIRE_NODE_THRESHOLD: usize = 10_000;
+        if snapshot.retained_node_count() < RETIRE_NODE_THRESHOLD || Arc::strong_count(&snapshot) != 1 {
+            return;
+        }
+        if let Err(error) = self
+            .snapshot_retirements
+            .try_retire("golden-process-snapshot-retire", snapshot, drop)
+        {
+            drop(error.into_value());
+        }
+    }
+
+    pub(crate) fn clear_tick_tree_snapshot(&mut self) {
+        if let Some(snapshot) = self.tick_tree_snapshot.take() {
+            self.retire_process_tree_snapshot(snapshot);
+        }
+    }
+
+    pub(crate) fn clear_prepared_first_tick_snapshot(&mut self) {
+        if let Some(snapshot) = self.prepared_first_tick_snapshot.take() {
+            self.retire_process_tree_snapshot(snapshot);
+        }
+    }
+
     pub(crate) fn prepare_first_tick_snapshot_if_needed(&mut self) {
         // Lifecycle callbacks may leave a prior tick-scoped snapshot behind. Retire it
         // during activation, outside the first time-budgeted runtime tick.
-        self.tick_tree_snapshot = None;
+        self.clear_tick_tree_snapshot();
+        self.clear_prepared_first_tick_snapshot();
         self.prepared_first_tick_snapshot = self
             .nodes
             .iter()

@@ -66,6 +66,10 @@ Process-tree parameter projection carries only value, constraints, and control s
 parameter snapshots still carry editor defaults and hints. Child-order slices remain indexed for
 every parent, while declaration IDs use a hash index only above 16 siblings. Smaller parents use
 a bounded ordered scan, preserving first-match semantics without allocating an index per folder.
+Large tick-scoped process snapshots release through a two-slot retirement pool when uniquely owned;
+small or shared snapshots use ordinary release. Saturation or worker-start failure falls back to
+synchronous release, and `process_snapshot_retirement_metrics` exposes occupancy and rejection.
+The pool starts no worker until a large snapshot is actually retired.
 
 `RecordingModuleIo` captures versioned inputs and authoritative outputs using an injected clock.
 Deterministic clocks keep protocol and hardware fixtures repeatable without putting polling or

@@ -49,8 +49,8 @@ impl<T: Node> Engine<T> {
     pub(crate) fn mark_schedule_dirty(&mut self) {
         self.runtime_resolve_pending = true;
         self.mark_param_control_index_dirty();
-        self.tick_tree_snapshot = None;
-        self.prepared_first_tick_snapshot = None;
+        self.clear_tick_tree_snapshot();
+        self.clear_prepared_first_tick_snapshot();
     }
 
     /// Inserts or refreshes the param cache entry for `node_id`.

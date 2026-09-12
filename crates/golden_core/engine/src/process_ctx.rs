@@ -276,6 +276,10 @@ impl ProcessTreeSnapshot {
         self.root
     }
 
+    pub(crate) fn retained_node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
     /// Returns one node snapshot by id.
     pub fn node(&self, node: NodeId) -> Option<&ProcessTreeNodeSnapshot> {
         self.nodes.get(&node)

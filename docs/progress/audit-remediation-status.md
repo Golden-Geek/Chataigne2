@@ -388,6 +388,15 @@ and 349/506/718 ms for following ticks; one ten-root duplicate run measured 815/
 diagnostic samples, not p95 or action-to-paint proof. The active-runtime and full-workbench gates
 remain open.
 
+The 100k mixed-parent removal trace also found an 81 ms preamble on the first tick after undo,
+consistent with releasing the prior large tick-scoped snapshot on the engine thread. Large,
+uniquely owned tick snapshots now release through a bounded two-slot retirement pool; saturation
+falls back to synchronous release and engine metrics expose active/peak/rejected counts. A focused
+test covers background completion and full-capacity fallback. In a separate run on the same
+100k fixture, the undo tick preamble measured 0 ms and the tick 450 ms, versus 81 ms and 503 ms
+before; remove and redo ticks were 349 and 693 ms. These are local single-run diagnostics, not
+p95 or action-to-paint evidence, and the product gate remains open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |

@@ -227,3 +227,37 @@ fn duplicate_uuid_lookup_preserves_first_snapshot_match() {
 
     assert_eq!(snapshot.node_id_by_uuid(duplicate_uuid), expected);
 }
+
+#[test]
+fn large_tick_snapshot_retirement_is_bounded() {
+    let make_snapshot = || {
+        let mut nodes = HashMap::with_capacity(10_000);
+        for value in 1..=10_000_u64 {
+            let node_id = NodeId(value);
+            nodes.insert(
+                node_id,
+                snapshot_node(node_id, NodeUuid(Uuid::from_u128(u128::from(value))), None),
+            );
+        }
+        Arc::new(ProcessTreeSnapshot::new(NodeId(1), nodes))
+    };
+    let mut engine = Engine::new(Folder::new("root"));
+    engine.tick_tree_snapshot = Some(make_snapshot());
+    engine.clear_tick_tree_snapshot();
+    assert!(engine.snapshot_retirements.wait_for_idle(Duration::from_secs(5)));
+    assert_eq!(engine.process_snapshot_retirement_metrics().peak, 1);
+
+    let first = engine
+        .snapshot_retirements
+        .try_reserve()
+        .expect("first retirement slot");
+    let second = engine
+        .snapshot_retirements
+        .try_reserve()
+        .expect("second retirement slot");
+    engine.tick_tree_snapshot = Some(make_snapshot());
+    engine.clear_tick_tree_snapshot();
+    assert_eq!(engine.process_snapshot_retirement_metrics().rejected, 1);
+    drop(first);
+    drop(second);
+}
