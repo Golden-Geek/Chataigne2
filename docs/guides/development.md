@@ -67,11 +67,23 @@ build can opt out with `cargo run --no-default-features`.
 | Bundled desktop application                      | `cargo run`                                                  |
 | Live frontend and supervised backend             | `cargo xtask watch`                                          |
 | Application connected to an existing Vite server | `cargo run -- --dev`                                         |
+| Optimized debug run for large graphs              | `cargo run --profile dev-perf`                               |
 | Headless host                                    | `cargo run -- --headless`                                    |
-| Rust workspace tests                             | `cargo test --workspace`                                     |
+| Fast focused feature test                        | `cargo test-fast -p golden_engine TEST_NAME`                 |
+| Optimized Rust workspace tests                   | `cargo test --workspace`                                     |
 | UI check, lint, tests, or build                  | `npm run check`, `npm run lint`, `npm test`, `npm run build` |
 | Engine benchmarks                                | `cargo bench -p golden_engine`                               |
 | Release binary                                   | `cargo build --release`                                      |
+
+The default debug build uses incremental compilation and moderate optimization
+for short edit/build cycles. `cargo test-fast` uses that same profile and artifact
+cache for focused functional tests. Use ordinary `cargo test` for full suites that
+include timing assertions: it stays fully optimized. `dev-perf` keeps the previous
+fully optimized debug behavior when profiling or working with especially large
+graphs; its first build has a separate artifact cache. Use
+`cargo check -p Chataigne2` when only type checking is needed, since it skips
+the final link.
+Run `cargo build --timings` to identify slow crates in a specific build.
 
 ## Test Placement
 
