@@ -41,3 +41,9 @@ target
 **/coverage/
 **/playwright-report/
 **/test-results/
+
+# Retired gitlink checkouts may remain locally for reference; they are not workspace inputs.
+/src-ui/src/lib/golden_alchemist_ui/
+/src-ui/src/lib/golden_ui/
+/submodules/golden_alchemist_core/
+/submodules/golden_core/

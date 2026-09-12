@@ -54,7 +54,7 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
   throw new Error("--timeout-ms must be a positive integer");
 }
 
-const requireFromUi = createRequire(path.join(repositoryRoot, "src-ui", "package.json"));
+const requireFromUi = createRequire(path.join(repositoryRoot, "apps", "chataigne", "ui", "package.json"));
 const { chromium } = requireFromUi("playwright-core");
 const result = {
   url,
