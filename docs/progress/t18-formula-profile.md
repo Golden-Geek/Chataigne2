@@ -158,17 +158,41 @@ identical captured inputs in every lane.
 Reproduce with the same app command and `multiplex_formula_workers_1000_by_100`,
 `multiplex_formula_workers_10000_by_10`, or their `multiplex_formula_workers_reordered_...`
 variants, plus `-- --ignored --nocapture`. The full feature-enabled app suite passes 513 active
-tests with six scale/worker tests ignored by default when run without an explicit serial
-test-thread flag; the 150 Alchemist tests and strict app Clippy in both feature modes also pass.
+tests with eight scale/worker/unchanged-input tests ignored by default when run without an
+explicit serial test-thread flag; the 150 Alchemist tests and strict app Clippy in both feature
+modes also pass.
 An explicit `--test-threads=1` enables strict 5/6 ms real-time assertions in the app tests. Two
 full-suite runs with this instrumented feature missed one or both average budgets (5.8–6.0 ms),
 while the two affected tests passed in isolation at 4.8 and 5.0 ms. The opt-in kernel timing
 perturbs tick cost, and these mixed outcomes are not release real-time qualification.
 
+### Unchanged-input requested evaluation
+
+At `37b6f3b7`, two more ignored app tests call the normal
+`evaluate_processor_with_context_provider_and_runtime_delta_capture` path with the same captured
+real-Formula input snapshot on all four ticks. Every test deliberately schedules all 100,000
+lanes even though the inputs do not change after initialization. The first tick emits 200,000
+intents; each of the next three emits none. All 100,000 keyed state memories remain retained,
+and the compiled-graph entrypoint is still called 300,000 times across the warmed ticks.
+
+Four source-pinned invocations per shape passed with no diagnostics. The median of three warmed
+direct-evaluation ticks ranged 94.9–96.2 ms for 1,000×100 and 104.3–106.9 ms for 10,000×10.
+Summed per-thread graph-call wall time ranged 189–197 ms over three warmed ticks. Process CPU
+differences were roughly 93–125 ms per tick at the host's coarse millisecond resolution. The
+two tests share a process, so their observed 166–167 MB and 204 MB RSS values are not independent
+partition-memory measurements.
+
+This is an intentionally requested-evaluation cost, not a truly idle product tick: the manager
+normally avoids calling clean processors. It also is not a sparse-dirty crossover or a measure
+of how many authored graph nodes executed inside each graph call. It does show that output
+suppression alone does not make a scheduled 100k-lane pass approach 10 ms. Reproduce with the
+feature-enabled app command, the `multiplex_formula_unchanged_` filter, and
+`-- --ignored --nocapture --test-threads=1`.
+
 The 1,016-lane full-tick sample still does not justify a production worker pool by itself.
 The 100k-lane test shows a useful isolated compute speedup, but not a real-time capacity claim or
 a safe production commit boundary. Sparse-dirty crossover, state-machine transitions, conflicting
-effect targets, triggering, lane-distinct state in the 100k-lane product Formula, generation replacement,
-cancellation without partial state commit, persistent-worker costs, and full end-to-end tick
-evidence remain open. Only a
-solution satisfying those boundaries should replace or augment the serial production path.
+effect targets, triggering, lane-distinct state in the 100k-lane product Formula, generation
+replacement, cancellation without partial state commit, persistent-worker costs, and full
+end-to-end tick evidence remain open. Only a solution satisfying those boundaries should replace
+or augment the serial production path.

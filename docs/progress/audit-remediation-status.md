@@ -4,7 +4,7 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `2ae31055` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `37b6f3b7` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
@@ -12,9 +12,9 @@ splits, are committed. The App Control node and received-value splits and T18 in
 product-runtime baseline, formula integration, and app-node codegen splits are also committed. The
 test-only T18 processor phase instrumentation, opt-in compiled-kernel probe, and source-pinned
 measurements, processor presentation and multiplex test splits, and the opt-in stateful
-100k-lane scale harness and test-only 1/2/4/8-worker comparison, including reordered contexts,
-and the focused distinct-state reorder regression are committed. Their
-source-pinned measurements are the current documentation patch.
+100k-lane scale harness, test-only 1/2/4/8-worker comparison with reordered contexts, focused
+distinct-state reorder regression, and unchanged-input requested-evaluation probe are committed.
+Their source-pinned measurements are the current documentation patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -185,6 +185,15 @@ replaying either trigger edge. All 72 default and 73 profiling-enabled processor
 as does strict profiling-enabled processor Clippy. This closes the small key-identity test gap,
 not the lane-distinct 100k-lane product or production generation/cancellation boundaries.
 
+At `37b6f3b7`, four runs per 100k-lane shape used the production processor API with unchanged
+captured inputs after initialization. No intents replayed, but all 100k requested lanes still
+entered the compiled graph on every warmed tick. Direct-evaluation medians ranged 94.9–96.2 ms
+for 1,000×100 and 104.3–106.9 ms for 10,000×10. The feature-enabled app suite passes 513
+active tests with eight manual scale tests ignored; strict app Clippy passes. This is not a
+true idle engine tick or sparse-dirty crossover because every processor was deliberately
+requested. It reinforces deferring a production worker path until end-to-end product benefit
+and a generation-safe commit boundary are demonstrated.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -207,7 +216,7 @@ not the lane-distinct 100k-lane product or production generation/cancellation bo
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
-| T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel and 100k-lane stateful partition pilots captured; test-only worker/reorder equivalence and focused distinct-state identity passed, sparse/lifecycle/production boundary pending |
+| T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
 ## Finding status
