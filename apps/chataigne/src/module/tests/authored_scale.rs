@@ -140,7 +140,7 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
         reloaded_graph_roots, authored_graph_roots,
         "save/reload must preserve every authored graph root"
     );
-    assert!(reloaded_nodes >= minimum_live_nodes);
+    assert_eq!(reloaded_nodes, authored_nodes, "save/reload must preserve the live-node count");
     let reload_rss_mb = resident_bytes(&mut system) / 1_000_000;
 
     println!(

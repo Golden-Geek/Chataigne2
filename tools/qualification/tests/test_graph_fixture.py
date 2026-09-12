@@ -34,6 +34,13 @@ class GraphFixtureTests(unittest.TestCase):
         self.assertEqual(anodes[0]["meta"]["decl_id"], "scale_constant_00001")
         self.assertEqual(anodes[-1]["meta"]["decl_id"], "scale_constant_00012")
         self.assertNotIn("chataigne.formula.external.file", formula["meta"]["tags"])
+        copy_sources = [
+            child for child in formula["children"]
+            if child.get("meta", {}).get("decl_id") == "formula_copy_source"
+        ]
+        self.assertEqual(len(copy_sources), 1)
+        self.assertEqual(copy_sources[0]["type"], "reference")
+        self.assertFalse(copy_sources[0]["meta"]["presentation"]["show_in_inspector_content"])
 
         dock_layout = first["ui_state"]["dock_layout"]
         self.assertEqual(

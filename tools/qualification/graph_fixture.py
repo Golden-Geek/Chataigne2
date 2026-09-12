@@ -149,6 +149,20 @@ def _prepare_fixture(
             "external_formula_delete_file",
         }
     ]
+    if not any(
+        child.get("meta", {}).get("decl_id") == "formula_copy_source"
+        for child in preserved
+    ):
+        preserved.append({
+            "uuid": str(uuid.uuid5(UUID_NAMESPACE, f"formula-copy-source:{formula['uuid']}")),
+            "type": "reference",
+            "meta": {
+                "decl_id": "formula_copy_source",
+                "short_name": "formulaCopySource",
+                "label": "Formula Copy Source",
+                "presentation": {"show_in_inspector_content": False},
+            },
+        })
     formula["children"] = preserved
     _promote_graph_editor(document)
     return document, formula, template, preserved

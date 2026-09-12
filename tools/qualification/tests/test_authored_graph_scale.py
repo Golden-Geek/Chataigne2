@@ -14,7 +14,7 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
         "graph_roots": graph_roots,
         "minimum_live_nodes": target,
         "prepared_nodes": 1_245,
-        "reloaded_nodes": 1_089,
+        "reloaded_nodes": 1_088,
         "load_ms": 34,
         "prepare_ms": 44,
         "tick_us": [6_418, 180, 170, 175, 172],
@@ -57,6 +57,11 @@ class AuthoredGraphScaleTests(unittest.TestCase):
     def test_rejects_incomplete_tick_series(self) -> None:
         output = complete_output().replace("[6418, 180, 170, 175, 172]", "[6418, 180]")
         with self.assertRaisesRegex(ValueError, "five nonnegative"):
+            authored_graph_scale.parse_result(output, 1_000, 72)
+
+    def test_rejects_live_node_count_drift(self) -> None:
+        output = complete_output().replace('"reloaded_nodes": 1088', '"reloaded_nodes": 1089')
+        with self.assertRaisesRegex(ValueError, "changed the live-node count"):
             authored_graph_scale.parse_result(output, 1_000, 72)
 
     def test_output_directory_must_be_empty_under_target(self) -> None:

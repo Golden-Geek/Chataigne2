@@ -230,15 +230,15 @@ and that every cloned Formula graph-root UUID survives save/reload. All 39 quali
 pass, including malformed and missing-result checks.
 
 The local source-fingerprinted report is
-`target/qualification/authored-graph-scale/20260912T155725Z/authored-graph-scale-report.json`
-(schema 2; tested tree `396eb213a4d37346ebba713000c4c92ccdbfeea6`, default `asio,jack,realtime`,
+`target/qualification/authored-graph-scale/20260912T161139Z/authored-graph-scale-report.json`
+(schema 2; tested tree `2a25ebdd1cbec64a18d5b6920fa9e4c50bbff39a`, default `asio,jack,realtime`,
 optimized app test with UI asset build skipped). Functional checks pass on this Windows x64 host:
 
 | Minimum live nodes | Loaded / prepared / reloaded | Cloned graph roots preserved | Load / prepare / save / reload ms | Tick 1 / ticks 2–5 ms | Reload RSS |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 28 / 46 / 13 / 23 | 0.643 / 0.005, 0.029, 0.031, 0.002 | 26 MB |
-| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 238 / 468 / 121 / 250 | 0.698 / 0.005, 0.027, 0.031, 0.002 | 72 MB |
-| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,752 / 7,033 / 1,301 / 3,039 | 0.887 / 0.006, 0.047, 0.046, 0.003 | 516 MB |
+| 1,000 | 1,089 / 1,245 / 1,089 | 72 / 72 | 30 / 47 / 14 / 23 | 0.949 / 0.005, 0.041, 0.039, 0.002 | 26 MB |
+| 10,000 | 10,091 / 10,247 / 10,091 | 715 / 715 | 235 / 418 / 110 / 238 | 0.682 / 0.005, 0.030, 0.030, 0.002 | 71 MB |
+| 100,000 | 100,083 / 100,239 / 100,083 | 7,143 / 7,143 | 2,574 / 6,580 / 1,292 / 3,122 | 0.958 / 0.005, 0.060, 0.032, 0.002 | 513 MB |
 
 All five ticks in this short sample meet the test's 8 ms interval, but **functional PASS is not a
 real-time tail-latency, interaction, or release-capacity pass**. A callback-level trace identified the
@@ -253,11 +253,17 @@ Test-only phase timing isolated about 65 ms of the former 100k first tick to ini
 materialization in the app-owned state-machine manager. It now builds that cache in its node-ready
 activation callback and invalidates it on subsequent formula structure events. A focused sample
 test confirms materializations happen before tick one and are not repeated on that tick. The 100k
-first tick fell from 61.80 ms in the previous full report to 0.887 ms here; preparation remains
-synchronous at 7.03 s, and the short tick sample does not establish a tail-latency bound. Large
+first tick fell from 61.80 ms in the previous full report to 0.958 ms here; preparation remains
+synchronous at 6.58 s, and the short tick sample does not establish a tail-latency bound. Large
 live edits, UI actions, transport fan-out, and recovery remain separate qualifications. This is
 separate from T12's bounded
 UI/transport/persistence snapshots.
+
+The earlier one-node load/reload difference came from the synthetic fixture, not the codec:
+its external-to-project Formula conversion omitted the hidden `formula_copy_source` child that
+new project formulas have. Activation added that child, and save correctly preserved it. The
+generator now includes one deterministic copy-source reference; the app test and report parser
+require exact live-node-count equality after reload. All three sizes pass that stricter gate.
 
 The manager tracks its own generated validity output between snapshots, so a later true-to-false
 transition is not hidden by a stale value in the retained startup snapshot.
@@ -497,8 +503,8 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to resolve the remaining one-node round-trip drift and exercise large live
-Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
+T19 next needs to exercise large live Formula/state/graph edits, UI/transport, multi-client, and
+recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and

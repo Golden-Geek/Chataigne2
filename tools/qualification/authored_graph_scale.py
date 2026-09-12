@@ -78,6 +78,8 @@ def parse_result(output: str, target: int, graph_roots: int) -> dict[str, Any]:
         raise ValueError("authored graph result does not match the generated fixture")
     if row["authored_nodes"] < target or row["reloaded_nodes"] < target:
         raise ValueError("authored graph load or reload missed the live-node target")
+    if row["reloaded_nodes"] != row["authored_nodes"]:
+        raise ValueError("authored graph save/reload changed the live-node count")
     if row["prepared_nodes"] < row["authored_nodes"] or row["saved_bytes"] == 0:
         raise ValueError("authored graph prepare or save produced invalid counts")
     return row
