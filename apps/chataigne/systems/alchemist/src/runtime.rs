@@ -435,7 +435,7 @@ pub struct RuntimeOutput {
     pub debug_samples: Vec<DebugValueSample>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AlchemistMemory {
     values: Vec<RuntimeValue>,
     value_initialized: Vec<bool>,
@@ -605,7 +605,7 @@ impl RuntimeContextFrame {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum LaneRuntimePool {
     #[default]
     Stateless,

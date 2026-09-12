@@ -2,11 +2,15 @@ use super::*;
 
 use chataigne_alchemist::{AxisSet, ContextAxisId, ContextKey, ContextValuePath, EvaluationCtx, RuntimeRegistries};
 use chataigne_state_machine::{
-    ProcessorBindingAnalysis, ProcessorContextProvider, ProcessorDebugCapture, ProcessorId, ProcessorLifecycleEvent,
-    ProcessorRuntime, statechart::StateId,
+    Processor, ProcessorBindingAnalysis, ProcessorContextProvider, ProcessorDebugCapture, ProcessorId,
+    ProcessorLifecycleEvent, ProcessorRuntime, statechart::StateId,
 };
 use golden_values::Value as RuntimeValue;
 use sysinfo::{ProcessesToUpdate, System, get_current_pid};
+
+use crate::app::systems_state_machine_manager::profiling::RuntimeScaleFixture;
+
+mod workers;
 
 struct ScaleContextProvider {
     keys: Vec<ContextKey>,
@@ -80,9 +84,7 @@ fn resident_bytes(system: &mut System) -> u64 {
     system.process(pid).expect("current process should exist").memory()
 }
 
-fn profile_partition(processor_count: usize, lanes_per_processor: usize) {
-    let _performance_guard = lock_performance_test();
-    assert_eq!(processor_count * lanes_per_processor, 100_000);
+fn sample_fixture() -> RuntimeScaleFixture {
     let engine = loaded_multiplex_scale_engine();
     let fixtures = engine
         .nodes
@@ -98,12 +100,15 @@ fn profile_partition(processor_count: usize, lanes_per_processor: usize) {
         .find(|fixture| fixture.compiled.analysis.has_stateful_nodes && !fixture.managed)
         .expect("the sample should compile a non-managed stateful product formula");
     assert_eq!(fixture.compiled.graph.exec_nodes.len(), 3);
+    fixture
+}
 
-    let provider = ScaleContextProvider::new(lanes_per_processor);
-    let mut system = System::new();
-    let rss_before_build = resident_bytes(&mut system);
-    let build_started = Instant::now();
-    let mut processors = (0..processor_count)
+fn build_processors(
+    fixture: &RuntimeScaleFixture,
+    provider: &ScaleContextProvider,
+    processor_count: usize,
+) -> Vec<(Processor, ProcessorRuntime)> {
+    (0..processor_count)
         .map(|_| {
             let mut processor = fixture.processor.clone();
             processor.id = ProcessorId::new();
@@ -118,7 +123,7 @@ fn profile_partition(processor_count: usize, lanes_per_processor: usize) {
             runtime.apply_lifecycle(&processor, ProcessorLifecycleEvent::StateEnter(StateId::new()));
             runtime.apply_lifecycle(&processor, ProcessorLifecycleEvent::ProcessorEnable);
             runtime.rebuild_execution_plan(
-                &provider,
+                provider,
                 &ProcessorBindingAnalysis {
                     input_axes: provider.available_axes(processor.id),
                     ..ProcessorBindingAnalysis::default()
@@ -126,7 +131,18 @@ fn profile_partition(processor_count: usize, lanes_per_processor: usize) {
             );
             (processor, runtime)
         })
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>()
+}
+
+fn profile_partition(processor_count: usize, lanes_per_processor: usize) {
+    let _performance_guard = lock_performance_test();
+    assert_eq!(processor_count * lanes_per_processor, 100_000);
+    let fixture = sample_fixture();
+    let provider = ScaleContextProvider::new(lanes_per_processor);
+    let mut system = System::new();
+    let rss_before_build = resident_bytes(&mut system);
+    let build_started = Instant::now();
+    let mut processors = build_processors(&fixture, &provider, processor_count);
     let build_ms = build_started.elapsed().as_millis();
     let rss_after_build = resident_bytes(&mut system);
 
