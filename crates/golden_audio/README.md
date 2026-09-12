@@ -51,11 +51,13 @@ qualification features documented in the
 [toolchain policy](../../docs/reference/toolchain.md#native-audio-prerequisites). Applications
 depend on `golden_audio`; they do not import or configure CPAL directly.
 
-Chataigne deliberately enables the `asio` and `realtime` features in its default feature set.
-Ordinary Windows product builds therefore include WASAPI and ASIO, promote CPAL device callbacks,
-and promote the managed Golden Audio render worker through the operating system's audio scheduling
-API. Priority refusal is nonfatal and produces a structured diagnostic. Other `golden_audio`
-consumers retain the external-prerequisite-free native default.
+Chataigne deliberately enables the `asio`, `jack`, and `realtime` features in its default feature
+set. Ordinary desktop products therefore include JACK alongside WASAPI on Windows, CoreAudio on
+macOS, or ALSA on Linux; Windows also includes ASIO. Realtime scheduling promotes CPAL device
+callbacks and the managed Golden Audio render worker where the platform supports it. Priority
+refusal is nonfatal and produces a structured diagnostic. JACK loads its runtime library/server on
+demand, so their absence is a recoverable `MissingServer` status. Other `golden_audio` consumers
+retain the external-prerequisite-free native default.
 
 On Windows, the repository wrapper prepares the pinned external ASIO SDK and LLVM environment, then
 runs the host probe by default:

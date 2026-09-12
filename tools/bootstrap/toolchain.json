@@ -45,15 +45,23 @@
     },
     "normal_feature": "desktop",
     "qualification_feature": "full-desktop",
+    "application_default_features": [
+      "asio",
+      "jack",
+      "realtime"
+    ],
     "windows": {
       "native_host": "wasapi",
+      "supported_architectures": [
+        "x86_64",
+        "aarch64"
+      ],
       "application_default_hosts": [
         "wasapi",
-        "asio"
-      ],
-      "optional_hosts": [
+        "asio",
         "jack"
       ],
+      "optional_hosts": [],
       "asio_sdk_environment": "CPAL_ASIO_DIR",
       "asio_sdk_cache": "local-application-data/Chataigne2/tool-cache/asio-sdk/<revision>",
       "required_build_tools": [
@@ -63,14 +71,30 @@
     },
     "macos": {
       "native_host": "coreaudio",
-      "optional_hosts": [
+      "supported_architectures": [
+        "x86_64",
+        "aarch64"
+      ],
+      "application_default_hosts": [
+        "coreaudio",
         "jack"
-      ]
+      ],
+      "optional_hosts": []
     },
     "linux": {
       "native_host": "alsa",
+      "supported_architectures": [
+        "x86_64",
+        "aarch64"
+      ],
+      "headless_only_architectures": [
+        "armv7"
+      ],
+      "application_default_hosts": [
+        "alsa",
+        "jack"
+      ],
       "optional_hosts": [
-        "jack",
         "pipewire"
       ],
       "realtime_feature": "realtime-dbus",

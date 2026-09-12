@@ -44,13 +44,26 @@ desktop and remote-browser hosts require the generated static artifact.
 ## Native audio prerequisites
 
 The reusable `golden_audio` `desktop` feature compiles the native operating-system host: WASAPI on
-Windows, CoreAudio on macOS, and ALSA on Linux. Chataigne enables `golden_audio/asio` and
-`golden_audio/realtime` in its default feature set, so ordinary Windows product builds expose both
-WASAPI and ASIO and request realtime scheduling for device callbacks and the managed render worker;
-CPAL target-gates ASIO away on other operating systems. Scheduling refusal is reported as a
-structured warning and playback continues at normal priority. The separately named `full-desktop`
-qualification feature adds every optional host. Native dependencies remain private to
-`golden_audio`; applications do not select CPAL features directly.
+Windows, CoreAudio on macOS, and ALSA on Linux. Chataigne forwards `golden_audio/asio`,
+`golden_audio/jack`, and `golden_audio/realtime` from its default feature set. Ordinary desktop
+artifacts therefore include JACK beside the native host, plus ASIO on Windows; CPAL target-gates
+ASIO away on other operating systems. Scheduling refusal is reported as a structured warning and
+playback continues at normal priority. Native PipeWire remains an explicit Linux option through
+`golden_audio/native-pipewire`; `full-desktop` is the qualification feature that enables every
+optional host. Native dependencies remain private to `golden_audio`; applications do not select
+CPAL features directly.
+
+| Ordinary artifact | Architectures | Compiled audio hosts | Build prerequisites | Missing runtime service |
+| --- | --- | --- | --- | --- |
+| Windows desktop | x86-64, ARM64 | WASAPI, ASIO, JACK | MSVC, LLVM/libclang, pinned ASIO SDK | ASIO reports `MissingDriver`; JACK reports `MissingServer` |
+| macOS desktop | x86-64, Apple silicon | CoreAudio, JACK | Xcode Command Line Tools | JACK reports `MissingServer` |
+| Linux desktop | x86-64, ARM64 | ALSA, JACK | ALSA and JACK development packages plus desktop toolchain | JACK reports `MissingServer` |
+| Linux ARMv7 | ARMv7 | headless/core only | cross compiler | Desktop audio artifact is unsupported |
+
+The matrix above is canonicalized in `tools/bootstrap/toolchain.json` and checked by both bootstrap
+verifiers. CI compiles ordinary Chataigne artifacts for each listed desktop architecture; release
+packaging covers Windows x86-64, macOS Apple silicon, and Linux x86-64. Other target/architecture
+combinations are unsupported until added to that manifest and its build matrix.
 
 Windows ASIO builds require the Visual C++ toolchain and LLVM/Clang with `libclang.dll` for bindgen.
 `tools/bootstrap/configure-asio-sdk.ps1` fetches the exact official `audiosdk/asio` Git revision
@@ -61,18 +74,19 @@ product-gate, and release CI use the same resolver and revision with an ephemera
 The SDK remains outside the checkout, and a missing vendor ASIO driver is a runtime
 `MissingDriver` state rather than a startup failure.
 
-Linux host qualification requires Clang plus the ALSA, JACK, PipeWire, and DBus development
-packages. JACK retains dynamic loading, so a missing JACK client library or server is reported as
-`MissingServer`. Native PipeWire is a distinct CPAL host and is probed independently from
-PipeWire's JACK compatibility layer. Real-time scheduling refusal is surfaced as structured stream
-status and does not abort the application.
+Ordinary Linux builds require the ALSA and JACK development packages. Native PipeWire and realtime
+DBus qualification additionally require the PipeWire and DBus development packages. JACK retains
+dynamic loading, so a missing JACK client library or server is reported as `MissingServer`. Native
+PipeWire is a distinct CPAL host and is probed independently from PipeWire's JACK compatibility
+layer. Real-time scheduling refusal is surfaced as structured stream status and does not abort the
+application.
 
 Use `cargo run -p golden_audio --example backend_probe` to inspect compiled native hosts without
 opening a stream. On Windows, `tools/asio.ps1` runs that probe with the ASIO feature by default; use
 `--features full-desktop` only in an environment that has all platform prerequisites above. The
 reusable crate keeps its external-prerequisite-free native default, while the Chataigne product
-deliberately enables ASIO by default on Windows. Release qualification is responsible for the full
-host set.
+deliberately enables ASIO and JACK in ordinary artifacts. Release qualification is responsible for
+the full host set.
 
 ## Upgrade Boundaries
 

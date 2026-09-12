@@ -3,7 +3,6 @@ param(
     [switch] $SetupOnly,
     [switch] $SkipUiInstall,
     [switch] $SkipWindowsBuildTools,
-    [switch] $FullAudioHosts,
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $CargoArgs
@@ -96,11 +95,7 @@ function Ensure-WindowsBuildTools {
 function Ensure-AudioBuildTools {
     Write-Step "Audio host build tools"
     & (Join-Path $Root "tools\asio.ps1") -SetupOnly
-    if ($FullAudioHosts) {
-        Write-Host "ASIO, dynamically loaded JACK, and Windows real-time priority are ready to compile."
-    } else {
-        Write-Host "Default WASAPI and ASIO hosts are ready to compile."
-    }
+    Write-Host "Default WASAPI, ASIO, dynamically loaded JACK, and Windows real-time priority are ready to compile."
 }
 
 function Activate-CanonicalToolchain {
@@ -147,12 +142,5 @@ Ensure-UiDependencies
 
 if (-not $SetupOnly) {
     Write-Step "Run Chataigne2"
-    $audioFeatureArguments = @()
-    if ($FullAudioHosts) {
-        $audioFeatureArguments = @(
-            "--features",
-            "golden_audio/jack,golden_audio/realtime"
-        )
-    }
-    Invoke-External "cargo" (@("run") + $audioFeatureArguments + $CargoArgs)
+    Invoke-External "cargo" (@("run") + $CargoArgs)
 }

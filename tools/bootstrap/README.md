@@ -62,9 +62,10 @@ by default. Pass a custom command after PowerShell's `--` parameter terminator:
 ./tools/asio.ps1 -- cargo test -p golden_audio --features asio
 ```
 
-Ordinary Windows Chataigne builds include ASIO, so `./tools/dev.ps1` performs this setup by default.
-`-FullAudioHosts` additionally enables JACK and Windows real-time priority support. No SDK files
-are written into the checkout.
+Ordinary Windows Chataigne builds include ASIO, dynamically loaded JACK, and realtime scheduling,
+so `./tools/dev.ps1` performs the ASIO build setup by default. No SDK files are written into the
+checkout. Native PipeWire remains an explicit Linux qualification feature rather than an ordinary
+application default.
 
 CI and the product gate also use `-CheckInstalled`/`--check-installed`, which rejects a different Rust, Cargo, Node, npm, or Python version instead of silently testing another toolchain.
 

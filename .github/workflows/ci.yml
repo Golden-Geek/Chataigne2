@@ -87,6 +87,17 @@ jobs:
         run: |
           $clang = (Get-Command clang -ErrorAction Stop).Source
           "LIBCLANG_PATH=$(Split-Path -Parent $clang)" >> $env:GITHUB_ENV
+      - name: Read canonical Python version
+        if: runner.os == 'Windows'
+        id: audio-pins
+        shell: pwsh
+        run: |
+          $pins = Get-Content tools/bootstrap/toolchain.json -Raw | ConvertFrom-Json
+          "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-python@v6
+        if: runner.os == 'Windows'
+        with:
+          python-version: ${{ steps.audio-pins.outputs.python }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: golden-audio-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
@@ -96,6 +107,19 @@ jobs:
         run: cargo test -p golden_audio --features "${{ matrix.features }}"
       - name: Probe hosts without opening streams
         run: cargo run -p golden_audio --example backend_probe --features "${{ matrix.features }}"
+      - name: Verify standalone Golden Audio distribution
+        if: runner.os == 'Windows'
+        run: >-
+          python tools/qualification/external_audio_consumer.py
+          --target-dir target/external-audio-consumer
+          --report target/qualification/external-audio-consumer.json
+      - name: Upload standalone-consumer evidence
+        if: ${{ always() && runner.os == 'Windows' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-audio-external-consumer-${{ github.sha }}
+          path: target/qualification/external-audio-consumer.json
+          if-no-files-found: warn
 
   golden_engine_tests:
     name: golden_engine tests

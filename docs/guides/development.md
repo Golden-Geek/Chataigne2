@@ -22,7 +22,14 @@ The setup verifies Rust/Cargo/Node/npm/Python and desktop prerequisites, audits 
 data, and runs root `npm ci` when the lock changed. It never installs a language runtime, mutates a
 system package manager, or downloads a portable SDK into the checkout.
 
-### Windows ASIO
+### Desktop audio hosts
+
+Ordinary Chataigne desktop builds include the platform-native host and dynamically loaded JACK.
+Linux setup therefore installs the ALSA and JACK development packages; native PipeWire remains an
+explicit qualification feature. A missing JACK runtime or server is reported as a recoverable
+`MissingServer` state and does not prevent the native host from starting.
+
+#### Windows ASIO
 
 Ordinary Windows development therefore requires Visual Studio C++ Build Tools and LLVM/Clang with
 `libclang.dll`. With those system prerequisites installed, the local probe is one command:
@@ -38,12 +45,12 @@ does not vendor the SDK or permanently mutate the user's environment. Use the sa
 other commands by placing them after PowerShell's `--` parameter terminator:
 
 ```powershell
-.\tools\asio.ps1 -- cargo test -p golden_audio --features asio
-.\tools\asio.ps1 -- cargo check -p Chataigne2 --features golden_audio/asio
+.\tools\asio.ps1 -- cargo test -p golden_audio --features asio,jack,realtime
+.\tools\asio.ps1 -- cargo check -p Chataigne2
 ```
 
-ASIO is compiled into ordinary Windows Chataigne builds. Launch through the bootstrap so the build
-uses the pinned SDK:
+ASIO is also compiled into ordinary Windows Chataigne builds. Launch through the bootstrap so the
+build uses the pinned SDK:
 
 ```powershell
 .\tools\dev.ps1

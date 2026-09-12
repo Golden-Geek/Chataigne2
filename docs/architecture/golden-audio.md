@@ -251,10 +251,12 @@ before user processing, and callback errors publish fixed atomic codes for contr
 callbacks do not allocate, format, log, or destroy control-owned state.
 
 The reusable crate's ordinary `desktop` feature uses the native OS host. Chataigne's default
-feature set additionally enables ASIO on Windows. Platform qualification features add JACK, native
-PipeWire, and real-time DBus support without changing application dependencies. The backend probe
-enumerates hosts and devices but does not open a stream. The separate smoke example opens the
-default output, writes silence for 100 ms, and closes it.
+feature set adds dynamically loaded JACK on every desktop platform, ASIO on Windows, and realtime
+scheduling. Native PipeWire and realtime DBus support remain explicit Linux qualification
+features. A missing JACK server or ASIO driver produces a recoverable backend state and does not
+prevent the native host from starting. The backend probe enumerates hosts and devices but does not
+open a stream. The separate smoke example opens the default output, writes silence for 100 ms, and
+closes it.
 
 ## Sound Card product model
 

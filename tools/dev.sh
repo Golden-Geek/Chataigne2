@@ -70,8 +70,6 @@ ensure_linux_system_deps() {
       libwebkit2gtk-4.1-dev
       libasound2-dev
       libjack-jackd2-dev
-      libpipewire-0.3-dev
-      libdbus-1-dev
       clang
       libclang-dev
       libusb-1.0-0-dev
@@ -105,8 +103,6 @@ ensure_linux_system_deps() {
       webkit2gtk4.1-devel
       alsa-lib-devel
       jack-audio-connection-kit-devel
-      pipewire-devel
-      dbus-devel
       clang
       libusb1-devel
       openssl-devel
@@ -145,8 +141,6 @@ ensure_linux_system_deps() {
       webkit2gtk3-devel
       alsa-devel
       libjack-devel
-      pipewire-devel
-      dbus-1-devel
       clang
       libusb-1_0-devel
       libopenssl-devel

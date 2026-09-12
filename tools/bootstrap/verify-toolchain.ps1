@@ -41,14 +41,35 @@ if ([string]$manifest.audio.asio_sdk.repository -ne
 if (@($manifest.audio.asio_sdk.required_paths).Count -eq 0) {
     throw "The ASIO SDK contract must declare its required paths."
 }
-$windowsDefaultHosts = @($manifest.audio.windows.application_default_hosts)
-if ($windowsDefaultHosts.Count -ne 2 -or
-    $windowsDefaultHosts -notcontains "wasapi" -or
-    $windowsDefaultHosts -notcontains "asio") {
-    throw "Windows application defaults must contain exactly WASAPI and ASIO."
+$expectedApplicationFeatures = @("asio", "jack", "realtime")
+$actualApplicationFeatures = @($manifest.audio.application_default_features)
+if (@(Compare-Object $expectedApplicationFeatures $actualApplicationFeatures).Count -ne 0) {
+    throw "Application audio defaults must contain exactly ASIO, JACK, and realtime."
 }
-if (@($manifest.audio.windows.optional_hosts) -contains "asio") {
-    throw "ASIO is a Windows application default and must not be listed as optional."
+$audioPlatformContracts = @(
+    @{ Name = "windows"; Native = "wasapi"; Defaults = @("wasapi", "asio", "jack"); Architectures = @("x86_64", "aarch64") },
+    @{ Name = "macos"; Native = "coreaudio"; Defaults = @("coreaudio", "jack"); Architectures = @("x86_64", "aarch64") },
+    @{ Name = "linux"; Native = "alsa"; Defaults = @("alsa", "jack"); Architectures = @("x86_64", "aarch64") }
+)
+foreach ($contract in $audioPlatformContracts) {
+    $platform = $manifest.audio.($contract.Name)
+    if ([string]$platform.native_host -ne $contract.Native -or
+        @(Compare-Object $contract.Defaults @($platform.application_default_hosts)).Count -ne 0 -or
+        @(Compare-Object $contract.Architectures @($platform.supported_architectures)).Count -ne 0) {
+        throw "Audio artifact matrix mismatch for $($contract.Name)."
+    }
+    $overlap = @($platform.optional_hosts | Where-Object { $contract.Defaults -contains $_ })
+    if ($overlap.Count -ne 0) {
+        throw "Default audio hosts must not also be optional for $($contract.Name)."
+    }
+}
+if (@($manifest.audio.linux.headless_only_architectures).Count -ne 1 -or
+    @($manifest.audio.linux.headless_only_architectures) -notcontains "armv7") {
+    throw "Linux armv7 must remain explicitly headless-only."
+}
+if (@($manifest.audio.linux.optional_hosts).Count -ne 1 -or
+    @($manifest.audio.linux.optional_hosts) -notcontains "pipewire") {
+    throw "Native PipeWire must remain the explicit optional Linux host."
 }
 $platformKeys = @("windows_x64", "windows_arm64", "macos_x64", "macos_arm64", "linux_x64", "linux_arm64")
 foreach ($platformKey in $platformKeys) {

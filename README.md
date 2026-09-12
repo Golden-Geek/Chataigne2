@@ -64,9 +64,10 @@ cargo run -- --dev
 Use `.\tools\dev.ps1 -SetupOnly` or `bash ./tools/dev.sh --setup-only` when you only want to prepare
 the machine without launching the app.
 
-Ordinary Windows Chataigne builds include WASAPI and ASIO. With Visual Studio C++ Build Tools and
-LLVM installed, `.\tools\dev.ps1` prepares the pinned ASIO SDK and launches the app. Run
-`.\tools\asio.ps1` for a build-only backend probe.
+Ordinary Chataigne desktop artifacts include JACK alongside the native platform host, plus ASIO on
+Windows. With Visual Studio C++ Build Tools and LLVM installed, `.\tools\dev.ps1` prepares the
+pinned ASIO SDK and launches the Windows app. Run `.\tools\asio.ps1` for a build-only ASIO probe.
+JACK is loaded dynamically at runtime, so an absent JACK library/server does not prevent startup.
 
 ## Repository Map
 

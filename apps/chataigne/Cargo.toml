@@ -20,11 +20,13 @@ ignored = [
 ]
 
 [features]
-# Chataigne is a professional audio application, so ordinary builds include the
-# Windows ASIO host. The dependency is target-gated inside CPAL and inert on
-# non-Windows platforms.
-default = ["asio", "realtime"]
+# Chataigne is a professional audio application, so ordinary desktop artifacts
+# include the cross-platform JACK host plus Windows ASIO and realtime scheduling.
+# CPAL target-gates ASIO away from non-Windows platforms. JACK loads its runtime
+# library dynamically, so an absent server/driver remains a recoverable status.
+default = ["asio", "jack", "realtime"]
 asio = ["golden_audio/asio"]
+jack = ["golden_audio/jack"]
 realtime = ["golden_audio/realtime"]
 
 # Real Elgato Stream Deck hardware support (native hidapi 2.x + image).

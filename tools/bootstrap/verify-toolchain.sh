@@ -41,11 +41,28 @@ if asio_sdk["repository"] != "https://github.com/audiosdk/asio.git":
     raise SystemExit("The ASIO SDK repository must be the supported audiosdk/asio source.")
 if not asio_sdk["repository"] or not asio_sdk["license_mode"] or not asio_sdk["required_paths"]:
     raise SystemExit("The ASIO SDK contract is incomplete.")
-windows_audio = manifest["audio"]["windows"]
-if set(windows_audio["application_default_hosts"]) != {"wasapi", "asio"}:
-    raise SystemExit("Windows application defaults must contain exactly WASAPI and ASIO.")
-if "asio" in windows_audio["optional_hosts"]:
-    raise SystemExit("ASIO is a Windows application default and must not be listed as optional.")
+audio = manifest["audio"]
+if set(audio["application_default_features"]) != {"asio", "jack", "realtime"}:
+    raise SystemExit("Application audio defaults must contain exactly ASIO, JACK, and realtime.")
+platform_contracts = {
+    "windows": ("wasapi", {"wasapi", "asio", "jack"}, {"x86_64", "aarch64"}),
+    "macos": ("coreaudio", {"coreaudio", "jack"}, {"x86_64", "aarch64"}),
+    "linux": ("alsa", {"alsa", "jack"}, {"x86_64", "aarch64"}),
+}
+for name, (native, defaults, architectures) in platform_contracts.items():
+    platform_audio = audio[name]
+    if (
+        platform_audio["native_host"] != native
+        or set(platform_audio["application_default_hosts"]) != defaults
+        or set(platform_audio["supported_architectures"]) != architectures
+    ):
+        raise SystemExit(f"Audio artifact matrix mismatch for {name}.")
+    if defaults.intersection(platform_audio.get("optional_hosts", [])):
+        raise SystemExit(f"Default audio hosts must not also be optional for {name}.")
+if set(audio["linux"]["headless_only_architectures"]) != {"armv7"}:
+    raise SystemExit("Linux armv7 must remain explicitly headless-only.")
+if set(audio["linux"]["optional_hosts"]) != {"pipewire"}:
+    raise SystemExit("Native PipeWire must remain the explicit optional Linux host.")
 
 rust_version = (root / manifest["consumers"]["rust_version"]).read_text(encoding="utf-8").strip()
 node_version = (root / manifest["consumers"]["node_version"]).read_text(encoding="utf-8").strip()
