@@ -337,6 +337,12 @@ The `RemoveNodes` intent now validates every selected target before opening an e
 collapses selected descendants under their outermost selected roots. Focused Golden Engine tests
 cover descendant-first selection, exact mixed-parent replay, and atomic rejection of missing or
 root targets; large mixed-selection and browser qualification remain open.
+History replay now reuses the post-restore UI catalog snapshot for ready callbacks when no edit
+intervenes. A Golden Engine regression checks that restored callbacks see their nodes and that
+undo adds no redundant ready-lifecycle snapshot. One later 100k local run measured 670 ms removal
+undo and 644 ms duplicate redo, compared with separate earlier samples of roughly 830 ms and
+1,042 ms. The same later runs measured 1,047 ms initial removal and 1,339 ms initial duplicate,
+so neither full action nor post-edit ticks pass the product gate; these are not p95 comparisons.
 
 ## Task status and dependencies
 

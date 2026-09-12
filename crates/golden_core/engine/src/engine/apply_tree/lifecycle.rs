@@ -105,6 +105,17 @@ impl<T: Node> Engine<T> {
         node_ids: &[NodeId],
         creation_context: NodeCreationContext,
     ) -> Result<(), EngineEditError> {
+        self.run_node_ready_for_batch_with_snapshot(node_ids, creation_context, None)
+    }
+
+    /// Reuses a snapshot captured after attachment and before ready callbacks.
+    /// A structural edit from a callback still triggers the ordinary rebuild.
+    pub(crate) fn run_node_ready_for_batch_with_snapshot(
+        &mut self,
+        node_ids: &[NodeId],
+        creation_context: NodeCreationContext,
+        prepared_snapshot: Option<Arc<crate::process_ctx::ProcessTreeSnapshot>>,
+    ) -> Result<(), EngineEditError> {
         if node_ids.is_empty() {
             return Ok(());
         }
@@ -115,8 +126,9 @@ impl<T: Node> Engine<T> {
                 .get(*node_id)
                 .is_some_and(|node| node.ready_requires_tree_snapshot())
         });
-        let mut tree_snapshot =
-            needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("ready-batch", node_ids.len()));
+        let mut tree_snapshot = needs_tree_snapshot.then(|| {
+            prepared_snapshot.unwrap_or_else(|| self.build_lifecycle_tree_snapshot("ready-batch", node_ids.len()))
+        });
         for (index, node_id) in node_ids.iter().copied().enumerate() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;

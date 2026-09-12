@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::replay::{
     emit_added_node_events, emit_restored_remove_node_events, redo_remove_node, restore_add_node, restore_remove_node,
     undo_add_node,
@@ -75,8 +77,8 @@ impl<T: Node> HistoryTransaction<T> {
             restored.push((add.node, add.parent, ready_ids));
         }
 
-        push_restored_subtrees_ui_transaction(engine, &restored, "RedoAddNode")?;
-        engine.run_node_ready_for_batch(&all_ready_ids, NodeCreationContext::Fresh)
+        let snapshot = push_restored_subtrees_ui_transaction(engine, &restored, "RedoAddNode")?;
+        engine.run_node_ready_for_batch_with_snapshot(&all_ready_ids, NodeCreationContext::Fresh, Some(snapshot))
     }
 
     pub(super) fn undo_remove_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
@@ -100,8 +102,8 @@ impl<T: Node> HistoryTransaction<T> {
             restored.push((remove.node, remove.parent, ready_ids));
         }
 
-        push_restored_subtrees_ui_transaction(engine, &restored, "UndoRemoveNode")?;
-        engine.run_node_ready_for_batch(&all_ready_ids, NodeCreationContext::Fresh)
+        let snapshot = push_restored_subtrees_ui_transaction(engine, &restored, "UndoRemoveNode")?;
+        engine.run_node_ready_for_batch_with_snapshot(&all_ready_ids, NodeCreationContext::Fresh, Some(snapshot))
     }
 
     pub(super) fn redo_remove_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
@@ -151,7 +153,7 @@ fn push_restored_subtrees_ui_transaction<T: Node>(
     engine: &mut Engine<T>,
     restored: &[(NodeId, NodeId, Vec<NodeId>)],
     operation: &'static str,
-) -> Result<(), EngineEditError> {
+) -> Result<Arc<crate::process_ctx::ProcessTreeSnapshot>, EngineEditError> {
     let catalog_snapshot = engine.build_process_tree_snapshot();
     let mut ops = Vec::with_capacity(restored.len());
     for (root, parent, ready_ids) in restored {
@@ -174,5 +176,5 @@ fn push_restored_subtrees_ui_transaction<T: Node>(
         });
     }
     engine.push_ui_graph_transaction(ops);
-    Ok(())
+    Ok(catalog_snapshot)
 }

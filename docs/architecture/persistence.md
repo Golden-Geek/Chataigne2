@@ -17,9 +17,10 @@ creation-context groups, so a paste does not rebuild a full process-tree snapsho
 Each inserted root retains its insertion-time sibling anchors for a single undo transaction.
 History replay batches independent same-parent additions: undo shares one destroy lifecycle
 snapshot, while redo restores all roots before building one UI catalog snapshot and running one
-ready lifecycle batch. Independent same-parent removals also share a destroy lifecycle pass and
-publish one UI graph transaction with the final sibling order. Their undo restores every root
-before one ready lifecycle batch and UI catalog snapshot; redo shares a destroy pass again.
+ready lifecycle batch. The post-restore catalog snapshot is also passed to ready callbacks, with
+a rebuild only if a callback changes structure. Independent same-parent removals also share a
+destroy lifecycle pass and publish one UI graph transaction with the final sibling order. Their
+undo restores every root before one shared catalog/ready snapshot; redo shares a destroy pass again.
 Nested or mixed history transactions retain stepwise replay.
 
 ## Save transaction
