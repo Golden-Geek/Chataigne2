@@ -4,11 +4,11 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `aaa7d71a` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `468326c8` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
-documentation reconciliation are committed. The UI-sync split and refreshed count are the current
-patch.
+documentation reconciliation, plus the UI-sync split, are committed. The persistence and history
+adapter splits and refreshed count are the current patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -27,9 +27,10 @@ removed from Git's index without deleting the clean local nested checkouts, so a
 consumer no longer fails on their missing `.gitmodules` URLs. The engine script adapter now puts
 template discovery/include expansion and host bridging in separate modules, keeping its lifecycle
 file under 1,000 lines. The UI-sync adapter now separates conversion, creation/duplication, and
-snapshot/event projection from intent coordination. The refreshed inventory finds 53 remaining
-oversized source files; none
-has an approved exception. The old multiplex stop-point instructions are labeled historical.
+snapshot/event projection from intent coordination. Persistence now separates durable metadata
+types from record application, and history separates replay mechanics from effect capture and its
+public API. The refreshed inventory finds 51 remaining oversized source files; none has an
+approved exception. The old multiplex stop-point instructions are labeled historical.
 
 T16 — ordinary desktop audio artifacts are implemented and qualified locally on Windows x64.
 The app forwards ASIO, JACK, and realtime through `golden_audio`; the canonical toolchain manifest,
@@ -76,12 +77,13 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
 - The engine script adapter is split into node lifecycle (851 lines), template resolution (229
   lines), and host bridging (252 lines). `golden_engine::ui_sync` is split into intent
   coordination (638 lines), conversions (210), creation/duplication (968), and snapshot/event
-  projection (720). The inventory records 53 remaining files above 1,000 lines with no approved
-  exceptions.
+  projection (720). Persistence separates record application (898 lines) from metadata and
+  recovery types (381); history separates effect capture/API (744) from replay (701). The
+  inventory records 51 remaining files above 1,000 lines with no approved exceptions.
 - `cargo clippy --locked -p golden_engine --all-targets -- -D warnings` and all 415 active engine
-  tests pass after both splits. The default-feature Chataigne check and all 513 app unit tests pass
-  after the UI-sync split. The old multiplex progress note is explicitly archival; its July 2026
-  completion does not claim current product qualification.
+  tests pass after the four adapter splits. The default-feature Chataigne check and all 513 app
+  unit tests pass after the history/persistence split. The old multiplex progress note is
+  explicitly archival; its July 2026 completion does not claim current product qualification.
 
 ## Task status and dependencies
 
@@ -104,7 +106,7 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
 | T14  | T03, T07, T11                                 | complete                                                     |
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
-| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, script/UI-sync adapters split; more cohesive splits pending |
+| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, four engine adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | pending                                                      |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
@@ -130,7 +132,7 @@ the current branch contains implementation and verification evidence.
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
 | F14 — facades/edit acknowledgement | fixed           | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 puts codecs, wire DTOs, script declarations, and VM/runtime primitives in their owning crates while engine application stays in adapters; the full facade composes the ready-to-launch host.                                                           | Persistence, protocol, script fake-host, headless-host, and full-host external consumers pass. Focused dependency trees exclude forbidden engine, QuickJS, desktop, Tauri, audio, and Chataigne edges as applicable.                                      |
 | F15 — ordinary audio portability | partially fixed | Default app forwards ASIO/JACK/realtime; canonical matrix, pinned SDK, app catalog test, and standalone Git/CPAL consumer are in place. | Windows x64 default artifact, headless startup, JACK missing-server state, 513 app tests, and external consumer pass. Hosted six-platform artifact gate and named physical streams remain unrun. |
-| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script and UI-sync adapters now have focused owners; stale multiplex notes are archival. | Independent Git consumer passes; all 415 active engine and 513 app tests plus strict Clippy pass after the splits. The current inventory has 53 remaining oversized files and no approved exceptions. |
+| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, and history adapters now have focused owners; stale multiplex notes are archival. | Independent Git consumer passes; all 415 active engine and 513 app tests plus strict Clippy pass after the splits. The current inventory has 51 remaining oversized files and no approved exceptions. |
 
 ## Commands and results
 

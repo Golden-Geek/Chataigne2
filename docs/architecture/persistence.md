@@ -5,6 +5,12 @@
 publication. Transport and desktop hosts select paths and report receipts; they do not sequence
 backup, journal, temporary-file, rename, or clean/dirty state themselves.
 
+The project document, version, and JSON codec are defined in `golden_persistence`. The
+`golden_engine::engine::persistence` adapter maps engine node metadata and recovery errors in
+`types.rs`; `mod.rs` extracts and applies records, reconciles loaded lifecycle state, and delegates
+duplicate-tree handling to `duplicate.rs`. None of these engine adapters owns the file format or
+native path-selection workflow.
+
 ## Save transaction
 
 1. The control actor captures an owned sparse document with its `ProjectGeneration` and authored
