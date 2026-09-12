@@ -39,6 +39,7 @@ impl<T: Node> Engine<T> {
             replacement_data.prev_sibling = old_data.prev_sibling;
             replacement_data.next_sibling = old_data.next_sibling;
             replacement_data.meta.decl_id = old_data.meta.decl_id.clone();
+            replacement_data.effective_enabled = old_data.effective_enabled;
         }
 
         self.unregister_node_uuid(node);
@@ -53,6 +54,8 @@ impl<T: Node> Engine<T> {
         self.populate_param_cache_entry(node);
         self.mark_schedule_dirty();
         self.blueprints.unregister_instance(node);
+        let enabled_changes = self.subtree_effective_enabled_changes(node);
+        self.queue_effective_enabled_callbacks(&enabled_changes)?;
 
         self.emit_event(EventKind::ChildReplaced {
             parent,

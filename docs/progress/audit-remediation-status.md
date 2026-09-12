@@ -348,6 +348,11 @@ metadata and cross-parent move history previously restored visible fields withou
 cached inherited state or invoking enabled-change callbacks. Replay now does both, with focused
 parent/child callback and cache regressions through undo/redo. Other restoration paths still need
 invariant coverage before using the cache as snapshot truth.
+The node-replacement path now inherits the live effective state before reconciling its new
+metadata and descendants; undo/redo do the same. A disabled root initializes its cache from
+metadata, and enabled-change callbacks receive a snapshot after all changed cache values have
+been applied. Focused replacement, disabled-parent, and root regressions pass. Snapshot readers
+still derive inherited state from the tree while other restoration paths are audited.
 
 An ignored active-runtime mixed-parent removal probe adds a two-node independent branch to the
 persisted authored fixture, selects one descendant before its selected ANode parent, and removes

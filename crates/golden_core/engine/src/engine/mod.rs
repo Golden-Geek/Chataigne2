@@ -247,7 +247,9 @@ pub struct Engine<T: Node> {
 
 impl<T: Node> Engine<T> {
     /// Creates a new engine with `root` as the graph root node.
-    pub fn new(root: T) -> Self {
+    pub fn new(mut root: T) -> Self {
+        let root_enabled = root.node_data().meta.enabled;
+        root.node_data_mut().effective_enabled = root_enabled;
         let mut nodes: NodeStore<T> = NodeStore::new();
         let root = nodes.insert(root);
         let mut uuid_index = HashMap::new();
@@ -897,13 +899,19 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
-        let tree_snapshot = self.build_process_tree_snapshot();
         for (node_id, enabled) in changes {
             let Some(node) = self.nodes.get_mut(*node_id) else {
                 continue;
             };
 
             node.node_data_mut().effective_enabled = *enabled;
+        }
+
+        let tree_snapshot = self.build_process_tree_snapshot();
+        for (node_id, enabled) in changes {
+            let Some(node) = self.nodes.get_mut(*node_id) else {
+                continue;
+            };
 
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;

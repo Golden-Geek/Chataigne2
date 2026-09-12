@@ -55,9 +55,11 @@ than successful no-ops. Script or headless adapters should consume these applica
 instead of inferring success from transport or engine side effects.
 
 History replay restores the engine's effective-enabled cache and node callbacks when a metadata
-toggle or cross-parent move changes a subtree's inherited enabled state. Undo and redo therefore
-follow the same runtime lifecycle contract as the original edit; snapshot readers still derive
-effective state from the current tree until every restoration path is verified against the cache.
+toggle, cross-parent move, or node replacement changes a subtree's inherited enabled state.
+Replacement also inherits the live node's cached state before reconciling descendants, including
+under a disabled parent. Callbacks receive a snapshot after all changed cache values are applied.
+Snapshot readers still derive effective state from the current tree until every restoration path
+is verified against the cache.
 
 `RecordingModuleIo` captures versioned inputs and authoritative outputs using an injected clock.
 Deterministic clocks keep protocol and hardware fixtures repeatable without putting polling or

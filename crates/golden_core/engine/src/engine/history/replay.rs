@@ -111,6 +111,7 @@ impl<T: Node> HistoryStep<T> {
                         old_data.last_child = live_node_data.last_child;
                         old_data.prev_sibling = live_node_data.prev_sibling;
                         old_data.next_sibling = live_node_data.next_sibling;
+                        old_data.effective_enabled = live_node_data.effective_enabled;
                     }
 
                     engine.unregister_node_uuid(step.new_id);
@@ -124,6 +125,8 @@ impl<T: Node> HistoryStep<T> {
                     engine.register_node_uuid(step.old_id);
                     engine.populate_param_cache_entry(step.old_id);
                     engine.mark_schedule_dirty();
+                    let enabled_changes = engine.subtree_effective_enabled_changes(step.old_id);
+                    engine.queue_effective_enabled_callbacks(&enabled_changes)?;
                     let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
                     engine.emit_event(EventKind::ChildReplaced {
                         parent: step.parent,
@@ -145,6 +148,8 @@ impl<T: Node> HistoryStep<T> {
                 })?;
                 engine.purge_param_cache_entry(step.new_id);
 
+                let mut old_node = old_node;
+                old_node.node_data_mut().effective_enabled = detached_new_node.node_data().effective_enabled;
                 engine.nodes.reattach(step.old_id, old_node);
                 engine.register_node_uuid(step.old_id);
                 engine.populate_param_cache_entry(step.old_id);
@@ -168,6 +173,8 @@ impl<T: Node> HistoryStep<T> {
                     .node_data()
                     .first_child;
                 engine.reparent_child_chain(0, OP, first_child, step.old_id)?;
+                let enabled_changes = engine.subtree_effective_enabled_changes(step.old_id);
+                engine.queue_effective_enabled_callbacks(&enabled_changes)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.old_id });
                 let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
@@ -290,6 +297,7 @@ impl<T: Node> HistoryStep<T> {
                         new_data.last_child = live_node_data.last_child;
                         new_data.prev_sibling = live_node_data.prev_sibling;
                         new_data.next_sibling = live_node_data.next_sibling;
+                        new_data.effective_enabled = live_node_data.effective_enabled;
                     }
 
                     engine.unregister_node_uuid(step.old_id);
@@ -303,6 +311,8 @@ impl<T: Node> HistoryStep<T> {
                     engine.register_node_uuid(step.new_id);
                     engine.populate_param_cache_entry(step.new_id);
                     engine.mark_schedule_dirty();
+                    let enabled_changes = engine.subtree_effective_enabled_changes(step.new_id);
+                    engine.queue_effective_enabled_callbacks(&enabled_changes)?;
                     let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
                     engine.emit_event(EventKind::ChildReplaced {
                         parent: step.parent,
@@ -324,6 +334,8 @@ impl<T: Node> HistoryStep<T> {
                 })?;
                 engine.purge_param_cache_entry(step.old_id);
 
+                let mut new_node = new_node;
+                new_node.node_data_mut().effective_enabled = detached_old_node.node_data().effective_enabled;
                 engine.nodes.reattach(step.new_id, new_node);
                 engine.register_node_uuid(step.new_id);
                 engine.populate_param_cache_entry(step.new_id);
@@ -347,6 +359,8 @@ impl<T: Node> HistoryStep<T> {
                     .node_data()
                     .first_child;
                 engine.reparent_child_chain(0, OP, first_child, step.new_id)?;
+                let enabled_changes = engine.subtree_effective_enabled_changes(step.new_id);
+                engine.queue_effective_enabled_callbacks(&enabled_changes)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.new_id });
                 let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
