@@ -1456,6 +1456,10 @@ struct StateMachineRuntimeCache {
     transient_condition_valid_resets: HashMap<NodeId, u64>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
+    #[cfg(all(test, feature = "kernel-profiling"))]
+    scale_input_capture_enabled: bool,
+    #[cfg(all(test, feature = "kernel-profiling"))]
+    scale_captured_inputs: HashMap<ProcessorId, RuntimeInputSnapshot>,
     processor_overview_runtimes: HashMap<NodeId, RuntimeProcessor>,
     continuous_processor_count: usize,
     formula_default_previews: HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
@@ -2337,6 +2341,12 @@ impl StateMachineManager {
             #[cfg(test)]
             let input_preparation_started = std::time::Instant::now();
             let inputs = processor_runtime_inputs(&mut input_context);
+            #[cfg(all(test, feature = "kernel-profiling"))]
+            if self.runtime_cache.scale_input_capture_enabled {
+                self.runtime_cache
+                    .scale_captured_inputs
+                    .insert(runtime_processor.processor.id, inputs.clone());
+            }
             #[cfg(test)]
             {
                 self.runtime_cache.perf_stats.processor_input_preparation_ns +=
@@ -3398,6 +3408,8 @@ impl StateMachineManager {
     }
 }
 
+#[cfg(all(test, feature = "kernel-profiling"))]
+pub(crate) mod profiling;
 #[cfg(test)]
 mod tests;
 

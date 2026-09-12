@@ -4,7 +4,7 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-covers 1193 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
+covers 1195 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
 `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
 history, App Control, received-value, formula integration, processor presentation, and multiplex
@@ -36,8 +36,9 @@ the root module's public re-exports. A generator regression test covers this bou
 
 The processor crate keeps execution and property-frame resolution in `processor.rs` (956 lines),
 with debug capture and UI/preview projection in `processor/presentation.rs` (201 lines). The
-multiplex app test keeps shared fixture/measurement helpers in `multiplex.rs` (415 lines), with
-runtime timing (311) and interaction/transaction checks (312) in adjacent test modules.
+multiplex app test keeps shared fixture/measurement helpers in `multiplex.rs` (417 lines), with
+runtime timing (310), interaction/transaction checks (312), and an opt-in scale probe (204) in
+adjacent test modules. State-manager scale fixture extraction (50) is test-only.
 
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
@@ -50,7 +51,7 @@ avoid mixing large structural moves into runtime race fixes.
 | 13,350 | `crates/golden_core/engine/src/engine/tests/engine.rs` | Split focused test suites |
 | 6,423 | `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte` | Decompose presentation and state |
 | 5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte` | Decompose presentation and state |
-| 5,212 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Split cohesive Rust module |
+| 5,224 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Split cohesive Rust module |
 | 5,056 | `crates/golden_core/support/macros/src/lib.rs` | Split macro families |
 | 3,533 | `packages/golden-graph-ui/components/GraphCanvas.svelte` | Decompose presentation and state |
 | 3,152 | `apps/chataigne/src/module/modules/protocol/midi/midi_module/mod.rs` | Split cohesive Rust module |

@@ -411,5 +411,7 @@ fn multiplex_sample_project_loads_and_round_trips() {
 }
 
 mod runtime;
+#[cfg(feature = "kernel-profiling")]
+mod scale;
 
 mod interaction;
