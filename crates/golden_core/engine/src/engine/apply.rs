@@ -95,7 +95,7 @@ impl<T: Node> Engine<T> {
         let mut user_context_graph_dirty = false;
 
         let requests = self.edits.drain();
-        let remove_batch_nodes = self.same_parent_remove_batch_nodes(&requests);
+        let remove_batch_nodes = self.independent_remove_batch_nodes(&requests);
         let batch_destroyed = remove_batch_nodes.is_some();
         let emit_remove_batch_ui =
             batch_destroyed && !creation_context.is_some_and(NodeCreationContext::is_project_load);

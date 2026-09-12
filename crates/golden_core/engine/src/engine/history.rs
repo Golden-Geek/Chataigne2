@@ -108,7 +108,7 @@ impl<T: Node> HistoryTransaction<T> {
         if self.is_same_parent_add_batch() {
             return self.undo_add_batch(engine);
         }
-        if self.is_same_parent_remove_batch() {
+        if self.is_independent_remove_batch(engine) {
             return self.undo_remove_batch(engine);
         }
         for step in self.steps.iter_mut().rev() {
@@ -122,7 +122,7 @@ impl<T: Node> HistoryTransaction<T> {
         if self.is_same_parent_add_batch() {
             return self.redo_add_batch(engine);
         }
-        if self.is_same_parent_remove_batch() {
+        if self.is_independent_remove_batch(engine) {
             return self.redo_remove_batch(engine);
         }
         for step in self.steps.iter_mut() {

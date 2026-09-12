@@ -18,10 +18,11 @@ Each inserted root retains its insertion-time sibling anchors for a single undo 
 History replay batches independent same-parent additions: undo shares one destroy lifecycle
 snapshot, while redo restores all roots before building one UI catalog snapshot and running one
 ready lifecycle batch. The post-restore catalog snapshot is also passed to ready callbacks, with
-a rebuild only if a callback changes structure. Independent same-parent removals also share a
-destroy lifecycle pass and publish one UI graph transaction with the final sibling order. Their
-undo restores every root before one shared catalog/ready snapshot; redo shares a destroy pass again.
-Nested or mixed history transactions retain stepwise replay.
+a rebuild only if a callback changes structure. Disjoint multi-root removals, including roots
+under different parents, share a destroy lifecycle pass and publish one UI graph transaction with
+a final child-order patch for each affected parent. Their undo restores every root before one
+shared catalog/ready snapshot; redo shares a destroy pass again. Nested removals or transactions
+mixing edit kinds retain stepwise replay.
 
 ## Save transaction
 

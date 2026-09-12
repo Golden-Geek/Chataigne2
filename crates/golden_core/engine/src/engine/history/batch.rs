@@ -21,17 +21,19 @@ impl<T: Node> HistoryTransaction<T> {
             .all(|step| matches!(step, HistoryStep::AddNode(add) if add.parent == first.parent))
     }
 
-    /// Same-parent removals are disjoint and can share lifecycle and UI snapshots.
-    pub(super) fn is_same_parent_remove_batch(&self) -> bool {
+    /// Independent removals can share lifecycle and UI snapshots across parents.
+    pub(super) fn is_independent_remove_batch(&self, engine: &Engine<T>) -> bool {
         if self.steps.len() < 2 {
             return false;
         }
-        let HistoryStep::RemoveNode(first) = &self.steps[0] else {
-            return false;
-        };
-        self.steps
-            .iter()
-            .all(|step| matches!(step, HistoryStep::RemoveNode(remove) if remove.parent == first.parent))
+        let mut roots = Vec::with_capacity(self.steps.len());
+        for step in &self.steps {
+            let HistoryStep::RemoveNode(remove) = step else {
+                return false;
+            };
+            roots.push((remove.node, remove.parent));
+        }
+        engine.removal_roots_are_independent(&roots)
     }
 
     pub(super) fn undo_add_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {

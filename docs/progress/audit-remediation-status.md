@@ -268,7 +268,7 @@ require exact live-node-count equality after reload. All three sizes pass that s
 The manager tracks its own generated validity output between snapshots, so a later true-to-false
 transition is not hidden by a stale value in the retained startup snapshot.
 
-The latest full suite has 522 active app passes and three ignored manual T19 scale cases; the
+The latest full suite has 522 active app passes and four ignored manual T19 scale cases; the
 previous intermittent multiplex active-runtime timing failure did not reproduce in this run.
 Strict app/engine Clippy, 40 qualification-tool tests, and 422 active Golden Engine unit tests
 pass. Preparation adds 156 runtime nodes at each authored-graph size. Sparse reload now has the
@@ -348,6 +348,18 @@ metadata and cross-parent move history previously restored visible fields withou
 cached inherited state or invoking enabled-change callbacks. Replay now does both, with focused
 parent/child callback and cache regressions through undo/redo. Other restoration paths still need
 invariant coverage before using the cache as snapshot truth.
+
+An ignored active-runtime mixed-parent removal probe adds a two-node independent branch to the
+persisted authored fixture, selects one descendant before its selected ANode parent, and removes
+ten real Constant ANode roots plus the second-parent leaf in one `RemoveNodes` intent. It verifies
+exact parent child-UUID order, graph-root identity, node counts, and one history transaction
+through remove/undo/redo. At 10k, the former stepwise path measured 253/655/200 ms and the
+disjoint-root batch measured 58/44/27 ms for those three actions. At 100k, the local samples were
+4,095/11,855/3,514 ms before and 758/545/341 ms after. The generic engine regression checks
+one graph transaction with a final patch for each parent; a nested-removal regression retains
+stepwise replay, and the browser store checks both parent patches. These are separate single-run
+diagnostics, not p95 or action-to-paint qualification. The 100k post-edit ticks still measured
+427/601/824 ms after remove/undo/redo, so the product gate remains open.
 
 ## Task status and dependencies
 
@@ -570,9 +582,8 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to reduce remaining active-runtime event/snapshot costs and qualify nested/mixed
-selection at scale, then exercise large live Formula/state/graph edits, UI/transport, multi-client,
-and recovery paths at scale. Cross-platform,
+T19 next needs to reduce remaining active-runtime event/snapshot costs, then exercise large live
+Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and

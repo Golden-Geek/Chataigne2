@@ -119,6 +119,60 @@ describe('graph store scaling', () => {
 		expect(store.state.nodesById.has(4)).toBe(false);
 	});
 
+	it('applies final child-order patches for both parents in one removal transaction', () => {
+		const store = createGraphStore();
+		const nodes = [
+			{ ...parameterNode(), node_id: 1, children: [2, 5] },
+			{ ...parameterNode(), node_id: 2, children: [3, 4] },
+			{ ...parameterNode(), node_id: 3, children: [] },
+			{ ...parameterNode(), node_id: 4, children: [] },
+			{ ...parameterNode(), node_id: 5, children: [6, 7] },
+			{ ...parameterNode(), node_id: 6, children: [] },
+			{ ...parameterNode(), node_id: 7, children: [] }
+		].map((node) => ({
+			...node,
+			uuid: `00000000-0000-0000-0000-${String(node.node_id).padStart(12, '0')}`
+		}));
+		store.loadSnapshot({ ...snapshot(), nodes });
+
+		const changed = store.applyBatch({
+			from: eventTime(0),
+			to: eventTime(1),
+			events: [
+				{
+					time: eventTime(1),
+					kind: {
+						kind: 'graphTransaction',
+						tx_id: 1,
+						epoch: 1,
+						base_graph_version: 0,
+						next_graph_version: 1,
+						ops: [
+							{
+								kind: 'subtreeRemoved',
+								root: 3,
+								removed_ids: [3],
+								parent_after: { parent: 2, children: [4] }
+							},
+							{
+								kind: 'subtreeRemoved',
+								root: 7,
+								removed_ids: [7],
+								parent_after: { parent: 5, children: [6] }
+							}
+						]
+					}
+				}
+			]
+		});
+
+		expect(changed).toBe(true);
+		expect(store.state.childrenById.get(2)).toEqual([4]);
+		expect(store.state.childrenById.get(5)).toEqual([6]);
+		expect(store.state.nodesById.has(3)).toBe(false);
+		expect(store.state.nodesById.has(7)).toBe(false);
+	});
+
 	it('forks numeric indexes without copying prior entries', () => {
 		const original = new VersionedNodeMap<string>(
 			Array.from({ length: 10_000 }, (_, index) => [index, `value-${index}`] as const)

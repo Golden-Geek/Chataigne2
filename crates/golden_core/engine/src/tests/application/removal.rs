@@ -156,6 +156,7 @@ fn remove_nodes_mixed_parent_selection_replays_exact_sibling_order() {
     let a_children = engine.ui_direct_children(parents[0]).expect("A children");
     let b_children = engine.ui_direct_children(parents[1]).expect("B children");
     engine.clear_history();
+    engine.clear_ui_event_log();
 
     let acknowledgement = engine.apply_ui_intent(UiEditIntent::RemoveNodes {
         nodes: vec![a_children[0], b_children[1]],
@@ -164,14 +165,104 @@ fn remove_nodes_mixed_parent_selection_replays_exact_sibling_order() {
     assert_eq!(engine.undo_len(), 1);
     assert_eq!(engine.ui_direct_children(parents[0]), Some(vec![a_children[1]]));
     assert_eq!(engine.ui_direct_children(parents[1]), Some(vec![b_children[0]]));
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let transactions = batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(transactions.len(), 1);
+    assert_eq!(transactions[0].ops.len(), 2);
+    assert!(matches!(
+        &transactions[0].ops[0],
+        UiGraphOp::SubtreeRemoved { parent_after: Some(patch), .. }
+            if patch.parent == parents[0] && patch.children == vec![a_children[1]]
+    ));
+    assert!(matches!(
+        &transactions[0].ops[1],
+        UiGraphOp::SubtreeRemoved { parent_after: Some(patch), .. }
+            if patch.parent == parents[1] && patch.children == vec![b_children[0]]
+    ));
 
+    engine.clear_ui_event_log();
     assert!(engine.undo().expect("undo should succeed"));
     assert_eq!(engine.ui_direct_children(parents[0]), Some(a_children.clone()));
     assert_eq!(engine.ui_direct_children(parents[1]), Some(b_children.clone()));
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let transactions = batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(transactions.len(), 1);
+    assert_eq!(transactions[0].ops.len(), 2);
+    assert!(matches!(
+        &transactions[0].ops[0],
+        UiGraphOp::SubtreeInserted { parent, parent_children_after, .. }
+            if *parent == parents[1] && parent_children_after == &b_children
+    ));
+    assert!(matches!(
+        &transactions[0].ops[1],
+        UiGraphOp::SubtreeInserted { parent, parent_children_after, .. }
+            if *parent == parents[0] && parent_children_after == &a_children
+    ));
 
+    engine.clear_ui_event_log();
     assert!(engine.redo().expect("redo should succeed"));
     assert_eq!(engine.ui_direct_children(parents[0]), Some(vec![a_children[1]]));
     assert_eq!(engine.ui_direct_children(parents[1]), Some(vec![b_children[0]]));
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let transactions = batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(transactions.len(), 1);
+    assert_eq!(transactions[0].ops.len(), 2);
+    assert!(matches!(
+        &transactions[0].ops[0],
+        UiGraphOp::SubtreeRemoved { parent_after: Some(patch), .. }
+            if patch.parent == parents[0] && patch.children == vec![a_children[1]]
+    ));
+    assert!(matches!(
+        &transactions[0].ops[1],
+        UiGraphOp::SubtreeRemoved { parent_after: Some(patch), .. }
+            if patch.parent == parents[1] && patch.children == vec![b_children[0]]
+    ));
+}
+
+#[test]
+fn nested_removal_transaction_keeps_stepwise_replay() {
+    let mut engine = Engine::new(Folder::new("Root"));
+    engine.add_node(Folder::new("Parent"), None);
+    engine.apply_edits().expect("parent should attach");
+    let parent = engine.ui_direct_children(engine.root).expect("root children")[0];
+    engine.add_node(Folder::new("Child"), Some(parent));
+    engine.apply_edits().expect("child should attach");
+    let child = engine.ui_direct_children(parent).expect("parent children")[0];
+    engine.clear_history();
+
+    engine.edits.push(crate::edit::Edit::RemoveNode { node: child });
+    engine.edits.push(crate::edit::Edit::RemoveNode { node: parent });
+    engine.apply_edits().expect("nested removals should apply in order");
+    assert_eq!(engine.undo_len(), 1);
+    assert_eq!(engine.ui_direct_children(engine.root), Some(vec![]));
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(engine.ui_direct_children(engine.root), Some(vec![parent]));
+    assert_eq!(engine.ui_direct_children(parent), Some(vec![child]));
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(engine.ui_direct_children(engine.root), Some(vec![]));
 }
 
 #[test]

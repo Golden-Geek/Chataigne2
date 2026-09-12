@@ -1,41 +1,63 @@
 use super::*;
 use crate::edit::{Edit, EditRequest};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 impl<T: Node> Engine<T> {
-    /// Collects a pure same-parent removal drain in reverse request order so one
-    /// destroy pass preserves each root's previous callback ordering.
-    pub(crate) fn same_parent_remove_batch_nodes(&self, requests: &[EditRequest]) -> Option<Vec<NodeId>> {
+    /// Collects disjoint removal roots in reverse request order so one destroy
+    /// pass preserves the previous per-root callback ordering.
+    pub(crate) fn independent_remove_batch_nodes(&self, requests: &[EditRequest]) -> Option<Vec<NodeId>> {
         if requests.len() < 2 {
             return None;
         }
-        let mut parent = None;
-        let mut seen = HashSet::with_capacity(requests.len());
         let mut roots = Vec::with_capacity(requests.len());
         for request in requests {
             let Edit::RemoveNode { node } = &request.edit else {
                 return None;
             };
             let node = *node;
-            if !seen.insert(node) {
-                return None;
-            }
-            let root_parent = self.node_position(0, "RemoveNode", node).ok()?.0;
-            if let Some(parent) = parent {
-                if root_parent != parent {
-                    return None;
-                }
-            } else {
-                parent = Some(root_parent);
-            }
-            roots.push(node);
+            let parent = self.node_position(0, "RemoveNode", node).ok()?.0;
+            roots.push((node, parent));
+        }
+        if !self.removal_roots_are_independent(&roots) {
+            return None;
         }
 
         let mut all_nodes = Vec::new();
-        for root in roots.into_iter().rev() {
+        for (root, _) in roots.into_iter().rev() {
             all_nodes.extend(self.collect_subtree(0, "RemoveNode", root).ok()?);
         }
         Some(all_nodes)
+    }
+
+    /// Rejects nested roots while sharing ancestor checks across deep selections.
+    /// Parents must remain attached so callbacks and final UI patches have a live owner.
+    pub(crate) fn removal_roots_are_independent(&self, roots: &[(NodeId, NodeId)]) -> bool {
+        let selected = roots.iter().map(|(root, _)| *root).collect::<HashSet<_>>();
+        if selected.len() != roots.len() {
+            return false;
+        }
+        let mut verified_ancestors = HashSet::new();
+        for (_, root_parent) in roots {
+            let mut ancestor = Some(*root_parent);
+            let mut path = Vec::new();
+            let mut remaining_hops = self.nodes.len();
+            while let Some(parent) = ancestor {
+                if selected.contains(&parent) || remaining_hops == 0 {
+                    return false;
+                }
+                if verified_ancestors.contains(&parent) {
+                    break;
+                }
+                remaining_hops -= 1;
+                path.push(parent);
+                let Some(node) = self.nodes.get(parent) else {
+                    return false;
+                };
+                ancestor = node.node_data().parent;
+            }
+            verified_ancestors.extend(path);
+        }
+        true
     }
 
     /// Applies a remove-node edit and returns history data required for undo/redo.
@@ -62,12 +84,16 @@ impl<T: Node> Engine<T> {
             return;
         }
         let mut ops = Vec::with_capacity(removed.len());
-        let last_index = removed.len() - 1;
+        let last_index_by_parent = removed
+            .iter()
+            .enumerate()
+            .map(|(index, (_, _, parent))| (*parent, index))
+            .collect::<HashMap<_, _>>();
         for (index, (root, removed_ids, parent)) in removed.into_iter().enumerate() {
             ops.push(UiGraphOp::SubtreeRemoved {
                 root,
                 removed_ids,
-                parent_after: (index == last_index)
+                parent_after: (last_index_by_parent[&parent] == index)
                     .then(|| self.ui_children_order_patch(parent))
                     .flatten(),
             });

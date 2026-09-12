@@ -5,7 +5,7 @@ use golden_core::{
         configure_loaded_engine, from_sparse_project_json, load_sparse_project_file, ProjectNode,
         prepare_engine_for_runtime, to_sparse_project_json_pretty,
     },
-    node::{Node, NodeId, NodeUuid},
+    node::{Folder, Node, NodeId, NodeUuid},
     ui_sync::{UiDuplicateNodeSpec, UiEditIntent},
 };
 use sysinfo::{ProcessesToUpdate, System, get_current_pid};
@@ -364,6 +364,126 @@ fn authored_graph_removes_and_replays_one_live_edit() {
         serde_json::json!({
             "base_nodes": live_nodes_before,
             "removed_roots": remove_count,
+            "removed_nodes": live_nodes_before - live_nodes_after,
+            "remove_ms": remove_ms,
+            "remove_tick_ms": remove_tick_ms,
+            "undo_ms": undo_ms,
+            "undo_tick_ms": undo_tick_ms,
+            "redo_ms": redo_ms,
+            "redo_tick_ms": redo_tick_ms,
+        })
+    );
+}
+
+#[test]
+#[ignore = "manual T19 active authored-graph mixed-parent removal qualification"]
+fn authored_graph_removes_mixed_parents_and_selected_descendant() {
+    let _performance_guard = lock_performance_test();
+    let fixture = PathBuf::from(
+        std::env::var_os("CHATAIGNE_AUTHORED_SCALE_FIXTURE")
+            .expect("set CHATAIGNE_AUTHORED_SCALE_FIXTURE to a generated project path"),
+    );
+    let remove_count = std::env::var("CHATAIGNE_AUTHORED_SCALE_REMOVALS")
+        .expect("set CHATAIGNE_AUTHORED_SCALE_REMOVALS")
+        .parse::<usize>()
+        .expect("removal count must be an integer");
+    let mut engine = load_sparse_project_file::<AppNode, _>(&fixture).expect("authored project should load");
+    configure_loaded_engine(&mut engine).expect("authored project should configure");
+    prepare_engine_for_runtime(&mut engine).expect("authored project should prepare");
+
+    let extra_parent = Folder::new("Mixed-parent qualifier");
+    let extra_parent_uuid = extra_parent.node_data().meta.uuid;
+    engine.add_node(extra_parent.into(), None);
+    engine.apply_edits().expect("second parent should attach");
+    let extra_parent_id = engine.node_id_by_uuid(extra_parent_uuid).expect("second parent should exist");
+    let extra_child = Folder::new("Mixed-parent leaf");
+    let extra_child_uuid = extra_child.node_data().meta.uuid;
+    engine.add_node(extra_child.into(), Some(extra_parent_id));
+    engine.apply_edits().expect("second-parent leaf should attach");
+    let extra_child_id = engine.node_id_by_uuid(extra_child_uuid).expect("second-parent leaf should exist");
+    engine.run_tick(Duration::from_millis(8)).expect("authored project should warm");
+    engine.clear_history();
+
+    let mut sources = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.node_data().meta.decl_id.0.starts_with("scale_constant_"))
+        .map(|(id, node)| (node.node_data().meta.decl_id.0.clone(), id, node.node_data().parent))
+        .collect::<Vec<_>>();
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
+    assert!(sources.len() >= remove_count);
+    let formula = sources[0].2.expect("graph root should belong to a formula");
+    assert!(sources.iter().take(remove_count).all(|(_, _, parent)| *parent == Some(formula)));
+    let selected_descendant = engine
+        .nodes
+        .get(sources[0].1)
+        .and_then(|node| node.node_data().first_child)
+        .expect("constant ANode should have a declared child");
+    let formula_children_before = direct_child_uuids(&engine, formula);
+    let extra_children_before = direct_child_uuids(&engine, extra_parent_id);
+    let graph_roots_before = graph_root_uuids(&engine);
+    let removed_root_uuids = sources
+        .iter()
+        .take(remove_count)
+        .map(|(_, id, _)| engine.nodes.get(*id).expect("selected root should exist").node_data().meta.uuid)
+        .collect::<HashSet<_>>();
+    let expected_formula_children_after = formula_children_before
+        .iter()
+        .copied()
+        .filter(|uuid| !removed_root_uuids.contains(uuid))
+        .collect::<Vec<_>>();
+    let removed_graph_root_uuids = removed_root_uuids.iter().map(|uuid| uuid.0.to_string()).collect::<HashSet<_>>();
+    let expected_graph_roots_after = graph_roots_before
+        .iter()
+        .filter(|uuid| !removed_graph_root_uuids.contains(*uuid))
+        .cloned()
+        .collect::<HashSet<_>>();
+    let live_nodes_before = engine.nodes.iter().count();
+    let mut selection = vec![selected_descendant, extra_child_id];
+    selection.extend(sources.iter().take(remove_count).map(|(_, id, _)| *id));
+
+    let started = Instant::now();
+    let acknowledgement = engine.apply_ui_intent(UiEditIntent::RemoveNodes { nodes: selection });
+    let remove_ms = started.elapsed().as_millis();
+    assert!(acknowledgement.success, "mixed remove should succeed: {acknowledgement:?}");
+    assert_eq!(engine.undo_len(), 1, "mixed delete should create one undo transaction");
+    let live_nodes_after = engine.nodes.iter().count();
+    let formula_children_after = direct_child_uuids(&engine, formula);
+    let extra_children_after = direct_child_uuids(&engine, extra_parent_id);
+    assert_eq!(formula_children_after, expected_formula_children_after);
+    assert!(extra_children_after.is_empty());
+    assert_eq!(graph_root_uuids(&engine), expected_graph_roots_after);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("mixed-removed graph should tick");
+    let remove_tick_ms = started.elapsed().as_millis();
+
+    let started = Instant::now();
+    assert!(engine.undo().expect("undo should succeed"));
+    let undo_ms = started.elapsed().as_millis();
+    assert_eq!(engine.nodes.iter().count(), live_nodes_before);
+    assert_eq!(direct_child_uuids(&engine, formula), formula_children_before);
+    assert_eq!(direct_child_uuids(&engine, extra_parent_id), extra_children_before);
+    assert_eq!(graph_root_uuids(&engine), graph_roots_before);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("mixed-restored graph should tick");
+    let undo_tick_ms = started.elapsed().as_millis();
+
+    let started = Instant::now();
+    assert!(engine.redo().expect("redo should succeed"));
+    let redo_ms = started.elapsed().as_millis();
+    assert_eq!(engine.nodes.iter().count(), live_nodes_after);
+    assert_eq!(direct_child_uuids(&engine, formula), formula_children_after);
+    assert_eq!(direct_child_uuids(&engine, extra_parent_id), extra_children_after);
+    assert_eq!(graph_root_uuids(&engine), expected_graph_roots_after);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("mixed-removed graph should tick after redo");
+    let redo_tick_ms = started.elapsed().as_millis();
+
+    println!(
+        "AUTHORED_LIVE_MIXED_REMOVE_RESULT={}",
+        serde_json::json!({
+            "base_nodes": live_nodes_before,
+            "removed_roots": remove_count + 1,
             "removed_nodes": live_nodes_before - live_nodes_after,
             "remove_ms": remove_ms,
             "remove_tick_ms": remove_tick_ms,
