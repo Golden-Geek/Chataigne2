@@ -189,6 +189,10 @@ suppression alone does not make a scheduled 100k-lane pass approach 10 ms. Repro
 feature-enabled app command, the `multiplex_formula_unchanged_` filter, and
 `-- --ignored --nocapture --test-threads=1`.
 
+The source-fingerprinted [T19 direct Formula qualification report](audit-remediation-status.md#t19-direct-formula-qualification-report)
+now runs all eight manual scale cases together and rejects missing partitions or worker modes.
+Its PASS status is scoped to direct processor evaluation, not complete product capacity.
+
 The 1,016-lane full-tick sample still does not justify a production worker pool by itself.
 The 100k-lane test shows a useful isolated compute speedup, but not a real-time capacity claim or
 a safe production commit boundary. Sparse-dirty crossover, state-machine transitions, conflicting

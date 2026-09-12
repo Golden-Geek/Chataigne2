@@ -4,7 +4,7 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `37b6f3b7` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `534865de` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
@@ -14,7 +14,9 @@ test-only T18 processor phase instrumentation, opt-in compiled-kernel probe, and
 measurements, processor presentation and multiplex test splits, and the opt-in stateful
 100k-lane scale harness, test-only 1/2/4/8-worker comparison with reordered contexts, focused
 distinct-state reorder regression, and unchanged-input requested-evaluation probe are committed.
-Their source-pinned measurements are the current documentation patch.
+Their source-pinned measurements are the current documentation patch. T19 now has a
+source-fingerprinted direct product-Formula qualification runner; full-product qualification
+remains open.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -194,6 +196,28 @@ true idle engine tick or sparse-dirty crossover because every processor was deli
 requested. It reinforces deferring a production worker path until end-to-end product benefit
 and a generation-safe commit boundary are demonstrated.
 
+## T19 direct Formula qualification report
+
+At committed source `534865de`, `python tools/qualification/formula_scale.py` extended the
+existing `tools/qualification` report pattern to the real persisted `Action` Formula. It ran
+all eight opt-in app tests and required exactly two serial partitions, sixteen 1/2/4/8-worker
+and reorder cases, and two unchanged-input partitions. Missing or duplicate cases, malformed
+metrics, wrong Formula/effect counts, replayed unchanged-input intents, or an incomplete test
+result fail the report. All 31 qualification-tool unit tests pass.
+
+The local report at
+`target/qualification/formula-scale/20260912T130918Z/formula-scale-report.json` is PASS for
+**direct processor evaluation only**. It records commit `534865de`, tested tree
+`06c1349bf828824162880a2d4f144b11175e78b0`, fixture SHA-256
+`5ebd05f9390462b5d666c6b54e833bf30f97d6ad2b391146c288861202f09390`, default
+`asio,jack,realtime` plus `kernel-profiling`, and raw-log SHA-256
+`f174fdb45779f30a681b6a4a40715179e8180eb1e7044a09065eeed2688379c6`. One
+source-pinned invocation measured serial forced-dense medians of 143/157 ms, unchanged-input
+requested medians of 95/104 ms, and eight-worker non-reordered medians of 64/48 ms for
+1,000×100 / 10,000×10. These are three-tick medians in one multi-test process, not p95/p99 or
+end-to-end tick capacity. The report explicitly lists missing engine/output/UI/transport,
+sparse-dirty crossover, and generation/cancellation evidence.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -217,7 +241,7 @@ and a generation-safe commit boundary are demonstrated.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | pending                                                      |
+| T19  | relevant implementation tasks                 | direct product-Formula qualification report passes; end-to-end, authored-node, platform, and physical evidence pending |
 
 ## Finding status
 
@@ -413,9 +437,10 @@ installed hosts; no physical stream was opened.
 ## Next task
 
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
-projection/canvas and app-owned formula/state integration. T18 must isolate real app-owned
-formula/lane compute costs before deciding whether parallel execution is justified. T19 retains the
-exact-artifact cross-platform and physical-product evidence gate.
+projection/canvas and app-owned formula/state integration. T18 production parallel remains
+deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
+T19 next needs end-to-end Formula/state/graph capacity, authored-node stress, cross-platform,
+native-host, and physical-product evidence rather than another direct-kernel-only result.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.
