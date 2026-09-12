@@ -4,11 +4,12 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `69ba5a2a` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `53b23b49` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
-splits, are committed. The App Control node split and refreshed count are the current patch.
+splits, are committed. The App Control node split is also committed; the received-value split and
+refreshed count are the current patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -31,7 +32,8 @@ snapshot/event projection from intent coordination. Persistence now separates du
 types from record application, and history separates replay mechanics from effect capture and its
 public API. App Control separates platform window actions from process and folder watching, and
 its node separates lifecycle, watch processing, structure, and script request parsing. The
-refreshed inventory finds 49 remaining oversized source files; none has an
+received-value handling separates batch planning from incremental application. The refreshed
+inventory finds 48 remaining oversized source files; none has an
 approved exception. The old multiplex stop-point instructions are labeled historical.
 
 T16 — ordinary desktop audio artifacts are implemented and qualified locally on Windows x64.
@@ -84,13 +86,16 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
   App Control keeps worker/process/folder ownership in its runtime (879 lines), while window
   discovery and actions live in a platform adapter (209). Its module node splits lifecycle (869),
   watch processing (608), watch structure (462), and script request parsing (102). The inventory
-  records 49 remaining files above 1,000 lines with no approved exceptions.
+  records 48 remaining files above 1,000 lines with no approved exceptions. Received-value
+  batch planning (874 lines) and incremental application (221) are now separate.
 - `cargo clippy --locked -p golden_engine --all-targets -- -D warnings` and all 415 active engine
   tests pass after the four adapter splits. The default-feature Chataigne check and all 513 app
   unit tests pass after the history/persistence split. The old multiplex progress note is
   explicitly archival; its July 2026 completion does not claim current product qualification.
 - After both App Control splits, the default-feature Chataigne check, all 513 app unit tests, and
   strict `cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings` pass.
+- After the received-value split, the same default-feature check, strict app Clippy, and all 513
+  app unit tests pass again.
 
 ## Task status and dependencies
 
@@ -113,7 +118,7 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
 | T14  | T03, T07, T11                                 | complete                                                     |
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
-| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, four engine adapters and App Control split; more cohesive splits pending |
+| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/received-value adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | pending                                                      |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
@@ -139,7 +144,7 @@ the current branch contains implementation and verification evidence.
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
 | F14 — facades/edit acknowledgement | fixed           | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 puts codecs, wire DTOs, script declarations, and VM/runtime primitives in their owning crates while engine application stays in adapters; the full facade composes the ready-to-launch host.                                                           | Persistence, protocol, script fake-host, headless-host, and full-host external consumers pass. Focused dependency trees exclude forbidden engine, QuickJS, desktop, Tauri, audio, and Chataigne edges as applicable.                                      |
 | F15 — ordinary audio portability | partially fixed | Default app forwards ASIO/JACK/realtime; canonical matrix, pinned SDK, app catalog test, and standalone Git/CPAL consumer are in place. | Windows x64 default artifact, headless startup, JACK missing-server state, 513 app tests, and external consumer pass. Hosted six-platform artifact gate and named physical streams remain unrun. |
-| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, and App Control runtime and node adapters now have focused owners; stale multiplex notes are archival. | Independent Git consumer passes; all 415 active engine and 513 app tests plus strict Clippy pass after the splits. The current inventory has 49 remaining oversized files and no approved exceptions. |
+| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, and App Control and received-value adapters now have focused owners; stale multiplex notes are archival. | Independent Git consumer passes; all 415 active engine and 513 app tests plus strict Clippy pass after the splits. The current inventory has 48 remaining oversized files and no approved exceptions. |
 
 ## Commands and results
 

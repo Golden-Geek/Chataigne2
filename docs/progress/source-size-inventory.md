@@ -4,11 +4,11 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-covers 1178 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
+covers 1179 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
 `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
-history, and App Control splits. The 44-file audit count was a historical baseline; 49 files
-currently exceed 1,000 lines. No oversized runtime or test-source exception is approved yet.
+history, App Control, and received-value splits. The 44-file audit count was a historical baseline;
+48 files currently exceed 1,000 lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
 `script/mod.rs` (under 1,000 lines), while template expansion and the engine-to-VM host bridge
@@ -22,6 +22,11 @@ focused Windows-aware adapter; its process, folder-watch, and worker orchestrati
 Its module node keeps lifecycle and event coordination, while watch processing, watch structure,
 and script request parsing have focused modules. All touched App Control sources are under 1,000
 lines.
+
+Chataigne's received-value adapter now keeps batched subtree planning in its main module and
+isolates incremental single/multi-message application, including retry-on-parent-materialization,
+in `received_values/incremental.rs`.
+
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
 avoid mixing large structural moves into runtime race fixes.
@@ -71,7 +76,6 @@ avoid mixing large structural moves into runtime race fixes.
 | 1,110 | `packages/golden-ui/components/panels/logger/LoggerPanel.svelte` | Decompose presentation and state |
 | 1,095 | `apps/chataigne/src/module/modules/generators/signals/mod.rs` | Split cohesive Rust module |
 | 1,091 | `apps/chataigne/ui/src/lib/systems/state_machine/components/StateMachinePanel.svelte` | Decompose presentation and state |
-| 1,090 | `apps/chataigne/src/module/common/received_values.rs` | Split cohesive Rust module |
 | 1,086 | `apps/chataigne/src/module/modules/protocol/mqtt/mod.rs` | Split cohesive Rust module |
 | 1,054 | `crates/golden_core/engine/src/node/curve/node.rs` | Split cohesive Rust module |
 | 1,052 | `apps/chataigne/src/module/modules/controllers/keyboard/keyboard/mod.rs` | Split cohesive Rust module |
