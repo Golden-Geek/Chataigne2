@@ -109,9 +109,45 @@ Reproduce each shape with `--features kernel-profiling` and the test name
 `multiplex_formula_scale_1000_by_100` or `multiplex_formula_scale_10000_by_10`, adding
 `-- --ignored --nocapture` to the app test command above.
 
-The 1,016-lane sample does not justify a production worker pool by itself. The 100k-lane pilot
-does justify measuring worker crossover, but it does not establish a real-time capacity claim.
-Before changing production execution, compare one, two, four, and eight workers with ordered
-effects, stateful and sparse-dirty equivalence, generation replacement, cancellation, CPU,
-retained memory, and end-to-end tick evidence. If useful improvement does not survive those
-checks, retain the serial path and record parallel compute as deferred.
+### Test-only worker comparison
+
+At `2e345617`, a separate ignored app test reuses the same captured Formula/input fixture and
+builds fresh 100k-lane stateful processors for each of 1, 2, 4, and 8 scoped workers. It stages
+worker results in processor-chunk order and checks every tick's context sequence, complete
+ordered intent sequence, and diagnostics against the serial reference. After four ticks, the
+entire retained lane-memory pool (values, states, initialization, revisions, and dirty bookkeeping)
+must also equal the serial reference. All eight source-pinned invocations (four per shape) passed.
+Each worker count has one warmup and three timed ticks; the table gives the range of the four
+per-invocation medians, not a p95 or full-product latency statistic.
+
+| Shape | Workers | Warmed direct-evaluation median range | Process CPU-ms per timed tick, observed range |
+| --- | ---: | ---: | ---: |
+| 1,000×100 | 1 | 153–158 ms | 125–172 ms |
+| 1,000×100 | 2 | 94–101 ms | 172–204 ms |
+| 1,000×100 | 4 | 58–68 ms | 187–266 ms |
+| 1,000×100 | 8 | 36–45 ms | 250–343 ms |
+| 10,000×10 | 1 | 165–170 ms | 156–188 ms |
+| 10,000×10 | 2 | 103–110 ms | 171–234 ms |
+| 10,000×10 | 4 | 67–74 ms | 219–266 ms |
+| 10,000×10 | 8 | 40–46 ms | 265–391 ms |
+
+The observed eight-worker median improvement is about 3.4–4.3× against this test's own serial
+path. The process CPU readings are coarse accumulated CPU-millisecond differences; summed
+per-thread kernel wall time is **not** CPU usage. Scoped workers are created for each tick, so
+their spawn/join and ordered merge are inside the timing. The test retains a cloned serial
+lane-memory reference while running later worker counts, so later RSS values (roughly 381–388 MB
+for 1,000×100 and 445–446 MB for 10,000×10 at eight workers) are not independent worker-memory
+comparisons. Separate-process serial RSS is in the pilot table above. No worker count reaches a
+10 ms direct-evaluation budget at 100k lanes.
+
+Reproduce with the same app command and `multiplex_formula_workers_1000_by_100` or
+`multiplex_formula_workers_10000_by_10`, plus `-- --ignored --nocapture`. The full feature-enabled
+app suite passes 513 active tests with four scale/worker tests ignored by default; the 150
+Alchemist tests and strict app Clippy in both feature modes also pass.
+
+The 1,016-lane full-tick sample still does not justify a production worker pool by itself.
+The 100k-lane test shows a useful isolated compute speedup, but not a real-time capacity claim or
+a safe production commit boundary. Sparse-dirty crossover, state-machine transitions, conflicting
+effect targets, triggering, context reorder, generation replacement, cancellation without partial
+state commit, persistent-worker costs, and full end-to-end tick evidence remain open. Only a
+solution satisfying those boundaries should replace or augment the serial production path.

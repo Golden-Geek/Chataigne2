@@ -4,7 +4,7 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `1af6e8f1` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `2e345617` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
@@ -12,8 +12,8 @@ splits, are committed. The App Control node and received-value splits and T18 in
 product-runtime baseline, formula integration, and app-node codegen splits are also committed. The
 test-only T18 processor phase instrumentation, opt-in compiled-kernel probe, and source-pinned
 measurements, processor presentation and multiplex test splits, and the opt-in stateful
-100k-lane scale harness are committed. Its source-pinned pilot results are the current
-documentation patch.
+100k-lane scale harness and test-only 1/2/4/8-worker comparison are committed. Their
+source-pinned measurements are the current documentation patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -159,7 +159,16 @@ lane memories and no diagnostics. Warmed three-tick medians ranged 145–155 ms 
 respectively; evaluated-process RSS ranged 182–184 MB and 222–223 MB. The synthetic context
 axis, disabled copied processor condition, missing output dispatch, and three-tick samples mean
 these are Formula partition pilots, not complete product tick or release-capacity evidence.
-The probe still lacks worker equivalence, sparse-dirty, CPU, and cancellation/generation results.
+That serial pilot alone did not establish worker equivalence or a production commit boundary.
+
+At `2e345617`, four serial invocations per 100k-lane partition compared 1/2/4/8 test workers.
+Every invocation matched the serial context order, ordered effects, diagnostics, and full final
+lane memory after four ticks. Eight-worker median direct-evaluation time ranged 36–45 ms for
+1,000×100 and 40–46 ms for 10,000×10, about 3.4–4.3× faster than each test's serial path, while
+process CPU usage rose. The workers are scoped and test-only; the synthetic lane axis, disabled
+copied condition, retained serial-memory comparison, and absent engine/output commit boundary
+prevent a production or 10 ms capacity claim. Sparse/cancellation/generation and full-tick
+evidence remain open.
 
 ## Task status and dependencies
 
@@ -183,7 +192,7 @@ The probe still lacks worker equivalence, sparse-dirty, CPU, and cancellation/ge
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
-| T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel and 100k-lane stateful partition pilots captured; worker and lifecycle comparison pending |
+| T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel and 100k-lane stateful partition pilots captured; test-only worker equivalence passed, sparse/lifecycle/production boundary pending |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
 ## Finding status
@@ -201,7 +210,7 @@ the current branch contains implementation and verification evidence.
 | F06 — unbounded work/lifecycle     | fixed           | T11 adds dual-bounded I/O, bounded OSC turns, nonblocking actor admission, constant compiler retention/cancellation, bounded HTTP/WebSocket admission, explicit slow-client policy, capacity-reserved project/device retirement, and bounded delayed recovery. T12 bounds completed UI snapshot retention, compiler layouts, fixed-shard persistence captures, and background transport encoding. | Saturation, recovery, shutdown, ownership, and three-client save/resync contention tests pass with explicit overload and retained-capacity evidence.                                                                                                          |
 | F07 — topology ties                | partially fixed | T07 uses one UUID-ordered global ready frontier and compiles stable bucket/runtime order                                                                                                                                                                                                                                                                                                          | Equivalent-order, diamond, disconnected, cycle, and conflicting write/trigger fixtures pass. T14/T18 cross-worker real-kernel determinism remains pending.                                                                                                    |
 | F08 — UI index copying             | fixed           | T13 publishes fixed-depth persistent indexes; proportionally projects insert, remove, move, reorder, metadata, and parameter operations under work-count and wall-clock frame bounds; incrementally indexes warnings; and removes hidden panel-wide graph discovery.                                                                                                                              | Scale, time, retention, reset, mixed-transaction, and production-workbench gates pass. Twenty 600-node inserts at 10k/100k nodes remain below the provisional p95 targets with zero action-window Long Tasks.                                                 |
-| F09 — identity work/full scans     | partially fixed | T14 removes `InputIdentityExecutor` round trips, separates selection from execution, indexes touched dirty words, walks only set bits below the measured 50% crossover, and reserves hot-path scratch at generation install.                                                                                                                                                                      | Exact direct/sparse/dense selections and real executor digests pass; 0–10% visit counts follow dirty cardinality; warmed allocations are zero. T18's real 1,016-lane sample bounds processor evaluation at 32.8–33.8% of serial tick time; the opt-in compiled-kernel probe measures 24.6–25.0% of profiled tick time. Direct 100k-lane stateful product-Formula partitions take 145–164 ms median per warmed evaluation; worker crossover and full tick capacity remain unmeasured, so production computation remains serial.                                        |
+| F09 — identity work/full scans     | partially fixed | T14 removes `InputIdentityExecutor` round trips, separates selection from execution, indexes touched dirty words, walks only set bits below the measured 50% crossover, and reserves hot-path scratch at generation install.                                                                                                                                                                      | Exact direct/sparse/dense selections and real executor digests pass; 0–10% visit counts follow dirty cardinality; warmed allocations are zero. T18's real 1,016-lane sample bounds processor evaluation at 32.8–33.8% of serial tick time; the opt-in compiled-kernel probe measures 24.6–25.0% of profiled tick time. Test-only direct 100k-lane stateful evaluation improves 3.4–4.3× with eight workers and equivalent ordered effects/lane memory, but sparse/lifecycle/production commit and full-tick capacity remain open; production computation stays serial. |
 | F10 — snapshots/encoding           | fixed           | T12 uses fixed-shard copy-on-write UI, compiler, and persistence roots; revision/generation-bound captures; one bounded transport encoder with same-version whole-graph JSON reuse; worker-side compiler materialization; outside-actor sparse project materialization/encoding; bounded completed caches; and outside-actor retirement.                                                          | Persistence and transport capture scale at 1k/10k/100k. Three simultaneous saves/resyncs preserve coherent revisions while engine ticks and file I/O continue; exact local measurements are recorded below.                                                   |
 | F11 — concurrent saves             | fixed           | T09 adds monotonic save tickets, normalized destination identity, ordered complete transactions, bounded cross-destination concurrency, generation fencing, and winner-only path/revision publication                                                                                                                                                                                             | Deterministic barriers cover reversed completion, aliases, Save As, edits, and replacement. Injected write/restore boundaries prove recovery and subsequent saves. T12 retains capture-scaling work under F10, not save-order correctness.                    |
 | F12 — dependency gate              | fixed           | `h2` locked at 0.4.16; `rtrb` constraint and lock at 0.3.5; no advisory suppression added                                                                                                                                                                                                                                                                                                         | `cargo deny check`, `cargo machete`, and both backend-neutral/realtime Golden Audio suites pass against RustSec DB `5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5` (2026-09-02). No reachable Chataigne exploit was established.                                   |
