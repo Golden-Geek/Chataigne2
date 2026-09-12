@@ -39,12 +39,19 @@ TEST_COMMAND = (
 RESULT_FIELDS = {
     "authored_nodes", "graph_roots", "minimum_live_nodes", "prepared_nodes",
     "reloaded_nodes", "load_ms", "prepare_ms", "tick_us", "tick_callbacks",
+    "tick_snapshot_builds", "tick_snapshot_nodes_cloned", "tick_edits_applied",
     "save_ms", "saved_bytes", "reload_ms", "load_rss_mb", "prepare_rss_mb",
     "reload_rss_mb",
 }
 
 
-def parse_result(output: str, target: int, graph_roots: int) -> dict[str, int]:
+TICK_FIELDS = {
+    "tick_us", "tick_callbacks", "tick_snapshot_builds", "tick_snapshot_nodes_cloned",
+    "tick_edits_applied",
+}
+
+
+def parse_result(output: str, target: int, graph_roots: int) -> dict[str, Any]:
     rows = []
     for line in output.splitlines():
         if RESULT_PREFIX in line:
@@ -57,8 +64,16 @@ def parse_result(output: str, target: int, graph_roots: int) -> dict[str, int]:
     row = rows[0]
     if not isinstance(row, dict) or row.keys() != RESULT_FIELDS:
         raise ValueError("authored graph result fields differ from the qualification contract")
-    if any(type(value) is not int or value < 0 for value in row.values()):
+    if any(type(value) is not int or value < 0 for key, value in row.items() if key not in TICK_FIELDS):
         raise ValueError("authored graph measurements must be nonnegative integers")
+    for field in TICK_FIELDS:
+        values = row[field]
+        if (
+            not isinstance(values, list)
+            or len(values) != 5
+            or any(type(value) is not int or value < 0 for value in values)
+        ):
+            raise ValueError(f"authored graph {field} must contain five nonnegative measurements")
     if row["minimum_live_nodes"] != target or row["graph_roots"] != graph_roots:
         raise ValueError("authored graph result does not match the generated fixture")
     if row["authored_nodes"] < target or row["reloaded_nodes"] < target:
@@ -137,13 +152,15 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
             },
             "measured_result": measured,
             "parse_error": parse_error,
-            "tick_deadline_exceeded": measured is not None and measured["tick_us"] > 8_000,
+            "startup_tick_deadline_exceeded": measured is not None and measured["tick_us"][0] > 8_000,
+            "warmed_tick_deadline_exceeded": measured is not None
+            and any(value > 8_000 for value in measured["tick_us"][1:]),
         })
         print(f"authored graph {target}: {scenarios[-1]['status']} ({log_path})", flush=True)
     if working_tree_sha(root) != tested_tree_sha:
         raise ValueError("source tree changed during authored graph qualification")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "evidence_id": EVIDENCE_ID,
         "status": "PASS" if all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "commit_sha": commit_sha,

@@ -225,22 +225,30 @@ the real `test_simple_load.noisette` workbench, then requires the Chataigne app 
 tick, sparsely save, and reload each fixture. The generator reports serialized records separately
 from live engine nodes: sparse project loading prunes declared records, so serialized count is not
 an authored-node capacity claim. The app test verifies the 1k/10k/100k minimum live-node thresholds
-and that every cloned Formula graph-root UUID survives save/reload. All 38 qualification-tool tests
+and that every cloned Formula graph-root UUID survives save/reload. All 39 qualification-tool tests
 pass, including malformed and missing-result checks.
 
 The local source-fingerprinted report is
-`target/qualification/authored-graph-scale/20260912T133500Z/authored-graph-scale-report.json`
-(tested tree `3dd1709cb11df75c8927e32c496213723b21d060`, default `asio,jack,realtime`,
+`target/qualification/authored-graph-scale/20260912T135200Z/authored-graph-scale-report.json`
+(schema 2; tested tree `fd21b8b25446fd1ea26f12cffbe587c8b69e99ce`, default `asio,jack,realtime`,
 optimized app test with UI asset build skipped). Functional checks pass on this Windows x64 host:
 
-| Minimum live nodes | Loaded / prepared / reloaded | Cloned graph roots preserved | Load / prepare / save / reload ms | One tick | Reload RSS |
+| Minimum live nodes | Loaded / prepared / reloaded | Cloned graph roots preserved | Load / prepare / save / reload ms | Tick 1 / ticks 2–5 ms | Reload RSS |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 27 / 42 / 13 / 20 | 6.15 ms | 26 MB |
-| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 221 / 393 / 108 / 209 | 59.14 ms | 71 MB |
-| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,448 / 5,519 / 1,082 / 2,467 | 703.07 ms | 515 MB |
+| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 27 / 42 / 13 / 21 | 7.11 / 2.33, 0.03, 2.29, 2.02 | 26 MB |
+| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 226 / 392 / 106 / 208 | 56.27 / 24.55, 0.05, 23.95, 22.40 | 73 MB |
+| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,429 / 5,428 / 1,061 / 2,383 | 692.39 / 273.89, 0.06, 299.86, 275.45 | 517 MB |
 
-The 10k and 100k single ticks exceed the test's 8 ms interval; **functional PASS is not a
-real-time, interaction, or release-capacity pass**. Preparation adds 157 nodes at each size and
+The 10k and 100k startup ticks and three of four later ticks exceed the test's 8 ms interval;
+**functional PASS is not a real-time, interaction, or release-capacity pass**. The slow later
+ticks each clone one full process-tree snapshot (10,247 or 100,239 records); the near-idle third
+tick clones none. `GOLDEN_PERF_TRACE=1` corroborated two snapshots on the first tick and recurring
+full snapshots alongside state-machine edits. The state-machine manager's snapshot-demand path is
+the likely owner of the recurring cost, an inference from its 125 Hz schedule and dirty-state
+gate; a callback-level trace has not yet proved sole ownership. This is separate from T12's
+bounded UI/transport/persistence snapshots and remains an open engine-loop scaling problem.
+
+Preparation adds 157 nodes at each size and
 sparse reload retains one more node than initial load; the authored graph roots are stable, but
 the one-node drift and full descendant/value equivalence still need investigation. The fixture
 does not exercise all graph clones through Formula evaluation, graph edits/undo, UI paint,

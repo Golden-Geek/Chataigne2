@@ -70,10 +70,21 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
     let prepared_nodes = engine.nodes.iter().count();
     let prepare_rss_mb = resident_bytes(&mut system) / 1_000_000;
 
-    let started = Instant::now();
-    engine.run_tick(Duration::from_millis(8)).expect("authored project tick should run");
-    let tick_us = started.elapsed().as_micros();
-    let tick_callbacks = engine.tick_stats().callbacks_fired;
+    let mut tick_us = Vec::with_capacity(5);
+    let mut tick_callbacks = Vec::with_capacity(5);
+    let mut tick_snapshot_builds = Vec::with_capacity(5);
+    let mut tick_snapshot_nodes_cloned = Vec::with_capacity(5);
+    let mut tick_edits_applied = Vec::with_capacity(5);
+    for _ in 0..5 {
+        let started = Instant::now();
+        engine.run_tick(Duration::from_millis(8)).expect("authored project tick should run");
+        tick_us.push(started.elapsed().as_micros());
+        let stats = engine.tick_stats();
+        tick_callbacks.push(stats.callbacks_fired);
+        tick_snapshot_builds.push(stats.snapshot_builds);
+        tick_snapshot_nodes_cloned.push(stats.snapshot_nodes_cloned);
+        tick_edits_applied.push(stats.edits_applied);
+    }
 
     let started = Instant::now();
     let saved = to_sparse_project_json_pretty(&engine).expect("authored project should save");
@@ -105,6 +116,9 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
             "prepare_ms": prepare_ms,
             "tick_us": tick_us,
             "tick_callbacks": tick_callbacks,
+            "tick_snapshot_builds": tick_snapshot_builds,
+            "tick_snapshot_nodes_cloned": tick_snapshot_nodes_cloned,
+            "tick_edits_applied": tick_edits_applied,
             "save_ms": save_ms,
             "saved_bytes": saved_bytes,
             "reload_ms": reload_ms,

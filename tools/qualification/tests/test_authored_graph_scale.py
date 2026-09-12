@@ -17,8 +17,11 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
         "reloaded_nodes": 1_089,
         "load_ms": 34,
         "prepare_ms": 44,
-        "tick_us": 6_418,
-        "tick_callbacks": 1,
+        "tick_us": [6_418, 180, 170, 175, 172],
+        "tick_callbacks": [1, 0, 0, 0, 0],
+        "tick_snapshot_builds": [2, 0, 0, 0, 0],
+        "tick_snapshot_nodes_cloned": [2_490, 0, 0, 0, 0],
+        "tick_edits_applied": [9, 0, 0, 0, 0],
         "save_ms": 13,
         "saved_bytes": 778_107,
         "reload_ms": 22,
@@ -47,9 +50,14 @@ class AuthoredGraphScaleTests(unittest.TestCase):
     def test_rejects_missing_measurement_and_missed_threshold(self) -> None:
         output = complete_output()
         with self.assertRaisesRegex(ValueError, "fields differ"):
-            authored_graph_scale.parse_result(output.replace('"tick_us": 6418, ', ""), 1_000, 72)
+            authored_graph_scale.parse_result(output.replace('"tick_us": [6418, 180, 170, 175, 172], ', ""), 1_000, 72)
         with self.assertRaisesRegex(ValueError, "missed the live-node target"):
             authored_graph_scale.parse_result(complete_output(target=10_000), 10_000, 72)
+
+    def test_rejects_incomplete_tick_series(self) -> None:
+        output = complete_output().replace("[6418, 180, 170, 175, 172]", "[6418, 180]")
+        with self.assertRaisesRegex(ValueError, "five nonnegative"):
+            authored_graph_scale.parse_result(output, 1_000, 72)
 
     def test_output_directory_must_be_empty_under_target(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
