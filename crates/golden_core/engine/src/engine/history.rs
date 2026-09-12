@@ -7,6 +7,7 @@ use crate::ui_sync::UiGraphOp;
 
 use super::{Engine, EngineEditError};
 
+mod batch;
 mod replay;
 
 /// Collection of reversible history steps representing one applied edit transaction.
@@ -104,6 +105,9 @@ impl<T: Node> HistoryTransaction<T> {
 
     /// Replays all steps in reverse order to undo this transaction.
     fn undo(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
+        if self.is_same_parent_add_batch() {
+            return self.undo_add_batch(engine);
+        }
         for step in self.steps.iter_mut().rev() {
             step.undo(engine)?;
         }
@@ -112,6 +116,9 @@ impl<T: Node> HistoryTransaction<T> {
 
     /// Replays all steps in forward order to redo this transaction.
     fn redo(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
+        if self.is_same_parent_add_batch() {
+            return self.redo_add_batch(engine);
+        }
         for step in self.steps.iter_mut() {
             step.redo(engine)?;
         }

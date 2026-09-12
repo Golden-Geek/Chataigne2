@@ -289,9 +289,12 @@ One checkpoint and one lifecycle pass per creation-context group remove the repe
 work during paste. The probe now also ticks the active runtime after duplicate, undo, and redo.
 At 100k, batching multiple structural formula events into one reconciliation lowered the
 post-duplicate tick from 4,341 ms to 1,421 ms and the post-undo tick from 3,351 ms to 1,849 ms
-in separate local runs; the latest post-redo tick was 1,974 ms. Undo itself still takes 3,670 ms
-and redo 10,834 ms for the same ten roots:
-history replays roots individually, including full-tree destroy/ready or UI snapshot work. The
+in separate local runs; the latest post-redo tick was 1,974 ms. Before history batching, undo
+took 3,670 ms and redo 10,834 ms for the same ten roots. Same-parent multi-add replay now uses
+one destroy pass for undo and one UI catalog snapshot plus ready batch for redo. A subsequent
+100k run measured 383 ms undo and 1,042 ms redo; duplicate, post-duplicate tick, post-undo tick,
+and post-redo tick were 1,304 ms, 1,221 ms, 1,602 ms, and 1,590 ms respectively. These are
+single local diagnostics, not tail-latency or action-to-paint qualification. The
 600-node full-workbench action target and sparse/dense edit, transport, and browser gates remain
 open; this is not a live-edit capacity pass.
 
@@ -516,8 +519,7 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to batch history replay for multi-root edits and reduce remaining active-runtime
-event/snapshot costs, then exercise large live
+T19 next needs to reduce remaining active-runtime event/snapshot costs, then exercise large live
 Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 

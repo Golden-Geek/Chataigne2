@@ -22,7 +22,7 @@ use crate::script::{ScriptNode, ScriptNodeConfig, ScriptSource};
 use crate::ui_sync::{
     UiCreateUserItemInitialParam, UiDuplicateCreateUserItemSpec, UiDuplicateDependentInitialParamValue,
     UiDuplicateDependentUserItem, UiDuplicateDependentUserItemInitialParam, UiDuplicateNodeSpec, UiEditIntent,
-    UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope,
+    UiEventKind, UiGraphOp, UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope,
 };
 
 mod graph_editing;
@@ -713,8 +713,32 @@ fn duplicate_nodes_batch_preserves_sibling_order_through_one_undo_and_redo() {
 
     assert!(engine.undo().expect("batch undo should succeed"));
     assert_eq!(engine.ui_direct_children(container), Some(before));
+    engine.clear_ui_event_log();
     assert!(engine.redo().expect("batch redo should succeed"));
-    assert_eq!(engine.ui_direct_children(container), Some(after));
+    assert_eq!(engine.ui_direct_children(container), Some(after.clone()));
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let graph_transactions = batch
+        .events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(graph_transactions.len(), 1);
+    assert_eq!(graph_transactions[0].ops.len(), 2);
+    for op in &graph_transactions[0].ops {
+        let UiGraphOp::SubtreeInserted {
+            parent,
+            parent_children_after,
+            ..
+        } = op
+        else {
+            panic!("batch redo should only insert subtrees");
+        };
+        assert_eq!(*parent, container);
+        assert_eq!(parent_children_after, &after);
+    }
 }
 
 #[test]

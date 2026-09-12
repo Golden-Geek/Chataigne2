@@ -15,6 +15,9 @@ Multi-root duplicate actions prepare each detached subtree before mutation, then
 whole batch under one rollback checkpoint. Loaded-node attached/init/ready callbacks replay in
 creation-context groups, so a paste does not rebuild a full process-tree snapshot for each root.
 Each inserted root retains its insertion-time sibling anchors for a single undo transaction.
+History replay batches independent same-parent additions: undo shares one destroy lifecycle
+snapshot, while redo restores all roots before building one UI catalog snapshot and running one
+ready lifecycle batch. Nested or mixed history transactions retain stepwise replay.
 
 ## Save transaction
 
