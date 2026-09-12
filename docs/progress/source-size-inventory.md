@@ -4,15 +4,17 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-covers 1169 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
+covers 1172 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
 `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
-`node_modules/`. It was refreshed on 2026-09-12 after the T17 engine-script split.
-The 44-file audit count was a historical baseline with a different source snapshot; 54 files
+`node_modules/`. It was refreshed on 2026-09-12 after the T17 script and UI-sync splits.
+The 44-file audit count was a historical baseline with a different source snapshot; 53 files
 currently exceed 1,000 lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
 `script/mod.rs` (under 1,000 lines), while template expansion and the engine-to-VM host bridge
 live in `script/template.rs` and `script/host.rs`. The full engine suite and strict Clippy pass.
+`golden_engine::ui_sync` now keeps intent coordination in its root module, with focused conversion,
+creation/duplication, and snapshot/event projection modules; all four files are under 1,000 lines.
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
 avoid mixing large structural moves into runtime race fixes.
@@ -33,7 +35,6 @@ avoid mixing large structural moves into runtime race fixes.
 | 2,596 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs` | Split focused test suites |
 | 2,596 | `apps/chataigne/src/module/modules/generators/spatializer/mod.rs` | Split cohesive Rust module |
 | 2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte` | Decompose presentation and state |
-| 2,524 | `crates/golden_core/engine/src/ui_sync.rs` | Split engine projection and intent application |
 | 2,362 | `crates/golden_core/hosts/transport/src/ui_server/mod.rs` | Split cohesive Rust module |
 | 2,325 | `crates/golden_core/engine/src/engine/controls.rs` | Split cohesive Rust module |
 | 2,046 | `crates/golden_core/engine/src/app/mod.rs` | Split cohesive Rust module |
