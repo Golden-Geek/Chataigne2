@@ -612,6 +612,8 @@ pub fn activate_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::
     // Dropping bootstrap inbox events avoids a very expensive first runtime tick for large graphs.
     engine.inbox.clear();
     engine.clear_history(); // keep runtime undo history strictly post-start
+    engine.prepare_param_control_index_for_runtime();
+    engine.prepare_first_tick_snapshot_if_needed();
     Ok(())
 }
 
@@ -657,6 +659,8 @@ pub fn prepare_engine_for_runtime_recovering<T: Node>(engine: &mut Engine<T>) ->
     engine.inbox.clear();
     engine.edits.pending.clear();
     engine.clear_history();
+    engine.prepare_param_control_index_for_runtime();
+    engine.prepare_first_tick_snapshot_if_needed();
     recovery
 }
 

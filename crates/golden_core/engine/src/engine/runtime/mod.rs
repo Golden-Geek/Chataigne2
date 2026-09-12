@@ -50,6 +50,7 @@ impl<T: Node> Engine<T> {
         self.runtime_resolve_pending = true;
         self.mark_param_control_index_dirty();
         self.tick_tree_snapshot = None;
+        self.prepared_first_tick_snapshot = None;
     }
 
     /// Inserts or refreshes the param cache entry for `node_id`.

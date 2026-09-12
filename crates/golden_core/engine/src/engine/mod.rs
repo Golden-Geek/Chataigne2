@@ -205,6 +205,9 @@ pub struct Engine<T: Node> {
     /// Tree snapshot built at most once per tick and reused across all `CallNodeMutation`
     /// edits in that tick. Cleared at tick start and on any structural change.
     pub(crate) tick_tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    /// One-use snapshot built after runtime activation so the first scheduled update does
+    /// not clone the whole tree. Discarded if edits or inbox work precede that update.
+    pub(crate) prepared_first_tick_snapshot: Option<Arc<ProcessTreeSnapshot>>,
     /// Cached map of parameter node → current value, used by `run_scheduled_updates` so
     /// N due nodes share the same resolution table rather than rebuilding per node.
     ///
@@ -308,6 +311,7 @@ impl<T: Node> Engine<T> {
             control_source_dependents: HashMap::new(),
             control_index_dirty: true,
             tick_tree_snapshot: None,
+            prepared_first_tick_snapshot: None,
             parameter_values_cache,
             tick_scratch: tick_scratch::TickScratch::default(),
             tick_accumulator: Duration::ZERO,
@@ -719,6 +723,21 @@ impl<T: Node> Engine<T> {
         self.tick_scratch.stats.snapshot_build_ns += started.elapsed().as_nanos();
         self.tick_tree_snapshot = Some(Arc::clone(&snapshot));
         snapshot
+    }
+
+    pub(crate) fn prepare_first_tick_snapshot_if_needed(&mut self) {
+        // Lifecycle callbacks may leave a prior tick-scoped snapshot behind. Retire it
+        // during activation, outside the first time-budgeted runtime tick.
+        self.tick_tree_snapshot = None;
+        self.prepared_first_tick_snapshot = self
+            .nodes
+            .iter()
+            .any(|(node_id, node)| {
+                self.runtime_schedule.schedules_node(node_id)
+                    && node.needs_update()
+                    && node.update_requires_tree_snapshot()
+            })
+            .then(|| self.build_process_tree_snapshot());
     }
 
     pub(crate) fn build_process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {

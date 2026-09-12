@@ -388,6 +388,7 @@ impl<T: Node> Engine<T> {
         if !self.control_index_dirty {
             return false;
         }
+        self.tick_scratch.stats.control_index_rebuilds += 1;
 
         self.active_control_params.clear();
         self.active_control_param_set.clear();
@@ -423,6 +424,10 @@ impl<T: Node> Engine<T> {
 
         self.control_index_dirty = false;
         true
+    }
+
+    pub(crate) fn prepare_param_control_index_for_runtime(&mut self) {
+        self.rebuild_param_control_index_if_dirty();
     }
 
     fn record_control_source_dependency(&mut self, source: NodeId, dependent: NodeId) {
@@ -1915,6 +1920,10 @@ impl<T: Node> Engine<T> {
                 EventKind::ParamControlChanged { param, .. } => {
                     changed_controls.insert(*param);
                     structural = true;
+                }
+                EventKind::Custom(_) => {
+                    // Custom signals carry no tree or control-config mutation. Any edits
+                    // they cause emit their own structural or control events later.
                 }
                 _ => {
                     structural = true;

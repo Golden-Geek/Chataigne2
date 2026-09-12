@@ -62,7 +62,9 @@ impl<T: Node> Engine<T> {
         let tick_started = Instant::now();
         self.tick_scratch.clear_stats();
         self.tick_tree_snapshot = None;
+        let prepared_first_tick_snapshot = self.prepared_first_tick_snapshot.take();
         self.tick_scratch.clear_scheduled();
+        let preamble_ms = tick_started.elapsed().as_millis();
 
         // Apply structural edits deferred from the previous tick's stabilization rounds.
         // Structural edits cannot run inside stabilization because they reset the schedule
@@ -113,6 +115,15 @@ impl<T: Node> Engine<T> {
         self.run_control_pass()?;
         let control_ms = control_started.elapsed().as_millis();
 
+        if pending_edits == 0
+            && inbox_events == 0
+            && self.tick_scratch.stats.edits_applied == 0
+            && self.edits.pending.is_empty()
+            && self.tick_tree_snapshot.is_none()
+        {
+            self.tick_tree_snapshot = prepared_first_tick_snapshot;
+        }
+
         let scheduled_started = Instant::now();
         self.run_scheduled_updates(elapsed, &mut order_due_nodes)?;
         let scheduled_ms = scheduled_started.elapsed().as_millis();
@@ -128,8 +139,9 @@ impl<T: Node> Engine<T> {
         let total_ms = tick_started.elapsed().as_millis();
         if *PERF_TRACE_ENABLED && total_ms >= PERF_LOG_TICK_THRESHOLD_MS {
             eprintln!(
-                "[engine] tick total_ms={} resolve1_ms={} absorb_external_edits_ms={} apply_external_edits_ms={} inbox_precompute_ms={} inbox_preprocess_ms={} control_ms={} scheduled_ms={} stabilization_ms={} logger_sync_ms={} pending_edits={} inbox_events={}",
+                "[engine] tick total_ms={} preamble_ms={} resolve1_ms={} absorb_external_edits_ms={} apply_external_edits_ms={} inbox_precompute_ms={} inbox_preprocess_ms={} control_ms={} scheduled_ms={} stabilization_ms={} logger_sync_ms={} pending_edits={} inbox_events={}",
                 total_ms,
+                preamble_ms,
                 resolve1_ms,
                 absorb_external_edits_ms,
                 apply_external_edits_ms,
@@ -149,7 +161,7 @@ impl<T: Node> Engine<T> {
                 self.last_performance_log_tick = Some(self.time.tick);
                 let stats = self.tick_stats();
                 eprintln!(
-                    "[engine] slow_tick total_ms={total_ms} resolve_ms={resolve1_ms} external_edits_ms={apply_external_edits_ms} inbox_precompute_ms={inbox_precompute_ms} inbox_preprocess_ms={inbox_preprocess_ms} control_ms={control_ms} scheduled_ms={scheduled_ms} stabilization_ms={stabilization_ms} logger_sync_ms={logger_sync_ms} pending_edits={pending_edits} inbox_events={inbox_events} nodes_due={} callbacks={} events_emitted={} edits_applied={} stabilization_passes={} snapshot_rebuilds={} snapshot_builds={} snapshot_build_us={} snapshot_nodes_cloned={} dispatch_events_routed={} dispatch_recipient_deliveries={} dispatch_max_fanout={} controls_params_scanned={}",
+                    "[engine] slow_tick total_ms={total_ms} resolve_ms={resolve1_ms} external_edits_ms={apply_external_edits_ms} inbox_precompute_ms={inbox_precompute_ms} inbox_preprocess_ms={inbox_preprocess_ms} control_ms={control_ms} scheduled_ms={scheduled_ms} stabilization_ms={stabilization_ms} logger_sync_ms={logger_sync_ms} pending_edits={pending_edits} inbox_events={inbox_events} nodes_due={} callbacks={} events_emitted={} edits_applied={} stabilization_passes={} snapshot_rebuilds={} snapshot_builds={} snapshot_build_us={} snapshot_nodes_cloned={} dispatch_events_routed={} dispatch_recipient_deliveries={} dispatch_max_fanout={} controls_params_scanned={} control_index_rebuilds={}",
                     stats.nodes_due,
                     stats.callbacks_fired,
                     stats.events_emitted,
@@ -162,7 +174,8 @@ impl<T: Node> Engine<T> {
                     stats.dispatch_events_routed,
                     stats.dispatch_recipient_deliveries,
                     stats.dispatch_max_fanout,
-                    stats.controls_params_scanned
+                    stats.controls_params_scanned,
+                    stats.control_index_rebuilds
                 );
             }
         }

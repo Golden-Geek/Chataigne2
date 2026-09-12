@@ -85,6 +85,9 @@ impl<T: Node> Engine<T> {
         creation_context: Option<NodeCreationContext>,
     ) -> Result<(), EngineEditError> {
         self.absorb_external_edits()?;
+        if !self.edits.pending.is_empty() {
+            self.prepared_first_tick_snapshot = None;
+        }
 
         let mut transaction = HistoryTransaction::new();
         let mut redo_cleared = false;

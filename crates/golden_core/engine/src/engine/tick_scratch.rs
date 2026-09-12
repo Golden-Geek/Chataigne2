@@ -34,6 +34,8 @@ pub struct TickStats {
     pub dispatch_max_fanout: usize,
     /// Number of active control parameters evaluated by the control pass this tick.
     pub controls_params_scanned: usize,
+    /// Number of full parameter-control index rebuilds this tick.
+    pub control_index_rebuilds: usize,
 }
 
 /// Pre-allocated scratch buffers reused across tick phases to avoid per-tick heap allocations.

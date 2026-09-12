@@ -91,3 +91,13 @@ whole-graph version remains cached.
 limited even if native shutdown never returns, and admission failure gives the caller its original
 resource back. Production project replacement permits two concurrent detached-engine retirements;
 a third request is rejected before allocating a generation or preparing the candidate.
+
+Golden runtime activation builds the parameter-control index before the first timed tick. If an
+active scheduled node needs a process-tree snapshot, activation also prepares one immutable,
+one-use snapshot. The first tick reuses it only when no edits or inbox work changed the tree before
+scheduled callbacks; otherwise the engine discards it and builds a fresh snapshot. This moves
+initial indexing and snapshot construction out of the tick budget, but activation still performs
+that synchronous work. It is not a claim that large-project startup or the first scheduled
+callback meets a real-time deadline.
+An edit before the first scheduled callback rejects the prepared snapshot and can still make that
+first tick expensive; large-project edit and retirement behavior remains a separate qualification.

@@ -229,35 +229,40 @@ and that every cloned Formula graph-root UUID survives save/reload. All 39 quali
 pass, including malformed and missing-result checks.
 
 The local source-fingerprinted report is
-`target/qualification/authored-graph-scale/20260912T144950Z/authored-graph-scale-report.json`
-(schema 2; tested tree `473259fba736b906175d7e5d16bb45d5f124b43a`, default `asio,jack,realtime`,
+`target/qualification/authored-graph-scale/20260912T153435Z/authored-graph-scale-report.json`
+(schema 2; tested tree `409ac444e4a09fc3d680784b424e7af9fe5c1ad9`, default `asio,jack,realtime`,
 optimized app test with UI asset build skipped). Functional checks pass on this Windows x64 host:
 
 | Minimum live nodes | Loaded / prepared / reloaded | Cloned graph roots preserved | Load / prepare / save / reload ms | Tick 1 / ticks 2–5 ms | Reload RSS |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 27 / 44 / 14 / 23 | 4.49 / 0.005, 0.043, 0.034, 0.002 | 26 MB |
-| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 272 / 458 / 108 / 255 | 37.25 / 0.010, 0.043, 0.045, 0.002 | 73 MB |
-| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,659 / 6,237 / 1,351 / 3,180 | 498.43 / 0.019, 0.078, 0.092, 0.002 | 518 MB |
+| 1,000 | 1,088 / 1,245 / 1,089 | 72 / 72 | 29 / 45 / 13 / 20 | 1.44 / 0.005, 0.041, 0.034, 0.002 | 26 MB |
+| 10,000 | 10,090 / 10,247 / 10,091 | 715 / 715 | 220 / 411 / 105 / 216 | 5.00 / 0.005, 0.030, 0.026, 0.002 | 72 MB |
+| 100,000 | 100,082 / 100,239 / 100,083 | 7,143 / 7,143 | 2,416 / 6,464 / 1,264 / 2,974 | 61.80 / 0.009, 0.059, 0.036, 0.003 | 512 MB |
 
-The 10k and 100k startup ticks still exceed the test's 8 ms interval; **functional PASS is not a
+The 100k startup tick still exceeds the test's 8 ms interval; **functional PASS is not a
 real-time, interaction, or release-capacity pass**. A callback-level trace identified the
 state-machine manager as the remaining recurring requester. Its own generated condition-validity
 result was being classified as a user processor override, dirtying the next tick. After correcting
 that boundary and removing snapshot demand from callbacks that do not read the tree, each size
-builds one startup process-tree snapshot and zero snapshots on the four warmed ticks. At 100k,
-that removes four full-tree clones (100,239 nodes each) from the five-tick run. The first tick
-still spends about 0.5 s and needs a separate startup-snapshot design; the short warmed sample
-does not establish a tail-latency bound. This is separate from T12's bounded
+needs only one initial process-tree snapshot. Golden runtime activation now builds that snapshot
+and the parameter-control index before timed ticks, discards any older tick-scoped snapshot, and
+reuses the prepared snapshot only if no intervening edits invalidate it. Custom signals no longer
+force a structural control-index scan. All five timed ticks at every size now build zero snapshots;
+the 1k and 10k first ticks met 8 ms in this local sample. At 100k, an opt-in trace attributes the
+remaining roughly 62 ms first tick to the state-machine scheduled callback, with zero control-index
+rebuilds. Preparation/activation still does synchronous work, and the short tick sample does not
+establish a tail-latency bound. This is separate from T12's bounded
 UI/transport/persistence snapshots.
+
 The manager tracks its own generated validity output between snapshots, so a later true-to-false
 transition is not hidden by a stale value in the retained startup snapshot.
 
-The broad app suite is not clean on this host: the most recent serial run had 516 passes,
-one ignored test, and two multiplex real-time timing failures (5.72 and 6.66 ms means against
-the 5 ms development budget). The active multiplex case passed in isolation at 4.90 ms on a
-repeat run, and its production variant passed in isolation at 4.93 ms; the full-suite timing
-gate remains open. Strict app Clippy, 39 qualification-tool tests, and 415 active Golden Engine
-unit tests pass. The 516 other app tests pass when those two timing cases are excluded.
+The broad app suite is not clean on this host: the most recent serial run had 517 passes,
+one ignored test, and one multiplex active-runtime timing failure (5.31 ms mean against
+the 5 ms development budget). The production variant passed in that run; the full-suite
+timing gate remains open. Strict app/engine Clippy, 39 qualification-tool tests, and 420
+active Golden Engine unit tests pass. The 516 non-timing app tests pass when both multiplex
+timing cases are excluded.
 
 Preparation adds 157 nodes at each size and
 sparse reload retains one more node than initial load; the authored graph roots are stable, but
@@ -487,7 +492,8 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to resolve the authored-graph startup tick overrun and round-trip drift, then exercise
+T19 next needs to move the remaining first-tick state-machine callback work out of the real-time
+path, resolve round-trip drift, then exercise
 Formula/state/graph editing, UI/transport, multi-client and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 

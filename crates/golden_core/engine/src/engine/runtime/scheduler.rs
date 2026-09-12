@@ -225,6 +225,10 @@ impl ScheduleMgr {
         self.nodes_by_rate.get(&rate_hz).map(Vec::as_slice)
     }
 
+    pub(crate) fn schedules_node(&self, node: NodeId) -> bool {
+        self.bucket_by_node.contains_key(&node)
+    }
+
     pub(super) fn timing_for_node(&self, node: NodeId) -> Option<ScheduleTiming> {
         let bucket = self.buckets.get(*self.bucket_by_node.get(&node)?)?;
         Some(ScheduleTiming {
