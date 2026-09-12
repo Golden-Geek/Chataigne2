@@ -4,9 +4,10 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `52e710d9` contains T00–T15, the T16 audio-artifact wiring and independent
-Git-consumer qualification, and removal of the four obsolete gitlinks. The app fixture corrections,
-expanded cross-platform artifact gate, and this status update are the current patch.
+Current committed SHA: `ca266755` contains T00–T15, the T16 audio-artifact wiring and independent
+Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
+the cross-platform artifact gate. The T17 script-adapter split, refreshed source-size inventory,
+and documentation reconciliation are the current patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -20,7 +21,14 @@ Remote reconciliation: `origin/main` returned the same audited SHA via `git ls-r
 
 ## Current batch
 
-Task: T16 — ordinary desktop audio artifacts are implemented and qualified locally on Windows x64.
+Task: T17 — repository cleanup and cohesive source splits are underway. Four orphan gitlinks were
+removed from Git's index without deleting the clean local nested checkouts, so an independent Git
+consumer no longer fails on their missing `.gitmodules` URLs. The engine script adapter now puts
+template discovery/include expansion and host bridging in separate modules, keeping its lifecycle
+file under 1,000 lines. The refreshed inventory finds 54 remaining oversized source files; none
+has an approved exception. The old multiplex stop-point instructions are labeled historical.
+
+T16 — ordinary desktop audio artifacts are implemented and qualified locally on Windows x64.
 The app forwards ASIO, JACK, and realtime through `golden_audio`; the canonical toolchain manifest,
 bootstrap verifiers, developer setup, docs, and CI artifact matrix agree. The reusable crate keeps
 its native-only `desktop` default. Native PipeWire remains an explicit Linux option. A clean,
@@ -77,7 +85,7 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
 | T14  | T03, T07, T11                                 | complete                                                     |
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
-| T17  | T00; behavior fixes before related extraction | orphan gitlinks removed; inventory and cohesive splits pending |
+| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, script adapter split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | pending                                                      |
 | T19  | relevant implementation tasks                 | pending                                                      |
 
@@ -103,7 +111,7 @@ the current branch contains implementation and verification evidence.
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
 | F14 — facades/edit acknowledgement | fixed           | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 puts codecs, wire DTOs, script declarations, and VM/runtime primitives in their owning crates while engine application stays in adapters; the full facade composes the ready-to-launch host.                                                           | Persistence, protocol, script fake-host, headless-host, and full-host external consumers pass. Focused dependency trees exclude forbidden engine, QuickJS, desktop, Tauri, audio, and Chataigne edges as applicable.                                      |
 | F15 — ordinary audio portability | partially fixed | Default app forwards ASIO/JACK/realtime; canonical matrix, pinned SDK, app catalog test, and standalone Git/CPAL consumer are in place. | Windows x64 default artifact, headless startup, JACK missing-server state, 513 app tests, and external consumer pass. Hosted six-platform artifact gate and named physical streams remain unrun. |
-| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed from the index without deleting the clean local nested checkouts; the UI readiness hook uses the current UI package path. | Fresh Git consumer no longer fails on missing submodule URLs. Oversized-file inventory, cohesive splits, and progress-note reconciliation remain open. |
+| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script template and host bridge now own their focused files; stale multiplex notes are marked archival. | Independent Git consumer passes and all 415 active engine tests plus strict Clippy pass after the split. The current inventory has 54 remaining oversized files and no approved exceptions. |
 
 ## Commands and results
 
@@ -274,10 +282,10 @@ installed hosts; no physical stream was opened.
 
 ## Next task
 
-Next dependency-ready work: finish T17's current oversized-file inventory, split cohesive
-responsibilities near the already changed boundaries, and reconcile outdated progress notes. T18
-then profiles real app-owned formula/lane computation before deciding whether parallel execution
-is justified. T19 retains the exact-artifact cross-platform and physical-product evidence gate.
+Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
+projection/canvas and app-owned formula/state integration. T18 then profiles real app-owned
+formula/lane computation before deciding whether parallel execution is justified. T19 retains the
+exact-artifact cross-platform and physical-product evidence gate.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

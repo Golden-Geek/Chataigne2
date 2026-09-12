@@ -12,7 +12,7 @@ fn custom_template_can_include_core_default_template_by_namespace() {
     let template_path = root.join("custom.js");
     fs::write(&template_path, "{{include:core/default.js}}\n").expect("custom template should be written");
 
-    let source = super::read_template_from_path(&template_path, &root)
+    let source = super::template::read_template_from_path(&template_path, &root)
         .expect("namespaced core include should resolve from Golden Core root");
 
     assert!(source.contains("// Default script template for Golden Core script nodes."));
@@ -27,7 +27,7 @@ fn custom_template_does_not_fall_back_to_core_without_namespace() {
     let template_path = root.join("custom.js");
     fs::write(&template_path, "{{include:snippets/header.js}}\n").expect("custom template should be written");
 
-    let error = super::read_template_from_path(&template_path, &root)
+    let error = super::template::read_template_from_path(&template_path, &root)
         .expect_err("plain includes should stay scoped to the current template root");
 
     assert!(error.contains("snippets/header.js"));

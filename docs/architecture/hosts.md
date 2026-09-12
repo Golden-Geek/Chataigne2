@@ -32,6 +32,11 @@ These are package boundaries, not feature aliases on the full facade. This keeps
 visible in each consumer manifest. Crate-external compile fixtures cover the engine transaction,
 protocol, persistence, script runtime, transport-only headless host, and full default-host APIs.
 
+Within `golden_engine::script`, `mod.rs` owns the script node's configuration, lifecycle, and
+project adapter; `template.rs` owns template discovery and include expansion; `host.rs` adapts
+engine events, snapshots, and effects to the public `golden_script` host traits. VM execution and
+its safety limits remain in `golden_script`, not the engine adapter.
+
 ## Browser And Headless Host
 
 The default built-in browser/headless path also starts from `golden_core`.

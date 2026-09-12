@@ -9,7 +9,10 @@ truthful progress feedback.
 
 ## Completion Result — 2026-07-30
 
-Status: complete.
+Status: complete for the 2026-07-30 multiplex recovery slice. This is not a current-source
+performance or release qualification claim; use the
+[audit remediation ledger](audit-remediation-status.md) and
+[current implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md) for that work.
 
 - Websocket staging is plane-aware and preserves reliable ordering barriers.
   Structure and trigger work cannot be silently coalesced or dropped.
@@ -58,9 +61,12 @@ Warm serial performance evidence:
   98 us publish) with a 12 ms rebuild tick; state transaction 33 ms
   (31,411 us apply, 1,009 us publish) with a 26 ms rebuild tick.
 
-This file records the exact stop point on 2026-07-29. No implementation or
-validation after this point should be assumed complete without rerunning the
-checks below.
+## Archived 2026-07-29 stop-point worklist
+
+The sections below preserve the interrupted worklist and validation state as historical evidence.
+Their imperative steps are not the current implementation plan, and their incomplete checks do not
+contradict the completed 2026-07-30 recovery result above. They also do not qualify later source
+revisions without rerunning the relevant gates.
 
 ## Repository Safety
 

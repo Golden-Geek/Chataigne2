@@ -65,3 +65,4 @@ Run `tools/check.ps1` for the local guardrail pass. Chataigne project files inte
 - [Performance contracts](../operations/performance.md)
 - [Troubleshooting](../operations/troubleshooting.md)
 - [Release readiness](../operations/release-readiness.md)
+- [Source size inventory](../progress/source-size-inventory.md)
