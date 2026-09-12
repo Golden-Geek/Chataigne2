@@ -72,15 +72,6 @@ fn evaluate_partition(
     })
 }
 
-fn process_cpu_millis(system: &mut System) -> u64 {
-    let pid = get_current_pid().expect("current PID should exist");
-    system.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
-    system
-        .process(pid)
-        .expect("current process should exist")
-        .accumulated_cpu_time()
-}
-
 fn compare_worker_counts(processor_count: usize, lanes_per_processor: usize, reorder_contexts: bool) {
     let _performance_guard = lock_performance_test();
     let fixture = sample_fixture();

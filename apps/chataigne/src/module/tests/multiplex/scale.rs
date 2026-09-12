@@ -11,6 +11,7 @@ use sysinfo::{ProcessesToUpdate, System, get_current_pid};
 use crate::app::systems_state_machine_manager::profiling::RuntimeScaleFixture;
 
 mod workers;
+mod idle;
 
 struct ScaleContextProvider {
     keys: Vec<ContextKey>,
@@ -82,6 +83,15 @@ fn resident_bytes(system: &mut System) -> u64 {
     let pid = get_current_pid().expect("current PID should exist");
     system.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
     system.process(pid).expect("current process should exist").memory()
+}
+
+fn process_cpu_millis(system: &mut System) -> u64 {
+    let pid = get_current_pid().expect("current PID should exist");
+    system.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
+    system
+        .process(pid)
+        .expect("current process should exist")
+        .accumulated_cpu_time()
 }
 
 fn sample_fixture() -> RuntimeScaleFixture {
