@@ -40,6 +40,36 @@ $env:GC_SKIP_UI_BUILD='1'
 
 ## Decision boundary
 
+At `dc3ff6d1`, an opt-in `kernel-profiling` feature timed the app-owned calls to
+`evaluate_compiled_graph` and `evaluate_compiled_graph_fresh_reusing` after constructing each
+lane's property/context frame and acquiring its memory or scratch. Each of four targeted runs
+evaluated the same 243,840 compiled lanes. These runs execute one test at a time but omit
+`--test-threads=1`, because that argument enables the uninstrumented 5 ms development-budget
+assertions; the per-lane timing probe itself perturbs the end-to-end time. The functional
+assertions still ran and passed. The app's full 513-test suite and strict Clippy passed with the
+feature enabled.
+
+| Run | Compiled-graph total | Kernel share of tick | Kernel share of evaluation phase | Tick average | 10 ms misses |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 320.0 ms | 24.6% | 74.5% | 5,409 µs | 0 |
+| 2 | 318.6 ms | 24.6% | 74.7% | 5,406 µs | 2 |
+| 3 | 299.8 ms | 25.0% | 73.6% | 4,986 µs | 0 |
+| 4 | 303.6 ms | 24.7% | 73.5% | 5,124 µs | 1 |
+
+The probe is thread-local and excludes processor input preparation, lane enumeration, property
+resolution, and output assembly. It does include function-call overhead inside the timed calls.
+It is opt-in and absent from ordinary artifacts. These profiled tick/deadline figures are not
+real-time qualification and cannot be directly compared with the earlier uninstrumented source
+revision. Even an ideal eight-worker execution of *all* measured compiled-graph work with zero
+overhead could improve this sample by at most about 1.28×; actual benefit would be lower.
+
+Reproduce the kernel profile with:
+
+```powershell
+$env:GC_SKIP_UI_BUILD='1'
+./tools/asio.ps1 -- cargo test --locked -p Chataigne2 --bin Chataigne2 --features kernel-profiling --target-dir target/t16-app-default multiplex_sample_active_runtime_stays_realtime -- --nocapture
+```
+
 No parallel production evaluator is justified by this sample alone. Before changing execution,
 measure the pure compiled-graph portion and end-to-end ticks on both 1k×100 and 10k×10 real
 formula/lane partitions, including stateful and sparse-dirty variants. Compare one, two, four,
