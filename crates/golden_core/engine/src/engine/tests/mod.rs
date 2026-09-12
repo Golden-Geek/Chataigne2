@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use super::*;
 
+mod enabled_history;
 mod engine;
 mod lifecycle;
 mod param_constraints;

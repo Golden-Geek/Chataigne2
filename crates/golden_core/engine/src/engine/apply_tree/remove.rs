@@ -139,7 +139,7 @@ impl<T: Node> Engine<T> {
     /// updated based on the current parent chain and `meta.enabled` flags.
     ///
     /// Returns `(node_id, new_effective_enabled)` only for nodes whose cached value differs.
-    pub(super) fn subtree_effective_enabled_changes(&self, root: NodeId) -> Vec<(NodeId, bool)> {
+    pub(crate) fn subtree_effective_enabled_changes(&self, root: NodeId) -> Vec<(NodeId, bool)> {
         let parent_effective = self
             .nodes
             .get(root)

@@ -343,6 +343,11 @@ undo adds no redundant ready-lifecycle snapshot. One later 100k local run measur
 undo and 644 ms duplicate redo, compared with separate earlier samples of roughly 830 ms and
 1,042 ms. The same later runs measured 1,047 ms initial removal and 1,339 ms initial duplicate,
 so neither full action nor post-edit ticks pass the product gate; these are not p95 comparisons.
+The effective-enabled cache cannot yet replace the snapshot's full-tree enabled traversal:
+metadata and cross-parent move history previously restored visible fields without reconciling
+cached inherited state or invoking enabled-change callbacks. Replay now does both, with focused
+parent/child callback and cache regressions through undo/redo. Other restoration paths still need
+invariant coverage before using the cache as snapshot truth.
 
 ## Task status and dependencies
 

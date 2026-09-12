@@ -23,29 +23,7 @@ impl<T: Node> HistoryStep<T> {
                 )?;
             }
             Self::PatchMeta(step) => {
-                let enabled_changed = {
-                    let current = engine.nodes.get(step.node).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: "UndoPatchMeta",
-                        node: step.node,
-                    })?;
-                    current.node_data().meta.enabled != step.old_meta.enabled
-                };
-
-                let target = engine.nodes.get_mut(step.node).ok_or(EngineEditError::NodeNotFound {
-                    edit_index: 0,
-                    operation: "UndoPatchMeta",
-                    node: step.node,
-                })?;
-                target.node_data_mut().meta = step.old_meta.clone();
-                engine.emit_event(EventKind::MetaChanged {
-                    node: step.node,
-                    patch: meta_to_patch(&step.old_meta),
-                });
-
-                if enabled_changed {
-                    engine.mark_schedule_dirty();
-                }
+                replay_patch_meta(engine, step.node, &step.old_meta, "UndoPatchMeta")?;
             }
             Self::SetScriptConfig(step) => {
                 engine.apply_script_config_for_history(
@@ -99,6 +77,8 @@ impl<T: Node> HistoryStep<T> {
                         old_parent: current_parent,
                         new_parent: step.old_parent,
                     });
+                    let changes = engine.subtree_effective_enabled_changes(step.node);
+                    engine.queue_effective_enabled_callbacks(&changes)?;
                 }
 
                 step.at_new_position = false;
@@ -228,29 +208,7 @@ impl<T: Node> HistoryStep<T> {
                 )?;
             }
             Self::PatchMeta(step) => {
-                let enabled_changed = {
-                    let current = engine.nodes.get(step.node).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: "RedoPatchMeta",
-                        node: step.node,
-                    })?;
-                    current.node_data().meta.enabled != step.new_meta.enabled
-                };
-
-                let target = engine.nodes.get_mut(step.node).ok_or(EngineEditError::NodeNotFound {
-                    edit_index: 0,
-                    operation: "RedoPatchMeta",
-                    node: step.node,
-                })?;
-                target.node_data_mut().meta = step.new_meta.clone();
-                engine.emit_event(EventKind::MetaChanged {
-                    node: step.node,
-                    patch: meta_to_patch(&step.new_meta),
-                });
-
-                if enabled_changed {
-                    engine.mark_schedule_dirty();
-                }
+                replay_patch_meta(engine, step.node, &step.new_meta, "RedoPatchMeta")?;
             }
             Self::SetScriptConfig(step) => {
                 engine.apply_script_config_for_history(
@@ -298,6 +256,8 @@ impl<T: Node> HistoryStep<T> {
                         old_parent: current_parent,
                         new_parent: step.new_parent,
                     });
+                    let changes = engine.subtree_effective_enabled_changes(step.node);
+                    engine.queue_effective_enabled_callbacks(&changes)?;
                 }
 
                 step.at_new_position = true;
@@ -741,6 +701,56 @@ fn push_history_subtree_removed_ui_event<T: Node>(
         removed_ids,
         parent_after: engine.ui_children_order_patch(parent),
     }]);
+}
+
+fn replay_patch_meta<T: Node>(
+    engine: &mut Engine<T>,
+    node: NodeId,
+    restored_meta: &NodeMeta,
+    operation: &'static str,
+) -> Result<(), EngineEditError> {
+    let enabled_changed = engine
+        .nodes
+        .get(node)
+        .ok_or(EngineEditError::NodeNotFound {
+            edit_index: 0,
+            operation,
+            node,
+        })?
+        .node_data()
+        .meta
+        .enabled
+        != restored_meta.enabled;
+    let previous_enabled = enabled_changed.then(|| {
+        engine
+            .collect_subtree_node_ids(node)
+            .into_iter()
+            .map(|child| (child, engine.is_effectively_enabled(child)))
+            .collect::<Vec<_>>()
+    });
+
+    engine
+        .nodes
+        .get_mut(node)
+        .expect("node was validated")
+        .node_data_mut()
+        .meta = restored_meta.clone();
+    if let Some(previous_enabled) = previous_enabled {
+        engine.mark_schedule_dirty();
+        let changes = previous_enabled
+            .into_iter()
+            .filter_map(|(child, was_enabled)| {
+                let enabled = engine.is_effectively_enabled(child);
+                (enabled != was_enabled).then_some((child, enabled))
+            })
+            .collect::<Vec<_>>();
+        engine.queue_effective_enabled_callbacks(&changes)?;
+    }
+    engine.emit_event(EventKind::MetaChanged {
+        node,
+        patch: meta_to_patch(restored_meta),
+    });
+    Ok(())
 }
 
 fn meta_to_patch(meta: &NodeMeta) -> NodeMetaPatch {
