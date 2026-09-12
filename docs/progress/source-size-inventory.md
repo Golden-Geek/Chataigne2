@@ -4,12 +4,12 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-covers 1188 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
+covers 1193 current Rust, TypeScript, Svelte, JavaScript, PowerShell, and shell source files under
 `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
-history, App Control, received-value, and formula integration splits. The 44-file audit count was
-a historical baseline; 47 files currently exceed 1,000 lines. No oversized runtime or test-source
-exception is approved yet.
+history, App Control, received-value, formula integration, processor presentation, and multiplex
+test splits. The 44-file audit count was a historical baseline; 46 files currently exceed 1,000
+lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
 `script/mod.rs` (under 1,000 lines), while template expansion and the engine-to-VM host bridge
@@ -33,6 +33,11 @@ The app-owned Alchemist formula integration now keeps node lifecycle/registratio
 snapshot reconstruction, external-file workflow, reconciliation, and library watching into
 separate modules (all under 1,000 lines). App-node codegen registers the child node types through
 the root module's public re-exports. A generator regression test covers this boundary.
+
+The processor crate keeps execution and property-frame resolution in `processor.rs` (956 lines),
+with debug capture and UI/preview projection in `processor/presentation.rs` (201 lines). The
+multiplex app test keeps shared fixture/measurement helpers in `multiplex.rs` (415 lines), with
+runtime timing (311) and interaction/transaction checks (312) in adjacent test modules.
 
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
@@ -73,11 +78,10 @@ avoid mixing large structural moves into runtime race fixes.
 | 1,320 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs` | Split cohesive Rust module |
 | 1,276 | `crates/golden_core/engine/src/node/core/behavior.rs` | Split cohesive Rust module |
 | 1,275 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mouse_runtime.rs` | Split cohesive Rust module |
+| 1,255 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs` | Split focused test suites |
 | 1,231 | `packages/golden-ui/components/panels/inspector/ParameterInspector.svelte` | Decompose presentation and state |
 | 1,230 | `apps/chataigne/src/module/modules/controllers/gamepad/gamepad/mod.rs` | Split cohesive Rust module |
-| 1,225 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs` | Split focused test suites |
 | 1,166 | `apps/chataigne/src/module/modules/protocol/midi/commands/mod.rs` | Split cohesive Rust module |
-| 1,143 | `apps/chataigne/systems/alchemist/processor/src/processor.rs` | Split cohesive Rust module |
 | 1,139 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mod.rs` | Split cohesive Rust module |
 | 1,110 | `packages/golden-ui/components/panels/logger/LoggerPanel.svelte` | Decompose presentation and state |
 | 1,095 | `apps/chataigne/src/module/modules/generators/signals/mod.rs` | Split cohesive Rust module |

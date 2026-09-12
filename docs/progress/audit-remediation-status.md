@@ -4,14 +4,15 @@ Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
-Current committed SHA: `dc3ff6d1` contains T00–T15, the T16 audio-artifact wiring and independent
+Current committed SHA: `ccf1818` contains T00–T15, the T16 audio-artifact wiring and independent
 Git-consumer qualification, removal of the four obsolete gitlinks, repaired app test fixtures, and
 the cross-platform artifact gate. The T17 script split, initial source-size inventory, and
 documentation reconciliation, plus the UI-sync, persistence, history, and App Control runtime
 splits, are committed. The App Control node and received-value splits and T18 initial
 product-runtime baseline, formula integration, and app-node codegen splits are also committed. The
-test-only T18 processor phase instrumentation and opt-in compiled-kernel probe are committed;
-the source-pinned kernel measurements are the current documentation patch.
+test-only T18 processor phase instrumentation, opt-in compiled-kernel probe, and source-pinned
+measurements are committed. The processor presentation and multiplex test splits are the current
+patch.
 
 Toolchain / OS / features: Windows 11 10.0.26200 x64; Intel64 Family 6 Model 198; Rust and Cargo
 1.97.0; Node 26.5.0; npm 11.17.0; Python 3.14.6. These match
@@ -37,9 +38,10 @@ its node separates lifecycle, watch processing, structure, and script request pa
 received-value handling separates batch planning from incremental application. The app-owned
 formula adapter now separates ANode/socket, property, construction, conversion, snapshot,
 external-file, reconciliation, and library responsibilities. Its nested node files register
-through the owning module's public re-exports. The refreshed inventory finds 47 remaining
-oversized source files; none has an
-approved exception. The old multiplex stop-point instructions are labeled historical.
+through the owning module's public re-exports. Processor debug/presentation projection now has
+its own module, and the multiplex test separates runtime measurements from interaction checks.
+The refreshed inventory finds 46 remaining oversized source files; none has an approved
+exception. The old multiplex stop-point instructions are labeled historical.
 
 T16 — ordinary desktop audio artifacts are implemented and qualified locally on Windows x64.
 The app forwards ASIO, JACK, and realtime through `golden_audio`; the canonical toolchain manifest,
@@ -91,7 +93,7 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
   App Control keeps worker/process/folder ownership in its runtime (879 lines), while window
   discovery and actions live in a platform adapter (209). Its module node splits lifecycle (869),
   watch processing (608), watch structure (462), and script request parsing (102). The inventory
-  records 47 remaining files above 1,000 lines with no approved exceptions. Received-value
+  records 46 remaining files above 1,000 lines with no approved exceptions. Received-value
   batch planning (874 lines) and incremental application (221) are now separate.
 - The app-owned formula integration root is 572 lines; its eight focused siblings range from 297
   to 824 lines. App-node codegen keeps nested node-bearing children under their declared module
@@ -108,6 +110,10 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
   strict `cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings` pass.
 - After the received-value split, the same default-feature check, strict app Clippy, and all 513
   app unit tests pass again.
+- Processor execution/property resolution (956 lines) and debug/presentation projection (201)
+  now have separate owners. The multiplex test keeps shared helpers (415 lines), runtime tests
+  (311), and interaction tests (312) apart. Both processor feature modes pass 71/72 tests;
+  strict feature-enabled app Clippy and all 513 default-feature app tests pass after extraction.
 
 ## T18 initial profiling boundary
 
@@ -192,7 +198,7 @@ the current branch contains implementation and verification evidence.
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
 | F14 — facades/edit acknowledgement | fixed           | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 puts codecs, wire DTOs, script declarations, and VM/runtime primitives in their owning crates while engine application stays in adapters; the full facade composes the ready-to-launch host.                                                           | Persistence, protocol, script fake-host, headless-host, and full-host external consumers pass. Focused dependency trees exclude forbidden engine, QuickJS, desktop, Tauri, audio, and Chataigne edges as applicable.                                      |
 | F15 — ordinary audio portability | partially fixed | Default app forwards ASIO/JACK/realtime; canonical matrix, pinned SDK, app catalog test, and standalone Git/CPAL consumer are in place. | Windows x64 default artifact, headless startup, JACK missing-server state, 513 app tests, and external consumer pass. Hosted six-platform artifact gate and named physical streams remain unrun. |
-| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, and App Control, received-value, and formula adapters now have focused owners; stale multiplex notes are archival. | Independent Git consumer passes; all 415 active engine and 513 app tests plus strict Clippy pass after the splits. The current inventory has 47 remaining oversized files and no approved exceptions. |
+| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, App Control, received-value, formula, and processor presentation adapters now have focused owners; stale multiplex notes are archival. | Independent Git consumer passes; all 415 active engine and 513 app tests plus strict Clippy pass after the splits. The current inventory has 46 remaining oversized files and no approved exceptions. |
 
 ## Commands and results
 

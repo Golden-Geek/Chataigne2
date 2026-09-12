@@ -313,6 +313,10 @@ takes precedence over an explicit processor override; if the binding has no valu
 the explicit override or Formula default applies. A binding does not require an
 explicit override to be effective.
 
+The processor crate keeps execution and property-frame resolution in `processor.rs`.
+`processor/presentation.rs` owns debug-capture selection, output-preview samples, and the
+processor UI projection types; it does not decide runtime evaluation semantics.
+
 Formula lane analysis is computed during compilation. Node declarations may
 declare direct context axes; those axes propagate through compiled input sources
 so `FormulaAnalysis` can distinguish all explicit context reads, axes reaching
