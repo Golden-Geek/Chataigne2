@@ -1680,7 +1680,26 @@ impl Node for StateMachineManager {
         if self.mark_processor_override_dirty(ctx, param) {
             return;
         }
-        self.mark_formula_input_value_dirty(ctx, param);
+        if self.mark_formula_input_value_dirty(ctx, param) {
+            return;
+        }
+        // Authored ANode config and connection parameters are part of the compiled Formula,
+        // unlike input socket values handled above. Layout and derived status are excluded
+        // by the Formula-owned classifier below.
+        let Some(snapshot) = ctx.tree_snapshot().or(self.runtime_cache.runtime_snapshot.as_deref()) else {
+            return;
+        };
+        let RuntimeInvalidation::Formula(formula_uuid) = self.runtime_invalidation_for_change(snapshot, param) else {
+            return;
+        };
+        if snapshot.node_id_by_uuid(formula_uuid).is_some_and(|formula| {
+            !crate::app::systems_alchemist_formula::formula_runtime_param_change_requires_rematerialization(
+                snapshot, formula, param,
+            )
+        }) {
+            return;
+        }
+        self.apply_runtime_invalidation(RuntimeInvalidation::Formula(formula_uuid));
     }
 
     fn on_param_control_changed(

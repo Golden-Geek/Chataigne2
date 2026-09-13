@@ -65,7 +65,57 @@ def live_output(case: str, target: int = 1_000, roots: int = 10) -> str:
     return f"{prefix}{json.dumps(row)}\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured"
 
 
+def parameter_output(target: int = 1_000, roots: int = 72, edited: int = 1) -> str:
+    row = {
+        "base_nodes": target + 100,
+        "graph_roots": roots,
+        "edited_params": edited,
+        **{field: 17 for field in authored_graph_scale.PARAMETER_EDIT_ACTION_FIELDS},
+    }
+    return (
+        f"{authored_graph_scale.PARAMETER_EDIT_PREFIX}{json.dumps(row)}\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured"
+    )
+
+
 class AuthoredGraphScaleTests(unittest.TestCase):
+    def test_parameter_density_selects_one_or_ten_percent_of_roots(self) -> None:
+        self.assertEqual(authored_graph_scale.parameter_edit_count("sparse", 72), 1)
+        self.assertEqual(authored_graph_scale.parameter_edit_count("dense", 72), 8)
+        self.assertEqual(authored_graph_scale.parameter_edit_count("dense", 7_143), 715)
+        with self.assertRaisesRegex(ValueError, "unknown parameter edit case"):
+            authored_graph_scale.parameter_edit_count("unknown", 72)
+
+    def test_parameter_edit_parser_requires_exact_count_and_complete_evidence(self) -> None:
+        output = parameter_output(10_000, 715, 72)
+        row = authored_graph_scale.parse_parameter_edit_result(output, 10_000, 715, 72)
+        self.assertEqual(row["edited_params"], 72)
+        with self.assertRaisesRegex(ValueError, "requested authored roots"):
+            authored_graph_scale.parse_parameter_edit_result(output, 10_000, 715, 71)
+        with self.assertRaisesRegex(ValueError, "requested authored roots"):
+            authored_graph_scale.parse_parameter_edit_result(output, 10_000, 714, 72)
+        with self.assertRaisesRegex(ValueError, "one passing"):
+            authored_graph_scale.parse_parameter_edit_result(output + output, 10_000, 715, 72)
+        with self.assertRaisesRegex(ValueError, "one passing"):
+            authored_graph_scale.parse_parameter_edit_result(output.replace("1 passed", "0 passed"), 10_000, 715, 72)
+        with self.assertRaisesRegex(ValueError, "fields differ"):
+            authored_graph_scale.parse_parameter_edit_result(output.replace('"edit_ms": 17', '"missing_edit_ms": 17'), 10_000, 715, 72)
+        with self.assertRaisesRegex(ValueError, "nonnegative integers"):
+            authored_graph_scale.parse_parameter_edit_result(output.replace('"edit_ms": 17', '"edit_ms": -1'), 10_000, 715, 72)
+
+    def test_parameter_edit_runner_marks_missing_result_as_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output_dir = root / "target" / "params"
+            output_dir.mkdir(parents=True)
+            completed = CompletedProcess(args=[], returncode=0, stdout="test result: ok. 1 passed; 0 failed;", stderr="")
+            with patch.object(authored_graph_scale.subprocess, "run", return_value=completed):
+                row = authored_graph_scale.run_parameter_edit_case(root, output_dir, 1_000, {}, "dense", 72)
+            self.assertEqual(row["status"], "FAIL")
+            self.assertEqual(row["requested_params"], 8)
+            self.assertIn("one passing", row["parse_error"])
+            self.assertTrue((output_dir / "authored-1000-parameter-dense.log").exists())
+
     def test_rejects_live_root_count_without_live_edit_mode(self) -> None:
         errors = StringIO()
         with redirect_stderr(errors), self.assertRaises(SystemExit) as exit_error:

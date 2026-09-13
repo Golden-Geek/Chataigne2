@@ -463,6 +463,18 @@ measured 630 ms for the 602-record insert, followed by a 371 ms tick; same-paren
 removal actions measured 618 and 542 ms. The report still declares
 `product_qualification: OPEN`.
 
+The authored-graph runner now also supports `--parameter-edits`: one Constant `config/value`
+change and a batch touching 10% of authored Constant roots at each scale, with exact value,
+undo/redo, dispatch-tick, and Formula-refresh-tick checks. This exposed a runtime invalidation
+gap: the state-machine manager updated external Formula input values but did not dirty the
+owning Formula after an ANode config edit. App-owned Formula change classification now refreshes
+compiled content while excluding layout and generated validation fields. The source-fingerprinted
+`target/qualification/authored-graph-scale/20260913T004026Z/` matrix passed all eighteen
+startup/structural/parameter scenarios. Its 100k sparse/dense cases edited 1/715 parameters;
+backend batch application took 0/3 ms, dispatch ticks 422/440 ms, and subsequent Formula-refresh
+ticks 285/280 ms. These are single backend samples, not UI transport, browser action-to-paint,
+or p95 latency evidence. The T19 product gate remains open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -486,7 +498,7 @@ removal actions measured 618 and 542 ms. The report still declares
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | direct Formula and persisted authored-graph functional qualification pass locally; five sampled ticks meet 8 ms at 1k/10k/100k; ten-root live duplicate and removal replay preserve order but exceed product action budgets, while tail latency, end-to-end, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, 602-record structural edits, and sparse/dense parameter replay pass locally; dispatch/refresh exceed workbench budgets, while browser p95, platform, and physical evidence remain open |
 
 ## Finding status
 

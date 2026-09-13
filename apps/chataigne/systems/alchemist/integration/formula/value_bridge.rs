@@ -263,6 +263,24 @@ pub(super) fn is_anode_layout_node(
         .is_some_and(|node| is_anode_layout_decl_id(node.decl_id.as_str()))
 }
 
+pub(crate) fn formula_runtime_param_change_requires_rematerialization(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    param: NodeId,
+) -> bool {
+    let Some(formula_child) = direct_child_under(snapshot, formula_node, param) else {
+        return true;
+    };
+    if formula_child == param
+        && snapshot.node(param).is_some_and(|node| {
+            matches!(node.decl_id.as_str(), "is_valid" | "diagnostics_json" | "managed_regions_json")
+        })
+    {
+        return false;
+    }
+    !is_anode_layout_node(snapshot, formula_node, param)
+}
+
 pub(super) fn node_removal_pending(ctx: &ProcessCtx, node: NodeId) -> bool {
     ctx.edits.pending.iter().any(|request| {
         matches!(&request.edit, Edit::RemoveNode { node: pending } if *pending == node)

@@ -5,7 +5,9 @@ use golden_core::{
         configure_loaded_engine, from_sparse_project_json, load_sparse_project_file, ProjectNode,
         prepare_engine_for_runtime, to_sparse_project_json_pretty,
     },
+    edit::{Edit, EditOrigin},
     node::{Folder, Node, NodeId, NodeUuid},
+    parameter::{ParamValue, ParameterEventBehaviour},
     ui_sync::{UiDuplicateNodeSpec, UiEditIntent},
 };
 use sysinfo::{ProcessesToUpdate, System, get_current_pid};
@@ -70,6 +72,18 @@ fn manager_live_edit_phase_ns(engine: &AppEngine) -> [u64; 3] {
         stats.formula_catalog_build_ns,
         stats.runtime_cache_rebuild_ns,
     ]
+}
+
+fn assert_parameter_values(engine: &AppEngine, params: &[(NodeId, ParamValue, ParamValue)], edited: bool) {
+    for (id, before, after) in params {
+        let value = engine
+            .nodes
+            .get(*id)
+            .and_then(Node::engine_param_snapshot)
+            .expect("selected Constant value parameter should exist")
+            .value;
+        assert_eq!(&value, if edited { after } else { before });
+    }
 }
 
 #[test]
@@ -192,6 +206,135 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
             "load_rss_mb": load_rss_mb,
             "prepare_rss_mb": prepare_rss_mb,
             "reload_rss_mb": reload_rss_mb,
+        })
+    );
+}
+
+#[test]
+#[ignore = "manual T19 sparse/dense authored Constant parameter qualification"]
+fn authored_graph_changes_constant_values_and_replays_one_batch() {
+    let _performance_guard = lock_performance_test();
+    let fixture = PathBuf::from(
+        std::env::var_os("CHATAIGNE_AUTHORED_SCALE_FIXTURE")
+            .expect("set CHATAIGNE_AUTHORED_SCALE_FIXTURE to a generated project path"),
+    );
+    let edit_count = std::env::var("CHATAIGNE_AUTHORED_SCALE_PARAMETER_EDITS")
+        .expect("set CHATAIGNE_AUTHORED_SCALE_PARAMETER_EDITS")
+        .parse::<usize>()
+        .expect("parameter edit count must be an integer");
+    assert!(edit_count > 0, "parameter edit count must be positive");
+    let mut engine = load_sparse_project_file::<AppNode, _>(&fixture).expect("authored project should load");
+    configure_loaded_engine(&mut engine).expect("authored project should configure");
+    prepare_engine_for_runtime(&mut engine).expect("authored project should prepare");
+    engine.run_tick(Duration::from_millis(8)).expect("authored project should warm");
+
+    let base_nodes = engine.nodes.iter().count();
+    let mut sources = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.node_data().meta.decl_id.0.starts_with("scale_constant_"))
+        .map(|(id, node)| (node.node_data().meta.decl_id.0.clone(), id))
+        .collect::<Vec<_>>();
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
+    assert!(sources.len() >= edit_count, "fixture needs {edit_count} authored Constants");
+    let snapshot = engine.process_tree_snapshot();
+    let params = (0..edit_count)
+        .map(|index| {
+            let root = sources[index * sources.len() / edit_count].1;
+            let config = snapshot.find_child_by_decl_id(root, "config").expect("Constant config should exist");
+            let param = snapshot
+                .find_child_by_decl_id(config, "config/value")
+                .expect("Constant value parameter should exist");
+            let before = snapshot.node(param).and_then(|node| node.param_value.clone())
+                .expect("Constant value should have a parameter value");
+            let after = match &before {
+                ParamValue::Float(value) => ParamValue::Float(value + 1.0),
+                ParamValue::Int(value) => ParamValue::Int(value + 1),
+                other => panic!("Constant fixture value should be numeric, got {other:?}"),
+            };
+            (param, before, after)
+        })
+        .collect::<Vec<_>>();
+    drop(snapshot);
+    let materializations_before = manager_formula_materializations(&engine);
+
+    let session_id = "authored-constant-value-batch";
+    engine.edits.push(Edit::BeginEditSession {
+        origin: EditOrigin::Ui,
+        label: Some("Change authored Constant values".into()),
+        client_edit_id: session_id.into(),
+        ui_client_instance_id: None,
+    });
+    for (param, _, after) in &params {
+        engine.edits.push(Edit::SetParam {
+            node: *param,
+            value: after.clone(),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+    }
+    engine.edits.push(Edit::EndEditSession { client_edit_id: session_id.into() });
+    let started = Instant::now();
+    engine.apply_edits().expect("one parameter edit transaction should apply");
+    let edit_ms = started.elapsed().as_millis();
+    assert_eq!(engine.undo_len(), 1, "parameter batch should be one undo transaction");
+    assert_eq!(engine.nodes.iter().count(), base_nodes);
+    assert_parameter_values(&engine, &params, true);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("changed Constants should tick");
+    let edit_tick_ms = started.elapsed().as_millis();
+    assert_parameter_values(&engine, &params, true);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("changed Formula should refresh");
+    let edit_refresh_tick_ms = started.elapsed().as_millis();
+    let materializations_after_edit = manager_formula_materializations(&engine);
+    assert!(
+        materializations_after_edit > materializations_before,
+        "changed Constant values should refresh the active Formula"
+    );
+
+    let started = Instant::now();
+    assert!(engine.undo().expect("undo should succeed"));
+    let undo_ms = started.elapsed().as_millis();
+    assert_parameter_values(&engine, &params, false);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("undone Constants should tick");
+    let undo_tick_ms = started.elapsed().as_millis();
+    assert_parameter_values(&engine, &params, false);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("undone Formula should refresh");
+    let undo_refresh_tick_ms = started.elapsed().as_millis();
+    let materializations_after_undo = manager_formula_materializations(&engine);
+    assert!(materializations_after_undo > materializations_after_edit);
+
+    let started = Instant::now();
+    assert!(engine.redo().expect("redo should succeed"));
+    let redo_ms = started.elapsed().as_millis();
+    assert_parameter_values(&engine, &params, true);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("redone Constants should tick");
+    let redo_tick_ms = started.elapsed().as_millis();
+    assert_parameter_values(&engine, &params, true);
+    let started = Instant::now();
+    engine.run_tick(Duration::from_millis(8)).expect("redone Formula should refresh");
+    let redo_refresh_tick_ms = started.elapsed().as_millis();
+    assert!(manager_formula_materializations(&engine) > materializations_after_undo);
+    assert_eq!(engine.nodes.iter().count(), base_nodes);
+
+    println!(
+        "AUTHORED_PARAMETER_EDIT_RESULT={}",
+        serde_json::json!({
+            "base_nodes": base_nodes,
+            "graph_roots": sources.len(),
+            "edited_params": params.len(),
+            "edit_ms": edit_ms,
+            "edit_tick_ms": edit_tick_ms,
+            "edit_refresh_tick_ms": edit_refresh_tick_ms,
+            "undo_ms": undo_ms,
+            "undo_tick_ms": undo_tick_ms,
+            "undo_refresh_tick_ms": undo_refresh_tick_ms,
+            "redo_ms": redo_ms,
+            "redo_tick_ms": redo_tick_ms,
+            "redo_refresh_tick_ms": redo_refresh_tick_ms,
         })
     );
 }

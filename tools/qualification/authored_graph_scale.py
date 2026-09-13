@@ -64,6 +64,12 @@ LIVE_EDIT_PHASE_FIELDS = {
     "manager_phase_ns_before", "manager_phase_ns_after_duplicate",
     "manager_phase_ns_after_undo", "manager_phase_ns_after_redo",
 }
+PARAMETER_EDIT_TEST = "authored_graph_changes_constant_values_and_replays_one_batch"
+PARAMETER_EDIT_PREFIX = "AUTHORED_PARAMETER_EDIT_RESULT="
+PARAMETER_EDIT_ACTION_FIELDS = {
+    "edit_ms", "edit_tick_ms", "undo_ms", "undo_tick_ms", "redo_ms", "redo_tick_ms",
+    "edit_refresh_tick_ms", "undo_refresh_tick_ms", "redo_refresh_tick_ms",
+}
 RESULT_FIELDS = {
     "authored_nodes", "graph_roots", "minimum_live_nodes", "prepared_nodes",
     "reloaded_nodes", "load_ms", "prepare_ms", "tick_us", "tick_callbacks",
@@ -162,6 +168,39 @@ def parse_live_edit_result(
     return row
 
 
+def parameter_edit_count(case: str, graph_roots: int) -> int:
+    if case == "sparse":
+        return 1
+    if case == "dense":
+        return max(1, (graph_roots + 9) // 10)
+    raise ValueError(f"unknown parameter edit case: {case}")
+
+
+def parse_parameter_edit_result(
+    output: str, target: int, graph_roots: int, requested_params: int,
+) -> dict[str, Any]:
+    rows = []
+    for line in output.splitlines():
+        if PARAMETER_EDIT_PREFIX in line:
+            try:
+                rows.append(json.loads(line.split(PARAMETER_EDIT_PREFIX, 1)[1]))
+            except json.JSONDecodeError as error:
+                raise ValueError(f"invalid parameter edit result: {error}") from error
+    if len(rows) != 1 or not RESULT_PATTERN.search(output):
+        raise ValueError(f"expected one passing parameter edit result, found {len(rows)}")
+    row = rows[0]
+    fields = {"base_nodes", "graph_roots", "edited_params", *PARAMETER_EDIT_ACTION_FIELDS}
+    if not isinstance(row, dict) or row.keys() != fields:
+        raise ValueError("parameter edit result fields differ from the qualification contract")
+    if any(type(row[field]) is not int or row[field] < 0 for field in fields):
+        raise ValueError("parameter edit measurements must be nonnegative integers")
+    if row["base_nodes"] < target:
+        raise ValueError("parameter edit missed the live-node target")
+    if row["graph_roots"] != graph_roots or row["edited_params"] != requested_params:
+        raise ValueError("parameter edit did not cover the requested authored roots and parameters")
+    return row
+
+
 def resolve_output_dir(root: Path, value: Path | None) -> Path:
     target_root = (root / "target").resolve()
     output_dir = (
@@ -213,8 +252,47 @@ def run_live_edit_case(
     }
 
 
+def run_parameter_edit_case(
+    root: Path, output_dir: Path, target: int, environment: dict[str, str],
+    case: str, graph_roots: int,
+) -> dict[str, Any]:
+    requested_params = parameter_edit_count(case, graph_roots)
+    command = TEST_COMMAND_BASE + (
+        PARAMETER_EDIT_TEST, "--", "--ignored", "--nocapture", "--test-threads=1",
+    )
+    case_environment = environment.copy()
+    case_environment["CHATAIGNE_AUTHORED_SCALE_PARAMETER_EDITS"] = str(requested_params)
+    result = subprocess.run(
+        command, cwd=root, env=case_environment, capture_output=True,
+        check=False, text=True, encoding="utf-8",
+    )
+    output = result.stdout + result.stderr
+    log_path = output_dir / f"authored-{target}-parameter-{case}.log"
+    log_bytes = output.encode("utf-8")
+    log_path.write_bytes(log_bytes)
+    parse_error = None
+    measured = None
+    try:
+        measured = parse_parameter_edit_result(output, target, graph_roots, requested_params)
+    except ValueError as error:
+        parse_error = str(error)
+    return {
+        "case": case,
+        "target": target,
+        "status": "PASS" if result.returncode == 0 and parse_error is None else "FAIL",
+        "exit_code": result.returncode,
+        "command": list(command),
+        "requested_params": requested_params,
+        "expected_graph_roots": graph_roots,
+        "log": {"path": log_path.relative_to(root).as_posix(), "sha256": sha256_bytes(log_bytes)},
+        "measured_result": measured,
+        "parse_error": parse_error,
+    }
+
+
 def build_report(
     root: Path, output_dir: Path, include_live_edits: bool = False, live_edit_roots: int = 10,
+    include_parameter_edits: bool = False,
 ) -> dict[str, Any]:
     if live_edit_roots < 1:
         raise ValueError("live edit root count must be positive")
@@ -263,10 +341,15 @@ def build_report(
             )
             for case in LIVE_EDIT_CASES
         ] if include_live_edits else []
+        parameter_edits = [
+            run_parameter_edit_case(root, output_dir, target, scenario_env, case, metadata["graphNodeCount"])
+            for case in ("sparse", "dense")
+        ] if include_parameter_edits else []
         scenarios.append({
             "target": target,
             "status": "PASS" if result.returncode == 0 and parse_error is None
-            and all(edit["status"] == "PASS" for edit in live_edits) else "FAIL",
+            and all(edit["status"] == "PASS" for edit in live_edits)
+            and all(edit["status"] == "PASS" for edit in parameter_edits) else "FAIL",
             "exit_code": result.returncode,
             "fixture": {
                 **metadata,
@@ -283,6 +366,7 @@ def build_report(
             "warmed_tick_deadline_exceeded": measured is not None
             and any(value > 8_000 for value in measured["tick_us"][1:]),
             "live_edits": live_edits,
+            "parameter_edits": parameter_edits,
         })
         print(f"authored graph {target}: {scenarios[-1]['status']} ({log_path})", flush=True)
     if working_tree_sha(root) != tested_tree_sha:
@@ -295,12 +379,17 @@ def build_report(
     if include_live_edits:
         scope += f"; {live_edit_roots}-root duplicate/remove/mixed-parent remove with undo, redo, and active ticks"
         not_covered.append(
-            "600-node full-workbench action-to-paint, sparse/dense parameter edits, and live edit p95 tails"
+            "600-node full-workbench action-to-paint and live edit p95 tails"
         )
     else:
         not_covered.append("live edit and undo/redo at these scales")
+    if include_parameter_edits:
+        scope += "; one-parameter and 10%-of-authored-roots Constant value batches with undo, redo, dispatch and refresh ticks"
+        not_covered.append("parameter edit p95 tails, UI transport, and browser paint")
+    else:
+        not_covered.append("sparse/dense authored Constant parameter edits")
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "evidence_id": EVIDENCE_ID,
         "status": "PASS" if all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "product_qualification": "OPEN",
@@ -309,6 +398,7 @@ def build_report(
         "command": list(TEST_COMMAND),
         "live_edits_requested": include_live_edits,
         "live_edit_roots": live_edit_roots if include_live_edits else None,
+        "parameter_edits_requested": include_parameter_edits,
         "features": {"default": manifest["features"]["default"], "ui_assets_skipped": True},
         "profile": "optimized-test",
         "source_fixture": {"path": DEFAULT_SOURCE.as_posix(), "sha256": source_sha},
@@ -333,6 +423,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
         "--live-edit-roots", type=int,
         help="ANode roots per edit case (43 roots insert 602 records in the current fixture)",
     )
+    parser.add_argument(
+        "--parameter-edits", action="store_true",
+        help="include sparse and 10%%-of-roots authored Constant value batches at each scale",
+    )
     options = parser.parse_args(arguments)
     if options.live_edit_roots is not None and not options.live_edits:
         parser.error("--live-edit-roots requires --live-edits")
@@ -342,6 +436,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         report = build_report(
             root, output_dir, include_live_edits=options.live_edits,
             live_edit_roots=10 if options.live_edit_roots is None else options.live_edit_roots,
+            include_parameter_edits=options.parameter_edits,
         )
     except (OSError, ValueError) as error:
         print(f"Authored graph qualification error: {error}", file=sys.stderr)

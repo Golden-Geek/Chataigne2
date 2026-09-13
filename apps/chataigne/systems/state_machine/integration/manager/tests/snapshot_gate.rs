@@ -4,9 +4,9 @@ use golden_core::{
     app::load_sparse_project_file,
     engine::EngineTime,
     events::{Event, EventKind},
-    node::{Node, NodeId},
+    node::{Node, NodeId, NodeUuid},
     parameter::ParamValue,
-    process_ctx::{ExecutionPhase, ProcessCtx},
+    process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeSnapshot},
 };
 
 use crate::app::{AppNode, StateMachineState};
@@ -14,6 +14,51 @@ use crate::app::{AppNode, StateMachineState};
 use super::super::{
     is_condition_valid_result, runtime_param_change_requires_snapshot, set_condition_valid_param, StateMachineManager,
 };
+use super::context_scope_test_node;
+
+#[test]
+fn authored_formula_value_invalidates_runtime_but_layout_and_status_do_not() {
+    let (root, manager_id, library, formula, anode, position, config, value, valid) = (
+        NodeId(1), NodeId(2), NodeId(3), NodeId(4), NodeId(5), NodeId(6), NodeId(7), NodeId(8), NodeId(9),
+    );
+    let formula_uuid = NodeUuid(uuid::Uuid::from_u128(4));
+    let mut nodes = HashMap::from([
+        (root, context_scope_test_node(root, None, Some(manager_id), None, "root")),
+        (manager_id, context_scope_test_node(manager_id, Some(root), None, Some(library), "state_machine_manager")),
+        (library, context_scope_test_node(library, Some(root), Some(formula), None, "alchemist_formula_library")),
+        (formula, context_scope_test_node(formula, Some(library), Some(anode), None, "alchemist_formula")),
+        (anode, context_scope_test_node(anode, Some(formula), Some(position), Some(valid), "alchemist_anode")),
+        (position, context_scope_test_node(position, Some(anode), None, Some(config), "vec2")),
+        (config, context_scope_test_node(config, Some(anode), Some(value), None, "folder")),
+        (value, context_scope_test_node(value, Some(config), None, None, "float")),
+        (valid, context_scope_test_node(valid, Some(formula), None, None, "bool")),
+    ]);
+    nodes.get_mut(&formula).unwrap().uuid = formula_uuid;
+    nodes.get_mut(&position).unwrap().decl_id = "position".into();
+    nodes.get_mut(&config).unwrap().decl_id = "config".into();
+    nodes.get_mut(&value).unwrap().decl_id = "config/value".into();
+    nodes.get_mut(&valid).unwrap().decl_id = "is_valid".into();
+    let snapshot = Arc::new(ProcessTreeSnapshot::new(root, nodes));
+    let mut manager = StateMachineManager::new();
+    manager.node_data_mut().id = manager_id;
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 1, micro: 0, seq: 0 });
+    ctx.set_tree_snapshot(Arc::clone(&snapshot));
+
+    manager.on_param_change(&mut ctx, position, ParamValue::Vec2(0.0, 0.0));
+    manager.on_param_change(&mut ctx, valid, ParamValue::Bool(false));
+    assert!(manager.runtime_cache.structure_dirty.is_empty());
+
+    manager.on_param_change(&mut ctx, value, ParamValue::Float(0.0));
+    assert!(manager.runtime_cache.structure_dirty.contains(&formula_uuid));
+
+    manager.runtime_cache.structure_dirty.clear();
+    manager.runtime_cache.runtime_snapshot = Some(Arc::clone(&snapshot));
+    let mut no_snapshot = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 2, micro: 0, seq: 0 });
+    manager.on_param_change(&mut no_snapshot, manager_id, ParamValue::Float(0.0));
+    assert!(manager.runtime_cache.structure_dirty.is_empty());
+    manager.on_param_change(&mut no_snapshot, value, ParamValue::Float(0.0));
+    assert!(manager.runtime_cache.structure_dirty.contains(&formula_uuid));
+}
 
 #[test]
 fn formula_children_do_not_reconcile_state_network_topology() {

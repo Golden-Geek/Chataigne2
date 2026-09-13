@@ -67,6 +67,7 @@ pub(crate) use snapshot::{
     node_warning_detail, node_warning_matches,
 };
 pub(crate) use value_bridge::{constraint_value_type, param_to_runtime_value, runtime_value_to_param};
+pub(crate) use value_bridge::formula_runtime_param_change_requires_rematerialization;
 #[cfg(test)]
 pub(crate) use library::reset_shared_formula_watcher_for_test;
 pub use properties::{

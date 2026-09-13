@@ -1271,6 +1271,24 @@ fn anode_lifecycle_snapshots_follow_the_reconciliation_stage() {
 }
 
 #[test]
+fn formula_runtime_change_classifier_excludes_layout_and_derived_status() {
+    let (mut engine, formula) = engine_with_formula();
+    let anode = create_anode(&mut engine, formula, "constant", 0.0, 0.0);
+    let snapshot = engine.process_tree_snapshot();
+    let config = snapshot.find_child_by_decl_id(anode, "config").unwrap();
+    let value = snapshot.find_child_by_decl_id(config, "config/value").unwrap();
+    let position = snapshot.find_child_by_decl_id(anode, "position").unwrap();
+    let valid = snapshot.find_child_by_decl_id(formula, "is_valid").unwrap();
+    let diagnostics = snapshot.find_child_by_decl_id(formula, "diagnostics_json").unwrap();
+    let managed_regions = snapshot.find_child_by_decl_id(formula, "managed_regions_json").unwrap();
+    assert!(super::formula_runtime_param_change_requires_rematerialization(&snapshot, formula, value));
+    assert!(!super::formula_runtime_param_change_requires_rematerialization(&snapshot, formula, position));
+    assert!(!super::formula_runtime_param_change_requires_rematerialization(&snapshot, formula, valid));
+    assert!(!super::formula_runtime_param_change_requires_rematerialization(&snapshot, formula, diagnostics));
+    assert!(!super::formula_runtime_param_change_requires_rematerialization(&snapshot, formula, managed_regions));
+}
+
+#[test]
 fn anode_creation_materializes_visible_config_and_socket_nodes() {
     let (mut engine, formula) = engine_with_formula();
     create_anode(&mut engine, formula, "constant", 2.0, 3.0);
