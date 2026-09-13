@@ -75,7 +75,8 @@ PARAMETER_EDIT_ACTION_FIELDS = {
 }
 RESULT_FIELDS = {
     "authored_nodes", "graph_roots", "minimum_live_nodes", "prepared_nodes",
-    "reloaded_nodes", "load_ms", "prepare_ms", "tick_us", "tick_callbacks",
+    "reloaded_nodes", "verified_tree_nodes",
+    "load_ms", "prepare_ms", "tick_us", "tick_callbacks",
     "tick_snapshot_builds", "tick_snapshot_nodes_cloned", "tick_edits_applied",
     "save_ms", "saved_bytes", "reload_ms", "load_rss_mb", "prepare_rss_mb",
     "reload_rss_mb",
@@ -117,6 +118,8 @@ def parse_result(output: str, target: int, graph_roots: int) -> dict[str, Any]:
         raise ValueError("authored graph load or reload missed the live-node target")
     if row["reloaded_nodes"] != row["authored_nodes"]:
         raise ValueError("authored graph save/reload changed the live-node count")
+    if row["verified_tree_nodes"] != row["authored_nodes"]:
+        raise ValueError("authored graph full ordered tree was not verified")
     if row["prepared_nodes"] < row["authored_nodes"] or row["saved_bytes"] == 0:
         raise ValueError("authored graph prepare or save produced invalid counts")
     return row
@@ -374,7 +377,7 @@ def build_report(
         print(f"authored graph {target}: {scenarios[-1]['status']} ({log_path})", flush=True)
     if working_tree_sha(root) != tested_tree_sha:
         raise ValueError("source tree changed during authored graph qualification")
-    scope = "persisted Chataigne full-workbench load, five engine ticks, sparse save and reload"
+    scope = "persisted Chataigne full-workbench load, five engine ticks, sparse save and reload with full ordered live-tree content equivalence"
     not_covered = [
         "tick tail distribution, action-to-paint, UI transport and multi-client behavior",
         "graph compilation and evaluation across all cloned Constant ANodes",
@@ -392,7 +395,7 @@ def build_report(
     else:
         not_covered.append("sparse/dense authored Constant parameter edits")
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "evidence_id": EVIDENCE_ID,
         "status": "PASS" if all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "product_qualification": "OPEN",

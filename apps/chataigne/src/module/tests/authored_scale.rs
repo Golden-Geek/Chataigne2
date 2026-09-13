@@ -37,6 +37,40 @@ fn graph_root_uuids(engine: &AppEngine) -> HashSet<String> {
         .collect()
 }
 
+#[derive(Debug, PartialEq)]
+struct AuthoredNodeState {
+    depth: usize,
+    node_type: String,
+    decl_id: String,
+    label: String,
+    param_value: Option<ParamValue>,
+}
+
+fn authored_tree_states(engine: &AppEngine) -> Vec<AuthoredNodeState> {
+    let mut states = Vec::new();
+    let mut pending = vec![(engine.root, 0)];
+    while let Some((id, depth)) = pending.pop() {
+        let node = engine.nodes.get(id).expect("tree node should exist");
+        let data = node.node_data();
+        let mut children = Vec::new();
+        let mut child = data.first_child;
+        while let Some(child_id) = child {
+            let child_node = engine.nodes.get(child_id).expect("child should exist");
+            children.push(child_id);
+            child = child_node.node_data().next_sibling;
+        }
+        pending.extend(children.into_iter().rev().map(|child_id| (child_id, depth + 1)));
+        states.push(AuthoredNodeState {
+            depth,
+            node_type: node.get_type().to_owned(),
+            decl_id: data.meta.decl_id.0.clone(),
+            label: data.meta.label.clone(),
+            param_value: node.engine_param_snapshot().map(|param| param.value),
+        });
+    }
+    states
+}
+
 fn direct_child_uuids(engine: &AppEngine, parent: NodeId) -> Vec<NodeUuid> {
     let mut uuids = Vec::new();
     let mut child = engine.nodes.get(parent).expect("parent should exist").node_data().first_child;
@@ -158,6 +192,8 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
     );
     let authored_graph_roots = graph_root_uuids(&engine);
     assert_eq!(authored_graph_roots.len(), expected_graph_roots);
+    let before_reload = authored_tree_states(&engine);
+    assert_eq!(before_reload.len(), authored_nodes, "all loaded nodes should be reachable from the root");
     let load_rss_mb = resident_bytes(&mut system) / 1_000_000;
 
     let started = Instant::now();
@@ -209,6 +245,15 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
         "save/reload must preserve every authored graph root"
     );
     assert_eq!(reloaded_nodes, authored_nodes, "save/reload must preserve the live-node count");
+    let after_reload = authored_tree_states(&reloaded);
+    assert_eq!(after_reload.len(), before_reload.len());
+    for (index, (before, after)) in before_reload.iter().zip(&after_reload).enumerate() {
+        assert_eq!(
+            after,
+            before,
+            "save/reload changed ordered authored tree entry {index}"
+        );
+    }
     let reload_rss_mb = resident_bytes(&mut system) / 1_000_000;
 
     println!(
@@ -219,6 +264,7 @@ fn authored_graph_project_loads_ticks_and_round_trips() {
             "minimum_live_nodes": minimum_live_nodes,
             "prepared_nodes": prepared_nodes,
             "reloaded_nodes": reloaded_nodes,
+            "verified_tree_nodes": after_reload.len(),
             "load_ms": load_ms,
             "prepare_ms": prepare_ms,
             "tick_us": tick_us,

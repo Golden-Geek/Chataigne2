@@ -19,6 +19,7 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
         "minimum_live_nodes": target,
         "prepared_nodes": 1_245,
         "reloaded_nodes": 1_088,
+        "verified_tree_nodes": 1_088,
         "load_ms": 34,
         "prepare_ms": 44,
         "tick_us": [6_418, 180, 170, 175, 172],
@@ -208,6 +209,13 @@ class AuthoredGraphScaleTests(unittest.TestCase):
         output = complete_output().replace('"reloaded_nodes": 1088', '"reloaded_nodes": 1089')
         with self.assertRaisesRegex(ValueError, "changed the live-node count"):
             authored_graph_scale.parse_result(output, 1_000, 72)
+
+    def test_rejects_missing_or_incomplete_tree_verification(self) -> None:
+        output = complete_output()
+        with self.assertRaisesRegex(ValueError, "fields differ"):
+            authored_graph_scale.parse_result(output.replace('"verified_tree_nodes": 1088, ', ""), 1_000, 72)
+        with self.assertRaisesRegex(ValueError, "full ordered tree was not verified"):
+            authored_graph_scale.parse_result(output.replace('"verified_tree_nodes": 1088', '"verified_tree_nodes": 1087'), 1_000, 72)
 
     def test_output_directory_must_be_empty_under_target(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

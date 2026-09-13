@@ -524,6 +524,16 @@ undo/redo replay; its refresh built no snapshot and measured 85 ms, including 72
 materialization. This removes the prior 100k value-refresh snapshot cost; browser action-to-paint,
 p95 tails, broader edit shapes, transport, and recovery remain unqualified.
 
+The authored-graph report contract is now schema v6. Its startup/reload case compares the complete
+ordered live tree before runtime preparation and after sparse save/reload: every node's depth,
+type, declaration, label, and parameter value must match, while the separate graph-root UUID
+assertion remains. The source-fingerprinted
+`target/qualification/authored-graph-scale/20260913T025215Z/` matrix passed all eighteen cases
+and verified all 1,089 / 10,091 / 100,083 loaded tree nodes at 1k / 10k / 100k. All 50
+qualification-tool tests pass, including rejection of a missing or undercounted tree result.
+Sparse-document byte/metadata equivalence and UUID identity for every declared descendant are
+not claimed; browser, transport, recovery, and tail-latency qualification remain open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -547,7 +557,7 @@ p95 tails, broader edit shapes, transport, and recovery remain unqualified.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, 602-record structural edits, and sparse/dense parameter replay pass locally; scheduled Formula refresh, browser p95, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, and sparse/dense parameter replay pass locally; browser p95, transport/recovery, platform, and physical evidence remain open |
 
 ## Finding status
 
