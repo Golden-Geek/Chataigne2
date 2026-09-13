@@ -119,6 +119,11 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
   now have separate owners. The multiplex test keeps shared helpers (415 lines), runtime tests
   (311), and interaction tests (312) apart. Both processor feature modes pass 71/72 tests;
   strict feature-enabled app Clippy and all 513 default-feature app tests pass after extraction.
+- Generic graph edge routing now owns obstacle bucketing, bounded path search, smoothing, and SVG
+  path construction outside the Svelte canvas. The canvas still owns live node geometry, viewport
+  interactions, and its per-edge cache. `GraphCanvas.svelte` fell from 3,533 to 3,210 lines, so it
+  remains oversized. Four direct routing regressions, all 83 app UI tests, the zero-warning Svelte
+  type check, and the production UI build pass locally.
 
 ## T18 initial profiling boundary
 
@@ -577,7 +582,7 @@ evidence.
 | T14  | T03, T07, T11                                 | complete                                                     |
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
-| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
+| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula and graph-routing owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
 | T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, sparse/dense parameter replay and save/reload, plus three-client headless transport resync/edit/reconnect pass locally; browser p95, concurrent save/slow-client/endurance, platform, and physical evidence remain open |
 
