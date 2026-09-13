@@ -378,9 +378,35 @@ processor-count cases above. The mixed case measures tuple transport without
 a numeric stage; invalid mixed-type numeric application is covered by
 correctness tests rather than timed as successful work.
 
+An opt-in per-evaluation run collected 500 consecutive warmed batch timings
+for each workload, after 16 warmup evaluations, using `Instant` around one
+complete `ManagedFormulaRuntime` batch. The observed nearest-rank percentiles
+on the same Windows host and `bench` profile were:
+
+| Workload | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: |
+| 1,000 processors × one Float × one stage | 1.513 ms | 1.546 ms | 1.739 ms |
+| 10,000 processors × one Float × one stage | 38.142 ms | 41.880 ms | 44.612 ms |
+| 1,000 processors × eight Floats × eight stages | 88.557 ms | 89.707 ms | 93.902 ms |
+| 1,000 processors × three Floats → Sum | 2.019 ms | 2.065 ms | 2.138 ms |
+| 1,000 processors × three Floats → Pack Vec3 | 2.033 ms | 2.110 ms | 2.243 ms |
+| 1,000 processors × Float/Bool/String passthrough | 1.113 ms | 1.162 ms | 1.215 ms |
+| Eight contexts × eight Floats × eight stages | 0.417 ms | 0.440 ms | 0.453 ms |
+
+The longer 100-sample Criterion run on the same code was about 20% slower
+than the earlier short run for its three numeric batch cases (center estimates
+1.969, 38.251, and 88.839 ms). Because measurement duration and host thermal
+conditions differed, the short-run figures are not a regression threshold.
+The individual timings report observed batch tails, including OS scheduling
+jitter, rather than percentiles inferred from Criterion's aggregate samples.
+To repeat them, set `CHATAIGNE_MAPPING_LATENCY_SAMPLES=500` and run the
+`mapping_baseline` bench with the `mapping_runtime_latency_distribution`
+filter. The ordinary Criterion cases remain available when that variable is
+unset.
+
 This fixture does not yet measure engine dirty scheduling, command delivery,
 preview capture, structural edits, bounded temporal history, allocations, or
 cache counts. Its fixed input snapshot and logical tick make it a steady
-evaluation benchmark. Percentile latency and regression thresholds require
-raw samples and a broader end-to-end workload; the historical lane fixture
+evaluation benchmark. End-to-end percentile latency and regression thresholds
+require a broader workload; the historical lane fixture
 cannot supply a comparable threshold for the current Mapping runtime.

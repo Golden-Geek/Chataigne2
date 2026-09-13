@@ -1,4 +1,7 @@
-use std::{hint::black_box, time::Duration};
+use std::{
+    hint::black_box,
+    time::{Duration, Instant},
+};
 
 use chataigne_alchemist::{
     ANodeDeclaration, ANodeInstance, AlchemistFormula, AlchemistGraphDomain, CompileCtx, ContextKey, EvaluationCtx,
@@ -91,6 +94,83 @@ fn mapping_runtime_contexts(c: &mut Criterion) {
         bench.iter(|| black_box(evaluate_contexts(runtime, black_box(&context), &keys)));
     });
     group.finish();
+}
+
+fn mapping_runtime_latency_distribution(c: &mut Criterion) {
+    let Some(sample_count) = std::env::var("CHATAIGNE_MAPPING_LATENCY_SAMPLES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+    else {
+        return;
+    };
+    assert!(sample_count >= 100, "latency distribution needs at least 100 samples");
+
+    for (label, processors, sources, depth, workload) in [
+        ("scalar_1000", 1_000, 1, 1, Workload::NumericChain),
+        ("scalar_10000", 10_000, 1, 1, Workload::NumericChain),
+        ("tuple_1000_8x8", 1_000, 8, 8, Workload::NumericChain),
+        ("sum_1000", 1_000, 3, 1, Workload::Sum),
+        ("pack_vec3_1000", 1_000, 3, 1, Workload::PackVec3),
+        ("mixed_1000", 1_000, 3, 1, Workload::MixedPassthrough),
+    ] {
+        let (mut runtimes, inputs, value_types) = build_case(processors, sources, depth, workload);
+        let registries = RuntimeRegistries {
+            value_types: &value_types,
+        };
+        let context = evaluation_context(&inputs, &registries);
+        for _ in 0..16 {
+            black_box(evaluate_batch(&mut runtimes, &context));
+        }
+        let mut samples = Vec::with_capacity(sample_count);
+        for _ in 0..sample_count {
+            let start = Instant::now();
+            black_box(evaluate_batch(&mut runtimes, black_box(&context)));
+            samples.push(start.elapsed().as_nanos() as u64);
+        }
+        report_latency_distribution(label, &mut samples);
+    }
+
+    let (mut runtimes, inputs, value_types) = build_case(1, 8, 8, Workload::NumericChain);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let context = evaluation_context(&inputs, &registries);
+    let keys = (0..8)
+        .map(|index| ContextKey::single("benchmark", format!("context_{index}")))
+        .collect::<Vec<_>>();
+    for _ in 0..16 {
+        black_box(evaluate_contexts(&mut runtimes[0], &context, &keys));
+    }
+    let mut samples = Vec::with_capacity(sample_count);
+    for _ in 0..sample_count {
+        let start = Instant::now();
+        black_box(evaluate_contexts(&mut runtimes[0], black_box(&context), &keys));
+        samples.push(start.elapsed().as_nanos() as u64);
+    }
+    report_latency_distribution("contexts_8x8x8", &mut samples);
+
+    let (mut runtimes, inputs, value_types) = build_case(1_000, 1, 1, Workload::NumericChain);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let context = evaluation_context(&inputs, &registries);
+    let mut group = c.benchmark_group("mapping_runtime_latency_distribution");
+    group.bench_function("scalar_1000_reference", |bench| {
+        bench.iter(|| black_box(evaluate_batch(&mut runtimes, black_box(&context))));
+    });
+    group.finish();
+}
+
+fn report_latency_distribution(label: &str, samples: &mut [u64]) {
+    samples.sort_unstable();
+    let percentile = |percent: usize| samples[(samples.len() * percent).div_ceil(100) - 1];
+    println!(
+        "mapping_latency {label} samples={} p50_ns={} p95_ns={} p99_ns={}",
+        samples.len(),
+        percentile(50),
+        percentile(95),
+        percentile(99),
+    );
 }
 
 fn evaluation_context<'a>(
@@ -336,6 +416,7 @@ criterion_group!(
     mapping_runtime,
     mapping_runtime_batch,
     mapping_runtime_shapes,
-    mapping_runtime_contexts
+    mapping_runtime_contexts,
+    mapping_runtime_latency_distribution
 );
 criterion_main!(benches);
