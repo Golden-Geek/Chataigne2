@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 02 — typed source tuple phase checkpoint pending remote verification; Phase 03/04 groundwork remains incomplete
-- Last validated implementation commit: `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` (tuple-contract/managed-palette WIP; Phase 01 is the last complete phase under the revised plan)
-- Last verified remote implementation commit: `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` (WIP)
+- Active phase: 03 — tuple-aware filter applications and exact backend palette creation; Phase 04 groundwork remains incomplete
+- Last validated implementation commit: `a4705f61542be7c33e4c62fd039447b8d8a312e8` (revised Phase 02)
+- Last verified remote implementation commit: `a4705f61542be7c33e4c62fd039447b8d8a312e8` (revised Phase 02)
 - Current blockers: no environment blocker; Phase 03 must make filter applications and the palette consume the scalar/tuple contract, and Phase 04 must remove implicit channel routing from standard Mapping execution while preserving custom Formula graph semantics.
 - Product checks still outstanding: revised M01–M16 and M18–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: publish the revised Phase 02 checkpoint, then implement tuple-aware filter applications and exact palette creation in Phase 03
-- Last updated: 2026-09-13T12:53:05+02:00
+- Next concrete action: make Phase 03 validate each filter against the full scalar/tuple value, offer Sum/Average and X/Y/Z packing with exact materialized settings, and reject implicit compatible-subset routing
+- Last updated: 2026-09-13T12:54:05+02:00
 
 ## Phase ledger
 
@@ -19,7 +19,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
-| 02 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Scalar/tuple source-shape gates pass; implementation checkpoint A awaits commit/push. Whole-value filter execution belongs to Phase 03/04. |
+| 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a4705f61` verified remotely; scalar/tuple source-shape gates pass. Whole-value filter execution belongs to Phase 03/04. |
 | 03 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `1c70c88d` verified remotely; the internal-layout palette is compiler-backed, while a tuple-aware Mapping palette and multi-input merge authoring remain open. |
 | 04 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `1c70c88d` verified remotely; earlier typed stages remain channel-oriented. Whole-value tuple stages, Formula graph boundaries, and plan sharing remain open. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
@@ -115,19 +115,19 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; this repository triggers CI on PRs and `main`, and Phase 01 has no separately designated mandatory CI run.
 - Decisions/deviations and rationale: retain the JSON extension codec at actual graph/persistence boundaries; the managed processor handoff is native. Reuse scratch memory for stateless projections and make debug capture optional in the Alchemist evaluator. Remaining per-lane/property/evaluator allocations are documented, not claimed eliminated. A concurrent edit to the older implementation plan is unrelated and excluded from Mapping staging.
 
-### Phase 02 (revised tuple contract; delivery pending)
+### Phase 02 (revised tuple contract)
 
-- Changes and affected public boundaries: Alchemist now owns immutable channel layouts, stable authored IDs, selection/group resolution, and pre-evaluation layout projections. Processor InputSet owns source-aligned runtime frames, validity/change/delivery state, and explicit source-schema reconciliation; backend callers can query the declared input layout.
+- Changes and affected public boundaries: the app-owned Alchemist model exposes `MappingValueShape` as an incomplete, scalar, or ordered tuple view over the internal typed layout. Processor InputSet owns source-aligned runtime frames, validity/change/delivery state, and explicit source-schema reconciliation; backend callers can query the declared input layout and Mapping value shape. Historical channel selection/group support remains internal groundwork for custom Formulas.
 - Acceptance gates satisfied under the previous plan: focused tests cover mixed typed values, repeated source references, stable reorder, rename, disabled/re-enabled and missing inputs, metadata-only revision, empty inputs, wrong source types, and value updates without a layout rebuild. Extraction and grouping tests cover internal/custom Formula machinery, not the revised standard Mapping UX.
 - Revised acceptance gates satisfied: `MappingValueShape` distinguishes incomplete, one typed source, and an ordered heterogeneous tuple without conflating a single array source with a tuple. InputSet retains authored identity, declared position, value validity, and resolved schema/metadata across reorder; source replacement invalidates the old schema. Existing focused tests cover repeated references, rename, disable/reenable, removal, compound values, metadata-only updates, and no value-driven shape rebuild. Input source authoring uses no channel selection or group.
-- Remaining Phase 02 work: none after delivery verification. Phase 03/04 own tuple-aware filter applicability and whole-value execution; Phase 09 presents the backend shape query.
-- Exact checks and outcomes: see validation table. The final 156/78 Alchemist/processor tests, strict Clippy, full workspace check, 531 app tests plus 1 audio-host integration test, root and Golden Core format, and whitespace checks passed.
-- Implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`.
-- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`, 2026-09-13T10:10:55+02:00 (`git ls-remote`).
+- Remaining Phase 02 work: none. Phase 03/04 own tuple-aware filter applicability and whole-value execution; Phase 09 presents the backend shape query.
+- Exact checks and outcomes: see validation table. The revised 161/90 Alchemist/processor tests, strict Clippy, full workspace check, 536 app unit tests plus 1 audio-host integration test, root and Golden Core format, and whitespace checks passed.
+- Implementation commit: `a4705f61542be7c33e4c62fd039447b8d8a312e8` (revised phase checkpoint following WIP `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`). Historical channel-layout checkpoint: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `a4705f61542be7c33e4c62fd039447b8d8a312e8`, 2026-09-13T12:54:05+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; repository CI triggers on PRs and `main`.
-- Decisions/deviations and rationale: preserve dynamic source identity with an unresolved type until a backend schema event; never infer shape from ordinary value samples. The native frame can carry tuple-element validity while the existing managed runner is adapted. The user's later tuple decision superseded channel selections and grouping for standard Mapping; the historical implementation commit remains verified but this phase is reopened for the revised contract.
+- Decisions/deviations and rationale: preserve dynamic source identity with an unresolved type until a backend schema event; never infer shape from ordinary value samples. The native frame carries tuple-element validity while the managed runner is adapted in Phase 03/04. The user's tuple decision supersedes channel selections and grouping for standard Mapping; the historical channel-layout commit remains in history as internal groundwork.
 - Revised WIP checkpoint: `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`, observed at `refs/heads/codex/builtin-mapping` on `origin` at 2026-09-13T12:50:56+02:00. It adds the scalar/tuple shape query and schema-preserving input reconciliation, but does not close Phase 02.
-- Revised Phase 02 implementation checkpoint A: pending commit/push verification. Direct pushes to this branch have no configured mandatory CI workflow; the targeted crate/app/workspace gates above passed.
+- Revised Phase 02 checkpoint A is verified. Direct pushes to this branch have no configured mandatory CI workflow; the targeted crate/app/workspace gates above passed.
 
 ### Phase 03 (in progress)
 
@@ -135,8 +135,8 @@
 - Acceptance gates satisfied: host-level parameter edit changes output without scheduling a rebuild; processor tests show unrelated SMA history survives an auxiliary edit; graph and Mapping Math use the same operation; invalid selection, arity, mode, and auxiliary types diagnose.
 - Remaining work: the backend Add palette must query actual compiler availability for the current scalar/tuple value shape and create the exact configuration it validates. Multi-input merging, including Sum/Average and X/Y/Z packing, must be straightforward without channel selectors. Do not mark Phase 03 complete from the channel-oriented query alone.
 - Exact checks and outcomes: see Phase 03 validation rows. An incremental MSVC app link failed with unresolved symbols in an unrelated module; the non-incremental full app run passed.
-- Implementation commits: WIP `e3b37a7b96267f4981ac6afe392d489c500f197f` and WIP `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`; neither is the Phase 03 checkpoint A.
-- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, 2026-09-13T11:40:53+02:00 (`git ls-remote`).
+- Implementation commits: WIP `e3b37a7b96267f4981ac6afe392d489c500f197f`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, and `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`; none is the Phase 03 checkpoint A.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin` contains WIP `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` as of 2026-09-13T12:54:05+02:00 (`git ls-remote` at `a4705f61`).
 - CI status and relevant runs: `NOT_RUN` while the phase is in progress.
 - Decisions/deviations and rationale: keep role, settings, and operation behavior on the existing ANode declaration. Config changes remain structural; runtime socket values update compiled properties. No second kernel or UI-owned behavior registry was added. Earlier per-channel Math mode work may serve tuple elementwise processing or custom Formulas, but does not itself satisfy the revised standard Mapping contract.
 
@@ -146,14 +146,14 @@
 - Acceptance gates satisfied under the earlier channel plan: focused tests execute `Remap → Sum → Smooth` with an unselected Boolean passing through, `Pack Vec3 → Extract Vec3 → Math → Pack Vec3`, and multi-output Color extraction; evaluation keeps state across ticks. The app test proves a declared parameter reaches a managed Formula through the host snapshot. These do not validate the new whole-value tuple semantics.
 - Remaining work: adapt stages to scalar/tuple semantics without implicit subset/pass-through routing; preserve surrounding Formula graph operations; share compatible executable specializations; complete dependency tables and authored preview attribution; and diagnose unsupported graph boundaries. Phase 04 is still incomplete.
 - Exact checks and outcomes: see the 03/04 validation row. The app test suite passed before the new stage runtime was added; the workspace check covers current app compilation.
-- Implementation commits: WIP `74f5bd4581e23687775770f6cd32b65217cec351` and WIP `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`; neither is the Phase 04 checkpoint A.
-- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, 2026-09-13T11:40:53+02:00 (`git ls-remote`).
+- Implementation commits: WIP `74f5bd4581e23687775770f6cd32b65217cec351`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, and `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`; none is the Phase 04 checkpoint A.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin` contains WIP `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` as of 2026-09-13T12:54:05+02:00 (`git ls-remote` at `a4705f61`).
 - CI status and relevant runs: `NOT_RUN` while the phase is in progress.
 - Decisions/deviations and rationale: endpoint `StableRef` types describe endpoint identity, so ordinary values cannot supply stage types. Source schema must arrive as a backend structural event before compiling the typed chain.
 
 ## Blockers and handoff
 
 - What failed or changed: the user replaced the standard Mapping channel model with one ordered source tuple and whole-value linear filtering. The existing channel-oriented tests and stages are groundwork, not revised acceptance evidence. Managed sidecar execution still skips surrounding Formula graph operations. An incremental MSVC app link failed earlier on unrelated module symbols; disabling incremental compilation passed the app unit suite. The broad app package test command could not replace an executable in use; the app unit binary and audio-host integration test then passed separately. Plain workspace check requires the pinned ASIO SDK wrapper.
-- Last known-good checkpoint: historical Phase 02 channel layout at `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`; revised tuple-contract WIP `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` is validated and verified on `origin/codex/builtin-mapping`, but no revised Phase 02 completion is claimed.
+- Last known-good checkpoint: revised Phase 02 `a4705f61542be7c33e4c62fd039447b8d8a312e8` is validated and verified on `origin/codex/builtin-mapping`; Phase 03/04 code in that history remains WIP.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: establish the scalar/tuple backend boundary and verify that a standard Mapping can read several sources as one ordered value; then close the revised Phase 02 before completing the tuple-aware Phase 03 palette.
+- Next action: complete tuple-aware Phase 03 filter applications and exact backend palette creation, then proceed to whole-value stage execution in Phase 04.
