@@ -423,6 +423,34 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     assert_eq!(loaded_result.intents.len(), 1);
     let loaded_arguments = CommandArgumentValues::from_runtime_value(&loaded_result.intents[0].payload).unwrap().unwrap();
     assert_eq!(loaded_arguments.value, RuntimeValue::Float(1.25));
+    let loaded_remap = loaded.process_tree_snapshot().node_id_by_uuid(remap_uuid).unwrap();
+    set_socket_default(&mut loaded, loaded_remap, "in_max", ParamValue::Float(10.0));
+    let edited_snapshot = loaded.process_tree_snapshot();
+    let mut edited_instance = loaded_formula.instantiate();
+    edited_instance.managed_regions =
+        managed_regions_from_snapshot(&edited_snapshot, loaded_processor, &loaded_formula).unwrap();
+    let mut edited_runtime =
+        ManagedFormulaRuntime::compile(&loaded_formula, &edited_instance, &loaded_ctx)
+            .unwrap()
+            .unwrap();
+    edited_runtime
+        .reconcile_input_source_schema(|source| managed_source_schema(&edited_snapshot, source))
+        .unwrap();
+    let edited_result = edited_runtime.evaluate(&EvaluationCtx {
+        logical_tick: 2,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    });
+    assert!(edited_result.diagnostics.is_empty(), "{:?}", edited_result.diagnostics);
+    assert_eq!(edited_result.intents.len(), 1);
+    let edited_arguments =
+        CommandArgumentValues::from_runtime_value(&edited_result.intents[0].payload)
+            .unwrap()
+            .unwrap();
+    assert_eq!(edited_arguments.value, RuntimeValue::Float(0.5));
+    assert_eq!(edited_arguments.arguments[0].value, RuntimeValue::String(Arc::from("mapped")));
     let added = create_item(&mut loaded, loaded_custom, &format!("{ANODE_CREATE_PREFIX}constant"));
     assert!(loaded.process_tree_snapshot().node(added).is_some());
     assert_eq!(formula_from_snapshot(&loaded.process_tree_snapshot(), loaded_custom).unwrap().graph.nodes().count(), formula.graph.nodes().count() + 1);
