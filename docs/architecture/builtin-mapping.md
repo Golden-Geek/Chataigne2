@@ -91,11 +91,13 @@ an all-compatible selection with no matches reports an identity-stage status.
 Pack/reduce, extraction, duplicate, and reorder layout projections resolve their
 identities and positions before runtime evaluation.
 
-The existing homogeneous managed runner still receives `ValueSet` entries from
-InputSet while the new frame is available for backend layout queries. Phase 04
-will replace that runner's stage shape with the typed layout/frame contract and
-remove the positional ValueSet handoff. Source-schema discovery from Golden
-parameters and actual Mapping UI queries are Phase 06 and 09 integration work.
+The value pipeline now executes typed frames through a composable stage chain.
+Golden parameter declarations resolve input schemas during processor rebuilds;
+the host reads live values from its parameter snapshot and marks dependent
+processors dirty on source changes. The final frame still passes through the
+older positional OutputSet adapter. Phase 06 will replace that adapter with
+explicit command argument bindings. Ordinary value samples do not alter stage
+layouts.
 
 Phase 03 extends ANode role capabilities to the configured instance. The
 application resolver checks primary, auxiliary, and output sockets against its
@@ -105,18 +107,19 @@ Elementwise auxiliary sockets are bound as Formula properties; they can read a
 constant, a shared reference, or a channel-context reference at evaluation time.
 An edit to an authored managed input socket updates a compiled binding and its
 processor instance without discarding lane memory. Structural config edits still
-rebuild the processor. The current managed runner does not yet execute every
-resolved layout or multiple-output application; Phase 04 replaces that runner
-before such applications are exposed as executable palette choices.
+rebuild the processor. The availability query validates candidates with the
+typed stage compiler, including selected and mixed layouts. The backend Add
+palette still uses static role lists, so Phase 03 remains open.
 
-The in-progress typed stage compiler builds one Alchemist graph per configured
-stage and applies it to stable selected channel groups. It keeps per-group
-memory, reusable output frames, and a structural input-layout check. Composing
-stages already works for `Remap → Sum → Smooth` on mixed layouts and for Color
-extraction with stable component identities in focused processor tests. This
-chain is not yet connected to the managed Formula runtime. Its integration
-requires explicit source schemas from the backend: endpoint references name
-sources, not their value types, and ordinary samples must not set the layout.
+The typed stage compiler builds one Alchemist graph per configured stage and
+applies it to stable selected channel groups. It keeps per-group memory,
+reusable output frames, and a structural input-layout check. Focused tests run
+`Remap → Sum → Smooth`, `Pack Vec3 → Extract Vec3 → Math → Pack Vec3`, mixed
+pass-through, and multi-output Color extraction. The value pipeline uses this
+chain after backend schema reconciliation. The older value runner remains only
+for the trigger pipeline; typed flow control and the Formula graph boundary are
+unfinished. A custom Formula with managed regions and surrounding graph nodes
+must execute those graph nodes as well.
 
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.

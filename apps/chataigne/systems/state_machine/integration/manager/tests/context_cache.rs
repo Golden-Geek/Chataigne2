@@ -295,6 +295,7 @@ fn context_provider_rebuild_refreshes_and_clears_the_lane_limit_warning() {
     let runtime_processor = RuntimeProcessor {
         processor,
         runtime,
+        managed_sources: Vec::new(),
         compile_warning: None,
         formula,
         formula_node: None,

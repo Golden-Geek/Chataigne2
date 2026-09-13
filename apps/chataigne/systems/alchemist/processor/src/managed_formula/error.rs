@@ -4,11 +4,18 @@ use chataigne_alchemist::{
 };
 
 use crate::{
-    INPUT_SOURCE_FIELD, InputSetError, OUTPUT_TARGET_FIELD, OutputSetError, ValueSetError, ValueSetPipelineError,
+    INPUT_SOURCE_FIELD, InputSetError, ManagedStageError, OUTPUT_TARGET_FIELD, OutputSetError, ValueSetError,
+    ValueSetPipelineError,
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManagedFormulaError {
+    #[error("managed filter input types are unresolved; bind a source schema before evaluation")]
+    UnresolvedManagedInputSchema,
+    #[error("managed stage channel `{0:?}` is not valid for positional output dispatch")]
+    InvalidStageChannel(chataigne_alchemist::ValueLaneKey),
+    #[error("{0}")]
+    ManagedStage(#[from] ManagedStageError),
     #[error("managed filter item `{0}` does not exist")]
     MissingFilterItem(ManagedItemId),
     #[error("{0}")]
@@ -88,6 +95,9 @@ impl ManagedFormulaError {
 
     pub(super) fn diagnostic_code(&self) -> &'static str {
         match self {
+            Self::UnresolvedManagedInputSchema => "managed_formula_unresolved_input_schema",
+            Self::InvalidStageChannel(_) => "managed_formula_invalid_stage_channel",
+            Self::ManagedStage(_) => "managed_formula_stage_error",
             Self::Formula(_) => "managed_formula_materialization_error",
             Self::ManagedRegionValidation(_) => "managed_formula_region_validation_error",
             Self::MixedManagedFormulaPipelines => "managed_formula_mixed_region_kinds",

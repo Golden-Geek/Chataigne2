@@ -214,3 +214,48 @@ fn compiled_chain_retains_stage_results_and_state_across_ticks() {
     );
     assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(1.55)));
 }
+
+#[test]
+fn pack_extract_math_pack_chain_executes_every_declared_stage() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let layout = typed_layout(&[("x", "float"), ("y", "float"), ("z", "float")]);
+    let first_pack = managed_item_for_primitive(PrimitiveNodeKind::PackVec3);
+    let extract = managed_item_for_primitive(PrimitiveNodeKind::ExtractVec3);
+    let mut math = managed_item_for_primitive(PrimitiveNodeKind::Math);
+    math.anode
+        .config
+        .set("application", RuntimeValue::String("each".into()));
+    math.anode
+        .input_defaults
+        .insert(SocketId::new("value2"), RuntimeValue::Float(1.0));
+    let second_pack = managed_item_for_primitive(PrimitiveNodeKind::PackVec3);
+    let mut chain = ManagedStageChain::compile(
+        &[first_pack, extract, math, second_pack],
+        Arc::new(layout.clone()),
+        &compile_ctx,
+    )
+    .unwrap();
+    let input = frame(
+        layout,
+        &[
+            RuntimeValue::Float(1.0),
+            RuntimeValue::Float(2.0),
+            RuntimeValue::Float(3.0),
+        ],
+        1,
+    );
+    let inputs = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let (output, result) = chain.evaluate(&input, &ctx(&inputs, &registries, 1)).unwrap();
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(output.layout().channels().len(), 1);
+    assert_eq!(output.slots()[0].value, Some(RuntimeValue::Vec3([2.0, 3.0, 4.0])));
+}

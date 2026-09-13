@@ -22,6 +22,7 @@ mod debug_log;
 mod debug_value;
 mod delay_one_tick;
 mod extract_color;
+mod extract_vec3;
 mod function;
 mod gate;
 mod gradient_sampler;
@@ -72,6 +73,7 @@ pub enum PrimitiveNodeKind {
     GradientSampler,
     ConvertToColor,
     ExtractColor,
+    ExtractVec3,
     PackVec3,
     Concatenate,
     ConvertToString,
@@ -87,7 +89,7 @@ pub enum PrimitiveNodeKind {
 }
 
 impl PrimitiveNodeKind {
-    const ALL: [Self; 32] = [
+    const ALL: [Self; 33] = [
         Self::Constant,
         Self::Property,
         Self::Math,
@@ -108,6 +110,7 @@ impl PrimitiveNodeKind {
         Self::GradientSampler,
         Self::ConvertToColor,
         Self::ExtractColor,
+        Self::ExtractVec3,
         Self::PackVec3,
         Self::Concatenate,
         Self::ConvertToString,
@@ -151,6 +154,7 @@ impl PrimitiveNodeKind {
             Self::GradientSampler => "gradient_sampler",
             Self::ConvertToColor => "convert_to_color",
             Self::ExtractColor => "extract_color",
+            Self::ExtractVec3 => "extract_vec3",
             Self::PackVec3 => "pack_vec3",
             Self::Concatenate => "concatenate",
             Self::ConvertToString => "convert_to_string",
@@ -210,6 +214,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::GradientSampler => "Gradient Sampler",
             PrimitiveNodeKind::ConvertToColor => "Convert To Color",
             PrimitiveNodeKind::ExtractColor => "Extract Color",
+            PrimitiveNodeKind::ExtractVec3 => "Extract Vec3",
             PrimitiveNodeKind::PackVec3 => "Pack Vec3",
             PrimitiveNodeKind::Concatenate => "Concatenate",
             PrimitiveNodeKind::ConvertToString => "Convert To String",
@@ -246,7 +251,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::GradientSampler
             | PrimitiveNodeKind::ConvertToColor
             | PrimitiveNodeKind::ExtractColor => "Color",
-            PrimitiveNodeKind::PackVec3 => "Geometry",
+            PrimitiveNodeKind::ExtractVec3 | PrimitiveNodeKind::PackVec3 => "Geometry",
             PrimitiveNodeKind::Concatenate | PrimitiveNodeKind::ConvertToString | PrimitiveNodeKind::Split => "String",
             PrimitiveNodeKind::BooleanOperation | PrimitiveNodeKind::Compare => "Logic",
             PrimitiveNodeKind::ConditionGate => "Flow",
@@ -570,6 +575,12 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 AutoWirePolicy::None,
                 PipelineCardinality::Reshape,
             )],
+            PrimitiveNodeKind::ExtractVec3 => vec![filter_capability(
+                Some("value"),
+                None,
+                AutoWirePolicy::None,
+                PipelineCardinality::Reshape,
+            )],
             PrimitiveNodeKind::PackVec3 => vec![filter_capability(
                 None,
                 Some("value"),
@@ -678,6 +689,15 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             },
             PrimitiveNodeKind::ConvertToColor => convert_to_color_signature(instance),
             PrimitiveNodeKind::ExtractColor => extract_color_signature(instance),
+            PrimitiveNodeKind::ExtractVec3 => ANodeSignature {
+                inputs: vec![InputSocketDecl::new("value", "Value", exact("vec3"))],
+                outputs: vec![
+                    OutputSocketDecl::new("x", "X", exact("float")),
+                    OutputSocketDecl::new("y", "Y", exact("float")),
+                    OutputSocketDecl::new("z", "Z", exact("float")),
+                ],
+                ..ANodeSignature::default()
+            },
             PrimitiveNodeKind::PackVec3 => ANodeSignature {
                 inputs: vec![
                     InputSocketDecl::new("x", "X", exact("float")),
@@ -813,6 +833,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                     mode: color_mode::ColorMode::from_config(instance),
                 }))
             }
+            PrimitiveNodeKind::ExtractVec3 => CompiledNodeOperation::Custom(Arc::new(extract_vec3::ExtractVec3Eval)),
             PrimitiveNodeKind::PackVec3 => CompiledNodeOperation::Custom(Arc::new(pack_vec3::PackVec3Eval)),
             PrimitiveNodeKind::Concatenate => CompiledNodeOperation::Custom(Arc::new(concatenate::ConcatenateEval {
                 prefix: config_string(instance, "prefix", ""),

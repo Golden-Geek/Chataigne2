@@ -68,8 +68,10 @@ use crate::app::systems_alchemist_processor::{
 };
 
 mod command_dispatch;
+mod source_schema;
 
 use command_dispatch::*;
+use source_schema::{insert_managed_source_values, managed_source_bindings, managed_source_schema};
 
 pub(crate) const STATE_ITEM_KIND: &str = "state";
 const STATE_NODE_TYPE: &str = "state";
@@ -103,6 +105,7 @@ const INPUT_SOURCE_NODE_TYPE: &str = "sm_input_source";
 struct RuntimeProcessor {
     processor: Processor,
     runtime: ProcessorRuntime,
+    managed_sources: Vec<(StableRef, NodeId)>,
     compile_warning: Option<String>,
     formula: AlchemistFormula,
     formula_node: Option<NodeId>,
@@ -348,6 +351,7 @@ struct ProcessorRuntimeInputContext<'a> {
     logical_tick: u64,
     dirty_input_source_params: &'a HashSet<NodeUuid>,
     formula_input_values: &'a Arc<HashMap<StableRef, RuntimeValue>>,
+    managed_sources: &'a [(StableRef, NodeId)],
     context_provider: &'a SnapshotProcessorContextProvider,
     force_processor_recompute: bool,
     input_manager_signal_ticks: &'a mut HashMap<NodeId, u64>,
@@ -2587,6 +2591,7 @@ impl StateMachineManager {
                 logical_tick: ctx.time.tick,
                 dirty_input_source_params: &dirty_input_source_params,
                 formula_input_values: &self.runtime_cache.formula_input_values,
+                managed_sources: &runtime_processor.managed_sources,
                 context_provider: provider.as_ref(),
                 force_processor_recompute,
                 input_manager_signal_ticks: &mut self.runtime_cache.input_manager_signal_ticks,
@@ -2987,6 +2992,7 @@ impl StateMachineManager {
                         logical_tick: ctx.time.tick,
                         dirty_input_source_params: &dirty_input_source_params,
                         formula_input_values: &self.runtime_cache.formula_input_values,
+                        managed_sources: &runtime_processor.managed_sources,
                         context_provider: overview_provider.as_ref(),
                         force_processor_recompute: false,
                         input_manager_signal_ticks: &mut self.runtime_cache.input_manager_signal_ticks,
@@ -3317,7 +3323,7 @@ impl StateMachineManager {
         if runtime.id != processor.id {
             runtime = ProcessorRuntime::new(processor.id);
         }
-        let compiled = match self.shared_compiled_formula(&formula, compile_ctx) {
+        let mut compiled = match self.shared_compiled_formula(&formula, compile_ctx) {
             Ok(compiled_formula) => runtime.compile_from_shared_formula_with_compile_ctx_preserving_compatible_lanes(
                 &processor,
                 &formula,
@@ -3326,6 +3332,12 @@ impl StateMachineManager {
             ),
             Err(_) => compile_processor_runtime_for_cache_rebuild(&mut runtime, &processor, &formula, compile_ctx),
         };
+        if let Some(managed) = runtime.managed_formula.as_mut() {
+            if let Err(error) = managed.reconcile_input_source_schema(|source| managed_source_schema(snapshot, source)) {
+                runtime.diagnostics.push(error.into_diagnostic());
+                compiled = false;
+            }
+        }
         let compile_warning = (!compiled).then(|| {
             runtime
                 .diagnostics
@@ -3337,6 +3349,7 @@ impl StateMachineManager {
         let bindings = processor_binding_analysis(snapshot, processor_node, processor.id, context_provider);
         runtime.rebuild_execution_plan(context_provider, &bindings);
         let runtime_processor = RuntimeProcessor {
+            managed_sources: managed_source_bindings(snapshot, &processor, &runtime),
             processor,
             runtime,
             compile_warning,
@@ -3554,6 +3567,7 @@ impl StateMachineManager {
                 .runtime
                 .rebuild_execution_plan(context_provider, &bindings);
             runtime_processor.processor = processor;
+            runtime_processor.managed_sources = managed_source_bindings(snapshot, &runtime_processor.processor, &runtime_processor.runtime);
             runtime_processor.formula = formula;
             runtime_processor.formula_node = formula_node;
             runtime_processor.formula_ui = formula_ui;
@@ -3575,7 +3589,12 @@ impl StateMachineManager {
         snapshot: &ProcessTreeSnapshot,
         active_states: &[NodeId],
     ) {
-        let source_listener_processors = collect_source_listener_processors(snapshot, active_states);
+        let mut source_listener_processors = collect_source_listener_processors(snapshot, active_states);
+        for (processor, runtime) in &self.runtime_cache.processors {
+            for (_, source) in &runtime.managed_sources {
+                source_listener_processors.entry(*source).or_default().insert(*processor);
+            }
+        }
         let next_listeners = source_listener_processors.keys().copied().collect::<HashSet<_>>();
 
         self.runtime_cache.source_listener_param_uuids = next_listeners
@@ -4892,6 +4911,7 @@ fn collect_processor_context_property_bindings(
 
 fn processor_runtime_inputs(context: &mut ProcessorRuntimeInputContext<'_>) -> RuntimeInputSnapshot {
     let mut inputs = RuntimeInputSnapshot::with_shared_values(Arc::clone(context.formula_input_values));
+    insert_managed_source_values(context.snapshot, context.live_param_values, context.managed_sources, &mut inputs);
     collect_processor_runtime_inputs(context, context.processor_node, &mut inputs);
     inputs
 }

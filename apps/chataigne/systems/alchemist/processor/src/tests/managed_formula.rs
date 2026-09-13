@@ -15,8 +15,8 @@ use golden_values::Value as RuntimeValue;
 
 use crate::alchemist::node_registry;
 use crate::{
-    DefaultProcessorContextProvider, INPUT_SOURCE_FIELD, ManagedFormulaRuntime, OUTPUT_TARGET_FIELD, Processor,
-    ProcessorDebugCapture, ProcessorLifecycleEvent, ProcessorRuntime,
+    ChannelSourceSchema, DefaultProcessorContextProvider, INPUT_SOURCE_FIELD, ManagedFormulaRuntime,
+    OUTPUT_TARGET_FIELD, Processor, ProcessorDebugCapture, ProcessorLifecycleEvent, ProcessorRuntime,
 };
 
 #[test]
@@ -53,6 +53,7 @@ fn managed_formula_maps_inputs_to_outputs_without_filters() {
     let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
         .unwrap()
         .unwrap();
+    declare_float_endpoints(&mut runtime);
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(left, RuntimeValue::Float(0.25));
     inputs.insert(right, RuntimeValue::Float(0.75));
@@ -110,6 +111,7 @@ fn managed_formula_runs_elementwise_filter_pipeline_before_outputs() {
     let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
         .unwrap()
         .unwrap();
+    declare_float_endpoints(&mut runtime);
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(left, RuntimeValue::Float(2.5));
     inputs.insert(right, RuntimeValue::Float(7.5));
@@ -126,7 +128,7 @@ fn managed_formula_runs_elementwise_filter_pipeline_before_outputs() {
 }
 
 #[test]
-fn managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix() {
+fn managed_formula_rejects_sample_that_violates_declared_source_schema() {
     let (formula, mut instance) = formula_and_instance();
     let left = endpoint_ref("module/left");
     let right = endpoint_ref("module/right");
@@ -165,11 +167,7 @@ fn managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix() {
     let output = runtime.evaluate(&ctx);
 
     assert_eq!(output.diagnostics.len(), 1);
-    assert!(
-        output.diagnostics[0]
-            .message
-            .starts_with("managed_formula_mixed_valueset_types:")
-    );
+    assert!(output.diagnostics[0].message.contains("expects `float`, got `bool`"));
     assert!(output.intents.is_empty());
 }
 
@@ -200,6 +198,7 @@ fn manager_filter_chain_matches_direct_anode_result() {
     let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
         .unwrap()
         .unwrap();
+    declare_float_endpoints(&mut runtime);
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(source, RuntimeValue::Float(7.5));
     let registries = RuntimeRegistries {
@@ -253,6 +252,7 @@ fn managed_formula_aggregates_valueset_to_single_output() {
     let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
         .unwrap()
         .unwrap();
+    declare_float_endpoints(&mut runtime);
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(x, RuntimeValue::Float(1.0));
     inputs.insert(y, RuntimeValue::Float(2.0));
@@ -306,6 +306,7 @@ fn managed_formula_projects_three_lanes_to_vec3_output() {
     let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
         .unwrap()
         .unwrap();
+    declare_float_endpoints(&mut runtime);
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(x, RuntimeValue::Float(1.0));
     inputs.insert(y, RuntimeValue::Float(2.0));
@@ -350,6 +351,7 @@ fn processor_runtime_evaluates_managed_value_pipeline_sidecar() {
     let mut runtime = ProcessorRuntime::new(processor.id);
 
     assert!(runtime.compile(&processor, &formula, &compile_ctx));
+    declare_float_endpoints(runtime.managed_formula.as_mut().unwrap());
     runtime.apply_lifecycle(&processor, ProcessorLifecycleEvent::StateEnter(StateId::new()));
 
     let mut inputs = RuntimeInputSnapshot::default();
@@ -772,9 +774,22 @@ pub(super) fn compile_managed_formula(
         nodes: &nodes,
         properties: Some(&formula.properties),
     };
-    ManagedFormulaRuntime::compile(formula, instance, &compile_ctx)
+    let mut runtime = ManagedFormulaRuntime::compile(formula, instance, &compile_ctx)
         .unwrap()
-        .unwrap()
+        .unwrap();
+    declare_float_endpoints(&mut runtime);
+    runtime
+}
+
+fn declare_float_endpoints(runtime: &mut ManagedFormulaRuntime) {
+    runtime
+        .reconcile_input_source_schema(|source| {
+            (source.value_type.as_str() == "chataigne.module_endpoint").then(|| ChannelSourceSchema {
+                value_type: ValueTypeId::new("float"),
+                metadata: Default::default(),
+            })
+        })
+        .unwrap();
 }
 
 fn compile_error_diagnostic(

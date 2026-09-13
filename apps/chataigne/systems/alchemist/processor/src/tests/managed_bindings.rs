@@ -45,21 +45,34 @@ fn palette_only_returns_applications_the_current_managed_compiler_can_execute() 
     assert!(math_modes.contains(&Some(&RuntimeValue::String("each".into()))));
 
     let mixed = ChannelLayout::new(vec![channel("a", "float"), channel("b", "bool")]).unwrap();
-    assert!(executable_filter_applications(&mixed, &ctx).is_empty());
+    assert!(
+        executable_filter_applications(&mixed, &ctx)
+            .iter()
+            .any(|candidate| candidate.instance.type_id.as_str() == "math")
+    );
     let mut math = ANodeInstance::new(ANodeTypeId::new("math"), "Math");
     math.config.set("application", RuntimeValue::String("each".into()));
     math.config.set(
         "managed_selection",
         RuntimeValue::Array(vec![RuntimeValue::String("a".into())]),
     );
-    assert!(matches!(
-        validate_executable_filter_application(&math, &two_floats, &ctx),
-        Err(ManagedFilterAvailabilityError::SelectionOrGroup)
-    ));
+    assert!(validate_executable_filter_application(&math, &two_floats, &ctx).is_ok());
 
     let color = ChannelLayout::new(vec![channel("color", "color")]).unwrap();
     let extract = ANodeInstance::new(ANodeTypeId::new("extract_color"), "Extract Color");
-    assert!(validate_executable_filter_application(&extract, &color, &ctx).is_err());
+    assert!(validate_executable_filter_application(&extract, &color, &ctx).is_ok());
+
+    let unresolved = ChannelLayout::new(vec![ChannelDescriptor::input(
+        ValueLaneKey::new("unknown").unwrap(),
+        "Unknown",
+        StableRef::new(ValueTypeId::new("source"), "unknown"),
+        None,
+    )])
+    .unwrap();
+    assert!(matches!(
+        validate_executable_filter_application(&math, &unresolved, &ctx),
+        Err(ManagedFilterAvailabilityError::UnresolvedInputType)
+    ));
 }
 
 #[test]

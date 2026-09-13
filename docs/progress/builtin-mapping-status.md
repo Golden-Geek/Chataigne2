@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 03/04 — backend palette availability and composable typed compilation (both in progress)
+- Active phase: 03 — backend palette integration (in progress); Phase 04 groundwork remains incomplete
 - Last validated implementation commit: `74f5bd4581e23687775770f6cd32b65217cec351` (Phase 04 WIP; Phase 02 is the last complete phase)
 - Last verified remote implementation commit: `74f5bd4581e23687775770f6cd32b65217cec351` (Phase 04 WIP)
-- Current blockers: no environment blocker; Phase 03's palette integration and Phase 04's source-schema/Formula-boundary integration remain open
+- Current blockers: no environment blocker; Phase 03's backend Add palette still uses static roles, and Phase 04's Formula graph boundary and plan sharing remain open
 - Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; M01–M16 and M18–M20 acceptance cases
-- Next concrete action: wire explicit backend source schemas, then connect the typed stage chain to managed Formula execution and the backend palette
-- Last updated: 2026-09-13T11:09:53+02:00
+- Next concrete action: connect the backend Add palette to the compiler-backed typed availability query without per-processor main-loop polling
+- Last updated: 2026-09-13T11:38:51+02:00
 
 ## Phase ledger
 
@@ -20,8 +20,8 @@
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
 | 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `8e82b40c` observed at remote; direct branch push has no required CI. |
-| 03 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_VERIFIED | NOT_RUN | WIP `e3b37a7b` observed at remote; compiler-backed availability query now tested locally, but the backend palette is not wired to it. |
-| 04 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_VERIFIED | NOT_RUN | WIP `74f5bd45` observed at remote; typed channel stage chain runs Remap → Sum → Smooth and Extract Color. Source-schema and Formula-boundary integration remain open. |
+| 03 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_PENDING | NOT_RUN | Compiler-backed availability validates typed, mixed, and selected layouts; the backend Add palette is still static. This is a WIP checkpoint, not phase closure. |
+| 04 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_PENDING | NOT_RUN | Typed value stages are connected to managed Formula execution and Golden parameter schemas. Formula graph boundaries and plan sharing remain open. This is a WIP checkpoint. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
 | 06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Inputs and command argument bindings. |
 | 07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Required filter catalog. |
@@ -80,6 +80,8 @@
 | 2026-09-13T10:50+02:00 | 03 | working tree on `8440ed73` | `.\tools\asio.ps1 -- cargo check --locked --workspace`; root and Golden Core `cargo fmt --all`; `cargo fmt --all --check`; scoped `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace check, format, and whitespace checks pass. |
 | 2026-09-13T10:50+02:00 | 03 | working tree on `8440ed73` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 532 app tests pass, 5 existing manual tests ignored, and 1 audio-host integration test passes; includes live managed socket edit through the host event path. |
 | 2026-09-13T11:09+02:00 | 03/04 | working tree on `fe690a73` | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy; `.\tools\asio.ps1 -- cargo check --locked --workspace` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 161 Alchemist and 87 processor tests pass; typed stage composition, mixed pass-through, and multi-output Color extraction covered. Strict Clippy and workspace check pass. |
+| 2026-09-13T11:38+02:00 | 03/04 | working tree on `7469d0d5` | `.\tools\asio.ps1 -- cargo test-fast --locked -p chataigne_processor --quiet`; `cargo clippy --locked -p chataigne_alchemist -p chataigne_processor --all-targets -- -D warnings`; `.\tools\asio.ps1 -- cargo check --locked --workspace` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 88 processor tests pass after typed Formula integration; strict Clippy and full workspace type-check pass. |
+| 2026-09-13T11:38+02:00 | 03/04 | working tree on `7469d0d5` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 535 app tests pass, 5 existing manual tests ignored, 1 audio-host integration test passes; includes explicit schema and live parameter snapshot tests. This run began before the final enum boxing, which is covered by the workspace check and crate tests. |
 
 ## Phase reports
 
@@ -121,7 +123,7 @@
 
 - Changes and affected public boundaries: ANode declarations now resolve capabilities from configured instances; `ManagedApplication` validates signatures, selections, groups, auxiliary types, and state scope. Math has per-channel and combine modes using its graph kernel. The processor binds auxiliary socket values or references through Formula properties and resolves contextual references per channel. Backend managed socket edits update a live binding and the authored instance without rebuilding the processor.
 - Acceptance gates satisfied: host-level parameter edit changes output without scheduling a rebuild; processor tests show unrelated SMA history survives an auxiliary edit; graph and Mapping Math use the same operation; invalid selection, arity, mode, and auxiliary types diagnose.
-- Remaining work: the palette must query actual managed compiler availability. The current homogeneous runner rejects some declaratively valid layouts and multi-output applications; its composable typed replacement is Phase 04 work. Do not mark Phase 03 complete or advertise those choices before that boundary is implemented.
+- Remaining work: the backend Add palette must query actual managed compiler availability for the current layout and creation defaults. The public query now uses the typed compiler, but the palette still advertises static role matches. Do not mark Phase 03 complete before that boundary is implemented.
 - Exact checks and outcomes: see Phase 03 validation rows. An incremental MSVC app link failed with unresolved symbols in an unrelated module; the non-incremental full app run passed.
 - Implementation commit: WIP `e3b37a7b96267f4981ac6afe392d489c500f197f`; this is not the Phase 03 checkpoint A.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `e3b37a7b96267f4981ac6afe392d489c500f197f`, 2026-09-13T10:51:19+02:00 (`git ls-remote`).
@@ -130,9 +132,9 @@
 
 ### Phase 04 (in progress)
 
-- Changes and affected public boundaries: a typed managed stage compiles a configured ANode once for selected channel groups, retains group-local Alchemist memory, and emits a stable output layout/frame. A chain composes stages without the terminal-projection restriction. The availability query compiles candidate applications through the current runner before reporting them executable.
-- Acceptance gates satisfied: focused tests execute `Remap → Sum → Smooth` with an unselected Boolean passing through and extract a Color into stable component channels; evaluation keeps state across ticks. Full workspace type-check passes.
-- Remaining work: connect explicit source schemas and typed frames to managed Formula execution; support the complete Pack/Extract/Math chain, surrounding Formula operations, plan specialization sharing, authored preview attribution, and stale/unsupported graph diagnostics.
+- Changes and affected public boundaries: a typed managed stage compiles a configured ANode once for selected channel groups, retains group-local Alchemist memory, and emits a stable output layout/frame. The value pipeline now composes these stages after explicit Golden parameter source-schema reconciliation. Host snapshots supply live values and source-change listeners. Extract Vec3 completes the focused Pack/Extract/Math/Pack composition case. The old runner is isolated to trigger flow.
+- Acceptance gates satisfied: focused tests execute `Remap → Sum → Smooth` with an unselected Boolean passing through, `Pack Vec3 → Extract Vec3 → Math → Pack Vec3`, and multi-output Color extraction; evaluation keeps state across ticks. The app test proves a declared parameter reaches a managed Formula through the host snapshot. Full workspace type-check and app tests pass.
+- Remaining work: preserve surrounding Formula graph operations, share compatible executable specializations, complete dependency tables and authored preview attribution, and diagnose unsupported graph boundaries. Phase 04 is still incomplete.
 - Exact checks and outcomes: see the 03/04 validation row. The app test suite passed before the new stage runtime was added; the workspace check covers current app compilation.
 - Implementation commit: WIP `74f5bd4581e23687775770f6cd32b65217cec351`; this is not the Phase 04 checkpoint A.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `74f5bd4581e23687775770f6cd32b65217cec351`, 2026-09-13T11:09:53+02:00 (`git ls-remote`).
@@ -141,7 +143,7 @@
 
 ## Blockers and handoff
 
-- What failed: the compiler-backed availability query is not yet used by the backend palette; the typed chain is not yet integrated with explicitly typed managed input layouts or surrounding Formula operations. An incremental MSVC app link failed on unrelated module symbols; disabling incremental compilation passed the full app suite. Plain workspace check requires the pinned ASIO SDK wrapper.
+- What failed: the compiler-backed availability query is not yet used by the backend palette, and managed sidecar execution still skips surrounding Formula graph operations. An incremental MSVC app link failed earlier on unrelated module symbols; disabling incremental compilation passed the full app suite. Plain workspace check requires the pinned ASIO SDK wrapper.
 - Last known-good checkpoint: Phase 02 complete at `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`; Phase 04 WIP `74f5bd4581e23687775770f6cd32b65217cec351` is validated and verified on `origin/codex/builtin-mapping`.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: wire backend source schemas and the typed stage chain into managed Formula execution.
+- Next action: wire backend Add palette availability for the current typed layout and exact creation defaults; then close Phase 03 before continuing Phase 04.

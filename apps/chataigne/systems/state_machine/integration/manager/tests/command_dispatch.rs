@@ -477,6 +477,7 @@ fn external_target_value_event_updates_overlay_without_invalidating_plan() {
         processor_node,
         RuntimeProcessor {
             runtime: ProcessorRuntime::new(processor.id),
+            managed_sources: Vec::new(),
             processor,
             compile_warning: None,
             formula,

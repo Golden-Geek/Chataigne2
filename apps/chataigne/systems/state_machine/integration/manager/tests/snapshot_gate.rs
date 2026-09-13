@@ -8,7 +8,7 @@ use chataigne_alchemist::{
     StableRef, SurfaceItemKind, ValueTypeId, primitive_node_registry,
 };
 use chataigne_state_machine::{
-    Processor, ProcessorRuntime, ProcessorFormulaUiState, INPUT_SOURCE_FIELD, OUTPUT_TARGET_FIELD,
+    ChannelSourceSchema, Processor, ProcessorRuntime, ProcessorFormulaUiState, INPUT_SOURCE_FIELD, OUTPUT_TARGET_FIELD,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -157,6 +157,9 @@ fn managed_socket_value_edit_identifies_authored_item_and_invalidates_when_runti
     };
     let mut runtime = ProcessorRuntime::new(processor_model.id);
     assert!(runtime.compile(&processor_model, &formula, &compile_ctx));
+    runtime.managed_formula.as_mut().unwrap().reconcile_input_source_schema(|_| {
+        Some(ChannelSourceSchema { value_type: ValueTypeId::new("float"), metadata: Default::default() })
+    }).unwrap();
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(source, RuntimeValue::Float(5.0));
     let registries = RuntimeRegistries { value_types: &value_types };
@@ -174,6 +177,7 @@ fn managed_socket_value_edit_identifies_authored_item_and_invalidates_when_runti
     manager.runtime_cache.processors.insert(processor, RuntimeProcessor {
         processor: processor_model.clone(),
         runtime,
+        managed_sources: Vec::new(),
         compile_warning: None,
         formula,
         formula_node: None,
@@ -209,7 +213,7 @@ fn managed_socket_value_edit_identifies_authored_item_and_invalidates_when_runti
     assert_eq!(after.intents[0].payload, RuntimeValue::Float(1.0));
 }
 
-fn managed_remap_processor(item_uuid: NodeUuid) -> (AlchemistFormula, Processor, StableRef) {
+pub(super) fn managed_remap_processor(item_uuid: NodeUuid) -> (AlchemistFormula, Processor, StableRef) {
     let definition = |id: &str, kind, role| ManagedRegionDefinition {
         id: ManagedRegionId::new(id),
         kind,

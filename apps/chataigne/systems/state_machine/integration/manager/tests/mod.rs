@@ -56,6 +56,7 @@ use super::{
 mod command_dispatch;
 mod context_cache;
 mod snapshot_gate;
+mod source_schema;
 
 fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
     let default_item = items.first().cloned().expect("test context axes need an item");
@@ -864,6 +865,7 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
         RuntimeProcessor {
             processor,
             runtime,
+            managed_sources: Vec::new(),
             compile_warning: None,
             formula,
             formula_node: None,
