@@ -694,6 +694,7 @@ struct ParamsDslParamOptions {
     label: Option<LitStr>,
     description: Option<LitStr>,
     read_only: Option<Expr>,
+    persist_read_only_value: Option<Expr>,
     widget: Option<LitStr>,
     dependency: Option<Expr>,
     meta: ParamsDslMetaOptions,
@@ -1054,6 +1055,11 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `read_only` option"));
                 }
                 out.read_only = Some(input.parse::<Expr>()?);
+            } else if key == "persist_read_only_value" {
+                if out.persist_read_only_value.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `persist_read_only_value` option"));
+                }
+                out.persist_read_only_value = Some(input.parse::<Expr>()?);
             } else if key == "widget" {
                 if out.widget.is_some() {
                     return Err(Error::new(key.span(), "duplicate `widget` option"));
@@ -1208,7 +1214,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, widget, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, persist_read_only_value, widget, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1671,6 +1677,7 @@ struct ParamsParamSpec {
     dependency: Option<Expr>,
     behaviour: Option<ParamEventBehaviourSpec>,
     read_only: Option<Expr>,
+    persist_read_only_value: Option<Expr>,
     widget: Option<LitStr>,
     min: Option<Expr>,
     max: Option<Expr>,
@@ -1916,6 +1923,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     dependency: param.options.dependency.clone(),
                     behaviour,
                     read_only: param.options.read_only.clone(),
+                    persist_read_only_value: param.options.persist_read_only_value.clone(),
                     widget: param.options.widget.clone(),
                     min: param.options.min.clone(),
                     max: param.options.max.clone(),
@@ -4274,6 +4282,11 @@ fn build_params_plan_param_create_tokens_with_insert_after(
             __param_node.read_only = #expr;
         }
     });
+    let set_persist_read_only_value = param.persist_read_only_value.as_ref().map(|expr| {
+        quote! {
+            __param_node.persist_read_only_value = #expr;
+        }
+    });
     let set_widget = param.widget.as_ref().map(|widget| {
         quote! {
             __param_node.ui_hints.widget = Some(::std::string::String::from(#widget));
@@ -4381,6 +4394,7 @@ fn build_params_plan_param_create_tokens_with_insert_after(
                     );
                     __param_node.event_behaviour = self.#field_ident.event_behaviour();
                     #set_read_only
+                    #set_persist_read_only_value
                     #set_widget
                     #set_range
                     #set_step

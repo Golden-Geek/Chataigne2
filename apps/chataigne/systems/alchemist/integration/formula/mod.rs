@@ -196,6 +196,7 @@ impl Node for AlchemistConnection {
     managed_regions_json: String = String::new() (
         label = "Managed Regions Metadata",
         read_only = true,
+        persist_read_only_value = true,
         show_in_inspector_content = false
     );
 )]

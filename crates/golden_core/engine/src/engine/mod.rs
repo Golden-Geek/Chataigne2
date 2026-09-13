@@ -692,6 +692,7 @@ impl<T: Node> Engine<T> {
         operation: &'static str,
         tree: NodeTree,
     ) -> Result<NodeTree, EngineEditError> {
+        let user_role = tree.user_role;
         let provided_node_type = tree.node.get_type().to_string();
         let Some(node) = T::from_boxed_node(tree.node) else {
             return Err(EngineEditError::NodeTypeMismatch {
@@ -703,6 +704,7 @@ impl<T: Node> Engine<T> {
         };
 
         let mut coerced = NodeTree::new(node);
+        coerced.user_role = user_role;
         for child in tree.children {
             coerced.push_child(self.coerce_node_tree_for_engine(edit_index, operation, child)?);
         }

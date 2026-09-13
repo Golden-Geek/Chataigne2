@@ -13,6 +13,7 @@ pub(super) use super::{Engine, EngineEditError};
 pub(super) struct PendingNodeTree<T: Node> {
     pub(super) node: T,
     pub(super) children: Vec<PendingNodeTree<T>>,
+    pub(super) user_role: UserNodeRole,
 }
 
 pub(super) struct InsertedNode {

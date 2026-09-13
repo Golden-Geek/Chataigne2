@@ -1,11 +1,13 @@
 use std::{sync::Arc, time::Duration};
 
 use chataigne_alchemist::{
-    CompileCtx, EvaluationCtx, RuntimeInputSnapshot, RuntimeRegistries, StableRef, ValueTypeId,
+    AxisSet, CompileCtx, ContextAxisId, ContextKey, DebugCaptureMode, EvaluationCtx,
+    ManagedItemId, RuntimeEvent, RuntimeInputSnapshot, RuntimeRegistries, SocketId, StableRef,
+    TriggerValue, ValueTypeId,
 };
 use chataigne_state_machine::{
     alchemist::{shared_node_registry, shared_value_type_registry},
-    ManagedFormulaRuntime,
+    ManagedFormulaRuntime, RuntimeInputBinding,
 };
 use golden_core::{
     app::ProjectFileSpec,
@@ -261,6 +263,110 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     let revised_command = revised_output.intents.iter().find(|intent| intent.target.as_ref().is_some_and(|target| target.stable_id.as_ref() == command_id)).unwrap();
     let revised_arguments = CommandArgumentValues::from_runtime_value(&revised_command.payload).unwrap().unwrap();
     assert_eq!(revised_arguments.value, RuntimeValue::Float(1.25));
+
+    let processor_uuid = revised_snapshot.node(processor).unwrap().uuid;
+    let convert = revised_snapshot.find_child_by_decl_id(processor, "convert_to_formula").unwrap();
+    let before_conversion_history = engine.undo_len();
+    let client_edit_id = "mapping-conversion-test".to_owned();
+    assert!(engine.apply_ui_intent(UiEditIntent::BeginEdit {
+        client_edit_id: client_edit_id.clone(),
+        label: Some("Convert Mapping to Formula".to_owned()),
+    }).success);
+    let conversion = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: convert,
+        value: ParamValue::Trigger(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(conversion.success, "conversion intent should apply: {conversion:?}");
+    assert!(engine.apply_ui_intent(UiEditIntent::EndEdit { client_edit_id }).success);
+    engine.apply_edits().unwrap();
+    assert_eq!(engine.undo_len(), before_conversion_history + 1, "conversion should be one history step");
+    let converted_snapshot = engine.process_tree_snapshot();
+    let converted_processor = converted_snapshot.node_id_by_uuid(processor_uuid).unwrap();
+    let formula_ref = converted_snapshot.find_child_by_decl_id(converted_processor, "formula").unwrap();
+    let Some(ParamValue::Reference(reference)) = converted_snapshot.node(formula_ref).unwrap().param_value.as_ref() else { panic!("processor should have a Formula reference") };
+    let converted_uuid = reference.uuid();
+    assert_ne!(converted_uuid, mapping_uuid);
+    let converted_node = converted_snapshot.node_id_by_uuid(converted_uuid).unwrap();
+    assert_eq!(converted_snapshot.node(converted_node).unwrap().presentation.icon, snapshot.node(mapping).unwrap().presentation.icon);
+    assert!(converted_snapshot.node_id_by_uuid(command_uuid).is_some(), "conversion should retain the command node");
+    assert_eq!(converted_snapshot.node(command_manager).unwrap().uuid, snapshot.node(command_manager).unwrap().uuid);
+    assert_eq!(converted_snapshot.child_ids(converted_processor).into_iter().filter(|id| converted_snapshot.node(*id).is_some_and(|node| node.node_type == OutputsManager::NODE_TYPE)).count(), 1);
+    assert!(!converted_snapshot.node(converted_node).unwrap().tags.iter().any(|tag| tag.contains("external.builtin")));
+    assert_eq!(converted_snapshot.child_ids(region(&engine, converted_processor, "inputs")), vec![first, second]);
+    let converted_formula = formula_from_snapshot(&converted_snapshot, converted_node).unwrap();
+    assert_eq!(converted_formula.graph.nodes().count(), formula.graph.nodes().count());
+    assert_eq!(converted_formula.graph.edges().count(), formula.graph.edges().count());
+    let mut converted_instance = converted_formula.instantiate();
+    converted_instance.managed_regions = managed_regions_from_snapshot(&converted_snapshot, converted_processor, &converted_formula).unwrap();
+    let converted_ctx = CompileCtx {
+        value_types: shared_value_type_registry(),
+        nodes: shared_node_registry(),
+        properties: Some(&converted_formula.properties),
+    };
+    let mut converted = ManagedFormulaRuntime::compile(&converted_formula, &converted_instance, &converted_ctx).unwrap().unwrap();
+    converted.reconcile_input_source_schema(|source| managed_source_schema(&converted_snapshot, source)).unwrap();
+    let converted_output = converted.evaluate(&EvaluationCtx {
+        logical_tick: 1,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    });
+    assert!(converted_output.diagnostics.is_empty(), "{:?}", converted_output.diagnostics);
+    assert_eq!(converted_output.intents.len(), 1, "conversion must not duplicate command dispatch");
+    let converted_arguments = CommandArgumentValues::from_runtime_value(&converted_output.intents[0].payload).unwrap().unwrap();
+    assert_eq!(converted_arguments.value, RuntimeValue::Float(1.25));
+    assert_eq!(converted_arguments.arguments[0].value, RuntimeValue::String(Arc::from("mapped")));
+    assert_eq!(converted_arguments.send_policy, OutputSendPolicy::OnChange);
+
+    let mut baseline = ManagedFormulaRuntime::compile(&formula, &revised_instance, &ctx).unwrap().unwrap();
+    baseline.reconcile_input_source_schema(|source| managed_source_schema(&revised_snapshot, source)).unwrap();
+    let mut converted_fresh = ManagedFormulaRuntime::compile(&converted_formula, &converted_instance, &converted_ctx).unwrap().unwrap();
+    converted_fresh.reconcile_input_source_schema(|source| managed_source_schema(&converted_snapshot, source)).unwrap();
+    let source_refs = [first, second].map(|item| {
+        let item = anode_from_snapshot(&revised_snapshot, item).unwrap();
+        let Some(RuntimeValue::Ref(reference)) = item.config.get("source") else { panic!("source should be bound") };
+        reference.clone()
+    });
+    let axes: AxisSet = [ContextAxisId::new("device")].into_iter().collect();
+    let context_a = ContextKey::single("device", "a");
+    let context_b = ContextKey::single("device", "b");
+    let mut context_inputs = RuntimeInputSnapshot::default();
+    for (context, values) in [(&context_a, [2.0, 3.0]), (&context_b, [4.0, 3.0])] {
+        for (source, value) in source_refs.iter().zip(values) {
+            context_inputs.insert_context(source.clone(), &axes, context.clone(), RuntimeValue::Float(value));
+        }
+    }
+    let event = RuntimeEvent { topic: Arc::from("mapping-conversion-test"), value: RuntimeValue::Bool(true) };
+    for (tick, context) in [(1, &context_a), (2, &context_b), (3, &context_a), (4, &context_b)] {
+        let frame = EvaluationCtx {
+            logical_tick: tick,
+            delta_time: Duration::from_millis(16),
+            events: std::slice::from_ref(&event),
+            inputs: &context_inputs,
+            registries: &registries,
+        };
+        let before = baseline.evaluate_with_context_frame(&frame, context, None, DebugCaptureMode::Off);
+        let after = converted_fresh.evaluate_with_context_frame(&frame, context, None, DebugCaptureMode::Off);
+        assert_eq!(before.diagnostics.iter().map(|diagnostic| &diagnostic.message).collect::<Vec<_>>(), after.diagnostics.iter().map(|diagnostic| &diagnostic.message).collect::<Vec<_>>());
+        assert_eq!(before.intents.len(), 1);
+        assert_eq!(after.intents.len(), 1);
+        assert_eq!(before.intents.iter().map(|intent| (&intent.kind, &intent.target, &intent.payload, intent.logical_tick)).collect::<Vec<_>>(), after.intents.iter().map(|intent| (&intent.kind, &intent.target, &intent.payload, intent.logical_tick)).collect::<Vec<_>>());
+    }
+    assert!(engine.apply_ui_intent(UiEditIntent::Undo).success);
+    let undone = engine.process_tree_snapshot();
+    assert!(undone.node_id_by_uuid(converted_uuid).is_none());
+    let undo_formula_ref = undone.find_child_by_decl_id(undone.node_id_by_uuid(processor_uuid).unwrap(), "formula").unwrap();
+    assert_eq!(undone.node(undo_formula_ref).unwrap().param_value, Some(ParamValue::Reference(NodeReference::new(mapping_uuid))));
+    assert!(engine.apply_ui_intent(UiEditIntent::Redo).success);
+    let redone = engine.process_tree_snapshot();
+    assert!(redone.node_id_by_uuid(converted_uuid).is_some());
+    assert_eq!(formula_from_snapshot(&redone, redone.node_id_by_uuid(converted_uuid).unwrap()).unwrap().surface.managed_regions.len(), 3, "redo should retain managed-region metadata");
+    let redo_formula_ref = redone.find_child_by_decl_id(redone.node_id_by_uuid(processor_uuid).unwrap(), "formula").unwrap();
+    assert_eq!(redone.node(redo_formula_ref).unwrap().param_value, Some(ParamValue::Reference(NodeReference::new(converted_uuid))));
+    assert_eq!(redone.child_ids(region(&engine, redone.node_id_by_uuid(processor_uuid).unwrap(), "inputs")), vec![first, second]);
+
     let authored_output = anode_from_snapshot(&snapshot, output).unwrap();
     assert!(matches!(authored_output.config.get("bindings"), Some(RuntimeValue::String(_))));
 
@@ -272,12 +378,239 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&project).unwrap();
     sync_external_formulas(&mut loaded).unwrap();
     let loaded_snapshot = loaded.process_tree_snapshot();
+    let loaded_processor = loaded_snapshot.node_id_by_uuid(processor_uuid).unwrap();
+    let loaded_formula_ref = loaded_snapshot.find_child_by_decl_id(loaded_processor, "formula").unwrap();
+    assert_eq!(loaded_snapshot.node(loaded_formula_ref).unwrap().param_value, Some(ParamValue::Reference(NodeReference::new(converted_uuid))));
+    let loaded_custom = loaded_snapshot.node_id_by_uuid(converted_uuid).unwrap();
+    assert_eq!(loaded_snapshot.node(loaded_custom).unwrap().presentation.icon, snapshot.node(mapping).unwrap().presentation.icon);
+    let loaded_formula = formula_from_snapshot(&loaded_snapshot, loaded_custom)
+        .expect("converted Formula should reload as an editable project Formula");
+    assert_eq!(loaded_formula.surface.managed_regions.len(), 3);
+    assert_eq!(loaded_formula.graph.nodes().count(), formula.graph.nodes().count());
+    assert_eq!(loaded_formula.graph.edges().count(), formula.graph.edges().count());
+    for (name, expected) in [("inputs", vec![first, second]), ("filters", vec![remap, sum]), ("outputs", vec![output])] {
+        let region_node = region(&loaded, loaded_processor, name);
+        let reloaded = loaded_snapshot.child_ids(region_node);
+        assert_eq!(reloaded.len(), expected.len(), "{name} should keep its ordered items");
+        for (actual, original) in reloaded.into_iter().zip(expected) {
+            assert_eq!(loaded_snapshot.node(actual).unwrap().uuid, snapshot.node(original).unwrap().uuid);
+        }
+    }
     for uuid in input_uuids.into_iter().chain([remap_uuid, sum_uuid, output_uuid]) {
         assert!(loaded_snapshot.node_id_by_uuid(uuid).is_some(), "authored item {uuid:?} should survive reload");
     }
     let loaded_output = loaded_snapshot.node_id_by_uuid(output_uuid).unwrap();
     let loaded_instance = anode_from_snapshot(&loaded_snapshot, loaded_output).unwrap();
     assert_eq!(loaded_instance.config.get("bindings"), authored_output.config.get("bindings"));
+    assert!(loaded_snapshot.node_id_by_uuid(command_uuid).is_some(), "output command identity should survive");
+    let mut loaded_instance = loaded_formula.instantiate();
+    loaded_instance.managed_regions = managed_regions_from_snapshot(&loaded_snapshot, loaded_processor, &loaded_formula).unwrap();
+    let loaded_ctx = CompileCtx {
+        value_types: shared_value_type_registry(),
+        nodes: shared_node_registry(),
+        properties: Some(&loaded_formula.properties),
+    };
+    let mut loaded_runtime = ManagedFormulaRuntime::compile(&loaded_formula, &loaded_instance, &loaded_ctx).unwrap().unwrap();
+    loaded_runtime.reconcile_input_source_schema(|source| managed_source_schema(&loaded_snapshot, source)).unwrap();
+    let loaded_result = loaded_runtime.evaluate(&EvaluationCtx {
+        logical_tick: 1,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    });
+    assert!(loaded_result.diagnostics.is_empty(), "{:?}", loaded_result.diagnostics);
+    assert_eq!(loaded_result.intents.len(), 1);
+    let loaded_arguments = CommandArgumentValues::from_runtime_value(&loaded_result.intents[0].payload).unwrap().unwrap();
+    assert_eq!(loaded_arguments.value, RuntimeValue::Float(1.25));
+    let added = create_item(&mut loaded, loaded_custom, &format!("{ANODE_CREATE_PREFIX}constant"));
+    assert!(loaded.process_tree_snapshot().node(added).is_some());
+    assert_eq!(formula_from_snapshot(&loaded.process_tree_snapshot(), loaded_custom).unwrap().graph.nodes().count(), formula.graph.nodes().count() + 1);
+    let formula_count = loaded.nodes.iter().filter(|(_, node)| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE).count();
+    let convert = loaded_snapshot.find_child_by_decl_id(loaded_processor, "convert_to_formula").unwrap();
+    assert!(loaded.apply_ui_intent(UiEditIntent::SetParam {
+        node: convert,
+        value: ParamValue::Trigger(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    }).success);
+    loaded.apply_edits().unwrap();
+    assert_eq!(loaded.nodes.iter().filter(|(_, node)| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE).count(), formula_count);
+    assert_eq!(loaded.process_tree_snapshot().node(loaded_formula_ref).unwrap().param_value, Some(ParamValue::Reference(NodeReference::new(converted_uuid))));
+}
+
+#[test]
+fn mapping_conversion_starts_temporal_filters_with_fresh_state() {
+    let (mut engine, mapping_uuid, processor) = mapping_engine();
+    let source_uuid = source_param(&mut engine, "Signal", 0.0);
+    let inputs_region = region(&engine, processor, "inputs");
+    let input = create_item(&mut engine, inputs_region, &format!("{ANODE_CREATE_PREFIX}chataigne.input_source"));
+    set_config(&mut engine, input, "source", ParamValue::Reference(NodeReference::new(source_uuid)));
+    let filters = region(&engine, processor, "filters");
+    let gate_type = engine.nodes.get(filters).unwrap().user_creatable_items()
+        .into_iter()
+        .find(|item| item.node_type.starts_with(&format!("{ANODE_CREATE_PREFIX}condition_gate")))
+        .map(|item| item.node_type)
+        .expect("Float source should expose Condition Gate");
+    let gate = create_item(&mut engine, filters, &gate_type);
+    set_socket_default(&mut engine, gate, "condition", ParamValue::Bool(true));
+    let smooth_type = engine.nodes.get(filters).unwrap().user_creatable_items()
+        .into_iter()
+        .find(|item| item.node_type.starts_with(&format!("{ANODE_CREATE_PREFIX}smooth_filter")))
+        .map(|item| item.node_type)
+        .expect("Float source should expose Smooth Filter");
+    let smooth = create_item(&mut engine, filters, &smooth_type);
+    set_config(&mut engine, smooth, "method", ParamValue::Enum("sma".to_owned()));
+
+    let command_manager = engine.process_tree_snapshot().child_ids(processor)
+        .into_iter()
+        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
+        .unwrap();
+    let command = create_item(&mut engine, command_manager, GENERIC_LOG_COMMAND_NODE_TYPE);
+    let command_uuid = engine.nodes.get(command).unwrap().node_data().meta.uuid;
+    let outputs_region = region(&engine, processor, "outputs");
+    let output = create_item(&mut engine, outputs_region, &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"));
+    set_config(&mut engine, output, "target", ParamValue::Reference(NodeReference::new(command_uuid)));
+    set_config(&mut engine, output, "bindings", ParamValue::Str(OutputBindingConfig::default().to_authoring_json().unwrap()));
+
+    let snapshot = engine.process_tree_snapshot();
+    let mapping = snapshot.node_id_by_uuid(mapping_uuid).unwrap();
+    let formula = formula_from_snapshot(&snapshot, mapping).unwrap();
+    let mut instance = formula.instantiate();
+    instance.managed_regions = managed_regions_from_snapshot(&snapshot, processor, &formula).unwrap();
+    let ctx = CompileCtx {
+        value_types: shared_value_type_registry(),
+        nodes: shared_node_registry(),
+        properties: Some(&formula.properties),
+    };
+    let mut warmed = ManagedFormulaRuntime::compile(&formula, &instance, &ctx).unwrap().unwrap();
+    warmed.reconcile_input_source_schema(|source| managed_source_schema(&snapshot, source)).unwrap();
+    let source = anode_from_snapshot(&snapshot, input).unwrap();
+    let Some(RuntimeValue::Ref(source)) = source.config.get("source") else { panic!("source should be bound") };
+    let registries = RuntimeRegistries { value_types: shared_value_type_registry() };
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source.clone(), RuntimeValue::Float(0.0));
+    let initial = warmed.evaluate(&EvaluationCtx { logical_tick: 1, delta_time: Duration::from_millis(16), events: &[], inputs: &inputs, registries: &registries });
+    assert!(initial.diagnostics.is_empty(), "{:?}", initial.diagnostics);
+    inputs.insert(source.clone(), RuntimeValue::Float(10.0));
+    let warm = warmed.evaluate(&EvaluationCtx { logical_tick: 2, delta_time: Duration::from_millis(16), events: &[], inputs: &inputs, registries: &registries });
+    let warm_value = warm.intents[0].payload.clone();
+    assert_eq!(warm_value, RuntimeValue::Float(5.0));
+
+    let convert = snapshot.find_child_by_decl_id(processor, "convert_to_formula").unwrap();
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: convert,
+        value: ParamValue::Trigger(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "conversion should apply: {ack:?}");
+    engine.apply_edits().unwrap();
+    let converted_snapshot = engine.process_tree_snapshot();
+    let formula_ref = converted_snapshot.find_child_by_decl_id(processor, "formula").unwrap();
+    let Some(ParamValue::Reference(reference)) = converted_snapshot.node(formula_ref).unwrap().param_value.as_ref() else { panic!("Formula reference is missing") };
+    let converted_formula = formula_from_snapshot(&converted_snapshot, converted_snapshot.node_id_by_uuid(reference.uuid()).unwrap()).unwrap();
+    let mut converted_instance = converted_formula.instantiate();
+    converted_instance.managed_regions = managed_regions_from_snapshot(&converted_snapshot, processor, &converted_formula).unwrap();
+    let converted_ctx = CompileCtx {
+        value_types: shared_value_type_registry(),
+        nodes: shared_node_registry(),
+        properties: Some(&converted_formula.properties),
+    };
+    let mut converted = ManagedFormulaRuntime::compile(&converted_formula, &converted_instance, &converted_ctx).unwrap().unwrap();
+    converted.reconcile_input_source_schema(|source| managed_source_schema(&converted_snapshot, source)).unwrap();
+    let mut baseline_fresh = ManagedFormulaRuntime::compile(&formula, &instance, &ctx).unwrap().unwrap();
+    baseline_fresh.reconcile_input_source_schema(|source| managed_source_schema(&snapshot, source)).unwrap();
+    let gate_id = ManagedItemId::from_uuid(snapshot.node(gate).unwrap().uuid.0);
+    for runtime in [&mut converted, &mut baseline_fresh] {
+        runtime.update_filter_input(gate_id, &SocketId::new("condition"), RuntimeInputBinding::Constant(RuntimeValue::Bool(false))).unwrap();
+        let blocked = runtime.evaluate(&EvaluationCtx { logical_tick: 3, delta_time: Duration::from_millis(16), events: &[], inputs: &inputs, registries: &registries });
+        assert!(blocked.diagnostics.is_empty(), "{:?}", blocked.diagnostics);
+        assert!(blocked.intents.is_empty(), "closed gate must suppress command delivery");
+        runtime.update_filter_input(gate_id, &SocketId::new("condition"), RuntimeInputBinding::Constant(RuntimeValue::Bool(true))).unwrap();
+    }
+    let frame = EvaluationCtx { logical_tick: 4, delta_time: Duration::from_millis(16), events: &[], inputs: &inputs, registries: &registries };
+    let after = converted.evaluate(&frame);
+    let fresh = baseline_fresh.evaluate(&frame);
+    assert_eq!(after.intents.len(), 1);
+    assert_eq!(fresh.intents.len(), 1);
+    let after_value = after.intents[0].payload.clone();
+    let fresh_value = fresh.intents[0].payload.clone();
+    assert_eq!(after_value, fresh_value);
+    assert_eq!(after_value, RuntimeValue::Float(10.0), "conversion should reset SMA history");
+}
+
+#[test]
+fn mapping_conversion_preserves_repeated_trigger_delivery() {
+    let (mut engine, mapping_uuid, processor) = mapping_engine();
+    let trigger = Parameter::new("Pulse", ParamValue::Trigger(), ParameterChangeCheck::ValueChange);
+    let trigger_uuid = trigger.node_data().meta.uuid;
+    engine.add_node(trigger.into(), None);
+    engine.apply_edits().unwrap();
+    let inputs_region = region(&engine, processor, "inputs");
+    let input = create_item(&mut engine, inputs_region, &format!("{ANODE_CREATE_PREFIX}chataigne.input_source"));
+    set_config(&mut engine, input, "source", ParamValue::Reference(NodeReference::new(trigger_uuid)));
+    let command_manager = engine.process_tree_snapshot().child_ids(processor)
+        .into_iter()
+        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
+        .unwrap();
+    let command = create_item(&mut engine, command_manager, GENERIC_LOG_COMMAND_NODE_TYPE);
+    let command_uuid = engine.nodes.get(command).unwrap().node_data().meta.uuid;
+    let outputs_region = region(&engine, processor, "outputs");
+    let output = create_item(&mut engine, outputs_region, &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"));
+    set_config(&mut engine, output, "target", ParamValue::Reference(NodeReference::new(command_uuid)));
+    set_config(&mut engine, output, "bindings", ParamValue::Str(OutputBindingConfig::default().to_authoring_json().unwrap()));
+
+    let snapshot = engine.process_tree_snapshot();
+    let formula = formula_from_snapshot(&snapshot, snapshot.node_id_by_uuid(mapping_uuid).unwrap()).unwrap();
+    let mut instance = formula.instantiate();
+    instance.managed_regions = managed_regions_from_snapshot(&snapshot, processor, &formula).unwrap();
+    let compile_ctx = CompileCtx {
+        value_types: shared_value_type_registry(),
+        nodes: shared_node_registry(),
+        properties: Some(&formula.properties),
+    };
+    let mut baseline = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx).unwrap().unwrap();
+    baseline.reconcile_input_source_schema(|source| managed_source_schema(&snapshot, source)).unwrap();
+
+    let convert = snapshot.find_child_by_decl_id(processor, "convert_to_formula").unwrap();
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: convert,
+        value: ParamValue::Trigger(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "conversion should apply: {ack:?}");
+    engine.apply_edits().unwrap();
+    let converted_snapshot = engine.process_tree_snapshot();
+    let formula_ref = converted_snapshot.find_child_by_decl_id(processor, "formula").unwrap();
+    let Some(ParamValue::Reference(reference)) = converted_snapshot.node(formula_ref).unwrap().param_value.as_ref() else { panic!("Formula reference is missing") };
+    let converted_formula = formula_from_snapshot(&converted_snapshot, converted_snapshot.node_id_by_uuid(reference.uuid()).unwrap()).unwrap();
+    let mut converted_instance = converted_formula.instantiate();
+    converted_instance.managed_regions = managed_regions_from_snapshot(&converted_snapshot, processor, &converted_formula).unwrap();
+    let converted_ctx = CompileCtx {
+        value_types: shared_value_type_registry(),
+        nodes: shared_node_registry(),
+        properties: Some(&converted_formula.properties),
+    };
+    let mut converted = ManagedFormulaRuntime::compile(&converted_formula, &converted_instance, &converted_ctx).unwrap().unwrap();
+    converted.reconcile_input_source_schema(|source| managed_source_schema(&converted_snapshot, source)).unwrap();
+
+    let source = anode_from_snapshot(&snapshot, input).unwrap();
+    let Some(RuntimeValue::Ref(source)) = source.config.get("source") else { panic!("trigger source should be bound") };
+    let registries = RuntimeRegistries { value_types: shared_value_type_registry() };
+    for edge in 1..=2 {
+        let pulse = RuntimeValue::Trigger(TriggerValue::fired(edge, edge));
+        let mut inputs = RuntimeInputSnapshot::default();
+        inputs.insert(source.clone(), pulse.clone());
+        let event = RuntimeEvent { topic: Arc::from("pulse"), value: pulse.clone() };
+        let frame = EvaluationCtx { logical_tick: edge, delta_time: Duration::ZERO, events: &[event], inputs: &inputs, registries: &registries };
+        let before = baseline.evaluate(&frame);
+        let after = converted.evaluate(&frame);
+        assert!(before.diagnostics.is_empty(), "{:?}", before.diagnostics);
+        assert!(after.diagnostics.is_empty(), "{:?}", after.diagnostics);
+        assert_eq!(before.intents.len(), 1, "every pulse should deliver once");
+        assert_eq!(after.intents.len(), 1, "conversion should preserve pulse multiplicity");
+        assert_eq!(before.intents[0].target, after.intents[0].target);
+        assert_eq!(before.intents[0].payload, after.intents[0].payload);
+    }
 }
 
 #[test]

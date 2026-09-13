@@ -26,6 +26,7 @@ use crate::app::systems_alchemist_formula::{
 use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
 
 mod catalog;
+mod conversion;
 mod managed_regions;
 mod palette;
 mod source_schema;
@@ -216,6 +217,7 @@ fn builtin_formula_content_tag(tags: &[String]) -> Option<&str> {
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
 const PROCESSOR_SURFACE_DECL_PREFIX: &str = "surface/";
+const PROCESSOR_SURFACE_IDENTITY_TAG_PREFIX: &str = "chataigne.processor.surface.identity:";
 const PROCESSOR_FORMULA_WARNING_ID: &str = "state_processor_formula";
 pub(crate) const PROCESSOR_FORMULA_SOURCE_DECL_ID: &str = "formula_source_key";
 pub(crate) const PROCESSOR_MANAGED_REGIONS_DECL_ID: &str = "managed_regions";
@@ -317,6 +319,16 @@ fn processor_surface_decl_id(source_uuid: NodeUuid) -> String {
     format!("{PROCESSOR_SURFACE_DECL_PREFIX}{}", source_uuid.0)
 }
 
+fn processor_surface_decl_id_for_source(source_uuid: NodeUuid, tags: &[String]) -> String {
+    let identity = tags
+        .iter()
+        .filter_map(|tag| tag.strip_prefix(PROCESSOR_SURFACE_IDENTITY_TAG_PREFIX))
+        .find_map(|text| text.parse::<uuid::Uuid>().ok())
+        .map(NodeUuid)
+        .unwrap_or(source_uuid);
+    processor_surface_decl_id(identity)
+}
+
 fn processor_property_parameter(
     snapshot: &ProcessTreeSnapshot,
     source: NodeId,
@@ -330,7 +342,7 @@ fn processor_property_parameter(
         ParameterChangeCheck::ValueChange,
     );
     parameter.node_data_mut().meta.decl_id =
-        DeclId(processor_surface_decl_id(source_node.uuid));
+        DeclId(processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags));
     parameter.node_data_mut().meta.presentation.default_color =
         source_node.presentation.color.or(source_node.presentation.default_color);
     if let Some(constraints) = snapshot
@@ -361,7 +373,7 @@ fn processor_property_manager(
     };
     manager.node_data_mut().meta.label = source_node.label.clone();
     manager.node_data_mut().meta.decl_id =
-        DeclId(processor_surface_decl_id(source_node.uuid));
+        DeclId(processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags));
     manager.node_data_mut().meta.presentation.default_color =
         source_node.presentation.color.or(source_node.presentation.default_color);
     Some(manager)
@@ -398,7 +410,7 @@ fn processor_surface_child_tree(
             let mut folder = StateProcessorFolder::new();
             folder.node_data_mut().meta.label = source_node.label.clone();
             folder.node_data_mut().meta.decl_id =
-                DeclId(processor_surface_decl_id(source_node.uuid));
+                DeclId(processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags));
             folder.node_data_mut().meta.presentation.default_color =
                 source_node.presentation.color.or(source_node.presentation.default_color);
             folder.node_data_mut().meta.user_permissions = locked_instance_permissions();
@@ -591,7 +603,7 @@ fn reconcile_properties_level(
         let Some(source_node) = source_snapshot.node(source) else {
             continue;
         };
-        let decl_id = processor_surface_decl_id(source_node.uuid);
+        let decl_id = processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags);
         let Some(expected_tree) = processor_surface_child_tree(source_snapshot, source) else {
             continue;
         };
@@ -1032,6 +1044,10 @@ impl StateProcessorFolder {
         read_only = true,
         show_in_inspector_content = false
     );
+    convert_to_formula: ParamValue = ParamValue::Trigger() (
+        label = "Convert to Formula",
+        show_in_inspector_content = false
+    );
     node managed_regions: StateProcessorManagedRegions = StateProcessorManagedRegions::new() (
         label = "Managed Regions",
         show_in_inspector_content = false
@@ -1120,6 +1136,10 @@ impl Node for StateProcessor {
         param: NodeId,
         _old_value: ParamValue,
     ) {
+        if param == self.convert_to_formula.id() {
+            self.convert_mapping_to_formula(ctx);
+            return;
+        }
         if self.condition_valid_params.contains(&param) {
             return;
         }
@@ -1400,17 +1420,30 @@ impl StateProcessor {
                 let Some(formula) = self.formula_node(&snapshot) else {
                     return;
                 };
-                formula_from_snapshot(&snapshot, formula)
-                    .map(|formula| formula.surface.managed_regions)
-                    .unwrap_or_default()
+                let Ok(formula) = formula_from_snapshot(&snapshot, formula) else {
+                    // A project Formula may still be materializing on load. Its
+                    // managed instance data must not be removed on a transient
+                    // parse failure.
+                    return;
+                };
+                formula.surface.managed_regions
             }
-            _ => Vec::new(),
+            // A missing source can be transient while a sparse project is
+            // materializing. Keep authored items until a valid Formula can
+            // identify which regions actually need to change.
+            _ => return,
         };
         let Some(regions_root) =
             snapshot.find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
         else {
             return;
         };
+        if definitions.is_empty() {
+            // Sparse load can expose a Formula before its managed-region
+            // metadata is populated. Empty metadata is not enough evidence
+            // to discard authored processor items.
+            return;
+        }
         let mut desired = HashSet::new();
         for definition in definitions {
             let decl_id = processor_managed_region_decl_id(definition.id.as_str());

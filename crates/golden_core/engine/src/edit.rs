@@ -1,5 +1,5 @@
 use crate::events::CustomEvent;
-use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
+use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning, UserNodeRole};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
 use crate::process_ctx::ProcessCtx;
 use crate::script::ScriptNodeConfig;
@@ -14,6 +14,8 @@ pub struct NodeTree {
     pub node: Box<dyn Node>,
     /// Ordered child subtrees.
     pub children: Vec<NodeTree>,
+    /// Role of this root when nested inside another detached subtree.
+    pub user_role: UserNodeRole,
 }
 
 impl NodeTree {
@@ -22,6 +24,7 @@ impl NodeTree {
         Self {
             node: Box::new(node),
             children: Vec::new(),
+            user_role: UserNodeRole::Regular,
         }
     }
 
@@ -30,6 +33,7 @@ impl NodeTree {
         Self {
             node,
             children: Vec::new(),
+            user_role: UserNodeRole::Regular,
         }
     }
 
@@ -41,6 +45,12 @@ impl NodeTree {
     /// Appends one child subtree and returns the updated tree.
     pub fn with_child(mut self, child: NodeTree) -> Self {
         self.push_child(child);
+        self
+    }
+
+    /// Marks this subtree root as a curated item within its parent.
+    pub fn as_user_item(mut self) -> Self {
+        self.user_role = UserNodeRole::ItemRoot;
         self
     }
 

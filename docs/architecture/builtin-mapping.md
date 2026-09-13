@@ -296,6 +296,29 @@ unmount and session changes release capture and history. Runtime capture stays
 in the state-machine manager, independent of Formula defaults. Large item lists
 render a short visible window while edits use stable backend node IDs.
 
+Phase 10 converts one configured processor through its backend trigger. The
+operation validates the exact built-in Mapping identity and its managed items,
+copies the authored Formula recipe into the project library with fresh graph
+identities, and switches the existing processor reference in one edit group.
+The processor keeps its ordered source, filter, and output ANode items,
+auxiliary socket settings, command bindings, exposed surface values, and
+command nodes. These are processor instance state by design; the custom
+Formula owns the reusable graph, managed-region definitions, and properties.
+No compiled plan is exported as authoring data, and the old and new recipes
+never run as two processors.
+
+The copy remaps graph references and managed boundary IDs, removes built-in
+and external-file ownership tags, and retains embedded presentation resources.
+Copied property nodes carry their original surface identity in an app-owned
+tag, so existing processor managers and their nested command identities remain
+stable even though the Formula nodes get new UUIDs. Detached trees preserve
+nested authored item roles for sparse persistence; read-only managed-region
+metadata is explicitly persisted because it defines Formula behavior. During
+project load, a missing or temporarily empty Formula definition cannot delete
+authored processor regions. Conversion starts managed temporal stages with
+fresh history at the next runtime compilation; compatible state migration
+between distinct Formula identities is intentionally unsupported.
+
 ## Measurement fixture
 
 The pre-change functional reference is the locked Rust test set for

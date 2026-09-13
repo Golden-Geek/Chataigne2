@@ -191,6 +191,10 @@ impl<T: Node> Engine<T> {
         for child in tree.children {
             children.push(self.coerce_pending_node_tree(edit_index, operation, child)?);
         }
-        Ok(PendingNodeTree { node, children })
+        Ok(PendingNodeTree {
+            node,
+            children,
+            user_role: tree.user_role,
+        })
     }
 }

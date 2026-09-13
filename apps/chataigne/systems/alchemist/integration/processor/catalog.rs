@@ -56,6 +56,8 @@ struct BundledBuiltinFormula {
 // The build script enumerates every JSON formula and optional sibling SVG/PNG.
 include!(concat!(env!("OUT_DIR"), "/builtin_formulas.rs"));
 
+mod conversion;
+
 #[derive(Clone, Debug)]
 pub(crate) enum FormulaSourceRef {
     ProjectNode(NodeReference),

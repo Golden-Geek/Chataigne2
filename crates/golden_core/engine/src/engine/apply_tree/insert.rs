@@ -57,13 +57,14 @@ impl<T: Node> Engine<T> {
 
         let mut child_prev_sibling = None;
         for child in tree.children {
+            let child_role = child.user_role;
             let child_id = self.insert_pending_node_tree(PendingTreeInsertion {
                 edit_index,
                 operation,
                 tree: child,
                 parent: node_id,
                 prev_sibling: child_prev_sibling,
-                user_role: UserNodeRole::Regular,
+                user_role: child_role,
                 inserted,
             })?;
             child_prev_sibling = Some(child_id);

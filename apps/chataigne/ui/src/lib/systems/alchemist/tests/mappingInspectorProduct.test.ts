@@ -12,12 +12,18 @@ afterEach(() => {
 
 describe('processor Mapping product surface', () => {
 	it('renders the backend catalog as Inputs, Filters, Outputs with typed stage shapes and diagnostics', () => {
+		const convert = {
+			node_id: 8,
+			decl_id: 'convert_to_formula',
+			node_type: 'trigger',
+			children: []
+		} as unknown as UiNodeDto;
 		const node = {
 			node_id: 7,
 			uuid: 'processor-7',
 			node_type: 'state_processor',
 			meta: { label: 'Position Mapping' },
-			children: []
+			children: [convert.node_id]
 		} as unknown as UiNodeDto;
 		const shape = (kind: 'tuple' | 'compound', ids: string[], valueType: string) => ({
 			kind,
@@ -75,7 +81,15 @@ describe('processor Mapping product surface', () => {
 		} as StateMachinePreviewCatalogDto;
 		appState.session = {
 			status: 'connected',
-			graph: { state: { nodesById: new Map([[node.node_id, node]]), parentById: new Map() } },
+			graph: {
+				state: {
+					nodesById: new Map([
+						[node.node_id, node],
+						[convert.node_id, convert]
+					]),
+					parentById: new Map()
+				}
+			},
 			getCustomEventSequence: () => 1,
 			getCustomEventPayload: (topic: string) =>
 				topic === STATE_MACHINE_RUNTIME_PREVIEW_CATALOG_TOPIC ? catalog : null
@@ -90,5 +104,6 @@ describe('processor Mapping product surface', () => {
 		expect(body).toContain('Tuple (float, float, float)');
 		expect(body).toContain('Compound vec3');
 		expect(body).toContain('Target is missing');
+		expect(body).toContain('Convert to Formula');
 	});
 });

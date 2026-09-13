@@ -16,6 +16,7 @@
 		STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
 	} from '../preview/formulaOutputPreviewStore.svelte';
 	import {
+		directChild,
 		isTupleMappingSurface,
 		mappingCreateIntent,
 		mappingDuplicateIntent,
@@ -56,6 +57,9 @@
 		catalog?.processors.find((processor) => processor.id === liveNode.uuid) ?? null
 	);
 	let mapping = $derived(isTupleMappingSurface(processorUi));
+	let convertNode = $derived(
+		graph ? directChild(liveNode, 'convert_to_formula', graph.nodesById) : null
+	);
 	let lanes = $derived(
 		catalog?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ?? []
 	);
@@ -130,12 +134,13 @@
 		};
 	});
 
-	const mutate = async (intent: UiEditIntent): Promise<void> => {
+	const mutate = async (intent: UiEditIntent | UiEditIntent[]): Promise<void> => {
 		if (!session || busy) return;
 		busy = true;
 		actionError = '';
 		try {
-			await session.sendIntent(intent);
+			if (Array.isArray(intent)) await session.sendIntents(intent);
+			else await session.sendIntent(intent);
 		} catch (reason) {
 			actionError = reason instanceof Error ? reason.message : String(reason);
 		} finally {
@@ -154,6 +159,14 @@
 	};
 	const toggle = (item: UiNodeDto): void => {
 		void mutate({ kind: 'patchMeta', node: item.node_id, patch: { enabled: !item.meta.enabled } });
+	};
+	const convert = (nodeId: number): void => {
+		const clientEditId = `mapping-conversion:${crypto.randomUUID()}`;
+		void mutate([
+			{ kind: 'beginEdit', client_edit_id: clientEditId, label: 'Convert Mapping to Formula' },
+			{ kind: 'setParam', node: nodeId, value: { kind: 'trigger' }, behaviour: 'Coalesce' },
+			{ kind: 'endEdit', client_edit_id: clientEditId }
+		]);
 	};
 	const previewText = (value: unknown): string => {
 		const serialized = JSON.stringify(value, (_key, entry) =>
@@ -177,6 +190,10 @@
 							: 'Disabled runtime'}</span>
 			<button type="button" disabled={busy} onclick={() => void session?.undo()}>Undo</button>
 			<button type="button" disabled={busy} onclick={() => void session?.redo()}>Redo</button>
+			{#if convertNode}
+				<button type="button" disabled={busy} onclick={() => convert(convertNode.node_id)}
+					>Convert to Formula</button>
+			{/if}
 		</header>
 		{#if actionError}<p role="alert">{actionError}</p>{/if}
 		{#each processorUi.mapping_diagnostics as diagnostic (`${diagnostic.code}:${diagnostic.item_id ?? ''}:${diagnostic.message}`)}
