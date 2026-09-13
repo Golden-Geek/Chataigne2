@@ -56,8 +56,10 @@ use golden_values::Value as RuntimeValue;
 use smallvec::SmallVec;
 
 use crate::app::systems_alchemist_formula::{
-    anode_from_snapshot, constraint_value_type, formula_from_snapshot, local_signature_bindings,
-    param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param, ANODE_NODE_TYPE,
+    anode_from_snapshot, constant_anode_for_value_param, constraint_value_type,
+    formula_from_snapshot_cached, local_signature_bindings,
+    param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param,
+    same_type_numeric_changes_for_param, ANodeMaterializationCache, ANODE_NODE_TYPE,
     FORMULA_EXTERNAL_READ_ONLY_TAG,
 };
 use crate::app::systems_alchemist_processor::{
@@ -1437,6 +1439,8 @@ struct StateMachineRuntimeCache {
     active_states: Arc<[NodeId]>,
     active_processor_nodes: Arc<[NodeId]>,
     structure_dirty: HashSet<NodeUuid>,
+    formula_materialization: HashMap<NodeUuid, ANodeMaterializationCache>,
+    numeric_change_events: HashMap<NodeId, bool>,
     dirty_formula_values: HashSet<NodeUuid>,
     dirty_processor_overrides: HashSet<NodeId>,
     dirty_input_source_params: HashSet<NodeUuid>,
@@ -1527,6 +1531,19 @@ pub struct StateMachineManager {
 
 #[node("state_machine_manager", from_struct)]
 impl Node for StateMachineManager {
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        self.runtime_cache.numeric_change_events.clear();
+        for event in &ctx.events {
+            if let EventKind::ParamChanged { param, .. } = &event.kind {
+                let numeric = crate::app::systems_alchemist_formula::same_type_numeric_change_param(event)
+                    == Some(*param);
+                *self.runtime_cache.numeric_change_events.entry(*param).or_insert(true) &= numeric;
+            }
+        }
+        self.dispatch_inbox(ctx);
+        self.runtime_cache.numeric_change_events.clear();
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[STATE_ITEM_KIND]))
     }
@@ -1716,6 +1733,19 @@ impl Node for StateMachineManager {
             )
         }) {
             return;
+        }
+        let numeric_change = self.runtime_cache.numeric_change_events.get(&param).copied().unwrap_or_else(|| {
+            same_type_numeric_changes_for_param(&ctx.events, param)
+        });
+        if numeric_change {
+            if let Some(anode) = constant_anode_for_value_param(snapshot, param) {
+                self.runtime_cache.structure_dirty.insert(formula_uuid);
+                self.runtime_cache.dirty_formula_values.remove(&formula_uuid);
+                if let Some(cache) = self.runtime_cache.formula_materialization.get_mut(&formula_uuid) {
+                    cache.mark_dirty(anode);
+                }
+                return;
+            }
         }
         self.apply_runtime_invalidation(RuntimeInvalidation::Formula(formula_uuid));
     }
@@ -1949,6 +1979,9 @@ impl StateMachineManager {
             RuntimeInvalidation::Formula(formula) => {
                 self.runtime_cache.structure_dirty.insert(formula);
                 self.runtime_cache.dirty_formula_values.remove(&formula);
+                if let Some(cache) = self.runtime_cache.formula_materialization.get_mut(&formula) {
+                    cache.invalidate();
+                }
             }
             RuntimeInvalidation::Processor(processor) => {
                 self.runtime_cache.dirty_processor_overrides.insert(processor);
@@ -1961,6 +1994,7 @@ impl StateMachineManager {
                 self.runtime_cache.topology_dirty = true;
                 self.runtime_cache.formula_catalog_dirty = true;
                 self.runtime_cache.context_provider_dirty = true;
+                self.runtime_cache.formula_materialization.clear();
             }
             RuntimeInvalidation::Ignore => {}
         }
@@ -2100,12 +2134,13 @@ impl StateMachineManager {
                 .compiled_formulas
                 .retain(|key, _| !previous_project_formula_ids.contains(&key.formula_id));
             let StateMachineRuntimeCache {
-                formulas, perf_stats, ..
+                formulas, formula_materialization, perf_stats, ..
             } = &mut self.runtime_cache;
             let formulas = Arc::make_mut(formulas);
             formulas.clear();
+            formula_materialization.clear();
             for library in formula_libraries(snapshot) {
-                collect_formulas_in_subtree(snapshot, library, formulas, perf_stats);
+                collect_formulas_in_subtree(snapshot, library, formulas, formula_materialization, perf_stats);
             }
             self.runtime_cache.formula_catalog_initialized = true;
             self.runtime_cache.formula_catalog_dirty = false;
@@ -2126,9 +2161,12 @@ impl StateMachineManager {
                     .retain(|key, _| key.formula_id != previous.id);
             }
             let Some(formula_node) = snapshot.node_id_by_uuid(formula_uuid) else {
+                self.runtime_cache.formula_materialization.remove(&formula_uuid);
                 continue;
             };
-            let Ok(formula) = formula_from_snapshot(snapshot, formula_node) else {
+            let cache = self.runtime_cache.formula_materialization.entry(formula_uuid).or_default();
+            let Ok(formula) = formula_from_snapshot_cached(snapshot, formula_node, cache) else {
+                cache.invalidate();
                 continue;
             };
             self.runtime_cache.perf_stats.formula_materializations += 1;
@@ -3715,6 +3753,7 @@ fn collect_formulas_in_subtree(
     snapshot: &ProcessTreeSnapshot,
     parent: NodeId,
     formulas: &mut HashMap<NodeUuid, AlchemistFormula>,
+    materialization: &mut HashMap<NodeUuid, ANodeMaterializationCache>,
     stats: &mut StateMachineRuntimePerfStats,
 ) {
     for child in snapshot.child_ids(parent) {
@@ -3722,12 +3761,15 @@ fn collect_formulas_in_subtree(
             continue;
         };
         if node.node_type == FORMULA_NODE_TYPE {
-            if let Ok(formula) = crate::app::systems_alchemist_formula::formula_from_snapshot(snapshot, child) {
+            let cache = materialization.entry(node.uuid).or_default();
+            if let Ok(formula) = formula_from_snapshot_cached(snapshot, child, cache) {
                 stats.formula_materializations += 1;
                 formulas.insert(node.uuid, formula);
+            } else {
+                materialization.remove(&node.uuid);
             }
         } else {
-            collect_formulas_in_subtree(snapshot, child, formulas, stats);
+            collect_formulas_in_subtree(snapshot, child, formulas, materialization, stats);
         }
     }
 }

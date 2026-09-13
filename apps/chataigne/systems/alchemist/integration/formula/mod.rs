@@ -63,12 +63,16 @@ pub(crate) use construction::{
     create_anode_user_item, create_anode_user_item_tree, external_formula_tree_for_path,
 };
 pub(crate) use snapshot::{
-    anode_from_snapshot, formula_from_snapshot, local_signature_bindings, node_has_warning,
-    node_warning_detail, node_warning_matches,
+    anode_from_snapshot, formula_from_snapshot, formula_from_snapshot_cached,
+    local_signature_bindings, node_has_warning, node_warning_detail, node_warning_matches,
+    ANodeMaterializationCache,
 };
 pub(crate) use value_bridge::{constraint_value_type, param_to_runtime_value, runtime_value_to_param};
 pub(crate) use value_bridge::formula_runtime_param_change_requires_rematerialization;
-pub(crate) use value_bridge::{is_constant_value_param, same_type_numeric_change_param};
+pub(crate) use value_bridge::{
+    constant_anode_for_value_param, is_constant_value_param,
+    same_type_numeric_change_param, same_type_numeric_changes_for_param,
+};
 #[cfg(test)]
 pub(crate) use library::reset_shared_formula_watcher_for_test;
 pub use properties::{

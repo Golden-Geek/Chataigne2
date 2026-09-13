@@ -275,13 +275,16 @@ pub(super) fn constant_numeric_value_change_keeps_signature(
 }
 
 pub(crate) fn is_constant_value_param(snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
-    let Some(config) = snapshot.node(param).and_then(|node| node.parent) else {
-        return false;
-    };
-    let Some(anode) = snapshot.node(config).and_then(|node| node.parent) else {
-        return false;
-    };
-    constant_value_param_from_snapshot(snapshot, anode) == Some(param)
+    constant_anode_for_value_param(snapshot, param).is_some()
+}
+
+pub(crate) fn constant_anode_for_value_param(
+    snapshot: &ProcessTreeSnapshot,
+    param: NodeId,
+) -> Option<NodeId> {
+    let config = snapshot.node(param).and_then(|node| node.parent)?;
+    let anode = snapshot.node(config).and_then(|node| node.parent)?;
+    (constant_value_param_from_snapshot(snapshot, anode) == Some(param)).then_some(anode)
 }
 
 pub(super) fn constant_value_param_from_snapshot(
@@ -313,7 +316,7 @@ pub(crate) fn same_type_numeric_change_param(event: &Event) -> Option<NodeId> {
     .then_some(*param)
 }
 
-pub(super) fn same_type_numeric_changes_for_param(events: &EventFrame, param: NodeId) -> bool {
+pub(crate) fn same_type_numeric_changes_for_param(events: &EventFrame, param: NodeId) -> bool {
     events.iter().any(|event| {
         matches!(&event.kind, EventKind::ParamChanged { param: changed, .. } if *changed == param)
     }) && events.iter().all(|event| {

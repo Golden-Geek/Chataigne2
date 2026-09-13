@@ -4,15 +4,17 @@ use golden_core::{
     app::load_sparse_project_file,
     engine::EngineTime,
     events::{Event, EventKind},
-    node::{Node, NodeId, NodeUuid},
+    node::{Folder, Node, NodeId, NodeUuid},
     parameter::ParamValue,
+    ui_sync::UiEditIntent,
     process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::{AppNode, StateMachineState};
+use crate::app::{AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary, StateMachineState};
 
 use super::super::{
-    is_condition_valid_result, runtime_param_change_requires_snapshot, set_condition_valid_param, StateMachineManager,
+    is_condition_valid_result, runtime_param_change_requires_snapshot, set_condition_valid_param,
+    RuntimeInvalidation, StateMachineManager,
 };
 use super::context_scope_test_node;
 
@@ -86,6 +88,87 @@ fn authored_formula_value_invalidates_runtime_but_layout_and_status_do_not() {
     assert!(manager.runtime_cache.structure_dirty.is_empty());
     manager.on_param_change(&mut no_snapshot, value, ParamValue::Float(0.0));
     assert!(manager.runtime_cache.structure_dirty.contains(&formula_uuid));
+}
+
+#[test]
+fn constant_value_refresh_reuses_unchanged_anodes_in_manager_cache() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("Formula Library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .unwrap();
+    engine.add_user_item(AlchemistFormulaDefinition::new().into(), Some(library));
+    engine.apply_edits().expect("Formula should attach");
+    let snapshot = engine.process_tree_snapshot();
+    let formula = snapshot
+        .child_ids(library)
+        .into_iter()
+        .find(|id| snapshot.node(*id).is_some_and(|node| node.node_type == AlchemistFormulaDefinition::NODE_TYPE))
+        .unwrap();
+    for _ in 0..2 {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: formula,
+            node_type: "alchemist_anode:constant".into(),
+            label: None,
+            initial_params: Vec::new(),
+        });
+        assert!(ack.success, "Constant creation should succeed: {ack:?}");
+    }
+    let snapshot = engine.process_tree_snapshot();
+    let formula_uuid = snapshot.node(formula).unwrap().uuid;
+    let anodes = snapshot
+        .child_ids(formula)
+        .into_iter()
+        .filter(|node| snapshot.node(*node).is_some_and(|node| node.node_type == "alchemist_anode"))
+        .collect::<Vec<_>>();
+    assert_eq!(anodes.len(), 2);
+    let constant = anodes[0];
+    let retained = anodes[1];
+    let config = snapshot.find_child_by_decl_id(constant, "config").unwrap();
+    let value = snapshot.find_child_by_decl_id(config, "config/value").unwrap();
+    let before = snapshot.node(value).and_then(|node| node.param_value.clone()).unwrap();
+    let after = match &before {
+        ParamValue::Float(value) => ParamValue::Float(value + 1.0),
+        other => panic!("Constant value should be a float, got {other:?}"),
+    };
+    let mut manager = StateMachineManager::new();
+    manager.refresh_formula_cache(&snapshot);
+    manager.runtime_cache.runtime_snapshot = Some(Arc::clone(&snapshot));
+    let cache = manager.runtime_cache.formula_materialization.get(&formula_uuid).unwrap();
+    let prior_constant = Arc::clone(cache.cached_instance(constant).unwrap());
+    let prior_retained = Arc::clone(cache.cached_instance(retained).unwrap());
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: value,
+        value: after.clone(),
+        behaviour: golden_core::parameter::ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "Constant value edit should succeed: {ack:?}");
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 1, micro: 0, seq: 0 });
+    ctx.events.push_shared(Arc::new(Event {
+        time: ctx.time,
+        kind: EventKind::ParamChanged {
+            param: value,
+            old_value: before,
+            new_value: after,
+        },
+    }));
+    manager.on_inbox(&mut ctx);
+    assert!(manager.runtime_cache.structure_dirty.contains(&formula_uuid));
+    manager.refresh_formula_cache(&engine.process_tree_snapshot());
+    let cache = manager.runtime_cache.formula_materialization.get(&formula_uuid).unwrap();
+    assert!(!Arc::ptr_eq(&prior_constant, cache.cached_instance(constant).unwrap()));
+    assert!(Arc::ptr_eq(&prior_retained, cache.cached_instance(retained).unwrap()));
+
+    manager.apply_runtime_invalidation(RuntimeInvalidation::Formula(formula_uuid));
+    manager.refresh_formula_cache(&engine.process_tree_snapshot());
+    let cache = manager.runtime_cache.formula_materialization.get(&formula_uuid).unwrap();
+    assert!(!Arc::ptr_eq(&prior_retained, cache.cached_instance(retained).unwrap()));
 }
 
 #[test]

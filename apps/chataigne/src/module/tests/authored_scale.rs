@@ -257,6 +257,7 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
         .collect::<Vec<_>>();
     drop(snapshot);
     let materializations_before = manager_formula_materializations(&engine);
+    let phases_before = manager_live_edit_phase_ns(&engine);
 
     let session_id = "authored-constant-value-batch";
     engine.edits.push(Edit::BeginEditSession {
@@ -286,6 +287,11 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
     let started = Instant::now();
     engine.run_tick(Duration::from_millis(8)).expect("changed Formula should refresh");
     let edit_refresh_tick_ms = started.elapsed().as_millis();
+    let edit_refresh_stats = engine.tick_stats();
+    let phases_after_edit = manager_live_edit_phase_ns(&engine);
+    let edit_refresh_phase_ns: [u64; 3] = std::array::from_fn(|index| {
+        phases_after_edit[index] - phases_before[index]
+    });
     let materializations_after_edit = manager_formula_materializations(&engine);
     assert!(
         materializations_after_edit > materializations_before,
@@ -329,6 +335,11 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
             "edit_ms": edit_ms,
             "edit_tick_ms": edit_tick_ms,
             "edit_refresh_tick_ms": edit_refresh_tick_ms,
+            "edit_refresh_snapshot_builds": edit_refresh_stats.snapshot_builds,
+            "edit_refresh_snapshot_nodes_cloned": edit_refresh_stats.snapshot_nodes_cloned,
+            "edit_refresh_formula_cache_ns": edit_refresh_phase_ns[0],
+            "edit_refresh_formula_catalog_ns": edit_refresh_phase_ns[1],
+            "edit_refresh_runtime_rebuild_ns": edit_refresh_phase_ns[2],
             "undo_ms": undo_ms,
             "undo_tick_ms": undo_tick_ms,
             "undo_refresh_tick_ms": undo_refresh_tick_ms,

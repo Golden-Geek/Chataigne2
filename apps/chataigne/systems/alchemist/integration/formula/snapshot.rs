@@ -219,7 +219,7 @@ pub(crate) fn anode_from_snapshot(
 }
 
 #[derive(Default)]
-pub(super) struct ANodeMaterializationCache {
+pub(crate) struct ANodeMaterializationCache {
     nodes: HashMap<NodeId, Arc<ANodeInstance>>,
     dirty: HashSet<NodeId>,
     invalidate_all: bool,
@@ -227,16 +227,16 @@ pub(super) struct ANodeMaterializationCache {
 
 impl ANodeMaterializationCache {
     #[cfg(test)]
-    pub(super) fn cached_instance(&self, node: NodeId) -> Option<&Arc<ANodeInstance>> {
+    pub(crate) fn cached_instance(&self, node: NodeId) -> Option<&Arc<ANodeInstance>> {
         self.nodes.get(&node)
     }
 
-    pub(super) fn invalidate(&mut self) {
+    pub(crate) fn invalidate(&mut self) {
         self.invalidate_all = true;
         self.dirty.clear();
     }
 
-    pub(super) fn mark_dirty(&mut self, anode: NodeId) {
+    pub(crate) fn mark_dirty(&mut self, anode: NodeId) {
         self.dirty.insert(anode);
     }
 
@@ -322,7 +322,7 @@ impl ANodeMaterializationCache {
     }
 }
 
-pub(super) fn formula_from_snapshot_cached(
+pub(crate) fn formula_from_snapshot_cached(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,
     cache: &mut ANodeMaterializationCache,

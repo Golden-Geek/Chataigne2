@@ -499,6 +499,18 @@ and undo/redo replay checks with a 37 ms dispatch tick and 264 ms refresh tick. 
 zero full-tree snapshots on the sparse dispatch tick and one on the refresh tick. These are local
 backend samples, not p95 or browser action-to-paint evidence; the T19 product gate remains open.
 
+The state-machine manager now owns a per-Formula ANode materialization cache. Same-type numeric
+Constant edits dirty only their ANode entry; structural Formula invalidations discard the cache.
+The authored parameter report contract is schema v5 and records the refresh tick's snapshot count
+and Formula/catalog/runtime-cache phase counters. The source-fingerprinted
+`target/qualification/authored-graph-scale/20260913T020025Z/` matrix passed all eighteen cases.
+Its single 100k sparse/dense value-edit samples had 0/4 ms dispatch ticks and 232/225 ms
+Formula-refresh ticks; Formula materialization accounted for 21.5/26.8 ms of those refreshes,
+versus 57.7 ms before manager caching in a separate sparse local probe. Both refreshes still
+cloned 100,239 nodes into one full-tree snapshot. An additional all-7,143-Constant batch passed
+value and undo/redo replay, with a 46 ms dispatch tick and a 275 ms refresh tick. These are not
+p95 or browser action-to-paint results, and the remaining snapshot cost keeps T19 open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |

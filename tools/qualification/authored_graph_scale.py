@@ -69,6 +69,9 @@ PARAMETER_EDIT_PREFIX = "AUTHORED_PARAMETER_EDIT_RESULT="
 PARAMETER_EDIT_ACTION_FIELDS = {
     "edit_ms", "edit_tick_ms", "undo_ms", "undo_tick_ms", "redo_ms", "redo_tick_ms",
     "edit_refresh_tick_ms", "undo_refresh_tick_ms", "redo_refresh_tick_ms",
+    "edit_refresh_snapshot_builds", "edit_refresh_snapshot_nodes_cloned",
+    "edit_refresh_formula_cache_ns", "edit_refresh_formula_catalog_ns",
+    "edit_refresh_runtime_rebuild_ns",
 }
 RESULT_FIELDS = {
     "authored_nodes", "graph_roots", "minimum_live_nodes", "prepared_nodes",
@@ -389,7 +392,7 @@ def build_report(
     else:
         not_covered.append("sparse/dense authored Constant parameter edits")
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "evidence_id": EVIDENCE_ID,
         "status": "PASS" if all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "product_qualification": "OPEN",
