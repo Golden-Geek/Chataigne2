@@ -304,6 +304,9 @@ The processor keeps its ordered source, filter, and output ANode items,
 auxiliary socket settings, command bindings, exposed surface values, and
 command nodes. These are processor instance state by design; the custom
 Formula owns the reusable graph, managed-region definitions, and properties.
+The processor inspector continues to edit those managed items after conversion,
+with backend stage shapes and command targets, while opening the custom Formula
+shows its normal graph editor for branching.
 No compiled plan is exported as authoring data, and the old and new recipes
 never run as two processors.
 

@@ -7,7 +7,8 @@ use std::{
 use chataigne_alchemist::{
     compile_graph, formula_input_value_ref, ANodeId, AlchemistFormula, AlchemistGraphDomain, AxisSet,
     CompiledAlchemistFormula, ContextAxisId, ContextItemId, ContextKey, ContextKeyPart, ContextValuePath,
-    DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef, ManagedItemId,
+    DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef, ManagedFilterValueMode,
+    ManagedItemId, ManagedRegionKind,
     OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent,
     RuntimeRegistries, SignatureCtx, SocketId, StableRef, SurfaceItemId, TriggerValue, ValueTypeId,
 };
@@ -4299,7 +4300,7 @@ fn processor_ui_dtos(
             dto.standard_mapping = runtime_processor.formula_node
                 .and_then(|node_id| snapshot.node(node_id))
                 .is_some_and(|node| is_standard_mapping_tags(&node.tags));
-            if dto.standard_mapping {
+            if has_tuple_managed_regions(&runtime_processor.formula) {
                 dto.mapping_pipeline = runtime_processor
                     .runtime
                     .managed_formula
@@ -4384,6 +4385,16 @@ fn is_standard_mapping_tags(tags: &[String]) -> bool {
     tags.iter().any(|tag| {
         tag.strip_prefix(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX) == Some("chataigne.mapping@1")
     })
+}
+
+fn has_tuple_managed_regions(formula: &AlchemistFormula) -> bool {
+    let regions = &formula.surface.managed_regions;
+    regions.iter().any(|region| region.kind == ManagedRegionKind::InputSet)
+        && regions.iter().any(|region| {
+            region.kind == ManagedRegionKind::FilterPipeline
+                && region.filter_value_mode == ManagedFilterValueMode::Tuple
+        })
+        && regions.iter().any(|region| region.kind == ManagedRegionKind::OutputSet)
 }
 
 fn mapping_output_targets(snapshot: &ProcessTreeSnapshot, processor: &RuntimeProcessor) -> Vec<MappingOutputTargetDto> {

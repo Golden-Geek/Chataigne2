@@ -17,7 +17,7 @@
 	} from '../preview/formulaOutputPreviewStore.svelte';
 	import {
 		directChild,
-		isTupleMappingSurface,
+		hasTupleManagedRegions,
 		mappingCreateIntent,
 		mappingDuplicateIntent,
 		mappingMoveIntent,
@@ -56,9 +56,11 @@
 	let processorUi = $derived(
 		catalog?.processors.find((processor) => processor.id === liveNode.uuid) ?? null
 	);
-	let mapping = $derived(isTupleMappingSurface(processorUi));
+	let mapping = $derived(hasTupleManagedRegions(processorUi));
 	let convertNode = $derived(
-		graph ? directChild(liveNode, 'convert_to_formula', graph.nodesById) : null
+		processorUi?.standard_mapping && graph
+			? directChild(liveNode, 'convert_to_formula', graph.nodesById)
+			: null
 	);
 	let lanes = $derived(
 		catalog?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ?? []

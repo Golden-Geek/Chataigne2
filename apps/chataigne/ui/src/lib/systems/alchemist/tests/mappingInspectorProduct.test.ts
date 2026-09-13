@@ -105,5 +105,11 @@ describe('processor Mapping product surface', () => {
 		expect(body).toContain('Compound vec3');
 		expect(body).toContain('Target is missing');
 		expect(body).toContain('Convert to Formula');
+
+		processor.standard_mapping = false;
+		const custom = render(ProcessorFormulaInspectorHarness, { props: { node } });
+		expect(custom.body).toContain('aria-label="Mapping inspector"');
+		expect(custom.body).toContain('Pack Vec3');
+		expect(custom.body).not.toContain('Convert to Formula');
 	});
 });

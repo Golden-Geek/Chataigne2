@@ -10,9 +10,8 @@ import type {
 	ProcessorUiDto
 } from '../state_machine/generated';
 
-export const isTupleMappingSurface = (processor: ProcessorUiDto | null): boolean => {
+export const hasTupleManagedRegions = (processor: ProcessorUiDto | null): boolean => {
 	if (!processor) return false;
-	if (!processor.standard_mapping) return false;
 	const regions = processor.managed_regions;
 	return (
 		regions.some((region) => region.kind === 'input_set') &&
@@ -22,6 +21,9 @@ export const isTupleMappingSurface = (processor: ProcessorUiDto | null): boolean
 		regions.some((region) => region.kind === 'output_set')
 	);
 };
+
+export const isTupleMappingSurface = (processor: ProcessorUiDto | null): boolean =>
+	Boolean(processor?.standard_mapping && hasTupleManagedRegions(processor));
 
 export const mappingRegionNode = (
 	processorNode: UiNodeDto,
