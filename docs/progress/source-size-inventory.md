@@ -4,12 +4,12 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-includes 1,242 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
+includes 1,244 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
 files under `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-13 after the T17 script, UI-sync, persistence-adapter,
 history, App Control, received-value, formula integration, processor presentation, multiplex
 test, generic graph, and logger splits and the T19 qualification harnesses. The 44-file audit
-count was a historical baseline; 45 files currently exceed 1,000
+count was a historical baseline; 44 files currently exceed 1,000
 lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
@@ -47,6 +47,10 @@ to focused modules; its remaining node layout, interactions, and rendering still
 The logger panel keeps scrolling, filtering controls, and selection interaction (868 lines), while
 record decoration, duplicate grouping, and clipboard projection live in `logger/log-projection.ts`
 (267 lines). Seven direct logger projection tests cover its display modes and cache invalidation.
+The app-owned state-machine panel now keeps composition, viewport hints, intents, and persistence
+(976 lines), with bounded spatial placement in `components/state-placement.ts` (132 lines).
+Four direct placement tests include a 10k-state fixture; creation still uses the existing backend
+intent and receives only a viewport-dependent position hint from the UI.
 
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
@@ -93,7 +97,6 @@ avoid mixing large structural moves into runtime race fixes.
 | 1,166 | `apps/chataigne/src/module/modules/protocol/midi/commands/mod.rs` | Split cohesive Rust module |
 | 1,139 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mod.rs` | Split cohesive Rust module |
 | 1,095 | `apps/chataigne/src/module/modules/generators/signals/mod.rs` | Split cohesive Rust module |
-| 1,091 | `apps/chataigne/ui/src/lib/systems/state_machine/components/StateMachinePanel.svelte` | Decompose presentation and state |
 | 1,086 | `apps/chataigne/src/module/modules/protocol/mqtt/mod.rs` | Split cohesive Rust module |
 | 1,054 | `crates/golden_core/engine/src/node/curve/node.rs` | Split cohesive Rust module |
 | 1,052 | `apps/chataigne/src/module/modules/controllers/keyboard/keyboard/mod.rs` | Split cohesive Rust module |
