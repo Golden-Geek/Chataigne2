@@ -21,6 +21,11 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
         "reconnect_snapshot": snapshot.copy(),
         "subscribed_clients_after_reconnect": 3,
         "session_consistent": True,
+        "edited_param_uuid": "11111111-1111-4111-8111-111111111111",
+        "edited_value_delta_clients": 3,
+        "edited_value_snapshot_clients": 3,
+        "intent_applied": True,
+        "reconnect_edited_value": True,
     }
     return f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}\n"
 
@@ -88,6 +93,26 @@ class ProductTransportScaleTests(unittest.TestCase):
             )
         row["reconnect_snapshot"]["node_identity_sha256"] = "short"
         with self.assertRaisesRegex(ValueError, "valid node-identity digest"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+
+    def test_rejects_missing_client_edit_evidence(self) -> None:
+        row = json.loads(complete_output().split(transport_scale.RESULT_PREFIX, 1)[1])
+        row["edited_value_delta_clients"] = 2
+        with self.assertRaisesRegex(ValueError, "did not reach all three clients"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["edited_value_delta_clients"] = 3
+        row["reconnect_edited_value"] = False
+        with self.assertRaisesRegex(ValueError, "survive reconnect"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["reconnect_edited_value"] = True
+        row["edited_param_uuid"] = "invalid"
+        with self.assertRaisesRegex(ValueError, "UUID is invalid"):
             transport_scale.parse_probe_result(
                 f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
             )

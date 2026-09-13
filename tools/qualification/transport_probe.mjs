@@ -198,6 +198,36 @@ function resyncReason(message) {
   return null;
 }
 
+function constantValueTarget(snapshotValue) {
+  const nodes = new Map(snapshotValue.nodes.map((node) => [node.node_id, node]));
+  for (const root of snapshotValue.nodes) {
+    if (typeof root.decl_id !== 'string' || !root.decl_id.startsWith('scale_constant_')) continue;
+    const config = root.children?.map((id) => nodes.get(id)).find((node) => node?.decl_id === 'config');
+    const value = config?.children?.map((id) => nodes.get(id)).find((node) => node?.decl_id === 'config/value');
+    const before = value?.data?.param?.value;
+    if (typeof before?.Float === 'number') {
+      return { node_id: value.node_id, uuid: value.uuid, after: { Float: before.Float + 1 } };
+    }
+    if (Number.isInteger(before?.Int)) {
+      return { node_id: value.node_id, uuid: value.uuid, after: { Int: before.Int + 1 } };
+    }
+  }
+  throw new Error('loaded snapshot contains no numeric authored Constant value');
+}
+
+function snapshotHasEditedValue(snapshotValue, target) {
+  const node = snapshotValue.nodes.find((entry) => entry.uuid === target.uuid);
+  return node?.node_id === target.node_id
+    && JSON.stringify(node.data?.param?.value) === JSON.stringify(target.after);
+}
+
+function hasEditedParamDelta(message, target) {
+  if (message.kind !== 'delta') return false;
+  return (message.deltas ?? []).some((delta) => (delta.batch?.events ?? []).some((event) =>
+    event.kind === 'paramChanged' && event.param === target.node_id
+      && JSON.stringify(event.new_value) === JSON.stringify(target.after)));
+}
+
 async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
   if (!existsSync(binary) || !existsSync(fixture)) throw new Error('binary or fixture does not exist');
   mkdirSync(outputDir, { recursive: true });
@@ -253,6 +283,42 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
     if (new Set(counts.map((entry) => entry.node_identity_sha256)).size !== 1) {
       throw new Error('the three clients received different node identities');
     }
+    const editTarget = constantValueTarget(snapshots[0]);
+    snapshots.length = 0;
+
+    const intentRequestId = 'authored-constant-edit';
+    const deltaPromises = sessions.map(({ client }) => client.waitFor(
+      (message) => hasEditedParamDelta(message, editTarget), 30_000,
+    ));
+    const appliedPromise = sessions[0].client.waitFor(
+      (message) => message.kind === 'control' && message.update?.request_id === intentRequestId
+        && (message.update.phase === 'applied' || message.update.phase === 'rejected'),
+      30_000,
+    );
+    sessions[0].client.send({
+      kind: 'intent',
+      request_id: intentRequestId,
+      intent: {
+        kind: 'setParam', node: editTarget.node_id, value: editTarget.after, behaviour: 'Coalesce',
+      },
+      include_self_events: true,
+    });
+    const applied = await appliedPromise;
+    if (applied.update.phase !== 'applied' || applied.update.acknowledgement?.success !== true) {
+      throw new Error(`authored Constant intent was not applied: ${JSON.stringify(applied.update)}`);
+    }
+    await Promise.all(deltaPromises);
+    const postEditSnapshots = await Promise.all(sessions.map(
+      ({ client }, index) => snapshot(client, `edited-${index}`),
+    ));
+    const postEditCounts = postEditSnapshots.map((value) => snapshotCounts(value, minimumNodes, expectedRoots));
+    if (postEditSnapshots.some((value) => !snapshotHasEditedValue(value, editTarget))) {
+      throw new Error('an active client snapshot missed the edited Constant value');
+    }
+    if (postEditCounts.some((entry) => entry.node_identity_sha256 !== counts[0].node_identity_sha256)) {
+      throw new Error('the edit unexpectedly changed the graph node identities');
+    }
+    postEditSnapshots.length = 0;
 
     await sessions[0].client.close();
     await waitForHealth(baseUrl, child, (health) => health.active_subscribed_websocket_clients === 2, 10_000);
@@ -266,6 +332,9 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
     if (reconnectCounts.node_identity_sha256 !== counts[0].node_identity_sha256) {
       throw new Error('the reconnected client received different node identities');
     }
+    if (!snapshotHasEditedValue(reconnectedSnapshot, editTarget)) {
+      throw new Error('the reconnected client snapshot missed the edited Constant value');
+    }
     reconnected.client.send({
       kind: 'subscribe',
       subscription_id: 'workbench',
@@ -276,14 +345,19 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
       baseUrl, child, (health) => health.active_subscribed_websocket_clients === 3, 10_000,
     );
     return {
-      contract: 'chataigne-product-transport-probe-v1',
+      contract: 'chataigne-product-transport-probe-v2',
       status: 'PASS',
       minimum_live_nodes: minimumNodes,
       graph_roots: expectedRoots,
       load_ms: loadMs,
       client_snapshots: counts,
       resync_reasons: resync.map(resyncReason),
+      edited_param_uuid: editTarget.uuid,
+      edited_value_delta_clients: 3,
+      edited_value_snapshot_clients: 3,
+      intent_applied: true,
       reconnect_snapshot: reconnectCounts,
+      reconnect_edited_value: true,
       subscribed_clients_after_reconnect: finalHealth.active_subscribed_websocket_clients,
       session_consistent: true,
     };

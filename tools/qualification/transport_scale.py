@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+import uuid
 from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,7 +30,7 @@ else:
 
 
 RESULT_PREFIX = "PRODUCT_TRANSPORT_RESULT="
-CONTRACT = "chataigne-product-transport-probe-v1"
+CONTRACT = "chataigne-product-transport-probe-v2"
 BUILD_COMMAND = (
     "cargo", "build", "--locked", "-q", "-p", "Chataigne2", "--bin", "Chataigne2",
     "--target-dir", "target/t16-app-default",
@@ -39,6 +40,8 @@ RESULT_FIELDS = {
     "contract", "status", "minimum_live_nodes", "graph_roots", "load_ms",
     "client_snapshots", "resync_reasons", "reconnect_snapshot",
     "subscribed_clients_after_reconnect", "session_consistent",
+    "edited_param_uuid", "edited_value_delta_clients", "edited_value_snapshot_clients",
+    "intent_applied", "reconnect_edited_value",
 }
 SNAPSHOT_FIELDS = {"nodes", "roots", "node_identity_sha256"}
 
@@ -60,13 +63,26 @@ def parse_probe_result(output: str, exit_code: int, target: int, graph_roots: in
         raise ValueError("product transport probe did not pass its declared contract")
     if row["session_consistent"] is not True:
         raise ValueError("product transport clients did not retain one runtime session")
-    for field in ("minimum_live_nodes", "graph_roots", "load_ms", "subscribed_clients_after_reconnect"):
+    if row["intent_applied"] is not True or row["reconnect_edited_value"] is not True:
+        raise ValueError("product transport edit did not apply and survive reconnect")
+    try:
+        if not isinstance(row["edited_param_uuid"], str):
+            raise ValueError("edited parameter UUID is not a string")
+        uuid.UUID(row["edited_param_uuid"])
+    except ValueError as error:
+        raise ValueError("product transport edited parameter UUID is invalid") from error
+    for field in (
+        "minimum_live_nodes", "graph_roots", "load_ms", "subscribed_clients_after_reconnect",
+        "edited_value_delta_clients", "edited_value_snapshot_clients",
+    ):
         if type(row[field]) is not int or row[field] < 0:
             raise ValueError(f"product transport {field} must be a nonnegative integer")
     if row["minimum_live_nodes"] != target or row["graph_roots"] != graph_roots:
         raise ValueError("product transport result does not match the generated fixture")
     if row["subscribed_clients_after_reconnect"] != 3:
         raise ValueError("product transport did not recover three subscribed clients")
+    if row["edited_value_delta_clients"] != 3 or row["edited_value_snapshot_clients"] != 3:
+        raise ValueError("product transport edit did not reach all three clients")
     snapshots = row["client_snapshots"]
     if not isinstance(snapshots, list) or len(snapshots) != 3:
         raise ValueError("product transport requires three client snapshots")
@@ -181,7 +197,7 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
     if working_tree_sha(root) != tested_tree_sha:
         raise ValueError("source tree changed during product transport qualification")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "evidence_id": "product.transport-scale.local",
         "status": "PASS" if build.returncode == 0 and all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "product_qualification": "OPEN",
@@ -198,11 +214,12 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
         "scenarios": scenarios,
         "scope": (
             "headless Chataigne product project load, three live workbench WebSockets, "
-            "project-replacement resync, concurrent full snapshots, and one reconnect"
+            "project-replacement resync, concurrent full snapshots, one client intent edit "
+            "delivered to all clients, and one reconnect preserving the edit"
         ),
         "not_covered": [
             "browser rendering, action-to-paint, and UI long tasks",
-            "edits during saves, client-intent mutation, slow-client recovery, and multi-client endurance",
+            "edits during saves, slow-client recovery, and multi-client endurance",
             "desktop native surfaces, physical devices, and cross-platform packaged artifacts",
         ],
     }
