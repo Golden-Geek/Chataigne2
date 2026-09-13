@@ -121,9 +121,11 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
   strict feature-enabled app Clippy and all 513 default-feature app tests pass after extraction.
 - Generic graph edge routing now owns obstacle bucketing, bounded path search, smoothing, and SVG
   path construction outside the Svelte canvas. The canvas still owns live node geometry, viewport
-  interactions, and its per-edge cache. `GraphCanvas.svelte` fell from 3,533 to 3,210 lines, so it
-  remains oversized. Four direct routing regressions, all 83 app UI tests, the zero-warning Svelte
-  type check, and the production UI build pass locally.
+  interactions, and its per-edge cache. Generic presentation projection now separately owns
+  optimistic overlays, spatial indexing, viewport bounds, and document-ordered visible-edge
+  selection. `GraphCanvas.svelte` fell from 3,533 to 3,162 lines across the two splits, so it
+  remains oversized. Eight direct routing/projection regressions, all 83 app UI tests, the
+  zero-warning Svelte type check, and the production UI build pass locally.
 
 ## T18 initial profiling boundary
 
@@ -582,7 +584,7 @@ evidence.
 | T14  | T03, T07, T11                                 | complete                                                     |
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
-| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula and graph-routing owners split; more cohesive splits pending |
+| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula and graph routing/projection owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
 | T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, sparse/dense parameter replay and save/reload, plus three-client headless transport resync/edit/reconnect pass locally; browser p95, concurrent save/slow-client/endurance, platform, and physical evidence remain open |
 
@@ -608,7 +610,7 @@ the current branch contains implementation and verification evidence.
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
 | F14 — facades/edit acknowledgement | fixed           | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 puts codecs, wire DTOs, script declarations, and VM/runtime primitives in their owning crates while engine application stays in adapters; the full facade composes the ready-to-launch host.                                                           | Persistence, protocol, script fake-host, headless-host, and full-host external consumers pass. Focused dependency trees exclude forbidden engine, QuickJS, desktop, Tauri, audio, and Chataigne edges as applicable.                                      |
 | F15 — ordinary audio portability | partially fixed | Default app forwards ASIO/JACK/realtime; canonical matrix, pinned SDK, app catalog test, and standalone Git/CPAL consumer are in place. | Windows x64 default artifact, headless startup, JACK missing-server state, 513 app tests, and external consumer pass. Hosted six-platform artifact gate and named physical streams remain unrun. |
-| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, App Control, received-value, formula, and processor presentation adapters now have focused owners; stale multiplex notes are archival. | Independent Git consumer passes; all 415 active engine and 513 app tests plus strict Clippy pass after the splits. The current inventory has 46 remaining oversized files and no approved exceptions. |
+| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, App Control, received-value, formula, processor presentation, and generic graph routing/projection now have focused owners; stale multiplex notes are archival. | Independent Git consumer, 415 active engine and 513 app Rust tests, and strict Clippy passed after the prior splits. Eight generic graph tests, 83 app UI tests, the Svelte check, and production UI build pass after the graph splits. The current inventory has 46 remaining oversized files and no approved exceptions. |
 
 ## Commands and results
 

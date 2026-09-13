@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
-	import { SpatialIndex } from '../spatial-index';
+	import {
+		buildGraphNodeSpatialIndex,
+		indexGraphEdgesByNode,
+		projectEffectiveNodes,
+		projectVisibleEdges,
+		viewportWorldBounds
+	} from '../presentation-projection';
 	import {
 		ROUTING_GRID_REM,
 		routeEdgeAroundObstacles,
@@ -226,26 +232,14 @@
 	let selectedIds = $derived(new Set(selectedNodeIds));
 	let selectedEdgeIdSet = $derived(new Set(selectedEdgeIds));
 	let effectiveNodes = $derived(
-		nodes.map((node) => {
-			const position = dragPositions[node.id] ?? optimisticPositions[node.id];
-			const size = node.id in resizeSizes ? resizeSizes[node.id] : optimisticSizes[node.id];
-			const label = optimisticLabels[node.id];
-			const collapsed = optimisticCollapsed[node.id];
-			const enabled = optimisticEnabled[node.id];
-			return position !== undefined ||
-				size !== undefined ||
-				label !== undefined ||
-				collapsed !== undefined ||
-				enabled !== undefined
-				? {
-						...node,
-						...(position !== undefined ? { position } : {}),
-						...(size !== undefined ? { size: size ?? undefined } : {}),
-						...(label !== undefined ? { label } : {}),
-						...(collapsed !== undefined ? { collapsed } : {}),
-						...(enabled !== undefined ? { enabled } : {})
-					}
-				: node;
+		projectEffectiveNodes(nodes, {
+			dragPositions,
+			optimisticPositions,
+			resizeSizes,
+			optimisticSizes,
+			optimisticLabels,
+			optimisticCollapsed,
+			optimisticEnabled
 		})
 	);
 	let nodesById = $derived(new Map(effectiveNodes.map((node) => [node.id, node])));
@@ -656,36 +650,14 @@
 
 	let nodeSpatialIndex = $derived.by(() => {
 		presentationRevision;
-		const index = new SpatialIndex<GraphNode>(32);
-		for (const node of effectiveNodes) {
-			index.insert(
-				node.id,
-				{
-					left: node.position.x,
-					top: node.position.y,
-					right: node.position.x + nodeWidth(node),
-					bottom: node.position.y + nodeHeight(node)
-				},
-				node
-			);
-		}
-		return index;
+		return buildGraphNodeSpatialIndex(effectiveNodes, nodeWidth, nodeHeight);
 	});
-	let visibleNodes = $derived.by(() => {
-		const margin = 8;
-		const left = -camera.x / camera.zoom / remPx - margin;
-		const top = -camera.y / camera.zoom / remPx - margin;
-		const right = (viewportWidth - camera.x) / camera.zoom / remPx + margin;
-		const bottom = (viewportHeight - camera.y) / camera.zoom / remPx + margin;
-		return nodeSpatialIndex.query({ left, top, right, bottom });
-	});
-	let viewportVisibleNodes = $derived.by(() => {
-		const left = -camera.x / camera.zoom / remPx;
-		const top = -camera.y / camera.zoom / remPx;
-		const right = (viewportWidth - camera.x) / camera.zoom / remPx;
-		const bottom = (viewportHeight - camera.y) / camera.zoom / remPx;
-		return nodeSpatialIndex.query({ left, top, right, bottom });
-	});
+	let visibleNodes = $derived(
+		nodeSpatialIndex.query(viewportWorldBounds(camera, viewportWidth, viewportHeight, remPx, 8))
+	);
+	let viewportVisibleNodes = $derived(
+		nodeSpatialIndex.query(viewportWorldBounds(camera, viewportWidth, viewportHeight, remPx, 0))
+	);
 	let publishedVisibleNodeKey = '';
 	$effect(() => {
 		const nodeIds = viewportVisibleNodes.map((node) => node.id).sort();
@@ -697,29 +669,9 @@
 	let visibleNodeIds = $derived(new Set(visibleNodes.map((node) => node.id)));
 	let edgeIndexesByNodeId = $derived.by(() => {
 		topologyRevision;
-		const indexes = new Map<string, number[]>();
-		for (let index = 0; index < edges.length; index += 1) {
-			const edge = edges[index];
-			for (const nodeId of new Set([edge.from.nodeId, edge.to.nodeId])) {
-				const nodeIndexes = indexes.get(nodeId);
-				if (nodeIndexes) {
-					nodeIndexes.push(index);
-				} else {
-					indexes.set(nodeId, [index]);
-				}
-			}
-		}
-		return indexes;
+		return indexGraphEdgesByNode(edges);
 	});
-	let visibleEdges = $derived.by(() => {
-		const indexes = new Set<number>();
-		for (const nodeId of visibleNodeIds) {
-			for (const index of edgeIndexesByNodeId.get(nodeId) ?? []) {
-				indexes.add(index);
-			}
-		}
-		return [...indexes].sort((left, right) => left - right).map((index) => edges[index]);
-	});
+	let visibleEdges = $derived(projectVisibleEdges(edges, edgeIndexesByNodeId, visibleNodeIds));
 	let connectedSockets = $derived(
 		new Set(
 			edges.flatMap((edge) => [
