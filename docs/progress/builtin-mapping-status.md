@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 08 — backend authoring, asset, and persistence integration (validated; implementation push pending)
-- Last validated implementation commit: `5712b226e078e5a398836502cd27f5aeff9efed8` (Phase 07)
-- Last verified remote implementation commit: `5712b226e078e5a398836502cd27f5aeff9efed8` (Phase 07)
+- Active phase: 08 — backend authoring, asset, and persistence integration (complete); Phase 09 begins in the next turn
+- Last validated implementation commit: `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` (Phase 08)
+- Last verified remote implementation commit: `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` (Phase 08)
 - Current blockers: none; Phase 09 owns the product inspector, Phase 10 conversion, and Phase 11 qualification.
 - Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks.
-- Next concrete action: push and verify the Phase 08 implementation checkpoint, then publish its factual delivery status.
-- Last updated: 2026-09-13T17:57:15+02:00
+- Next concrete action: begin Phase 09 Svelte Mapping inspector in the next phase turn.
+- Last updated: 2026-09-13T17:59:41+02:00
 
 ## Phase ledger
 
@@ -25,7 +25,7 @@
 | 05 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `db9ba626` observed at the remote; suppression, default/hold, trigger flow, temporal wakeups, context state, compatible migration, and revision safety pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 06 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `fb837c38` observed at the remote; stable source projections, typed command argument overrides, fan-out, accepted-value send policy, and host validation pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 07 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `5712b226` observed at the remote; catalog, resource persistence, and full code gates pass. Direct branch pushes have no required CI. |
-| 08 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Built-in Mapping authoring, execution, persistence, duplication, and gate migration pass; direct branch pushes have no required CI. |
+| 08 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `44dd4f7d` observed at the remote; built-in authoring, execution, persistence, duplication, and gate migration pass. Direct branch pushes have no required CI. |
 | 09 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Svelte Mapping inspector. |
 | 10 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Conversion to custom Formula. |
 | 11 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Qualification, performance, cleanup. |
@@ -203,20 +203,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: standard Mapping keeps one ordered tuple and uses explicit conversion before mixed-type numeric merging. Timed Delay has a 128-item, 1 MiB queue ceiling and a 64 KiB per-value ceiling; overflow diagnoses and resets the affected context. Curve and Gradient remain Golden-owned resources, not Mapping-specific models.
 
-### Phase 08 (delivery pending)
+### Phase 08 (complete)
 
 - Changes and affected public boundaries: the app-owned Mapping asset now declares InputSet, tuple FilterPipeline, and OutputSet managed regions. Backend `UiEditIntent` authoring materializes typed source and output items and configured filter trees; output bindings use the existing string parameter with strict, validated JSON serialization. The catalog preflights replacement assets and diagnoses missing/unknown assets. Project load migrates unmarked historical ConditionGate modes once before formula synchronization, with an explicit persisted semantic marker. Built-in Formula identity, hidden-library policy, and read-only inspection remain stable.
 - Acceptance gates satisfied: public intents create and configure two ordered sources, elementwise Remap, Sum, and one bound command. A live Remap bound edit changes the evaluated command value from 1.0 to 1.25. Save/reload preserves authored IDs and bindings; duplicate gives a distinct authored identity while retaining its source reference; move/remove and undo/redo preserve order and history. Filter subtree creation is one history step and emits fewer than 256 UI events. Asset export round-trips managed regions, missing/empty asset directories and unmarked historical gate schemas diagnose, and historical gate behavior survives a sparse reload without user undo entries.
 - Remaining work: Phase 09 owns the Svelte inspector and any new UI-facing DTO contract; Phase 10 owns configured Mapping-to-Formula conversion; Phase 11 owns broader product and performance qualification, including the M19 self-cycle case. No Phase 08 backend gate remains open.
 - Exact checks and outcomes: see Phase 08 validation rows. 179 Alchemist, 125 processor, and 553 app tests pass; 5 existing app tests are ignored and the audio-host integration test passes. The full workspace check, strict targeted Clippy, both formatter scopes, and whitespace check pass.
-- Implementation commit: `PUSH_PENDING`.
-- Verified remote ref, observed OID, and timestamp: `PUSH_PENDING`.
+- Implementation commit: `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0`, 2026-09-13T17:59:41+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: the standard Mapping remains one ordered tuple with no authored channels, so multiple sources can merge or form compound values in one chain; custom Formula provides branching. The generic Golden `UiEditIntent` and protocol DTOs already cover backend authoring, so no Rust/TypeScript protocol declarations changed in this phase. The existing state-machine wrappers remain used by Action and custom Formula but are not exposed as managed Mapping items; historical gate semantics receive a narrow project migration instead of compatibility logic in runtime evaluation.
 
 ## Blockers and handoff
 
 - What failed or changed: Phase 08 adds a configured built-in Mapping asset, public backend authoring paths, strict asset/binding diagnostics, and persisted gate migration. No current phase failure remains.
-- Last known-good checkpoint: Phase 07 `5712b226e078e5a398836502cd27f5aeff9efed8` is validated and verified at `origin/codex/builtin-mapping`; Phase 08 implementation is locally validated and awaiting its delivery checkpoint.
+- Last known-good checkpoint: Phase 08 `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` is validated and verified at `origin/codex/builtin-mapping`.
 - Reproduction: Alchemist, processor, and full app tests, workspace check, strict Clippy, and formatting pass with the available toolchain.
-- Next action: push and verify Phase 08 implementation checkpoint A, then publish and verify checkpoint B. Begin Phase 09 only in the next phase turn.
+- Next action: begin Phase 09 Svelte Mapping inspector in the next phase turn.
