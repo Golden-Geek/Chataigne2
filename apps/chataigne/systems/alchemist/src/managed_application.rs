@@ -9,6 +9,31 @@ use crate::{
 pub const MANAGED_SELECTION_FIELD: &str = "managed_selection";
 pub const MANAGED_GROUPS_FIELD: &str = "managed_groups";
 
+/// Resolve the same configured variant for palette validation and backend creation.
+/// A sized variant is valid only for a declared aggregate with a `num_inputs` setting.
+pub fn configured_managed_variant(
+    declaration: &dyn ANodeDeclaration,
+    index: usize,
+    input_count: Option<usize>,
+) -> Option<ANodeInstance> {
+    let mut instance = declaration.managed_application_variants().into_iter().nth(index)?;
+    if let Some(input_count) = input_count {
+        if !(2..=64).contains(&input_count)
+            || !declaration.role_capabilities_for(&instance).iter().any(|capability| {
+                capability.role == SurfaceItemKind::Filter && capability.cardinality == PipelineCardinality::Aggregate
+            })
+            || !declaration
+                .config_fields_for(&instance)
+                .iter()
+                .any(|field| field.id.as_str() == "num_inputs")
+        {
+            return None;
+        }
+        instance.config.set("num_inputs", RuntimeValue::Int(input_count as i64));
+    }
+    Some(instance)
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum ManagedSettingPath<'a> {
     Input(&'a SocketId),
@@ -176,6 +201,22 @@ pub fn resolve_managed_application(
     })
 }
 
+pub fn resolve_mapping_application(
+    declaration: &dyn ANodeDeclaration,
+    instance: &ANodeInstance,
+    layout: &ChannelLayout,
+    ctx: &SignatureCtx<'_>,
+) -> Result<ManagedApplication, ManagedApplicationError> {
+    if instance.config.get(MANAGED_SELECTION_FIELD).is_some() || instance.config.get(MANAGED_GROUPS_FIELD).is_some() {
+        return Err(ManagedApplicationError::ExplicitChannelRouting);
+    }
+    let application = resolve_managed_application(declaration, instance, layout, ctx)?;
+    if application.selection.indices.len() != layout.channels().len() {
+        return Err(ManagedApplicationError::IncompatibleTuple);
+    }
+    Ok(application)
+}
+
 fn accepts_constraint(
     constraint: &TypeConstraint,
     signature: &ANodeSignature,
@@ -260,6 +301,10 @@ pub enum ManagedApplicationError {
     GroupOutsideSelection,
     #[error("managed group has {actual} channels but the ANode signature requires {expected}")]
     GroupArityMismatch { expected: usize, actual: usize },
+    #[error("standard Mapping filters consume the whole value; use a custom Formula for channel selections or groups")]
+    ExplicitChannelRouting,
+    #[error("the filter cannot consume every element of the ordered input tuple")]
+    IncompatibleTuple,
     #[error("{0}")]
     Layout(#[from] ChannelLayoutError),
 }

@@ -120,6 +120,7 @@ fn managed_region_definition_dto_preserves_role_and_socket_contract() {
         input_socket: Some(ManagedSocketRef::new(boundary, "value")),
         output_socket: Some(ManagedSocketRef::new(boundary, "result")),
         accepted_roles: vec![SurfaceItemKind::Filter, SurfaceItemKind::Condition],
+        filter_value_mode: Default::default(),
     };
 
     let dto = ManagedRegionDefinitionDto::from(&definition);

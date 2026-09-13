@@ -1,4 +1,5 @@
 use super::*;
+use chataigne_alchemist::configured_managed_variant;
 
 pub(super) fn tagged_value<'a>(tags: &'a [String], prefix: &str) -> Option<&'a str> {
     tags.iter().find_map(|tag| tag.strip_prefix(prefix))
@@ -198,14 +199,14 @@ pub(crate) fn anode_container_accepts_for_roles(
     if item_type == ANODE_NODE_TYPE {
         return true;
     }
-    let Some((type_id, variant_index)) = anode_create_spec(item_type) else {
+    let Some((type_id, variant)) = anode_create_spec(item_type) else {
         return false;
     };
     registry()
         .get(&ANodeTypeId::new(type_id))
         .is_some_and(|declaration| {
-            variant_index.is_none_or(|index| {
-                declaration.managed_application_variants().get(index).is_some()
+            variant.is_none_or(|variant| {
+                configured_managed_variant(declaration.as_ref(), variant.index, variant.input_count).is_some()
             }) && (roles.is_empty()
                 || roles
                     .iter()
@@ -213,10 +214,23 @@ pub(crate) fn anode_container_accepts_for_roles(
         })
 }
 
-fn anode_create_spec(node_type: &str) -> Option<(&str, Option<usize>)> {
+#[derive(Clone, Copy)]
+struct ManagedVariantSpec {
+    index: usize,
+    input_count: Option<usize>,
+}
+
+fn anode_create_spec(node_type: &str) -> Option<(&str, Option<ManagedVariantSpec>)> {
     let spec = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
-    if let Some((type_id, index)) = spec.split_once(ANODE_MANAGED_VARIANT_SEPARATOR) {
-        return Some((type_id, Some(index.parse().ok()?)));
+    if let Some((type_id, variant)) = spec.split_once(ANODE_MANAGED_VARIANT_SEPARATOR) {
+        let (index, input_count) = match variant.split_once("/inputs/") {
+            Some((index, input_count)) => (index, Some(input_count.parse().ok()?)),
+            None => (variant, None),
+        };
+        return Some((type_id, Some(ManagedVariantSpec {
+            index: index.parse().ok()?,
+            input_count,
+        })));
     }
     Some((spec, None))
 }
@@ -225,10 +239,12 @@ pub(crate) fn create_anode_user_item(node_type: &str) -> Option<Box<dyn Node>> {
     if node_type == ANODE_NODE_TYPE {
         return Some(Box::new(AlchemistANode::new()));
     }
-    let (type_id, variant_index) = anode_create_spec(node_type)?;
+    let (type_id, variant) = anode_create_spec(node_type)?;
     let registry = registry();
     let declaration = registry.get(&ANodeTypeId::new(type_id))?;
-    if variant_index.is_some_and(|index| declaration.managed_application_variants().get(index).is_none()) {
+    if variant.is_some_and(|variant| {
+        configured_managed_variant(declaration.as_ref(), variant.index, variant.input_count).is_none()
+    }) {
         return None;
     }
     Some(Box::new(AlchemistANode::for_type(
@@ -242,12 +258,12 @@ pub(crate) fn create_anode_user_item_tree(node_type: &str) -> Option<NodeTree> {
     if node_type == ANODE_NODE_TYPE {
         return Some(NodeTree::new(AlchemistANode::new()));
     }
-    let (type_id, variant_index) = anode_create_spec(node_type)?;
+    let (type_id, variant) = anode_create_spec(node_type)?;
     let registry = registry();
     let declaration = registry.get(&ANodeTypeId::new(type_id))?;
-    match variant_index {
-        Some(index) => {
-            let variant = declaration.managed_application_variants().into_iter().nth(index)?;
+    match variant {
+        Some(variant) => {
+            let variant = configured_managed_variant(declaration.as_ref(), variant.index, variant.input_count)?;
             anode_tree_for_configured_instance(type_id, declaration.category(), declaration.as_ref(), variant)
         }
         None => Some(anode_tree_for_declaration(

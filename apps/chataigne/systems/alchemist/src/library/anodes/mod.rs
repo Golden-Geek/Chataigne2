@@ -56,6 +56,8 @@ pub enum PrimitiveNodeKind {
     Constant,
     Property,
     Math,
+    Sum,
+    Average,
     Function,
     Remap,
     Clamp,
@@ -89,10 +91,12 @@ pub enum PrimitiveNodeKind {
 }
 
 impl PrimitiveNodeKind {
-    const ALL: [Self; 33] = [
+    const ALL: [Self; 35] = [
         Self::Constant,
         Self::Property,
         Self::Math,
+        Self::Sum,
+        Self::Average,
         Self::Function,
         Self::Remap,
         Self::Clamp,
@@ -137,6 +141,8 @@ impl PrimitiveNodeKind {
             Self::Constant => "constant",
             Self::Property => "property",
             Self::Math => "math",
+            Self::Sum => "sum",
+            Self::Average => "average",
             Self::Function => "function",
             Self::Remap => "remap",
             Self::Clamp => "clamp",
@@ -197,6 +203,8 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Constant => "Constant",
             PrimitiveNodeKind::Property => "Property",
             PrimitiveNodeKind::Math => "Math",
+            PrimitiveNodeKind::Sum => "Sum",
+            PrimitiveNodeKind::Average => "Average",
             PrimitiveNodeKind::Function => "Function",
             PrimitiveNodeKind::Remap => "Remap",
             PrimitiveNodeKind::Clamp => "Clamp",
@@ -238,6 +246,8 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             | PrimitiveNodeKind::NoiseGenerator
             | PrimitiveNodeKind::Metronome => "Values",
             PrimitiveNodeKind::Math
+            | PrimitiveNodeKind::Sum
+            | PrimitiveNodeKind::Average
             | PrimitiveNodeKind::Function
             | PrimitiveNodeKind::Remap
             | PrimitiveNodeKind::Clamp
@@ -352,6 +362,11 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 optional_count_config("num_inputs", "Num Inputs", 2),
                 value_type_config_field("TNumeric"),
             ],
+            PrimitiveNodeKind::Sum => vec![
+                optional_count_config("num_inputs", "Num Inputs", 2),
+                value_type_config_field("TNumeric"),
+            ],
+            PrimitiveNodeKind::Average => vec![optional_count_config("num_inputs", "Num Inputs", 2)],
             PrimitiveNodeKind::Function => vec![enum_config(
                 "function",
                 "Function",
@@ -527,7 +542,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
 
     fn role_capabilities(&self) -> Vec<ANodeRoleCapability> {
         match self.kind {
-            PrimitiveNodeKind::Math => vec![filter_capability(
+            PrimitiveNodeKind::Math | PrimitiveNodeKind::Sum | PrimitiveNodeKind::Average => vec![filter_capability(
                 None,
                 Some("result"),
                 AutoWirePolicy::None,
@@ -617,7 +632,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
     }
 
     fn managed_application_variants(&self) -> Vec<ANodeInstance> {
-        let mut default = ANodeInstance::new(self.type_id(), self.label());
+        let default = ANodeInstance::new(self.type_id(), self.label());
         if self.kind != PrimitiveNodeKind::Math {
             return self
                 .supports_role(SurfaceItemKind::Filter)
@@ -625,11 +640,12 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 .into_iter()
                 .collect();
         }
-        default.label = "Math (Combine)".into();
-        let mut each = default.clone();
+        let mut combine = default.clone();
+        combine.label = "Math (Combine)".into();
+        let mut each = default;
         each.label = "Math (Each)".into();
         each.config.set("application", RuntimeValue::String("each".into()));
-        vec![default, each]
+        vec![combine, each]
     }
 
     fn signature(&self, ctx: &SignatureCtx<'_>, instance: &ANodeInstance, _bindings: &TypeBindings) -> ANodeSignature {
@@ -639,6 +655,14 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Math => {
                 generic_numbered_numeric_signature("value", "Value", input_count(instance, 2), "result")
             }
+            PrimitiveNodeKind::Sum => {
+                generic_numbered_numeric_signature("value", "Value", input_count(instance, 2), "result")
+            }
+            PrimitiveNodeKind::Average => ANodeSignature {
+                inputs: numbered_inputs("value", "Value", input_count(instance, 2), exact("float")),
+                outputs: vec![OutputSocketDecl::new("result", "Result", exact("float"))],
+                ..ANodeSignature::default()
+            },
             PrimitiveNodeKind::Function => function_signature(instance),
             PrimitiveNodeKind::Remap => float_signature(&["value", "in_min", "in_max", "out_min", "out_max"], "result"),
             PrimitiveNodeKind::Clamp => generic_numeric_signature(&["value", "minimum", "maximum"], "result"),
@@ -770,6 +794,12 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Property => property::operation(instance)?,
             PrimitiveNodeKind::Math => CompiledNodeOperation::Custom(Arc::new(math::MathEval {
                 operator: math::MathOperator::from_config(instance),
+            })),
+            PrimitiveNodeKind::Sum => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
+                mode: math::ReductionMode::Sum,
+            })),
+            PrimitiveNodeKind::Average => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
+                mode: math::ReductionMode::Average,
             })),
             PrimitiveNodeKind::Function => CompiledNodeOperation::Custom(Arc::new(function::FunctionEval {
                 function: function::FunctionKind::from_config(instance),

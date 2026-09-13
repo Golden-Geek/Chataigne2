@@ -65,6 +65,7 @@ fn filter_region(input: ANodeId, output: ANodeId) -> ManagedRegionDefinition {
         input_socket: Some(ManagedSocketRef::new(input, "value")),
         output_socket: Some(ManagedSocketRef::new(output, "value")),
         accepted_roles: vec![SurfaceItemKind::Filter],
+        filter_value_mode: Default::default(),
     }
 }
 

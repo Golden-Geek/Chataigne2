@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use crate::{
     ANodeDeclaration, ANodeInstance, ANodeTypeId, ChannelLayout, FacetId, ManagedApplication, ManagedApplicationError,
     RuntimeValue, SignatureCtx, SurfaceItemKind, TriggerValue, ValueStorageKind, ValueTypeId,
-    resolve_managed_application, value::ColorValue,
+    resolve_managed_application, resolve_mapping_application, value::ColorValue,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -222,6 +222,18 @@ impl ANodeRegistry {
             .get(&instance.type_id)
             .ok_or_else(|| ManagedApplicationError::MissingDeclaration(instance.type_id.clone()))?;
         resolve_managed_application(declaration.as_ref(), instance, layout, ctx)
+    }
+
+    pub fn resolve_mapping_application(
+        &self,
+        instance: &ANodeInstance,
+        layout: &ChannelLayout,
+        ctx: &SignatureCtx<'_>,
+    ) -> Result<ManagedApplication, ManagedApplicationError> {
+        let declaration = self
+            .get(&instance.type_id)
+            .ok_or_else(|| ManagedApplicationError::MissingDeclaration(instance.type_id.clone()))?;
+        resolve_mapping_application(declaration.as_ref(), instance, layout, ctx)
     }
 }
 

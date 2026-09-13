@@ -98,6 +98,7 @@ impl ValueSetPipelineRuntime {
             input_socket: Some(ManagedSocketRef::new(input_node, "value")),
             output_socket: Some(ManagedSocketRef::new(output_node, "value")),
             accepted_roles: vec![SurfaceItemKind::Filter],
+            filter_value_mode: Default::default(),
         };
         let instance = ManagedRegionInstance {
             region_id: ManagedRegionId::new(PIPELINE_REGION),

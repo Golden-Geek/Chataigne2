@@ -1,11 +1,11 @@
-use chataigne_alchemist::{ChannelDescriptor, ChannelLayout, CompileCtx, StableRef, ValueTypeId};
+use chataigne_alchemist::{ChannelDescriptor, ChannelLayout, CompileCtx, ManagedFilterValueMode, StableRef, ValueTypeId};
 use chataigne_state_machine::{
     alchemist::{shared_node_registry, shared_value_type_registry},
     ValueLaneKey,
 };
 use golden_core::parameter::{ParamValue, Parameter};
 
-use super::super::palette::{filter_palette_items_for_layout, trigger_filter_palette_items};
+use super::super::palette::{filter_palette_items_for_layout, filter_palette_items_for_mode, trigger_filter_palette_items};
 use crate::app::systems_alchemist_formula::create_anode_user_item_tree;
 
 fn layout(value_types: &[&str]) -> ChannelLayout {
@@ -47,6 +47,8 @@ fn backend_filter_palette_materializes_executable_variants_for_the_current_layou
         .expect("single float should offer elementwise Math");
     assert_eq!(math_each.node_type, "alchemist_anode:math@managed/1");
     assert!(!float.iter().any(|item| item.label == "Math (Combine)"));
+    assert!(!contains(&float, "sum"));
+    assert!(!contains(&float, "average"));
     let math_tree = create_anode_user_item_tree(&math_each.node_type).unwrap();
     let config = math_tree
         .children
@@ -68,11 +70,50 @@ fn backend_filter_palette_materializes_executable_variants_for_the_current_layou
     assert!(!contains(&bool_layout, "pack_vec3"));
 
     let two_floats = filter_palette_items_for_layout(&layout(&["float", "float"]), &ctx);
-    assert!(two_floats.iter().any(|item| item.label == "Math (Combine)"));
+    assert!(contains(&two_floats, "sum"));
+    assert!(contains(&two_floats, "average"));
 
     let three_floats = filter_palette_items_for_layout(&layout(&["float", "float", "float"]), &ctx);
     assert!(contains(&three_floats, "pack_vec3"));
-    assert!(!three_floats.iter().any(|item| item.label == "Math (Combine)"));
+    for (node_type, variant) in [("math", 0), ("sum", 0), ("average", 0)] {
+        let expected_type = format!("alchemist_anode:{node_type}@managed/{variant}/inputs/3");
+        let item = three_floats
+            .iter()
+            .find(|item| item.node_type == expected_type)
+            .unwrap();
+        if node_type == "math" {
+            assert_eq!(item.label, "Math (Combine)");
+        }
+        let tree = create_anode_user_item_tree(&item.node_type).unwrap();
+        let config = tree
+            .children
+            .iter()
+            .find(|child| child.node.node_data().meta.decl_id.0 == "config")
+            .unwrap();
+        let count = config
+            .children
+            .iter()
+            .find(|child| child.node.node_data().meta.decl_id.0 == "config/num_inputs")
+            .unwrap();
+        assert_eq!(
+            count.node.as_any().downcast_ref::<Parameter>().unwrap().value,
+            ParamValue::Int(3)
+        );
+        let inputs = tree
+            .children
+            .iter()
+            .find(|child| child.node.node_data().meta.decl_id.0 == "inputs")
+            .unwrap();
+        assert_eq!(inputs.children.len(), 3);
+    }
+
+    let mixed = filter_palette_items_for_layout(&layout(&["float", "bool", "string"]), &ctx);
+    assert!(!contains(&mixed, "remap"));
+    assert!(!contains(&mixed, "sum"));
+    assert!(!contains(&mixed, "average"));
+    assert!(!contains(&mixed, "math"));
+    let routed = filter_palette_items_for_mode(&layout(&["float", "bool", "string"]), &ctx, ManagedFilterValueMode::Routed);
+    assert!(contains(&routed, "remap"));
 
     let color = filter_palette_items_for_layout(&layout(&["color"]), &ctx);
     assert!(contains(&color, "extract_color"));
@@ -80,4 +121,7 @@ fn backend_filter_palette_materializes_executable_variants_for_the_current_layou
     let trigger = trigger_filter_palette_items(&ctx);
     assert!(contains(&trigger, "condition_gate"));
     assert!(!contains(&trigger, "remap"));
+
+    assert!(create_anode_user_item_tree("alchemist_anode:sum@managed/0/inputs/65").is_none());
+    assert!(create_anode_user_item_tree("alchemist_anode:remap@managed/0/inputs/3").is_none());
 }

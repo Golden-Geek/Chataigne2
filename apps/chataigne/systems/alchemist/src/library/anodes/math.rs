@@ -30,15 +30,49 @@ pub(super) struct MathEval {
 
 impl CompiledNodeEvaluator for MathEval {
     fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        let Some((first, rest)) = evaluation.inputs.split_first() else {
-            return Err("Math expects at least one input".into());
+        fold_numeric_inputs(evaluation.inputs, self.operator).map(|value| vec![value])
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ReductionMode {
+    Sum,
+    Average,
+}
+
+#[derive(Debug)]
+pub(super) struct ReductionEval {
+    pub(super) mode: ReductionMode,
+}
+
+impl CompiledNodeEvaluator for ReductionEval {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+        let value = match self.mode {
+            ReductionMode::Sum => fold_numeric_inputs(evaluation.inputs, MathOperator::Add)?,
+            ReductionMode::Average => {
+                if evaluation.inputs.is_empty() {
+                    return Err("Average expects at least one input".into());
+                }
+                let sum = evaluation.inputs.iter().try_fold(0.0, |sum, input| match input {
+                    RuntimeValue::Float(value) => Ok(sum + value),
+                    _ => Err("Average requires float inputs".to_string()),
+                })?;
+                RuntimeValue::Float(sum / evaluation.inputs.len() as f64)
+            }
         };
-        let mut value = first.clone();
-        for next in rest {
-            value = numeric_binary(&value, next, self.operator)?;
-        }
         Ok(vec![value])
     }
+}
+
+fn fold_numeric_inputs(inputs: &[RuntimeValue], operator: MathOperator) -> Result<RuntimeValue, String> {
+    let Some((first, rest)) = inputs.split_first() else {
+        return Err("Math expects at least one input".into());
+    };
+    let mut value = first.clone();
+    for next in rest {
+        value = numeric_binary(&value, next, operator)?;
+    }
+    Ok(value)
 }
 
 fn numeric_binary(left: &RuntimeValue, right: &RuntimeValue, operator: MathOperator) -> Result<RuntimeValue, String> {

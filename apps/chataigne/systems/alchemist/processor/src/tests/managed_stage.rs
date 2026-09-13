@@ -58,6 +58,42 @@ fn remap() -> ManagedItemInstance {
 }
 
 #[test]
+fn three_source_tuple_merges_to_sum_or_average() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let layout = typed_layout(&[("x", "float"), ("y", "float"), ("z", "float")]);
+    let input = frame(
+        layout.clone(),
+        &[
+            RuntimeValue::Float(2.0),
+            RuntimeValue::Float(4.0),
+            RuntimeValue::Float(6.0),
+        ],
+        1,
+    );
+    let sources = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    for (kind, expected) in [(PrimitiveNodeKind::Sum, 12.0), (PrimitiveNodeKind::Average, 4.0)] {
+        let mut item = managed_item_for_primitive(kind);
+        item.anode.config.set("num_inputs", RuntimeValue::Int(3));
+        let mut stage = ManagedStageRuntime::compile(item, &layout, &compile_ctx)
+            .unwrap()
+            .unwrap();
+        let (output, effects) = stage.evaluate(&input, &ctx(&sources, &registries, 1)).unwrap();
+        assert!(effects.diagnostics.is_empty(), "{kind:?}: {:?}", effects.diagnostics);
+        assert_eq!(output.layout().channels().len(), 1);
+        assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(expected)));
+    }
+}
+
+#[test]
 fn typed_stages_compose_remap_sum_smooth_while_preserving_unselected_bool() {
     let value_types = crate::alchemist::value_type_registry();
     let nodes = crate::alchemist::node_registry();

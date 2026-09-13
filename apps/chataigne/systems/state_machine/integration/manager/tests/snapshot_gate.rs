@@ -221,6 +221,7 @@ pub(super) fn managed_remap_processor(item_uuid: NodeUuid) -> (AlchemistFormula,
         input_socket: None,
         output_socket: None,
         accepted_roles: vec![role],
+        filter_value_mode: Default::default(),
     };
     let formula = AlchemistFormula {
         id: FormulaId::new("test.managed_edit"),

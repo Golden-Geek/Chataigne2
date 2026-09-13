@@ -1218,6 +1218,7 @@ fn managed_regions_are_present_in_ui_model() {
         input_socket: None,
         output_socket: None,
         accepted_roles: vec![SurfaceItemKind::Filter],
+        filter_value_mode: Default::default(),
     });
 
     let mut processor = Processor::from_formula("Processor", &formula);

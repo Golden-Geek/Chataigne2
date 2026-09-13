@@ -414,6 +414,7 @@ fn trigger_pipeline_allows_multiple_command_regions() {
         input_socket: None,
         output_socket: None,
         accepted_roles: vec![SurfaceItemKind::Command],
+        filter_value_mode: Default::default(),
     });
 
     let source = endpoint_ref("module/trigger");
@@ -685,6 +686,7 @@ pub(super) fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInsta
                     input_socket: None,
                     output_socket: None,
                     accepted_roles: vec![SurfaceItemKind::Input],
+                    filter_value_mode: Default::default(),
                 },
                 ManagedRegionDefinition {
                     id: ManagedRegionId::new("filters"),
@@ -693,6 +695,7 @@ pub(super) fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInsta
                     input_socket: None,
                     output_socket: None,
                     accepted_roles: vec![SurfaceItemKind::Filter],
+                    filter_value_mode: Default::default(),
                 },
                 ManagedRegionDefinition {
                     id: ManagedRegionId::new("outputs"),
@@ -701,6 +704,7 @@ pub(super) fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInsta
                     input_socket: None,
                     output_socket: None,
                     accepted_roles: vec![SurfaceItemKind::Output],
+                    filter_value_mode: Default::default(),
                 },
             ],
         },
@@ -734,6 +738,7 @@ fn trigger_pipeline_formula_and_instance() -> (AlchemistFormula, AlchemistFormul
                     input_socket: None,
                     output_socket: None,
                     accepted_roles: vec![SurfaceItemKind::Input],
+                    filter_value_mode: Default::default(),
                 },
                 ManagedRegionDefinition {
                     id: ManagedRegionId::new("pipeline"),
@@ -742,6 +747,7 @@ fn trigger_pipeline_formula_and_instance() -> (AlchemistFormula, AlchemistFormul
                     input_socket: None,
                     output_socket: None,
                     accepted_roles: vec![SurfaceItemKind::Filter],
+                    filter_value_mode: Default::default(),
                 },
                 ManagedRegionDefinition {
                     id: ManagedRegionId::new("commands"),
@@ -750,6 +756,7 @@ fn trigger_pipeline_formula_and_instance() -> (AlchemistFormula, AlchemistFormul
                     input_socket: None,
                     output_socket: None,
                     accepted_roles: vec![SurfaceItemKind::Command],
+                    filter_value_mode: Default::default(),
                 },
             ],
         },

@@ -134,6 +134,16 @@ pub enum ManagedRegionKind {
     CommandSet,
 }
 
+/// Existing custom Formula regions retain routed behavior; Mapping authors one value.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum ManagedFilterValueMode {
+    #[default]
+    Routed,
+    Tuple,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ManagedSocketRef {
@@ -160,6 +170,8 @@ pub struct ManagedRegionDefinition {
     pub input_socket: Option<ManagedSocketRef>,
     pub output_socket: Option<ManagedSocketRef>,
     pub accepted_roles: Vec<SurfaceItemKind>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub filter_value_mode: ManagedFilterValueMode,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]

@@ -2,7 +2,7 @@ use crate::{
     ANodeInstance, ANodeTypeId, ChannelDescriptor, ChannelLayout, ManagedApplicationError, ManagedSettingClass,
     ManagedSettingPath, ManagedStateScope, PipelineCardinality, PrimitiveNodeKind, RuntimeValue, SignatureCtx,
     SocketId, StableRef, ValueLaneKey, ValueTypeId, ValueTypeRegistry, classify_managed_setting,
-    primitive_node_registry,
+    configured_managed_variant, primitive_node_registry,
 };
 
 fn layout() -> ChannelLayout {
@@ -13,6 +13,45 @@ fn layout() -> ChannelLayout {
         channel("text", "string"),
     ])
     .unwrap()
+}
+
+#[test]
+fn mapping_application_consumes_the_full_tuple_without_implicit_subset_routing() {
+    let registry = primitive_node_registry();
+    let value_types = ValueTypeRegistry::with_primitives();
+    let ctx = SignatureCtx {
+        value_types: &value_types,
+        properties: None,
+    };
+    let mut math = instance(PrimitiveNodeKind::Math);
+    math.config.set("application", RuntimeValue::String("each".into()));
+    assert_eq!(
+        registry.resolve_mapping_application(&math, &layout(), &ctx),
+        Err(ManagedApplicationError::IncompatibleTuple)
+    );
+    math.config.set(
+        "managed_selection",
+        RuntimeValue::Array(vec![RuntimeValue::String("left".into())]),
+    );
+    assert_eq!(
+        registry.resolve_mapping_application(&math, &layout(), &ctx),
+        Err(ManagedApplicationError::ExplicitChannelRouting)
+    );
+
+    let floats = ChannelLayout::new(vec![
+        channel("x", "float"),
+        channel("y", "float"),
+        channel("z", "float"),
+    ])
+    .unwrap();
+    for kind in [PrimitiveNodeKind::Sum, PrimitiveNodeKind::Average] {
+        let declaration = registry.get(&ANodeTypeId::new(kind.type_name())).unwrap();
+        let instance = configured_managed_variant(declaration.as_ref(), 0, Some(3)).unwrap();
+        assert_eq!(instance.config.get("num_inputs"), Some(&RuntimeValue::Int(3)));
+        let application = registry.resolve_mapping_application(&instance, &floats, &ctx).unwrap();
+        assert_eq!(application.selection.indices, vec![0, 1, 2]);
+        assert_eq!(application.groups, vec![vec![0, 1, 2]]);
+    }
 }
 
 fn channel(id: &str, value_type: &str) -> ChannelDescriptor {

@@ -69,6 +69,32 @@ fn evaluate_binary_math(operator: &str, left: RuntimeValue, right: RuntimeValue)
 }
 
 #[test]
+fn sum_and_average_share_graph_nodes_with_managed_reductions() {
+    for (kind, expected) in [("sum", 12.0), ("average", 4.0)] {
+        let mut graph = TestGraph::new();
+        let mut reduction = node(kind);
+        reduction.config.set("num_inputs", RuntimeValue::Int(3));
+        let reduction = graph.add_node(reduction).unwrap();
+        for (index, value) in [2.0, 4.0, 6.0].into_iter().enumerate() {
+            let source = graph.add_node(constant(RuntimeValue::Float(value))).unwrap();
+            graph
+                .connect(
+                    OutputSocketRef::new(source, "value"),
+                    InputSocketRef::new(reduction, format!("value{}", index + 1)),
+                )
+                .unwrap();
+        }
+        let output = evaluate(&mut runtime(&graph));
+        assert!(output.diagnostics.is_empty(), "{kind}: {:?}", output.diagnostics);
+        assert!(output.debug_samples.iter().any(|sample| {
+            sample.author_node_id == reduction
+                && sample.output_socket.as_str() == "result"
+                && sample.value == RuntimeValue::Float(expected)
+        }));
+    }
+}
+
+#[test]
 fn math_operator_matrix_covers_every_mode_numeric_shape_and_zero_error() {
     for (operator, expected) in [
         ("add", RuntimeValue::Float(8.0)),

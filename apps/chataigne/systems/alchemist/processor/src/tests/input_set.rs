@@ -35,6 +35,7 @@ fn input_region_definition() -> ManagedRegionDefinition {
         input_socket: None,
         output_socket: None,
         accepted_roles: vec![SurfaceItemKind::Input],
+        filter_value_mode: Default::default(),
     }
 }
 

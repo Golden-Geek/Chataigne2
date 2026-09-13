@@ -22,7 +22,7 @@ use legacy_filter::ManagedFilterPipelineRuntime;
 
 pub use availability::{
     ExecutableFilterApplication, ManagedFilterAvailabilityError, executable_filter_applications,
-    validate_executable_filter_application,
+    validate_executable_filter_application, validate_mapping_filter_application,
 };
 pub use error::ManagedFormulaError;
 

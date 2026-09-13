@@ -24,7 +24,8 @@ pub use input_set::{
 pub use kernel_profile::{ProcessorKernelProfile, processor_kernel_profile_snapshot};
 pub use managed_formula::{
     ExecutableFilterApplication, ManagedFilterAvailabilityError, ManagedFormulaError, ManagedFormulaRuntime,
-    executable_filter_applications, validate_executable_filter_application, validate_trigger_filter_application,
+    executable_filter_applications, validate_executable_filter_application, validate_mapping_filter_application,
+    validate_trigger_filter_application,
 };
 pub use managed_stage::{ManagedStageChain, ManagedStageError, ManagedStageRuntime};
 pub use manager::{

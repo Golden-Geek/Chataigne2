@@ -107,19 +107,24 @@ older positional OutputSet adapter. Phase 06 will replace that adapter with
 explicit command argument bindings. Ordinary value samples do not alter stage
 layouts.
 
-Phase 03 groundwork extends ANode role capabilities to the configured instance.
-The application resolver checks primary, auxiliary, and output sockets against
-its signature and reports the state scope. Its selection/group support can
-serve custom Formulas, while Mapping still needs automatic tuple operations.
-Math uses its graph kernel in both `each` and `combine` modes.
+Phase 03 resolves each Mapping filter against the entire ordered typed value.
+The configured ANode capability and signature determine its primary, auxiliary,
+and output sockets and state scope. A standard Mapping rejects explicit channel
+selection and grouping, and does not silently pass incompatible tuple elements
+through a filter. Custom Formula regions retain routed behavior. Their persisted
+filter mode defaults to routed for older projects; the built-in Mapping asset
+will declare tuple mode in Phase 08. Math's elementwise and tuple-combine
+applications and the Sum/Average reductions use the same arithmetic kernel as
+their graph nodes.
 Elementwise auxiliary sockets are bound as Formula properties; they can read a
 constant, a shared reference, or an element-context reference at evaluation time.
 An edit to an authored managed input socket updates a compiled binding and its
 processor instance without discarding compatible memory. Structural config edits still
-rebuild the processor. The availability query validates candidates with the
-typed stage compiler, including selected and mixed layouts. The current backend
-Filter Add work validates against the internal layout but is not yet a
-whole-value/tuple Mapping palette. Trigger choices use the trigger runner's compiler. A
+rebuild the processor. The backend Mapping palette validates each configured
+variant against the whole tuple and the typed stage compiler. Its creation token
+carries the validated input count for variable-arity reductions, so three
+operands materialize three input sockets. Trigger and custom Formula routed
+choices continue using their respective compiler checks. A
 structural change to managed regions refreshes the affected palette and emits
 one reusable creatable-items event; ordinary input samples and runtime socket
 edits do not recompute it. The UI applies that event to its graph store.

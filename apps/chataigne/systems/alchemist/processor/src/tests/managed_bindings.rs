@@ -12,7 +12,7 @@ use super::managed_formula::{
 use crate::value_set_pipeline::ValueSetPipelineRuntime;
 use crate::{
     ManagedFilterAvailabilityError, RuntimeInputBinding, executable_filter_applications,
-    validate_executable_filter_application, validate_trigger_filter_application,
+    validate_executable_filter_application, validate_mapping_filter_application, validate_trigger_filter_application,
 };
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry};
 
@@ -57,6 +57,32 @@ fn palette_only_returns_applications_the_current_managed_compiler_can_execute() 
         RuntimeValue::Array(vec![RuntimeValue::String("a".into())]),
     );
     assert!(validate_executable_filter_application(&math, &two_floats, &ctx).is_ok());
+    assert!(matches!(
+        validate_mapping_filter_application(&math, &two_floats, &ctx),
+        Err(ManagedFilterAvailabilityError::Application(
+            chataigne_alchemist::ManagedApplicationError::ExplicitChannelRouting
+        ))
+    ));
+    let mut math = ANodeInstance::new(ANodeTypeId::new("math"), "Math");
+    math.config.set("application", RuntimeValue::String("each".into()));
+    assert!(matches!(
+        validate_mapping_filter_application(&math, &mixed, &ctx),
+        Err(ManagedFilterAvailabilityError::Application(
+            chataigne_alchemist::ManagedApplicationError::IncompatibleTuple
+        ))
+    ));
+
+    let three_floats = ChannelLayout::new(vec![
+        channel("a", "float"),
+        channel("b", "float"),
+        channel("c", "float"),
+    ])
+    .unwrap();
+    for kind in ["sum", "average"] {
+        let mut reduction = ANodeInstance::new(ANodeTypeId::new(kind), kind);
+        reduction.config.set("num_inputs", RuntimeValue::Int(3));
+        assert!(validate_mapping_filter_application(&reduction, &three_floats, &ctx).is_ok());
+    }
 
     let color = ChannelLayout::new(vec![channel("color", "color")]).unwrap();
     let extract = ANodeInstance::new(ANodeTypeId::new("extract_color"), "Extract Color");

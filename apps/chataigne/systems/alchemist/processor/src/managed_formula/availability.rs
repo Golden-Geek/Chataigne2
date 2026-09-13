@@ -29,6 +29,23 @@ pub fn validate_executable_filter_application(
     layout: &ChannelLayout,
     ctx: &CompileCtx<'_>,
 ) -> Result<ManagedApplication, ManagedFilterAvailabilityError> {
+    validate_filter_application(instance, layout, ctx, false)
+}
+
+pub fn validate_mapping_filter_application(
+    instance: &ANodeInstance,
+    layout: &ChannelLayout,
+    ctx: &CompileCtx<'_>,
+) -> Result<ManagedApplication, ManagedFilterAvailabilityError> {
+    validate_filter_application(instance, layout, ctx, true)
+}
+
+fn validate_filter_application(
+    instance: &ANodeInstance,
+    layout: &ChannelLayout,
+    ctx: &CompileCtx<'_>,
+    whole_tuple: bool,
+) -> Result<ManagedApplication, ManagedFilterAvailabilityError> {
     if layout.channels().iter().any(|channel| channel.value_type.is_none()) {
         return Err(ManagedFilterAvailabilityError::UnresolvedInputType);
     }
@@ -36,9 +53,13 @@ pub fn validate_executable_filter_application(
         value_types: ctx.value_types,
         properties: ctx.properties,
     };
-    let application = ctx
-        .nodes
-        .resolve_managed_application(instance, layout, &signature_ctx)?;
+    let application = if whole_tuple {
+        ctx.nodes
+            .resolve_mapping_application(instance, layout, &signature_ctx)?
+    } else {
+        ctx.nodes
+            .resolve_managed_application(instance, layout, &signature_ctx)?
+    };
     let item = ManagedItemInstance {
         id: ManagedItemId::new(),
         anode: instance.clone(),

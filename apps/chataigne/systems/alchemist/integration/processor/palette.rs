@@ -2,10 +2,14 @@
 
 use std::collections::HashSet;
 
-use chataigne_alchemist::{ANodeInstance, ChannelLayout, CompileCtx, ManagedRegionKind, SurfaceItemKind};
+use chataigne_alchemist::{
+    ANodeDeclaration, ANodeInstance, ChannelLayout, CompileCtx, ManagedFilterValueMode, ManagedRegionKind,
+    PipelineCardinality, SignatureCtx, SurfaceItemKind, configured_managed_variant,
+};
 use chataigne_state_machine::{
     alchemist::{shared_node_registry, shared_value_type_registry},
-    validate_executable_filter_application, validate_trigger_filter_application, ManagedFormulaRuntime,
+    validate_executable_filter_application, validate_mapping_filter_application, validate_trigger_filter_application,
+    ManagedFormulaRuntime,
 };
 use golden_core::{
     node::{NodeId, UserCreatableItem},
@@ -52,7 +56,7 @@ pub(super) fn filter_palette_from_snapshot(
     let Ok(formula) = formula_from_snapshot(snapshot, formula_node) else {
         return Vec::new();
     };
-    let Some(_) = formula.surface.managed_regions.iter().find(|definition| {
+    let Some(definition) = formula.surface.managed_regions.iter().find(|definition| {
         definition.kind == ManagedRegionKind::FilterPipeline
             && snapshot
                 .node(region_node)
@@ -80,25 +84,47 @@ pub(super) fn filter_palette_from_snapshot(
         return Vec::new();
     }
     let Some(layout) = managed.filter_output_layout() else {
-        return trigger_filter_palette_items(&ctx);
+        return if managed.input_layout().is_none() {
+            trigger_filter_palette_items(&ctx)
+        } else {
+            Vec::new()
+        };
     };
-    filter_palette_items_for_layout(layout, &ctx)
+    filter_palette_items_for_mode(layout, &ctx, definition.filter_value_mode)
 }
 
 pub(super) fn trigger_filter_palette_items(ctx: &CompileCtx<'_>) -> Vec<UserCreatableItem> {
-    executable_filter_items(ctx, |instance| {
+    executable_filter_items(ctx, None, |instance| {
         validate_trigger_filter_application(instance, ctx).is_ok()
     })
 }
 
 pub(super) fn filter_palette_items_for_layout(layout: &ChannelLayout, ctx: &CompileCtx<'_>) -> Vec<UserCreatableItem> {
-    executable_filter_items(ctx, |instance| {
+    executable_filter_items(ctx, Some(layout), |instance| {
+        validate_mapping_filter_application(instance, layout, ctx).is_ok()
+    })
+}
+
+pub(super) fn filter_palette_items_for_mode(
+    layout: &ChannelLayout,
+    ctx: &CompileCtx<'_>,
+    mode: ManagedFilterValueMode,
+) -> Vec<UserCreatableItem> {
+    match mode {
+        ManagedFilterValueMode::Tuple => filter_palette_items_for_layout(layout, ctx),
+        ManagedFilterValueMode::Routed => routed_filter_palette_items_for_layout(layout, ctx),
+    }
+}
+
+fn routed_filter_palette_items_for_layout(layout: &ChannelLayout, ctx: &CompileCtx<'_>) -> Vec<UserCreatableItem> {
+    executable_filter_items(ctx, Some(layout), |instance| {
         validate_executable_filter_application(instance, layout, ctx).is_ok()
     })
 }
 
 fn executable_filter_items(
     ctx: &CompileCtx<'_>,
+    layout: Option<&ChannelLayout>,
     mut validate: impl FnMut(&ANodeInstance) -> bool,
 ) -> Vec<UserCreatableItem> {
     let mut items = Vec::new();
@@ -106,14 +132,23 @@ fn executable_filter_items(
         if !declaration.supports_role(SurfaceItemKind::Filter) {
             continue;
         }
-        for (index, instance) in declaration.managed_application_variants().into_iter().enumerate() {
+        for (index, default) in declaration.managed_application_variants().into_iter().enumerate() {
+            let input_count = layout.and_then(|layout| {
+                aggregate_input_count_override(declaration.as_ref(), &default, layout, ctx)
+            });
+            let Some(instance) = configured_managed_variant(declaration.as_ref(), index, input_count) else {
+                continue;
+            };
             if !validate(&instance) {
                 continue;
             }
-            let create_type = format!(
+            let mut create_type = format!(
                 "{ANODE_CREATE_PREFIX}{}{ANODE_MANAGED_VARIANT_SEPARATOR}{index}",
                 declaration.type_id()
             );
+            if let Some(input_count) = input_count {
+                create_type.push_str(&format!("/inputs/{input_count}"));
+            }
             if create_anode_user_item_tree(&create_type).is_none() {
                 continue;
             }
@@ -124,6 +159,35 @@ fn executable_filter_items(
         }
     }
     items
+}
+
+fn aggregate_input_count_override(
+    declaration: &dyn ANodeDeclaration,
+    instance: &ANodeInstance,
+    layout: &ChannelLayout,
+    ctx: &CompileCtx<'_>,
+) -> Option<usize> {
+    if layout.channels().len() < 2
+        || !declaration.role_capabilities_for(instance).iter().any(|capability| {
+            capability.role == SurfaceItemKind::Filter
+                && capability.cardinality == PipelineCardinality::Aggregate
+        })
+        || !declaration
+            .config_fields_for(instance)
+            .iter()
+            .any(|field| field.id.as_str() == "num_inputs")
+    {
+        return None;
+    }
+    let signature = declaration.signature(
+        &SignatureCtx {
+            value_types: ctx.value_types,
+            properties: ctx.properties,
+        },
+        instance,
+        &instance.type_bindings,
+    );
+    (signature.inputs.len() != layout.channels().len()).then_some(layout.channels().len())
 }
 
 pub(super) fn structural_palette_params(snapshot: &ProcessTreeSnapshot, region_node: NodeId) -> HashSet<NodeId> {

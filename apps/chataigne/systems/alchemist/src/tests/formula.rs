@@ -3,11 +3,12 @@ use crate::test_support::TestGraph;
 use crate::{
     AEdge, ANodeDeclaration, ANodeFieldPath, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain,
     FormulaContextContract, FormulaId, FormulaMaterializationError, FormulaPropertySchema, FormulaSurface,
-    InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId,
-    ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputSocketRef, ParamUiHints,
-    PipelineLoweringCtx, PipelineLoweringDiagnosticKind, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue,
-    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId,
-    ValueTypeRegistry, ValueTypeSpec, primitive_node_registry, single_shape, value_set_shape,
+    InputSocketRef, ManagedFilterValueMode, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
+    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind,
+    ManagedSocketRef, OutputSocketRef, ParamUiHints, PipelineLoweringCtx, PipelineLoweringDiagnosticKind,
+    PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue, SurfaceItem, SurfaceItemId, SurfaceItemKind,
+    SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, ValueTypeSpec,
+    primitive_node_registry, single_shape, value_set_shape,
 };
 
 #[test]
@@ -131,6 +132,19 @@ fn managed_region_kind_roundtrips_through_json() {
 
     let decoded: ManagedRegionKind = serde_json::from_str("\"command_set\"").unwrap();
     assert_eq!(decoded, ManagedRegionKind::CommandSet);
+}
+
+#[test]
+fn persisted_filter_regions_keep_routed_semantics_until_tuple_mode_is_authored() {
+    let mut definition = filter_region(crate::ANodeId::new(), crate::ANodeId::new());
+    let mut historical = serde_json::to_value(&definition).unwrap();
+    historical.as_object_mut().unwrap().remove("filter_value_mode");
+    let restored: ManagedRegionDefinition = serde_json::from_value(historical).unwrap();
+    assert_eq!(restored.filter_value_mode, ManagedFilterValueMode::Routed);
+
+    definition.filter_value_mode = ManagedFilterValueMode::Tuple;
+    let restored: ManagedRegionDefinition = serde_json::from_value(serde_json::to_value(&definition).unwrap()).unwrap();
+    assert_eq!(restored.filter_value_mode, ManagedFilterValueMode::Tuple);
 }
 
 #[test]
@@ -374,6 +388,7 @@ fn filter_region(input: crate::ANodeId, output: crate::ANodeId) -> ManagedRegion
         input_socket: Some(ManagedSocketRef::new(input, "value")),
         output_socket: Some(ManagedSocketRef::new(output, "value")),
         accepted_roles: vec![SurfaceItemKind::Filter],
+        filter_value_mode: Default::default(),
     }
 }
 
@@ -400,5 +415,6 @@ fn region(
         input_socket: None,
         output_socket: None,
         accepted_roles,
+        filter_value_mode: Default::default(),
     }
 }

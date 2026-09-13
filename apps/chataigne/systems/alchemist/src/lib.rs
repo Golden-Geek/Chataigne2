@@ -34,9 +34,9 @@ pub use expose::{
 pub use formula::{
     AlchemistFormula, AlchemistFormulaInstance, FormulaContextContract, FormulaMaterializationError, FormulaMigration,
     FormulaOverrides, FormulaPropertyDecl, FormulaPropertySchema, FormulaRef, FormulaSurface, FormulaSurfaceBindings,
-    ManagedANodeBindings, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionInstance,
-    ManagedRegionInstances, ManagedRegionKind, ManagedRegionValidationError, ManagedSocketRef, PropertyUiHints,
-    SurfaceItem, SurfaceItemKind, SurfaceSection, SurfaceSource,
+    ManagedANodeBindings, ManagedFilterValueMode, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition,
+    ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind, ManagedRegionValidationError, ManagedSocketRef,
+    PropertyUiHints, SurfaceItem, SurfaceItemKind, SurfaceSection, SurfaceSource,
 };
 pub use graph::{AEdge, ANodeConfig, ANodeInstance, ANodeUiState, GraphMetadata, InputSocketRef, OutputSocketRef};
 pub use ids::{
@@ -47,7 +47,8 @@ pub use ids::{
 pub use library::{PrimitiveNodeDeclaration, PrimitiveNodeKind, primitive_node_registry, register_primitive_nodes};
 pub use managed_application::{
     MANAGED_GROUPS_FIELD, MANAGED_SELECTION_FIELD, ManagedApplication, ManagedApplicationError, ManagedSettingPath,
-    ManagedStateScope, classify_managed_setting, resolve_managed_application,
+    ManagedStateScope, classify_managed_setting, configured_managed_variant, resolve_managed_application,
+    resolve_mapping_application,
 };
 pub use node::{
     ANodeConfigFieldDecl, ANodeDeclaration, ANodeRoleCapability, ANodeSignature, AutoWirePolicy, ExecutionKind,
