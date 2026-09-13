@@ -664,7 +664,7 @@ fn managed_formula_missing_command_target_uses_specific_code() {
     assert!(diagnostic.message.contains(OUTPUT_TARGET_FIELD));
 }
 
-fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
+pub(super) fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
     let formula = AlchemistFormula {
         id: FormulaId::new("test.value_pipeline"),
         version: 1,
@@ -762,7 +762,10 @@ fn trigger_pipeline_formula_and_instance() -> (AlchemistFormula, AlchemistFormul
     (formula, instance)
 }
 
-fn compile_managed_formula(formula: &AlchemistFormula, instance: &AlchemistFormulaInstance) -> ManagedFormulaRuntime {
+pub(super) fn compile_managed_formula(
+    formula: &AlchemistFormula,
+    instance: &AlchemistFormulaInstance,
+) -> ManagedFormulaRuntime {
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
         value_types: &value_types,
@@ -790,14 +793,14 @@ fn compile_error_diagnostic(
     }
 }
 
-fn region(id: &str, items: Vec<ManagedItemInstance>) -> ManagedRegionInstance {
+pub(super) fn region(id: &str, items: Vec<ManagedItemInstance>) -> ManagedRegionInstance {
     ManagedRegionInstance {
         region_id: ManagedRegionId::new(id),
         items,
     }
 }
 
-fn input_item(label: &str, source: StableRef) -> ManagedItemInstance {
+pub(super) fn input_item(label: &str, source: StableRef) -> ManagedItemInstance {
     let mut anode = ANodeInstance::new(chataigne_alchemist::ANodeTypeId::new("managed_input"), label);
     anode.config.set(INPUT_SOURCE_FIELD, RuntimeValue::Ref(source));
     ManagedItemInstance {
@@ -808,7 +811,7 @@ fn input_item(label: &str, source: StableRef) -> ManagedItemInstance {
     }
 }
 
-fn output_item(label: &str, target: StableRef) -> ManagedItemInstance {
+pub(super) fn output_item(label: &str, target: StableRef) -> ManagedItemInstance {
     let mut anode = ANodeInstance::new(chataigne_alchemist::ANodeTypeId::new("managed_output"), label);
     anode.config.set(OUTPUT_TARGET_FIELD, RuntimeValue::Ref(target));
     ManagedItemInstance {
@@ -819,7 +822,7 @@ fn output_item(label: &str, target: StableRef) -> ManagedItemInstance {
     }
 }
 
-fn remap_item(in_min: f64, in_max: f64, out_min: f64, out_max: f64) -> ManagedItemInstance {
+pub(super) fn remap_item(in_min: f64, in_max: f64, out_min: f64, out_max: f64) -> ManagedItemInstance {
     let mut item = managed_item_for_primitive(PrimitiveNodeKind::Remap);
     item.anode
         .input_defaults
@@ -858,7 +861,7 @@ fn condition_gate_item(condition: bool) -> ManagedItemInstance {
     item
 }
 
-fn managed_item_for_primitive(kind: PrimitiveNodeKind) -> ManagedItemInstance {
+pub(super) fn managed_item_for_primitive(kind: PrimitiveNodeKind) -> ManagedItemInstance {
     let declaration = PrimitiveNodeDeclaration::new(kind);
     ManagedItemInstance {
         id: ManagedItemId::new(),
@@ -969,19 +972,19 @@ fn evaluate_direct_output(graph: TestGraph, output_node: ANodeId, socket: &str) 
         .value
 }
 
-fn endpoint_ref(id: &str) -> StableRef {
+pub(super) fn endpoint_ref(id: &str) -> StableRef {
     StableRef::new(ValueTypeId::new("chataigne.module_endpoint"), id)
 }
 
-fn command_target(id: &str) -> StableRef {
+pub(super) fn command_target(id: &str) -> StableRef {
     StableRef::new(ValueTypeId::new("chataigne.command_target"), id)
 }
 
-fn registries() -> (ValueTypeRegistry, chataigne_alchemist::ANodeRegistry) {
+pub(super) fn registries() -> (ValueTypeRegistry, chataigne_alchemist::ANodeRegistry) {
     (crate::alchemist::value_type_registry(), node_registry())
 }
 
-fn eval_ctx<'a>(
+pub(super) fn eval_ctx<'a>(
     logical_tick: u64,
     inputs: &'a RuntimeInputSnapshot,
     registries: &'a RuntimeRegistries<'a>,

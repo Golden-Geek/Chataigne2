@@ -23,7 +23,7 @@ use chataigne_state_machine::{
     ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorOverviewDemandDto, ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
     ProcessorUiDto, StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto,
-    ValueLaneKey, ValueSet, ValueSetEntry,
+    RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry,
 };
 
 use crate::app::systems_alchemist_conditions::compiler::{
@@ -1726,6 +1726,9 @@ impl Node for StateMachineManager {
         if source_signal_dirty || condition_valid_result {
             return;
         }
+        if self.apply_managed_runtime_input_change(ctx, param) {
+            return;
+        }
         if self.mark_processor_override_dirty(ctx, param) {
             return;
         }
@@ -1738,8 +1741,15 @@ impl Node for StateMachineManager {
         let Some(snapshot) = ctx.tree_snapshot().or(self.runtime_cache.runtime_snapshot.as_deref()) else {
             return;
         };
-        let RuntimeInvalidation::Formula(formula_uuid) = self.runtime_invalidation_for_change(snapshot, param) else {
-            return;
+        let formula_uuid = match self.runtime_invalidation_for_change(snapshot, param) {
+            RuntimeInvalidation::Formula(formula_uuid) => formula_uuid,
+            RuntimeInvalidation::Processor(processor) => {
+                if !managed_anode_presentation_param(snapshot, param) {
+                    self.runtime_cache.dirty_processor_overrides.insert(processor);
+                }
+                return;
+            }
+            _ => return,
         };
         if snapshot.node_id_by_uuid(formula_uuid).is_some_and(|formula| {
             !crate::app::systems_alchemist_formula::formula_runtime_param_change_requires_rematerialization(
@@ -1823,6 +1833,55 @@ fn is_condition_valid_result(snapshot: &ProcessTreeSnapshot, param: NodeId) -> b
 }
 
 impl StateMachineManager {
+    fn apply_managed_runtime_input_change(&mut self, ctx: &ProcessCtx, param: NodeId) -> bool {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return false;
+        };
+        let Some((processor_node, item, socket, socket_node)) =
+            managed_runtime_input_location(snapshot, param)
+        else {
+            return false;
+        };
+        let Some(value_type_node) = snapshot.find_child_by_decl_id(
+            socket_node,
+            &format!("inputs/{}/value_type", socket.as_str()),
+        ) else {
+            return false;
+        };
+        let Some(value_type) = snapshot
+            .node(value_type_node)
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(ParamValue::as_str)
+        else {
+            return false;
+        };
+        let Some(value) = latest_param_value(ctx, param)
+            .and_then(|value| formula_param_to_runtime_value(&value, &ValueTypeId::new(value_type)).ok())
+        else {
+            return false;
+        };
+        let Some(processor) = self.runtime_cache.processors.get_mut(&processor_node) else {
+            return false;
+        };
+        let Some(managed) = processor.runtime.managed_formula.as_mut() else {
+            return false;
+        };
+        if managed
+            .update_filter_input(item, &socket, RuntimeInputBinding::Constant(value.clone()))
+            .is_err()
+        {
+            return false;
+        }
+        for region in processor.processor.formula_instance.managed_regions.regions.values_mut() {
+            if let Some(authored) = region.items.iter_mut().find(|candidate| candidate.id == item) {
+                authored.anode.input_defaults.insert(socket.clone(), value.clone());
+                break;
+            }
+        }
+        self.runtime_cache.processor_overview_runtimes.remove(&processor_node);
+        true
+    }
+
     #[cfg(test)]
     pub(crate) fn runtime_perf_stats(&self) -> StateMachineRuntimePerfStats {
         self.runtime_cache.perf_stats
@@ -3766,6 +3825,56 @@ enum RuntimeInvalidation {
     Topology,
     FormulaCatalog,
     Ignore,
+}
+
+fn managed_runtime_input_location(
+    snapshot: &ProcessTreeSnapshot,
+    param: NodeId,
+) -> Option<(NodeId, ManagedItemId, SocketId, NodeId)> {
+    let value = snapshot.node(param)?;
+    let socket_node = value.parent?;
+    let socket = snapshot.node(socket_node)?.decl_id.as_str().strip_prefix("inputs/")?;
+    if value.decl_id.as_str() != format!("inputs/{socket}/value") {
+        return None;
+    }
+    let inputs_folder = snapshot.node(socket_node)?.parent?;
+    if snapshot.node(inputs_folder)?.decl_id.as_str() != "inputs" {
+        return None;
+    }
+    let anode_node = snapshot.node(inputs_folder)?.parent?;
+    let anode = snapshot.node(anode_node)?;
+    if anode.node_type != ANODE_NODE_TYPE {
+        return None;
+    }
+    let region_node = anode.parent?;
+    if !snapshot
+        .node(region_node)?
+        .decl_id
+        .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+    {
+        return None;
+    }
+    let regions_root = snapshot.node(region_node)?.parent?;
+    if !node_matches_decl_id(snapshot.node(regions_root)?.decl_id.as_str(), PROCESSOR_MANAGED_REGIONS_DECL_ID) {
+        return None;
+    }
+    let processor_node = snapshot.node(regions_root)?.parent?;
+    if snapshot.node(processor_node)?.node_type != PROCESSOR_NODE_TYPE {
+        return None;
+    }
+    Some((processor_node, ManagedItemId::from_uuid(anode.uuid.0), SocketId::new(socket), socket_node))
+}
+
+fn managed_anode_presentation_param(snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
+    let Some(node) = snapshot.node(param) else {
+        return false;
+    };
+    if !matches!(node.decl_id.as_str(), "position" | "size") {
+        return false;
+    }
+    snapshot
+        .node(node.parent.unwrap_or(param))
+        .is_some_and(|parent| parent.node_type == ANODE_NODE_TYPE)
 }
 
 fn runtime_invalidation_for_node(

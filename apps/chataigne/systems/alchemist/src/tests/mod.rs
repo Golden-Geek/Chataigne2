@@ -8,6 +8,7 @@ mod compile;
 mod domain;
 mod formula;
 mod library;
+mod managed_application;
 mod pipeline;
 mod runtime;
 mod runtime_color;

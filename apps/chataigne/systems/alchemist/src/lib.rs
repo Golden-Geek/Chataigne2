@@ -9,6 +9,7 @@ pub mod formula;
 pub mod graph;
 pub mod ids;
 pub mod library;
+pub mod managed_application;
 pub mod node;
 pub mod pipeline;
 pub mod registry;
@@ -44,10 +45,14 @@ pub use ids::{
     SurfaceItemId, SurfaceSectionId, ValueSlotId, ValueTypeId,
 };
 pub use library::{PrimitiveNodeDeclaration, PrimitiveNodeKind, primitive_node_registry, register_primitive_nodes};
+pub use managed_application::{
+    MANAGED_GROUPS_FIELD, MANAGED_SELECTION_FIELD, ManagedApplication, ManagedApplicationError, ManagedSettingPath,
+    ManagedStateScope, classify_managed_setting, resolve_managed_application,
+};
 pub use node::{
     ANodeConfigFieldDecl, ANodeDeclaration, ANodeRoleCapability, ANodeSignature, AutoWirePolicy, ExecutionKind,
-    InputSocketDecl, ManagedUiMode, NodeStateLayout, OutputSocketDecl, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
-    PipelineCardinality, SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, SignatureCtx,
+    InputSocketDecl, ManagedSettingClass, ManagedUiMode, NodeStateLayout, OutputSocketDecl,
+    PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, PipelineCardinality, SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, SignatureCtx,
 };
 pub use pipeline::{
     FilterPipelineLoweringResult, PipelineLoweringCtx, PipelineLoweringDiagnostic, PipelineLoweringDiagnosticKind,

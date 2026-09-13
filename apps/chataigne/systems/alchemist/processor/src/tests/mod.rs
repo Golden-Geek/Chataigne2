@@ -6,6 +6,7 @@ mod input_set;
 #[cfg(feature = "kernel-profiling")]
 mod kernel_profile;
 mod lane_reorder;
+mod managed_bindings;
 mod managed_formula;
 mod manager;
 mod output_set;

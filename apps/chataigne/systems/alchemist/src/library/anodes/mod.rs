@@ -327,6 +327,12 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             ],
             PrimitiveNodeKind::Math => vec![
                 enum_config(
+                    "application",
+                    "Apply",
+                    "combine",
+                    &[("each", "Apply to each"), ("combine", "Combine selected")],
+                ),
+                enum_config(
                     "operator",
                     "Operator",
                     "add",
@@ -406,6 +412,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::GradientSampler => vec![
                 ANodeConfigFieldDecl::new("gradient", "Gradient", gradient_sampler::default_gradient_config())
                     .with_editor("gradient")
+                    .with_update_class(crate::ManagedSettingClass::Resource)
                     .with_description("Color stops (position, color, interpolation) edited with the gradient editor."),
             ],
             PrimitiveNodeKind::ConvertToColor | PrimitiveNodeKind::ExtractColor => {
@@ -579,6 +586,21 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 },
                 PipelineCardinality::WholeSet,
             )],
+            _ => Vec::new(),
+        }
+    }
+
+    fn role_capabilities_for(&self, instance: &ANodeInstance) -> Vec<ANodeRoleCapability> {
+        if self.kind != PrimitiveNodeKind::Math {
+            return self.role_capabilities();
+        }
+        match config_string(instance, "application", "combine").as_str() {
+            "each" => vec![unary_filter_capability(
+                "value1",
+                "result",
+                PipelineCardinality::Elementwise,
+            )],
+            "combine" => self.role_capabilities(),
             _ => Vec::new(),
         }
     }

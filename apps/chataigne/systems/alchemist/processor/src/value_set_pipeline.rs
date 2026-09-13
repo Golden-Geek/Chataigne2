@@ -3,11 +3,12 @@ use std::sync::Arc;
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraphDomain, AlchemistGraphTransaction, AlchemistMemory, CompileCtx,
     CompiledAlchemistGraph, ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, EvaluationFrame,
-    FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool,
+    FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool, ManagedItemId,
     ManagedItemInstance, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind,
     ManagedSocketRef, OutputSocketRef, ParamUiHints, PipelineLoweringCtx, RuntimeContextFrame, RuntimeOutput,
-    RuntimePropertyFrame, SocketId, StableRef, SurfaceItemKind, ValueSlotId, ValueTypeId, compile_graph,
-    evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing, lower_filter_pipeline_region, single_shape,
+    RuntimePropertyFrame, SignatureCtx, SocketId, StableRef, SurfaceItemKind, TypeConstraint, ValueSlotId, ValueTypeId,
+    compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing, lower_filter_pipeline_region,
+    single_shape,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::IndexMap;
@@ -23,6 +24,24 @@ pub struct ValueSetPipelineRuntime {
     result_slot: ValueSlotId,
     memory: LaneRuntimePool,
     scratch: AlchemistMemory,
+    auxiliary: Vec<AuxiliaryBindingSlot>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RuntimeInputBinding {
+    Constant(RuntimeValue),
+    Reference(StableRef),
+}
+
+#[derive(Clone, Debug)]
+struct AuxiliaryBindingSlot {
+    item: ManagedItemId,
+    node: chataigne_alchemist::ANodeId,
+    socket: SocketId,
+    property: FormulaPropertyId,
+    value_type: ValueTypeId,
+    binding: RuntimeInputBinding,
+    default_value: RuntimeValue,
 }
 
 pub struct ValueSetProjectionRuntime {
@@ -43,7 +62,18 @@ impl ValueSetPipelineRuntime {
             .value_types
             .default_value(&item_type)
             .ok_or_else(|| ValueSetPipelineError::MissingDefaultValue(item_type.clone()))?;
-        let properties = pipeline_property_schema(item_type.clone(), default_value);
+        let mut properties = pipeline_property_schema(item_type.clone(), default_value);
+        let auxiliary = auxiliary_binding_slots(&items, &item_type, ctx)?;
+        for slot in &auxiliary {
+            properties.insert(FormulaPropertyDecl {
+                id: slot.property.clone(),
+                label: format!("{} {}", slot.item, slot.socket),
+                description: None,
+                value_type: slot.value_type.clone(),
+                default_value: slot.default_value.clone(),
+                ui: ParamUiHints::default(),
+            });
+        }
         let domain = AlchemistGraphDomain::new(ctx.nodes.clone(), ctx.value_types.clone(), Some(properties.clone()));
         let mut document = AlchemistGraphDomain::new_document();
         let mut transaction = AlchemistGraphTransaction::for_document(&document);
@@ -79,7 +109,7 @@ impl ValueSetPipelineRuntime {
             nodes: ctx.nodes,
             properties: Some(&properties),
         };
-        let lowered = lower_filter_pipeline_region(
+        let mut lowered = lower_filter_pipeline_region(
             &document,
             &definition,
             &instance,
@@ -91,6 +121,28 @@ impl ValueSetPipelineRuntime {
                 diagnostics: lowered.diagnostics,
                 shape_diagnostics: lowered.shape.diagnostics,
             });
+        }
+
+        if !auxiliary.is_empty() {
+            let mut transaction = AlchemistGraphTransaction::for_document(&lowered.graph);
+            for slot in &auxiliary {
+                let mut property_node = ANodeInstance::new(ANodeTypeId::new("property"), "Runtime Input");
+                property_node.config.set(
+                    "property_id",
+                    RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), slot.property.as_str())),
+                );
+                let property_node_id = property_node.id;
+                AlchemistGraphDomain::insert_node(&mut transaction, property_node);
+                AlchemistGraphDomain::connect(
+                    &mut transaction,
+                    &lowered.graph,
+                    OutputSocketRef::new(property_node_id, "value"),
+                    InputSocketRef::new(slot.node, slot.socket.clone()),
+                );
+            }
+            transaction
+                .commit(&mut lowered.graph, &domain)
+                .map_err(ValueSetPipelineError::AuthoringEdit)?;
         }
 
         let compiled = compile_graph(
@@ -116,6 +168,7 @@ impl ValueSetPipelineRuntime {
             result_slot,
             memory,
             scratch,
+            auxiliary,
         })
     }
 
@@ -135,7 +188,7 @@ impl ValueSetPipelineRuntime {
         let mut entries = Vec::with_capacity(values.entries.len());
         for entry in &values.entries {
             let context_key = lane_context_key(entry.key.as_str());
-            let properties = property_frame(&self.compiled, entry.value.clone())?;
+            let properties = property_frame(&self.compiled, entry.value.clone(), &self.auxiliary, ctx, &context_key)?;
             let context = RuntimeContextFrame::new(context_key.clone());
             let frame = EvaluationFrame {
                 ctx,
@@ -180,6 +233,44 @@ impl ValueSetPipelineRuntime {
     #[cfg(test)]
     pub(crate) fn lane_memory_count(&self) -> usize {
         self.memory.memory_count()
+    }
+
+    pub fn update_runtime_input(
+        &mut self,
+        item: ManagedItemId,
+        socket: &SocketId,
+        binding: RuntimeInputBinding,
+    ) -> Result<(), ValueSetPipelineError> {
+        let slot = self
+            .auxiliary
+            .iter_mut()
+            .find(|slot| slot.item == item && slot.socket == *socket)
+            .ok_or_else(|| ValueSetPipelineError::MissingRuntimeInput {
+                item,
+                socket: socket.clone(),
+            })?;
+        if let RuntimeInputBinding::Constant(value) = &binding
+            && value.value_type() != slot.value_type
+        {
+            return Err(ValueSetPipelineError::RuntimeInputTypeMismatch {
+                item,
+                socket: socket.clone(),
+                expected: slot.value_type.clone(),
+                actual: value.value_type(),
+            });
+        }
+        if let RuntimeInputBinding::Reference(reference) = &binding
+            && reference.value_type != slot.value_type
+        {
+            return Err(ValueSetPipelineError::RuntimeInputTypeMismatch {
+                item,
+                socket: socket.clone(),
+                expected: slot.value_type.clone(),
+                actual: reference.value_type.clone(),
+            });
+        }
+        slot.binding = binding;
+        Ok(())
     }
 }
 
@@ -331,6 +422,86 @@ fn pipeline_property_schema(item_type: ValueTypeId, default_value: RuntimeValue)
     schema
 }
 
+fn auxiliary_binding_slots(
+    items: &[ManagedItemInstance],
+    item_type: &ValueTypeId,
+    ctx: &PipelineLoweringCtx<'_>,
+) -> Result<Vec<AuxiliaryBindingSlot>, ValueSetPipelineError> {
+    let mut slots = Vec::new();
+    for item in items {
+        let declaration = ctx
+            .nodes
+            .get(&item.anode.type_id)
+            .ok_or_else(|| ValueSetPipelineError::MissingDeclaration(item.anode.type_id.clone()))?;
+        let primary = declaration
+            .role_capabilities_for(&item.anode)
+            .into_iter()
+            .find(|capability| capability.role == SurfaceItemKind::Filter)
+            .and_then(|capability| capability.primary_input);
+        let signature = declaration.signature(
+            &SignatureCtx {
+                value_types: ctx.value_types,
+                properties: ctx.properties,
+            },
+            &item.anode,
+            &item.anode.type_bindings,
+        );
+        for input in signature.inputs {
+            if primary.as_ref() == Some(&input.id) {
+                continue;
+            }
+            let authored = item.anode.input_defaults.get(&input.id).cloned();
+            let value_type = match &input.constraint {
+                TypeConstraint::Exact(value_type) => value_type.clone(),
+                _ => authored
+                    .as_ref()
+                    .filter(|value| !matches!(value, RuntimeValue::Ref(_)))
+                    .map(RuntimeValue::value_type)
+                    .unwrap_or_else(|| item_type.clone()),
+            };
+            let default_value = ctx
+                .value_types
+                .default_value(&value_type)
+                .ok_or_else(|| ValueSetPipelineError::MissingDefaultValue(value_type.clone()))?;
+            let binding = match authored.or(input.default_value) {
+                Some(RuntimeValue::Ref(reference)) => RuntimeInputBinding::Reference(reference),
+                Some(value) => RuntimeInputBinding::Constant(value),
+                None => RuntimeInputBinding::Constant(default_value.clone()),
+            };
+            if let RuntimeInputBinding::Constant(value) = &binding
+                && value.value_type() != value_type
+            {
+                return Err(ValueSetPipelineError::RuntimeInputTypeMismatch {
+                    item: item.id,
+                    socket: input.id,
+                    expected: value_type,
+                    actual: value.value_type(),
+                });
+            }
+            if let RuntimeInputBinding::Reference(reference) = &binding
+                && reference.value_type != value_type
+            {
+                return Err(ValueSetPipelineError::RuntimeInputTypeMismatch {
+                    item: item.id,
+                    socket: input.id,
+                    expected: value_type,
+                    actual: reference.value_type.clone(),
+                });
+            }
+            slots.push(AuxiliaryBindingSlot {
+                item: item.id,
+                node: item.anode.id,
+                property: FormulaPropertyId::new(format!("managed:{}:{}", item.id, input.id.as_str())),
+                socket: input.id,
+                value_type,
+                binding,
+                default_value,
+            });
+        }
+    }
+    Ok(slots)
+}
+
 fn property_frame_for_entries(
     compiled: &CompiledAlchemistGraph,
     property_ids: &[FormulaPropertyId],
@@ -347,9 +518,36 @@ fn property_frame_for_entries(
 fn property_frame(
     compiled: &CompiledAlchemistGraph,
     value: RuntimeValue,
+    auxiliary: &[AuxiliaryBindingSlot],
+    ctx: &EvaluationCtx<'_>,
+    context_key: &ContextKey,
 ) -> Result<RuntimePropertyFrame, ValueSetPipelineError> {
     let mut overrides = IndexMap::new();
     overrides.insert(FormulaPropertyId::new(PIPELINE_INPUT_PROPERTY), value);
+    for slot in auxiliary {
+        let value = match &slot.binding {
+            RuntimeInputBinding::Constant(value) => value.clone(),
+            RuntimeInputBinding::Reference(reference) => ctx
+                .inputs
+                .get_context(reference, context_key)
+                .or_else(|| ctx.inputs.get(reference))
+                .cloned()
+                .ok_or_else(|| ValueSetPipelineError::MissingRuntimeReference {
+                    item: slot.item,
+                    socket: slot.socket.clone(),
+                    reference: reference.clone(),
+                })?,
+        };
+        if value.value_type() != slot.value_type {
+            return Err(ValueSetPipelineError::RuntimeInputTypeMismatch {
+                item: slot.item,
+                socket: slot.socket.clone(),
+                expected: slot.value_type.clone(),
+                actual: value.value_type(),
+            });
+        }
+        overrides.insert(slot.property.clone(), value);
+    }
     RuntimePropertyFrame::with_overrides(&compiled.properties, &overrides).map_err(ValueSetPipelineError::PropertyFrame)
 }
 
@@ -371,6 +569,23 @@ fn normalize_elementwise_items(mut items: Vec<ManagedItemInstance>) -> Vec<Manag
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValueSetPipelineError {
+    #[error("managed filter ANode declaration `{0}` is not registered")]
+    MissingDeclaration(ANodeTypeId),
+    #[error("managed filter `{item}` has no runtime input socket `{socket}`")]
+    MissingRuntimeInput { item: ManagedItemId, socket: SocketId },
+    #[error("managed filter `{item}` input `{socket}` expects `{expected}`, got `{actual}`")]
+    RuntimeInputTypeMismatch {
+        item: ManagedItemId,
+        socket: SocketId,
+        expected: ValueTypeId,
+        actual: ValueTypeId,
+    },
+    #[error("managed filter `{item}` input `{socket}` cannot resolve runtime reference `{reference:?}`")]
+    MissingRuntimeReference {
+        item: ManagedItemId,
+        socket: SocketId,
+        reference: StableRef,
+    },
     #[error("typed Alchemist pipeline authoring edit failed: {0}")]
     AuthoringEdit(chataigne_alchemist::AlchemistGraphTransactionError),
     #[error("managed filter pipeline failed to lower")]

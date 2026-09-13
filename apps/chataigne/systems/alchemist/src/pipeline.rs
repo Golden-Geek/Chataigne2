@@ -68,7 +68,7 @@ pub fn check_filter_pipeline_shapes<'a>(
         let node_type = item.declaration.type_id();
         let Some(capability) = item
             .declaration
-            .role_capabilities()
+            .role_capabilities_for(item.instance)
             .into_iter()
             .find(|capability| capability.role == SurfaceItemKind::Filter)
         else {
@@ -381,7 +381,7 @@ fn resolve_filter_pipeline_items<'a>(
             continue;
         };
         let capability = declaration
-            .role_capabilities()
+            .role_capabilities_for(&item.anode)
             .into_iter()
             .find(|capability| capability.role == SurfaceItemKind::Filter);
 

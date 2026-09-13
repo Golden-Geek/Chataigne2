@@ -160,6 +160,15 @@ pub struct ANodeConfigFieldDecl {
     pub type_variable: Option<TypeVar>,
     pub type_options: Vec<ValueTypeId>,
     pub default_value: RuntimeValue,
+    pub update_class: ManagedSettingClass,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ManagedSettingClass {
+    RuntimeValue,
+    Structural,
+    Resource,
+    Presentation,
 }
 
 impl ANodeConfigFieldDecl {
@@ -174,6 +183,7 @@ impl ANodeConfigFieldDecl {
             type_variable: None,
             type_options: Vec::new(),
             default_value,
+            update_class: ManagedSettingClass::Structural,
         }
     }
 
@@ -214,6 +224,12 @@ impl ANodeConfigFieldDecl {
     }
 
     #[must_use]
+    pub fn with_update_class(mut self, update_class: ManagedSettingClass) -> Self {
+        self.update_class = update_class;
+        self
+    }
+
+    #[must_use]
     pub fn resolved_type_options(&self, signature: &ANodeSignature, registry: &ValueTypeRegistry) -> Vec<ValueTypeId> {
         if !self.type_options.is_empty() {
             return self.type_options.clone();
@@ -249,6 +265,10 @@ pub trait ANodeDeclaration: Send + Sync {
     }
     fn role_capabilities(&self) -> Vec<ANodeRoleCapability> {
         Vec::new()
+    }
+
+    fn role_capabilities_for(&self, _instance: &ANodeInstance) -> Vec<ANodeRoleCapability> {
+        self.role_capabilities()
     }
     fn supports_role(&self, role: SurfaceItemKind) -> bool {
         self.role_capabilities()

@@ -3,8 +3,9 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 
 use crate::{
-    ANodeDeclaration, ANodeTypeId, FacetId, RuntimeValue, SurfaceItemKind, TriggerValue, ValueStorageKind, ValueTypeId,
-    value::ColorValue,
+    ANodeDeclaration, ANodeInstance, ANodeTypeId, ChannelLayout, FacetId, ManagedApplication, ManagedApplicationError,
+    RuntimeValue, SignatureCtx, SurfaceItemKind, TriggerValue, ValueStorageKind, ValueTypeId,
+    resolve_managed_application, value::ColorValue,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -209,6 +210,18 @@ impl ANodeRegistry {
 
     pub fn declarations_with_role(&self, role: SurfaceItemKind) -> impl Iterator<Item = &Arc<dyn ANodeDeclaration>> {
         self.iter().filter(move |declaration| declaration.supports_role(role))
+    }
+
+    pub fn resolve_managed_application(
+        &self,
+        instance: &ANodeInstance,
+        layout: &ChannelLayout,
+        ctx: &SignatureCtx<'_>,
+    ) -> Result<ManagedApplication, ManagedApplicationError> {
+        let declaration = self
+            .get(&instance.type_id)
+            .ok_or_else(|| ManagedApplicationError::MissingDeclaration(instance.type_id.clone()))?;
+        resolve_managed_application(declaration.as_ref(), instance, layout, ctx)
     }
 }
 

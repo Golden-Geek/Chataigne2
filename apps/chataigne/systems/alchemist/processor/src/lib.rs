@@ -38,7 +38,9 @@ pub use processor::{
     processor_output_preview_samples_from_lanes,
 };
 pub use value_set::{ValueSet, ValueSetEntry, ValueSetError};
-pub use value_set_pipeline::{ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime};
+pub use value_set_pipeline::{
+    RuntimeInputBinding, ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime,
+};
 
 #[cfg(test)]
 mod tests;

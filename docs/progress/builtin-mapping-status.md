@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 02 — typed channel layouts and identity (implementation delivered; status checkpoint pending)
+- Active phase: 03 — declarative filter applications and runtime bindings (in progress)
 - Last validated implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904` (Phase 02)
 - Last verified remote implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904` (Phase 02)
-- Current blockers: none; the ambient `CPAL_ASIO_DIR` points at an incomplete SDK, so Windows default-feature checks require the repository's pinned `tools/asio.ps1` wrapper
+- Current blockers: no environment blocker after using the pinned ASIO wrapper and non-incremental app tests; Phase 03's executable palette/compiler gate remains open
 - Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; M01–M16 and M18–M20 acceptance cases
-- Next concrete action: publish the Phase 02 status checkpoint, then start Phase 03 declarative applications and runtime bindings
-- Last updated: 2026-09-13T10:10:55+02:00
+- Next concrete action: make the palette query validate candidates through the managed compiler, then replace its terminal-projection runner with composable typed stages
+- Last updated: 2026-09-13T10:50:07+02:00
 
 ## Phase ledger
 
@@ -20,7 +20,7 @@
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
 | 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `8e82b40c` observed at remote; direct branch push has no required CI. |
-| 03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Declarative applications and live bindings. |
+| 03 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_PENDING | NOT_RUN | Instance-aware Math modes, selection/group and socket validation, runtime auxiliary bindings, and live backend socket edits pass tests. Executable palette query and all declared application lowerings remain open. |
 | 04 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Composable managed compilation. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
 | 06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Inputs and command argument bindings. |
@@ -76,6 +76,9 @@
 | 2026-09-13T10:06+02:00 | 02 | working tree on `cec206c9` | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy | Windows x64, Rust 1.97.0 | PASSED | 156 Alchemist and 78 processor tests; `-D warnings` clean. |
 | 2026-09-13T10:07+02:00 | 02 | working tree on `cec206c9` | `.\tools\asio.ps1 -- cargo check --locked --workspace`; root and Golden Core `cargo fmt --all`; root `cargo fmt --all --check`; scoped `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check and formatting pass. |
 | 2026-09-13T10:10+02:00 | 02 | working tree on `cec206c9` | `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 531 app tests passed, 5 existing manual qualification tests ignored; 1 audio-host integration test passed. |
+| 2026-09-13T10:50+02:00 | 03 | working tree on `8440ed73` | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy | Windows x64, Rust 1.97.0 | PASSED | 161 Alchemist and 83 processor tests pass, including contextual auxiliary binding and live memory preservation; `-D warnings` clean. |
+| 2026-09-13T10:50+02:00 | 03 | working tree on `8440ed73` | `.\tools\asio.ps1 -- cargo check --locked --workspace`; root and Golden Core `cargo fmt --all`; `cargo fmt --all --check`; scoped `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace check, format, and whitespace checks pass. |
+| 2026-09-13T10:50+02:00 | 03 | working tree on `8440ed73` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 532 app tests pass, 5 existing manual tests ignored, and 1 audio-host integration test passes; includes live managed socket edit through the host event path. |
 
 ## Phase reports
 
@@ -113,9 +116,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; repository CI triggers on PRs and `main`.
 - Decisions/deviations and rationale: preserve dynamic source identity with an unresolved type until a backend schema event; never infer layout from ordinary value samples. The native frame remains the authoritative source of channel validity while the existing managed ValueSet runner is migrated in Phase 04.
 
+### Phase 03 (in progress)
+
+- Changes and affected public boundaries: ANode declarations now resolve capabilities from configured instances; `ManagedApplication` validates signatures, selections, groups, auxiliary types, and state scope. Math has per-channel and combine modes using its graph kernel. The processor binds auxiliary socket values or references through Formula properties and resolves contextual references per channel. Backend managed socket edits update a live binding and the authored instance without rebuilding the processor.
+- Acceptance gates satisfied: host-level parameter edit changes output without scheduling a rebuild; processor tests show unrelated SMA history survives an auxiliary edit; graph and Mapping Math use the same operation; invalid selection, arity, mode, and auxiliary types diagnose.
+- Remaining work: the palette must query actual managed compiler availability. The current homogeneous runner rejects some declaratively valid layouts and multi-output applications; its composable typed replacement is Phase 04 work. Do not mark Phase 03 complete or advertise those choices before that boundary is implemented.
+- Exact checks and outcomes: see Phase 03 validation rows. An incremental MSVC app link failed with unresolved symbols in an unrelated module; the non-incremental full app run passed.
+- Implementation commit: pending in-progress checkpoint.
+- Verified remote ref, observed OID, and timestamp: pending.
+- CI status and relevant runs: `NOT_RUN` while the phase is in progress.
+- Decisions/deviations and rationale: keep role, settings, and operation behavior on the existing ANode declaration. Config changes remain structural; runtime socket values update compiled properties. No second kernel or UI-owned behavior registry was added.
+
 ## Blockers and handoff
 
-- What failed: no implementation gate currently failed. Plain workspace check encountered a pre-existing incomplete ambient ASIO SDK; the pinned wrapper passed.
+- What failed: Phase 03's executable palette query and universal application lowering are not yet implemented. An incremental MSVC app link failed on unrelated module symbols; disabling incremental compilation passed the full app suite. Plain workspace check requires the pinned ASIO SDK wrapper.
 - Last known-good checkpoint: Phase 02 implementation `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`, verified on `origin/codex/builtin-mapping`.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: publish this factual Phase 02 status checkpoint, then start Phase 03.
+- Next action: publish a labeled in-progress source-control checkpoint, then implement executable availability through the managed compiler and the Phase 04 composable stage lowering.

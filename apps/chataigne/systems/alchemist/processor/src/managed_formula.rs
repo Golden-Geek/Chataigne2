@@ -10,8 +10,8 @@ use golden_values::Value as RuntimeValue;
 
 use crate::{
     COMMAND_INTENT_KIND, ChannelSourceSchema, INPUT_SOURCE_FIELD, InputSetError, InputSetRuntime, OUTPUT_TARGET_FIELD,
-    OutputSetError, OutputSetMaterialization, OutputSetRuntime, ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError,
-    ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime,
+    OutputSetError, OutputSetMaterialization, OutputSetRuntime, RuntimeInputBinding, ValueLaneKey, ValueSet,
+    ValueSetEntry, ValueSetError, ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime,
 };
 
 pub struct ManagedFormulaRuntime {
@@ -146,6 +146,22 @@ impl ManagedFormulaRuntime {
             runtime.input_set.reconcile_source_schema(resolve)?;
         }
         Ok(())
+    }
+
+    pub fn update_filter_input(
+        &mut self,
+        item: chataigne_alchemist::ManagedItemId,
+        socket: &chataigne_alchemist::SocketId,
+        binding: RuntimeInputBinding,
+    ) -> Result<(), ManagedFormulaError> {
+        match &mut self.kind {
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => {
+                runtime.filter_pipeline.update_runtime_input(item, socket, binding)
+            }
+            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => {
+                runtime.filter_pipeline.update_runtime_input(item, socket, binding)
+            }
+        }
     }
 }
 
@@ -486,6 +502,52 @@ struct ManagedFilterPipelineRuntime {
 }
 
 impl ManagedFilterPipelineRuntime {
+    fn update_runtime_input(
+        &mut self,
+        item: chataigne_alchemist::ManagedItemId,
+        socket: &chataigne_alchemist::SocketId,
+        binding: RuntimeInputBinding,
+    ) -> Result<(), ManagedFormulaError> {
+        if !self
+            .instance
+            .as_ref()
+            .is_some_and(|instance| instance.items.iter().any(|candidate| candidate.id == item))
+        {
+            return Err(ManagedFormulaError::MissingFilterItem(item));
+        }
+        match &mut self.compiled {
+            ManagedFilterCompiledRuntime::Elementwise(runtime) => {
+                runtime.update_runtime_input(item, socket, binding.clone())?;
+            }
+            ManagedFilterCompiledRuntime::Projection {
+                prefix: Some(prefix), ..
+            } => {
+                prefix.update_runtime_input(item, socket, binding.clone())?;
+            }
+            ManagedFilterCompiledRuntime::PassThrough => {}
+            ManagedFilterCompiledRuntime::Projection { prefix: None, .. } => {
+                return Err(ManagedFormulaError::UnsupportedFilterPipeline(
+                    "runtime edits to projection input bindings are not supported yet".into(),
+                ));
+            }
+        }
+        let instance = self
+            .instance
+            .as_mut()
+            .ok_or(ManagedFormulaError::MissingFilterItem(item))?;
+        let target = instance
+            .items
+            .iter_mut()
+            .find(|candidate| candidate.id == item)
+            .ok_or(ManagedFormulaError::MissingFilterItem(item))?;
+        let value = match binding {
+            RuntimeInputBinding::Constant(value) => value,
+            RuntimeInputBinding::Reference(reference) => RuntimeValue::Ref(reference),
+        };
+        target.anode.input_defaults.insert(socket.clone(), value);
+        Ok(())
+    }
+
     fn new(
         filter: Option<(&ManagedRegionDefinition, &ManagedRegionInstance)>,
         ctx: &CompileCtx<'_>,
@@ -857,6 +919,8 @@ fn runtime_diagnostic(diagnostic: Diagnostic) -> RuntimeDiagnostic {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManagedFormulaError {
+    #[error("managed filter item `{0}` does not exist")]
+    MissingFilterItem(chataigne_alchemist::ManagedItemId),
     #[error("{0}")]
     Formula(#[from] FormulaMaterializationError),
     #[error("{0}")]
@@ -956,6 +1020,7 @@ impl ManagedFormulaError {
             Self::RegionMismatch { .. } => "managed_formula_region_mismatch",
             Self::DoesNotAcceptFilters { .. } => "managed_formula_filter_role_rejected",
             Self::MissingFilterDeclaration { .. } => "managed_formula_missing_filter_declaration",
+            Self::MissingFilterItem(_) => "managed_formula_missing_filter_item",
             Self::InvalidFilterShape { .. } => "managed_formula_invalid_filter_shape",
             Self::UnsupportedFilterPipeline(_) => "managed_formula_unsupported_filter_pipeline",
             Self::EmptyFilteredValueSet => "managed_formula_empty_filtered_valueset",

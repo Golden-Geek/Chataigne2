@@ -1,5 +1,17 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
+use chataigne_alchemist::{
+    ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, CompileCtx, EvaluationCtx,
+    FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface, ManagedItemId,
+    ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId,
+    ManagedRegionInstance, ManagedRegionKind, RuntimeInputSnapshot, RuntimeRegistries, SocketId,
+    StableRef, SurfaceItemKind, ValueTypeId, primitive_node_registry,
+};
+use chataigne_state_machine::{
+    Processor, ProcessorRuntime, ProcessorFormulaUiState, INPUT_SOURCE_FIELD, OUTPUT_TARGET_FIELD,
+};
+use golden_values::Value as RuntimeValue;
+
 use golden_core::{
     app::load_sparse_project_file,
     engine::EngineTime,
@@ -13,8 +25,8 @@ use golden_core::{
 use crate::app::{AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary, StateMachineState};
 
 use super::super::{
-    is_condition_valid_result, runtime_param_change_requires_snapshot, set_condition_valid_param,
-    RuntimeInvalidation, StateMachineManager,
+    is_condition_valid_result, managed_runtime_input_location, runtime_param_change_requires_snapshot, set_condition_valid_param,
+    RuntimeInvalidation, RuntimeProcessor, StateMachineManager,
 };
 use super::context_scope_test_node;
 
@@ -88,6 +100,171 @@ fn authored_formula_value_invalidates_runtime_but_layout_and_status_do_not() {
     assert!(manager.runtime_cache.structure_dirty.is_empty());
     manager.on_param_change(&mut no_snapshot, value, ParamValue::Float(0.0));
     assert!(manager.runtime_cache.structure_dirty.contains(&formula_uuid));
+}
+
+#[test]
+fn managed_socket_value_edit_identifies_authored_item_and_invalidates_when_runtime_is_absent() {
+    let (root, manager_id, processor, regions, region, anode, inputs, socket, value, value_type, position) = (
+        NodeId(1), NodeId(2), NodeId(3), NodeId(4), NodeId(5), NodeId(6), NodeId(7), NodeId(8), NodeId(9), NodeId(10), NodeId(11),
+    );
+    let anode_uuid = NodeUuid(uuid::Uuid::from_u128(6));
+    let mut nodes = HashMap::from([
+        (root, context_scope_test_node(root, None, Some(manager_id), None, "root")),
+        (manager_id, context_scope_test_node(manager_id, Some(root), None, Some(processor), "state_machine_manager")),
+        (processor, context_scope_test_node(processor, Some(root), Some(regions), None, "state_processor")),
+        (regions, context_scope_test_node(regions, Some(processor), Some(region), None, "folder")),
+        (region, context_scope_test_node(region, Some(regions), Some(anode), None, "folder")),
+        (anode, context_scope_test_node(anode, Some(region), Some(inputs), None, "alchemist_anode")),
+        (inputs, context_scope_test_node(inputs, Some(anode), Some(socket), Some(position), "folder")),
+        (socket, context_scope_test_node(socket, Some(inputs), Some(value), None, "alchemist_input_socket")),
+        (value, context_scope_test_node(value, Some(socket), None, Some(value_type), "float")),
+        (value_type, context_scope_test_node(value_type, Some(socket), None, None, "string")),
+        (position, context_scope_test_node(position, Some(anode), None, None, "vec2")),
+    ]);
+    nodes.get_mut(&regions).unwrap().decl_id = "managed_regions".into();
+    nodes.get_mut(&region).unwrap().decl_id = "managed_region/filters".into();
+    nodes.get_mut(&anode).unwrap().uuid = anode_uuid;
+    nodes.get_mut(&inputs).unwrap().decl_id = "inputs".into();
+    nodes.get_mut(&socket).unwrap().decl_id = "inputs/out_max".into();
+    nodes.get_mut(&value).unwrap().decl_id = "inputs/out_max/value".into();
+    nodes.get_mut(&value).unwrap().param_value = Some(ParamValue::Float(1.0));
+    nodes.get_mut(&value_type).unwrap().decl_id = "inputs/out_max/value_type".into();
+    nodes.get_mut(&value_type).unwrap().param_value = Some(ParamValue::Str("float".into()));
+    nodes.get_mut(&position).unwrap().decl_id = "position".into();
+    let snapshot = Arc::new(ProcessTreeSnapshot::new(root, nodes));
+    let location = managed_runtime_input_location(&snapshot, value).expect("managed socket location");
+    assert_eq!(location.0, processor);
+    assert_eq!(location.1.as_uuid(), anode_uuid.0);
+    assert_eq!(location.2.as_str(), "out_max");
+    assert_eq!(location.3, socket);
+
+    let mut manager = StateMachineManager::new();
+    manager.node_data_mut().id = manager_id;
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 1, micro: 0, seq: 0 });
+    ctx.set_tree_snapshot(snapshot);
+    manager.on_param_change(&mut ctx, position, ParamValue::Vec2(0.0, 0.0));
+    assert!(manager.runtime_cache.dirty_processor_overrides.is_empty());
+    manager.on_param_change(&mut ctx, value, ParamValue::Float(1.0));
+    assert!(manager.runtime_cache.dirty_processor_overrides.contains(&processor));
+
+    let (formula, processor_model, source) = managed_remap_processor(anode_uuid);
+    let value_types = chataigne_state_machine::alchemist::value_type_registry();
+    let nodes = primitive_node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut runtime = ProcessorRuntime::new(processor_model.id);
+    assert!(runtime.compile(&processor_model, &formula, &compile_ctx));
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Float(5.0));
+    let registries = RuntimeRegistries { value_types: &value_types };
+    let before_ctx = EvaluationCtx {
+        logical_tick: 1,
+        delta_time: std::time::Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    };
+    let before = runtime.managed_formula.as_mut().unwrap().evaluate(&before_ctx);
+    assert!(before.diagnostics.is_empty(), "{:?}", before.diagnostics);
+    assert_eq!(before.intents[0].payload, RuntimeValue::Float(0.5));
+    manager.runtime_cache.dirty_processor_overrides.clear();
+    manager.runtime_cache.processors.insert(processor, RuntimeProcessor {
+        processor: processor_model.clone(),
+        runtime,
+        compile_warning: None,
+        formula,
+        formula_node: None,
+        formula_ui: ProcessorFormulaUiState::project(),
+        formula_source_key: "test".to_owned(),
+        command_dispatch_plans: Default::default(),
+    });
+    ctx.events.push_shared(Arc::new(Event {
+        time: ctx.time,
+        kind: EventKind::ParamChanged {
+            param: value,
+            old_value: ParamValue::Float(1.0),
+            new_value: ParamValue::Float(2.0),
+        },
+    }));
+    manager.on_param_change(&mut ctx, value, ParamValue::Float(1.0));
+    assert!(manager.runtime_cache.dirty_processor_overrides.is_empty());
+    let live = manager.runtime_cache.processors.get_mut(&processor).unwrap();
+    assert_eq!(
+        live.processor.formula_instance.managed_regions.regions[&ManagedRegionId::new("filters")].items[0]
+            .anode.input_defaults[&SocketId::new("out_max")],
+        RuntimeValue::Float(2.0),
+    );
+    let after_ctx = EvaluationCtx {
+        logical_tick: 2,
+        delta_time: std::time::Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    };
+    let after = live.runtime.managed_formula.as_mut().unwrap().evaluate(&after_ctx);
+    assert!(after.diagnostics.is_empty(), "{:?}", after.diagnostics);
+    assert_eq!(after.intents[0].payload, RuntimeValue::Float(1.0));
+}
+
+fn managed_remap_processor(item_uuid: NodeUuid) -> (AlchemistFormula, Processor, StableRef) {
+    let definition = |id: &str, kind, role| ManagedRegionDefinition {
+        id: ManagedRegionId::new(id),
+        kind,
+        label: id.to_owned(),
+        input_socket: None,
+        output_socket: None,
+        accepted_roles: vec![role],
+    };
+    let formula = AlchemistFormula {
+        id: FormulaId::new("test.managed_edit"),
+        version: 1,
+        label: "Managed edit".into(),
+        description: None,
+        tags: Vec::new(),
+        graph: AlchemistGraphDomain::new_document(),
+        properties: FormulaPropertySchema::default(),
+        surface: FormulaSurface {
+            sections: Vec::new(),
+            managed_regions: vec![
+                definition("inputs", ManagedRegionKind::InputSet, SurfaceItemKind::Input),
+                definition("filters", ManagedRegionKind::FilterPipeline, SurfaceItemKind::Filter),
+                definition("outputs", ManagedRegionKind::OutputSet, SurfaceItemKind::Output),
+            ],
+        },
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    };
+    let source = StableRef::new(ValueTypeId::new("float"), "module/fader");
+    let mut input = ANodeInstance::new(ANodeTypeId::new("managed_input"), "Fader");
+    input.config.set(INPUT_SOURCE_FIELD, RuntimeValue::Ref(source.clone()));
+    let mut remap = ANodeInstance::new(ANodeTypeId::new("remap"), "Remap");
+    remap.input_defaults.insert(SocketId::new("in_min"), RuntimeValue::Float(0.0));
+    remap.input_defaults.insert(SocketId::new("in_max"), RuntimeValue::Float(10.0));
+    remap.input_defaults.insert(SocketId::new("out_min"), RuntimeValue::Float(0.0));
+    remap.input_defaults.insert(SocketId::new("out_max"), RuntimeValue::Float(1.0));
+    let mut output = ANodeInstance::new(ANodeTypeId::new("managed_output"), "Output");
+    output.config.set(OUTPUT_TARGET_FIELD, RuntimeValue::Ref(StableRef::new(ValueTypeId::new("float"), "target/output")));
+    let item = |anode, id| ManagedItemInstance {
+        id,
+        anode,
+        enabled: true,
+        ui_state: ManagedItemUiState::default(),
+    };
+    let mut processor = Processor::from_formula("Managed edit", &formula);
+    for (region, items) in [
+        ("inputs", vec![item(input, ManagedItemId::new())]),
+        ("filters", vec![item(remap, ManagedItemId::from_uuid(item_uuid.0))]),
+        ("outputs", vec![item(output, ManagedItemId::new())]),
+    ] {
+        processor.formula_instance.managed_regions.regions.insert(
+            ManagedRegionId::new(region),
+            ManagedRegionInstance { region_id: ManagedRegionId::new(region), items },
+        );
+    }
+    (formula, processor, source)
 }
 
 #[test]

@@ -97,6 +97,18 @@ will replace that runner's stage shape with the typed layout/frame contract and
 remove the positional ValueSet handoff. Source-schema discovery from Golden
 parameters and actual Mapping UI queries are Phase 06 and 09 integration work.
 
+Phase 03 extends ANode role capabilities to the configured instance. The
+application resolver checks primary, auxiliary, and output sockets against its
+signature, resolves stable-channel selections and authored groups, and reports
+the state scope. Math uses its graph kernel in both `each` and `combine` modes.
+Elementwise auxiliary sockets are bound as Formula properties; they can read a
+constant, a shared reference, or a channel-context reference at evaluation time.
+An edit to an authored managed input socket updates a compiled binding and its
+processor instance without discarding lane memory. Structural config edits still
+rebuild the processor. The current managed runner does not yet execute every
+resolved layout or multiple-output application; Phase 04 replaces that runner
+before such applications are exposed as executable palette choices.
+
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.
 Changed persisted filter or output semantics need narrow typed migrations. In
