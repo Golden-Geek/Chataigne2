@@ -1,7 +1,7 @@
 use super::*;
 
 /// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.5.0";
+pub const UI_PROTOCOL_VERSION: &str = "0.6.0";
 
 /// Scope used by snapshot/event subscriptions.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]

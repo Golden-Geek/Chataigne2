@@ -144,6 +144,9 @@ fn graph_op_changes_preferences(op: &UiGraphOp, preferences: &HashSet<NodeId>) -
                     .is_some_and(|patch| preferences.contains(&patch.parent))
         }
         UiGraphOp::ChildrenReordered { parent, .. } => preferences.contains(parent),
+        UiGraphOp::ChildrenInserted { parent, children, .. } => {
+            preferences.contains(parent) || children.iter().any(|child| preferences.contains(child))
+        }
         UiGraphOp::NodeMetaPatched { node, .. } => preferences.contains(node),
         UiGraphOp::ParamPatched { node, param, .. } => preferences.contains(node) || preferences.contains(param),
         UiGraphOp::HistoryPatched { .. } | UiGraphOp::LoggerPatched { .. } => false,

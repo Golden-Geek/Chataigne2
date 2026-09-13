@@ -8,6 +8,7 @@ import type {
 	UiParamDto,
 	UiSnapshot
 } from '../types';
+import { insertChildrenIntoOrder } from './graph-child-order';
 import {
 	createIncrementalGraphEventProjection,
 	type GraphEventProjectionWork
@@ -485,6 +486,24 @@ const reduceEventInPlace = (
 					requiresRootRecompute = true;
 				} else if (op.kind === 'childrenReordered') {
 					setNodeChildren(state, op.parent, op.children);
+					stateChanged = true;
+					requiresRootRecompute = true;
+				} else if (op.kind === 'childrenInserted') {
+					const children = insertChildrenIntoOrder(
+						state.childrenById.get(op.parent),
+						op.expected_before_count,
+						op.index,
+						op.children
+					);
+					if (!children || !state.nodesById.has(op.parent)) {
+						requireResync(`graphTransaction childrenInserted stale parent ${op.parent}`);
+						continue;
+					}
+					state.childrenById.set(op.parent, children);
+					for (const child of op.children) {
+						state.parentById.set(child, op.parent);
+					}
+					syncNodeChildren(state, op.parent);
 					stateChanged = true;
 					requiresRootRecompute = true;
 				} else if (op.kind === 'nodeMetaPatched') {

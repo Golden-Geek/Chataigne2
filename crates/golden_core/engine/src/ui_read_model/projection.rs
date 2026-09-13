@@ -252,6 +252,22 @@ fn apply_graph_op(store: &mut NodeStore, parents: &mut ParentStore, op: &UiGraph
                 parent_dto.children.clone_from(children);
             }
         }
+        UiGraphOp::ChildrenInserted {
+            parent,
+            expected_before_count,
+            index,
+            children,
+        } => {
+            if let Some(parent_dto) = store.get_mut(parent)
+                && parent_dto.children.len() == *expected_before_count
+                && *index <= parent_dto.children.len()
+            {
+                parent_dto.children.splice(*index..*index, children.iter().copied());
+                for child in children {
+                    parents.insert(*child, *parent);
+                }
+            }
+        }
         UiGraphOp::SubtreeRemoved {
             removed_ids,
             parent_after,

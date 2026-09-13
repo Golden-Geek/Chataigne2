@@ -821,6 +821,12 @@ fn graph_op_matches_subtree(parents: &ParentStore, op: &UiGraphOp, root: NodeId,
                     .is_some_and(|patch| node_within_subtree(parents, patch.parent, root, max_depth))
         }
         UiGraphOp::ChildrenReordered { parent, .. } => node_within_subtree(parents, *parent, root, max_depth),
+        UiGraphOp::ChildrenInserted { parent, children, .. } => {
+            node_within_subtree(parents, *parent, root, max_depth)
+                || children
+                    .iter()
+                    .any(|child| node_within_subtree(parents, *child, root, max_depth))
+        }
         UiGraphOp::NodeMetaPatched { node, .. } => node_within_subtree(parents, *node, root, max_depth),
         UiGraphOp::ParamPatched { node, param, .. } => {
             node_within_subtree(parents, *node, root, max_depth)

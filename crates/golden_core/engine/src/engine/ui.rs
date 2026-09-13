@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::events::{CustomEvent, CustomEventRetention, Event, EventKind};
 use crate::node::{Node, NodeId};
@@ -99,6 +99,72 @@ impl<T: Node> Engine<T> {
             compacted.push(op);
         }
         compacted.reverse();
+
+        // An insertion-only transaction can describe a contiguous group of new direct children
+        // with one splice. Mixed edits or interleaved insertions retain the exact full order.
+        if compacted
+            .iter()
+            .all(|op| matches!(op, UiGraphOp::SubtreeInserted { .. }))
+        {
+            let mut parents = Vec::new();
+            let mut roots_by_parent: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
+            for op in &compacted {
+                if let UiGraphOp::SubtreeInserted { root, parent, .. } = op {
+                    if !roots_by_parent.contains_key(parent) {
+                        parents.push(*parent);
+                    }
+                    roots_by_parent.entry(*parent).or_default().push(*root);
+                }
+            }
+            let mut insertions = Vec::new();
+            for parent in parents {
+                let roots = &roots_by_parent[&parent];
+                let Some((order_op_index, order)) = compacted.iter().enumerate().rev().find_map(|(index, op)| {
+                    if let UiGraphOp::SubtreeInserted {
+                        parent: op_parent,
+                        parent_children_after: Some(order),
+                        ..
+                    } = op
+                        && *op_parent == parent
+                    {
+                        Some((index, order))
+                    } else {
+                        None
+                    }
+                }) else {
+                    continue;
+                };
+                let root_set: HashSet<_> = roots.iter().copied().collect();
+                if root_set.len() != roots.len() || order.len() < roots.len() {
+                    continue;
+                }
+                let Some(index) = order.iter().position(|child| root_set.contains(child)) else {
+                    continue;
+                };
+                let Some(inserted) = order.get(index..index + roots.len()) else {
+                    continue;
+                };
+                if inserted.iter().copied().collect::<HashSet<_>>() != root_set
+                    || order.iter().filter(|child| root_set.contains(child)).count() != roots.len()
+                {
+                    continue;
+                }
+                let insertion = UiGraphOp::ChildrenInserted {
+                    parent,
+                    expected_before_count: order.len() - roots.len(),
+                    index,
+                    children: inserted.to_vec(),
+                };
+                if let UiGraphOp::SubtreeInserted {
+                    parent_children_after, ..
+                } = &mut compacted[order_op_index]
+                {
+                    *parent_children_after = None;
+                }
+                insertions.push(insertion);
+            }
+            compacted.extend(insertions);
+        }
 
         let base_graph_version = self.ui_graph_version;
         let next_graph_version = base_graph_version.saturating_add(1);

@@ -1,7 +1,7 @@
-use crate::edit::{Edit, EditOrigin};
+use crate::edit::{Edit, EditOrigin, NodeTree};
 use crate::engine::Engine;
 use crate::events::CustomEvent;
-use crate::node::{Node, NodeMetaPatch};
+use crate::node::{Folder, Node, NodeMetaPatch};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
 use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope};
@@ -42,6 +42,41 @@ fn event_param_values(events: &[crate::ui_sync::UiEventDto]) -> Vec<i32> {
             _ => None,
         })
         .collect()
+}
+
+#[test]
+fn child_insertion_replays_into_the_same_parent_order_as_the_live_engine() {
+    let mut engine = Engine::new(Folder::new("root"));
+    engine.add_node(Folder::new("existing"), None);
+    engine.apply_edits().expect("existing child should attach");
+    let before = engine.ui_direct_children(engine.root).expect("root children");
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+
+    let mut tree = NodeTree::new(Folder::new("inserted"));
+    for index in 0..9 {
+        tree = tree.with_child(NodeTree::new(Folder::new(format!("child_{index}"))));
+    }
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    engine.apply_edits().expect("large subtree should attach");
+    let batch = read_model.publish_engine_events_since(&engine, None);
+
+    assert!(batch.events.iter().any(|event| matches!(
+        &event.kind,
+        UiEventKind::GraphTransaction { transaction }
+            if transaction.ops.iter().any(|op| matches!(op, crate::ui_sync::UiGraphOp::ChildrenInserted { .. }))
+    )));
+    let snapshot = read_model.current_snapshot();
+    let projected = snapshot
+        .nodes
+        .iter()
+        .find(|node| node.node_id == engine.root)
+        .expect("root should be projected");
+    assert_eq!(projected.children, engine.ui_direct_children(engine.root).unwrap());
+    assert_eq!(projected.children.len(), before.len() + 1);
 }
 
 #[test]

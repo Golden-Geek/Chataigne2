@@ -246,6 +246,20 @@ pub enum UiGraphOp {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         parent_children_after: Option<Vec<NodeId>>,
     },
+    /// Inserts newly materialized direct children into one unchanged sibling order.
+    ///
+    /// Emitted after the subtree snapshots in an insertion-only transaction. The count lets
+    /// clients reject a stale baseline instead of silently applying a splice to the wrong graph.
+    ChildrenInserted {
+        /// Parent whose direct children receive the new roots.
+        parent: NodeId,
+        /// Number of children in the client's graph before this insertion.
+        expected_before_count: usize,
+        /// Insertion position in that previous direct child order.
+        index: usize,
+        /// New direct child ids in final sibling order.
+        children: Vec<NodeId>,
+    },
     /// Removes a subtree from the client's graph.
     SubtreeRemoved {
         /// Root of the removed subtree.

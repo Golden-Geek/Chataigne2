@@ -556,6 +556,10 @@ fn collect_graph_op_project_dirty_nodes(
         UiGraphOp::ChildrenReordered { parent, .. } => {
             dirty.insert(*parent);
         }
+        UiGraphOp::ChildrenInserted { parent, children, .. } => {
+            dirty.insert(*parent);
+            dirty.extend(children.iter().copied());
+        }
         UiGraphOp::NodeMetaPatched { node, .. } => {
             dirty.insert(*node);
         }

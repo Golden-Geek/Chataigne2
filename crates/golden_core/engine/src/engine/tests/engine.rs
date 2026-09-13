@@ -5589,7 +5589,7 @@ fn add_node_tree_small_emits_node_created_ops() {
 
 #[test]
 fn add_node_tree_large_emits_subtree_inserted_op() {
-    // N > 8 nodes: must emit a single SubtreeInserted op instead of N NodeCreated ops.
+    // N > 8 nodes: one SubtreeInserted plus a child splice replaces N NodeCreated ops.
     let mut engine = Engine::new(Folder::new("root".to_string()));
     let mut tree = crate::edit::NodeTree::new(Folder::new("subtree_root".to_string()));
     for i in 0..10 {
@@ -5607,12 +5607,12 @@ fn add_node_tree_large_emits_subtree_inserted_op() {
 
     assert_eq!(
         ops.len(),
-        1,
-        "large tree (>8 nodes) must emit exactly one SubtreeInserted op"
+        2,
+        "large tree (>8 nodes) must emit one subtree and one child insertion"
     );
     assert!(
         matches!(ops[0], UiGraphOp::SubtreeInserted { .. }),
-        "the single op must be SubtreeInserted"
+        "the first op must be SubtreeInserted"
     );
 
     if let UiGraphOp::SubtreeInserted {
@@ -5628,15 +5628,17 @@ fn add_node_tree_large_emits_subtree_inserted_op() {
             "SubtreeInserted must carry all 11 node snapshots (root + 10 children)"
         );
         assert_eq!(*parent, engine.root, "insertion parent must be engine root");
-        assert_eq!(
-            parent_children_after
-                .as_ref()
-                .expect("single insertion carries parent order")
-                .len(),
-            1,
-            "root gains one direct child after insertion"
-        );
+        assert_eq!(parent_children_after, &None);
     }
+    assert!(matches!(
+        &ops[1],
+        UiGraphOp::ChildrenInserted {
+            parent,
+            expected_before_count: 0,
+            index: 0,
+            children,
+        } if *parent == engine.root && children.len() == 1
+    ));
 }
 
 #[test]
@@ -5683,7 +5685,7 @@ fn undo_remove_large_subtree_emits_compact_insert_transaction() {
     );
 
     let ops = first_graph_transaction_ops(&batch);
-    assert_eq!(ops.len(), 1, "undo restore should emit exactly one compact graph op");
+    assert_eq!(ops.len(), 2, "undo restore should emit a subtree and child insertion");
     match &ops[0] {
         UiGraphOp::SubtreeInserted {
             root,
@@ -5694,10 +5696,19 @@ fn undo_remove_large_subtree_emits_compact_insert_transaction() {
             assert_eq!(*root, subtree_root);
             assert_eq!(*parent, engine.root);
             assert_eq!(nodes.len(), 11);
-            assert_eq!(parent_children_after.as_ref(), Some(&vec![subtree_root]));
+            assert_eq!(parent_children_after, &None);
         }
         other => panic!("expected SubtreeInserted op, got {other:?}"),
     }
+    assert!(matches!(
+        &ops[1],
+        UiGraphOp::ChildrenInserted {
+            parent,
+            expected_before_count: 0,
+            index: 0,
+            children,
+        } if *parent == engine.root && children == &vec![subtree_root]
+    ));
 }
 
 #[test]

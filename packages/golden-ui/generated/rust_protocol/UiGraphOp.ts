@@ -39,7 +39,23 @@ nodes: Array<UiNodeDto>,
  * Final direct child order for `parent` after insertion. A multi-root transaction
  * may defer this to a later op for the same parent, avoiding repeated large lists.
  */
-parent_children_after?: Array<NodeId> | null, } | { "kind": "subtreeRemoved",
+parent_children_after?: Array<NodeId> | null, } | { "kind": "childrenInserted",
+/**
+ * Parent whose direct children receive the new roots.
+ */
+parent: NodeId,
+/**
+ * Number of children in the client's graph before this insertion.
+ */
+expected_before_count: number,
+/**
+ * Insertion position in that previous direct child order.
+ */
+index: number,
+/**
+ * New direct child ids in final sibling order.
+ */
+children: Array<NodeId>, } | { "kind": "subtreeRemoved",
 /**
  * Root of the removed subtree.
  */

@@ -1,6 +1,7 @@
 import type { CustomEventRetention } from './generated/rust_protocol/CustomEventRetention';
 import type { UiControlPhase } from './generated/rust_protocol/UiControlPhase';
 import type { UiDataPlane } from './generated/rust_protocol/UiDataPlane';
+import type { UiGraphOp as GeneratedUiGraphOp } from './generated/rust_protocol/UiGraphOp';
 
 export type NodeId = number;
 
@@ -422,52 +423,26 @@ export interface UiChildrenOrderPatch {
 	children: NodeId[];
 }
 
-export type UiGraphOp =
-	| {
-			kind: 'nodeCreated';
-			snapshot: UiNodeDto;
-			parent?: NodeId | null;
-			index?: number | null;
-	  }
-	| {
-			kind: 'subtreeInserted';
-			root: NodeId;
-			parent: NodeId;
-			nodes: UiNodeDto[];
-			parent_children_after?: NodeId[] | null;
-	  }
-	| {
-			kind: 'subtreeRemoved';
-			root: NodeId;
-			removed_ids: NodeId[];
-			parent_after?: UiChildrenOrderPatch | null;
-	  }
-	| {
-			kind: 'nodeMoved';
-			node: NodeId;
-			old_parent?: NodeId | null;
-			new_parent?: NodeId | null;
-			old_parent_after?: UiChildrenOrderPatch | null;
-			new_parent_after?: UiChildrenOrderPatch | null;
-	  }
-	| { kind: 'childrenReordered'; parent: NodeId; children: NodeId[] }
-	| { kind: 'nodeMetaPatched'; node: NodeId; patch: Partial<UiNodeMetaDto> }
-	| {
-			kind: 'paramPatched';
-			node: NodeId;
-			param: NodeId;
-			patch: {
-				value?: ParamValue;
-				control?: UiParameterControlState;
-				constraints?: UiParamConstraints;
-			};
-	  }
-	| { kind: 'historyPatched'; history: UiHistoryState }
-	| {
-			kind: 'loggerPatched';
-			records_added: UiLogRecord[];
-			dropped_before?: number | null;
-	  };
+type GraphOpView<T extends GeneratedUiGraphOp> = T extends {
+	kind: 'nodeCreated';
+}
+	? Omit<T, 'snapshot'> & { snapshot: UiNodeDto }
+	: T extends { kind: 'subtreeInserted' }
+		? Omit<T, 'nodes'> & { nodes: UiNodeDto[] }
+		: T extends { kind: 'nodeMetaPatched' }
+			? Omit<T, 'patch'> & { patch: Partial<UiNodeMetaDto> }
+			: T extends { kind: 'paramPatched' }
+				? Omit<T, 'patch'> & {
+						patch: {
+							value?: ParamValue;
+							control?: UiParameterControlState;
+							constraints?: UiParamConstraints;
+						};
+					}
+				: T;
+
+/** The generated operation set with the store's materialized node and patch views. */
+export type UiGraphOp = GraphOpView<GeneratedUiGraphOp>;
 
 export interface UiGraphTransaction {
 	tx_id: number;

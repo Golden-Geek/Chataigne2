@@ -729,7 +729,7 @@ fn duplicate_nodes_batch_preserves_sibling_order_through_one_undo_and_redo() {
     assert_eq!(after.len(), before.len() + 2);
 
     assert!(engine.undo().expect("batch undo should succeed"));
-    assert_eq!(engine.ui_direct_children(container), Some(before));
+    assert_eq!(engine.ui_direct_children(container), Some(before.clone()));
     engine.clear_ui_event_log();
     assert!(engine.redo().expect("batch redo should succeed"));
     assert_eq!(engine.ui_direct_children(container), Some(after.clone()));
@@ -743,19 +743,73 @@ fn duplicate_nodes_batch_preserves_sibling_order_through_one_undo_and_redo() {
         })
         .collect::<Vec<_>>();
     assert_eq!(graph_transactions.len(), 1);
-    assert_eq!(graph_transactions[0].ops.len(), 2);
-    for (index, op) in graph_transactions[0].ops.iter().enumerate() {
+    assert_eq!(graph_transactions[0].ops.len(), 3);
+    for op in graph_transactions[0].ops.iter().take(2) {
         let UiGraphOp::SubtreeInserted {
             parent,
             parent_children_after,
             ..
         } = op
         else {
-            panic!("batch redo should only insert subtrees");
+            panic!("batch redo should first materialize both subtrees");
         };
         assert_eq!(*parent, container);
-        assert_eq!(parent_children_after.as_ref(), (index == 1).then_some(&after));
+        assert_eq!(parent_children_after, &None);
     }
+    let UiGraphOp::ChildrenInserted {
+        parent,
+        expected_before_count,
+        index,
+        children,
+    } = &graph_transactions[0].ops[2]
+    else {
+        panic!("batch redo should append one authoritative child insertion");
+    };
+    assert_eq!(*parent, container);
+    assert_eq!(*expected_before_count, before.len());
+    assert_eq!(*index, before.len());
+    assert_eq!(children.as_slice(), &after[before.len()..]);
+}
+
+#[test]
+fn noncontiguous_subtree_insertions_retain_the_full_parent_order() {
+    let mut engine = Engine::<FacadeTestNode>::new(Folder::new("Root").into());
+    let parent = engine.root;
+    let existing = [NodeId(9_000_001), NodeId(9_000_002)];
+    let inserted = [NodeId(9_000_003), NodeId(9_000_004)];
+    let after = vec![existing[0], inserted[0], existing[1], inserted[1]];
+    engine.push_ui_graph_transaction(vec![
+        UiGraphOp::SubtreeInserted {
+            root: inserted[0],
+            parent,
+            nodes: Vec::new(),
+            parent_children_after: Some(vec![existing[0], inserted[0], existing[1]]),
+        },
+        UiGraphOp::SubtreeInserted {
+            root: inserted[1],
+            parent,
+            nodes: Vec::new(),
+            parent_children_after: Some(after.clone()),
+        },
+    ]);
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let transaction = batch
+        .events
+        .iter()
+        .find_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction),
+            _ => None,
+        })
+        .expect("transaction should be retained");
+    assert_eq!(transaction.ops.len(), 2);
+    assert!(matches!(
+        &transaction.ops[1],
+        UiGraphOp::SubtreeInserted {
+            parent_children_after: Some(children),
+            ..
+        } if children == &after
+    ));
 }
 
 #[test]

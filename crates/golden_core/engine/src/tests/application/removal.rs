@@ -209,16 +209,26 @@ fn remove_nodes_mixed_parent_selection_replays_exact_sibling_order() {
         })
         .collect::<Vec<_>>();
     assert_eq!(transactions.len(), 1);
-    assert_eq!(transactions[0].ops.len(), 2);
+    assert_eq!(transactions[0].ops.len(), 4);
     assert!(matches!(
         &transactions[0].ops[0],
         UiGraphOp::SubtreeInserted { parent, parent_children_after, .. }
-            if *parent == parents[1] && parent_children_after.as_ref() == Some(&b_children)
+            if *parent == parents[1] && parent_children_after.is_none()
     ));
     assert!(matches!(
         &transactions[0].ops[1],
         UiGraphOp::SubtreeInserted { parent, parent_children_after, .. }
-            if *parent == parents[0] && parent_children_after.as_ref() == Some(&a_children)
+            if *parent == parents[0] && parent_children_after.is_none()
+    ));
+    assert!(matches!(
+        &transactions[0].ops[2],
+        UiGraphOp::ChildrenInserted { parent, expected_before_count: 1, index: 1, children }
+            if *parent == parents[1] && children == &vec![b_children[1]]
+    ));
+    assert!(matches!(
+        &transactions[0].ops[3],
+        UiGraphOp::ChildrenInserted { parent, expected_before_count: 1, index: 0, children }
+            if *parent == parents[0] && children == &vec![a_children[0]]
     ));
 
     engine.clear_ui_event_log();

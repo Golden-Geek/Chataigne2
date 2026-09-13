@@ -116,6 +116,94 @@ describe('graph store scaling', () => {
 		expect(store.state.nodesById.size).toBe(4);
 	});
 
+	it('projects a large-parent child insertion without staging unchanged siblings', () => {
+		const node = (id: number): UiNodeDto => ({
+			...parameterNode(),
+			node_id: id,
+			uuid: `00000000-0000-0000-0000-${String(id).padStart(12, '0')}`
+		});
+		const before = Array.from({ length: 7000 }, (_, index) => index + 2);
+		const inserted = Array.from({ length: 43 }, (_, index) => index + 7002);
+		const initial = {
+			...snapshot(),
+			nodes: [{ ...node(1), children: before }, ...before.map(node)]
+		};
+		const event: UiEventBatch['events'][number] = {
+			time: eventTime(1),
+			kind: {
+				kind: 'graphTransaction',
+				tx_id: 1,
+				epoch: 1,
+				base_graph_version: 0,
+				next_graph_version: 1,
+				ops: [
+					...inserted.map((id) => ({
+						kind: 'subtreeInserted' as const,
+						root: id,
+						parent: 1,
+						nodes: [node(id)]
+					})),
+					{
+						kind: 'childrenInserted',
+						parent: 1,
+						expected_before_count: before.length,
+						index: before.length,
+						children: inserted
+					}
+				]
+			}
+		};
+		const staged = createGraphStore();
+		staged.loadSnapshot(initial);
+		const work = staged.createEventWork(event);
+		if (!work) throw new Error('child insertion should support staged projection');
+		const result = work.advance(512);
+		expect(result.done).toBe(true);
+		expect(result.workUsed).toBeLessThan(512);
+		expect(staged.applyBatch({ from: eventTime(0), to: eventTime(1), events: [event] })).toBe(true);
+		expect(staged.state.requiresResync).toBe(false);
+		expect(staged.state.childrenById.get(1)).toEqual([...before, ...inserted]);
+		expect(staged.state.parentById.get(inserted[42])).toBe(1);
+
+		const direct = createGraphStore();
+		direct.loadSnapshot(initial);
+		direct.applyBatch({ from: eventTime(0), to: eventTime(1), events: [event] });
+		expect(direct.state.childrenById.get(1)).toEqual(staged.state.childrenById.get(1));
+		expect(direct.state.requiresResync).toBe(false);
+	});
+
+	it('requires resync when a child insertion has the wrong baseline count', () => {
+		const store = createGraphStore();
+		store.loadSnapshot(snapshot());
+		store.applyBatch({
+			from: eventTime(0),
+			to: eventTime(1),
+			events: [
+				{
+					time: eventTime(1),
+					kind: {
+						kind: 'graphTransaction',
+						tx_id: 1,
+						epoch: 1,
+						base_graph_version: 0,
+						next_graph_version: 1,
+						ops: [
+							{
+								kind: 'childrenInserted',
+								parent: 1,
+								expected_before_count: 1,
+								index: 0,
+								children: [2]
+							}
+						]
+					}
+				}
+			]
+		});
+		expect(store.state.requiresResync).toBe(true);
+		expect(store.state.childrenById.get(1)).toEqual([]);
+	});
+
 	it('applies one multi-root removal transaction with a final parent order patch', () => {
 		const store = createGraphStore();
 		const original = snapshot();

@@ -132,6 +132,11 @@ const graphOpCost = (op: UiGraphOp): StagedEventCost => {
 				work: 1 + op.children.length,
 				estimatedBytes: DEFAULT_EVENT_BYTES + op.children.length * ESTIMATED_ID_BYTES
 			};
+		case 'childrenInserted':
+			return {
+				work: 1 + op.children.length,
+				estimatedBytes: DEFAULT_EVENT_BYTES + op.children.length * ESTIMATED_ID_BYTES
+			};
 		case 'loggerPatched':
 			return {
 				work: 1 + op.records_added.length,

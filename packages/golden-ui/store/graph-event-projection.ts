@@ -1,4 +1,5 @@
 import type { UiEventDto, UiNodeDto, UiStagedEventWork } from '../types';
+import { insertChildrenIntoOrder } from './graph-child-order';
 import type { GraphState } from './graph.svelte';
 
 export interface GraphEventProjectionResult {
@@ -277,6 +278,26 @@ export const createIncrementalGraphEventProjection = (
 				parentTask = undefined;
 				opIndex += 1;
 			}
+			return true;
+		}
+		if (op.kind === 'childrenInserted') {
+			const children = insertChildrenIntoOrder(
+				nextState.childrenById.get(op.parent),
+				op.expected_before_count,
+				op.index,
+				op.children
+			);
+			const parent = nextState.nodesById.get(op.parent);
+			if (!children || !parent) {
+				nextState.requiresResync = true;
+			} else {
+				nextState.childrenById.set(op.parent, children);
+				nextState.nodesById.set(op.parent, { ...parent, children });
+				for (const child of op.children) {
+					nextState.parentById.set(child, op.parent);
+				}
+			}
+			opIndex += 1;
 			return true;
 		}
 		if (op.kind === 'nodeMetaPatched') {

@@ -652,6 +652,26 @@ staged graph projector still walks the full ~7k-child parent order and prior sib
 address. These Windows headless-browser measurements are not a product-gate or cross-platform
 pass.
 
+The graph protocol now uses a versioned `ChildrenInserted` operation for insertion-only
+transactions whose new roots occupy one contiguous child-order block. It carries the parent,
+previous child count, insertion index, and ordered new roots; clients reject a stale count and
+request resync. Mixed or interleaved edits retain the exact full-order patch. The Rust DTO is the
+source for generated TypeScript graph-op variants, and the protocol version advances to 0.6.0.
+The engine read model, subtree subscription filter, persistence dirty set, direct store, and
+staged projector consume the same operation. A 7k-sibling UI regression stages 43 inserted roots
+within one 512-work slice; engine tests cover append, multi-parent undo, non-contiguous fallback,
+and read-model order equivalence.
+
+The source-fingerprinted 20-sample bundled-UI report at
+`target/qualification/live-workbench-paint/child-insertion-full/` measures 10k
+p50/p95/p99/max at 167/223/234/234 ms, a provisional p95 pass against 250 ms. The 100k case
+measures 1,443/1,806/2,138/2,138 ms: its p95 improves from 2,199 ms but still fails the 500 ms
+budget. The 100k HTTP acknowledgement p50/p95 is 526/856 ms, and browser mutation p50/p95 is
+1,174/1,532 ms. Both cases have zero browser errors, overflow recoveries, and slow-client
+disconnects; the 100k case still has 91 Long Tasks. The unchanged-sibling staging walk was one
+real bottleneck, not the whole tail. Next qualification work must separate app-owned Formula
+graph presentation, generic canvas update/paint, and remaining backend acknowledgement cost.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -675,7 +695,7 @@ pass.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula, graph routing/projection/camera, logger, app-owned state placement, and generic vec2 geometry owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k backend and three-client transport scenarios pass locally; live 20-sample 600-node browser p95 is 248 ms at 10k (provisional pass) and 2,199 ms at 100k (budget fail) after Constant lifecycle snapshot reuse, with zero overload recovery or disconnects; the full product gate remains open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k backend and three-client transport scenarios pass locally; live 20-sample 600-node browser p95 is 223 ms at 10k (provisional pass) and 1,806 ms at 100k (budget fail) after authoritative child insertion, with zero overload recovery or disconnects; the full product gate remains open |
 
 ## Finding status
 
@@ -874,9 +894,10 @@ Next dependency-ready work: continue T17's documented cohesive source splits, es
 remaining graph-canvas node layout/interactions, dashboard/curve editors, and app-owned
 formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to reduce 100k backend batch acknowledgement and browser action-to-paint tails,
-then exercise large live Formula/state/graph edits, UI/transport, multi-client, and recovery paths
-at scale. Cross-platform, native-host, and physical-product evidence remains open.
+T19 next needs to attribute the remaining 100k tail among app-owned Formula presentation,
+generic canvas update/paint, and backend batch acknowledgement, then reduce the demonstrated
+costs. It still needs large live Formula/state/graph edits, UI/transport, multi-client, and
+recovery paths at scale. Cross-platform, native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.
