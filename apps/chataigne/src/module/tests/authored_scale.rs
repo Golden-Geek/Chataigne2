@@ -10,6 +10,7 @@ use golden_core::{
     parameter::{ParamValue, ParameterEventBehaviour},
     ui_sync::{UiDuplicateNodeSpec, UiEditIntent},
 };
+use golden_values::Value as RuntimeValue;
 use sysinfo::{ProcessesToUpdate, System, get_current_pid};
 
 use crate::app::{AppEngine, AppNode};
@@ -83,6 +84,31 @@ fn assert_parameter_values(engine: &AppEngine, params: &[(NodeId, ParamValue, Pa
             .expect("selected Constant value parameter should exist")
             .value;
         assert_eq!(&value, if edited { after } else { before });
+    }
+}
+
+fn assert_runtime_constant_values(
+    engine: &AppEngine,
+    anodes: &[NodeUuid],
+    params: &[(NodeId, ParamValue, ParamValue)],
+    edited: bool,
+) {
+    let values = engine
+        .nodes
+        .iter()
+        .find_map(|(_, node)| match node {
+            AppNode::StateMachineManager(manager) => Some(manager.runtime_constant_values()),
+            _ => None,
+        })
+        .expect("project should contain a state-machine manager");
+    for (anode, (_, before, after)) in anodes.iter().zip(params) {
+        let expected = if edited { after } else { before };
+        let expected = match expected {
+            ParamValue::Float(value) => RuntimeValue::Float(*value),
+            ParamValue::Int(value) => RuntimeValue::Int(i64::from(*value)),
+            other => panic!("Constant value should be numeric, got {other:?}"),
+        };
+        assert_eq!(values.get(anode), Some(&expected), "runtime Formula should reflect Constant {anode:?}");
     }
 }
 
@@ -238,6 +264,12 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
     sources.sort_by(|left, right| left.0.cmp(&right.0));
     assert!(sources.len() >= edit_count, "fixture needs {edit_count} authored Constants");
     let snapshot = engine.process_tree_snapshot();
+    let selected_anodes = (0..edit_count)
+        .map(|index| {
+            let root = sources[index * sources.len() / edit_count].1;
+            snapshot.node(root).expect("selected Constant should exist").uuid
+        })
+        .collect::<Vec<_>>();
     let params = (0..edit_count)
         .map(|index| {
             let root = sources[index * sources.len() / edit_count].1;
@@ -297,6 +329,7 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
         materializations_after_edit > materializations_before,
         "changed Constant values should refresh the active Formula"
     );
+    assert_runtime_constant_values(&engine, &selected_anodes, &params, true);
 
     let started = Instant::now();
     assert!(engine.undo().expect("undo should succeed"));
@@ -311,6 +344,7 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
     let undo_refresh_tick_ms = started.elapsed().as_millis();
     let materializations_after_undo = manager_formula_materializations(&engine);
     assert!(materializations_after_undo > materializations_after_edit);
+    assert_runtime_constant_values(&engine, &selected_anodes, &params, false);
 
     let started = Instant::now();
     assert!(engine.redo().expect("redo should succeed"));
@@ -325,6 +359,7 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
     let redo_refresh_tick_ms = started.elapsed().as_millis();
     assert!(manager_formula_materializations(&engine) > materializations_after_undo);
     assert_eq!(engine.nodes.iter().count(), base_nodes);
+    assert_runtime_constant_values(&engine, &selected_anodes, &params, true);
 
     println!(
         "AUTHORED_PARAMETER_EDIT_RESULT={}",

@@ -511,6 +511,19 @@ cloned 100,239 nodes into one full-tree snapshot. An additional all-7,143-Consta
 value and undo/redo replay, with a 46 ms dispatch tick and a 275 ms refresh tick. These are not
 p95 or browser action-to-paint results, and the remaining snapshot cost keeps T19 open.
 
+The retained process-tree snapshot now structurally shares its base node and UUID indexes and
+overlays only changed parameter nodes. The state-machine manager classifies same-type numeric
+Constant edits at its inbox boundary and refreshes those Formulas from an overlaid retained
+snapshot; structural invalidations still request a fresh tree. The source-fingerprinted
+`target/qualification/authored-graph-scale/20260913T022124Z/` matrix passed all eighteen
+scenarios, including runtime Formula-value readback after edit, undo, and redo. Its single 100k
+sparse/dense dispatch ticks measured 0/4 ms and refresh ticks 21/27 ms, with zero full-tree
+snapshots and zero cloned snapshot nodes on both refreshes. Formula materialization accounted for
+21.3/25.9 ms. A separate all-7,143-Constant batch also passed runtime-value readback and
+undo/redo replay; its refresh built no snapshot and measured 85 ms, including 72 ms of Formula
+materialization. This removes the prior 100k value-refresh snapshot cost; browser action-to-paint,
+p95 tails, broader edit shapes, transport, and recovery remain unqualified.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -732,7 +745,7 @@ installed hosts; no physical stream was opened.
 Next dependency-ready work: continue T17's documented cohesive source splits, especially UI
 projection/canvas and app-owned formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to reduce remaining active-runtime event/snapshot costs, then exercise large live
+T19 next needs to measure end-to-end action-to-paint and tail latency, then exercise large live
 Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
 native-host, and physical-product evidence remains open.
 

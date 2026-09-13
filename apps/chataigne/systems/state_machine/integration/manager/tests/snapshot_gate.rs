@@ -155,17 +155,29 @@ fn constant_value_refresh_reuses_unchanged_anodes_in_manager_cache() {
         kind: EventKind::ParamChanged {
             param: value,
             old_value: before,
-            new_value: after,
+            new_value: after.clone(),
         },
     }));
     manager.on_inbox(&mut ctx);
     assert!(manager.runtime_cache.structure_dirty.contains(&formula_uuid));
-    manager.refresh_formula_cache(&engine.process_tree_snapshot());
+    assert!(!manager.update_requires_tree_snapshot());
+    let mut update_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 2, micro: 0, seq: 0 });
+    manager.update(&mut update_ctx);
+    assert_eq!(
+        manager
+            .runtime_cache
+            .runtime_snapshot
+            .as_deref()
+            .and_then(|snapshot| snapshot.node(value))
+            .and_then(|node| node.param_value.as_ref()),
+        Some(&after),
+    );
     let cache = manager.runtime_cache.formula_materialization.get(&formula_uuid).unwrap();
     assert!(!Arc::ptr_eq(&prior_constant, cache.cached_instance(constant).unwrap()));
     assert!(Arc::ptr_eq(&prior_retained, cache.cached_instance(retained).unwrap()));
 
     manager.apply_runtime_invalidation(RuntimeInvalidation::Formula(formula_uuid));
+    assert!(manager.update_requires_tree_snapshot());
     manager.refresh_formula_cache(&engine.process_tree_snapshot());
     let cache = manager.runtime_cache.formula_materialization.get(&formula_uuid).unwrap();
     assert!(!Arc::ptr_eq(&prior_retained, cache.cached_instance(retained).unwrap()));

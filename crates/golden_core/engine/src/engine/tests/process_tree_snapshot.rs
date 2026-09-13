@@ -61,9 +61,25 @@ fn cloned_snapshot_with_param_values_preserves_uuid_index() {
 
     assert_eq!(updated.node_id_by_uuid(uuid), Some(node_id));
     assert_eq!(
+        snapshot.node(node_id).and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Int(1)),
+        "overlaying a value must leave the retained snapshot unchanged"
+    );
+    assert_eq!(
         updated.node(node_id).and_then(|node| node.param_value.as_ref()),
         Some(&ParamValue::Int(2))
     );
+
+    let updated_again = updated.with_param_values([(node_id, ParamValue::Int(3)), (NodeId(999), ParamValue::Int(4))]);
+    assert_eq!(
+        updated_again.node(node_id).and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Int(3))
+    );
+    assert_eq!(
+        updated.node(node_id).and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Int(2))
+    );
+    assert!(updated_again.node(NodeId(999)).is_none());
 }
 
 #[test]

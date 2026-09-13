@@ -1439,8 +1439,11 @@ struct StateMachineRuntimeCache {
     active_states: Arc<[NodeId]>,
     active_processor_nodes: Arc<[NodeId]>,
     structure_dirty: HashSet<NodeUuid>,
+    value_only_formula_dirty: HashSet<NodeUuid>,
     formula_materialization: HashMap<NodeUuid, ANodeMaterializationCache>,
     numeric_change_events: HashMap<NodeId, bool>,
+    numeric_change_values: HashMap<NodeId, ParamValue>,
+    pending_constant_values: HashMap<NodeId, ParamValue>,
     dirty_formula_values: HashSet<NodeUuid>,
     dirty_processor_overrides: HashSet<NodeId>,
     dirty_input_source_params: HashSet<NodeUuid>,
@@ -1533,15 +1536,22 @@ pub struct StateMachineManager {
 impl Node for StateMachineManager {
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.runtime_cache.numeric_change_events.clear();
+        self.runtime_cache.numeric_change_values.clear();
         for event in &ctx.events {
-            if let EventKind::ParamChanged { param, .. } = &event.kind {
+            if let EventKind::ParamChanged { param, new_value, .. } = &event.kind {
                 let numeric = crate::app::systems_alchemist_formula::same_type_numeric_change_param(event)
                     == Some(*param);
                 *self.runtime_cache.numeric_change_events.entry(*param).or_insert(true) &= numeric;
+                if numeric {
+                    self.runtime_cache.numeric_change_values.insert(*param, new_value.clone());
+                } else {
+                    self.runtime_cache.numeric_change_values.remove(param);
+                }
             }
         }
         self.dispatch_inbox(ctx);
         self.runtime_cache.numeric_change_events.clear();
+        self.runtime_cache.numeric_change_values.clear();
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
@@ -1602,7 +1612,11 @@ impl Node for StateMachineManager {
     fn update_requires_tree_snapshot(&self) -> bool {
         self.runtime_cache.topology_dirty
             || self.runtime_cache.context_provider_dirty
-            || !self.runtime_cache.structure_dirty.is_empty()
+            || self
+                .runtime_cache
+                .structure_dirty
+                .iter()
+                .any(|formula| !self.runtime_cache.value_only_formula_dirty.contains(formula))
             || !self.runtime_cache.dirty_processor_overrides.is_empty()
             || !self.runtime_cache.dirty_formula_values.is_empty()
             || self.runtime_cache.command_dispatch_snapshot_dirty
@@ -1739,10 +1753,19 @@ impl Node for StateMachineManager {
         });
         if numeric_change {
             if let Some(anode) = constant_anode_for_value_param(snapshot, param) {
+                let was_structurally_dirty = self.runtime_cache.structure_dirty.contains(&formula_uuid)
+                    && !self.runtime_cache.value_only_formula_dirty.contains(&formula_uuid);
                 self.runtime_cache.structure_dirty.insert(formula_uuid);
                 self.runtime_cache.dirty_formula_values.remove(&formula_uuid);
                 if let Some(cache) = self.runtime_cache.formula_materialization.get_mut(&formula_uuid) {
+                    let reusable = cache.contains(anode);
                     cache.mark_dirty(anode);
+                    if reusable && !was_structurally_dirty && self.runtime_cache.runtime_snapshot.is_some() {
+                        if let Some(value) = self.runtime_cache.numeric_change_values.get(&param).cloned() {
+                            self.runtime_cache.pending_constant_values.insert(param, value);
+                            self.runtime_cache.value_only_formula_dirty.insert(formula_uuid);
+                        }
+                    }
                 }
                 return;
             }
@@ -1803,6 +1826,21 @@ impl StateMachineManager {
     #[cfg(test)]
     pub(crate) fn runtime_perf_stats(&self) -> StateMachineRuntimePerfStats {
         self.runtime_cache.perf_stats
+    }
+
+    #[cfg(test)]
+    pub(crate) fn runtime_constant_values(&self) -> HashMap<NodeUuid, RuntimeValue> {
+        let mut values = HashMap::new();
+        for formula in self.runtime_cache.formulas.values() {
+            for node in formula.graph.nodes() {
+                if node.data.type_id.as_str() == "constant" {
+                    if let Some(value) = node.data.config.get("value") {
+                        values.insert(NodeUuid(node.id.as_uuid()), value.clone());
+                    }
+                }
+            }
+        }
+        values
     }
 
     #[cfg(test)]
@@ -1978,6 +2016,7 @@ impl StateMachineManager {
         match invalidation {
             RuntimeInvalidation::Formula(formula) => {
                 self.runtime_cache.structure_dirty.insert(formula);
+                self.runtime_cache.value_only_formula_dirty.remove(&formula);
                 self.runtime_cache.dirty_formula_values.remove(&formula);
                 if let Some(cache) = self.runtime_cache.formula_materialization.get_mut(&formula) {
                     cache.invalidate();
@@ -1995,6 +2034,8 @@ impl StateMachineManager {
                 self.runtime_cache.formula_catalog_dirty = true;
                 self.runtime_cache.context_provider_dirty = true;
                 self.runtime_cache.formula_materialization.clear();
+                self.runtime_cache.value_only_formula_dirty.clear();
+                self.runtime_cache.pending_constant_values.clear();
             }
             RuntimeInvalidation::Ignore => {}
         }
@@ -2199,9 +2240,17 @@ impl StateMachineManager {
         }
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.runtime_cache.runtime_snapshot = Some(snapshot);
+            self.runtime_cache.pending_constant_values.clear();
+            self.runtime_cache.value_only_formula_dirty.clear();
             self.runtime_cache.command_listener_values.clear();
             self.runtime_cache.condition_valid_param_values.clear();
             self.runtime_cache.command_dispatch_snapshot_dirty = false;
+        } else if !self.runtime_cache.pending_constant_values.is_empty() {
+            let Some(snapshot) = self.runtime_cache.runtime_snapshot.as_deref() else {
+                return;
+            };
+            let values = std::mem::take(&mut self.runtime_cache.pending_constant_values);
+            self.runtime_cache.runtime_snapshot = Some(Arc::new(snapshot.with_param_values(values)));
         }
         let Some(snapshot) = self.runtime_cache.runtime_snapshot.as_ref().map(Arc::clone) else {
             return;
@@ -3301,6 +3350,7 @@ impl StateMachineManager {
         self.runtime_cache.last_preview_inspection_signature = None;
         self.runtime_cache.topology_dirty = false;
         self.runtime_cache.structure_dirty.clear();
+        self.runtime_cache.value_only_formula_dirty.clear();
         self.runtime_cache.perf_stats.runtime_cache_rebuilds += 1;
     }
 

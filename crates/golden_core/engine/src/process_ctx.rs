@@ -172,8 +172,9 @@ struct ProcessTreeChildIndexes {
 #[derive(Clone, Debug)]
 pub struct ProcessTreeSnapshot {
     root: NodeId,
-    nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>,
-    node_ids_by_uuid: HashMap<NodeUuid, NodeId>,
+    nodes: Arc<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
+    node_overrides: HashMap<NodeId, ProcessTreeNodeSnapshot>,
+    node_ids_by_uuid: Arc<HashMap<NodeUuid, NodeId>>,
     child_indexes: Arc<ProcessTreeChildIndexes>,
 }
 
@@ -187,8 +188,9 @@ impl ProcessTreeSnapshot {
         let child_indexes = Self::build_child_indexes(&nodes);
         Self {
             root,
-            nodes,
-            node_ids_by_uuid,
+            nodes: Arc::new(nodes),
+            node_overrides: HashMap::new(),
+            node_ids_by_uuid: Arc::new(node_ids_by_uuid),
             child_indexes,
         }
     }
@@ -201,8 +203,9 @@ impl ProcessTreeSnapshot {
         let child_indexes = Self::build_child_indexes(&nodes);
         Self {
             root,
-            nodes,
-            node_ids_by_uuid,
+            nodes: Arc::new(nodes),
+            node_overrides: HashMap::new(),
+            node_ids_by_uuid: Arc::new(node_ids_by_uuid),
             child_indexes,
         }
     }
@@ -282,17 +285,19 @@ impl ProcessTreeSnapshot {
 
     /// Returns one node snapshot by id.
     pub fn node(&self, node: NodeId) -> Option<&ProcessTreeNodeSnapshot> {
-        self.nodes.get(&node)
+        self.node_overrides.get(&node).or_else(|| self.nodes.get(&node))
     }
 
     /// Returns a cloned snapshot with selected parameter values replaced.
     pub fn with_param_values(&self, values: impl IntoIterator<Item = (NodeId, ParamValue)>) -> Self {
         let mut snapshot = self.clone();
         for (node_id, value) in values {
-            if let Some(node) = snapshot.nodes.get_mut(&node_id)
+            if let Some(node) = snapshot.node(node_id)
                 && node.param_value.is_some()
             {
-                node.param_value = Some(value);
+                let mut replacement = node.clone();
+                replacement.param_value = Some(value);
+                snapshot.node_overrides.insert(node_id, replacement);
             }
         }
         snapshot
@@ -320,7 +325,7 @@ impl ProcessTreeSnapshot {
             return children.get(decl_id).copied();
         }
         for child_id in self.child_ids_slice(parent) {
-            let child = self.nodes.get(child_id)?;
+            let child = self.node(*child_id)?;
             if child.decl_id == decl_id || child.decl_id.rsplit('/').next() == Some(decl_id) {
                 return Some(*child_id);
             }

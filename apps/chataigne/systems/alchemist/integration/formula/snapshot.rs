@@ -240,6 +240,10 @@ impl ANodeMaterializationCache {
         self.dirty.insert(anode);
     }
 
+    pub(crate) fn contains(&self, anode: NodeId) -> bool {
+        !self.invalidate_all && self.nodes.contains_key(&anode)
+    }
+
     pub(super) fn observe_events(
         &mut self,
         snapshot: &ProcessTreeSnapshot,
