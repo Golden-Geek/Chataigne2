@@ -1,15 +1,17 @@
 use std::{collections::HashMap, sync::Arc};
 
 use chataigne_alchemist::{
-    ChannelDescriptor, ChannelLayout, ChannelLayoutError, ChannelMetadata, ContextKey, Diagnostic, DiagnosticOrigin,
-    DiagnosticSeverity, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionKind, MappingValueShape, StableRef, SurfaceItemKind, ValueTypeId,
+    ChannelDescriptor, ChannelLayout, ChannelLayoutError, ChannelMetadata, ChannelProvenance, ContextKey, Diagnostic,
+    DiagnosticOrigin, DiagnosticSeverity, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId,
+    ManagedRegionInstance, ManagedRegionKind, MappingValueShape, StableRef, SurfaceItemKind, ValueComponent,
+    ValueTypeId, component_value_type,
 };
 use golden_values::Value as RuntimeValue;
 
 use crate::{ChannelFrame, ChannelFrameError, ChannelValidity, ValueLaneKey, ValueSet, ValueSetEntry};
 
 pub const INPUT_SOURCE_FIELD: &str = "source";
+pub const INPUT_PROJECTION_FIELD: &str = "projection";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChannelSourceSchema {
@@ -22,6 +24,7 @@ pub struct InputSetItem {
     pub key: ValueLaneKey,
     pub label: String,
     pub source: StableRef,
+    pub projection: Option<ValueComponent>,
     pub enabled: bool,
     pub value_type: Option<ValueTypeId>,
     pub metadata: ChannelMetadata,
@@ -34,6 +37,7 @@ impl InputSetItem {
             key,
             label: label.into(),
             source,
+            projection: None,
             enabled: true,
             value_type: None,
             metadata: ChannelMetadata::default(),
@@ -49,6 +53,13 @@ impl InputSetItem {
     #[must_use]
     pub fn with_value_type(mut self, value_type: ValueTypeId) -> Self {
         self.value_type = Some(value_type);
+        self
+    }
+
+    #[must_use]
+    pub fn with_projection(mut self, projection: ValueComponent) -> Self {
+        self.projection = Some(projection);
+        self.value_type = None;
         self
     }
 
@@ -82,7 +93,7 @@ impl InputSetRuntime {
             }
             if let Some(previous) = previous
                 .get(&item.key)
-                .filter(|previous| previous.source == item.source)
+                .filter(|previous| previous.source == item.source && previous.projection == item.projection)
             {
                 item.value_type = previous.value_type.clone();
                 if item.metadata == ChannelMetadata::default() {
@@ -105,7 +116,16 @@ impl InputSetRuntime {
         let mut items = self.items.clone();
         for item in &mut items {
             if let Some(schema) = resolve(&item.source) {
-                item.value_type = Some(schema.value_type);
+                item.value_type = Some(match item.projection {
+                    Some(component) => component_value_type(&schema.value_type, component).ok_or_else(|| {
+                        InputSetError::InvalidSourceProjection {
+                            label: item.label.clone(),
+                            value_type: schema.value_type.clone(),
+                            component,
+                        }
+                    })?,
+                    None => schema.value_type,
+                });
                 item.metadata = schema.metadata;
             }
         }
@@ -152,10 +172,27 @@ impl InputSetRuntime {
                         });
                     }
                 };
+                let projection =
+                    match item.anode.config.get(INPUT_PROJECTION_FIELD) {
+                        Some(RuntimeValue::String(value)) => Some(ValueComponent::parse(value).ok_or_else(|| {
+                            InputSetError::InvalidProjectionConfig {
+                                label: item.anode.label.clone(),
+                                actual: value.to_string(),
+                            }
+                        })?),
+                        Some(value) => {
+                            return Err(InputSetError::InvalidProjectionConfig {
+                                label: item.anode.label.clone(),
+                                actual: value.value_type().to_string(),
+                            });
+                        }
+                        None => None,
+                    };
                 Ok(InputSetItem {
                     key: ValueLaneKey::input(item.id),
                     label: item.anode.label.clone(),
                     source,
+                    projection,
                     enabled: item.enabled && item.anode.enabled,
                     value_type: None,
                     metadata: ChannelMetadata::default(),
@@ -216,7 +253,31 @@ impl InputSetRuntime {
                 .or_else(|| ctx.inputs.get(&item.source))
             {
                 Some(value) => {
-                    if let Err(error) = self.frame.set(index, Some(value.clone()), ChannelValidity::Valid, true) {
+                    let projected = match item.projection {
+                        Some(component) => match value.component(component) {
+                            Some(projected) => projected,
+                            None => {
+                                self.frame
+                                    .set(index, None, ChannelValidity::Invalid, false)
+                                    .expect("invalid projected source state remains representable");
+                                diagnostics.push(Diagnostic::error(
+                                    "input_set_invalid_projection",
+                                    format!(
+                                        "Input `{}` cannot select `{component:?}` from `{}`.",
+                                        item.label,
+                                        value.value_type()
+                                    ),
+                                    DiagnosticOrigin::Runtime,
+                                ));
+                                continue;
+                            }
+                        },
+                        None => value.clone(),
+                    };
+                    if let Err(error) = self
+                        .frame
+                        .set(index, Some(projected.clone()), ChannelValidity::Valid, true)
+                    {
                         self.frame
                             .set(index, None, ChannelValidity::Invalid, false)
                             .expect("invalid source state remains representable");
@@ -228,7 +289,7 @@ impl InputSetRuntime {
                         continue;
                     }
                     value_set.push(
-                        ValueSetEntry::new(item.key.clone(), item.label.clone(), value.clone())
+                        ValueSetEntry::new(item.key.clone(), item.label.clone(), projected)
                             .with_source(item.source.clone()),
                     );
                 }
@@ -260,6 +321,12 @@ fn input_descriptors(items: &[InputSetItem]) -> Vec<ChannelDescriptor> {
                 item.value_type.clone(),
             );
             descriptor.metadata = item.metadata.clone();
+            if let Some(component) = item.projection {
+                descriptor.provenance = ChannelProvenance::ProjectedInput {
+                    source: item.source.clone(),
+                    component,
+                };
+            }
             descriptor
         })
         .collect()
@@ -305,6 +372,14 @@ pub enum InputSetError {
     MissingSourceConfig { label: String },
     #[error("InputSet item `{label}` has non-reference `{INPUT_SOURCE_FIELD}` config value `{actual}`")]
     InvalidSourceConfig { label: String, actual: String },
+    #[error("InputSet item `{label}` has invalid `{INPUT_PROJECTION_FIELD}` config value `{actual}`")]
+    InvalidProjectionConfig { label: String, actual: String },
+    #[error("InputSet item `{label}` cannot select `{component:?}` from `{value_type}`")]
+    InvalidSourceProjection {
+        label: String,
+        value_type: ValueTypeId,
+        component: ValueComponent,
+    },
     #[error("{0}")]
     Layout(#[from] ChannelLayoutError),
     #[error("{0}")]

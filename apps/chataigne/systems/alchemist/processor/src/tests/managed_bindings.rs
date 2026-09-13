@@ -6,8 +6,8 @@ use chataigne_alchemist::{
 use golden_values::Value as RuntimeValue;
 
 use super::managed_formula::{
-    command_target, compile_managed_formula, endpoint_ref, eval_ctx, formula_and_instance, input_item,
-    managed_item_for_primitive, output_item, region, remap_item,
+    bind_parallel_outputs, command_target, compile_managed_formula, endpoint_ref, eval_ctx, formula_and_instance,
+    input_item, managed_item_for_primitive, output_item, region, remap_item,
 };
 use crate::value_set_pipeline::ValueSetPipelineRuntime;
 use crate::{
@@ -161,6 +161,7 @@ fn math_apply_to_each_uses_the_graph_math_kernel_with_an_auxiliary_operand() {
             ],
         ),
     );
+    bind_parallel_outputs(&mut instance);
     let mut runtime = compile_managed_formula(&formula, &instance);
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(left, RuntimeValue::Float(3.0));

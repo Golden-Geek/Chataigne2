@@ -18,7 +18,8 @@ mod value_set_pipeline;
 pub use channel_frame::{ChannelFrame, ChannelFrameError, ChannelSlot, ChannelValidity};
 pub use chataigne_alchemist::ValueLaneKey;
 pub use input_set::{
-    ChannelSourceSchema, INPUT_SOURCE_FIELD, InputSetError, InputSetItem, InputSetMaterialization, InputSetRuntime,
+    ChannelSourceSchema, INPUT_PROJECTION_FIELD, INPUT_SOURCE_FIELD, InputSetError, InputSetItem,
+    InputSetMaterialization, InputSetRuntime,
 };
 #[cfg(feature = "kernel-profiling")]
 pub use kernel_profile::{ProcessorKernelProfile, processor_kernel_profile_snapshot};
@@ -33,7 +34,9 @@ pub use manager::{
     ProcessorManagerId,
 };
 pub use output_set::{
-    COMMAND_INTENT_KIND, OUTPUT_TARGET_FIELD, OutputSetError, OutputSetItem, OutputSetMaterialization, OutputSetRuntime,
+    COMMAND_INTENT_KIND, CommandArgumentValues, OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD, OutputArgumentBinding,
+    OutputBindingConfig, OutputSendPolicy, OutputSetError, OutputSetItem, OutputSetMaterialization, OutputSetRuntime,
+    OutputValueSource, ResolvedCommandArgument,
 };
 pub use processor::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis,

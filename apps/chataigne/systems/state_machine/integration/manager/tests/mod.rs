@@ -44,7 +44,7 @@ use super::{
     retain_requested_preview_snapshots, runtime_invalidation_for_node, runtime_param_change_requires_snapshot,
     selected_context_includes_lane, set_output_target_param, should_emit_runtime_log, sync_runtime_processor_warning,
     ActivePreviewSelection, ContextKeyCardinalityError, FormulaDefaultPreviewState, FormulaPreviewDemandLease,
-    LaneParamResolver, PendingRuntimeCommandBatch, ProcessorContextAxisRuntime, ProcessorContextListRuntime,
+    LaneParamResolver, OutputSendCache, PendingRuntimeCommandBatch, ProcessorContextAxisRuntime, ProcessorContextListRuntime,
     ProcessorContextRuntime, ProcessorContextScopeCache, ProcessorLanePreviewKey, ProcessorOverviewDemandLease,
     RuntimeCommandDispatch, RuntimeCommandDispatchAction, RuntimeCommandDispatchPlan, RuntimeCommandDispatchPlanCache,
     RuntimeCommandTickBudget, RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor,
@@ -55,6 +55,7 @@ use super::{
 
 mod command_dispatch;
 mod context_cache;
+mod output_arguments;
 mod snapshot_gate;
 mod source_schema;
 
@@ -872,6 +873,8 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
             formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
             formula_source_key: "test".to_owned(),
             command_dispatch_plans: Default::default(),
+            output_send_cache: Default::default(),
+            send_context_revision: 0,
         },
     )]));
 

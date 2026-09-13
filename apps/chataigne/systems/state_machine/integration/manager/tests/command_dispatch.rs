@@ -254,6 +254,7 @@ fn external_target_dispatch_uses_live_value_without_rebuilding_snapshot() {
     let mut live_param_values = HashMap::from([(target, ParamValue::Float(2.0))]);
     let provider = SnapshotProcessorContextProvider::default();
     let mut pending_batch = PendingRuntimeCommandBatch::default();
+    let mut send_cache = OutputSendCache::default();
     let mut command_budget = RuntimeCommandTickBudget::default();
     let mut ctx = ProcessCtx::new(
         ExecutionPhase::EngineTick,
@@ -277,6 +278,7 @@ fn external_target_dispatch_uses_live_value_without_rebuilding_snapshot() {
             intent: &intent,
             plan: &plan,
             pending_batch: &mut pending_batch,
+            send_cache: &mut send_cache,
         },
         &mut command_budget,
     );
@@ -329,6 +331,7 @@ fn external_target_dispatch_rejects_non_finite_payload_without_poisoning_state()
     let mut live_param_values = HashMap::from([(target, ParamValue::Float(1.0))]);
     let provider = SnapshotProcessorContextProvider::default();
     let mut pending_batch = PendingRuntimeCommandBatch::default();
+    let mut send_cache = OutputSendCache::default();
     let mut command_budget = RuntimeCommandTickBudget::default();
     let mut ctx = ProcessCtx::new(
         ExecutionPhase::EngineTick,
@@ -352,6 +355,7 @@ fn external_target_dispatch_rejects_non_finite_payload_without_poisoning_state()
             intent: &intent,
             plan: &plan,
             pending_batch: &mut pending_batch,
+            send_cache: &mut send_cache,
         },
         &mut command_budget,
     );
@@ -361,6 +365,203 @@ fn external_target_dispatch_rejects_non_finite_payload_without_poisoning_state()
     let (rejected, error) = pending_batch.take_emission_issue();
     assert_eq!(rejected, 1);
     assert!(error.is_some(), "the rejected lane must remain observable");
+}
+
+#[test]
+fn change_aware_output_resends_to_a_new_destination_and_after_reset() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(Folder::new("First").into(), None);
+    engine.add_node(Folder::new("Second").into(), None);
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let find = |label: &str| {
+        engine
+            .nodes
+            .iter()
+            .find(|(_, node)| node.node_data().meta.label == label)
+            .map(|(id, _)| id)
+            .unwrap()
+    };
+    let first = find("First");
+    let second = find("Second");
+    let reference = |node| StableRef::new(ValueTypeId::new("test"), snapshot.node(node).unwrap().uuid.0.to_string());
+    let plan = |node| RuntimeCommandDispatchPlan {
+        actions: vec![RuntimeCommandDispatchAction::Command {
+            node,
+            contextual_params: Vec::new(),
+            batchable: false,
+        }],
+        manager_with_children: false,
+        truncated_actions: 0,
+    };
+    let payload = chataigne_state_machine::CommandArgumentValues {
+        value: RuntimeValue::Float(0.5),
+        arguments: Vec::new(),
+        send_policy: chataigne_state_machine::OutputSendPolicy::OnChange,
+    }
+    .into_runtime_value()
+    .unwrap();
+    let intent = |node| RuntimeIntent {
+        kind: chataigne_state_machine::COMMAND_INTENT_KIND.into(),
+        source_node: None,
+        source_socket: None,
+        target: Some(reference(node)),
+        payload: payload.clone(),
+        logical_tick: 1,
+    };
+    let first_intent = intent(first);
+    let second_intent = intent(second);
+    let first_plan = plan(first);
+    let second_plan = plan(second);
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime { tick: 1, micro: 0, seq: 0 },
+    );
+    let provider = SnapshotProcessorContextProvider::default();
+    let mut live_param_values = HashMap::new();
+    let mut pending_batch = PendingRuntimeCommandBatch::default();
+    let mut send_cache = OutputSendCache::default();
+    let mut budget = RuntimeCommandTickBudget::default();
+    for (candidate, selected_plan) in [
+        (&first_intent, &first_plan),
+        (&first_intent, &first_plan),
+        (&second_intent, &second_plan),
+    ] {
+        dispatch_command_intent(
+            &mut ctx,
+            snapshot.as_ref(),
+            RuntimeCommandDispatch {
+                processor_node: first,
+                processor_id: ProcessorId::new(),
+                context_key: None,
+                context_provider: &provider,
+                live_param_values: &mut live_param_values,
+                invocation_id: crate::app::module_command::ModuleCommandInvocationId::new(first, 1),
+                intent: candidate,
+                plan: selected_plan,
+                pending_batch: &mut pending_batch,
+                send_cache: &mut send_cache,
+            },
+            &mut budget,
+        );
+    }
+    assert_eq!(ctx.edits.pending.len(), 2);
+    send_cache.clear();
+    dispatch_command_intent(
+        &mut ctx,
+        snapshot.as_ref(),
+        RuntimeCommandDispatch {
+            processor_node: first,
+            processor_id: ProcessorId::new(),
+            context_key: None,
+            context_provider: &provider,
+            live_param_values: &mut live_param_values,
+            invocation_id: crate::app::module_command::ModuleCommandInvocationId::new(first, 1),
+            intent: &first_intent,
+            plan: &first_plan,
+            pending_batch: &mut pending_batch,
+            send_cache: &mut send_cache,
+        },
+        &mut budget,
+    );
+    assert_eq!(ctx.edits.pending.len(), 3);
+    let origins = ctx
+        .edits
+        .pending
+        .iter()
+        .map(|request| match &request.edit {
+            Edit::EmitCustomEvent { event } => event.origin.unwrap(),
+            _ => panic!("expected ordered command events"),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(origins, vec![first, second, first]);
+}
+
+#[test]
+fn rejected_command_enqueue_does_not_advance_change_cache() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(Folder::new("Command").into(), None);
+    engine.apply_edits().unwrap();
+    let command = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Command")
+        .map(|(id, _)| id)
+        .unwrap();
+    engine.add_node(
+        Parameter::new("Value", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(),
+        Some(command),
+    );
+    engine.apply_edits().unwrap();
+    let param = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Value")
+        .map(|(id, _)| id)
+        .unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let intent = RuntimeIntent {
+        kind: chataigne_state_machine::COMMAND_INTENT_KIND.into(),
+        source_node: None,
+        source_socket: None,
+        target: Some(StableRef::new(
+            ValueTypeId::new("test"),
+            snapshot.node(command).unwrap().uuid.0.to_string(),
+        )),
+        payload: chataigne_state_machine::CommandArgumentValues {
+            value: RuntimeValue::Float(0.5),
+            arguments: Vec::new(),
+            send_policy: chataigne_state_machine::OutputSendPolicy::OnChange,
+        }
+        .into_runtime_value()
+        .unwrap(),
+        logical_tick: 1,
+    };
+    let plan = RuntimeCommandDispatchPlan {
+        actions: vec![RuntimeCommandDispatchAction::Command {
+            node: command,
+            contextual_params: vec![param],
+            batchable: false,
+        }],
+        manager_with_children: false,
+        truncated_actions: 0,
+    };
+    let provider = SnapshotProcessorContextProvider::default();
+    let context_key = ContextKey::default_lane();
+    let mut live_param_values = HashMap::from([(param, ParamValue::Float(f64::NAN))]);
+    let mut pending_batch = PendingRuntimeCommandBatch::default();
+    let mut send_cache = OutputSendCache::default();
+    let mut budget = RuntimeCommandTickBudget::default();
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime { tick: 1, micro: 0, seq: 0 },
+    );
+    for expected_count in [0, 1, 1] {
+        dispatch_command_intent(
+            &mut ctx,
+            snapshot.as_ref(),
+            RuntimeCommandDispatch {
+                processor_node: command,
+                processor_id: ProcessorId::new(),
+                context_key: Some(&context_key),
+                context_provider: &provider,
+                live_param_values: &mut live_param_values,
+                invocation_id: crate::app::module_command::ModuleCommandInvocationId::new(command, 1),
+                intent: &intent,
+                plan: &plan,
+                pending_batch: &mut pending_batch,
+                send_cache: &mut send_cache,
+            },
+            &mut budget,
+        );
+        assert_eq!(ctx.edits.pending.len(), expected_count);
+        live_param_values.insert(param, ParamValue::Float(1.0));
+    }
+    let (rejected, error) = pending_batch.take_emission_issue();
+    assert_eq!(rejected, 1);
+    assert!(error.unwrap().contains("non-finite"));
 }
 
 #[test]
@@ -393,6 +594,7 @@ fn command_dispatch_caps_large_action_fanout_and_preserves_the_stable_prefix() {
     let provider = SnapshotProcessorContextProvider::default();
     let mut live_param_values = HashMap::new();
     let mut pending_batch = PendingRuntimeCommandBatch::default();
+    let mut send_cache = OutputSendCache::default();
     let mut command_budget = RuntimeCommandTickBudget::default();
     let mut ctx = ProcessCtx::new(
         ExecutionPhase::EngineTick,
@@ -416,6 +618,7 @@ fn command_dispatch_caps_large_action_fanout_and_preserves_the_stable_prefix() {
             intent: &intent,
             plan: &plan,
             pending_batch: &mut pending_batch,
+            send_cache: &mut send_cache,
         },
         &mut command_budget,
     );
@@ -485,6 +688,8 @@ fn external_target_value_event_updates_overlay_without_invalidating_plan() {
             formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
             formula_source_key: "test".to_owned(),
             command_dispatch_plans: plans,
+            output_send_cache: OutputSendCache::default(),
+            send_context_revision: 0,
         },
     );
     let mut ctx = ProcessCtx::new(

@@ -78,10 +78,10 @@ These are implementation gaps, not contracts to preserve.
 Phase 01 resolves managed graph outputs to compiled slots and reads only initialized
 values after evaluation, including when an unchanged node is skipped. Stateless
 projection runs reuse an Alchemist scratch frame. Managed ValueSets now pass to
-OutputSet as native typed data; the JSON extension codec remains for actual
-Formula graph and persistence boundaries. Ordinary managed evaluation uses no
+OutputSet as native typed data; the extension codec remains at actual Formula
+graph sockets and command intents carrying argument overrides. Ordinary managed evaluation uses no
 debug samples. It still allocates an active-lane key set, result entries, context
-keys, property frames, per-node input/output vectors, and enabled-output lists;
+keys, property frames, per-node input/output vectors, and output payloads;
 these are measured and reduced in later performance work rather than described
 as allocation-free.
 
@@ -97,15 +97,17 @@ alone does not prove them. `MappingValueShape` now reports incomplete, scalar,
 or ordered tuple source shapes without introducing authored channels. Input
 reconciliation retains a resolved type across reorder when both source identity
 and reference are unchanged, and resets it when the source is replaced. Filters
-and outputs still need to consume this boundary end to end.
+and outputs now consume this boundary through the managed tuple pipeline.
 
 The current value pipeline executes typed frames through a composable stage chain.
 Golden parameter declarations resolve input schemas during processor rebuilds;
 the host reads live values from its parameter snapshot and marks dependent
-processors dirty on source changes. The final frame still passes through the
-older positional OutputSet adapter. Phase 06 will replace that adapter with
-explicit command argument bindings. Ordinary value samples do not alter stage
-layouts.
+processors dirty on source changes. The final frame reaches OutputSet through
+stable result selectors and explicit per-command argument bindings. Ordinary
+value samples do not alter stage layouts. An input may also declare a component
+projection; the host still reads the whole source from one coherent snapshot,
+and a changed projection changes its provenance so incompatible temporal
+history resets.
 
 Phase 03 resolves each Mapping filter against the entire ordered typed value.
 The configured ANode capability and signature determine its primary, auxiliary,
@@ -147,8 +149,7 @@ rejects missing or disconnected boundaries instead of evaluating a reduced
 sidecar. The ValueSet extension codec is still used at this actual graph
 boundary; the graph-free Mapping path keeps native typed frames. Trigger
 pipelines with authored graph nodes currently diagnose an unsupported boundary
-rather than silently skipping that graph. Phase 06 replaces the positional OutputSet adapter with
-explicit command argument bindings.
+rather than silently skipping that graph.
 
 Phase 05 carries delivery flow separately from typed values. A closed
 ConditionGate suppresses its value output, including in an authored Formula
@@ -178,8 +179,34 @@ keys shared Formula graphs by authored revision and property schema, and
 invalidates a failed managed specialization instead of dispatching through an
 old chain. No asynchronous compilation completion can race that publication
 path. Output commands continue through the engine's queued intent/transaction
-path, including commands aimed at another processor's controls. Phase 06 owns
-per-command argument eligibility and accepted-value send caches.
+path, including commands aimed at another processor's controls.
+
+Phase 06 makes each OutputSet item select the whole scalar result, one stable
+tuple element, a component of a compound value, or a constant. A scalar result
+fans out to any number of enabled outputs. A multi-element tuple needs explicit
+selectors or command argument bindings; output order and enabled state never
+assign tuple positions. Each command argument names a stable target parameter
+and its own selector. The processor validates selectors against the typed result
+layout before dispatch. The host resolves argument target UUIDs against the
+current command subtree, coerces each value to the declared parameter kind,
+and submits overrides through the existing module/generic command event path.
+Unknown targets, duplicate arguments, incompatible types, and changed tuple
+shapes diagnose at their owning boundary. An invalid enabled selector prevents
+the OutputSet from enqueueing a partial result batch. Standard Mapping has no authored
+channels; these selectors describe output bindings only.
+
+An output may request `OnChange` delivery. The host keeps accepted values per
+processor, context, output node, and resolved destination. It updates that
+cache only after the command event is enqueued, so a rejected event can retry.
+Fired trigger arguments always enqueue, including repeated occurrences with
+identical values under `OnChange`.
+Destination edits, context membership changes, and runtime rebuilds invalidate
+the relevant cache. Processor command suppression still blocks dispatch, and
+normal state/lifecycle routing remains in the state-machine manager. Parameter
+targets use the existing `set_param` path. The host keeps command event order
+when change-aware sends meet batched ordinary sends. The output-binding config
+and command arguments use app-owned typed extension payloads; Phase 08 owns
+backend edit intents and migration of persisted positional OutputSet records.
 
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.

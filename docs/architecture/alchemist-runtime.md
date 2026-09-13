@@ -260,11 +260,12 @@ transport connection state, module reconnect behavior, and external IO remain
 outside pure formula evaluation.
 
 Diagnostics are part of the contract. Missing input sources, invalid output
-targets, unknown managed regions, invalid filter items, shape mismatches,
-unsupported `ValueSet` transitions, and incompatible ConditionGate modes must
-fail explicitly. The runtime does not insert fallback values to hide invalid
-graphs and does not dispatch partial output sets when counts or targets do not
-match.
+targets or argument bindings, unknown managed regions, invalid filter items,
+shape mismatches, unsupported `ValueSet` transitions, and incompatible
+ConditionGate modes fail explicitly. The runtime does not insert fallback
+values to hide invalid graphs. Graph-free managed outputs validate independently,
+so one invalid output cannot redirect another output's stable binding; authored
+Formula graph errors still suppress the graph's entire intent batch.
 
 ## Property Runtime
 

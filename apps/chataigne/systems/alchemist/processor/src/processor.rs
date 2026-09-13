@@ -251,6 +251,7 @@ pub struct ProcessorRuntime {
     pub condition_runtimes: IndexMap<ContextKey, ConditionRuntime>,
     pub lanes: LaneRuntimePool,
     managed_context_keys: IndexSet<ContextKey>,
+    managed_context_revision: u64,
     stateless_scratch: Option<AlchemistMemory>,
     pub active: bool,
     pub dirty: ProcessorDirtyFlags,
@@ -271,6 +272,7 @@ impl ProcessorRuntime {
             condition_runtimes: IndexMap::new(),
             lanes: LaneRuntimePool::default(),
             managed_context_keys: IndexSet::new(),
+            managed_context_revision: 0,
             stateless_scratch: None,
             active: false,
             dirty: ProcessorDirtyFlags {
@@ -291,6 +293,16 @@ impl ProcessorRuntime {
                 .managed_formula
                 .as_ref()
                 .is_some_and(ManagedFormulaRuntime::needs_continuous_evaluation)
+    }
+
+    #[must_use]
+    pub fn managed_context_revision(&self) -> u64 {
+        self.managed_context_revision
+    }
+
+    #[must_use]
+    pub fn has_managed_context_key(&self, key: &ContextKey) -> bool {
+        self.managed_context_keys.contains(key)
     }
 
     #[cfg(test)]
@@ -489,6 +501,9 @@ impl ProcessorRuntime {
         self.compiled_condition = None;
         self.condition_runtimes.clear();
         self.lanes = LaneRuntimePool::default();
+        if !self.managed_context_keys.is_empty() {
+            self.managed_context_revision = self.managed_context_revision.wrapping_add(1);
+        }
         self.managed_context_keys.clear();
         self.stateless_scratch = None;
         self.subscriptions.clear();
@@ -691,6 +706,7 @@ impl ProcessorRuntime {
                 || context_keys.iter().any(|key| !self.managed_context_keys.contains(key))
             {
                 self.managed_context_keys = context_keys.iter().cloned().collect();
+                self.managed_context_revision = self.managed_context_revision.wrapping_add(1);
                 if let Some(managed) = self.managed_formula.as_mut() {
                     managed.retain_context_keys(&self.managed_context_keys);
                 }

@@ -448,6 +448,14 @@ impl ValuePipelineRuntime {
                 return Err(error.into());
             }
         };
+        if self.graph.is_none() && !unresolved {
+            for output_set in &self.output_sets {
+                if let Err(error) = output_set.validate_layout(compiled.output_layout()) {
+                    self.typed_stages = None;
+                    return Err(error.into());
+                }
+            }
+        }
         if let Some(previous) = self.typed_stages.take() {
             compiled.migrate_memory_from(previous);
         }
@@ -556,8 +564,11 @@ fn frame_values(frame: &ChannelFrame) -> Result<ValueSet, ManagedFormulaError> {
             descriptor.label.clone(),
             slot.value.clone().expect("validated channel slot"),
         );
-        if let ChannelProvenance::Input(source) = &descriptor.provenance {
-            entry = entry.with_source(source.clone());
+        match &descriptor.provenance {
+            ChannelProvenance::Input(source) | ChannelProvenance::ProjectedInput { source, .. } => {
+                entry = entry.with_source(source.clone());
+            }
+            _ => {}
         }
         values.push(entry);
     }

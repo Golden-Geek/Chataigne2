@@ -15,8 +15,8 @@ use golden_values::Value as RuntimeValue;
 
 use crate::alchemist::node_registry;
 use crate::{
-    ChannelSourceSchema, INPUT_SOURCE_FIELD, ManagedFormulaRuntime, OUTPUT_TARGET_FIELD, Processor,
-    ProcessorLifecycleEvent, ProcessorRuntime,
+    ChannelSourceSchema, INPUT_SOURCE_FIELD, ManagedFormulaRuntime, OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD,
+    OutputBindingConfig, OutputValueSource, Processor, ProcessorLifecycleEvent, ProcessorRuntime, ValueLaneKey,
 };
 
 #[test]
@@ -43,6 +43,7 @@ fn managed_formula_maps_inputs_to_outputs_without_filters() {
             ],
         ),
     );
+    bind_parallel_outputs(&mut instance);
 
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
@@ -101,6 +102,7 @@ fn managed_formula_runs_elementwise_filter_pipeline_before_outputs() {
             ],
         ),
     );
+    bind_parallel_outputs(&mut instance);
 
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
@@ -153,6 +155,7 @@ fn managed_formula_rejects_sample_that_violates_declared_source_schema() {
             ],
         ),
     );
+    bind_parallel_outputs(&mut instance);
 
     let mut runtime = compile_managed_formula(&formula, &instance);
     let mut inputs = RuntimeInputSnapshot::default();
@@ -848,6 +851,32 @@ pub(super) fn output_item(label: &str, target: StableRef) -> ManagedItemInstance
         anode,
         enabled: true,
         ui_state: ManagedItemUiState::default(),
+    }
+}
+
+pub(super) fn bind_parallel_outputs(instance: &mut AlchemistFormulaInstance) {
+    let input_ids = instance.managed_regions.regions[&ManagedRegionId::new("inputs")]
+        .items
+        .iter()
+        .map(|item| item.id)
+        .collect::<Vec<_>>();
+    let outputs = &mut instance
+        .managed_regions
+        .regions
+        .get_mut(&ManagedRegionId::new("outputs"))
+        .unwrap()
+        .items;
+    assert_eq!(input_ids.len(), outputs.len());
+    for (output, input_id) in outputs.iter_mut().zip(input_ids) {
+        output.anode.config.set(
+            OUTPUT_BINDINGS_FIELD,
+            OutputBindingConfig {
+                value: OutputValueSource::Element(ValueLaneKey::input(input_id)),
+                ..OutputBindingConfig::default()
+            }
+            .to_runtime_value()
+            .unwrap(),
+        );
     }
 }
 

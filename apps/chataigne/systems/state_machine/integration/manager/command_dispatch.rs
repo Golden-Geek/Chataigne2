@@ -21,6 +21,59 @@ pub(super) struct RuntimeCommandDispatchPlan {
     pub(super) truncated_actions: usize,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct OutputSendKey {
+    context_key: ContextKey,
+    source_node: Option<ANodeId>,
+    target: NodeId,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct AcceptedOutput {
+    value: RuntimeValue,
+    param_overrides: crate::app::module_command::ModuleCommandParamOverrides,
+}
+
+impl AcceptedOutput {
+    fn has_trigger(&self) -> bool {
+        fn contains_trigger(value: &RuntimeValue) -> bool {
+            match value {
+                RuntimeValue::Trigger(trigger) => trigger.fired,
+                RuntimeValue::Array(values) => values.iter().any(contains_trigger),
+                _ => false,
+            }
+        }
+        contains_trigger(&self.value)
+            || self
+                .param_overrides
+                .iter()
+                .any(|argument| matches!(argument.value, ParamValue::Trigger()))
+    }
+}
+
+#[derive(Default)]
+pub(super) struct OutputSendCache {
+    accepted: HashMap<OutputSendKey, AcceptedOutput>,
+}
+
+impl OutputSendCache {
+    pub(super) fn clear(&mut self) {
+        self.accepted.clear();
+    }
+
+    pub(super) fn retain_context_keys(&mut self, mut active: impl FnMut(&ContextKey) -> bool) {
+        self.accepted.retain(|key, _| active(&key.context_key));
+    }
+
+    fn should_send(&self, key: &OutputSendKey, value: &AcceptedOutput) -> bool {
+        self.accepted.get(key) != Some(value)
+    }
+
+    fn accept(&mut self, key: OutputSendKey, value: AcceptedOutput) {
+        self.accepted.insert(key, value);
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct RuntimeCommandDependency {
     pub(super) target_uuid: NodeUuid,
@@ -59,10 +112,6 @@ impl Default for RuntimeCommandTickBudget {
 }
 
 impl RuntimeCommandTickBudget {
-    pub(super) fn is_exhausted(&self) -> bool {
-        self.remaining_actions == 0
-    }
-
     pub(super) fn reject_unresolved_intent(&mut self) {
         self.rejections.unresolved_intents += 1;
     }
@@ -76,15 +125,17 @@ impl RuntimeCommandTickBudget {
         self.remaining_actions
     }
 
-    fn admit_plan(&mut self, plan: &RuntimeCommandDispatchPlan) -> usize {
-        let admitted = plan.actions.len().min(self.remaining_actions);
-        self.remaining_actions -= admitted;
-        self.rejections.actions += plan
-            .actions
-            .len()
-            .saturating_sub(admitted)
-            .saturating_add(plan.truncated_actions) as u64;
-        admitted
+    fn admit_action(&mut self) -> bool {
+        if self.remaining_actions == 0 {
+            self.rejections.actions += 1;
+            return false;
+        }
+        self.remaining_actions -= 1;
+        true
+    }
+
+    fn reject_truncated(&mut self, count: usize) {
+        self.rejections.actions += count as u64;
     }
 }
 
@@ -125,6 +176,15 @@ impl RuntimeCommandDispatchPlanCache {
         self.dependencies.values().any(|dependency| {
             current.is_some_and(|snapshot| command_dependency_contains(snapshot, *dependency, changed))
                 || previous.is_some_and(|snapshot| command_dependency_contains(snapshot, *dependency, changed))
+        })
+    }
+
+    pub(super) fn contains_target_param(&self, snapshot: &ProcessTreeSnapshot, changed: NodeId) -> bool {
+        self.plans.values().any(|plan| {
+            plan.actions.iter().any(|action| match action {
+                RuntimeCommandDispatchAction::Command { node, .. } => node_is_within(snapshot, changed, *node),
+                RuntimeCommandDispatchAction::Param(node) => *node == changed,
+            })
         })
     }
 
@@ -269,6 +329,7 @@ pub(super) struct RuntimeCommandDispatch<'a> {
     pub(super) intent: &'a RuntimeIntent,
     pub(super) plan: &'a RuntimeCommandDispatchPlan,
     pub(super) pending_batch: &'a mut PendingRuntimeCommandBatch,
+    pub(super) send_cache: &'a mut OutputSendCache,
 }
 
 pub(super) fn dispatch_command_intent(
@@ -287,28 +348,70 @@ pub(super) fn dispatch_command_intent(
         intent,
         plan,
         pending_batch,
+        send_cache,
     } = dispatch;
+    let bound = match chataigne_state_machine::CommandArgumentValues::from_runtime_value(&intent.payload) {
+        Ok(bound) => bound,
+        Err(error) => {
+            pending_batch.reject_execution(format!("invalid command argument payload: {error}"));
+            return;
+        }
+    };
+    let payload = bound.as_ref().map_or(&intent.payload, |bound| &bound.value);
+    let send_policy = bound
+        .as_ref()
+        .map_or(chataigne_state_machine::OutputSendPolicy::EveryDelivery, |bound| bound.send_policy);
     let mut command_count = 0usize;
     let lane_resolver = context_key.map(|context_key| LaneParamResolver {
         processor_id,
         context_key,
         context_provider,
     });
-    let admitted_actions = budget.admit_plan(plan);
-    for action in plan.actions.iter().take(admitted_actions) {
+    for action in &plan.actions {
         match action {
             RuntimeCommandDispatchAction::Command {
                 node,
                 contextual_params,
                 batchable,
             } => {
-                let param_overrides = resolved_output_param_overrides_for_params(
+                let mut param_overrides = resolved_output_param_overrides_for_params(
                     snapshot,
                     live_param_values,
                     contextual_params,
                     lane_resolver.as_ref(),
                 );
-                if *batchable {
+                if let Some(bound) = &bound {
+                    let bindings = match bound_argument_overrides(snapshot, *node, &bound.arguments) {
+                        Ok(bindings) => bindings,
+                        Err(error) => {
+                            pending_batch.reject_execution(error);
+                            continue;
+                        }
+                    };
+                    for binding in bindings {
+                        param_overrides.retain(|override_value| override_value.param_id != binding.param_id);
+                        param_overrides.push(binding);
+                    }
+                }
+                let send_key = OutputSendKey {
+                    context_key: context_key.cloned().unwrap_or_default(),
+                    source_node: intent.source_node,
+                    target: *node,
+                };
+                let accepted = AcceptedOutput {
+                    value: payload.clone(),
+                    param_overrides: param_overrides.clone(),
+                };
+                if send_policy == chataigne_state_machine::OutputSendPolicy::OnChange
+                    && !accepted.has_trigger()
+                    && !send_cache.should_send(&send_key, &accepted)
+                {
+                    continue;
+                }
+                if !budget.admit_action() {
+                    continue;
+                }
+                if *batchable && send_policy == chataigne_state_machine::OutputSendPolicy::EveryDelivery {
                     pending_batch.push(
                         ctx,
                         *node,
@@ -321,29 +424,40 @@ pub(super) fn dispatch_command_intent(
                     );
                 } else {
                     pending_batch.flush(ctx);
-                    if let Err(error) = crate::app::module_command::emit_command_execute_with_invocation(
+                    match crate::app::module_command::emit_command_execute_with_invocation(
                         ctx,
                         *node,
                         param_overrides,
                         Some(invocation_id),
                         crate::app::module_command::ModuleCommandDeliveryPolicy::Standard,
                     ) {
-                        pending_batch.reject_execution(error);
+                        Ok(()) => {
+                            if send_policy == chataigne_state_machine::OutputSendPolicy::OnChange {
+                                send_cache.accept(send_key, accepted);
+                            }
+                        }
+                        Err(error) => pending_batch.reject_execution(error),
                     }
                 }
                 command_count += 1;
             }
             RuntimeCommandDispatchAction::Param(node) => {
                 pending_batch.flush(ctx);
-                match runtime_value_to_param(&intent.payload) {
-                    Ok(value) => {
+                if bound.as_ref().is_some_and(|bound| !bound.arguments.is_empty()) {
+                    pending_batch.reject_execution("a parameter output cannot accept command argument bindings".to_owned());
+                    continue;
+                }
+                match runtime_value_to_param(payload) {
+                    Ok(value) if budget.admit_action() => {
                         set_output_target_param(ctx, snapshot, live_param_values, *node, value);
                     }
+                    Ok(_) => {}
                     Err(error) => pending_batch.reject_execution(error),
                 }
             }
         }
     }
+    budget.reject_truncated(plan.truncated_actions);
 
     // Only warn when an Outputs manager actually holds items but none fired — an
     // empty branch (e.g. an unused "On False") is a normal, silent no-op.
@@ -357,6 +471,53 @@ pub(super) fn dispatch_command_intent(
             format!("Output dispatch: no command fired for target '{}'", target.stable_id)
         );
     }
+
+    if plan.actions.is_empty() && !plan.manager_with_children {
+        budget.reject_unresolved_intent();
+        pending_batch.reject_execution(format!(
+            "output target `{}` is unavailable or is not a command or parameter",
+            intent.target.as_ref().map_or("", |target| target.stable_id.as_ref())
+        ));
+    }
+}
+
+fn bound_argument_overrides(
+    snapshot: &ProcessTreeSnapshot,
+    command: NodeId,
+    arguments: &[chataigne_state_machine::ResolvedCommandArgument],
+) -> Result<crate::app::module_command::ModuleCommandParamOverrides, String> {
+    let mut seen = HashSet::new();
+    let mut overrides = Vec::with_capacity(arguments.len());
+    for argument in arguments {
+        let param = resolve_stable_ref_node(snapshot, &argument.parameter)
+            .ok_or_else(|| format!("command argument `{}` is unavailable", argument.parameter.stable_id))?;
+        if !node_is_within(snapshot, param, command) {
+            return Err(format!(
+                "command argument `{}` is outside target command",
+                argument.parameter.stable_id
+            ));
+        }
+        if !seen.insert(param) {
+            return Err(format!("command argument `{}` is bound twice", argument.parameter.stable_id));
+        }
+        let expected = snapshot
+            .node(param)
+            .and_then(|node| node.param_value.as_ref())
+            .ok_or_else(|| format!("command argument `{}` is not a parameter", argument.parameter.stable_id))?;
+        let value = runtime_value_to_param(&argument.value)?;
+        let value = coerce_param_value_for_target(&value, expected, None).ok_or_else(|| {
+            format!(
+                "command argument `{}` cannot convert `{}` to the target parameter type",
+                argument.parameter.stable_id,
+                argument.value.value_type()
+            )
+        })?;
+        overrides.push(crate::app::module_command::ModuleCommandParamOverride {
+            param_id: param,
+            value,
+        });
+    }
+    Ok(overrides)
 }
 
 /// Resolves the stable formula target into ordered, deduplicated live actions.
@@ -367,14 +528,16 @@ fn build_runtime_command_dispatch_plan(
 ) -> (RuntimeCommandDispatchPlan, Option<RuntimeCommandDependency>) {
     let mut roots = SmallVec::<[NodeId; 2]>::new();
     let direct = resolve_stable_ref_node(snapshot, target);
-    if let Some(direct) = direct {
+    if let Some(direct) = direct.filter(|node| snapshot.node(*node).is_some_and(|node| node.enabled)) {
         roots.push(direct);
     }
     let dependency = direct
         .filter(|direct| !node_is_within(snapshot, *direct, processor_node))
         .and_then(|direct| external_command_dependency(snapshot, direct));
     let surface_decl_id = format!("surface/{}", target.stable_id);
-    if let Some(surface) = find_descendant_by_decl_id(snapshot, processor_node, &surface_decl_id) {
+    if let Some(surface) = find_descendant_by_decl_id(snapshot, processor_node, &surface_decl_id)
+        .filter(|node| snapshot.node(*node).is_some_and(|node| node.enabled))
+    {
         roots.push(surface);
     }
 

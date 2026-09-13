@@ -3,12 +3,14 @@ use std::time::Duration;
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, RuntimeInputSnapshot,
-    RuntimeRegistries, StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry,
+    RuntimeRegistries, StableRef, SurfaceItemKind, TriggerValue, ValueComponent, ValueTypeId, ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
 
 use crate::{
-    COMMAND_INTENT_KIND, OUTPUT_TARGET_FIELD, OutputSetItem, OutputSetRuntime, ValueLaneKey, ValueSet, ValueSetEntry,
+    COMMAND_INTENT_KIND, CommandArgumentValues, OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD, OutputArgumentBinding,
+    OutputBindingConfig, OutputSendPolicy, OutputSetItem, OutputSetRuntime, OutputValueSource, ValueLaneKey, ValueSet,
+    ValueSetEntry,
 };
 
 fn command_target(id: &str) -> StableRef {
@@ -84,14 +86,31 @@ fn single_value_output_creates_expected_intent() {
 }
 
 #[test]
-fn valueset_output_creates_per_entry_intents() {
+fn valueset_output_uses_stable_element_bindings() {
     let left = command_target("module/left");
     let right = command_target("module/right");
     let definition = output_region_definition();
-    let region = managed_region(vec![
-        managed_output_item("Left", left.clone(), true),
-        managed_output_item("Right", right.clone(), true),
-    ]);
+    let mut left_item = managed_output_item("Left", left.clone(), true);
+    left_item.anode.config.set(
+        OUTPUT_BINDINGS_FIELD,
+        OutputBindingConfig {
+            value: OutputValueSource::Element(ValueLaneKey::new("left").unwrap()),
+            ..OutputBindingConfig::default()
+        }
+        .to_runtime_value()
+        .unwrap(),
+    );
+    let mut right_item = managed_output_item("Right", right.clone(), true);
+    right_item.anode.config.set(
+        OUTPUT_BINDINGS_FIELD,
+        OutputBindingConfig {
+            value: OutputValueSource::Element(ValueLaneKey::new("right").unwrap()),
+            ..OutputBindingConfig::default()
+        }
+        .to_runtime_value()
+        .unwrap(),
+    );
+    let region = managed_region(vec![right_item, left_item]);
     let runtime = OutputSetRuntime::from_managed_region(&definition, &region).unwrap();
     let value_set = ValueSet::with_entries(
         4,
@@ -110,10 +129,10 @@ fn valueset_output_creates_per_entry_intents() {
 
     assert!(materialized.diagnostics.is_empty());
     assert_eq!(materialized.output.intents.len(), 2);
-    assert_eq!(materialized.output.intents[0].target.as_ref(), Some(&left));
-    assert_eq!(materialized.output.intents[0].payload, RuntimeValue::Float(1.0));
-    assert_eq!(materialized.output.intents[1].target.as_ref(), Some(&right));
-    assert_eq!(materialized.output.intents[1].payload, RuntimeValue::Float(2.0));
+    assert_eq!(materialized.output.intents[0].target.as_ref(), Some(&right));
+    assert_eq!(materialized.output.intents[0].payload, RuntimeValue::Float(2.0));
+    assert_eq!(materialized.output.intents[1].target.as_ref(), Some(&left));
+    assert_eq!(materialized.output.intents[1].payload, RuntimeValue::Float(1.0));
 }
 
 #[test]
@@ -135,7 +154,31 @@ fn idle_trigger_output_creates_no_intent() {
 }
 
 #[test]
-fn single_value_with_multiple_outputs_reports_diagnostic_without_broadcast() {
+fn idle_trigger_argument_does_not_invoke_a_command() {
+    let runtime = OutputSetRuntime::new(vec![
+        OutputSetItem::new("Trigger", command_target("module/trigger")).with_bindings(OutputBindingConfig {
+            value: OutputValueSource::Constant(RuntimeValue::Unit),
+            arguments: vec![OutputArgumentBinding {
+                parameter: command_target("module/trigger/fire"),
+                source: OutputValueSource::Whole,
+            }],
+            ..OutputBindingConfig::default()
+        }),
+    ]);
+    let (inputs, value_types) = context();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let materialized = runtime.materialize(
+        &RuntimeValue::Trigger(TriggerValue::default()),
+        &eval_ctx(13, &inputs, &registries),
+    );
+    assert!(materialized.diagnostics.is_empty());
+    assert!(materialized.output.intents.is_empty());
+}
+
+#[test]
+fn single_value_fans_out_to_multiple_outputs() {
     let runtime = OutputSetRuntime::new(vec![
         OutputSetItem::new("Left", command_target("module/left")),
         OutputSetItem::new("Right", command_target("module/right")),
@@ -148,16 +191,19 @@ fn single_value_with_multiple_outputs_reports_diagnostic_without_broadcast() {
 
     let materialized = runtime.materialize(&RuntimeValue::Float(0.5), &ctx);
 
-    assert!(materialized.output.intents.is_empty());
-    assert_eq!(materialized.diagnostics.len(), 1);
-    assert_eq!(
-        materialized.diagnostics[0].code,
-        "output_set_single_value_requires_single_output"
+    assert!(materialized.diagnostics.is_empty());
+    assert_eq!(materialized.output.intents.len(), 2);
+    assert!(
+        materialized
+            .output
+            .intents
+            .iter()
+            .all(|intent| intent.payload == RuntimeValue::Float(0.5))
     );
 }
 
 #[test]
-fn valueset_output_count_mismatch_reports_diagnostic_without_partial_dispatch() {
+fn unbound_tuple_output_reports_actionable_diagnostic() {
     let runtime = OutputSetRuntime::new(vec![OutputSetItem::new("Only Output", command_target("module/only"))]);
     let value_set = ValueSet::with_entries(
         1,
@@ -176,7 +222,169 @@ fn valueset_output_count_mismatch_reports_diagnostic_without_partial_dispatch() 
 
     assert!(materialized.output.intents.is_empty());
     assert_eq!(materialized.diagnostics.len(), 1);
-    assert_eq!(materialized.diagnostics[0].code, "output_set_valueset_output_mismatch");
+    assert_eq!(materialized.diagnostics[0].code, "output_set_invalid_binding");
+    assert!(materialized.diagnostics[0].message.contains("select a stable element"));
+}
+
+#[test]
+fn invalid_binding_prevents_partial_output_batch() {
+    let runtime = OutputSetRuntime::new(vec![
+        OutputSetItem::new("Valid", command_target("module/valid")),
+        OutputSetItem::new("Invalid", command_target("module/invalid")).with_bindings(OutputBindingConfig {
+            value: OutputValueSource::Element(ValueLaneKey::new("missing").unwrap()),
+            ..OutputBindingConfig::default()
+        }),
+    ]);
+    let (inputs, value_types) = context();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let materialized = runtime.materialize(&RuntimeValue::Float(2.0), &eval_ctx(16, &inputs, &registries));
+    assert_eq!(materialized.diagnostics.len(), 1);
+    assert!(materialized.output.intents.is_empty());
+}
+
+#[test]
+fn one_tuple_binds_multiple_command_arguments_and_a_constant() {
+    let runtime = OutputSetRuntime::new(vec![
+        OutputSetItem::new("3D", command_target("module/3d")).with_bindings(OutputBindingConfig {
+            arguments: vec![
+                OutputArgumentBinding {
+                    parameter: command_target("module/3d/x"),
+                    source: OutputValueSource::Element(ValueLaneKey::new("x").unwrap()),
+                },
+                OutputArgumentBinding {
+                    parameter: command_target("module/3d/y"),
+                    source: OutputValueSource::Element(ValueLaneKey::new("y").unwrap()),
+                },
+                OutputArgumentBinding {
+                    parameter: command_target("module/3d/scale"),
+                    source: OutputValueSource::Constant(RuntimeValue::Float(2.0)),
+                },
+            ],
+            send_policy: OutputSendPolicy::OnChange,
+            ..OutputBindingConfig::default()
+        }),
+    ]);
+    let values = ValueSet::with_entries(
+        17,
+        vec![
+            ValueSetEntry::new(ValueLaneKey::new("y").unwrap(), "Y", RuntimeValue::Float(4.0)),
+            ValueSetEntry::new(ValueLaneKey::new("x").unwrap(), "X", RuntimeValue::Float(3.0)),
+        ],
+    );
+    let (inputs, value_types) = context();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(17, &inputs, &registries);
+    let materialized = runtime.materialize_values(&values, &ctx);
+    assert!(materialized.diagnostics.is_empty());
+    let payload = CommandArgumentValues::from_runtime_value(&materialized.output.intents[0].payload)
+        .unwrap()
+        .unwrap();
+    assert_eq!(payload.value, RuntimeValue::Unit);
+    assert_eq!(payload.send_policy, OutputSendPolicy::OnChange);
+    assert_eq!(payload.arguments[0].value, RuntimeValue::Float(3.0));
+    assert_eq!(payload.arguments[1].value, RuntimeValue::Float(4.0));
+    assert_eq!(payload.arguments[2].value, RuntimeValue::Float(2.0));
+}
+
+#[test]
+fn compound_component_and_disabled_outputs_keep_their_own_bindings() {
+    let red = command_target("module/red");
+    let green = command_target("module/green");
+    let disabled = command_target("module/disabled");
+    let runtime = OutputSetRuntime::new(vec![
+        OutputSetItem::new("Green", green.clone()).with_bindings(OutputBindingConfig {
+            value: OutputValueSource::Component {
+                element: None,
+                component: ValueComponent::G,
+            },
+            ..OutputBindingConfig::default()
+        }),
+        OutputSetItem::new("Disabled", disabled)
+            .with_enabled(false)
+            .with_bindings(OutputBindingConfig {
+                value: OutputValueSource::Element(ValueLaneKey::new("missing").unwrap()),
+                ..OutputBindingConfig::default()
+            }),
+        OutputSetItem::new("Red", red.clone()).with_bindings(OutputBindingConfig {
+            value: OutputValueSource::Component {
+                element: None,
+                component: ValueComponent::R,
+            },
+            ..OutputBindingConfig::default()
+        }),
+    ]);
+    let (inputs, value_types) = context();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let result = runtime.materialize(
+        &RuntimeValue::Color(chataigne_alchemist::ColorValue {
+            red: 0.2,
+            green: 0.4,
+            blue: 0.6,
+            alpha: 1.0,
+        }),
+        &eval_ctx(20, &inputs, &registries),
+    );
+    assert!(result.diagnostics.is_empty());
+    assert_eq!(result.output.intents.len(), 2);
+    assert_eq!(result.output.intents[0].target.as_ref(), Some(&green));
+    assert_eq!(result.output.intents[0].payload, RuntimeValue::Float(0.4));
+    assert_eq!(result.output.intents[1].target.as_ref(), Some(&red));
+    assert_eq!(result.output.intents[1].payload, RuntimeValue::Float(0.2));
+}
+
+#[test]
+fn changed_tuple_shape_and_duplicate_arguments_fail_local_validation() {
+    let source = StableRef::new(ValueTypeId::new("source"), "source");
+    let layout = chataigne_alchemist::ChannelLayout::new(vec![chataigne_alchemist::ChannelDescriptor::input(
+        ValueLaneKey::new("x").unwrap(),
+        "X",
+        source,
+        Some(ValueTypeId::new("float")),
+    )])
+    .unwrap();
+    let missing = OutputSetRuntime::new(vec![
+        OutputSetItem::new("Missing", command_target("module/missing")).with_bindings(OutputBindingConfig {
+            value: OutputValueSource::Element(ValueLaneKey::new("removed").unwrap()),
+            ..OutputBindingConfig::default()
+        }),
+    ]);
+    assert!(
+        missing
+            .validate_layout(&layout)
+            .unwrap_err()
+            .to_string()
+            .contains("removed")
+    );
+
+    let parameter = command_target("module/command/value");
+    let duplicate = OutputSetRuntime::new(vec![
+        OutputSetItem::new("Duplicate", command_target("module/command")).with_bindings(OutputBindingConfig {
+            arguments: vec![
+                OutputArgumentBinding {
+                    parameter: parameter.clone(),
+                    source: OutputValueSource::Whole,
+                },
+                OutputArgumentBinding {
+                    parameter,
+                    source: OutputValueSource::Constant(RuntimeValue::Float(1.0)),
+                },
+            ],
+            ..OutputBindingConfig::default()
+        }),
+    ]);
+    assert!(
+        duplicate
+            .validate_layout(&layout)
+            .unwrap_err()
+            .to_string()
+            .contains("bound twice")
+    );
 }
 
 #[test]

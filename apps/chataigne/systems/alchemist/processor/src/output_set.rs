@@ -1,13 +1,158 @@
 use chataigne_alchemist::{
-    ANodeId, Diagnostic, DiagnosticOrigin, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId,
-    ManagedRegionInstance, ManagedRegionKind, RuntimeIntent, RuntimeOutput, StableRef, SurfaceItemKind,
+    ANodeId, ChannelLayout, Diagnostic, DiagnosticOrigin, EvaluationCtx, ExtensionValue, ManagedRegionDefinition,
+    ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, RuntimeIntent, RuntimeOutput, StableRef,
+    SurfaceItemKind, ValueComponent, ValueLaneKey, ValueTypeId, component_value_type,
 };
 use golden_values::Value as RuntimeValue;
+use serde::{Deserialize, Serialize};
 
 use crate::{ValueSet, ValueSetError};
 
 pub const OUTPUT_TARGET_FIELD: &str = "target";
+pub const OUTPUT_BINDINGS_FIELD: &str = "bindings";
 pub const COMMAND_INTENT_KIND: &str = "chataigne.command";
+const OUTPUT_BINDINGS_TYPE: &str = "chataigne.output_bindings";
+const COMMAND_ARGUMENTS_TYPE: &str = "chataigne.command_arguments";
+const MAX_OUTPUT_ARGUMENTS: usize = 256;
+
+/// A selector addresses the complete result or one stable tuple element. It never
+/// depends on the position of an enabled OutputSet item.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub enum OutputValueSource {
+    #[default]
+    Whole,
+    Element(ValueLaneKey),
+    Component {
+        element: Option<ValueLaneKey>,
+        component: ValueComponent,
+    },
+    Constant(RuntimeValue),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OutputArgumentBinding {
+    pub parameter: StableRef,
+    pub source: OutputValueSource,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OutputSendPolicy {
+    #[default]
+    EveryDelivery,
+    OnChange,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct OutputBindingConfig {
+    pub value: OutputValueSource,
+    pub arguments: Vec<OutputArgumentBinding>,
+    pub send_policy: OutputSendPolicy,
+}
+
+impl OutputBindingConfig {
+    pub fn to_runtime_value(&self) -> Result<RuntimeValue, String> {
+        self.validate()?;
+        let payload = serde_json::to_vec(self).map_err(|error| error.to_string())?;
+        Ok(RuntimeValue::Extension(ExtensionValue::new(
+            ValueTypeId::new(OUTPUT_BINDINGS_TYPE),
+            payload,
+        )))
+    }
+
+    fn from_runtime_value(value: &RuntimeValue) -> Result<Self, String> {
+        let RuntimeValue::Extension(extension) = value else {
+            return Err(format!(
+                "expected `{OUTPUT_BINDINGS_TYPE}`, got `{}`",
+                value.value_type()
+            ));
+        };
+        if extension.value_type.as_str() != OUTPUT_BINDINGS_TYPE {
+            return Err(format!(
+                "expected `{OUTPUT_BINDINGS_TYPE}`, got `{}`",
+                extension.value_type
+            ));
+        }
+        let parsed: Self = serde_json::from_slice(&extension.payload).map_err(|error| error.to_string())?;
+        parsed.validate()?;
+        Ok(parsed)
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        if self.arguments.len() > MAX_OUTPUT_ARGUMENTS {
+            return Err(format!("an output supports at most {MAX_OUTPUT_ARGUMENTS} arguments"));
+        }
+        if matches!(&self.value, OutputValueSource::Constant(value) if !runtime_value_is_finite(value))
+            || self.arguments.iter().any(|binding| {
+                matches!(&binding.source, OutputValueSource::Constant(value) if !runtime_value_is_finite(value))
+            })
+        {
+            return Err("output bindings contain a non-finite constant".to_owned());
+        }
+        let mut seen = std::collections::HashSet::new();
+        for argument in &self.arguments {
+            if !seen.insert(&argument.parameter) {
+                return Err(format!("argument `{}` is bound twice", argument.parameter.stable_id));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ResolvedCommandArgument {
+    pub parameter: StableRef,
+    pub value: RuntimeValue,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CommandArgumentValues {
+    pub value: RuntimeValue,
+    pub arguments: Vec<ResolvedCommandArgument>,
+    pub send_policy: OutputSendPolicy,
+}
+
+impl CommandArgumentValues {
+    pub fn from_runtime_value(value: &RuntimeValue) -> Result<Option<Self>, String> {
+        let RuntimeValue::Extension(extension) = value else {
+            return Ok(None);
+        };
+        if extension.value_type.as_str() != COMMAND_ARGUMENTS_TYPE {
+            return Ok(None);
+        }
+        let parsed: Self = serde_json::from_slice(&extension.payload).map_err(|error| error.to_string())?;
+        if parsed.arguments.len() > MAX_OUTPUT_ARGUMENTS {
+            return Err(format!("command payload exceeds {MAX_OUTPUT_ARGUMENTS} arguments"));
+        }
+        if !runtime_value_is_finite(&parsed.value)
+            || parsed
+                .arguments
+                .iter()
+                .any(|argument| !runtime_value_is_finite(&argument.value))
+        {
+            return Err("command arguments contain a non-finite number".to_owned());
+        }
+        Ok(Some(parsed))
+    }
+
+    pub fn into_runtime_value(self) -> Result<RuntimeValue, String> {
+        if self.arguments.len() > MAX_OUTPUT_ARGUMENTS {
+            return Err(format!("command payload exceeds {MAX_OUTPUT_ARGUMENTS} arguments"));
+        }
+        if !runtime_value_is_finite(&self.value)
+            || self
+                .arguments
+                .iter()
+                .any(|argument| !runtime_value_is_finite(&argument.value))
+        {
+            return Err("command arguments contain a non-finite number".to_owned());
+        }
+        let payload = serde_json::to_vec(&self).map_err(|error| error.to_string())?;
+        Ok(RuntimeValue::Extension(ExtensionValue::new(
+            ValueTypeId::new(COMMAND_ARGUMENTS_TYPE),
+            payload,
+        )))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct OutputSetItem {
@@ -15,6 +160,7 @@ pub struct OutputSetItem {
     pub target: StableRef,
     pub enabled: bool,
     pub source_node: Option<ANodeId>,
+    pub bindings: OutputBindingConfig,
 }
 
 impl OutputSetItem {
@@ -25,6 +171,7 @@ impl OutputSetItem {
             target,
             enabled: true,
             source_node: None,
+            bindings: OutputBindingConfig::default(),
         }
     }
 
@@ -37,6 +184,12 @@ impl OutputSetItem {
     #[must_use]
     pub fn with_source_node(mut self, source_node: ANodeId) -> Self {
         self.source_node = Some(source_node);
+        self
+    }
+
+    #[must_use]
+    pub fn with_bindings(mut self, bindings: OutputBindingConfig) -> Self {
+        self.bindings = bindings;
         self
     }
 }
@@ -92,11 +245,23 @@ impl OutputSetRuntime {
                         });
                     }
                 };
+                let bindings = item
+                    .anode
+                    .config
+                    .get(OUTPUT_BINDINGS_FIELD)
+                    .map(OutputBindingConfig::from_runtime_value)
+                    .transpose()
+                    .map_err(|detail| OutputSetError::InvalidBindings {
+                        label: item.anode.label.clone(),
+                        detail,
+                    })?
+                    .unwrap_or_default();
                 Ok(OutputSetItem {
                     label: item.anode.label.clone(),
                     target,
                     enabled: item.enabled && item.anode.enabled,
                     source_node: Some(item.anode.id),
+                    bindings,
                 })
             })
             .collect::<Result<Vec<_>, OutputSetError>>()?;
@@ -109,16 +274,38 @@ impl OutputSetRuntime {
         &self.items
     }
 
+    pub fn validate_layout(&self, layout: &ChannelLayout) -> Result<(), OutputSetError> {
+        for item in self.items.iter().filter(|item| item.enabled) {
+            item.bindings
+                .validate()
+                .map_err(|detail| OutputSetError::InvalidBindings {
+                    label: item.label.clone(),
+                    detail,
+                })?;
+            for argument in &item.bindings.arguments {
+                validate_source(&argument.source, layout).map_err(|detail| OutputSetError::InvalidBindings {
+                    label: item.label.clone(),
+                    detail,
+                })?;
+            }
+            if !(matches!(item.bindings.value, OutputValueSource::Whole)
+                && !item.bindings.arguments.is_empty()
+                && layout.channels().len() != 1)
+            {
+                validate_source(&item.bindings.value, layout).map_err(|detail| OutputSetError::InvalidBindings {
+                    label: item.label.clone(),
+                    detail,
+                })?;
+            }
+        }
+        Ok(())
+    }
+
     #[must_use]
     pub fn materialize(&self, value: &RuntimeValue, ctx: &EvaluationCtx<'_>) -> OutputSetMaterialization {
-        let enabled_outputs = self.items.iter().filter(|item| item.enabled).collect::<Vec<_>>();
-        if enabled_outputs.is_empty() {
-            return OutputSetMaterialization::default();
-        }
-
         match ValueSet::from_runtime_value(value) {
-            Ok(values) => self.materialize_value_set(&values, &enabled_outputs, ctx),
-            Err(ValueSetError::WrongValueType { .. }) => self.materialize_single(value, &enabled_outputs, ctx),
+            Ok(values) => self.materialize_values(&values, ctx),
+            Err(ValueSetError::WrongValueType { .. }) => self.materialize_input(OutputInput::Single(value), ctx),
             Err(error) => OutputSetMaterialization {
                 output: RuntimeOutput::default(),
                 diagnostics: vec![Diagnostic::error(
@@ -132,83 +319,163 @@ impl OutputSetRuntime {
 
     #[must_use]
     pub fn materialize_values(&self, values: &ValueSet, ctx: &EvaluationCtx<'_>) -> OutputSetMaterialization {
-        let enabled_outputs = self.items.iter().filter(|item| item.enabled).collect::<Vec<_>>();
-        if enabled_outputs.is_empty() {
-            return OutputSetMaterialization::default();
-        }
-        self.materialize_value_set(values, &enabled_outputs, ctx)
+        self.materialize_input(OutputInput::Tuple(values), ctx)
     }
 
-    fn materialize_single(
-        &self,
-        value: &RuntimeValue,
-        outputs: &[&OutputSetItem],
-        ctx: &EvaluationCtx<'_>,
-    ) -> OutputSetMaterialization {
-        if !should_emit(value) {
-            return OutputSetMaterialization::default();
-        }
-        if outputs.len() != 1 {
-            return OutputSetMaterialization {
-                output: RuntimeOutput::default(),
-                diagnostics: vec![Diagnostic::error(
-                    "output_set_single_value_requires_single_output",
-                    format!(
-                        "OutputSet received one `{}` value but has {} enabled outputs. Add an explicit Broadcast filter before targeting multiple outputs.",
-                        value.value_type(),
-                        outputs.len()
-                    ),
+    fn materialize_input(&self, input: OutputInput<'_>, ctx: &EvaluationCtx<'_>) -> OutputSetMaterialization {
+        let mut materialized = OutputSetMaterialization::default();
+        for item in self.items.iter().filter(|item| item.enabled) {
+            match resolve_item(item, input) {
+                Ok(Some(payload)) => materialized
+                    .output
+                    .intents
+                    .push(command_intent(item, payload, ctx.logical_tick)),
+                Ok(None) => {}
+                Err(detail) => materialized.diagnostics.push(Diagnostic::error(
+                    "output_set_invalid_binding",
+                    format!("Output `{}`: {detail}", item.label),
                     DiagnosticOrigin::Runtime,
-                )],
-            };
+                )),
+            }
         }
-
-        OutputSetMaterialization {
-            output: RuntimeOutput {
-                intents: vec![command_intent(outputs[0], value.clone(), ctx.logical_tick)],
-                ..RuntimeOutput::default()
-            },
-            diagnostics: Vec::new(),
+        if !materialized.diagnostics.is_empty() {
+            materialized.output.intents.clear();
         }
+        materialized
     }
+}
 
-    fn materialize_value_set(
-        &self,
-        values: &ValueSet,
-        outputs: &[&OutputSetItem],
-        ctx: &EvaluationCtx<'_>,
-    ) -> OutputSetMaterialization {
-        if values.entries.len() != outputs.len() {
-            return OutputSetMaterialization {
-                output: RuntimeOutput::default(),
-                diagnostics: vec![Diagnostic::error(
-                    "output_set_valueset_output_mismatch",
-                    format!(
-                        "OutputSet received {} ValueSet entries but has {} enabled outputs.",
-                        values.entries.len(),
-                        outputs.len()
-                    ),
-                    DiagnosticOrigin::Runtime,
-                )],
-            };
+#[derive(Clone, Copy)]
+enum OutputInput<'a> {
+    Single(&'a RuntimeValue),
+    Tuple(&'a ValueSet),
+}
+
+fn resolve_item(item: &OutputSetItem, input: OutputInput<'_>) -> Result<Option<RuntimeValue>, String> {
+    let mut arguments = Vec::with_capacity(item.bindings.arguments.len());
+    for binding in &item.bindings.arguments {
+        let value = resolve_source(&binding.source, input)?;
+        if !should_emit(&value) {
+            return Ok(None);
         }
+        arguments.push(ResolvedCommandArgument {
+            parameter: binding.parameter.clone(),
+            value,
+        });
+    }
+    let value = match resolve_source(&item.bindings.value, input) {
+        Ok(value) => value,
+        Err(_) if !arguments.is_empty() && matches!(item.bindings.value, OutputValueSource::Whole) => {
+            RuntimeValue::Unit
+        }
+        Err(error) => return Err(error),
+    };
+    if !should_emit(&value) {
+        return Ok(None);
+    }
+    if arguments.is_empty() && item.bindings.send_policy == OutputSendPolicy::EveryDelivery {
+        return Ok(Some(value));
+    }
+    CommandArgumentValues {
+        value,
+        arguments,
+        send_policy: item.bindings.send_policy,
+    }
+    .into_runtime_value()
+    .map(Some)
+}
 
-        let intents = values
-            .entries
+fn resolve_source(source: &OutputValueSource, input: OutputInput<'_>) -> Result<RuntimeValue, String> {
+    match source {
+        OutputValueSource::Whole => match input {
+            OutputInput::Single(value) => Ok(value.clone()),
+            OutputInput::Tuple(values) if values.entries.len() == 1 => Ok(values.entries[0].value.clone()),
+            OutputInput::Tuple(values) => Err(format!(
+                "the result has {} tuple elements; select a stable element or use an explicit argument binding",
+                values.entries.len()
+            )),
+        },
+        OutputValueSource::Element(key) => match input {
+            OutputInput::Tuple(values) => values
+                .entries
+                .iter()
+                .find(|entry| &entry.key == key)
+                .map(|entry| entry.value.clone())
+                .ok_or_else(|| format!("tuple element `{}` is unavailable", key.as_str())),
+            OutputInput::Single(_) => Err(format!(
+                "result is scalar; tuple element `{}` is unavailable",
+                key.as_str()
+            )),
+        },
+        OutputValueSource::Component { element, component } => {
+            let selected = if let Some(key) = element {
+                resolve_source(&OutputValueSource::Element(key.clone()), input)?
+            } else {
+                resolve_source(&OutputValueSource::Whole, input)?
+            };
+            selected.component(*component).ok_or_else(|| {
+                format!(
+                    "component `{component:?}` is unavailable on `{}`",
+                    selected.value_type()
+                )
+            })
+        }
+        OutputValueSource::Constant(value) => Ok(value.clone()),
+    }
+}
+
+fn validate_source(source: &OutputValueSource, layout: &ChannelLayout) -> Result<(), String> {
+    let selected_type = match source {
+        OutputValueSource::Whole => {
+            let [channel] = layout.channels() else {
+                return Err(format!(
+                    "the result has {} tuple elements; select a stable element or configure command arguments",
+                    layout.channels().len()
+                ));
+            };
+            channel.value_type.as_ref()
+        }
+        OutputValueSource::Element(key) => layout
+            .channels()
             .iter()
-            .zip(outputs.iter().copied())
-            .filter(|(entry, _)| should_emit(&entry.value))
-            .map(|(entry, output)| command_intent(output, entry.value.clone(), ctx.logical_tick))
-            .collect();
-
-        OutputSetMaterialization {
-            output: RuntimeOutput {
-                intents,
-                ..RuntimeOutput::default()
-            },
-            diagnostics: Vec::new(),
+            .find(|channel| &channel.id == key)
+            .ok_or_else(|| format!("tuple element `{}` is unavailable", key.as_str()))?
+            .value_type
+            .as_ref(),
+        OutputValueSource::Component { element, component } => {
+            let selected = match element {
+                Some(key) => OutputValueSource::Element(key.clone()),
+                None => OutputValueSource::Whole,
+            };
+            validate_source(&selected, layout)?;
+            let value_type = match selected {
+                OutputValueSource::Element(ref key) => layout
+                    .channels()
+                    .iter()
+                    .find(|channel| &channel.id == key)
+                    .and_then(|channel| channel.value_type.as_ref()),
+                _ => layout
+                    .channels()
+                    .first()
+                    .and_then(|channel| channel.value_type.as_ref()),
+            };
+            if let Some(value_type) = value_type
+                && component_value_type(value_type, *component).is_none()
+            {
+                return Err(format!("component `{component:?}` is unavailable on `{value_type}`"));
+            }
+            return Ok(());
         }
+        OutputValueSource::Constant(value) => {
+            return runtime_value_is_finite(value)
+                .then_some(())
+                .ok_or_else(|| "constant contains a non-finite number".to_owned());
+        }
+    };
+    if selected_type.is_none() {
+        return Err("the selected result type is unresolved".to_owned());
     }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Default)]
@@ -232,6 +499,19 @@ fn should_emit(value: &RuntimeValue) -> bool {
     !matches!(value, RuntimeValue::Trigger(trigger) if !trigger.fired)
 }
 
+fn runtime_value_is_finite(value: &RuntimeValue) -> bool {
+    match value {
+        RuntimeValue::Float(value) => value.is_finite(),
+        RuntimeValue::Vec2(value) => value.iter().all(|value| value.is_finite()),
+        RuntimeValue::Vec3(value) => value.iter().all(|value| value.is_finite()),
+        RuntimeValue::Color(value) => [value.red, value.green, value.blue, value.alpha]
+            .iter()
+            .all(|value| value.is_finite()),
+        RuntimeValue::Array(values) => values.iter().all(runtime_value_is_finite),
+        _ => true,
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum OutputSetError {
     #[error("managed region `{region_id}` is `{actual:?}`, expected OutputSet")]
@@ -250,4 +530,6 @@ pub enum OutputSetError {
     MissingTargetConfig { label: String },
     #[error("OutputSet item `{label}` has non-reference `{OUTPUT_TARGET_FIELD}` config value `{actual}`")]
     InvalidTargetConfig { label: String, actual: String },
+    #[error("OutputSet item `{label}` has invalid bindings: {detail}")]
+    InvalidBindings { label: String, detail: String },
 }

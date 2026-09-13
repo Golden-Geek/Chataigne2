@@ -3,11 +3,14 @@ use std::{sync::Arc, time::Duration};
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, ChannelMetadata, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, MappingValueShape,
-    RuntimeInputSnapshot, RuntimeRegistries, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
+    RuntimeInputSnapshot, RuntimeRegistries, StableRef, SurfaceItemKind, ValueComponent, ValueTypeId,
+    ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
 
-use crate::{ChannelSourceSchema, ChannelValidity, INPUT_SOURCE_FIELD, InputSetRuntime, ValueLaneKey};
+use crate::{
+    ChannelSourceSchema, ChannelValidity, INPUT_PROJECTION_FIELD, INPUT_SOURCE_FIELD, InputSetRuntime, ValueLaneKey,
+};
 
 fn input_ref(id: &str) -> StableRef {
     StableRef::new(ValueTypeId::new("chataigne.module_endpoint"), id)
@@ -116,6 +119,72 @@ fn multiple_inputs_materialize_in_authored_order() {
             .collect::<Vec<_>>(),
         vec![("X", RuntimeValue::Float(1.0)), ("Y", RuntimeValue::Float(2.0))]
     );
+}
+
+#[test]
+fn projected_color_input_uses_declared_schema_and_reports_invalid_projection() {
+    let source = input_ref("module/color");
+    let mut item = managed_input_item("Red", source.clone(), true);
+    item.anode
+        .config
+        .set(INPUT_PROJECTION_FIELD, RuntimeValue::String("r".into()));
+    let definition = input_region_definition();
+    let mut runtime = InputSetRuntime::from_managed_region(&definition, &managed_region(vec![item])).unwrap();
+    runtime
+        .reconcile_source_schema(|_| {
+            Some(ChannelSourceSchema {
+                value_type: ValueTypeId::new("color"),
+                metadata: ChannelMetadata::default(),
+            })
+        })
+        .unwrap();
+    assert_eq!(
+        runtime.layout().channels()[0].value_type,
+        Some(ValueTypeId::new("float"))
+    );
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(
+        source,
+        RuntimeValue::Color(chataigne_alchemist::ColorValue {
+            red: 0.25,
+            green: 0.5,
+            blue: 0.75,
+            alpha: 1.0,
+        }),
+    );
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let result = runtime.materialize(&eval_ctx(1, &inputs, &registries));
+    assert!(result.diagnostics.is_empty());
+    assert_eq!(result.frame.slots()[0].value, Some(RuntimeValue::Float(0.25)));
+
+    let mut changed = runtime.items()[0].clone().with_projection(ValueComponent::G);
+    changed.value_type = None;
+    runtime.reconcile_items(vec![changed]).unwrap();
+    assert_eq!(runtime.layout().channels()[0].value_type, None);
+    runtime
+        .reconcile_source_schema(|_| {
+            Some(ChannelSourceSchema {
+                value_type: ValueTypeId::new("color"),
+                metadata: ChannelMetadata::default(),
+            })
+        })
+        .unwrap();
+    let result = runtime.materialize(&eval_ctx(2, &inputs, &registries));
+    assert_eq!(result.frame.slots()[0].value, Some(RuntimeValue::Float(0.5)));
+
+    let incompatible = runtime.reconcile_source_schema(|_| {
+        Some(ChannelSourceSchema {
+            value_type: ValueTypeId::new("bool"),
+            metadata: ChannelMetadata::default(),
+        })
+    });
+    assert!(matches!(
+        incompatible,
+        Err(crate::InputSetError::InvalidSourceProjection { .. })
+    ));
 }
 
 #[test]

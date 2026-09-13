@@ -50,6 +50,10 @@ impl ValueLaneKey {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ChannelProvenance {
     Input(StableRef),
+    ProjectedInput {
+        source: StableRef,
+        component: ValueComponent,
+    },
     Derived {
         item: ManagedItemId,
         inputs: Vec<ValueLaneKey>,

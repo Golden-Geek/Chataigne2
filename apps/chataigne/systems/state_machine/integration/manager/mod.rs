@@ -19,7 +19,7 @@ use chataigne_state_machine::{
     processor_output_preview_samples, processor_output_preview_samples_from_lanes, ANodeOutputPreviewSample,
     ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, DefaultProcessorContextProvider, Processor,
     ProcessorBindingAnalysis, ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorDebugCapture,
-    ProcessorFormulaUiState, ProcessorId, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
+    ProcessorCommandPolicy, ProcessorFormulaUiState, ProcessorId, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
     ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorOverviewDemandDto, ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
     ProcessorUiDto, StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto,
@@ -112,6 +112,8 @@ struct RuntimeProcessor {
     formula_ui: ProcessorFormulaUiState,
     formula_source_key: String,
     command_dispatch_plans: RuntimeCommandDispatchPlanCache,
+    output_send_cache: OutputSendCache,
+    send_context_revision: u64,
 }
 
 struct RuntimeLogRecord {
@@ -1729,6 +1731,13 @@ impl Node for StateMachineManager {
             if let Some(value) = latest_param_value(ctx, param) {
                 self.runtime_cache.command_listener_values.insert(param, value);
             }
+            if let Some(snapshot) = self.runtime_cache.runtime_snapshot.as_deref() {
+                for processor in self.runtime_cache.processors.values_mut() {
+                    if processor.command_dispatch_plans.contains_target_param(snapshot, param) {
+                        processor.output_send_cache.clear();
+                    }
+                }
+            }
         }
         self.mark_context_provider_param_dirty(param);
         let source_signal_dirty = self.mark_input_source_param_dirty(ctx, param);
@@ -2122,7 +2131,12 @@ impl StateMachineManager {
         self.runtime_cache
             .processors
             .values()
-            .any(|processor| processor.command_dispatch_plans.depends_on_change(snapshot, None, node))
+            .any(|processor| {
+                processor.command_dispatch_plans.depends_on_change(snapshot, None, node)
+                    || snapshot.is_some_and(|snapshot| {
+                        processor.command_dispatch_plans.contains_target_param(snapshot, node)
+                    })
+            })
     }
 
     fn mark_command_dependency_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) -> bool {
@@ -2139,6 +2153,7 @@ impl StateMachineManager {
 
         for processor in self.runtime_cache.processors.values_mut() {
             processor.command_dispatch_plans.invalidate_plans();
+            processor.output_send_cache.clear();
         }
         if let Some(snapshot) = current {
             self.runtime_cache.runtime_snapshot = Some(snapshot);
@@ -2394,6 +2409,9 @@ impl StateMachineManager {
         let context_provider_changed =
             self.runtime_cache.context_provider_dirty || self.runtime_cache.context_provider.is_none();
         if context_provider_changed {
+            for processor in self.runtime_cache.processors.values_mut() {
+                processor.output_send_cache.clear();
+            }
             let (provider, dependencies) = SnapshotProcessorContextProvider::from_snapshot_with_dependencies(
                 snapshot,
                 active_processor_nodes.iter().copied(),
@@ -2689,6 +2707,13 @@ impl StateMachineManager {
                         &capture,
                     )
             };
+            let context_revision = runtime_processor.runtime.managed_context_revision();
+            if context_revision != runtime_processor.send_context_revision {
+                runtime_processor.output_send_cache.retain_context_keys(|key| {
+                    runtime_processor.runtime.has_managed_context_key(key)
+                });
+                runtime_processor.send_context_revision = context_revision;
+            }
             #[cfg(test)]
             {
                 self.runtime_cache.perf_stats.processor_evaluation_ns +=
@@ -2808,13 +2833,12 @@ impl StateMachineManager {
                             message,
                         ));
                     } else if kind == chataigne_state_machine::COMMAND_INTENT_KIND {
+                        if runtime_processor.processor.command_policy == ProcessorCommandPolicy::Suppress {
+                            continue;
+                        }
                         let Some(target) = intent.target.as_ref() else {
                             continue;
                         };
-                        if command_budget.is_exhausted() {
-                            command_budget.reject_unresolved_intent();
-                            continue;
-                        }
                         let invocation_id = intern_runtime_command_invocation(
                             &mut self.runtime_cache.command_invocation_streams,
                             &mut self.runtime_cache.next_command_invocation_stream,
@@ -2839,6 +2863,7 @@ impl StateMachineManager {
                                 intent,
                                 plan,
                                 pending_batch: &mut pending_command_batch,
+                                send_cache: &mut runtime_processor.output_send_cache,
                             },
                             &mut command_budget,
                         );
@@ -3372,6 +3397,8 @@ impl StateMachineManager {
             formula_ui,
             formula_source_key,
             command_dispatch_plans: RuntimeCommandDispatchPlanCache::default(),
+            output_send_cache: OutputSendCache::default(),
+            send_context_revision: 0,
         };
         sync_runtime_processor_warning(ctx, processor_node, &runtime_processor, context_provider);
         Some(runtime_processor)
@@ -3587,6 +3614,8 @@ impl StateMachineManager {
             runtime_processor.formula_ui = formula_ui;
             runtime_processor.formula_source_key = formula_source_key;
             runtime_processor.command_dispatch_plans.reset();
+            runtime_processor.output_send_cache.clear();
+            runtime_processor.send_context_revision = runtime_processor.runtime.managed_context_revision();
             let is_continuous = processor_needs_continuous_evaluation(&runtime_processor.runtime);
             update_continuous_runtime_count(
                 &mut self.runtime_cache.continuous_processor_count,

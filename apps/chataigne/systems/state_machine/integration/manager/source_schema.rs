@@ -28,6 +28,7 @@ pub(super) fn managed_source_bindings(
                 .iter()
                 .filter_map(|channel| match &channel.provenance {
                     ChannelProvenance::Input(source) => Some(source.clone()),
+                    ChannelProvenance::ProjectedInput { source, .. } => Some(source.clone()),
                     _ => None,
                 }),
         );

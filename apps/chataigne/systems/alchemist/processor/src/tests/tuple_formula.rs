@@ -8,7 +8,10 @@ use super::managed_formula::{
     command_target, endpoint_ref, eval_ctx, formula_and_instance, input_item, managed_item_for_primitive, output_item,
     region, registries, remap_item,
 };
-use crate::{ChannelSourceSchema, ManagedFormulaRuntime};
+use crate::{
+    ChannelSourceSchema, CommandArgumentValues, ManagedFormulaRuntime, OUTPUT_BINDINGS_FIELD, OutputArgumentBinding,
+    OutputBindingConfig, OutputValueSource,
+};
 
 #[test]
 fn tuple_mapping_runs_remap_sum_smooth_and_sends_to_two_commands() {
@@ -20,17 +23,6 @@ fn tuple_mapping_runs_remap_sum_smooth_and_sends_to_two_commands() {
         .find(|definition| definition.id == ManagedRegionId::new("filters"))
         .unwrap();
     filter.filter_value_mode = ManagedFilterValueMode::Tuple;
-    let mut second_output = formula
-        .surface
-        .managed_regions
-        .iter()
-        .find(|definition| definition.id == ManagedRegionId::new("outputs"))
-        .unwrap()
-        .clone();
-    second_output.id = ManagedRegionId::new("outputs2");
-    second_output.label = "Second Output".into();
-    formula.surface.managed_regions.push(second_output);
-
     let sources = [
         endpoint_ref("module/x"),
         endpoint_ref("module/y"),
@@ -57,12 +49,31 @@ fn tuple_mapping_runs_remap_sum_smooth_and_sends_to_two_commands() {
         region("filters", vec![remap_item(0.0, 10.0, 0.0, 1.0), sum, smooth]),
     );
     let targets = [command_target("target/one"), command_target("target/two")];
-    for (region_id, target) in [("outputs", &targets[0]), ("outputs2", &targets[1])] {
-        instance.managed_regions.regions.insert(
-            ManagedRegionId::new(region_id),
-            region(region_id, vec![output_item(region_id, target.clone())]),
-        );
-    }
+    let arguments = [command_target("target/one/value"), command_target("target/two/value")];
+    let outputs = targets
+        .iter()
+        .zip(&arguments)
+        .map(|(target, argument)| {
+            let mut output = output_item("Command", target.clone());
+            output.anode.config.set(
+                OUTPUT_BINDINGS_FIELD,
+                OutputBindingConfig {
+                    arguments: vec![OutputArgumentBinding {
+                        parameter: argument.clone(),
+                        source: OutputValueSource::Whole,
+                    }],
+                    ..OutputBindingConfig::default()
+                }
+                .to_runtime_value()
+                .unwrap(),
+            );
+            output
+        })
+        .collect();
+    instance
+        .managed_regions
+        .regions
+        .insert(ManagedRegionId::new("outputs"), region("outputs", outputs));
 
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
@@ -92,15 +103,22 @@ fn tuple_mapping_runs_remap_sum_smooth_and_sends_to_two_commands() {
         let output = runtime.evaluate(&eval_ctx(tick, &inputs, &registries));
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(output.intents.len(), 2);
-        for (intent, target) in output.intents.iter().zip(&targets) {
+        for ((intent, target), argument) in output.intents.iter().zip(&targets).zip(&arguments) {
             assert_eq!(intent.target.as_ref(), Some(target));
-            assert!(matches!(intent.payload, RuntimeValue::Float(value) if (value - expected).abs() < 1e-12));
+            let payload = CommandArgumentValues::from_runtime_value(&intent.payload)
+                .unwrap()
+                .unwrap();
+            assert!(matches!(payload.value, RuntimeValue::Float(value) if (value - expected).abs() < 1e-12));
+            assert_eq!(payload.arguments[0].parameter, *argument);
+            assert!(
+                matches!(payload.arguments[0].value, RuntimeValue::Float(value) if (value - expected).abs() < 1e-12)
+            );
         }
     }
 }
 
 #[test]
-fn tuple_mapping_sends_xyz_as_one_vec3_command_value() {
+fn tuple_mapping_binds_packed_xyz_to_one_vec3_command_argument() {
     let (mut formula, mut instance) = formula_and_instance();
     formula
         .surface
@@ -140,10 +158,24 @@ fn tuple_mapping_sends_xyz_as_one_vec3_command_value() {
         ),
     );
     let target = command_target("target/xyz");
-    instance.managed_regions.regions.insert(
-        ManagedRegionId::new("outputs"),
-        region("outputs", vec![output_item("XYZ", target.clone())]),
+    let argument = command_target("target/xyz/position");
+    let mut output = output_item("XYZ", target.clone());
+    output.anode.config.set(
+        OUTPUT_BINDINGS_FIELD,
+        OutputBindingConfig {
+            arguments: vec![OutputArgumentBinding {
+                parameter: argument.clone(),
+                source: OutputValueSource::Whole,
+            }],
+            ..OutputBindingConfig::default()
+        }
+        .to_runtime_value()
+        .unwrap(),
     );
+    instance
+        .managed_regions
+        .regions
+        .insert(ManagedRegionId::new("outputs"), region("outputs", vec![output]));
 
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
@@ -173,7 +205,12 @@ fn tuple_mapping_sends_xyz_as_one_vec3_command_value() {
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert_eq!(output.intents.len(), 1);
     assert_eq!(output.intents[0].target.as_ref(), Some(&target));
-    assert_eq!(output.intents[0].payload, RuntimeValue::Vec3([2.0, 3.0, 4.0]));
+    let payload = CommandArgumentValues::from_runtime_value(&output.intents[0].payload)
+        .unwrap()
+        .unwrap();
+    assert_eq!(payload.value, RuntimeValue::Vec3([2.0, 3.0, 4.0]));
+    assert_eq!(payload.arguments[0].parameter, argument);
+    assert_eq!(payload.arguments[0].value, RuntimeValue::Vec3([2.0, 3.0, 4.0]));
 }
 
 #[test]
