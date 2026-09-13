@@ -76,6 +76,27 @@ keys, property frames, per-node input/output vectors, and enabled-output lists;
 these are measured and reduced in later performance work rather than described
 as allocation-free.
 
+Phase 02 introduces `ChannelLayout` and `ValueLaneKey` in the app-owned
+Alchemist crate. A descriptor holds one channel's type, authored identity,
+semantic output port, provenance, label, and available range/unit metadata.
+Structural revisions track identity, order, type, binding, and port changes;
+presentation revisions also track labels and metadata. InputSet exposes the
+declared layout even when a source is disabled or unavailable. Explicit backend
+source-schema events resolve dynamic source types; ordinary value samples do not
+rebuild layouts. `ChannelFrame` in the processor crate stores values, validity,
+change, and delivery in separate aligned slots. Compound and array values remain
+single slots. A missing or wrong-typed source stays non-dispatching and diagnoses
+the authored input without filling a default. Selection resolves stable IDs;
+an all-compatible selection with no matches reports an identity-stage status.
+Pack/reduce, extraction, duplicate, and reorder layout projections resolve their
+identities and positions before runtime evaluation.
+
+The existing homogeneous managed runner still receives `ValueSet` entries from
+InputSet while the new frame is available for backend layout queries. Phase 04
+will replace that runner's stage shape with the typed layout/frame contract and
+remove the positional ValueSet handoff. Source-schema discovery from Golden
+parameters and actual Mapping UI queries are Phase 06 and 09 integration work.
+
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.
 Changed persisted filter or output semantics need narrow typed migrations. In

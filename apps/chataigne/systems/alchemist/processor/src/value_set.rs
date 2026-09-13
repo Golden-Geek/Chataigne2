@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chataigne_alchemist::{ExtensionValue, StableRef, ValueTypeId};
+use chataigne_alchemist::{ExtensionValue, StableRef, ValueLaneKey, ValueTypeId};
 use golden_values::Value as RuntimeValue;
 
 #[cfg(test)]
@@ -14,24 +14,6 @@ pub(crate) fn codec_call_count() -> usize {
 }
 
 pub const VALUE_SET_TYPE: &str = "chataigne.value_set";
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct ValueLaneKey(String);
-
-impl ValueLaneKey {
-    pub fn new(value: impl Into<String>) -> Result<Self, ValueSetError> {
-        let value = value.into();
-        if value.trim().is_empty() {
-            return Err(ValueSetError::EmptyLaneKey);
-        }
-        Ok(Self(value))
-    }
-
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ValueSetEntry {
@@ -114,8 +96,6 @@ impl ValueSet {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValueSetError {
-    #[error("ValueSet lane keys must not be empty")]
-    EmptyLaneKey,
     #[error("failed to encode ValueSet payload: {0}")]
     Encode(serde_json::Error),
     #[error("failed to decode ValueSet payload: {0}")]

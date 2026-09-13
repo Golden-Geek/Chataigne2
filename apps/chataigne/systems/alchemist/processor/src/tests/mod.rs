@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use super::*;
 
+mod channel_frame;
 mod input_set;
 #[cfg(feature = "kernel-profiling")]
 mod kernel_profile;

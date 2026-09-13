@@ -3,6 +3,7 @@ use super::*;
 
 pub(crate) mod support;
 
+mod channel;
 mod compile;
 mod domain;
 mod formula;

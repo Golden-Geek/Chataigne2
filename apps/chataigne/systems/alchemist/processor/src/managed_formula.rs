@@ -1,16 +1,16 @@
 use chataigne_alchemist::{
-    ANodeId, ANodeRegistry, AlchemistFormula, AlchemistFormulaInstance, CompileCtx, Diagnostic, DiagnosticOrigin,
-    EvaluationCtx, ExecNodeId, FormulaMaterializationError, ManagedItemInstance, ManagedRegionDefinition,
-    ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedRegionValidationError, PipelineCardinality,
-    PipelineLoweringCtx, PipelineShape, PipelineShapeCheckItem, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput,
-    SignatureCtx, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry, check_filter_pipeline_shapes,
-    value_set_shape,
+    ANodeId, ANodeRegistry, AlchemistFormula, AlchemistFormulaInstance, ChannelLayout, CompileCtx, Diagnostic,
+    DiagnosticOrigin, EvaluationCtx, ExecNodeId, FormulaMaterializationError, ManagedItemInstance,
+    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, ManagedRegionValidationError,
+    PipelineCardinality, PipelineLoweringCtx, PipelineShape, PipelineShapeCheckItem, RuntimeDiagnostic, RuntimeIntent,
+    RuntimeOutput, SignatureCtx, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
+    check_filter_pipeline_shapes, value_set_shape,
 };
 use golden_values::Value as RuntimeValue;
 
 use crate::{
-    COMMAND_INTENT_KIND, INPUT_SOURCE_FIELD, InputSetError, InputSetRuntime, OUTPUT_TARGET_FIELD, OutputSetError,
-    OutputSetMaterialization, OutputSetRuntime, ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError,
+    COMMAND_INTENT_KIND, ChannelSourceSchema, INPUT_SOURCE_FIELD, InputSetError, InputSetRuntime, OUTPUT_TARGET_FIELD,
+    OutputSetError, OutputSetMaterialization, OutputSetRuntime, ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError,
     ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime,
 };
 
@@ -128,6 +128,24 @@ impl ManagedFormulaRuntime {
             ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime.evaluate(ctx),
             ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => runtime.evaluate(ctx),
         }
+    }
+
+    #[must_use]
+    pub fn input_layout(&self) -> Option<&ChannelLayout> {
+        match &self.kind {
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => Some(runtime.input_set.layout()),
+            ManagedFormulaRuntimeKind::TriggerPipeline(_) => None,
+        }
+    }
+
+    pub fn reconcile_input_source_schema(
+        &mut self,
+        resolve: impl FnMut(&StableRef) -> Option<ChannelSourceSchema>,
+    ) -> Result<(), ManagedFormulaError> {
+        if let ManagedFormulaRuntimeKind::ValuePipeline(runtime) = &mut self.kind {
+            runtime.input_set.reconcile_source_schema(resolve)?;
+        }
+        Ok(())
     }
 }
 
@@ -526,7 +544,11 @@ impl ManagedFilterPipelineRuntime {
     ) -> Result<RuntimeValue, ManagedFormulaError> {
         let values = ValueSet::with_entries(
             ctx.logical_tick,
-            vec![ValueSetEntry::new(ValueLaneKey::new("trigger")?, "Trigger", value)],
+            vec![ValueSetEntry::new(
+                ValueLaneKey::new("trigger").expect("static trigger channel identity is non-empty"),
+                "Trigger",
+                value,
+            )],
         );
         match self.evaluate(values, ctx)? {
             ManagedFilterOutput::ValueSet(values) => {

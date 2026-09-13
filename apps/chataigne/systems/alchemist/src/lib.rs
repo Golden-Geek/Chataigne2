@@ -1,5 +1,6 @@
 //! Chataigne-owned Alchemist formula authoring, compilation, and runtime.
 
+pub mod channel;
 pub mod compile;
 pub mod diagnostics;
 pub mod domain;
@@ -15,6 +16,10 @@ pub mod runtime;
 pub mod typing;
 pub mod value;
 
+pub use channel::{
+    ChannelDescriptor, ChannelGroups, ChannelLayout, ChannelLayoutError, ChannelMetadata, ChannelProvenance,
+    ChannelSelection, ChannelSelectionResolution, ValueLaneKey,
+};
 pub use diagnostics::{Diagnostic, DiagnosticOrigin, DiagnosticSeverity};
 pub use domain::{
     AlchemistEdgeData, AlchemistGraphData, AlchemistGraphDocument, AlchemistGraphDomain, AlchemistGraphEnvelope,

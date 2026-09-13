@@ -1,12 +1,21 @@
+use std::sync::Arc;
+
 use chataigne_alchemist::{
-    Diagnostic, DiagnosticOrigin, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionKind, StableRef, SurfaceItemKind,
+    ChannelDescriptor, ChannelLayout, ChannelLayoutError, ChannelMetadata, Diagnostic, DiagnosticOrigin,
+    DiagnosticSeverity, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
+    ManagedRegionKind, StableRef, SurfaceItemKind, ValueTypeId,
 };
 use golden_values::Value as RuntimeValue;
 
-use crate::{ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError};
+use crate::{ChannelFrame, ChannelFrameError, ChannelValidity, ValueLaneKey, ValueSet, ValueSetEntry};
 
 pub const INPUT_SOURCE_FIELD: &str = "source";
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChannelSourceSchema {
+    pub value_type: ValueTypeId,
+    pub metadata: ChannelMetadata,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct InputSetItem {
@@ -14,6 +23,8 @@ pub struct InputSetItem {
     pub label: String,
     pub source: StableRef,
     pub enabled: bool,
+    pub value_type: Option<ValueTypeId>,
+    pub metadata: ChannelMetadata,
 }
 
 impl InputSetItem {
@@ -24,6 +35,8 @@ impl InputSetItem {
             label: label.into(),
             source,
             enabled: true,
+            value_type: None,
+            metadata: ChannelMetadata::default(),
         }
     }
 
@@ -32,17 +45,56 @@ impl InputSetItem {
         self.enabled = enabled;
         self
     }
+
+    #[must_use]
+    pub fn with_value_type(mut self, value_type: ValueTypeId) -> Self {
+        self.value_type = Some(value_type);
+        self
+    }
+
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: ChannelMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct InputSetRuntime {
     items: Vec<InputSetItem>,
+    frame: ChannelFrame,
 }
 
 impl InputSetRuntime {
-    #[must_use]
-    pub fn new(items: Vec<InputSetItem>) -> Self {
-        Self { items }
+    pub fn new(items: Vec<InputSetItem>) -> Result<Self, InputSetError> {
+        let layout = Arc::new(input_layout(&items)?);
+        Ok(Self {
+            items,
+            frame: ChannelFrame::new(layout),
+        })
+    }
+
+    pub fn reconcile_items(&mut self, items: Vec<InputSetItem>) -> Result<(), InputSetError> {
+        let channels = input_descriptors(&items);
+        let layout = Arc::new(self.frame.layout().reconcile(channels)?);
+        self.frame = self.frame.with_layout(layout);
+        self.items = items;
+        Ok(())
+    }
+
+    /// Apply an explicit backend source-schema event. Normal value samples never change layouts.
+    pub fn reconcile_source_schema(
+        &mut self,
+        mut resolve: impl FnMut(&StableRef) -> Option<ChannelSourceSchema>,
+    ) -> Result<(), InputSetError> {
+        let mut items = self.items.clone();
+        for item in &mut items {
+            if let Some(schema) = resolve(&item.source) {
+                item.value_type = Some(schema.value_type);
+                item.metadata = schema.metadata;
+            }
+        }
+        self.reconcile_items(items)
     }
 
     pub fn from_managed_region(
@@ -86,15 +138,17 @@ impl InputSetRuntime {
                     }
                 };
                 Ok(InputSetItem {
-                    key: ValueLaneKey::new(format!("input:{}", item.id))?,
+                    key: ValueLaneKey::input(item.id),
                     label: item.anode.label.clone(),
                     source,
                     enabled: item.enabled && item.anode.enabled,
+                    value_type: None,
+                    metadata: ChannelMetadata::default(),
                 })
             })
             .collect::<Result<Vec<_>, InputSetError>>()?;
 
-        Ok(Self { items })
+        Self::new(items)
     }
 
     #[must_use]
@@ -103,29 +157,90 @@ impl InputSetRuntime {
     }
 
     #[must_use]
-    pub fn materialize(&self, ctx: &EvaluationCtx<'_>) -> InputSetMaterialization {
+    pub fn layout(&self) -> &Arc<ChannelLayout> {
+        self.frame.layout()
+    }
+
+    pub fn materialize(&mut self, ctx: &EvaluationCtx<'_>) -> InputSetMaterialization<'_> {
+        self.frame.begin_tick(ctx.logical_tick);
         let mut value_set = ValueSet::new(ctx.logical_tick);
         let mut diagnostics = Vec::new();
 
-        for item in self.items.iter().filter(|item| item.enabled) {
+        if self.items.is_empty() {
+            diagnostics.push(Diagnostic {
+                code: "input_set_empty".into(),
+                message: "Mapping has no inputs. Add an Input Source before it can dispatch.".into(),
+                severity: DiagnosticSeverity::Info,
+                origin: DiagnosticOrigin::Runtime,
+            });
+        }
+
+        for (index, item) in self.items.iter().enumerate() {
+            if !item.enabled {
+                self.frame
+                    .set(index, None, ChannelValidity::Disabled, false)
+                    .expect("input frame and layout have equal length");
+                continue;
+            }
             match ctx.inputs.get(&item.source) {
                 Some(value) => {
+                    if let Err(error) = self.frame.set(index, Some(value.clone()), ChannelValidity::Valid, true) {
+                        self.frame
+                            .set(index, None, ChannelValidity::Invalid, false)
+                            .expect("invalid source state remains representable");
+                        diagnostics.push(Diagnostic::error(
+                            "input_set_type_mismatch",
+                            error.to_string(),
+                            DiagnosticOrigin::Runtime,
+                        ));
+                        continue;
+                    }
                     value_set.push(
                         ValueSetEntry::new(item.key.clone(), item.label.clone(), value.clone())
                             .with_source(item.source.clone()),
                     );
                 }
-                None => diagnostics.push(missing_source_diagnostic(item)),
+                None => {
+                    self.frame
+                        .set(index, None, ChannelValidity::MissingSource, false)
+                        .expect("missing source state remains representable");
+                    diagnostics.push(missing_source_diagnostic(item));
+                }
             }
         }
 
-        InputSetMaterialization { value_set, diagnostics }
+        InputSetMaterialization {
+            value_set,
+            frame: &self.frame,
+            diagnostics,
+        }
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct InputSetMaterialization {
+fn input_descriptors(items: &[InputSetItem]) -> Vec<ChannelDescriptor> {
+    items
+        .iter()
+        .map(|item| {
+            let mut descriptor = ChannelDescriptor::input(
+                item.key.clone(),
+                item.label.clone(),
+                item.source.clone(),
+                item.value_type.clone(),
+            );
+            descriptor.metadata = item.metadata.clone();
+            descriptor
+        })
+        .collect()
+}
+
+fn input_layout(items: &[InputSetItem]) -> Result<ChannelLayout, ChannelLayoutError> {
+    ChannelLayout::new(input_descriptors(items))
+}
+
+#[derive(Clone, Debug)]
+pub struct InputSetMaterialization<'a> {
     pub value_set: ValueSet,
+    pub frame: &'a ChannelFrame,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -159,5 +274,7 @@ pub enum InputSetError {
     #[error("InputSet item `{label}` has non-reference `{INPUT_SOURCE_FIELD}` config value `{actual}`")]
     InvalidSourceConfig { label: String, actual: String },
     #[error("{0}")]
-    ValueSet(#[from] ValueSetError),
+    Layout(#[from] ChannelLayoutError),
+    #[error("{0}")]
+    Frame(#[from] ChannelFrameError),
 }
