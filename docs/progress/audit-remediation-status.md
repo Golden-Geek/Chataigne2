@@ -543,6 +543,17 @@ the 100k sparse/dense cases persisted and rematerialized 1/715 edited Constants.
 all-7,143-Constant 100k batch also passed those checks. This covers a completed backend save/reload
 after an edit, not edits concurrent with a save, transport reconnect/resync, or browser recovery.
 
+The product transport qualification now builds the current app binary and launches its reusable
+headless host with isolated app data and a loopback UI listener. It loads each authored fixture
+through the real project HTTP endpoint, observes `project_loaded` resync markers on three
+workbench-plane WebSockets, checks three full snapshots and their complete node-identity digests,
+then disconnects and reconnects one client in the same runtime session. The source- and
+artifact-fingerprinted report under `target/qualification/transport-scale/` passed at
+1k/10k/100k; the 100k load took 7,299 ms in one initial local sample and all four snapshots
+contained 100,247 live nodes
+and 7,143 authored Constant roots. This is not p95, browser action-to-paint, client-intent edit,
+concurrent-save, slow-client, endurance, packaged-native, or physical-device evidence.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -566,7 +577,7 @@ after an edit, not edits concurrent with a save, transport reconnect/resync, or 
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, and sparse/dense parameter replay plus edited-value save/reload pass locally; browser p95, concurrent save, transport/reconnect, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, sparse/dense parameter replay and save/reload, plus three-client headless transport resync/reconnect pass locally; browser p95, concurrent save/slow-client/endurance, platform, and physical evidence remain open |
 
 ## Finding status
 
