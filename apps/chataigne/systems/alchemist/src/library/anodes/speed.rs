@@ -27,6 +27,10 @@ impl CompiledNodeEvaluator for SpeedEval {
             values[1]
         };
         values[0] = input;
+        if !output.is_finite() || values.iter().any(|value| !value.is_finite()) {
+            evaluation.state.fill(RuntimeValue::Unit);
+            return Err("Speed produced a non-finite result; its history was reset".into());
+        }
         set_state_values(state, values);
         Ok(vec![RuntimeValue::Float(output)])
     }

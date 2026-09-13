@@ -12,12 +12,21 @@ impl CompiledNodeEvaluator for ExtractColorEval {
         let Some(RuntimeValue::Color(color)) = evaluation.inputs.first() else {
             return Err("Extract Color expects a color input".into());
         };
+        if [color.red, color.green, color.blue, color.alpha]
+            .iter()
+            .any(|value| !value.is_finite())
+        {
+            return Err("Extract Color requires finite components".into());
+        }
         let channels = match self.mode {
             super::color_mode::ColorMode::Rgba => [color.red, color.green, color.blue, color.alpha],
             super::color_mode::ColorMode::Hsva => rgba_to_hsva(*color),
             super::color_mode::ColorMode::Hsla => rgba_to_hsla(*color),
             super::color_mode::ColorMode::Cmyk => rgba_to_cmyk(*color),
         };
+        if channels.iter().any(|value| !value.is_finite()) {
+            return Err("Extract Color produced non-finite components".into());
+        }
         Ok(channels.into_iter().map(RuntimeValue::Float).collect())
     }
 }

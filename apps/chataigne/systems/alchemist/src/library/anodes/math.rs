@@ -1,6 +1,6 @@
 use crate::{ANodeInstance, ColorValue, CompiledNodeEvaluator, NodeEvaluation, RuntimeValue};
 
-use super::support::{config_string, value_to_f64};
+use super::support::config_string;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum MathOperator {
@@ -9,6 +9,8 @@ pub(super) enum MathOperator {
     Multiply,
     Divide,
     Modulo,
+    Minimum,
+    Maximum,
 }
 
 impl MathOperator {
@@ -38,6 +40,11 @@ impl CompiledNodeEvaluator for MathEval {
 pub(super) enum ReductionMode {
     Sum,
     Average,
+    Product,
+    Minimum,
+    Maximum,
+    Difference,
+    Distance,
 }
 
 #[derive(Debug)]
@@ -49,15 +56,25 @@ impl CompiledNodeEvaluator for ReductionEval {
     fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
         let value = match self.mode {
             ReductionMode::Sum => fold_numeric_inputs(evaluation.inputs, MathOperator::Add)?,
+            ReductionMode::Product => fold_numeric_inputs(evaluation.inputs, MathOperator::Multiply)?,
+            ReductionMode::Minimum => fold_numeric_inputs(evaluation.inputs, MathOperator::Minimum)?,
+            ReductionMode::Maximum => fold_numeric_inputs(evaluation.inputs, MathOperator::Maximum)?,
+            ReductionMode::Difference => fold_numeric_inputs(evaluation.inputs, MathOperator::Subtract)?,
+            ReductionMode::Distance => {
+                let [RuntimeValue::Float(left), RuntimeValue::Float(right)] = evaluation.inputs else {
+                    return Err("Distance requires exactly two float inputs".into());
+                };
+                RuntimeValue::Float(finite_scalar((left - right).abs())?)
+            }
             ReductionMode::Average => {
                 if evaluation.inputs.is_empty() {
                     return Err("Average expects at least one input".into());
                 }
                 let sum = evaluation.inputs.iter().try_fold(0.0, |sum, input| match input {
-                    RuntimeValue::Float(value) => Ok(sum + value),
+                    RuntimeValue::Float(value) => finite_scalar(sum + value),
                     _ => Err("Average requires float inputs".to_string()),
                 })?;
-                RuntimeValue::Float(sum / evaluation.inputs.len() as f64)
+                RuntimeValue::Float(finite_scalar(sum / evaluation.inputs.len() as f64)?)
             }
         };
         Ok(vec![value])
@@ -79,24 +96,18 @@ fn numeric_binary(left: &RuntimeValue, right: &RuntimeValue, operator: MathOpera
     match (left, right) {
         (RuntimeValue::Int(left), RuntimeValue::Int(right)) => {
             return match operator {
-                MathOperator::Add => Ok(RuntimeValue::Int(left + right)),
-                MathOperator::Subtract => Ok(RuntimeValue::Int(left - right)),
-                MathOperator::Multiply => Ok(RuntimeValue::Int(left * right)),
-                MathOperator::Divide => {
-                    if *right == 0 {
-                        Err("Math divide input cannot be zero".into())
-                    } else {
-                        Ok(RuntimeValue::Float(*left as f64 / *right as f64))
-                    }
-                }
-                MathOperator::Modulo => {
-                    if *right == 0 {
-                        Err("Math modulo input cannot be zero".into())
-                    } else {
-                        Ok(RuntimeValue::Int(left % right))
-                    }
-                }
-            };
+                MathOperator::Add => left.checked_add(*right),
+                MathOperator::Subtract => left.checked_sub(*right),
+                MathOperator::Multiply => left.checked_mul(*right),
+                MathOperator::Divide if *right == 0 => return Err("Math divide input cannot be zero".into()),
+                MathOperator::Divide => left.checked_div(*right),
+                MathOperator::Modulo if *right == 0 => return Err("Math modulo input cannot be zero".into()),
+                MathOperator::Modulo => left.checked_rem(*right),
+                MathOperator::Minimum => Some((*left).min(*right)),
+                MathOperator::Maximum => Some((*left).max(*right)),
+            }
+            .map(RuntimeValue::Int)
+            .ok_or_else(|| "Math integer overflow".into());
         }
         (RuntimeValue::Vec2(left), RuntimeValue::Vec2(right)) => {
             return Ok(RuntimeValue::Vec2([
@@ -121,31 +132,43 @@ fn numeric_binary(left: &RuntimeValue, right: &RuntimeValue, operator: MathOpera
         }
         _ => {}
     }
-    Ok(RuntimeValue::Float(numeric_scalar(
-        value_to_f64(left),
-        value_to_f64(right),
-        operator,
-    )?))
+    match (left, right) {
+        (RuntimeValue::Float(left), RuntimeValue::Float(right)) => {
+            Ok(RuntimeValue::Float(numeric_scalar(*left, *right, operator)?))
+        }
+        _ => Err("Math requires matching numeric inputs".into()),
+    }
 }
 
 fn numeric_scalar(left: f64, right: f64, operator: MathOperator) -> Result<f64, String> {
-    match operator {
-        MathOperator::Add => Ok(left + right),
-        MathOperator::Subtract => Ok(left - right),
-        MathOperator::Multiply => Ok(left * right),
+    if !left.is_finite() || !right.is_finite() {
+        return Err("Math requires finite inputs".into());
+    }
+    let result = match operator {
+        MathOperator::Add => left + right,
+        MathOperator::Subtract => left - right,
+        MathOperator::Multiply => left * right,
         MathOperator::Divide => {
-            if right.abs() <= f64::EPSILON {
-                Err("Math divide input cannot be zero".into())
-            } else {
-                Ok(left / right)
+            if right == 0.0 {
+                return Err("Math divide input cannot be zero".into());
             }
+            left / right
         }
         MathOperator::Modulo => {
-            if right.abs() <= f64::EPSILON {
-                Err("Math modulo input cannot be zero".into())
-            } else {
-                Ok(left % right)
+            if right == 0.0 {
+                return Err("Math modulo input cannot be zero".into());
             }
+            left % right
         }
-    }
+        MathOperator::Minimum => left.min(right),
+        MathOperator::Maximum => left.max(right),
+    };
+    finite_scalar(result)
+}
+
+fn finite_scalar(value: f64) -> Result<f64, String> {
+    value
+        .is_finite()
+        .then_some(value)
+        .ok_or_else(|| "Math result is non-finite".into())
 }

@@ -12,6 +12,10 @@ impl CompiledNodeEvaluator for RemapEval {
             return Err("Remap input range cannot be zero".into());
         }
         let normalized = (value - in_min) / (in_max - in_min);
-        Ok(vec![RuntimeValue::Float(out_min + normalized * (out_max - out_min))])
+        let result = out_min + normalized * (out_max - out_min);
+        if !result.is_finite() {
+            return Err("Remap result is non-finite".into());
+        }
+        Ok(vec![RuntimeValue::Float(result)])
     }
 }

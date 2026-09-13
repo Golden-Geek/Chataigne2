@@ -73,6 +73,9 @@ impl CompiledNodeEvaluator for FunctionEval {
                 FunctionKind::Atan2 => unreachable!(),
             }
         };
+        if !result.is_finite() {
+            return Err("Function result is non-finite or outside its domain".into());
+        }
         Ok(vec![RuntimeValue::Float(result)])
     }
 }

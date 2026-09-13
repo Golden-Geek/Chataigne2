@@ -515,6 +515,12 @@ pub(super) fn config_field_trees_for_instance(
             trees.push(NodeTree::new(gradient));
             continue;
         }
+        if field.editor.as_deref() == Some("curve") {
+            let mut curve = CurveNode::new_with_label(&field.label);
+            curve.node_data_mut().meta.decl_id = DeclId(value_decl);
+            trees.push(NodeTree::new(curve));
+            continue;
+        }
 
         if field.type_variable.is_some() {
             let type_options = field.resolved_type_options(&config_signature, value_types);

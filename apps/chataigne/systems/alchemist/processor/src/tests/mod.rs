@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use super::*;
 
+mod catalog;
 mod channel_frame;
 mod flow;
 mod graph_managed_formula;

@@ -95,6 +95,77 @@ fn sum_and_average_share_graph_nodes_with_managed_reductions() {
 }
 
 #[test]
+fn named_reductions_use_ordered_numeric_kernels() {
+    for (kind, expected) in [
+        ("product", 12.0),
+        ("minimum", 2.0),
+        ("maximum", 6.0),
+        ("difference", 4.0),
+        ("distance", 4.0),
+    ] {
+        let mut graph = TestGraph::new();
+        let reduction = graph.add_node(node(kind)).unwrap();
+        for (index, value) in [6.0, 2.0].into_iter().enumerate() {
+            let source = graph.add_node(constant(RuntimeValue::Float(value))).unwrap();
+            graph
+                .connect(
+                    OutputSocketRef::new(source, "value"),
+                    InputSocketRef::new(reduction, format!("value{}", index + 1)),
+                )
+                .unwrap();
+        }
+        let output = evaluate(&mut runtime(&graph));
+        assert!(output.diagnostics.is_empty(), "{kind}: {:?}", output.diagnostics);
+        assert!(output.debug_samples.iter().any(|sample| {
+            sample.author_node_id == reduction
+                && sample.output_socket.as_str() == "result"
+                && sample.value == RuntimeValue::Float(expected)
+        }));
+    }
+    let (ordered, node) = evaluate_binary_math("subtract", RuntimeValue::Float(6.0), RuntimeValue::Float(2.0));
+    assert!(
+        ordered
+            .debug_samples
+            .iter()
+            .any(|sample| { sample.author_node_id == node && sample.value == RuntimeValue::Float(4.0) })
+    );
+}
+
+#[test]
+fn numeric_overflow_and_non_finite_results_diagnose_without_panicking() {
+    for (operator, left, right, message) in [
+        (
+            "add",
+            RuntimeValue::Int(i64::MAX),
+            RuntimeValue::Int(1),
+            "integer overflow",
+        ),
+        (
+            "multiply",
+            RuntimeValue::Float(f64::MAX),
+            RuntimeValue::Float(2.0),
+            "non-finite",
+        ),
+    ] {
+        let (output, _) = evaluate_binary_math(operator, left, right);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains(message))
+        );
+    }
+    let (output, math) = evaluate_binary_math("divide", RuntimeValue::Int(7), RuntimeValue::Int(2));
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .debug_samples
+            .iter()
+            .any(|sample| { sample.author_node_id == math && sample.value == RuntimeValue::Int(3) })
+    );
+}
+
+#[test]
 fn math_operator_matrix_covers_every_mode_numeric_shape_and_zero_error() {
     for (operator, expected) in [
         ("add", RuntimeValue::Float(8.0)),
@@ -259,20 +330,20 @@ mod pure_nodes {
             3.0 * std::f64::consts::FRAC_PI_4,
         );
 
-        for (function, value, expected_nan, expected_infinite) in
-            [("sqrt", -1.0, true, false), ("log", 0.0, false, true)]
-        {
-            let (output, target) = evaluate_node(
+        for (function, value) in [("sqrt", -1.0), ("log", 0.0)] {
+            let (output, _) = evaluate_node(
                 "function",
                 &[("function", RuntimeValue::String(function.into()))],
                 &[("value", RuntimeValue::Float(value))],
             );
-            assert!(output.diagnostics.is_empty(), "{function}: {:?}", output.diagnostics);
-            let RuntimeValue::Float(actual) = output_value(&output, target, "result") else {
-                panic!("Function did not produce a float Result");
-            };
-            assert_eq!(actual.is_nan(), expected_nan, "{function}: {actual}");
-            assert_eq!(actual.is_infinite(), expected_infinite, "{function}: {actual}");
+            assert!(
+                output
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains("non-finite")),
+                "{function}: {:?}",
+                output.diagnostics
+            );
         }
     }
 
@@ -690,6 +761,15 @@ mod transforms {
         );
         assert_eq!(output.diagnostics.len(), 1, "{:?}", output.diagnostics);
         assert!(output.diagnostics[0].message.contains("minimum cannot exceed maximum"));
+        assert_result(
+            "clamp",
+            &[
+                ("value", RuntimeValue::Int(i64::MAX)),
+                ("minimum", RuntimeValue::Int(i64::MAX - 2)),
+                ("maximum", RuntimeValue::Int(i64::MAX - 1)),
+            ],
+            RuntimeValue::Int(i64::MAX - 1),
+        );
     }
 
     #[test]

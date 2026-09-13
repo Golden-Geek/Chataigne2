@@ -1,5 +1,5 @@
-use std::cell::OnceCell;
 use std::f64::consts::TAU;
+use std::sync::OnceLock;
 
 pub use golden_model::{CurveBezierFitOptions, CurveFitPoint};
 use serde::{Deserialize, Serialize};
@@ -512,7 +512,7 @@ pub struct Curve {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     value_range_constraint: Option<(f64, f64)>,
     #[serde(skip, default)]
-    compiled_segments: OnceCell<Vec<CompiledCurveSegment>>,
+    compiled_segments: OnceLock<Vec<CompiledCurveSegment>>,
 }
 
 impl Curve {
@@ -527,7 +527,7 @@ impl Curve {
         Self {
             keys,
             value_range_constraint: None,
-            compiled_segments: OnceCell::new(),
+            compiled_segments: OnceLock::new(),
         }
     }
 
@@ -566,7 +566,7 @@ impl Curve {
     pub fn set_keys(&mut self, mut keys: Vec<CurveKey>) {
         normalize_keys(&mut keys);
         self.keys = keys;
-        self.compiled_segments = OnceCell::new();
+        self.compiled_segments = OnceLock::new();
     }
 
     /// Inserts one key while preserving sort order.
@@ -583,12 +583,12 @@ impl Curve {
             && (existing.position - key.position).abs() <= CURVE_EPSILON
         {
             self.keys[index] = key;
-            self.compiled_segments = OnceCell::new();
+            self.compiled_segments = OnceLock::new();
             return index;
         }
 
         self.keys.insert(index, key);
-        self.compiled_segments = OnceCell::new();
+        self.compiled_segments = OnceLock::new();
         index
     }
 
@@ -598,7 +598,7 @@ impl Curve {
             return None;
         }
 
-        self.compiled_segments = OnceCell::new();
+        self.compiled_segments = OnceLock::new();
         Some(self.keys.remove(index))
     }
 

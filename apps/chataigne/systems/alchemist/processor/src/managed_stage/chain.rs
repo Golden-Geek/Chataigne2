@@ -141,6 +141,10 @@ impl ManagedStageChain {
             output.diagnostics.extend(stage_output.diagnostics);
             output.debug_samples.extend(stage_output.debug_samples);
         }
+        if !output.diagnostics.is_empty() {
+            output.intents.clear();
+            output.debug_samples.clear();
+        }
         Ok((self.stages.last().map_or(input, |stage| &stage.output_frame), output))
     }
 }

@@ -114,6 +114,10 @@ impl CompiledNodeEvaluator for SmoothFilterEval {
                 output
             }
         };
+        if !output.is_finite() {
+            evaluation.state.fill(RuntimeValue::Unit);
+            return Err("Smooth Filter produced a non-finite result; its history was reset".into());
+        }
         Ok(vec![RuntimeValue::Float(output)])
     }
 }

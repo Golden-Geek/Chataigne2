@@ -310,7 +310,9 @@ pub(super) fn numbered_inputs(
 pub(super) fn passthrough_signature() -> ANodeSignature {
     let variable = TypeVar::new("TValue");
     let mut default_bindings = TypeBindings::default();
+    let mut generic_constraints = indexmap::IndexMap::new();
     default_bindings.insert(variable.clone(), ValueTypeId::new("float"), TypeBindingSource::Default);
+    generic_constraints.insert(variable.clone(), TypeConstraint::Any);
     ANodeSignature {
         inputs: vec![InputSocketDecl::new(
             "value",
@@ -323,7 +325,7 @@ pub(super) fn passthrough_signature() -> ANodeSignature {
             TypeConstraint::Generic(variable),
         )],
         default_bindings,
-        ..ANodeSignature::default()
+        generic_constraints,
     }
 }
 
@@ -431,7 +433,11 @@ pub(super) fn bool_inputs<const N: usize>(inputs: &[RuntimeValue]) -> Result<[bo
 
 pub(super) fn float_inputs<const N: usize>(inputs: &[RuntimeValue]) -> Result<[f64; N], String> {
     require_inputs::<N>(inputs)?
-        .map(|value| Ok(value_to_f64(value)))
+        .map(|value| match value {
+            RuntimeValue::Float(number) if number.is_finite() => Ok(*number),
+            RuntimeValue::Float(_) => Err("node requires finite float inputs".into()),
+            _ => Err("node requires float inputs".into()),
+        })
         .into_iter()
         .collect::<Result<Vec<_>, String>>()?
         .try_into()
@@ -641,26 +647,32 @@ pub(super) fn rgba_to_cmyk(color: ColorValue) -> [f64; 4] {
     ]
 }
 
-pub(super) fn numeric_map(value: &RuntimeValue, mapper: impl Fn(f64) -> f64) -> RuntimeValue {
-    numeric_map_checked(value, |value| Ok(mapper(value))).expect("infallible numeric map")
-}
-
 pub(super) fn numeric_map_checked(
     value: &RuntimeValue,
     mapper: impl Fn(f64) -> Result<f64, String>,
 ) -> Result<RuntimeValue, String> {
+    let checked = |number: f64| -> Result<f64, String> {
+        if !number.is_finite() {
+            return Err("numeric transform requires finite inputs".into());
+        }
+        let output = mapper(number)?;
+        output
+            .is_finite()
+            .then_some(output)
+            .ok_or_else(|| "numeric transform produced a non-finite result".into())
+    };
     Ok(match value {
-        RuntimeValue::Int(value) => RuntimeValue::Int(mapper(*value as f64)? as i64),
-        RuntimeValue::Float(value) => RuntimeValue::Float(mapper(*value)?),
-        RuntimeValue::Vec2(value) => RuntimeValue::Vec2([mapper(value[0])?, mapper(value[1])?]),
-        RuntimeValue::Vec3(value) => RuntimeValue::Vec3([mapper(value[0])?, mapper(value[1])?, mapper(value[2])?]),
+        RuntimeValue::Int(_) => return Err("integer transform needs its exact integer operation".into()),
+        RuntimeValue::Float(value) => RuntimeValue::Float(checked(*value)?),
+        RuntimeValue::Vec2(value) => RuntimeValue::Vec2([checked(value[0])?, checked(value[1])?]),
+        RuntimeValue::Vec3(value) => RuntimeValue::Vec3([checked(value[0])?, checked(value[1])?, checked(value[2])?]),
         RuntimeValue::Color(value) => RuntimeValue::Color(ColorValue {
-            red: mapper(value.red)?,
-            green: mapper(value.green)?,
-            blue: mapper(value.blue)?,
-            alpha: mapper(value.alpha)?,
+            red: checked(value.red)?,
+            green: checked(value.green)?,
+            blue: checked(value.blue)?,
+            alpha: checked(value.alpha)?,
         }),
-        _ => RuntimeValue::Float(mapper(value_to_f64(value))?),
+        _ => return Err("numeric transform requires Int, Float, Vec2, Vec3, or Color".into()),
     })
 }
 
@@ -679,11 +691,6 @@ pub(super) fn value_to_f64(value: &RuntimeValue) -> f64 {
         RuntimeValue::Array(value) => value.first().map_or(0.0, value_to_f64),
         RuntimeValue::Ref(_) | RuntimeValue::Extension(_) => 0.0,
     }
-}
-
-pub(super) fn value_to_i64(value: &RuntimeValue) -> i64 {
-    let value = value_to_f64(value);
-    if value.is_finite() { value as i64 } else { 0 }
 }
 
 pub(super) fn decimal_string(value: &RuntimeValue, decimals: usize) -> String {
@@ -745,13 +752,6 @@ pub(super) fn time_string(seconds: f64, decimals: usize) -> String {
     } else {
         let width = 3 + decimals;
         format!("{hours:02}:{minutes:02}:{seconds:0width$.decimals$}")
-    }
-}
-
-pub(super) fn brightness(value: &RuntimeValue) -> f64 {
-    match value {
-        RuntimeValue::Color(value) => 0.2126 * value.red + 0.7152 * value.green + 0.0722 * value.blue,
-        _ => value_to_f64(value).abs(),
     }
 }
 

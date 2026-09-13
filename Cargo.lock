@@ -1076,6 +1076,7 @@ dependencies = [
 name = "chataigne_alchemist"
 version = "0.1.0"
 dependencies = [
+ "golden_engine",
  "golden_graph",
  "golden_values",
  "indexmap 2.14.0",

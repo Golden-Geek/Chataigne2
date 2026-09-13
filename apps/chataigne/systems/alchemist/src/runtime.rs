@@ -994,6 +994,7 @@ fn evaluate_compiled_graph_inner(
         let inputs = match inputs {
             Ok(inputs) => inputs,
             Err(message) => {
+                suppress_failed_node(compiled, memory, *exec_id, &node.outputs);
                 output.diagnostics.push(RuntimeDiagnostic {
                     exec_node: *exec_id,
                     message,
@@ -1005,6 +1006,7 @@ fn evaluate_compiled_graph_inner(
             match change_detection_inputs(&node.operation, &inputs, frame.properties, frame.ctx, frame.context) {
                 Ok(change_inputs) => change_inputs,
                 Err(message) => {
+                    suppress_failed_node(compiled, memory, *exec_id, &node.outputs);
                     output.diagnostics.push(RuntimeDiagnostic {
                         exec_node: *exec_id,
                         message,
@@ -1031,6 +1033,7 @@ fn evaluate_compiled_graph_inner(
         }
         memory.node_initialized[exec_id.index()] = true;
         memory.last_executed_nodes.push(*exec_id);
+        let intent_count_before = output.intents.len();
         let mut output_flow = SmallVec::<[NodeFlow; 4]>::new();
         output_flow.resize(node.outputs.len(), NodeFlow::Deliver);
         let state = &mut memory.states[node.state_range.clone()];
@@ -1123,18 +1126,26 @@ fn evaluate_compiled_graph_inner(
                     }
                 }
             }
-            Ok(values) => output.diagnostics.push(RuntimeDiagnostic {
-                exec_node: *exec_id,
-                message: format!(
-                    "node produced {} output(s), expected {}",
-                    values.len(),
-                    node.outputs.len()
-                ),
-            }),
-            Err(message) => output.diagnostics.push(RuntimeDiagnostic {
-                exec_node: *exec_id,
-                message,
-            }),
+            Ok(values) => {
+                output.intents.truncate(intent_count_before);
+                suppress_failed_node(compiled, memory, *exec_id, &node.outputs);
+                output.diagnostics.push(RuntimeDiagnostic {
+                    exec_node: *exec_id,
+                    message: format!(
+                        "node produced {} output(s), expected {}",
+                        values.len(),
+                        node.outputs.len()
+                    ),
+                });
+            }
+            Err(message) => {
+                output.intents.truncate(intent_count_before);
+                suppress_failed_node(compiled, memory, *exec_id, &node.outputs);
+                output.diagnostics.push(RuntimeDiagnostic {
+                    exec_node: *exec_id,
+                    message,
+                });
+            }
         }
     }
     if frame.capture_unchanged_outputs
@@ -1148,6 +1159,23 @@ fn evaluate_compiled_graph_inner(
         .map(|debug| debug.samples().to_vec())
         .unwrap_or_default();
     output
+}
+
+fn suppress_failed_node(
+    compiled: &CompiledAlchemistGraph,
+    memory: &mut AlchemistMemory,
+    exec_id: ExecNodeId,
+    outputs: &[ValueSlotId],
+) {
+    memory.node_initialized[exec_id.index()] = true;
+    memory.node_flow[exec_id.index()] = NodeFlow::Suppress;
+    for slot in outputs {
+        if memory.value_flow[slot.index()] != NodeFlow::Suppress {
+            memory.value_flow[slot.index()] = NodeFlow::Suppress;
+            memory.value_revisions[slot.index()] = memory.value_revisions[slot.index()].saturating_add(1);
+            mark_slot_dependents_dirty(compiled, memory, *slot);
+        }
+    }
 }
 
 fn capture_initialized_outputs(
@@ -1631,11 +1659,26 @@ fn map_range_values(inputs: &[RuntimeValue]) -> Result<RuntimeValue, String> {
 }
 
 fn clamp_values(inputs: &[RuntimeValue]) -> Result<RuntimeValue, String> {
-    let values = require_inputs::<3>(inputs)?.map(Clone::clone);
+    let values = require_inputs::<3>(inputs)?;
+    if let [
+        RuntimeValue::Int(value),
+        RuntimeValue::Int(minimum),
+        RuntimeValue::Int(maximum),
+    ] = values
+    {
+        if minimum > maximum {
+            return Err("Clamp minimum cannot exceed maximum".into());
+        }
+        return Ok(RuntimeValue::Int((*value).clamp(*minimum, *maximum)));
+    }
+    let values = values.map(Clone::clone);
     let (shape, values) = aligned_numeric_components(&values)?;
     let [value, minimum, maximum] = values.try_into().map_err(|_| "invalid Clamp input count".to_string())?;
     let mut result = Vec::with_capacity(value.len());
     for (value, (minimum, maximum)) in value.iter().zip(minimum.iter().zip(maximum.iter())) {
+        if !value.is_finite() || !minimum.is_finite() || !maximum.is_finite() {
+            return Err("Clamp requires finite inputs".into());
+        }
         if minimum > maximum {
             return Err("Clamp minimum cannot exceed maximum".into());
         }

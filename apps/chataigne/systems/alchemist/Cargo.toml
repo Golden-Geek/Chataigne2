@@ -8,17 +8,18 @@ description = "Chataigne-owned Alchemist formula domain"
 
 [features]
 default = ["serde"]
-serde = ["dep:serde", "dep:serde_json"]
+serde = ["dep:serde"]
 rhai = []
 debug_trace = []
 golden_core_integration = []
 
 [dependencies]
+golden_engine = { path = "../../../../crates/golden_core/engine" }
 golden_graph.workspace = true
 golden_values.workspace = true
 indexmap.workspace = true
 serde = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
+serde_json.workspace = true
 smallvec.workspace = true
 smol_str.workspace = true
 thiserror.workspace = true

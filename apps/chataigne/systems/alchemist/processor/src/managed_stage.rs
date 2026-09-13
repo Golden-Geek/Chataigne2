@@ -368,6 +368,7 @@ impl ManagedStageRuntime {
         }
         let mut output = RuntimeOutput::default();
         let mut active_temporal_work = false;
+        let mut stage_failed = false;
         for (group_index, group) in self.groups.iter().enumerate() {
             let group_context = ContextKey::new(context_key.iter().cloned().chain(group.context.iter().cloned()));
             let inputs = group
@@ -455,6 +456,12 @@ impl ManagedStageRuntime {
                     (evaluated, values, flows)
                 }
             };
+            if !evaluated.diagnostics.is_empty() {
+                output.diagnostics.extend(evaluated.diagnostics);
+                self.scratch.reset_for_fresh_evaluation(&self.compiled);
+                stage_failed = true;
+                break;
+            }
             output.intents.extend(evaluated.intents.into_iter().map(|mut intent| {
                 if intent.source_node == Some(self.compiled_stage_node) {
                     intent.source_node = Some(self.item.anode.id);
@@ -488,12 +495,30 @@ impl ManagedStageRuntime {
             }
         }
         self.temporal_evaluated = true;
-        if active_temporal_work {
+        if stage_failed {
+            self.active_temporal_contexts.remove(context_key);
+        } else if active_temporal_work {
             self.active_temporal_contexts.insert(context_key.clone());
         } else {
             self.active_temporal_contexts.remove(context_key);
         }
         self.output_frame.begin_tick(ctx.logical_tick);
+        if stage_failed {
+            let failed_contexts = self
+                .groups
+                .iter()
+                .map(|group| ContextKey::new(context_key.iter().cloned().chain(group.context.iter().cloned())))
+                .collect::<HashSet<_>>();
+            self.memory.retain_where(|key| !failed_contexts.contains(key));
+            for index in 0..self.outputs.len() {
+                self.output_frame
+                    .set(index, None, ChannelValidity::Invalid, false)
+                    .map_err(ManagedStageError::Frame)?;
+            }
+            output.intents.clear();
+            output.debug_samples.clear();
+            return Ok((&self.output_frame, output));
+        }
         for (index, binding) in self.outputs.iter().enumerate() {
             let slot = match binding {
                 StageOutputBinding::Passthrough(source) => input

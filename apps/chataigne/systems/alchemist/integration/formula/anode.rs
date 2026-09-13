@@ -273,6 +273,16 @@ impl AlchemistANode {
                 );
                 continue;
             }
+            if field.editor.as_deref() == Some("curve") {
+                self.ensure_curve_config_node(
+                    ctx,
+                    &snapshot,
+                    config_folder,
+                    value_decl.as_str(),
+                    &field.label,
+                );
+                continue;
+            }
             if field.type_variable.is_some() {
                 let type_options = field.resolved_type_options(&config_signature, value_types);
                 let selected_type = child_string(&snapshot, config_folder, value_decl.as_str())
@@ -615,6 +625,28 @@ impl AlchemistANode {
         let mut gradient = GradientNode::new_with_label(label);
         gradient.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
         ctx.add_child(config_folder, gradient, None);
+    }
+
+    fn ensure_curve_config_node(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        config_folder: NodeId,
+        decl_id: &str,
+        label: &str,
+    ) {
+        if let Some(existing) = snapshot.find_child_by_decl_id(config_folder, decl_id) {
+            if snapshot
+                .node(existing)
+                .is_some_and(|node| node.node_type == PARAMETER_ANIMATION_CURVE_NODE_TYPE)
+            {
+                return;
+            }
+            ctx.edits.push(Edit::RemoveNode { node: existing });
+        }
+        let mut curve = CurveNode::new_with_label(label);
+        curve.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
+        ctx.add_child(config_folder, curve, None);
     }
 
     fn remove_obsolete_children(

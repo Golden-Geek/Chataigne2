@@ -26,11 +26,12 @@ impl GradientInterpolation {
         }
     }
 
-    fn from_variant_id(value: &str) -> Self {
+    fn from_variant_id(value: &str) -> Result<Self, String> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "none" | "hold" | "step" => Self::None,
-            "smooth" | "smoothstep" => Self::Smooth,
-            _ => Self::Linear,
+            "none" | "hold" | "step" => Ok(Self::None),
+            "smooth" | "smoothstep" => Ok(Self::Smooth),
+            "linear" => Ok(Self::Linear),
+            _ => Err("Gradient stop has an unknown interpolation mode".into()),
         }
     }
 
@@ -70,17 +71,17 @@ impl CompiledNodeEvaluator for GradientSamplerEval {
 ///
 /// The host materializes the config from a real gradient node subtree, so a missing or empty
 /// value falls back to a default black-to-white ramp.
-pub(super) fn stops_from_config(instance: &ANodeInstance) -> Vec<GradientStop> {
+pub(super) fn stops_from_config(instance: &ANodeInstance) -> Result<Vec<GradientStop>, String> {
     let mut stops = instance
         .config
         .get("gradient")
         .map(stops_from_runtime_value)
-        .unwrap_or_default();
+        .unwrap_or_else(|| Ok(Vec::new()))?;
     if stops.is_empty() {
         stops = default_stops();
     }
     stops.sort_by(|left, right| left.position.partial_cmp(&right.position).unwrap_or(Ordering::Equal));
-    stops
+    Ok(stops)
 }
 
 /// Default structured gradient config value (black at 0, white at 1, linear).
@@ -116,27 +117,36 @@ fn stop_to_runtime_value(stop: &GradientStop) -> RuntimeValue {
     ])
 }
 
-fn stops_from_runtime_value(value: &RuntimeValue) -> Vec<GradientStop> {
+fn stops_from_runtime_value(value: &RuntimeValue) -> Result<Vec<GradientStop>, String> {
     let RuntimeValue::Array(entries) = value else {
-        return Vec::new();
+        return Err("Gradient resource must be a list of stops".into());
     };
-    entries.iter().filter_map(stop_from_runtime_value).collect()
+    entries.iter().map(stop_from_runtime_value).collect()
 }
 
-fn stop_from_runtime_value(value: &RuntimeValue) -> Option<GradientStop> {
+fn stop_from_runtime_value(value: &RuntimeValue) -> Result<GradientStop, String> {
     let RuntimeValue::Array(fields) = value else {
-        return None;
+        return Err("Gradient stop must have position, color, and interpolation".into());
     };
-    let position = fields.first()?.to_float_lossy();
-    let color = fields.get(1)?.to_color_lossy();
-    let interpolation = match fields.get(2) {
-        Some(RuntimeValue::String(text)) => GradientInterpolation::from_variant_id(text),
-        _ => GradientInterpolation::Linear,
+    let [
+        RuntimeValue::Float(position),
+        RuntimeValue::Color(color),
+        RuntimeValue::String(interpolation),
+    ] = fields.as_slice()
+    else {
+        return Err("Gradient stop must have float position, Color, and interpolation".into());
     };
-    Some(GradientStop {
+    if !position.is_finite()
+        || [color.red, color.green, color.blue, color.alpha]
+            .iter()
+            .any(|value| !value.is_finite())
+    {
+        return Err("Gradient stop requires finite position and color components".into());
+    }
+    Ok(GradientStop {
         position: position.clamp(0.0, 1.0),
-        color,
-        interpolation,
+        color: *color,
+        interpolation: GradientInterpolation::from_variant_id(interpolation)?,
     })
 }
 

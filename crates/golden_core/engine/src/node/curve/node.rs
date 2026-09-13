@@ -116,7 +116,7 @@ impl CurveNode {
 
             let key_node = CurveKeyNode::new_with_values_and_range_and_easing(position, value, child_range, easing);
             let key_id = key_node.id();
-            self.add_child_boxed(ctx, Box::new(key_node), None);
+            self.add_user_child_boxed(ctx, Box::new(key_node), None);
             created.push(key_id);
         }
         created
@@ -690,12 +690,12 @@ impl CurveNode {
 
         if existing_key_count + pending_key_count == 0 && !self.default_keys_seeded {
             let initial_range = self.initial_key_range_constraint();
-            ctx.add_child_boxed(
+            ctx.add_user_item_boxed(
                 self.id(),
                 Box::new(CurveKeyNode::new_with_values_and_range(0.0, 0.0, initial_range)),
                 None,
             );
-            ctx.add_child_boxed(
+            ctx.add_user_item_boxed(
                 self.id(),
                 Box::new(CurveKeyNode::new_with_values_and_range(1.0, 1.0, initial_range)),
                 None,

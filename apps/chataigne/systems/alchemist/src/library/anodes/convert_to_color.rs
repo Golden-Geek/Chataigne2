@@ -21,6 +21,12 @@ impl CompiledNodeEvaluator for ConvertToColorEval {
             super::color_mode::ColorMode::Hsla => hsla_to_rgba(first, second, third, fourth),
             super::color_mode::ColorMode::Cmyk => cmyk_to_rgba(first, second, third, fourth),
         };
+        if [color.red, color.green, color.blue, color.alpha]
+            .iter()
+            .any(|value| !value.is_finite())
+        {
+            return Err("Convert To Color produced non-finite components".into());
+        }
         Ok(vec![RuntimeValue::Color(color)])
     }
 }

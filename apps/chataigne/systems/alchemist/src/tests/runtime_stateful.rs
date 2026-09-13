@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::test_support::TestGraph;
@@ -106,6 +107,121 @@ fn trigger(output: RuntimeValue) -> TriggerValue {
         panic!("expected trigger, got {output:?}");
     };
     trigger
+}
+
+#[test]
+fn timed_delay_delivers_in_order_and_resets_on_bounded_overflow() {
+    let mut delay = RuntimeHarness::new(
+        "timed_delay",
+        &[
+            ("seconds", RuntimeValue::Float(0.05)),
+            ("capacity", RuntimeValue::Int(2)),
+        ],
+    );
+    let dt = Duration::from_millis(25);
+    for (tick, value) in [(1, 10.0), (2, 20.0)] {
+        let result = delay.evaluate(tick, dt, &[("value", RuntimeValue::Float(value))]);
+        assert!(result.diagnostics.is_empty());
+        assert!(result.debug_samples.is_empty());
+    }
+    let first = delay.evaluate(3, dt, &[("value", RuntimeValue::Float(30.0))]);
+    assert_float(delay.output(&first, "value"), 10.0);
+    let second = delay.evaluate(4, dt, &[("value", RuntimeValue::Float(40.0))]);
+    assert_float(delay.output(&second, "value"), 20.0);
+
+    let mut stalled = RuntimeHarness::new(
+        "timed_delay",
+        &[
+            ("seconds", RuntimeValue::Float(1.0)),
+            ("capacity", RuntimeValue::Int(2)),
+        ],
+    );
+    for tick in 1..=2 {
+        assert!(
+            stalled
+                .evaluate(tick, Duration::ZERO, &[("value", RuntimeValue::Int(tick as i64))])
+                .diagnostics
+                .is_empty()
+        );
+    }
+    let overflow = stalled.evaluate(3, Duration::ZERO, &[("value", RuntimeValue::Int(3))]);
+    assert!(
+        overflow
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("queue capacity exceeded"))
+    );
+    let restarted = stalled.evaluate(4, Duration::ZERO, &[("value", RuntimeValue::Int(4))]);
+    assert!(restarted.diagnostics.is_empty());
+    assert!(restarted.debug_samples.is_empty());
+}
+
+#[test]
+fn threshold_hysteresis_uses_per_context_state() {
+    let mut threshold = RuntimeHarness::new("threshold", &[]);
+    for (tick, value, expected) in [(1, 10.5, false), (2, 11.0, true), (3, 9.5, true), (4, 8.5, false)] {
+        let output = threshold.evaluate(
+            tick,
+            Duration::ZERO,
+            &[
+                ("value", RuntimeValue::Float(value)),
+                ("threshold", RuntimeValue::Float(10.0)),
+                ("hysteresis", RuntimeValue::Float(2.0)),
+            ],
+        );
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(threshold.output(&output, "result"), RuntimeValue::Bool(expected));
+    }
+}
+
+#[test]
+fn failed_graph_conversion_suppresses_old_output_until_a_valid_value_arrives() {
+    let mut convert = RuntimeHarness::new("convert_to_float", &[]);
+    let first = convert.evaluate(1, Duration::ZERO, &[("value", RuntimeValue::String("2".into()))]);
+    assert_eq!(convert.output(&first, "result"), RuntimeValue::Float(2.0));
+    let invalid = convert.evaluate(2, Duration::ZERO, &[("value", RuntimeValue::String("bad".into()))]);
+    assert!(
+        invalid
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("valid float"))
+    );
+    assert!(invalid.debug_samples.is_empty(), "the old result must be suppressed");
+    let recovered = convert.evaluate(3, Duration::ZERO, &[("value", RuntimeValue::String("3".into()))]);
+    assert!(recovered.diagnostics.is_empty());
+    assert_eq!(convert.output(&recovered, "result"), RuntimeValue::Float(3.0));
+}
+
+#[test]
+fn timed_delay_enforces_value_and_total_memory_limits() {
+    let oversized = RuntimeValue::String(Arc::from("x".repeat(64 * 1024)));
+    let mut delay = RuntimeHarness::new("timed_delay", &[("seconds", RuntimeValue::Float(1.0))]);
+    let output = delay.evaluate(1, Duration::ZERO, &[("value", oversized)]);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("64 KiB"))
+    );
+
+    let payload = RuntimeValue::String(Arc::from("x".repeat(32 * 1024)));
+    let mut memory_limit = RuntimeHarness::new("timed_delay", &[("seconds", RuntimeValue::Float(1.0))]);
+    let mut overflow = false;
+    for tick in 1..=64 {
+        let output = memory_limit.evaluate(tick, Duration::ZERO, &[("value", payload.clone())]);
+        if output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("1 MiB"))
+        {
+            overflow = true;
+            break;
+        }
+    }
+    assert!(
+        overflow,
+        "the queue must reject values before exceeding the memory budget"
+    );
 }
 
 #[test]

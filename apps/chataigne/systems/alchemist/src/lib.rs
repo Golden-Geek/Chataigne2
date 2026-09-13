@@ -44,7 +44,9 @@ pub use ids::{
     FormulaPropertyId, FormulaPropertySlotId, ManagedItemId, ManagedRegionId, SocketId, SurfaceContributionId,
     SurfaceItemId, SurfaceSectionId, ValueSlotId, ValueTypeId,
 };
-pub use library::{PrimitiveNodeDeclaration, PrimitiveNodeKind, primitive_node_registry, register_primitive_nodes};
+pub use library::{
+    PrimitiveNodeDeclaration, PrimitiveNodeKind, curve_config_value, primitive_node_registry, register_primitive_nodes,
+};
 pub use managed_application::{
     MANAGED_GROUPS_FIELD, MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, MANAGED_SELECTION_FIELD, ManagedApplication,
     ManagedApplicationError, ManagedSettingPath, ManagedStateScope, classify_managed_setting,

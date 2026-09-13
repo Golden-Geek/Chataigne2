@@ -208,6 +208,43 @@ when change-aware sends meet batched ordinary sends. The output-binding config
 and command arguments use app-owned typed extension payloads; Phase 08 owns
 backend edit intents and migration of persisted positional OutputSet records.
 
+Phase 07 extends the app-owned ANode catalog through the same graph and managed
+stage compiler. Numeric reductions consume the full ordered tuple: Sum,
+Product, Minimum, Maximum, and ordered Difference retain the common declared
+numeric shape; Average and two-input Distance produce Float. An empty reduction
+is invalid. Integer arithmetic checks overflow, integer division truncates
+toward zero, and division by zero diagnoses. Scalar conversions are explicit;
+mixed tuples can use Convert Tuple before a numeric reduction. Pack/Extract
+Vec2 and Vec3, Pack/Extract Color, and explicit Vec2/Vec3/Color conversion
+handle compound shape changes without routing a subset implicitly. Unsupported
+components and non-finite arithmetic diagnose rather than being coerced to
+zero or sent to a command.
+
+Curve Remap hosts Golden's editable Curve node under an ANode config; Gradient
+Sampler continues to host Golden's Gradient node. The app materializes their
+keys or stops into typed Alchemist resource values on each affected snapshot.
+Golden's Curve segment cache is thread-safe so compiled samplers can be shared
+across processor contexts. Resource edits invalidate the owning ANode's
+materialization and publish a newly compiled sampler; no Mapping-specific key
+or stop model exists.
+Golden creates repeated keys and stops as user items so sparse persistence
+retains every authored entry, including multiple entries of the same node type.
+
+Threshold compares a Float against an authored boundary with optional
+hysteresis. Timed Delay advances on the evaluation context's elapsed duration
+and emits at most one due value per evaluation, in arrival order. A zero delay
+passes through immediately. Each stage/context queue is limited to 128 items,
+1 MiB total estimated value storage, and 64 KiB for one value; configured
+capacity can lower the item limit. Overflow reports a diagnostic and clears
+that queue and clock. An inactive processor does not advance its evaluation
+clock; disabling a stage removes its memory, and re-enabling it starts fresh.
+The existing one-tick delay remains a separate operation.
+
+The ANode declaration registry remains centralized because one trait binds
+type identity, signatures, roles, and kernel compilation exhaustively. This
+temporarily exceeds the usual source-file length target; Phase 11 owns a
+cohesive split after catalog and authoring behavior settle.
+
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.
 Changed persisted filter or output semantics need narrow typed migrations. In

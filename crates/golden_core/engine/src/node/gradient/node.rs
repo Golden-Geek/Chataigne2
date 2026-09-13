@@ -51,7 +51,7 @@ impl GradientNode {
             }
             let stop = GradientStopNode::new_with_values(position, color, interpolation);
             let stop_id = stop.id();
-            self.add_child_boxed(ctx, Box::new(stop), None);
+            self.add_user_child_boxed(ctx, Box::new(stop), None);
             created.push(stop_id);
         }
         created
@@ -107,7 +107,7 @@ impl GradientNode {
 
         let pending_stop_count = self.pending_stop_add_count(ctx);
         if existing_stop_count + pending_stop_count == 0 && !self.default_stops_seeded {
-            ctx.add_child_boxed(
+            ctx.add_user_item_boxed(
                 self.id(),
                 Box::new(GradientStopNode::new_with_values(
                     0.0,
@@ -116,7 +116,7 @@ impl GradientNode {
                 )),
                 None,
             );
-            ctx.add_child_boxed(
+            ctx.add_user_item_boxed(
                 self.id(),
                 Box::new(GradientStopNode::new_with_values(
                     1.0,

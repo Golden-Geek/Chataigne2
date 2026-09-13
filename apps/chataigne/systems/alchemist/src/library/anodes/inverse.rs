@@ -10,6 +10,12 @@ impl CompiledNodeEvaluator for InverseEval {
         let Some(value) = evaluation.inputs.first() else {
             return Err("numeric unary node expects one input".into());
         };
+        if let RuntimeValue::Int(number) = value {
+            if *number == 0 {
+                return Err("Inverse input cannot be zero".into());
+            }
+            return Ok(vec![RuntimeValue::Int(1 / *number)]);
+        }
         Ok(vec![numeric_map_checked(value, |value| {
             if value.abs() <= f64::EPSILON {
                 Err("Inverse input cannot be zero".into())

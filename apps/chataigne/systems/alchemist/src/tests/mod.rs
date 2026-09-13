@@ -11,6 +11,7 @@ mod library;
 mod managed_application;
 mod pipeline;
 mod runtime;
+mod runtime_catalog;
 mod runtime_color;
 mod runtime_math;
 mod runtime_stateful;

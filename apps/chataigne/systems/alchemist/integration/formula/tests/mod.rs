@@ -35,6 +35,7 @@ use crate::app::{AppEngine, AppNode};
 
 mod inbox_batch;
 mod lifecycle_reuse;
+mod resources;
 mod snapshot_cache;
 mod value_change;
 

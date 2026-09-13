@@ -603,6 +603,9 @@ pub(super) fn config_field_value(
     if field.editor.as_deref() == Some("gradient") {
         return gradient_config_value(snapshot, config_folder, field);
     }
+    if field.editor.as_deref() == Some("curve") {
+        return curve_config_value(snapshot, config_folder, field);
+    }
     let value_type = if field.editor.as_deref() == Some("runtime_value") {
         child_string(
             snapshot,
@@ -651,6 +654,18 @@ pub(super) fn gradient_config_value(
         Some(stops) if !stops.is_empty() => RuntimeValue::Array(stops),
         _ => field.default_value.clone(),
     }
+}
+
+pub(super) fn curve_config_value(
+    snapshot: &ProcessTreeSnapshot,
+    config_folder: NodeId,
+    field: &chataigne_alchemist::ANodeConfigFieldDecl,
+) -> RuntimeValue {
+    snapshot
+        .find_child_by_decl_id(config_folder, config_decl_id(field.id.as_str()).as_str())
+        .and_then(|curve_node| curve_from_snapshot(snapshot, curve_node))
+        .map(|curve| chataigne_alchemist::curve_config_value(&curve))
+        .unwrap_or_else(|| field.default_value.clone())
 }
 
 pub(super) fn gradient_stop_to_runtime_value(stop: &GradientStop) -> RuntimeValue {

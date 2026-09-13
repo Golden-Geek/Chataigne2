@@ -14,14 +14,19 @@ mod compare;
 mod concatenate;
 mod condition_gate;
 mod constant;
+mod convert_compound;
+mod convert_scalar;
 mod convert_to_color;
 mod convert_to_string;
+mod convert_tuple;
 mod coordinate_system;
 mod counter;
+mod curve_remap;
 mod debug_log;
 mod debug_value;
 mod delay_one_tick;
 mod extract_color;
+mod extract_vec2;
 mod extract_vec3;
 mod function;
 mod gate;
@@ -33,6 +38,7 @@ mod metronome;
 mod negate;
 mod noise_generator;
 mod one_minus;
+mod pack_vec2;
 mod pack_vec3;
 mod property;
 mod remap;
@@ -40,6 +46,8 @@ mod smooth_filter;
 mod speed;
 mod split;
 mod support;
+mod threshold;
+mod timed_delay;
 mod trigger_on_off;
 
 use support::{
@@ -51,6 +59,8 @@ use support::{
     value_type_config_field_with_constraint,
 };
 
+pub use curve_remap::curve_config_value;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PrimitiveNodeKind {
     Constant,
@@ -58,8 +68,14 @@ pub enum PrimitiveNodeKind {
     Math,
     Sum,
     Average,
+    Product,
+    Minimum,
+    Maximum,
+    Difference,
+    Distance,
     Function,
     Remap,
+    CurveRemap,
     Clamp,
     SmoothFilter,
     OneMinus,
@@ -74,31 +90,46 @@ pub enum PrimitiveNodeKind {
     AngleConversion,
     GradientSampler,
     ConvertToColor,
+    ConvertCompound,
+    ConvertToInt,
+    ConvertToFloat,
+    ConvertToBool,
+    ConvertTuple,
     ExtractColor,
+    ExtractVec2,
     ExtractVec3,
+    PackVec2,
     PackVec3,
     Concatenate,
     ConvertToString,
     Split,
     BooleanOperation,
     Compare,
+    Threshold,
     ConditionGate,
     TriggerOnOff,
     Gate,
     DelayOneTick,
+    TimedDelay,
     DebugValue,
     DebugLog,
 }
 
 impl PrimitiveNodeKind {
-    const ALL: [Self; 35] = [
+    const ALL: [Self; 50] = [
         Self::Constant,
         Self::Property,
         Self::Math,
         Self::Sum,
         Self::Average,
+        Self::Product,
+        Self::Minimum,
+        Self::Maximum,
+        Self::Difference,
+        Self::Distance,
         Self::Function,
         Self::Remap,
+        Self::CurveRemap,
         Self::Clamp,
         Self::SmoothFilter,
         Self::OneMinus,
@@ -113,18 +144,27 @@ impl PrimitiveNodeKind {
         Self::AngleConversion,
         Self::GradientSampler,
         Self::ConvertToColor,
+        Self::ConvertCompound,
+        Self::ConvertToInt,
+        Self::ConvertToFloat,
+        Self::ConvertToBool,
+        Self::ConvertTuple,
         Self::ExtractColor,
+        Self::ExtractVec2,
         Self::ExtractVec3,
+        Self::PackVec2,
         Self::PackVec3,
         Self::Concatenate,
         Self::ConvertToString,
         Self::Split,
         Self::BooleanOperation,
         Self::Compare,
+        Self::Threshold,
         Self::ConditionGate,
         Self::TriggerOnOff,
         Self::Gate,
         Self::DelayOneTick,
+        Self::TimedDelay,
         Self::DebugValue,
         Self::DebugLog,
     ];
@@ -143,8 +183,14 @@ impl PrimitiveNodeKind {
             Self::Math => "math",
             Self::Sum => "sum",
             Self::Average => "average",
+            Self::Product => "product",
+            Self::Minimum => "minimum",
+            Self::Maximum => "maximum",
+            Self::Difference => "difference",
+            Self::Distance => "distance",
             Self::Function => "function",
             Self::Remap => "remap",
+            Self::CurveRemap => "curve_remap",
             Self::Clamp => "clamp",
             Self::SmoothFilter => "smooth_filter",
             Self::OneMinus => "one_minus",
@@ -159,18 +205,27 @@ impl PrimitiveNodeKind {
             Self::AngleConversion => "angle_conversion",
             Self::GradientSampler => "gradient_sampler",
             Self::ConvertToColor => "convert_to_color",
+            Self::ConvertCompound => "convert_compound",
+            Self::ConvertToInt => "convert_to_int",
+            Self::ConvertToFloat => "convert_to_float",
+            Self::ConvertToBool => "convert_to_bool",
+            Self::ConvertTuple => "convert_tuple",
             Self::ExtractColor => "extract_color",
+            Self::ExtractVec2 => "extract_vec2",
             Self::ExtractVec3 => "extract_vec3",
+            Self::PackVec2 => "pack_vec2",
             Self::PackVec3 => "pack_vec3",
             Self::Concatenate => "concatenate",
             Self::ConvertToString => "convert_to_string",
             Self::Split => "split",
             Self::BooleanOperation => "boolean_operation",
             Self::Compare => "compare",
+            Self::Threshold => "threshold",
             Self::ConditionGate => "condition_gate",
             Self::TriggerOnOff => "trigger_on_off",
             Self::Gate => "gate",
             Self::DelayOneTick => "delay_one_tick",
+            Self::TimedDelay => "timed_delay",
             Self::DebugValue => "debug_value",
             Self::DebugLog => "debug_log",
         }
@@ -205,8 +260,14 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Math => "Math",
             PrimitiveNodeKind::Sum => "Sum",
             PrimitiveNodeKind::Average => "Average",
+            PrimitiveNodeKind::Product => "Product",
+            PrimitiveNodeKind::Minimum => "Minimum",
+            PrimitiveNodeKind::Maximum => "Maximum",
+            PrimitiveNodeKind::Difference => "Difference",
+            PrimitiveNodeKind::Distance => "Distance",
             PrimitiveNodeKind::Function => "Function",
             PrimitiveNodeKind::Remap => "Remap",
+            PrimitiveNodeKind::CurveRemap => "Curve Remap",
             PrimitiveNodeKind::Clamp => "Clamp",
             PrimitiveNodeKind::SmoothFilter => "Smooth Filter",
             PrimitiveNodeKind::OneMinus => "One Minus",
@@ -221,18 +282,27 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::AngleConversion => "Degrees/Radians",
             PrimitiveNodeKind::GradientSampler => "Gradient Sampler",
             PrimitiveNodeKind::ConvertToColor => "Convert To Color",
+            PrimitiveNodeKind::ConvertCompound => "Convert Compound",
+            PrimitiveNodeKind::ConvertToInt => "Convert To Integer",
+            PrimitiveNodeKind::ConvertToFloat => "Convert To Float",
+            PrimitiveNodeKind::ConvertToBool => "Convert To Boolean",
+            PrimitiveNodeKind::ConvertTuple => "Convert Tuple",
             PrimitiveNodeKind::ExtractColor => "Extract Color",
+            PrimitiveNodeKind::ExtractVec2 => "Extract Vec2",
             PrimitiveNodeKind::ExtractVec3 => "Extract Vec3",
+            PrimitiveNodeKind::PackVec2 => "Pack Vec2",
             PrimitiveNodeKind::PackVec3 => "Pack Vec3",
             PrimitiveNodeKind::Concatenate => "Concatenate",
             PrimitiveNodeKind::ConvertToString => "Convert To String",
             PrimitiveNodeKind::Split => "Split",
             PrimitiveNodeKind::BooleanOperation => "Boolean Operation",
             PrimitiveNodeKind::Compare => "Compare",
+            PrimitiveNodeKind::Threshold => "Threshold",
             PrimitiveNodeKind::ConditionGate => "Condition Gate",
             PrimitiveNodeKind::TriggerOnOff => "Trigger On/Off",
             PrimitiveNodeKind::Gate => "Gate",
             PrimitiveNodeKind::DelayOneTick => "Delay One Tick",
+            PrimitiveNodeKind::TimedDelay => "Timed Delay",
             PrimitiveNodeKind::DebugValue => "Debug Value",
             PrimitiveNodeKind::DebugLog => "Debug Log",
         }
@@ -242,14 +312,25 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
         match self.kind {
             PrimitiveNodeKind::Constant
             | PrimitiveNodeKind::Property
+            | PrimitiveNodeKind::ConvertCompound
+            | PrimitiveNodeKind::ConvertToInt
+            | PrimitiveNodeKind::ConvertToFloat
+            | PrimitiveNodeKind::ConvertToBool
+            | PrimitiveNodeKind::ConvertTuple
             | PrimitiveNodeKind::Lfo
             | PrimitiveNodeKind::NoiseGenerator
             | PrimitiveNodeKind::Metronome => "Values",
             PrimitiveNodeKind::Math
             | PrimitiveNodeKind::Sum
             | PrimitiveNodeKind::Average
+            | PrimitiveNodeKind::Product
+            | PrimitiveNodeKind::Minimum
+            | PrimitiveNodeKind::Maximum
+            | PrimitiveNodeKind::Difference
+            | PrimitiveNodeKind::Distance
             | PrimitiveNodeKind::Function
             | PrimitiveNodeKind::Remap
+            | PrimitiveNodeKind::CurveRemap
             | PrimitiveNodeKind::Clamp
             | PrimitiveNodeKind::SmoothFilter
             | PrimitiveNodeKind::OneMinus
@@ -261,11 +342,17 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::GradientSampler
             | PrimitiveNodeKind::ConvertToColor
             | PrimitiveNodeKind::ExtractColor => "Color",
-            PrimitiveNodeKind::ExtractVec3 | PrimitiveNodeKind::PackVec3 => "Geometry",
+            PrimitiveNodeKind::ExtractVec2
+            | PrimitiveNodeKind::ExtractVec3
+            | PrimitiveNodeKind::PackVec2
+            | PrimitiveNodeKind::PackVec3 => "Geometry",
             PrimitiveNodeKind::Concatenate | PrimitiveNodeKind::ConvertToString | PrimitiveNodeKind::Split => "String",
-            PrimitiveNodeKind::BooleanOperation | PrimitiveNodeKind::Compare => "Logic",
+            PrimitiveNodeKind::BooleanOperation | PrimitiveNodeKind::Compare | PrimitiveNodeKind::Threshold => "Logic",
             PrimitiveNodeKind::ConditionGate => "Flow",
-            PrimitiveNodeKind::TriggerOnOff | PrimitiveNodeKind::Gate | PrimitiveNodeKind::DelayOneTick => "Flow",
+            PrimitiveNodeKind::TriggerOnOff
+            | PrimitiveNodeKind::Gate
+            | PrimitiveNodeKind::DelayOneTick
+            | PrimitiveNodeKind::TimedDelay => "Flow",
             PrimitiveNodeKind::DebugValue | PrimitiveNodeKind::DebugLog => "Debug",
         }
     }
@@ -279,8 +366,10 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             | PrimitiveNodeKind::NoiseGenerator
             | PrimitiveNodeKind::Metronome
             | PrimitiveNodeKind::ConditionGate
+            | PrimitiveNodeKind::Threshold
             | PrimitiveNodeKind::TriggerOnOff
             | PrimitiveNodeKind::DelayOneTick => ExecutionKind::Stateful,
+            PrimitiveNodeKind::TimedDelay => ExecutionKind::Stateful,
             PrimitiveNodeKind::DebugLog => ExecutionKind::EffectEmitter,
             _ => ExecutionKind::Pure,
         }
@@ -295,6 +384,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 | PrimitiveNodeKind::NoiseGenerator
                 | PrimitiveNodeKind::Metronome
                 | PrimitiveNodeKind::DelayOneTick
+                | PrimitiveNodeKind::TimedDelay
         )
     }
 
@@ -320,6 +410,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
     fn state_layout(&self, _instance: &ANodeInstance, _resolved: &ResolvedANodeSignature) -> NodeStateLayout {
         match self.kind {
             PrimitiveNodeKind::DelayOneTick => NodeStateLayout::RuntimeValues(2),
+            PrimitiveNodeKind::TimedDelay => NodeStateLayout::RuntimeValues(2),
             _ if self.execution_kind() == ExecutionKind::Stateful => NodeStateLayout::RuntimeValues(1),
             _ => NodeStateLayout::Stateless,
         }
@@ -362,11 +453,35 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 optional_count_config("num_inputs", "Num Inputs", 2),
                 value_type_config_field("TNumeric"),
             ],
-            PrimitiveNodeKind::Sum => vec![
+            PrimitiveNodeKind::Sum
+            | PrimitiveNodeKind::Product
+            | PrimitiveNodeKind::Minimum
+            | PrimitiveNodeKind::Maximum
+            | PrimitiveNodeKind::Difference => vec![
                 optional_count_config("num_inputs", "Num Inputs", 2),
                 value_type_config_field("TNumeric"),
             ],
             PrimitiveNodeKind::Average => vec![optional_count_config("num_inputs", "Num Inputs", 2)],
+            PrimitiveNodeKind::ConvertTuple => vec![
+                enum_config(
+                    "target",
+                    "Target",
+                    "float",
+                    &[
+                        ("float", "Float"),
+                        ("int", "Integer"),
+                        ("bool", "Boolean"),
+                        ("string", "String"),
+                    ],
+                ),
+                optional_count_config("num_inputs", "Num Inputs", 2),
+            ],
+            PrimitiveNodeKind::ConvertCompound => vec![enum_config(
+                "target",
+                "Target",
+                "vec3",
+                &[("vec2", "Vec2"), ("vec3", "Vec3"), ("color", "Color")],
+            )],
             PrimitiveNodeKind::Function => vec![enum_config(
                 "function",
                 "Function",
@@ -390,6 +505,12 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 ],
             )],
             PrimitiveNodeKind::SmoothFilter => vec![smooth_method_config()],
+            PrimitiveNodeKind::CurveRemap => vec![
+                ANodeConfigFieldDecl::new("curve", "Curve", curve_remap::default_curve_config())
+                    .with_editor("curve")
+                    .with_update_class(crate::ManagedSettingClass::Resource)
+                    .with_description("Golden curve keys and easings used to remap the input."),
+            ],
             PrimitiveNodeKind::OneMinus | PrimitiveNodeKind::Inverse | PrimitiveNodeKind::Negate => {
                 vec![value_type_config_field("TNumeric")]
             }
@@ -477,6 +598,12 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 ),
                 value_type_config_field_with_constraint("TValue", TypeConstraint::Primitive),
             ],
+            PrimitiveNodeKind::Threshold => vec![enum_config(
+                "direction",
+                "Direction",
+                "above",
+                &[("above", "Above"), ("below", "Below")],
+            )],
             PrimitiveNodeKind::ConditionGate => vec![
                 enum_config(
                     "mode",
@@ -490,16 +617,15 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                         ("block_trigger", "Block Trigger"),
                     ],
                 ),
-                enum_config(
-                    "gate_application",
-                    "Application",
-                    "whole",
-                    &[("whole", "Whole"), ("per_lane", "Per Lane")],
-                ),
+                enum_config("gate_application", "Application", "whole", &[("whole", "Whole")]),
             ],
             PrimitiveNodeKind::TriggerOnOff => vec![
                 ANodeConfigFieldDecl::new("toggle", "Toggle", RuntimeValue::Bool(false))
                     .with_description("Alternate On and Off triggers on rising input edges."),
+            ],
+            PrimitiveNodeKind::TimedDelay => vec![
+                ANodeConfigFieldDecl::new("seconds", "Delay (seconds)", RuntimeValue::Float(0.1)),
+                ANodeConfigFieldDecl::new("capacity", "Queue capacity", RuntimeValue::Int(64)),
             ],
             _ => Vec::new(),
         }
@@ -542,9 +668,22 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
 
     fn role_capabilities(&self) -> Vec<ANodeRoleCapability> {
         match self.kind {
-            PrimitiveNodeKind::Math | PrimitiveNodeKind::Sum | PrimitiveNodeKind::Average => vec![filter_capability(
+            PrimitiveNodeKind::Math
+            | PrimitiveNodeKind::Sum
+            | PrimitiveNodeKind::Average
+            | PrimitiveNodeKind::Product
+            | PrimitiveNodeKind::Minimum
+            | PrimitiveNodeKind::Maximum
+            | PrimitiveNodeKind::Difference
+            | PrimitiveNodeKind::Distance => vec![filter_capability(
                 None,
                 Some("result"),
+                AutoWirePolicy::None,
+                PipelineCardinality::Aggregate,
+            )],
+            PrimitiveNodeKind::ConvertTuple => vec![filter_capability(
+                None,
+                None,
                 AutoWirePolicy::None,
                 PipelineCardinality::Aggregate,
             )],
@@ -553,7 +692,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 "result",
                 PipelineCardinality::Elementwise,
             )],
-            PrimitiveNodeKind::Remap => vec![unary_filter_capability(
+            PrimitiveNodeKind::Remap | PrimitiveNodeKind::CurveRemap => vec![unary_filter_capability(
                 "value",
                 "result",
                 PipelineCardinality::Elementwise,
@@ -573,7 +712,27 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             | PrimitiveNodeKind::Negate
             | PrimitiveNodeKind::Speed
             | PrimitiveNodeKind::AngleConversion
-            | PrimitiveNodeKind::CoordinateSystem => vec![unary_filter_capability(
+            | PrimitiveNodeKind::CoordinateSystem
+            | PrimitiveNodeKind::DelayOneTick => vec![unary_filter_capability(
+                "value",
+                if self.kind == PrimitiveNodeKind::DelayOneTick {
+                    "value"
+                } else {
+                    "result"
+                },
+                PipelineCardinality::Elementwise,
+            )],
+            PrimitiveNodeKind::TimedDelay => vec![unary_filter_capability(
+                "value",
+                "value",
+                PipelineCardinality::Elementwise,
+            )],
+            PrimitiveNodeKind::GradientSampler => vec![unary_filter_capability(
+                "position",
+                "color",
+                PipelineCardinality::Elementwise,
+            )],
+            PrimitiveNodeKind::Threshold => vec![unary_filter_capability(
                 "value",
                 "result",
                 PipelineCardinality::Elementwise,
@@ -584,8 +743,27 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 AutoWirePolicy::None,
                 PipelineCardinality::Reshape,
             )],
+            PrimitiveNodeKind::ConvertCompound => vec![unary_filter_capability(
+                "value",
+                "result",
+                PipelineCardinality::Elementwise,
+            )],
+            PrimitiveNodeKind::ConvertToInt
+            | PrimitiveNodeKind::ConvertToFloat
+            | PrimitiveNodeKind::ConvertToBool
+            | PrimitiveNodeKind::ConvertToString => vec![unary_filter_capability(
+                "value",
+                "result",
+                PipelineCardinality::Elementwise,
+            )],
             PrimitiveNodeKind::ExtractColor => vec![filter_capability(
                 Some("color"),
+                None,
+                AutoWirePolicy::None,
+                PipelineCardinality::Reshape,
+            )],
+            PrimitiveNodeKind::ExtractVec2 => vec![filter_capability(
+                Some("value"),
                 None,
                 AutoWirePolicy::None,
                 PipelineCardinality::Reshape,
@@ -596,11 +774,29 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 AutoWirePolicy::None,
                 PipelineCardinality::Reshape,
             )],
-            PrimitiveNodeKind::PackVec3 => vec![filter_capability(
+            PrimitiveNodeKind::PackVec2 | PrimitiveNodeKind::PackVec3 => vec![filter_capability(
                 None,
                 Some("value"),
                 AutoWirePolicy::None,
                 PipelineCardinality::Reshape,
+            )],
+            PrimitiveNodeKind::Concatenate | PrimitiveNodeKind::BooleanOperation | PrimitiveNodeKind::Compare => {
+                vec![filter_capability(
+                    None,
+                    Some("result"),
+                    AutoWirePolicy::None,
+                    PipelineCardinality::Aggregate,
+                )]
+            }
+            PrimitiveNodeKind::Split => vec![unary_filter_capability(
+                "value",
+                "values",
+                PipelineCardinality::Elementwise,
+            )],
+            PrimitiveNodeKind::Gate => vec![unary_filter_capability(
+                "trigger",
+                "trigger",
+                PipelineCardinality::Elementwise,
             )],
             PrimitiveNodeKind::ConditionGate => vec![filter_capability(
                 Some("value"),
@@ -633,6 +829,48 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
 
     fn managed_application_variants(&self) -> Vec<ANodeInstance> {
         let default = ANodeInstance::new(self.type_id(), self.label());
+        if self.kind == PrimitiveNodeKind::ConvertTuple {
+            return [
+                ("float", "Convert Tuple to Float"),
+                ("int", "Convert Tuple to Integer"),
+                ("bool", "Convert Tuple to Boolean"),
+                ("string", "Convert Tuple to String"),
+            ]
+            .into_iter()
+            .map(|(target, label)| {
+                let mut variant = default.clone();
+                variant.label = label.into();
+                variant.config.set("target", RuntimeValue::String(target.into()));
+                variant
+            })
+            .collect();
+        }
+        if self.kind == PrimitiveNodeKind::ConvertCompound {
+            return [
+                ("vec2", "Convert to Vec2"),
+                ("vec3", "Convert to Vec3"),
+                ("color", "Convert to Color"),
+            ]
+            .into_iter()
+            .map(|(target, label)| {
+                let mut variant = default.clone();
+                variant.label = label.into();
+                variant.config.set("target", RuntimeValue::String(target.into()));
+                variant
+            })
+            .collect();
+        }
+        if self.kind == PrimitiveNodeKind::Threshold {
+            return [("above", "Above Threshold"), ("below", "Below Threshold")]
+                .into_iter()
+                .map(|(direction, label)| {
+                    let mut variant = default.clone();
+                    variant.label = label.into();
+                    variant.config.set("direction", RuntimeValue::String(direction.into()));
+                    variant
+                })
+                .collect();
+        }
         if self.kind != PrimitiveNodeKind::Math {
             return self
                 .supports_role(SurfaceItemKind::Filter)
@@ -655,7 +893,11 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Math => {
                 generic_numbered_numeric_signature("value", "Value", input_count(instance, 2), "result")
             }
-            PrimitiveNodeKind::Sum => {
+            PrimitiveNodeKind::Sum
+            | PrimitiveNodeKind::Product
+            | PrimitiveNodeKind::Minimum
+            | PrimitiveNodeKind::Maximum
+            | PrimitiveNodeKind::Difference => {
                 generic_numbered_numeric_signature("value", "Value", input_count(instance, 2), "result")
             }
             PrimitiveNodeKind::Average => ANodeSignature {
@@ -663,8 +905,32 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 outputs: vec![OutputSocketDecl::new("result", "Result", exact("float"))],
                 ..ANodeSignature::default()
             },
+            PrimitiveNodeKind::ConvertTuple => {
+                let count = input_count(instance, 2);
+                let target = convert_scalar::ScalarTarget::from_config(instance);
+                ANodeSignature {
+                    inputs: numbered_inputs(
+                        "value",
+                        "Value",
+                        count,
+                        TypeConstraint::OneOf(vec![exact("int"), exact("float"), exact("bool"), exact("string")]),
+                    ),
+                    outputs: (1..=count)
+                        .map(|index| {
+                            OutputSocketDecl::new(
+                                format!("result{index}"),
+                                format!("Result {index}"),
+                                exact(target.type_name()),
+                            )
+                        })
+                        .collect(),
+                    ..ANodeSignature::default()
+                }
+            }
+            PrimitiveNodeKind::Distance => float_signature(&["value1", "value2"], "result"),
             PrimitiveNodeKind::Function => function_signature(instance),
             PrimitiveNodeKind::Remap => float_signature(&["value", "in_min", "in_max", "out_min", "out_max"], "result"),
+            PrimitiveNodeKind::CurveRemap => float_signature(&["value"], "result"),
             PrimitiveNodeKind::Clamp => generic_numeric_signature(&["value", "minimum", "maximum"], "result"),
             PrimitiveNodeKind::SmoothFilter | PrimitiveNodeKind::Speed => float_signature(&["value"], "result"),
             PrimitiveNodeKind::OneMinus | PrimitiveNodeKind::Inverse | PrimitiveNodeKind::Negate => {
@@ -714,7 +980,48 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 ..ANodeSignature::default()
             },
             PrimitiveNodeKind::ConvertToColor => convert_to_color_signature(instance),
+            PrimitiveNodeKind::ConvertCompound => ANodeSignature {
+                inputs: vec![InputSocketDecl::new(
+                    "value",
+                    "Value",
+                    TypeConstraint::OneOf(vec![exact("vec2"), exact("vec3"), exact("color")]),
+                )],
+                outputs: vec![OutputSocketDecl::new(
+                    "result",
+                    "Result",
+                    exact(convert_compound::CompoundTarget::from_config(instance).type_name()),
+                )],
+                ..ANodeSignature::default()
+            },
+            PrimitiveNodeKind::ConvertToInt | PrimitiveNodeKind::ConvertToFloat | PrimitiveNodeKind::ConvertToBool => {
+                ANodeSignature {
+                    inputs: vec![InputSocketDecl::new(
+                        "value",
+                        "Value",
+                        TypeConstraint::OneOf(vec![exact("int"), exact("float"), exact("bool"), exact("string")]),
+                    )],
+                    outputs: vec![OutputSocketDecl::new(
+                        "result",
+                        "Result",
+                        exact(match self.kind {
+                            PrimitiveNodeKind::ConvertToInt => "int",
+                            PrimitiveNodeKind::ConvertToFloat => "float",
+                            PrimitiveNodeKind::ConvertToBool => "bool",
+                            _ => unreachable!(),
+                        }),
+                    )],
+                    ..ANodeSignature::default()
+                }
+            }
             PrimitiveNodeKind::ExtractColor => extract_color_signature(instance),
+            PrimitiveNodeKind::ExtractVec2 => ANodeSignature {
+                inputs: vec![InputSocketDecl::new("value", "Value", exact("vec2"))],
+                outputs: vec![
+                    OutputSocketDecl::new("x", "X", exact("float")),
+                    OutputSocketDecl::new("y", "Y", exact("float")),
+                ],
+                ..ANodeSignature::default()
+            },
             PrimitiveNodeKind::ExtractVec3 => ANodeSignature {
                 inputs: vec![InputSocketDecl::new("value", "Value", exact("vec3"))],
                 outputs: vec![
@@ -731,6 +1038,14 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                     InputSocketDecl::new("z", "Z", exact("float")),
                 ],
                 outputs: vec![OutputSocketDecl::new("value", "Value", exact("vec3"))],
+                ..ANodeSignature::default()
+            },
+            PrimitiveNodeKind::PackVec2 => ANodeSignature {
+                inputs: vec![
+                    InputSocketDecl::new("x", "X", exact("float")),
+                    InputSocketDecl::new("y", "Y", exact("float")),
+                ],
+                outputs: vec![OutputSocketDecl::new("value", "Value", exact("vec2"))],
                 ..ANodeSignature::default()
             },
             PrimitiveNodeKind::Concatenate => ANodeSignature {
@@ -757,6 +1072,17 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 ..ANodeSignature::default()
             },
             PrimitiveNodeKind::Compare => compare_signature(),
+            PrimitiveNodeKind::Threshold => ANodeSignature {
+                inputs: vec![
+                    InputSocketDecl::new("value", "Value", exact("float")),
+                    InputSocketDecl::new("threshold", "Threshold", exact("float"))
+                        .with_default(RuntimeValue::Float(0.5)),
+                    InputSocketDecl::new("hysteresis", "Hysteresis", exact("float"))
+                        .with_default(RuntimeValue::Float(0.0)),
+                ],
+                outputs: vec![OutputSocketDecl::new("result", "Result", exact("bool"))],
+                ..ANodeSignature::default()
+            },
             PrimitiveNodeKind::ConditionGate => condition_gate::signature(),
             PrimitiveNodeKind::TriggerOnOff => ANodeSignature {
                 inputs: vec![InputSocketDecl::new("value", "Value", exact("bool"))],
@@ -774,7 +1100,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 outputs: vec![OutputSocketDecl::new("trigger", "Trigger", exact("trigger"))],
                 ..ANodeSignature::default()
             },
-            PrimitiveNodeKind::DelayOneTick => passthrough_signature(),
+            PrimitiveNodeKind::DelayOneTick | PrimitiveNodeKind::TimedDelay => passthrough_signature(),
             PrimitiveNodeKind::DebugValue => passthrough_signature(),
             PrimitiveNodeKind::DebugLog => ANodeSignature {
                 inputs: vec![InputSocketDecl::new("value", "Value", TypeConstraint::Any)],
@@ -801,10 +1127,34 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Average => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
                 mode: math::ReductionMode::Average,
             })),
+            PrimitiveNodeKind::Product => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
+                mode: math::ReductionMode::Product,
+            })),
+            PrimitiveNodeKind::Minimum => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
+                mode: math::ReductionMode::Minimum,
+            })),
+            PrimitiveNodeKind::Maximum => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
+                mode: math::ReductionMode::Maximum,
+            })),
+            PrimitiveNodeKind::Difference => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
+                mode: math::ReductionMode::Difference,
+            })),
+            PrimitiveNodeKind::Distance => CompiledNodeOperation::Custom(Arc::new(math::ReductionEval {
+                mode: math::ReductionMode::Distance,
+            })),
             PrimitiveNodeKind::Function => CompiledNodeOperation::Custom(Arc::new(function::FunctionEval {
                 function: function::FunctionKind::from_config(instance),
             })),
             PrimitiveNodeKind::Remap => CompiledNodeOperation::Custom(Arc::new(remap::RemapEval)),
+            PrimitiveNodeKind::CurveRemap => CompiledNodeOperation::Custom(Arc::new(
+                curve_remap::CurveRemapEval::from_config(instance).map_err(|error| {
+                    Diagnostic::error(
+                        "invalid_curve_resource",
+                        error,
+                        crate::DiagnosticOrigin::Node(instance.id),
+                    )
+                })?,
+            )),
             PrimitiveNodeKind::Clamp => CompiledNodeOperation::Clamp,
             PrimitiveNodeKind::SmoothFilter => {
                 CompiledNodeOperation::Custom(Arc::new(smooth_filter::SmoothFilterEval::from_config(instance)))
@@ -852,7 +1202,13 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             }
             PrimitiveNodeKind::GradientSampler => {
                 CompiledNodeOperation::Custom(Arc::new(gradient_sampler::GradientSamplerEval {
-                    stops: gradient_sampler::stops_from_config(instance),
+                    stops: gradient_sampler::stops_from_config(instance).map_err(|error| {
+                        Diagnostic::error(
+                            "invalid_gradient_resource",
+                            error,
+                            crate::DiagnosticOrigin::Node(instance.id),
+                        )
+                    })?,
                 }))
             }
             PrimitiveNodeKind::ConvertToColor => {
@@ -860,12 +1216,39 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                     mode: color_mode::ColorMode::from_config(instance),
                 }))
             }
+            PrimitiveNodeKind::ConvertCompound => {
+                CompiledNodeOperation::Custom(Arc::new(convert_compound::ConvertCompoundEval {
+                    target: convert_compound::CompoundTarget::from_config(instance),
+                }))
+            }
+            PrimitiveNodeKind::ConvertToInt => {
+                CompiledNodeOperation::Custom(Arc::new(convert_scalar::ConvertScalarEval {
+                    target: convert_scalar::ScalarTarget::Int,
+                }))
+            }
+            PrimitiveNodeKind::ConvertToFloat => {
+                CompiledNodeOperation::Custom(Arc::new(convert_scalar::ConvertScalarEval {
+                    target: convert_scalar::ScalarTarget::Float,
+                }))
+            }
+            PrimitiveNodeKind::ConvertToBool => {
+                CompiledNodeOperation::Custom(Arc::new(convert_scalar::ConvertScalarEval {
+                    target: convert_scalar::ScalarTarget::Bool,
+                }))
+            }
+            PrimitiveNodeKind::ConvertTuple => {
+                CompiledNodeOperation::Custom(Arc::new(convert_tuple::ConvertTupleEval {
+                    target: convert_scalar::ScalarTarget::from_config(instance),
+                }))
+            }
             PrimitiveNodeKind::ExtractColor => {
                 CompiledNodeOperation::Custom(Arc::new(extract_color::ExtractColorEval {
                     mode: color_mode::ColorMode::from_config(instance),
                 }))
             }
+            PrimitiveNodeKind::ExtractVec2 => CompiledNodeOperation::Custom(Arc::new(extract_vec2::ExtractVec2Eval)),
             PrimitiveNodeKind::ExtractVec3 => CompiledNodeOperation::Custom(Arc::new(extract_vec3::ExtractVec3Eval)),
+            PrimitiveNodeKind::PackVec2 => CompiledNodeOperation::Custom(Arc::new(pack_vec2::PackVec2Eval)),
             PrimitiveNodeKind::PackVec3 => CompiledNodeOperation::Custom(Arc::new(pack_vec3::PackVec3Eval)),
             PrimitiveNodeKind::Concatenate => CompiledNodeOperation::Custom(Arc::new(concatenate::ConcatenateEval {
                 prefix: config_string(instance, "prefix", ""),
@@ -891,6 +1274,9 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Compare => CompiledNodeOperation::Custom(Arc::new(compare::CompareEval {
                 comparator: compare::Comparator::from_config(instance),
             })),
+            PrimitiveNodeKind::Threshold => {
+                CompiledNodeOperation::Custom(Arc::new(threshold::ThresholdEval::from_config(instance)))
+            }
             PrimitiveNodeKind::ConditionGate => {
                 CompiledNodeOperation::Custom(Arc::new(condition_gate::ConditionGateEval::from_config(instance)))
             }
@@ -901,6 +1287,11 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             }
             PrimitiveNodeKind::Gate => gate::operation(),
             PrimitiveNodeKind::DelayOneTick => delay_one_tick::operation(),
+            PrimitiveNodeKind::TimedDelay => {
+                CompiledNodeOperation::Custom(Arc::new(timed_delay::TimedDelayEval::from_config(instance).map_err(
+                    |error| Diagnostic::error("invalid_timed_delay", error, crate::DiagnosticOrigin::Node(instance.id)),
+                )?))
+            }
             PrimitiveNodeKind::DebugValue => CompiledNodeOperation::Custom(Arc::new(debug_value::DebugValueEval)),
             PrimitiveNodeKind::DebugLog => debug_log::operation(),
         })

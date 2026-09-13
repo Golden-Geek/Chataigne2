@@ -28,10 +28,11 @@ use golden_core::{
     events::{Event, EventFrame, EventKind},
     item, node,
     node::{
-        DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
+        CurveNode, DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
+        PARAMETER_ANIMATION_CURVE_NODE_TYPE,
         NodeCreationContext, NodeId, NodeMetaPatch, NodeReference,
         NodeUserPermissions, NodeUuid, UserContainerRules, UserCreatableItem,
-        gradient_from_snapshot,
+        curve_from_snapshot, gradient_from_snapshot,
     },
     parameter::{
         CssValue, ParamValue, Parameter, ParameterChangeCheck,
