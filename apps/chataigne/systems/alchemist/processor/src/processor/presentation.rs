@@ -4,6 +4,7 @@ use chataigne_alchemist::{
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::IndexSet;
+use std::collections::HashMap;
 
 use super::{ProcessorId, ProcessorLaneOutput};
 
@@ -25,6 +26,10 @@ pub enum ProcessorDebugCapture {
     SelectedNodes {
         context_key: Option<ContextKey>,
         nodes: IndexSet<ANodeId>,
+        history_len: usize,
+    },
+    SelectedNodesByLane {
+        nodes: HashMap<ContextKey, IndexSet<ANodeId>>,
         history_len: usize,
     },
 }
@@ -72,9 +77,18 @@ impl ProcessorDebugCapture {
                     history_len: *history_len,
                 }
             }
-            Self::ProcessorLane { .. } | Self::ProcessorLanes { .. } | Self::SelectedNodes { .. } => {
-                DebugCaptureMode::Off
+            Self::SelectedNodesByLane { nodes, history_len } if nodes.contains_key(context_key) => {
+                DebugCaptureMode::SelectedNodes {
+                    formula_id: Some(formula_id.clone()),
+                    context_key: (!context_key.is_default_lane()).then(|| context_key.clone()),
+                    nodes: nodes.get(context_key).cloned().unwrap_or_default(),
+                    history_len: *history_len,
+                }
             }
+            Self::ProcessorLane { .. }
+            | Self::ProcessorLanes { .. }
+            | Self::SelectedNodes { .. }
+            | Self::SelectedNodesByLane { .. } => DebugCaptureMode::Off,
         }
     }
 }

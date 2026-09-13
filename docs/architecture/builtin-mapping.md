@@ -274,6 +274,28 @@ because loading it cannot rewrite its authored source file safely. Missing or
 empty built-in asset directories and a catalog that omits an existing built-in
 report errors before removing any project nodes.
 
+Phase 09 exposes the same backend-authored regions in the processor inspector
+and Alchemist panel. Input, filter, and output rows retain managed item IDs;
+Golden controls edit standard fields and the backend supplies the compatible
+item palette. The inspector displays the compiled input/each-filter/result
+shape and diagnostics. A typed output binding document lists whole-result,
+stable tuple-element, component, and constant selectors, and binds explicit
+command parameter IDs. Historical Output Command JSON is translated once on
+project open, then the root records `chataigne.output_bindings.authoring.v2`.
+Unknown schemas fail without marking the project as migrated; unmarked shared
+files diagnose instead of being silently reinterpreted.
+
+The backend identifies the exact built-in Mapping recipe before choosing this
+surface, so a custom Formula or Action can still use its graph editor. An open
+Mapping inspector leases catalog inspection without value capture or a forced
+evaluation. Selecting one filter requests samples for that authored filter and
+one processor context only when normal runtime work occurs; preview focus does
+not advance temporal state or dispatch commands. A sample has at most 64 tuple
+elements and 16 KiB of estimated values. Changing context replaces the lease;
+unmount and session changes release capture and history. Runtime capture stays
+in the state-machine manager, independent of Formula defaults. Large item lists
+render a short visible window while edits use stable backend node IDs.
+
 ## Measurement fixture
 
 The pre-change functional reference is the locked Rust test set for

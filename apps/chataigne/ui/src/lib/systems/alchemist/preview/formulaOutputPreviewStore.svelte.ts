@@ -102,6 +102,14 @@ const sampleMatchesPreviewMode = (
 				sample.processor_id === mode.processor_id &&
 				contextKeyId(sample.context_key) === contextKeyId(mode.context_key)
 			);
+		case 'processor_selected_stages':
+			return (
+				sample.processor_id === mode.processor_id &&
+				contextKeyId(sample.context_key) === contextKeyId(mode.context_key) &&
+				mode.node_ids.includes(sample.node_id)
+			);
+		case 'processor_inspection':
+			return false;
 	}
 };
 

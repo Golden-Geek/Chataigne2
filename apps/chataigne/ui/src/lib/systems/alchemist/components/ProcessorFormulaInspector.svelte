@@ -8,6 +8,7 @@
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import formulaIconUrl from '$lib/assets/icons/formula.svg';
 	import ProcessorPreviewLaneSelector from './ProcessorPreviewLaneSelector.svelte';
+	import MappingInspector from './MappingInspector.svelte';
 
 	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
 		$props();
@@ -91,7 +92,11 @@
 {@render defaultHeader?.(formulaHeaderExtra)}
 
 {#snippet formulaContent()}
-	{@render defaultChildren?.()}
+	<MappingInspector {node}>
+		{#snippet fallback()}
+			{@render defaultChildren?.()}
+		{/snippet}
+	</MappingInspector>
 {/snippet}
 
 {@render defaultContent?.(formulaContent, 'processor-formula-content')}

@@ -25,8 +25,8 @@ pub use input_set::{
 pub use kernel_profile::{ProcessorKernelProfile, processor_kernel_profile_snapshot};
 pub use managed_formula::{
     ExecutableFilterApplication, ManagedFilterAvailabilityError, ManagedFormulaError, ManagedFormulaRuntime,
-    executable_filter_applications, validate_executable_filter_application, validate_mapping_filter_application,
-    validate_trigger_filter_application,
+    ManagedPipelineShape, ManagedStageShape, executable_filter_applications, validate_executable_filter_application,
+    validate_mapping_filter_application, validate_trigger_filter_application,
 };
 pub use managed_stage::{ManagedStageChain, ManagedStageError, ManagedStageRuntime, ManagedStageSpecializationCache};
 pub use manager::{
@@ -34,9 +34,11 @@ pub use manager::{
     ProcessorManagerId,
 };
 pub use output_set::{
-    COMMAND_INTENT_KIND, CommandArgumentValues, OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD, OutputArgumentBinding,
-    OutputBindingConfig, OutputSendPolicy, OutputSetError, OutputSetItem, OutputSetMaterialization, OutputSetRuntime,
-    OutputValueSource, ResolvedCommandArgument,
+    COMMAND_INTENT_KIND, CommandArgumentValues, MappingConstantDto, MappingOutputArgumentDto, MappingOutputBindingsDto,
+    MappingOutputSendPolicyDto, MappingOutputSourceDto, MappingTargetParameterDto, MappingValueComponentDto,
+    OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD, OutputArgumentBinding, OutputBindingConfig, OutputSendPolicy,
+    OutputSetError, OutputSetItem, OutputSetMaterialization, OutputSetRuntime, OutputValueSource,
+    ResolvedCommandArgument,
 };
 pub use processor::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis,

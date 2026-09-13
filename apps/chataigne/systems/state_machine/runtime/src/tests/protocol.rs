@@ -1,18 +1,68 @@
 use chataigne_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, ContextKey, ExecNodeId, FormulaId, FormulaSurface, ManagedItemId,
-    ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, SocketId, SurfaceItemKind,
-    ValueTypeId,
+    ANodeId, ANodeInstance, ANodeTypeId, ChannelDescriptor, ChannelLayout, ContextKey, ExecNodeId, FormulaId,
+    FormulaSurface, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId,
+    ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, SocketId,
+    StableRef, SurfaceItemKind, ValueLaneKey, ValueTypeId, ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
 
 use crate::{
-    ANodeOutputPreviewSample, ProcessorFormulaUiState, ProcessorId, ProcessorUiModel,
+    ANodeOutputPreviewSample, MappingValueComponentDto, ProcessorFormulaUiState, ProcessorId, ProcessorUiModel,
     protocol::{
         ANodeOutputPreviewSampleDto, ContextKeyDto, ManagedRegionDefinitionDto, ManagedRegionInstanceDto,
-        ManagedRegionKindDto, ProcessorFormulaSourceKindDto, ProcessorUiDto, RuntimeValueDto,
+        ManagedRegionKindDto, MappingShapeKindDto, MappingValueShapeDto, ProcessorFormulaSourceKindDto, ProcessorUiDto,
+        RuntimeValueDto,
     },
 };
+
+#[test]
+fn mapping_shape_dto_keeps_ordered_tuple_ids_and_compound_components() {
+    let values = ValueTypeRegistry::with_primitives();
+    let descriptor = |id: &str, value_type: &str| {
+        ChannelDescriptor::input(
+            ValueLaneKey::new(id).unwrap(),
+            id.to_uppercase(),
+            StableRef::new(ValueTypeId::new("source"), id),
+            Some(ValueTypeId::new(value_type)),
+        )
+    };
+    let tuple = ChannelLayout::new(vec![
+        descriptor("x", "float"),
+        descriptor("y", "bool"),
+        descriptor("z", "string"),
+    ])
+    .unwrap();
+    let shape = MappingValueShapeDto::from_layout(&tuple, &values);
+    assert!(matches!(shape.kind, MappingShapeKindDto::Tuple));
+    assert_eq!(
+        shape
+            .elements
+            .iter()
+            .map(|element| element.id.as_str())
+            .collect::<Vec<_>>(),
+        ["x", "y", "z"]
+    );
+    assert_eq!(
+        shape
+            .elements
+            .iter()
+            .map(|element| element.value_type.as_deref())
+            .collect::<Vec<_>>(),
+        [Some("float"), Some("bool"), Some("string")]
+    );
+
+    let packed = ChannelLayout::new(vec![descriptor("position", "vec3")]).unwrap();
+    let shape = MappingValueShapeDto::from_layout(&packed, &values);
+    assert!(matches!(shape.kind, MappingShapeKindDto::Compound));
+    assert_eq!(
+        shape.elements[0].components,
+        [
+            MappingValueComponentDto::X,
+            MappingValueComponentDto::Y,
+            MappingValueComponentDto::Z,
+        ]
+    );
+}
 
 #[test]
 fn context_key_dto_preserves_stable_axis_and_item_ids() {

@@ -35,10 +35,10 @@ use golden_values::Value as RuntimeValue;
 use super::{
     collect_processor_lane_parameter_inspection, compile_processor_runtime_for_cache_rebuild,
     condition_manager_edge_previous, condition_manager_value, dispatch_command_intent,
-    formula_default_output_preview_samples, intern_runtime_command_invocation, latest_param_value,
+    formula_default_output_preview_samples, intern_runtime_command_invocation, is_standard_mapping_tags, latest_param_value,
     merge_output_preview_snapshot, output_preview_signature, processor_formula_from_snapshot,
     processor_formula_source_ref, processor_override_value, processor_overview_publish_due, processor_overview_shard,
-    processor_overview_topic, processor_preview_needs_hydration, processor_preview_plan,
+    processor_overview_topic, processor_lane_catalog_entries, processor_preview_needs_hydration, processor_preview_plan,
     processor_requires_forced_recompute, processor_should_evaluate, requested_inactive_processor_nodes,
     requested_processor_overviews, resolve_multiplex_template_value, resolved_output_param_overrides,
     retain_requested_preview_snapshots, runtime_invalidation_for_node, runtime_param_change_requires_snapshot,
@@ -50,7 +50,8 @@ use super::{
     RuntimeCommandTickBudget, RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor,
     SnapshotProcessorContextProvider, StateMachineManager, CONTEXT_LANE_LIMIT_WARNING, MAX_CACHED_CONTEXT_KEY_SETS,
     MAX_MATERIALIZED_CONTEXT_KEYS, MAX_RETAINED_CONTEXT_KEYS, MAX_RUNTIME_COMMAND_ACTIONS_PER_TICK,
-    PROCESSOR_MANAGER_DECL_ID, STATE_ITEM_KIND, STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
+    PROCESSOR_MANAGER_DECL_ID, RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN, STATE_ITEM_KIND,
+    STATE_MACHINE_PROCESSOR_OVERVIEW_LANE_TOPIC,
 };
 
 mod command_dispatch;
@@ -58,6 +59,13 @@ mod context_cache;
 mod output_arguments;
 mod snapshot_gate;
 mod source_schema;
+
+#[test]
+fn standard_mapping_inspector_does_not_replace_custom_formula_or_action_surfaces() {
+    assert!(is_standard_mapping_tags(&["chataigne.formula.external.builtin:chataigne.mapping@1".into()]));
+    assert!(!is_standard_mapping_tags(&["chataigne.formula.external.builtin:chataigne.action@1".into()]));
+    assert!(!is_standard_mapping_tags(&["chataigne.formula.external.read_only".into()]));
+}
 
 fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
     let default_item = items.first().cloned().expect("test context axes need an item");
@@ -545,6 +553,8 @@ fn steady_single_lane_preview_captures_only_that_lane_without_rebuilding_catalog
     let selection = ActivePreviewSelection {
         formula_defaults: HashSet::new(),
         processor_lanes: HashMap::from([(processor_id, HashSet::from([selected_lane.clone()]))]),
+        observed_lanes: HashMap::from([(processor_id, HashSet::from([selected_lane.clone()]))]),
+        ..Default::default()
     };
 
     let steady_plan = processor_preview_plan(&selection, processor_id, false);
@@ -562,10 +572,63 @@ fn steady_single_lane_preview_captures_only_that_lane_without_rebuilding_catalog
 }
 
 #[test]
+fn mapping_inspection_catalog_does_not_enable_capture_or_force_evaluation() {
+    let processor_id = ProcessorId::new();
+    let leases = HashMap::from([(
+        "mapping-inspector".to_owned(),
+        FormulaPreviewDemandLease {
+            mode: RuntimeFormulaPreviewMode::ProcessorInspection(processor_id),
+            expires_at: Duration::from_secs(60),
+        },
+    )]);
+    let selection = ActivePreviewSelection::from_leases(&leases);
+    assert!(selection.is_empty(), "catalog inspection must not request value samples");
+    assert!(selection.processor_ids().contains(&processor_id));
+    let plan = processor_preview_plan(&selection, processor_id, true);
+    assert_eq!(plan.capture, ProcessorDebugCapture::Off);
+    assert!(!plan.force_evaluation);
+    assert!(plan.refresh_lane_catalog);
+}
+
+#[test]
+fn mapping_selected_stage_capture_is_bounded_to_one_context_and_released() {
+    let processor_id = ProcessorId::new();
+    let node_id = ANodeId::new();
+    let context = ContextKey::single("device", "selected");
+    let mut leases = HashMap::from([(
+        "mapping-inspector".to_owned(),
+        FormulaPreviewDemandLease {
+            mode: RuntimeFormulaPreviewMode::ProcessorSelectedStages {
+                processor_id,
+                context_key: context.clone(),
+                nodes: vec![node_id],
+            },
+            expires_at: Duration::from_secs(60),
+        },
+    )]);
+    let selection = ActivePreviewSelection::from_leases(&leases);
+    let plan = processor_preview_plan(&selection, processor_id, true);
+    let ProcessorDebugCapture::SelectedNodesByLane { nodes, history_len } = plan.capture else {
+        panic!("one selected stage should use targeted capture");
+    };
+    assert_eq!(nodes.len(), 1);
+    assert!(nodes.get(&context).is_some_and(|selected| selected.len() == 1 && selected.contains(&node_id)));
+    assert_eq!(history_len, RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN);
+    assert!(!plan.force_evaluation, "preview focus must not evaluate or advance runtime state");
+
+    leases.remove("mapping-inspector");
+    let selection = ActivePreviewSelection::from_leases(&leases);
+    assert!(selection.is_empty());
+    assert!(selection.processor_ids().is_empty());
+    assert_eq!(processor_preview_plan(&selection, processor_id, true).capture, ProcessorDebugCapture::Off);
+}
+
+#[test]
 fn formula_default_preview_does_not_force_matching_processor_instances() {
     let selection = ActivePreviewSelection {
         formula_defaults: HashSet::from([FormulaId::new("shared-formula")]),
         processor_lanes: HashMap::new(),
+        ..Default::default()
     };
 
     for processor_id in (0..128).map(|_| ProcessorId::new()) {
@@ -849,6 +912,7 @@ fn live_source_cache_reads_the_latest_value_from_the_inbox_batch() {
 fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
     let formula = continuous_formula();
     let processor = Processor::from_formula("Continuous processor", &formula);
+    let processor_id = processor.id;
     let mut runtime = ProcessorRuntime::new(processor.id);
     let value_types = ValueTypeRegistry::with_primitives();
     let nodes = primitive_node_registry();
@@ -879,6 +943,15 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
     )]));
 
     assert_eq!(manager.runtime_cache.continuous_processor_count, 1);
+    let catalog = processor_lane_catalog_entries(
+        &manager.runtime_cache.processors,
+        &SnapshotProcessorContextProvider::default(),
+        &HashSet::from([processor_id]),
+        &HashMap::new(),
+    );
+    assert_eq!(catalog.len(), 1);
+    assert_eq!(catalog[0].processor_id, processor_id.to_string());
+    assert!(catalog[0].context_key.is_none());
     assert!(!manager.update_requires_tree_snapshot());
 
     manager.runtime_cache.replace_processors(HashMap::new());
@@ -1526,6 +1599,8 @@ fn requested_lane_returned_then_suppressed_clears_retained_preview_state() {
     let selection = ActivePreviewSelection {
         formula_defaults: HashSet::new(),
         processor_lanes: HashMap::from([(processor_id, HashSet::from([context_key.clone()]))]),
+        observed_lanes: HashMap::from([(processor_id, HashSet::from([context_key.clone()]))]),
+        ..Default::default()
     };
     let mut evaluated_lanes = HashMap::from([(processor_id, HashSet::from([context_key.clone()]))]);
     assert!(!processor_preview_needs_hydration(

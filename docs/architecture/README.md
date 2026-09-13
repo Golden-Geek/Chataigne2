@@ -19,7 +19,7 @@ This section explains ownership and dependency direction. Start with the
 
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,
   outputs, lane memory, and diagnostics.
-- [Built-in Mapping](builtin-mapping.md): authored stage, channel, binding, flow, and ownership
+- [Built-in Mapping](builtin-mapping.md): ordered tuple stages, bindings, flow, and ownership
   contracts for the Inputs / Filters / Outputs Formula.
 - [State machine and Alchemist processing](statecharts-conditions-processors.md): how Chataigne's
   state/transition runtime consumes Alchemist processors.

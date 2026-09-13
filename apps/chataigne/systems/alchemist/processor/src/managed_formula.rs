@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use chataigne_alchemist::{
     ANodeId, ANodeRegistry, AlchemistFormula, AlchemistFormulaInstance, ChannelLayout, ChannelProvenance, CompileCtx,
     CompiledAlchemistGraph, ContextKey, DebugCaptureMode, Diagnostic, DiagnosticOrigin, EvaluationCtx, ExecNodeId,
-    FormulaPropertySchema, ManagedFilterValueMode, ManagedItemInstance, ManagedRegionDefinition, ManagedRegionId,
-    ManagedRegionInstance, ManagedRegionKind, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput, RuntimePropertyFrame,
-    StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
+    FormulaPropertySchema, ManagedFilterValueMode, ManagedItemId, ManagedItemInstance, ManagedRegionDefinition,
+    ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput,
+    RuntimePropertyFrame, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::IndexSet;
@@ -27,6 +27,20 @@ pub use availability::{
     validate_executable_filter_application, validate_mapping_filter_application,
 };
 pub use error::ManagedFormulaError;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ManagedStageShape {
+    pub item_id: ManagedItemId,
+    pub before: Arc<ChannelLayout>,
+    pub after: Arc<ChannelLayout>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ManagedPipelineShape {
+    pub input: Arc<ChannelLayout>,
+    pub stages: Vec<ManagedStageShape>,
+    pub output: Arc<ChannelLayout>,
+}
 
 pub fn validate_trigger_filter_application(
     anode: &chataigne_alchemist::ANodeInstance,
@@ -321,6 +335,44 @@ impl ManagedFormulaRuntime {
     #[must_use]
     pub fn filter_output_value_shape(&self) -> Option<chataigne_alchemist::MappingValueShape> {
         self.filter_output_layout().map(ChannelLayout::mapping_value_shape)
+    }
+
+    #[must_use]
+    pub fn mapping_pipeline_shape(&self) -> Option<ManagedPipelineShape> {
+        let ManagedFormulaRuntimeKind::ValuePipeline(runtime) = &self.kind else {
+            return None;
+        };
+        let input = Arc::clone(runtime.input_set.layout());
+        let compiled = runtime
+            .typed_stages
+            .as_ref()
+            .map(ManagedStageChain::stage_shapes)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(id, before, after)| (id, (before, after)))
+            .collect::<HashMap<_, _>>();
+        let mut current = Arc::clone(&input);
+        let stages = runtime
+            .filter_items
+            .iter()
+            .map(|item| {
+                let (before, after) = compiled
+                    .get(&item.id)
+                    .map(|(before, after)| (Arc::clone(before), Arc::clone(after)))
+                    .unwrap_or_else(|| (Arc::clone(&current), Arc::clone(&current)));
+                current = Arc::clone(&after);
+                ManagedStageShape {
+                    item_id: item.id,
+                    before,
+                    after,
+                }
+            })
+            .collect();
+        Some(ManagedPipelineShape {
+            input,
+            stages,
+            output: current,
+        })
     }
 
     pub fn reconcile_input_source_schema(

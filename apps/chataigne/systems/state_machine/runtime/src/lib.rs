@@ -13,10 +13,12 @@ pub use chataigne_state_machine_model as statechart;
 pub use protocol::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, ManagedItemDto, ManagedItemUiStateDto,
     ManagedRegionDefinitionDto, ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto,
+    MappingArgumentCandidateDto, MappingDiagnosticDto, MappingOutputTargetDto, MappingPipelineShapeDto,
+    MappingShapeElementDto, MappingShapeKindDto, MappingStageShapeDto, MappingValueShapeDto,
     ProcessorFormulaSourceKindDto, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
     ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorOverviewDemandDto,
-    ProcessorOverviewLaneSelectionDto, ProcessorRuntimeOverviewDto, ProcessorUiDto, StateMachinePreviewCatalogDto,
-    StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto, export_typescript,
+    ProcessorOverviewLaneSelectionDto, ProcessorRuntimeOverviewDto, ProcessorRuntimeStateDto, ProcessorUiDto,
+    StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto, export_typescript,
 };
 pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,

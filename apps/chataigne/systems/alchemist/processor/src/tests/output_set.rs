@@ -94,6 +94,17 @@ fn authored_command_bindings_round_trip_and_reject_unknown_schema() {
 }
 
 #[test]
+fn large_integer_constant_uses_lossless_raw_authoring_encoding() {
+    let config = OutputBindingConfig {
+        value: OutputValueSource::Constant(RuntimeValue::Int(i64::MAX)),
+        ..OutputBindingConfig::default()
+    };
+    let json = config.to_authoring_json().unwrap();
+    assert!(json.contains("\"raw\""));
+    assert_eq!(OutputBindingConfig::from_authoring_json(&json).unwrap(), config);
+}
+
+#[test]
 fn single_value_output_creates_expected_intent() {
     let target = command_target("module/fader");
     let runtime = OutputSetRuntime::new(vec![OutputSetItem::new("Fader", target.clone())]);

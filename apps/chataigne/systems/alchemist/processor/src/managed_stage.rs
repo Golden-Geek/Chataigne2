@@ -5,13 +5,13 @@ use std::{collections::HashSet, sync::Arc};
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraphDomain, AlchemistGraphTransaction, AlchemistMemory, ChannelDescriptor,
     ChannelLayout, ChannelLayoutError, CompileCtx, CompiledAlchemistGraph, ContextAxisId, ContextItemId, ContextKey,
-    DebugCaptureMode, DebugCaptureSink, Diagnostic, EvaluationCtx, EvaluationFrame, FormulaPropertyDecl,
-    FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool, MANAGED_GROUPS_FIELD,
-    MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, ManagedApplication, ManagedApplicationError, ManagedFilterValueMode,
-    ManagedItemInstance, NodeFlow, OutputSocketRef, ParamUiHints, PipelineCardinality, PrimitiveNodeKind,
-    RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, SignatureCtx, SocketId,
-    StableRef, TypeConstraint, ValueComponent, ValueLaneKey, ValueSlotId, ValueTypeId, compile_graph,
-    evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
+    DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, EvaluationCtx, EvaluationFrame, ExecNodeId,
+    FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool,
+    MANAGED_GROUPS_FIELD, MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, ManagedApplication, ManagedApplicationError,
+    ManagedFilterValueMode, ManagedItemInstance, NodeFlow, OutputPreviewStatus, OutputSocketRef, ParamUiHints,
+    PipelineCardinality, PrimitiveNodeKind, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
+    RuntimePropertyFrameError, SignatureCtx, SocketId, StableRef, TypeConstraint, ValueComponent, ValueLaneKey,
+    ValueSlotId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::{IndexMap, IndexSet};
@@ -19,6 +19,33 @@ use indexmap::{IndexMap, IndexSet};
 use crate::{ChannelFrame, ChannelFrameError, ChannelSlot, ChannelValidity, RuntimeInputBinding};
 
 const STAGE_AXIS: &str = "managed_stage_lane";
+const MAX_MAPPING_PREVIEW_ELEMENTS: usize = 64;
+const MAX_MAPPING_PREVIEW_BYTES: usize = 16 * 1024;
+
+fn preview_values_fit(slots: &[ChannelSlot]) -> bool {
+    if slots.len() > MAX_MAPPING_PREVIEW_ELEMENTS {
+        return false;
+    }
+    let mut stack = slots.iter().filter_map(|slot| slot.value.as_ref()).collect::<Vec<_>>();
+    let mut bytes = 0usize;
+    while let Some(value) = stack.pop() {
+        bytes = bytes.saturating_add(std::mem::size_of::<RuntimeValue>());
+        match value {
+            RuntimeValue::String(value) => bytes = bytes.saturating_add(value.len()),
+            RuntimeValue::Ref(value) => {
+                bytes = bytes.saturating_add(value.stable_id.len() + value.value_type.as_str().len());
+            }
+            RuntimeValue::Extension(value) => bytes = bytes.saturating_add(value.payload.len()),
+            RuntimeValue::Array(values) if values.len() > MAX_MAPPING_PREVIEW_ELEMENTS => return false,
+            RuntimeValue::Array(values) => stack.extend(values),
+            _ => {}
+        }
+        if bytes > MAX_MAPPING_PREVIEW_BYTES {
+            return false;
+        }
+    }
+    true
+}
 
 mod cache;
 mod chain;
@@ -32,6 +59,7 @@ pub struct ManagedStageRuntime {
     input_layout: ChannelLayout,
     compiled: Arc<CompiledAlchemistGraph>,
     compiled_stage_node: chataigne_alchemist::ANodeId,
+    compiled_stage_exec: ExecNodeId,
     input_properties: Vec<FormulaPropertyId>,
     auxiliary: Vec<StageAuxiliaryBinding>,
     output_slots: Vec<ValueSlotId>,
@@ -245,6 +273,7 @@ impl ManagedStageRuntime {
             .iter()
             .find(|node| node.authored_id == specialization.authored_node)
             .ok_or(ManagedStageError::MissingCompiledNode)?;
+        let compiled_stage_exec = exec.exec_id;
         let mut output_slots = Vec::with_capacity(application.outputs.len());
         let mut output_types = Vec::with_capacity(application.outputs.len());
         for socket in &application.outputs {
@@ -284,6 +313,7 @@ impl ManagedStageRuntime {
             input_layout: input_layout.clone(),
             compiled,
             compiled_stage_node: specialization.authored_node,
+            compiled_stage_exec,
             input_properties,
             auxiliary,
             output_slots,
@@ -417,7 +447,12 @@ impl ManagedStageRuntime {
             let properties = RuntimePropertyFrame::with_overrides(&self.compiled.properties, &overrides)
                 .map_err(ManagedStageError::PropertyFrame)?;
             let context = RuntimeContextFrame::new(group_context.clone());
-            let mut debug = (!capture_mode.is_off()).then(|| DebugCaptureSink::new(capture_mode.clone()));
+            let graph_capture_mode = if matches!(capture_mode, DebugCaptureMode::SelectedNodes { .. }) {
+                DebugCaptureMode::Off
+            } else {
+                capture_mode.clone()
+            };
+            let mut debug = (!graph_capture_mode.is_off()).then(|| DebugCaptureSink::new(graph_capture_mode));
             let frame = EvaluationFrame {
                 ctx,
                 properties: &properties,
@@ -531,7 +566,75 @@ impl ManagedStageRuntime {
                 .set(index, slot.value.clone(), slot.validity, slot.deliver)
                 .map_err(ManagedStageError::Frame)?;
         }
+        if let Some(sample) = self.selected_stage_preview(&capture_mode, context_key, ctx.logical_tick) {
+            output.debug_samples.push(sample);
+        }
         Ok((&self.output_frame, output))
+    }
+
+    fn selected_stage_preview(
+        &self,
+        capture_mode: &DebugCaptureMode,
+        context_key: &ContextKey,
+        logical_tick: u64,
+    ) -> Option<DebugValueSample> {
+        let DebugCaptureMode::SelectedNodes {
+            formula_id,
+            context_key: selected_context,
+            nodes,
+            history_len,
+        } = capture_mode
+        else {
+            return None;
+        };
+        if *history_len == 0
+            || !nodes.contains(&self.item.anode.id)
+            || !selected_context
+                .as_ref()
+                .map_or_else(|| context_key.is_default_lane(), |selected| selected == context_key)
+        {
+            return None;
+        }
+        let slots = self.output_frame.slots();
+        let status = if slots.iter().any(|slot| slot.validity == ChannelValidity::Suppressed) {
+            OutputPreviewStatus::Suppressed
+        } else if slots.is_empty()
+            || slots
+                .iter()
+                .any(|slot| slot.validity != ChannelValidity::Valid || slot.value.is_none())
+            || !preview_values_fit(slots)
+        {
+            OutputPreviewStatus::Unavailable
+        } else {
+            OutputPreviewStatus::Live
+        };
+        let value = if status == OutputPreviewStatus::Live {
+            let mut values = slots.iter().filter_map(|slot| slot.value.clone()).collect::<Vec<_>>();
+            if values.len() == 1 {
+                values.pop().expect("one valid stage output")
+            } else {
+                RuntimeValue::Array(values)
+            }
+        } else if slots
+            .iter()
+            .all(|slot| slot.validity == ChannelValidity::Valid && slot.value.is_some())
+        {
+            RuntimeValue::String("Preview exceeds 64 elements or 16 KiB".into())
+        } else {
+            RuntimeValue::Unit
+        };
+        Some(DebugValueSample {
+            formula_id: formula_id.clone(),
+            context_key: (!context_key.is_default_lane()).then(|| context_key.clone()),
+            author_node_id: self.item.anode.id,
+            exec_node: self.compiled_stage_exec,
+            output_socket: SocketId::new("mapping_result"),
+            output_slot: ValueSlotId::new(u32::MAX),
+            value_type: value.value_type(),
+            value,
+            logical_tick,
+            status,
+        })
     }
 
     #[must_use]

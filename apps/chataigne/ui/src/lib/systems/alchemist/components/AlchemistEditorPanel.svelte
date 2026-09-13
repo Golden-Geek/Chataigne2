@@ -96,6 +96,8 @@
 	import FormulaPreviewModeSelector from './FormulaPreviewModeSelector.svelte';
 	import GraphToolbarActions from './GraphToolbarActions.svelte';
 	import ProcessorLaneSelector from './ProcessorLaneSelector.svelte';
+	import MappingInspector from './MappingInspector.svelte';
+	import { isTupleMappingSurface } from '../mappingInspectorModel';
 
 	interface ClipboardReferenceLookup {
 		bySourceId: Map<NodeId, UiNodeDto>;
@@ -1976,7 +1978,9 @@
 					</button>
 				</div>
 				<div class="properties-body">
-					{#if processorUi && processorUi.managed_regions.length > 0}
+					{#if processorUi && processorNode && isTupleMappingSurface(processorUi)}
+						<MappingInspector node={processorNode} />
+					{:else if processorUi && processorUi.managed_regions.length > 0}
 						<div class="processor-surface" aria-label="Processor regions">
 							<header class="processor-surface-header">
 								<div class="processor-surface-title">

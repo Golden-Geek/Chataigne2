@@ -127,6 +127,86 @@ fn managed_formula_runs_elementwise_filter_pipeline_before_outputs() {
     assert!(output.diagnostics.is_empty());
     assert_eq!(output.intents[0].payload, RuntimeValue::Float(0.5));
     assert_eq!(output.intents[1].payload, RuntimeValue::Float(1.0));
+
+    let selected_id = instance.managed_regions.regions[&ManagedRegionId::new("filters")].items[0]
+        .anode
+        .id;
+    let preview = runtime.evaluate_with_graph_frame(
+        &eval_ctx(12, &inputs, &registries),
+        None,
+        DebugCaptureMode::SelectedNodes {
+            formula_id: Some(formula.id.clone()),
+            context_key: None,
+            nodes: [selected_id].into_iter().collect(),
+            history_len: 4,
+        },
+    );
+    assert_eq!(preview.debug_samples.len(), 1);
+    assert_eq!(preview.debug_samples[0].author_node_id, selected_id);
+    assert_eq!(
+        preview.debug_samples[0].value,
+        RuntimeValue::Array(vec![RuntimeValue::Float(0.5), RuntimeValue::Float(1.5),])
+    );
+    assert_eq!(preview.debug_samples[0].logical_tick, 12);
+}
+
+#[test]
+fn selected_mapping_filter_preview_captures_only_its_authored_stage() {
+    let (formula, mut instance) = formula_and_instance();
+    let source = endpoint_ref("module/value");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("inputs"),
+        region("inputs", vec![input_item("Value", source.clone())]),
+    );
+    let filter = remap_item(0.0, 10.0, 0.0, 1.0);
+    let filter_id = filter.anode.id;
+    instance
+        .managed_regions
+        .regions
+        .insert(ManagedRegionId::new("filters"), region("filters", vec![filter]));
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("outputs"),
+        region("outputs", vec![output_item("Value", command_target("target/value"))]),
+    );
+    let (value_types, nodes) = registries();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
+        .unwrap()
+        .unwrap();
+    declare_float_endpoints(&mut runtime);
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Float(5.0));
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let output = runtime.evaluate_with_graph_frame(
+        &eval_ctx(1, &inputs, &registries),
+        None,
+        DebugCaptureMode::SelectedNodes {
+            formula_id: Some(formula.id.clone()),
+            context_key: None,
+            nodes: [filter_id].into_iter().collect(),
+            history_len: 4,
+        },
+    );
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(!output.debug_samples.is_empty());
+    assert!(
+        output
+            .debug_samples
+            .iter()
+            .all(|sample| sample.author_node_id == filter_id)
+    );
+    assert!(
+        output
+            .debug_samples
+            .iter()
+            .any(|sample| sample.value == RuntimeValue::Float(0.5))
+    );
 }
 
 #[test]
@@ -256,6 +336,12 @@ fn managed_formula_aggregates_valueset_to_single_output() {
         .unwrap()
         .unwrap();
     declare_float_endpoints(&mut runtime);
+    let shape = runtime.mapping_pipeline_shape().unwrap();
+    assert_eq!(shape.input.channels().len(), 3);
+    assert_eq!(shape.stages.len(), 1);
+    assert_eq!(shape.stages[0].before.channels().len(), 3);
+    assert_eq!(shape.stages[0].after.channels().len(), 1);
+    assert_eq!(shape.output.channels().len(), 1);
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(x, RuntimeValue::Float(1.0));
     inputs.insert(y, RuntimeValue::Float(2.0));
@@ -310,6 +396,11 @@ fn managed_formula_projects_three_lanes_to_vec3_output() {
         .unwrap()
         .unwrap();
     declare_float_endpoints(&mut runtime);
+    let shape = runtime.mapping_pipeline_shape().unwrap();
+    assert_eq!(shape.input.channels().len(), 3);
+    assert_eq!(shape.stages[0].before.channels().len(), 3);
+    assert_eq!(shape.stages[0].after.channels().len(), 1);
+    assert_eq!(shape.output.channels()[0].value_type, Some(ValueTypeId::new("vec3")));
     let mut inputs = RuntimeInputSnapshot::default();
     inputs.insert(x, RuntimeValue::Float(1.0));
     inputs.insert(y, RuntimeValue::Float(2.0));

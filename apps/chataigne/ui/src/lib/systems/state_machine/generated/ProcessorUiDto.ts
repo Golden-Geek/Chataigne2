@@ -2,6 +2,10 @@
 import type { FormulaSurfaceSectionDto } from "./FormulaSurfaceSectionDto";
 import type { ManagedRegionDefinitionDto } from "./ManagedRegionDefinitionDto";
 import type { ManagedRegionInstanceDto } from "./ManagedRegionInstanceDto";
+import type { MappingDiagnosticDto } from "./MappingDiagnosticDto";
+import type { MappingOutputTargetDto } from "./MappingOutputTargetDto";
+import type { MappingPipelineShapeDto } from "./MappingPipelineShapeDto";
 import type { ProcessorFormulaSourceKindDto } from "./ProcessorFormulaSourceKindDto";
+import type { ProcessorRuntimeStateDto } from "./ProcessorRuntimeStateDto";
 
-export type ProcessorUiDto = { id: string, label: string, active: boolean, formula_id: string, formula_label: string, formula_source_key: string | null, formula_source_kind: ProcessorFormulaSourceKindDto, formula_open_readonly_from_processor: boolean, formula_can_duplicate_to_library: boolean, surface: Array<FormulaSurfaceSectionDto>, managed_regions: Array<ManagedRegionDefinitionDto>, managed_region_instances: Array<ManagedRegionInstanceDto>, diagnostic_ids: Array<string>, multiplex_lane_count: number, };
+export type ProcessorUiDto = { id: string, label: string, active: boolean, formula_id: string, formula_label: string, formula_source_key: string | null, formula_source_kind: ProcessorFormulaSourceKindDto, standard_mapping: boolean, formula_open_readonly_from_processor: boolean, formula_can_duplicate_to_library: boolean, surface: Array<FormulaSurfaceSectionDto>, managed_regions: Array<ManagedRegionDefinitionDto>, managed_region_instances: Array<ManagedRegionInstanceDto>, diagnostic_ids: Array<string>, mapping_pipeline: MappingPipelineShapeDto | null, mapping_diagnostics: Array<MappingDiagnosticDto>, mapping_outputs: Array<MappingOutputTargetDto>, runtime_state: ProcessorRuntimeStateDto, multiplex_lane_count: number, };

@@ -49,6 +49,7 @@ use crate::app::{
 };
 
 mod anode;
+mod binding_migration;
 mod construction;
 mod external_files;
 mod gate_migration;
@@ -61,6 +62,7 @@ mod value_bridge;
 pub use anode::{AlchemistANode, AlchemistInputSocket, AlchemistOutputSocket};
 pub use library::FormulaLibrary;
 pub(crate) use gate_migration::{migrate_legacy_gate_semantics, GATE_SEMANTICS_V2_TAG};
+pub(crate) use binding_migration::{migrate_output_binding_documents, OUTPUT_BINDINGS_V2_TAG};
 pub(crate) use construction::{
     anode_container_accepts_for_roles, anode_creatable_items_for_roles,
     create_anode_user_item, create_anode_user_item_tree, external_formula_tree_for_path,
@@ -397,6 +399,9 @@ impl Node for AlchemistFormulaDefinition {
             let tags = &mut self.node_data_mut().meta.tags;
             if !tags.iter().any(|tag| tag == GATE_SEMANTICS_V2_TAG) {
                 tags.push(GATE_SEMANTICS_V2_TAG.to_owned());
+            }
+            if !tags.iter().any(|tag| tag == OUTPUT_BINDINGS_V2_TAG) {
+                tags.push(OUTPUT_BINDINGS_V2_TAG.to_owned());
             }
         }
         self.node_data_mut().meta.can_be_disabled = false;

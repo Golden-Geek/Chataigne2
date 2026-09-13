@@ -349,7 +349,8 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
                     OUTPUT_BINDINGS_FIELD,
                     "Bindings",
                     RuntimeValue::String(Arc::from(
-                        serde_json::to_string(&OutputBindingConfig::default())
+                        OutputBindingConfig::default()
+                            .to_authoring_json()
                             .expect("default output bindings are serializable"),
                     )),
                 )

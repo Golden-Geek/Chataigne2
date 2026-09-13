@@ -61,6 +61,20 @@ impl ManagedStageChain {
     }
 
     #[must_use]
+    pub fn stage_shapes(&self) -> Vec<(ManagedItemId, Arc<ChannelLayout>, Arc<ChannelLayout>)> {
+        let mut before = Arc::clone(&self.input_layout);
+        self.stages
+            .iter()
+            .map(|stage| {
+                let after = Arc::clone(stage.output_layout());
+                let row = (stage.item_id(), Arc::clone(&before), Arc::clone(&after));
+                before = after;
+                row
+            })
+            .collect()
+    }
+
+    #[must_use]
     pub fn needs_continuous_evaluation(&self) -> bool {
         self.stages.iter().any(ManagedStageRuntime::needs_continuous_evaluation)
     }

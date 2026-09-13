@@ -8,6 +8,10 @@ impl golden_core::app::ProjectLifecycle for AppNode {
             .meta
             .tags
             .push(super::systems_alchemist_formula::GATE_SEMANTICS_V2_TAG.to_owned());
+        root.node_data_mut()
+            .meta
+            .tags
+            .push(super::systems_alchemist_formula::OUTPUT_BINDINGS_V2_TAG.to_owned());
         root.into()
     }
 
@@ -35,6 +39,7 @@ impl golden_core::app::ProjectLifecycle for AppNode {
 
     fn project_opened(engine: &mut AppEngine) -> Result<(), String> {
         super::systems_alchemist_formula::migrate_legacy_gate_semantics(engine)?;
+        super::systems_alchemist_formula::migrate_output_binding_documents(engine)?;
         super::systems_alchemist_processor::sync_external_formulas(engine)
     }
 }

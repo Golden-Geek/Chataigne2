@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 08 — backend authoring, asset, and persistence integration (complete); Phase 09 begins in the next turn
+- Active phase: 09 — Svelte Mapping inspector (implemented and validated; delivery pending)
 - Last validated implementation commit: `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` (Phase 08)
 - Last verified remote implementation commit: `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` (Phase 08)
-- Current blockers: none; Phase 09 owns the product inspector, Phase 10 conversion, and Phase 11 qualification.
+- Current blockers: none; Phase 10 owns conversion and Phase 11 qualification.
 - Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks.
-- Next concrete action: begin Phase 09 Svelte Mapping inspector in the next phase turn.
-- Last updated: 2026-09-13T17:59:41+02:00
+- Next concrete action: publish and verify Phase 09 implementation and status checkpoints; begin Phase 10 in the next phase turn.
+- Last updated: 2026-09-13T19:04:14+02:00
 
 ## Phase ledger
 
@@ -26,7 +26,7 @@
 | 06 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `fb837c38` observed at the remote; stable source projections, typed command argument overrides, fan-out, accepted-value send policy, and host validation pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 07 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `5712b226` observed at the remote; catalog, resource persistence, and full code gates pass. Direct branch pushes have no required CI. |
 | 08 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `44dd4f7d` observed at the remote; built-in authoring, execution, persistence, duplication, and gate migration pass. Direct branch pushes have no required CI. |
-| 09 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Svelte Mapping inspector. |
+| 09 | IN_PROGRESS | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Svelte processor inspector, generated DTOs, typed binding migration, bounded stage preview, Rust and UI gates pass; checkpoint A awaits push verification. Direct branch pushes have no required CI. |
 | 10 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Conversion to custom Formula. |
 | 11 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Qualification, performance, cleanup. |
 
@@ -53,7 +53,7 @@
 | M17 | Preview-off execution | 01 | Direct result-slot, codec-call, and capture-off Rust tests; app Action and workspace gates pass | PASSED |
 | M18 | Structural edit during compile/evaluation | 05 | Synchronous snapshot materialization publishes complete runtimes; a failed structural specialization invalidates the previous chain and never dispatches it. | PASSED |
 | M19 | Mapping controls Mapping or itself | 05, 08 | Processor intents use the queued engine transaction path; a built-in Mapping self-cycle product test remains for Phase 11 qualification. | PARTIAL |
-| M20 | Inspector/context switching and large lists | 09, 11 | Pending | NOT_RUN |
+| M20 | Inspector/context switching and large lists | 09, 11 | Processor inspector SSR and model tests cover tuple shapes, context preview demand, release payload, keyboard index, and a 10,000-item virtual window; interactive product qualification remains in Phase 11. | PARTIAL |
 
 ## Validation evidence
 
@@ -108,6 +108,10 @@
 | 2026-09-13T17:57+02:00 | 08 | working tree before checkpoint A | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 179 Alchemist, 125 processor, and 553 app tests pass; 5 existing app tests ignored, and 1 audio-host integration test passes. Built-in Mapping execution, backend authoring, persistence, duplication, asset diagnostics, and gate migration are covered. |
 | 2026-09-13T17:57+02:00 | 08 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked -p chataigne_alchemist -p chataigne_processor -p Chataigne2 --all-targets -- -D warnings` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace check and strict targeted Clippy pass. |
 | 2026-09-13T17:57+02:00 | 08 | working tree before checkpoint A | Root and Golden Core `cargo fmt --all` and `--check`; `git diff --check` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and whitespace check pass; Git reports only Windows line-ending conversion notices. |
+| 2026-09-13T19:00+02:00 | 09 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_state_machine -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 179 Alchemist, 127 processor, 18 state-machine, and 558 app tests pass; 5 existing app tests ignored, plus audio-host integration. Includes stage shapes/previews, demand leases, output document migration, and Mapping identity. |
+| 2026-09-13T19:00+02:00 | 09 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked --workspace --all-targets -- -D warnings` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check and strict Clippy pass after the final Rust change. |
+| 2026-09-13T19:03+02:00 | 09 | working tree before checkpoint A | `npm run check`; `npm test -- --reporter=dot`; `npm run lint`; `npm run build` | Node 26.5.0, npm 11.17.0 | PASSED | Svelte reports 0 errors and 0 warnings; 26 UI files and 98 tests pass, including the processor inspector product surface and tuple/virtualization model; Prettier and Vite build pass. |
+| 2026-09-13T19:05+02:00 | 09 | final working tree before checkpoint A | Root and Golden Core `cargo fmt --all` and `cargo fmt --all --check`; full target `cargo test-fast`; UI check/test/lint/build | Windows x64, pinned ASIO SDK, Rust 1.97.0, Node 26.5.0 | PASSED | Both formatter scopes are clean; 558 app, 179 Alchemist, 127 processor, 18 state-machine, 1 audio-host, and 98 UI tests pass on the final behavior. |
 
 ## Phase reports
 
@@ -214,9 +218,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: the standard Mapping remains one ordered tuple with no authored channels, so multiple sources can merge or form compound values in one chain; custom Formula provides branching. The generic Golden `UiEditIntent` and protocol DTOs already cover backend authoring, so no Rust/TypeScript protocol declarations changed in this phase. The existing state-machine wrappers remain used by Action and custom Formula but are not exposed as managed Mapping items; historical gate semantics receive a narrow project migration instead of compatibility logic in runtime evaluation.
 
+### Phase 09 (implemented; delivery pending)
+
+- Changes and affected public boundaries: the app-owned Alchemist UI mounts a dedicated Mapping view inside the processor inspector and editor panel while retaining the generic Formula path. It presents Inputs, Filters, and Outputs with backend palettes, Golden parameter editors, typed stage-shape summaries, command argument bindings, diagnostics, keyboard row navigation, virtualized lists, and undo/redo. Rust owns the stage-shape and output-target queries, typed authoring DTOs, generated TypeScript protocol, one-time migration of historical binding strings, and manager-owned inspection and selected-stage preview leases.
+- Acceptance gates satisfied: a real processor inspector render shows the three regions, tuple-to-compound shape transition, and diagnostics. UI tests cover create/move/duplicate intent identities, repeated tuple shape changes, source choices, keyboard index, large-list windowing, preview context and release payload. Rust tests cover scalar and tuple selected-stage values, bounded demand/release, read-only context catalogs, and historical binding migration. Selected-stage focus does not force runtime evaluation; capture is opt-in and cleared when the last lease ends. Standard Mapping uses no authored channels or groups.
+- Remaining work: Phase 10 owns configured Mapping-to-Formula conversion. Phase 11 owns the remaining combined acceptance cases, interactive desktop/headless/watch and panel smoke checks, performance qualification, and large-list product interaction. No Phase 09 code gate remains open.
+- Exact checks and outcomes: see Phase 09 validation rows. Full target Rust tests, workspace check, strict workspace Clippy, all 98 UI tests, Svelte check, lint, and build pass; root and Golden Core formatting and whitespace checks are recorded with checkpoint A.
+- Implementation commit: pending checkpoint A.
+- Delivery state: `PUSH_PENDING`; remote OID and timestamp will be recorded after checkpoint A verification.
+- CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
+- Decisions/deviations and rationale: the inspector requests a catalog without capture, then requests one bounded processor/context/stage capture only when selected. Typed output binding DTOs avoid a second hand-maintained TypeScript schema. The historical string document is converted once at project load, preserving persisted behavior without runtime compatibility branches. Interactive UI smoke is excluded because repository agent rules prohibit desktop control; Phase 11 retains product qualification.
+
 ## Blockers and handoff
 
-- What failed or changed: Phase 08 adds a configured built-in Mapping asset, public backend authoring paths, strict asset/binding diagnostics, and persisted gate migration. No current phase failure remains.
+- What failed or changed: Phase 09 adds the Svelte Mapping inspector, typed binding protocol and migration, backend stage-shape summaries, and bounded preview leases. No current phase validation failure remains.
 - Last known-good checkpoint: Phase 08 `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` is validated and verified at `origin/codex/builtin-mapping`.
-- Reproduction: Alchemist, processor, and full app tests, workspace check, strict Clippy, and formatting pass with the available toolchain.
-- Next action: begin Phase 09 Svelte Mapping inspector in the next phase turn.
+- Reproduction: Alchemist, processor, state-machine, and full app tests, UI tests/check/lint/build, workspace check, strict Clippy, and both formatter scopes pass with the available toolchain.
+- Next action: publish and verify Phase 09 checkpoints A and B; begin Phase 10 in the next phase turn.

@@ -8,6 +8,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ValueSet, ValueSetError};
 
+mod authoring;
+pub use authoring::{
+    MappingConstantDto, MappingOutputArgumentDto, MappingOutputBindingsDto, MappingOutputSendPolicyDto,
+    MappingOutputSourceDto, MappingTargetParameterDto, MappingValueComponentDto,
+};
+
 pub const OUTPUT_TARGET_FIELD: &str = "target";
 pub const OUTPUT_BINDINGS_FIELD: &str = "bindings";
 pub const COMMAND_INTENT_KIND: &str = "chataigne.command";
@@ -53,14 +59,13 @@ pub struct OutputBindingConfig {
 
 impl OutputBindingConfig {
     pub fn to_authoring_json(&self) -> Result<String, String> {
-        self.validate()?;
-        serde_json::to_string(self).map_err(|error| error.to_string())
+        serde_json::to_string(&MappingOutputBindingsDto::from_domain(self)?).map_err(|error| error.to_string())
     }
 
     pub fn from_authoring_json(value: &str) -> Result<Self, String> {
-        let parsed: Self = serde_json::from_str(value).map_err(|error| error.to_string())?;
-        parsed.validate()?;
-        Ok(parsed)
+        serde_json::from_str::<MappingOutputBindingsDto>(value)
+            .map_err(|error| error.to_string())?
+            .into_domain()
     }
 
     pub fn to_runtime_value(&self) -> Result<RuntimeValue, String> {

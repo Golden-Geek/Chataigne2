@@ -580,6 +580,17 @@ impl FormulaCatalog {
                 ),
             });
         }
+        if tree.nodes.iter().any(|node| {
+            !node.meta.tags.iter().any(|tag| tag == crate::app::systems_alchemist_formula::OUTPUT_BINDINGS_V2_TAG)
+                && exported_node_contains_output_target(node)
+        }) {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!(
+                    "shared formula '{}' contains historical Output Command bindings; re-export it from a migrated project",
+                    path.display()
+                ),
+            });
+        }
         let icon = sibling_icon_data_uri(path)?;
         tree.into_external_node_tree(false, icon)
     }
@@ -1231,6 +1242,19 @@ fn exported_node_contains_condition_gate(node: &ExportedNode) -> bool {
                         == Some(ParamValue::Str("condition_gate".to_owned()))
             })))
         || node.children.iter().any(exported_node_contains_condition_gate)
+}
+
+fn exported_node_contains_output_target(node: &ExportedNode) -> bool {
+    (node.node_type == "alchemist_anode"
+        && (node.meta.tags.iter().any(|tag| tag == "alchemist.anode.type:chataigne.output_target")
+            || node.children.iter().any(|child| {
+                child.decl_id == "anode_type"
+                    && exported_param_value(child)
+                        .ok()
+                        .flatten()
+                        == Some(ParamValue::Str("chataigne.output_target".to_owned()))
+            })))
+        || node.children.iter().any(exported_node_contains_output_target)
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
