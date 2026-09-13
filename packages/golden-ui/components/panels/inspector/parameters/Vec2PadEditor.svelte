@@ -5,19 +5,16 @@
 	import { createUiEditSession, sendSetParamIntent } from '../../../../store/ui-intents';
 	import type { UiNodeDto, UiRangeConstraint } from '../../../../types';
 	import { formatWatcherNumber } from '../../../common/watcher/watcher-utils';
-
-	interface Bounds {
-		xMin: number;
-		xMax: number;
-		yMin: number;
-		yMax: number;
-	}
-
-	interface GridLine {
-		value: number;
-		position: number;
-		label: string;
-	}
+	import {
+		buildGridLines,
+		clampPointToBounds,
+		computeGridStep,
+		parseVec2Bounds,
+		toPlotX,
+		toPlotY,
+		type Bounds,
+		type GridLine
+	} from './vec2-pad-geometry';
 
 	interface TrailPoint {
 		x: number;
@@ -179,74 +176,6 @@
 		return '100%';
 	});
 
-	function normalizeBounds(bounds: Bounds): Bounds {
-		let xMin = bounds.xMin;
-		let xMax = bounds.xMax;
-		let yMin = bounds.yMin;
-		let yMax = bounds.yMax;
-
-		if (Math.abs(xMax - xMin) <= EPSILON) {
-			const center = (xMin + xMax) * 0.5;
-			xMin = center - 0.5;
-			xMax = center + 0.5;
-		}
-
-		if (Math.abs(yMax - yMin) <= EPSILON) {
-			const center = (yMin + yMax) * 0.5;
-			yMin = center - 0.5;
-			yMax = center + 0.5;
-		}
-
-		return { xMin, xMax, yMin, yMax };
-	}
-
-	function parseVec2Bounds(range: UiRangeConstraint | undefined): Bounds | null {
-		if (!range) {
-			return null;
-		}
-
-		if (range.kind === 'uniform') {
-			if (
-				!Number.isFinite(range.min) ||
-				!Number.isFinite(range.max) ||
-				range.min === undefined ||
-				range.max === undefined
-			) {
-				return null;
-			}
-			if (range.min > range.max) {
-				return null;
-			}
-			return normalizeBounds({
-				xMin: range.min,
-				xMax: range.max,
-				yMin: range.min,
-				yMax: range.max
-			});
-		}
-
-		const xMin = range.min?.[0];
-		const yMin = range.min?.[1];
-		const xMax = range.max?.[0];
-		const yMax = range.max?.[1];
-		if (
-			xMin === undefined ||
-			yMin === undefined ||
-			xMax === undefined ||
-			yMax === undefined ||
-			!Number.isFinite(xMin) ||
-			!Number.isFinite(yMin) ||
-			!Number.isFinite(xMax) ||
-			!Number.isFinite(yMax) ||
-			xMin > xMax ||
-			yMin > yMax
-		) {
-			return null;
-		}
-
-		return normalizeBounds({ xMin, xMax, yMin, yMax });
-	}
-
 	const visibleBounds = $derived.by((): Bounds => {
 		const halfHeight = Math.max(EPSILON, cameraHeightSpan) * 0.5;
 		const halfWidth = halfHeight * effectivePlotAspectRatio;
@@ -258,75 +187,20 @@
 		};
 	});
 
-	const clampPointToBounds = (point: [number, number], bounds: Bounds | null): [number, number] => {
-		if (!bounds) {
-			return point;
-		}
-		return [
-			Math.min(bounds.xMax, Math.max(bounds.xMin, point[0])),
-			Math.min(bounds.yMax, Math.max(bounds.yMin, point[1]))
-		];
-	};
-
-	const toPlotX = (value: number, bounds: Bounds): number =>
-		((value - bounds.xMin) / Math.max(EPSILON, bounds.xMax - bounds.xMin)) * plotViewWidth;
-	const toPlotY = (value: number, bounds: Bounds): number =>
-		plotViewHeight -
-		((value - bounds.yMin) / Math.max(EPSILON, bounds.yMax - bounds.yMin)) * plotViewHeight;
-
-	const computeGridStep = (baseStep: number, span: number, targetLineCount = 8): number => {
-		const safeBase = Math.max(0.0001, Math.abs(baseStep));
-		const roughStep = Math.max(safeBase, span / Math.max(2, targetLineCount));
-		const exponent = Math.floor(Math.log10(roughStep / safeBase));
-		const scaledBase = safeBase * Math.pow(10, exponent);
-
-		for (const factor of [1, 2, 5, 10]) {
-			const candidate = scaledBase * factor;
-			if (candidate >= roughStep - EPSILON) {
-				return candidate;
-			}
-		}
-
-		return scaledBase * 10;
-	};
-
-	const buildGridLines = (
-		minValue: number,
-		maxValue: number,
-		step: number,
-		mapValueToPosition: (value: number) => number
-	): GridLine[] => {
-		const safeStep = Math.max(0.0001, step);
-		const first = Math.ceil(minValue / safeStep) * safeStep;
-		const maxLines = 48;
-		const lines: GridLine[] = [];
-
-		let lineCount = 0;
-		for (
-			let value = first;
-			value <= maxValue + safeStep * 0.001 && lineCount < maxLines;
-			value += safeStep, lineCount += 1
-		) {
-			lines.push({
-				value,
-				position: mapValueToPosition(value),
-				label: formatWatcherNumber(value)
-			});
-		}
-
-		return lines;
-	};
-
 	const xGridLines = $derived.by((): GridLine[] => {
 		const bounds = visibleBounds;
 		const step = computeGridStep(DEFAULT_UNIT_STEP, bounds.xMax - bounds.xMin, 8);
-		return buildGridLines(bounds.xMin, bounds.xMax, step, (value) => toPlotX(value, bounds));
+		return buildGridLines(bounds.xMin, bounds.xMax, step, (value) =>
+			toPlotX(value, bounds, plotViewWidth)
+		);
 	});
 
 	const yGridLines = $derived.by((): GridLine[] => {
 		const bounds = visibleBounds;
 		const step = computeGridStep(DEFAULT_UNIT_STEP, bounds.yMax - bounds.yMin, 8);
-		return buildGridLines(bounds.yMin, bounds.yMax, step, (value) => toPlotY(value, bounds));
+		return buildGridLines(bounds.yMin, bounds.yMax, step, (value) =>
+			toPlotY(value, bounds, plotViewHeight)
+		);
 	});
 
 	const labelStride = (lineCount: number): number => Math.max(1, Math.ceil(lineCount / 8));
@@ -354,10 +228,10 @@
 			const ageMs = tickNowMs - (start.timestampMs + end.timestampMs) * 0.5;
 			const opacity = Math.max(0.08, 1 - ageMs / trailAgeMs);
 			segments.push({
-				x1: toPlotX(start.x, bounds),
-				y1: toPlotY(start.y, bounds),
-				x2: toPlotX(end.x, bounds),
-				y2: toPlotY(end.y, bounds),
+				x1: toPlotX(start.x, bounds, plotViewWidth),
+				y1: toPlotY(start.y, bounds, plotViewHeight),
+				x2: toPlotX(end.x, bounds, plotViewWidth),
+				y2: toPlotY(end.y, bounds, plotViewHeight),
 				opacity
 			});
 		}
@@ -368,13 +242,17 @@
 	const displayedValue = $derived.by((): [number, number] =>
 		clampPointToBounds(draftValue, rangedBounds)
 	);
-	const handleX = $derived.by(() => toPlotX(displayedValue[0], visibleBounds));
-	const handleY = $derived.by(() => toPlotY(displayedValue[1], visibleBounds));
+	const handleX = $derived.by(() => toPlotX(displayedValue[0], visibleBounds, plotViewWidth));
+	const handleY = $derived.by(() => toPlotY(displayedValue[1], visibleBounds, plotViewHeight));
 	const zeroAxisX = $derived.by(() =>
-		visibleBounds.xMin < 0 && visibleBounds.xMax > 0 ? toPlotX(0, visibleBounds) : null
+		visibleBounds.xMin < 0 && visibleBounds.xMax > 0
+			? toPlotX(0, visibleBounds, plotViewWidth)
+			: null
 	);
 	const zeroAxisY = $derived.by(() =>
-		visibleBounds.yMin < 0 && visibleBounds.yMax > 0 ? toPlotY(0, visibleBounds) : null
+		visibleBounds.yMin < 0 && visibleBounds.yMax > 0
+			? toPlotY(0, visibleBounds, plotViewHeight)
+			: null
 	);
 	const isHandleDragging = $derived(dragState?.kind === 'handle');
 	const isPanning = $derived(dragState?.kind === 'pan');

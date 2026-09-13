@@ -4,12 +4,12 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-includes 1,244 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
+includes 1,246 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
 files under `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-13 after the T17 script, UI-sync, persistence-adapter,
 history, App Control, received-value, formula integration, processor presentation, multiplex
-test, generic graph, and logger splits and the T19 qualification harnesses. The 44-file audit
-count was a historical baseline; 44 files currently exceed 1,000
+test, generic graph, logger, state placement, and vec2 pad geometry splits and the T19 qualification
+harnesses. The 44-file audit count was a historical baseline; 43 files currently exceed 1,000
 lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
@@ -51,6 +51,9 @@ The app-owned state-machine panel now keeps composition, viewport hints, intents
 (976 lines), with bounded spatial placement in `components/state-placement.ts` (132 lines).
 Four direct placement tests include a 10k-state fixture; creation still uses the existing backend
 intent and receives only a viewport-dependent position hint from the UI.
+The generic vec2 pad editor keeps pointer/edit-session interaction and trail state (884 lines),
+while `parameters/vec2-pad-geometry.ts` owns range validation, clamping, plot mapping, and grid
+projection. Four direct tests cover the extracted geometry.
 
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
@@ -102,7 +105,6 @@ avoid mixing large structural moves into runtime race fixes.
 | 1,052 | `apps/chataigne/src/module/modules/controllers/keyboard/keyboard/mod.rs` | Split cohesive Rust module |
 | 1,014 | `apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs` | Split cohesive Rust module |
 | 1,008 | `apps/chataigne/systems/alchemist/integration/processor/tests/catalog.rs` | Split focused test suites |
-| 1,007 | `packages/golden-ui/components/panels/inspector/parameters/Vec2PadEditor.svelte` | Decompose presentation and state |
 | 1,006 | `apps/chataigne/src/module/modules/audio/sound_card/integration.rs` | Split cohesive Rust module |
 
 The live count can be reproduced with `rg --files` over the paths and extensions above, followed
