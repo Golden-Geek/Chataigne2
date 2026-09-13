@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 09 — Svelte Mapping inspector (complete); Phase 10 begins in the next phase turn.
-- Last validated implementation commit: `be13b2f5ecba404e039c76cfa9922ffa7a02525c` (Phase 09)
-- Last verified remote implementation commit: `be13b2f5ecba404e039c76cfa9922ffa7a02525c` (Phase 09)
-- Current blockers: none; Phase 10 owns conversion and Phase 11 qualification.
+- Active phase: 10 — configured Mapping-to-Formula conversion (complete); Phase 11 begins in the next phase turn.
+- Last validated implementation commit: `e539ada8e755c41c0ec24545b2f23f600760c031` (Phase 10)
+- Last verified remote implementation commit: `e539ada8e755c41c0ec24545b2f23f600760c031` (Phase 10)
+- Current blockers: none; Phase 11 owns qualification, performance, and final cleanup.
 - Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks.
-- Next concrete action: begin Phase 10 configured Mapping-to-Formula conversion in the next phase turn.
-- Last updated: 2026-09-13T19:06:47+02:00
+- Next concrete action: begin Phase 11 acceptance, performance, cleanup, and product qualification in the next phase turn.
+- Last updated: 2026-09-13T20:34:11+02:00
 
 ## Phase ledger
 
@@ -27,7 +27,7 @@
 | 07 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `5712b226` observed at the remote; catalog, resource persistence, and full code gates pass. Direct branch pushes have no required CI. |
 | 08 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `44dd4f7d` observed at the remote; built-in authoring, execution, persistence, duplication, and gate migration pass. Direct branch pushes have no required CI. |
 | 09 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `be13b2f5` observed at the remote; Svelte processor inspector, generated DTOs, typed binding migration, bounded stage preview, and Rust/UI gates pass. Direct branch pushes have no required CI. |
-| 10 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Conversion to custom Formula. |
+| 10 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `e539ada8` observed at the remote; configured processor and project Formula conversion, reset policy, undo/redo, sparse persistence, continued inspector editing, and Rust/UI gates pass. Direct branch pushes have no required CI. |
 | 11 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Qualification, performance, cleanup. |
 
 ## Acceptance coverage
@@ -49,7 +49,7 @@
 | M13 | Repeat equal-valued triggers | 05 | Typed trigger stages emit separate intents for separate occurrences even when values are equal. | PASSED |
 | M14 | Persistence, copy, undo/redo, migration | 08 | Public intents create/edit/delete/reorder/duplicate authored items with distinct ownership IDs; undo/redo, sparse save/load, stable source and binding references, and one-time historical gate migration pass. | PASSED |
 | M15 | Managed regions plus extra Formula operations | 04 | Graph-backed processor executes routing before and after managed filter, with command and preview assertions | PASSED |
-| M16 | Convert configured Mapping to Formula | 10 | Pending | NOT_RUN |
+| M16 | Convert configured Mapping to Formula | 10 | Backend conversion tests compare configured values, command payloads and count, context, suppression, repeated triggers, fresh SMA state, undo/redo, sparse reload, and a post-reload setting edit; product SSR checks continued managed-item editing after conversion. | PASSED |
 | M17 | Preview-off execution | 01 | Direct result-slot, codec-call, and capture-off Rust tests; app Action and workspace gates pass | PASSED |
 | M18 | Structural edit during compile/evaluation | 05 | Synchronous snapshot materialization publishes complete runtimes; a failed structural specialization invalidates the previous chain and never dispatches it. | PASSED |
 | M19 | Mapping controls Mapping or itself | 05, 08 | Processor intents use the queued engine transaction path; a built-in Mapping self-cycle product test remains for Phase 11 qualification. | PARTIAL |
@@ -112,6 +112,12 @@
 | 2026-09-13T19:00+02:00 | 09 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked --workspace --all-targets -- -D warnings` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check and strict Clippy pass after the final Rust change. |
 | 2026-09-13T19:03+02:00 | 09 | working tree before checkpoint A | `npm run check`; `npm test -- --reporter=dot`; `npm run lint`; `npm run build` | Node 26.5.0, npm 11.17.0 | PASSED | Svelte reports 0 errors and 0 warnings; 26 UI files and 98 tests pass, including the processor inspector product surface and tuple/virtualization model; Prettier and Vite build pass. |
 | 2026-09-13T19:05+02:00 | 09 | final working tree before checkpoint A | Root and Golden Core `cargo fmt --all` and `cargo fmt --all --check`; full target `cargo test-fast`; UI check/test/lint/build | Windows x64, pinned ASIO SDK, Rust 1.97.0, Node 26.5.0 | PASSED | Both formatter scopes are clean; 558 app, 179 Alchemist, 127 processor, 18 state-machine, 1 audio-host, and 98 UI tests pass on the final behavior. |
+| 2026-09-13T20:21+02:00 | 10 | `ef64044a` | `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 -p chataigne_alchemist -p chataigne_processor -p golden_engine --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 560 app tests pass with 5 existing ignored, plus audio-host integration; 179 Alchemist and 127 processor tests pass; 446 Golden engine tests pass with 3 existing ignored, plus integration and 7 doctests. Conversion tests cover tuple evaluation, commands, contexts, trigger delivery, gate suppression, temporal reset, undo/redo, and sparse reload. |
+| 2026-09-13T20:21+02:00 | 10 | `ef64044a` | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked --workspace --all-targets -- -D warnings` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check and strict Clippy pass. |
+| 2026-09-13T20:21+02:00 | 10 | `ef64044a` | `npm run check`; `npm test -- --reporter=dot`; `npm run lint`; `npm run build` | Node 26.5.0, npm 11.17.0 | PASSED | Svelte check has 0 errors and warnings; 98 UI tests, Prettier, and Vite build pass. |
+| 2026-09-13T20:28+02:00 | 10 | `87a41f6c` | `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet`; `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked --workspace --all-targets -- -D warnings` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 560 app tests pass with 5 existing ignored, plus audio-host integration; workspace check and strict Clippy pass after converted Formula inspector support. |
+| 2026-09-13T20:28+02:00 | 10 | `87a41f6c` | `npm run check`; `npm test -- --reporter=dot`; `npm run lint`; `npm run build`; root and Golden Core `cargo fmt --all` and `--check`; `git diff --check` | Windows x64, Rust 1.97.0, Node 26.5.0 | PASSED | Svelte check has 0 errors and warnings, all 98 UI tests pass, lint and build pass; both formatter scopes and whitespace check are clean. |
+| 2026-09-13T20:34+02:00 | 10 | `e539ada8` | `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings`; root and Golden Core `cargo fmt --all` and `--check`; `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 560 app tests pass with 5 existing ignored plus audio-host integration. The converted processor's Remap edit after sparse reload changes its command value from 1.25 to 0.5 while preserving the argument binding. Strict app Clippy, both formatter scopes, and whitespace check pass. |
 
 ## Phase reports
 
@@ -229,9 +235,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: the inspector requests a catalog without capture, then requests one bounded processor/context/stage capture only when selected. Typed output binding DTOs avoid a second hand-maintained TypeScript schema. The historical string document is converted once at project load, preserving persisted behavior without runtime compatibility branches. Interactive UI smoke is excluded because repository agent rules prohibit desktop control; Phase 11 retains product qualification.
 
+### Phase 10 (complete)
+
+- Changes and affected public boundaries: a backend processor trigger converts an exact built-in Mapping to a project-owned, editable Formula recipe with fresh graph identities and an atomic reference swap. The existing processor retains its ordered source/filter/output items, configured socket settings, command bindings and nodes, and exposed surface identity; Formula owns the reusable graph and managed-region definitions. The processor inspector keeps those managed items editable after conversion, while the custom Formula uses the normal graph editor. Golden detached tree roles and persistent managed metadata keep the authored structure intact through sparse save/load.
+- Acceptance gates satisfied: deterministic tests compare configured numeric tuple values and command arguments before and after conversion, including context-bound values, gate suppression, repeated trigger occurrences, single command dispatch, and fresh SMA temporal state. Conversion is one undo step, redo restores the recipe and reference, persisted custom Formulas reload and accept graph edits, and a post-reload Remap edit changes the command output; repeated conversion is rejected. A product SSR test confirms the converted processor retains its managed inspector without another Convert action. Property surface tags preserve existing processor managers and command identities.
+- Remaining work: Phase 11 owns the combined product acceptance matrix, desktop/headless/watch and packaging qualification where available, scale benchmarks, and obsolete-path cleanup. No Phase 10 code gate remains open.
+- Exact checks and outcomes: see Phase 10 validation rows. Full Rust target suites, workspace check, strict workspace Clippy, all 98 UI tests, Svelte check, lint, build, both formatter scopes, and whitespace check pass on the delivered code. Existing ignored manual tests are not counted as passing product smoke checks.
+- Implementation commits: `ef64044ac66bdf277544a314f7b56c2ec5fc665a`, `87a41f6cc60324d6c1cadc6a0b68217846a75982`, and `e539ada8e755c41c0ec24545b2f23f600760c031`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `e539ada8e755c41c0ec24545b2f23f600760c031`, 2026-09-13T20:34:11+02:00 (`git ls-remote`). Each prior implementation commit was separately verified at the same remote ref before its follow-up.
+- CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
+- Decisions/deviations and rationale: instance-specific sources, filter items, auxiliary settings, and outputs stay on the processor because they are already its authored state; conversion copies the recipe that interprets those items, rather than serializing a compiled runtime plan or creating a second processor. Temporal state resets on the recipe change; cross-recipe history migration is unsupported. Missing or temporarily empty definitions during sparse load cannot erase managed items.
+
 ## Blockers and handoff
 
-- What failed or changed: Phase 09 adds the Svelte Mapping inspector, typed binding protocol and migration, backend stage-shape summaries, and bounded preview leases. No current phase validation failure remains.
-- Last known-good checkpoint: Phase 09 `be13b2f5ecba404e039c76cfa9922ffa7a02525c` is validated and verified at `origin/codex/builtin-mapping`.
-- Reproduction: Alchemist, processor, state-machine, and full app tests, UI tests/check/lint/build, workspace check, strict Clippy, and both formatter scopes pass with the available toolchain.
-- Next action: begin Phase 10 configured Mapping-to-Formula conversion in the next phase turn.
+- What failed or changed: Phase 10 adds configured Mapping conversion and keeps the managed processor inspector available afterward. No current phase validation failure remains.
+- Last known-good checkpoint: Phase 10 `e539ada8e755c41c0ec24545b2f23f600760c031` is validated and verified at `origin/codex/builtin-mapping`.
+- Reproduction: Golden engine, Alchemist, processor, and full app tests, UI tests/check/lint/build, workspace check, strict Clippy, and both formatter scopes pass with the available toolchain.
+- Next action: begin Phase 11 qualification, performance, and final cleanup in the next phase turn.
