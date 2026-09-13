@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 03 — tuple-aware filter applications and exact backend palette creation; Phase 04 groundwork remains incomplete
-- Last validated implementation commit: `a4705f61542be7c33e4c62fd039447b8d8a312e8` (revised Phase 02)
-- Last verified remote implementation commit: `a4705f61542be7c33e4c62fd039447b8d8a312e8` (revised Phase 02)
-- Current blockers: no environment blocker; Phase 03 must make filter applications and the palette consume the scalar/tuple contract, and Phase 04 must remove implicit channel routing from standard Mapping execution while preserving custom Formula graph semantics.
+- Active phase: 04 — whole-value tuple compilation and Formula boundary integration
+- Last validated implementation commit: `a783b60c6424e47d007f1b40df0974a6c30807fe` (Phase 03)
+- Last verified remote implementation commit: `a783b60c6424e47d007f1b40df0974a6c30807fe` (Phase 03)
+- Current blockers: no environment blocker; Phase 04 must make standard Mapping execution consume the whole tuple, preserve surrounding custom Formula operations, and remove implicit pass-through of incompatible tuple elements.
 - Product checks still outstanding: revised M01–M16 and M18–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: make Phase 03 validate each filter against the full scalar/tuple value, offer Sum/Average and X/Y/Z packing with exact materialized settings, and reject implicit compatible-subset routing
-- Last updated: 2026-09-13T12:54:05+02:00
+- Next concrete action: compile composable whole-value tuple stages for Mapping, including three floats → elementwise Remap → Sum → Smooth and X/Y/Z → elementwise filter → Pack Vec3.
+- Last updated: 2026-09-13T13:19:26+02:00
 
 ## Phase ledger
 
@@ -20,7 +20,7 @@
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
 | 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a4705f61` verified remotely; scalar/tuple source-shape gates pass. Whole-value filter execution belongs to Phase 03/04. |
-| 03 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `1c70c88d` verified remotely; the internal-layout palette is compiler-backed, while a tuple-aware Mapping palette and multi-input merge authoring remain open. |
+| 03 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a783b60c` verified remotely; whole-tuple palette rejects implicit subset routing, and three-operand Math/Sum/Average choices materialize exact sockets. Direct branch pushes have no required CI. |
 | 04 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `1c70c88d` verified remotely; earlier typed stages remain channel-oriented. Whole-value tuple stages, Formula graph boundaries, and plan sharing remain open. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
 | 06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Inputs and command argument bindings. |
@@ -89,6 +89,9 @@
 | 2026-09-13T12:49+02:00 | 02/03 revised | working tree on `04c99834` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --test default_audio_hosts --quiet`; `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy; root and Golden Core `cargo fmt --all --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Audio-host integration test, 161 Alchemist and 90 processor tests, `-D warnings`, and both format scopes pass. Together with the scoped bin test, these cover the app package tests after the broad command encountered a file lock. |
 | 2026-09-13T12:49+02:00 | 02/03 revised | working tree on `04c99834` | `.\tools\asio.ps1 -- cargo check --locked --workspace`; `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check and whitespace validation pass after the tuple-shape and palette work. |
 | 2026-09-13T12:53+02:00 | 02 revised | working tree on `c962867a` | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy; root and Golden Core `cargo fmt --all --check`; `git diff --check` | Windows x64, Rust 1.97.0 | PASSED | 161 Alchemist and 90 processor tests pass after final metadata/replacement assertions; `-D warnings`, both format scopes, and whitespace checks pass. The app unit and audio-host integration checks passed on the preceding WIP checkpoint, and this delta changes only a processor test and plan wording. |
+| 2026-09-13T13:18+02:00 | 03 | working tree before `a783b60c` | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_state_machine --quiet`; `cargo clippy --locked -p chataigne_alchemist -p chataigne_processor --all-targets -- -D warnings` | Windows x64, Rust 1.97.0 | PASSED | 164 Alchemist, 91 processor, and 17 state-machine tests pass; strict Clippy is clean. Includes whole-tuple applicability, three-input Sum/Average evaluation, graph arithmetic, and persisted filter-mode tests. |
+| 2026-09-13T13:18+02:00 | 03 | working tree before `a783b60c` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --bin Chataigne2 --quiet`; `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --test default_audio_hosts --quiet` | Windows x64, pinned ASIO SDK | PASSED | 536 app unit tests pass, 5 pre-existing manual tests ignored; the audio-host integration test passes. The backend test checks exact three-input Math/Sum/Average creation and X/Y/Z Pack Vec3 availability. |
+| 2026-09-13T13:19+02:00 | 03 | working tree before `a783b60c` | `.\tools\asio.ps1 -- cargo check --locked --workspace`; root and Golden Core `cargo fmt --all` and `--check`; staged `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace check, both formatter scopes, and whitespace check pass. |
 
 ## Phase reports
 
@@ -129,16 +132,16 @@
 - Revised WIP checkpoint: `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`, observed at `refs/heads/codex/builtin-mapping` on `origin` at 2026-09-13T12:50:56+02:00. It adds the scalar/tuple shape query and schema-preserving input reconciliation, but does not close Phase 02.
 - Revised Phase 02 checkpoint A is verified. Direct pushes to this branch have no configured mandatory CI workflow; the targeted crate/app/workspace gates above passed.
 
-### Phase 03 (in progress)
+### Phase 03 (complete)
 
-- Changes and affected public boundaries: ANode declarations now resolve capabilities from configured instances; `ManagedApplication` validates signatures, selections, groups, auxiliary types, and state scope. Math has per-channel and combine modes using its graph kernel. The processor binds auxiliary socket values or references through Formula properties and resolves contextual references per channel. Backend managed socket edits update a live binding and the authored instance without rebuilding the processor.
-- Acceptance gates satisfied: host-level parameter edit changes output without scheduling a rebuild; processor tests show unrelated SMA history survives an auxiliary edit; graph and Mapping Math use the same operation; invalid selection, arity, mode, and auxiliary types diagnose.
-- Remaining work: the backend Add palette must query actual compiler availability for the current scalar/tuple value shape and create the exact configuration it validates. Multi-input merging, including Sum/Average and X/Y/Z packing, must be straightforward without channel selectors. Do not mark Phase 03 complete from the channel-oriented query alone.
-- Exact checks and outcomes: see Phase 03 validation rows. An incremental MSVC app link failed with unresolved symbols in an unrelated module; the non-incremental full app run passed.
-- Implementation commits: WIP `e3b37a7b96267f4981ac6afe392d489c500f197f`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, and `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`; none is the Phase 03 checkpoint A.
-- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin` contains WIP `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` as of 2026-09-13T12:54:05+02:00 (`git ls-remote` at `a4705f61`).
-- CI status and relevant runs: `NOT_RUN` while the phase is in progress.
-- Decisions/deviations and rationale: keep role, settings, and operation behavior on the existing ANode declaration. Config changes remain structural; runtime socket values update compiled properties. No second kernel or UI-owned behavior registry was added. Earlier per-channel Math mode work may serve tuple elementwise processing or custom Formulas, but does not itself satisfy the revised standard Mapping contract.
+- Changes and affected public boundaries: ANode declarations resolve capabilities from configured instances; `ManagedApplication` validates signatures, auxiliary types, and state scope. Mapping validation additionally requires the whole ordered value and rejects authored channel selection/grouping. Math retains elementwise and tuple-combine variants; Sum and Average add declared variable-arity reductions using the graph arithmetic kernel. The processor binds live auxiliary values or references through Formula properties without rebuilding compatible state. A persisted filter value mode keeps older custom Formula regions routed and gives Mapping a whole-tuple palette contract.
+- Acceptance gates satisfied: a backend parameter edit changes output without resetting unrelated SMA history; graph and managed arithmetic share declaration kernels; unsupported type, arity, socket, selection, and group combinations diagnose. The palette validates the configured variant with the typed stage compiler and uses the same configuration when creating the tree. Three-input Math/Sum/Average nodes materialize three input sockets; X/Y/Z Pack Vec3 is offered for three floats; mixed numeric-incompatible tuples do not silently advertise a subset filter.
+- Remaining work: Phase 04 must make tuple-mode runtime execution obey the validated whole-value contract and preserve surrounding Formula graph operations. Phase 08 must declare tuple mode in the built-in Mapping asset; Phase 07 expands the filter catalog. The current asset does not yet expose this palette as a finished product.
+- Exact checks and outcomes: see Phase 03 validation rows. A prior incremental MSVC app link failure was avoided by the non-incremental app test run; current crate, app, integration, workspace, Clippy, format, and whitespace gates pass.
+- Implementation commit: `a783b60c6424e47d007f1b40df0974a6c30807fe` (following WIP `e3b37a7b96267f4981ac6afe392d489c500f197f`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, and `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`).
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `a783b60c6424e47d007f1b40df0974a6c30807fe`, 2026-09-13T13:19:26+02:00 (`git ls-remote`).
+- CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch have no configured required CI workflow.
+- Decisions/deviations and rationale: keep role, settings, and operation behavior on existing ANode declarations. Config changes remain structural; runtime socket values update compiled properties. Whole-tuple validation is separate from legacy routed validation until Phase 04 changes execution. Existing custom Formula behavior and persisted projects default to routed mode, avoiding a silent semantic change.
 
 ### Phase 04 (in progress)
 
@@ -147,13 +150,13 @@
 - Remaining work: adapt stages to scalar/tuple semantics without implicit subset/pass-through routing; preserve surrounding Formula graph operations; share compatible executable specializations; complete dependency tables and authored preview attribution; and diagnose unsupported graph boundaries. Phase 04 is still incomplete.
 - Exact checks and outcomes: see the 03/04 validation row. The app test suite passed before the new stage runtime was added; the workspace check covers current app compilation.
 - Implementation commits: WIP `74f5bd4581e23687775770f6cd32b65217cec351`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, and `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`; none is the Phase 04 checkpoint A.
-- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin` contains WIP `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` as of 2026-09-13T12:54:05+02:00 (`git ls-remote` at `a4705f61`).
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin` contains Phase 04 WIP `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` as of 2026-09-13T13:19:26+02:00 (`git ls-remote` at `a783b60c`).
 - CI status and relevant runs: `NOT_RUN` while the phase is in progress.
 - Decisions/deviations and rationale: endpoint `StableRef` types describe endpoint identity, so ordinary values cannot supply stage types. Source schema must arrive as a backend structural event before compiling the typed chain.
 
 ## Blockers and handoff
 
 - What failed or changed: the user replaced the standard Mapping channel model with one ordered source tuple and whole-value linear filtering. The existing channel-oriented tests and stages are groundwork, not revised acceptance evidence. Managed sidecar execution still skips surrounding Formula graph operations. An incremental MSVC app link failed earlier on unrelated module symbols; disabling incremental compilation passed the app unit suite. The broad app package test command could not replace an executable in use; the app unit binary and audio-host integration test then passed separately. Plain workspace check requires the pinned ASIO SDK wrapper.
-- Last known-good checkpoint: revised Phase 02 `a4705f61542be7c33e4c62fd039447b8d8a312e8` is validated and verified on `origin/codex/builtin-mapping`; Phase 03/04 code in that history remains WIP.
+- Last known-good checkpoint: Phase 03 `a783b60c6424e47d007f1b40df0974a6c30807fe` is validated and verified on `origin/codex/builtin-mapping`; Phase 04 groundwork in that history remains WIP.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: complete tuple-aware Phase 03 filter applications and exact backend palette creation, then proceed to whole-value stage execution in Phase 04.
+- Next action: adapt typed stage compilation and evaluation to the whole-value scalar/tuple contract, then run the Phase 04 composition and custom Formula boundary cases.
