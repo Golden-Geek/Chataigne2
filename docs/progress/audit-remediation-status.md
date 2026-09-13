@@ -696,6 +696,24 @@ outliner row updates its label. A complete graph-canvas scenario and outliner
 virtualization/update work remain open; a single profiled action is attribution evidence, not
 a tail-latency qualification.
 
+The reusable Golden outliner panel now projects expanded graph paths into an iterative flat row
+list and mounts only a measured scroll window. The existing row component still owns selection,
+drag/drop, rename, warning, and app-registered supplements; non-panel tree consumers retain
+recursive rendering. Golden UI projection/window tests are now part of the workspace test command.
+The bundled workbench probe projects 772 rows at 10k and 7,200 at 100k, but mounts only 41 at
+either initial viewport; all 20 duplicate edits retained 41 mounted rows. Programmatic scroll
+and HTTP metadata probes passed at both scales without synthesizing mouse or keyboard input.
+
+The 20-sample report at `target/qualification/live-workbench-paint/virtual-outliner-final20/`
+measures 10k p50/p95 at 185/288 ms, above the provisional 250 ms p95 budget, and 100k
+p50/p95 at 1,566/2,109 ms, above the 500 ms budget. The 100k HTTP acknowledgement p50/p95
+is 1,000/1,167 ms and browser mutation p50/p95 is 1,543/2,087 ms. It records one Long Task,
+zero browser errors, overflow recoveries, or slow-client disconnects. The server log repeatedly
+shows roughly 600–670 ms duplicate application, 450–480 ms engine event dispatch, and hundreds
+of milliseconds of lock wait. Browser component count is now bounded, but tail latency remains
+unqualified and varies between runs. This is still a workbench-root measurement with no mounted
+graph canvas, not a full canvas action-to-paint qualification.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -918,9 +936,9 @@ Next dependency-ready work: continue T17's documented cohesive source splits, es
 remaining graph-canvas node layout/interactions, dashboard/curve editors, and app-owned
 formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to bound the 7k-row outliner update cost, qualify a genuinely mounted graph
-canvas separately from the workbench-root benchmark, and reduce 100k backend acknowledgement
-tails. It still needs large live Formula/state/graph edits, UI/transport, multi-client, and
+T19 next needs to reduce 100k backend duplicate-application, event-dispatch, and lock-wait
+tails, then qualify a genuinely mounted graph canvas separately from the workbench-root
+benchmark. It still needs large live Formula/state/graph edits, UI/transport, multi-client, and
 recovery paths at scale. Cross-platform, native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and

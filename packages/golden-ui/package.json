@@ -4,6 +4,9 @@
 	"version": "0.1.0",
 	"license": "GPL-3.0-only",
 	"type": "module",
+	"scripts": {
+		"test": "vitest run"
+	},
 	"svelte": "./index.ts",
 	"types": "./index.ts",
 	"exports": {
@@ -36,5 +39,8 @@
 		"@tauri-apps/api": "^2.11.1",
 		"codemirror": "^6.0.2",
 		"dockview-core": "^7.0.2"
+	},
+	"devDependencies": {
+		"vitest": "4.1.10"
 	}
 }

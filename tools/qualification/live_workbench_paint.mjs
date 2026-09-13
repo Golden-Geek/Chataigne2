@@ -138,6 +138,8 @@ async function run() {
 		latencies_ms: [],
 		http_ack_ms: [],
 		mutation_ms: [],
+		outliner_items_per_sample: [],
+		outliner_projected_rows_per_sample: [],
 		p50_ms: null,
 		p95_ms: null,
 		p99_ms: null,
@@ -245,6 +247,9 @@ async function run() {
 		report.base_nodes = snapshot.nodes.length;
 		report.base_dom = await page.evaluate(() => ({
 			outliner_items: document.querySelectorAll('.outliner-item').length,
+			outliner_projected_rows: Number(
+				document.querySelector('.outliner-tree')?.getAttribute('data-outliner-row-count')
+			),
 			canvas_visible_nodes: Array.from(document.querySelectorAll('[data-visible-node-count]')).map(
 				(node) => Number(node.getAttribute('data-visible-node-count'))
 			)
@@ -314,14 +319,86 @@ async function run() {
 			}
 			report.latencies_ms.push(painted.latency_ms);
 			report.mutation_ms.push(painted.mutation_ms);
+			report.outliner_items_per_sample.push(await page.locator('.outliner-item').count());
+			report.outliner_projected_rows_per_sample.push(
+				Number(await page.locator('.outliner-tree').getAttribute('data-outliner-row-count'))
+			);
 			if (cpuProfiler) {
 				const { profile } = await cpuProfiler.send('Profiler.stop');
 				await writeFile(join(outputDir, 'browser-action.cpuprofile'), JSON.stringify(profile));
 				await cpuProfiler.detach();
 			}
 		}
+		if (process.env.GC_VERIFY_OUTLINER_SCROLL === '1') {
+			const before = await page.evaluate(() => {
+				const scroller = document.querySelector('.outliner-content');
+				if (!(scroller instanceof HTMLElement)) throw new Error('outliner scroller is missing');
+				const first = scroller.querySelector('.outliner-item-content[data-node-id]');
+				const firstId = first?.getAttribute('data-node-id');
+				if (!firstId || scroller.scrollHeight <= scroller.clientHeight) {
+					throw new Error('outliner has no scrollable visible rows');
+				}
+				return {
+					firstId,
+					scrollHeight: scroller.scrollHeight,
+					clientHeight: scroller.clientHeight
+				};
+			});
+			await page.evaluate(() => {
+				const scroller = document.querySelector('.outliner-content');
+				if (!(scroller instanceof HTMLElement)) throw new Error('outliner scroller is missing');
+				scroller.scrollTop = scroller.scrollHeight / 2;
+			});
+			await page.waitForFunction(
+				(firstId) =>
+					document
+						.querySelector('.outliner-content .outliner-item-content[data-node-id]')
+						?.getAttribute('data-node-id') !== firstId,
+				before.firstId,
+				{ timeout: 30_000 }
+			);
+			const after = await page.evaluate(() => {
+				const scroller = document.querySelector('.outliner-content');
+				if (!(scroller instanceof HTMLElement)) throw new Error('outliner scroller is missing');
+				return {
+					firstId: scroller
+						.querySelector('.outliner-item-content[data-node-id]')
+						?.getAttribute('data-node-id'),
+					items: scroller.querySelectorAll('.outliner-item').length,
+					scrollTop: scroller.scrollTop
+				};
+			});
+			if (after.items > 200 || after.scrollTop <= 0) {
+				throw new Error(`outliner scroll window is unbounded: ${JSON.stringify(after)}`);
+			}
+			report.outliner_scroll_probe = { before, after, status: 'PASS' };
+		}
 		if (process.env.GC_VERIFY_OUTLINER_META === '1') {
-			const source = duplicate.nodes[0].source;
+			await page.evaluate(() => {
+				const scroller = document.querySelector('.outliner-content');
+				if (!(scroller instanceof HTMLElement)) throw new Error('outliner scroller is missing');
+				scroller.scrollTop = 0;
+			});
+			if (report.outliner_scroll_probe) {
+				await page.waitForFunction(
+					(firstId) =>
+						document
+							.querySelector('.outliner-content .outliner-item-content[data-node-id]')
+							?.getAttribute('data-node-id') === firstId,
+					report.outliner_scroll_probe.before.firstId,
+					{ timeout: 30_000 }
+				);
+			}
+			const mountedIds = await page.evaluate(() =>
+				Array.from(document.querySelectorAll('.outliner-item-content[data-node-id]')).map((row) =>
+					Number(row.getAttribute('data-node-id'))
+				)
+			);
+			const nodesById = new Map(snapshot.nodes.map((node) => [node.node_id, node]));
+			const source = mountedIds.find(
+				(nodeId) => nodesById.get(nodeId)?.meta?.user_permissions?.can_edit_name === true
+			);
+			if (source === undefined) throw new Error('no editable outliner row is mounted');
 			const label = '__outliner_projection_probe__';
 			const acknowledgement = await request(baseUrl, '/api/ui/intent', {
 				kind: 'patchMeta',
@@ -340,6 +417,11 @@ async function run() {
 				{ timeout: 30_000 }
 			);
 			report.outliner_meta_probe = { source, label, status: 'PASS' };
+		}
+		if (process.env.GC_CAPTURE_OUTLINER_SCREENSHOT === '1') {
+			await page.locator('.outliner-content').screenshot({
+				path: join(outputDir, 'outliner-viewport.png')
+			});
 		}
 		report.long_tasks = await page.evaluate(() => globalThis.__gcLongTasks);
 		report.p50_ms = percentile(report.latencies_ms, 0.5);

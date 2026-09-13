@@ -31,6 +31,8 @@
 		rowSupplementComponent: RowSupplementComponent = null,
 		canRenderNodeChildren = (_candidate: UiNodeDto) => true,
 		initiallyExpandedDepth = 5,
+		renderNodeChildren = true,
+		projectedVisible = false,
 		transitionDurationMs = 150,
 		focusedNodeId = null,
 		autoExpandAncestorNodeIds = EMPTY_AUTO_EXPAND_ANCESTORS,
@@ -59,6 +61,8 @@
 		rowSupplementComponent?: Component<{ node: UiNodeDto }> | null;
 		canRenderNodeChildren?: (candidate: UiNodeDto) => boolean;
 		initiallyExpandedDepth?: number;
+		renderNodeChildren?: boolean;
+		projectedVisible?: boolean;
 		transitionDurationMs?: number;
 		focusedNodeId?: number | null;
 		autoExpandAncestorNodeIds?: ReadonlySet<NodeId>;
@@ -302,22 +306,23 @@
 	};
 
 	const subtreeHasVisibleNode = (candidate: UiNodeDto | null): boolean => {
-		if (!candidate) {
-			return false;
-		}
-		if (passesFilter(candidate)) {
-			return true;
-		}
-		for (const childId of candidate.children ?? []) {
-			const childNode = mainGraphState?.nodesById.get(childId) ?? null;
-			if (subtreeHasVisibleNode(childNode)) {
-				return true;
+		if (!candidate) return false;
+		const pending = [candidate];
+		const visited = new Set<NodeId>();
+		while (pending.length > 0) {
+			const current = pending.pop()!;
+			if (visited.has(current.node_id)) continue;
+			visited.add(current.node_id);
+			if (passesFilter(current)) return true;
+			for (const childId of current.children) {
+				const child = mainGraphState?.nodesById.get(childId);
+				if (child) pending.push(child);
 			}
 		}
 		return false;
 	};
 
-	let isVisible = $derived(subtreeHasVisibleNode(node));
+	let isVisible = $derived(projectedVisible || subtreeHasVisibleNode(node));
 	let showRow = $derived(isRowVisible(node));
 	let rowSelectable = $derived(isSelectable(node));
 	let rowMoveDraggable = $derived(Boolean(node && nodeDraggable(node)));
@@ -479,7 +484,7 @@
 			</div>
 		{/if}
 
-		{#if canRenderChildren && (!showRow || isExpanded)}
+		{#if renderNodeChildren && canRenderChildren && (!showRow || isExpanded)}
 			<div
 				class="outliner-children"
 				class:hoisted={!showRow}
