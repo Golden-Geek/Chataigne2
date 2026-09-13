@@ -6,12 +6,12 @@
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
 - Active phase: 07 — required filter catalog (next phase turn)
-- Last validated implementation commit: `db9ba626a3c0ea15e0b5b42fa9a92346d60607bf` (Phase 05)
-- Last verified remote implementation commit: `db9ba626a3c0ea15e0b5b42fa9a92346d60607bf` (Phase 05)
+- Last validated implementation commit: `fb837c38d323db62c9960c060521d27d7b8124b5` (Phase 06)
+- Last verified remote implementation commit: `fb837c38d323db62c9960c060521d27d7b8124b5` (Phase 06)
 - Current blockers: none; later phases own the filter catalog, built-in asset, persistence integration, and product UI.
 - Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: verify both Phase 06 checkpoints remotely, then begin Phase 07 in the next phase turn.
-- Last updated: 2026-09-13T15:44:25+02:00
+- Next concrete action: begin Phase 07 filter-catalog work in the next phase turn.
+- Last updated: 2026-09-13T15:47:56+02:00
 
 ## Phase ledger
 
@@ -23,7 +23,7 @@
 | 03 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a783b60c` verified remotely; whole-tuple palette rejects implicit subset routing, and three-operand Math/Sum/Average choices materialize exact sockets. Direct branch pushes have no required CI. |
 | 04 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `47f87940` observed at the remote; whole-tuple composition, authored Formula boundaries, shared specializations, isolated state, and previews pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 05 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `db9ba626` observed at the remote; suppression, default/hold, trigger flow, temporal wakeups, context state, compatible migration, and revision safety pass crate/app/workspace gates. Direct branch pushes have no required CI. |
-| 06 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Stable source projections and output selectors, typed command argument overrides, fan-out, accepted-value send policy, and host validation pass crate/app/workspace gates. Direct branch pushes have no required CI. |
+| 06 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `fb837c38` observed at the remote; stable source projections, typed command argument overrides, fan-out, accepted-value send policy, and host validation pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Required filter catalog. |
 | 08 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Backend authoring, asset, persistence. |
 | 09 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Svelte Mapping inspector. |
@@ -175,20 +175,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: standard Mapping remains one ordered tuple without authored channels; internal per-element stage groups preserve scalar gate semantics without leaking gate control sockets into the tuple. Compiled Formula graphs retain memory only when their structural compile key matches, while changed source provenance or upstream temporal work resets affected histories. The manager materializes from a coherent engine snapshot and swaps runtimes synchronously, so no asynchronous stale build can publish.
 
-### Phase 06 (implementation validated; delivery pending)
+### Phase 06 (complete)
 
 - Changes and affected public boundaries: InputSet resolves optional component projections from coherent, context-aware source snapshots and tracks projected provenance for temporal migration. OutputSet selects whole values, stable tuple elements, components, or constants per output and per command argument. The app-owned host validates argument UUIDs and target parameter types, submits typed overrides through the existing module/generic command event path, and caches accepted `OnChange` sends per processor/context/output/destination.
 - Acceptance gates satisfied: one scalar fans out to multiple commands; one tuple binds multiple arguments of one command; Pack Vec3 feeds a Vec3 command argument. Disabled/reordered outputs keep stable bindings. Missing or invalid source projections, changed tuple shape, duplicate or invalid argument bindings, missing/disabled targets, and incompatible command parameters diagnose without enqueueing malformed local output batches. Steady values resend to changed destinations or after reset; rejected enqueues do not advance the cache; repeated triggers remain distinct. Suppression, command policy, command budget, and event order pass focused and app tests.
 - Remaining work: Phase 07 completes conversion and other catalog filters. Phase 08 owns backend authoring intents, the built-in Mapping asset, and narrow migration of persisted positional OutputSet records. Phase 09 owns the Svelte inspector; later product and performance qualification remains scheduled. No Phase 06 behavior gate remains open.
 - Exact checks and outcomes: see Phase 06 validation rows. 165 Alchemist, 121 processor, and 543 app tests plus audio-host integration pass; five existing manual app tests are ignored. Full workspace check, strict crate/app Clippy, root and Golden Core format, and whitespace checks pass.
-- Implementation commit: pending checkpoint A.
-- Verified remote ref, observed OID, and timestamp: pending checkpoint A push verification.
+- Implementation commit: `fb837c38d323db62c9960c060521d27d7b8124b5`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `fb837c38d323db62c9960c060521d27d7b8124b5`, 2026-09-13T15:47:56+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: standard Mapping remains an ordered tuple, and output selectors are stable bindings rather than authored channels. An output command's arguments are validated as one invocation. The accepted-value cache is invalidated on runtime, routing, destination, and context changes; fired triggers bypass value-equality suppression. Command payload extensions are confined to the actual command-intent boundary; Phase 11 measures that dispatch cost.
 
 ## Blockers and handoff
 
 - What failed or changed: Phase 06 adds stable source projections and typed command bindings to the ordered-tuple Mapping contract. No current phase failure remains.
-- Last known-good checkpoint: Phase 05 `db9ba626a3c0ea15e0b5b42fa9a92346d60607bf` is validated and verified at `origin/codex/builtin-mapping`; Phase 06 is validated in the working tree pending checkpoint publication.
+- Last known-good checkpoint: Phase 06 `fb837c38d323db62c9960c060521d27d7b8124b5` is validated and verified at `origin/codex/builtin-mapping`.
 - Reproduction: focused crate and full app tests, workspace check, strict Clippy, and formatting pass with the available toolchain.
-- Next action: commit, push, and verify Phase 06 implementation and status checkpoints; begin Phase 07 in the next phase turn.
+- Next action: begin Phase 07 filter-catalog work in the next phase turn.
