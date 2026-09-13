@@ -305,6 +305,7 @@ fn mapping_runtime_activity_distribution(c: &mut Criterion) {
     });
 
     report_context_cleanup(sample_count);
+    report_temporal_horizon(sample_count);
 
     let (mut runtimes, inputs, value_types) = build_case(1, 1, 1, Workload::NumericChain);
     let registries = RuntimeRegistries {
@@ -371,6 +372,41 @@ fn report_context_cleanup(sample_count: usize) {
     println!("mapping_retained_state before={} after={}", keys.len(), keep.len());
     let p95 = report_latency_distribution("context_cleanup_128_to_8", &mut samples);
     assert_baseline_p95("context_cleanup_128_to_8", p95, 100_000);
+}
+
+fn report_temporal_horizon(sample_count: usize) {
+    const HORIZON_TICKS: usize = 100_000;
+    assert!(sample_count <= HORIZON_TICKS);
+    let (mut runtimes, mut inputs, value_types) = build_case(1, 1, 1, Workload::Smooth);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let source = source_reference(0, 0);
+    let mut samples = Vec::with_capacity(sample_count);
+    let mut intents = 0;
+    for tick in 0..HORIZON_TICKS {
+        inputs.insert(
+            source.clone(),
+            RuntimeValue::Float(if tick % 2 == 0 { 0.25 } else { 0.75 }),
+        );
+        let context = evaluation_context_at(&inputs, &registries, tick as u64 + 1);
+        let start = Instant::now();
+        let output = runtimes[0].evaluate(&context);
+        if tick >= HORIZON_TICKS - sample_count {
+            samples.push(start.elapsed().as_nanos() as u64);
+        }
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.debug_samples.is_empty());
+        intents += output.intents.len();
+    }
+    let retained = runtimes[0].retained_state_lane_count();
+    println!(
+        "mapping_temporal_horizon ticks={HORIZON_TICKS} intents={intents} retained_state_lanes={retained} previews=0"
+    );
+    assert_eq!(intents, HORIZON_TICKS);
+    assert_eq!(retained, 1, "long-running Smooth should retain one state lane");
+    let p95 = report_latency_distribution("temporal_smooth_after_100000_ticks", &mut samples);
+    assert_baseline_p95("temporal_smooth_after_100000_ticks", p95, 3_000);
 }
 
 fn report_latency_distribution(label: &str, samples: &mut [u64]) -> u64 {

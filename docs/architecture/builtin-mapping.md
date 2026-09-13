@@ -468,8 +468,47 @@ and context cleanup. A guarded repeat passed: measured p95 values were
 1.2, 1.2, 0.7, 39.7, and 25.9 µs in table order. The state metric counts
 retained lanes, not heap bytes.
 
-The benchmark still does not measure full engine dirty scheduling, queued
-command delivery, structural edits, state memory bytes, or long-horizon
-temporal-history bounds. End-to-end percentile thresholds require those
-workloads; the historical lane fixture cannot supply a comparable threshold
-for the complete Mapping product path.
+A long-horizon variant runs one continuously changing Smooth Mapping for
+100,000 logical ticks. It produced 100,000 intents, captured no previews,
+reported no diagnostics, and retained one state lane at the end. The last
+500 ticks measured 0.8/0.9/0.9 µs p50/p95/p99 in the bench profile. The
+optional host guard bounds this late-history p95 at 3 µs. This checks that
+the retained lane count and per-tick cost do not grow with elapsed ticks;
+it does not measure the lane's heap bytes.
+The guarded repeat passed with the same 0.9 µs late-history p95.
+
+An opt-in full-engine fixture additionally runs an active built-in Mapping with
+a Float source, Remap, one value target, and one queued generic Trigger
+command. Each measured sample includes the engine edit or UI intent, two
+complete engine ticks, dirty scheduling, Mapping evaluation, and command
+delivery. It collects 500 warmed samples per workload on the same Windows
+275HX host with the optimized Rust `test` profile:
+
+| Full-engine workload | p50 | p95 | p99 | Observed volume |
+| --- | ---: | ---: | ---: | --- |
+| Idle tick | 1.1 µs | 1.3 µs | 1.5 µs | No processor candidate visit or debug capture |
+| Source change and queued command | 0.701 ms | 0.921 ms | 1.132 ms | 500 evaluated lanes, batches, and command executions |
+| Live Remap setting and queued command | 0.420 ms | 0.554 ms | 0.637 ms | 500 evaluated lanes, batches, and command executions |
+| Filter reorder and queued command | 2.738 ms | 2.986 ms | 3.122 ms | 500 local processor rematerializations; zero full manager rebuilds and Formula recompiles |
+| Source change, queued command, and leased stage preview | 0.458 ms | 0.491 ms | 0.710 ms | 500 lanes, batches, and executions; 2,000 preview samples |
+
+These are observed distributions for one processor and sequential workloads,
+not a paired comparison showing that preview reduces latency. The fixture
+asserts the reordered chain's output, command volume, unchanged shared
+Formula compile count, and no full manager-cache rebuilds. Releasing the UI
+preview lease stops subsequent debug capture. Run the ignored test
+`mapping_full_engine_latency_distribution` with standard `cargo test`; set
+`CHATAIGNE_MAPPING_ENGINE_SAMPLES=500` and optionally
+`CHATAIGNE_MAPPING_ENFORCE_275HX_ENGINE_BASELINE=1`. The latter checks p95
+upper bounds of 2 µs idle, 1.5 ms source/setting/preview, and 5 ms structural
+edit on this recorded host. The guard passed for the distribution above.
+On a guarded repeat after the no-full-rebuild assertion was added, p95 was
+1.2 µs idle and 0.831/0.539/2.871/0.475 ms for source, setting, structural,
+and leased-preview activity respectively; all 500 structural edits still
+caused zero full manager rebuilds and Formula recompiles.
+
+The full-engine fixture does not yet cover 1,000/10,000 active processor
+dispatch, variable-size string/collection bounds, state memory bytes, or
+long-horizon temporal history. The managed-runtime processor-count benchmark
+above is a separate execution-level result and does not establish full-engine
+scaling or UI render latency.

@@ -36,6 +36,9 @@ use chataigne_state_machine::{
 
 use super::super::sync_external_formulas;
 
+mod script_controls;
+mod performance;
+
 fn mapping_engine() -> (AppEngine, NodeUuid, NodeId) {
     let root: AppNode = Folder::new("Mapping authoring").into();
     let mut engine = AppEngine::new(root);

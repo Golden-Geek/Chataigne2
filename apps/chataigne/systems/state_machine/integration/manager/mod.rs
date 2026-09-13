@@ -1513,6 +1513,7 @@ struct StateMachineRuntimeCache {
     dirty_formula_values: HashSet<NodeUuid>,
     formula_value_processor_nodes: HashMap<NodeUuid, HashSet<NodeId>>,
     dirty_processor_overrides: HashSet<NodeId>,
+    dirty_processor_structures: HashSet<NodeId>,
     dirty_input_source_params: HashSet<NodeUuid>,
     formulas: Arc<HashMap<NodeUuid, AlchemistFormula>>,
     formula_input_values: Arc<HashMap<StableRef, RuntimeValue>>,
@@ -1751,8 +1752,8 @@ impl Node for StateMachineManager {
         let reconcile_state_networks = self.child_change_affects_state_topology(ctx, parent, child);
         self.mark_command_dependency_dirty(ctx, child);
         self.mark_command_dependency_dirty(ctx, parent);
-        self.mark_runtime_structure_dirty(ctx, child);
-        self.mark_runtime_structure_dirty(ctx, parent);
+        self.mark_runtime_tree_edit_dirty(ctx, child);
+        self.mark_runtime_tree_edit_dirty(ctx, parent);
         if reconcile_state_networks {
             crate::app::systems_state_machine_transition::reconcile_state_networks(ctx, None, None, None);
         }
@@ -1767,8 +1768,19 @@ impl Node for StateMachineManager {
         let reconcile_state_networks = self.child_change_affects_state_topology(ctx, parent, child);
         self.mark_command_dependency_dirty(ctx, child);
         self.mark_command_dependency_dirty(ctx, parent);
-        self.mark_runtime_structure_dirty(ctx, child);
-        self.mark_runtime_structure_dirty(ctx, parent);
+        self.mark_runtime_tree_edit_dirty(ctx, child);
+        self.mark_runtime_tree_edit_dirty(ctx, parent);
+        if reconcile_state_networks {
+            crate::app::systems_state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+        }
+    }
+
+    fn on_child_reordered(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        let reconcile_state_networks = self.child_change_affects_state_topology(ctx, parent, child);
+        self.mark_command_dependency_dirty(ctx, child);
+        self.mark_command_dependency_dirty(ctx, parent);
+        self.mark_runtime_tree_edit_dirty(ctx, child);
+        self.mark_runtime_tree_edit_dirty(ctx, parent);
         if reconcile_state_networks {
             crate::app::systems_state_machine_transition::reconcile_state_networks(ctx, None, None, None);
         }
@@ -1776,12 +1788,12 @@ impl Node for StateMachineManager {
 
     fn on_node_created(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
         self.mark_command_dependency_dirty(ctx, node);
-        self.mark_runtime_structure_dirty(ctx, node);
+        self.mark_runtime_tree_edit_dirty(ctx, node);
     }
 
     fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
         self.mark_command_dependency_dirty(ctx, node);
-        self.mark_runtime_structure_dirty(ctx, node);
+        self.mark_runtime_tree_edit_dirty(ctx, node);
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
@@ -2139,6 +2151,29 @@ impl StateMachineManager {
         };
         let invalidation = self.runtime_invalidation_for_change(snapshot.as_ref(), node);
         self.apply_runtime_invalidation(invalidation);
+    }
+
+    fn mark_runtime_tree_edit_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.apply_runtime_invalidation(RuntimeInvalidation::FormulaCatalog);
+            return;
+        };
+        match self.runtime_invalidation_for_change(snapshot.as_ref(), node) {
+            RuntimeInvalidation::Processor(processor) => {
+                let membership_snapshot = if snapshot.node(node).is_some() {
+                    snapshot.as_ref()
+                } else {
+                    self.runtime_cache.runtime_snapshot.as_deref().unwrap_or(snapshot.as_ref())
+                };
+                if processor_managed_structure_contains(membership_snapshot, processor, node) {
+                    self.runtime_cache.dirty_processor_structures.insert(processor);
+                    self.runtime_cache.dirty_processor_overrides.insert(processor);
+                } else {
+                    self.runtime_cache.topology_dirty = true;
+                }
+            }
+            invalidation => self.apply_runtime_invalidation(invalidation),
+        }
     }
 
     fn runtime_invalidation_for_change(
@@ -2549,6 +2584,7 @@ impl StateMachineManager {
             HashSet::new()
         } else if overrides_dirty {
             self.refresh_dirty_processor_overrides(
+                ctx,
                 snapshot,
                 formula_snapshot
                     .as_deref()
@@ -3547,6 +3583,7 @@ impl StateMachineManager {
         self.runtime_cache.replace_processors(next_processors, snapshot);
         self.runtime_cache.command_invocation_streams.clear();
         self.runtime_cache.dirty_processor_overrides.clear();
+        self.runtime_cache.dirty_processor_structures.clear();
         self.runtime_cache.dirty_formula_values.clear();
         self.runtime_cache.clear_formula_default_previews();
         self.runtime_cache.output_preview_snapshot.clear();
@@ -3672,51 +3709,86 @@ impl StateMachineManager {
 
     fn refresh_dirty_processor_overrides(
         &mut self,
+        ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         formulas: &HashMap<NodeUuid, AlchemistFormula>,
         catalog: &FormulaCatalog,
         context_provider: &SnapshotProcessorContextProvider,
     ) -> HashSet<NodeId> {
         let dirty_processors = std::mem::take(&mut self.runtime_cache.dirty_processor_overrides);
+        let structural_processors = std::mem::take(&mut self.runtime_cache.dirty_processor_structures);
         if !dirty_processors.is_empty() {
             self.runtime_cache.command_listener_values.clear();
         }
         self.runtime_cache.compiled_conditions.clear();
         self.runtime_cache.condition_manager_axes.clear();
         self.runtime_cache.condition_observations.clear();
+        let value_types = shared_value_type_registry();
+        let nodes = shared_node_registry();
+        let compile_ctx = chataigne_alchemist::CompileCtx {
+            value_types,
+            nodes,
+            properties: None,
+        };
+        let materialization = RuntimeProcessorMaterializationContext {
+            snapshot,
+            formulas,
+            catalog,
+            context_provider,
+            compile_ctx: &compile_ctx,
+        };
         for processor_node in dirty_processors.iter().copied() {
             self.runtime_cache.command_invocation_streams.remove(&processor_node);
-            let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node) else {
+            let Some(runtime_processor) = self.runtime_cache.processors.get(&processor_node) else {
                 continue;
             };
             let previous_formula = processor_formula_node_uuid(snapshot, runtime_processor);
-            let Some((formula_node, formula, formula_ui, formula_source_key)) =
-                processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
-            else {
-                self.runtime_cache.topology_dirty = true;
-                continue;
-            };
-            let Some(mut processor) = processor_from_snapshot(snapshot, processor_node, &formula) else {
-                self.runtime_cache.topology_dirty = true;
-                continue;
-            };
-            apply_processor_context_property_bindings(
-                snapshot,
-                processor_node,
-                processor.id,
-                &mut processor,
-                context_provider,
-            );
-            let bindings = processor_binding_analysis(snapshot, processor_node, &processor, &runtime_processor.runtime, context_provider);
-            runtime_processor
-                .runtime
-                .rebuild_execution_plan(context_provider, &bindings);
-            runtime_processor.processor = processor;
-            runtime_processor.managed_sources = managed_source_bindings(snapshot, &runtime_processor.processor, &runtime_processor.runtime);
-            runtime_processor.formula = formula;
-            runtime_processor.formula_node = formula_node;
-            runtime_processor.formula_ui = formula_ui;
-            runtime_processor.formula_source_key = formula_source_key;
+            if structural_processors.contains(&processor_node) {
+                let previous_runtime = self
+                    .runtime_cache
+                    .processors
+                    .remove(&processor_node)
+                    .map(|cached| cached.runtime);
+                let Some(processor) =
+                    self.materialize_runtime_processor(ctx, processor_node, previous_runtime, &materialization)
+                else {
+                    self.runtime_cache.topology_dirty = true;
+                    continue;
+                };
+                self.runtime_cache.processors.insert(processor_node, processor);
+            } else {
+                let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node) else {
+                    continue;
+                };
+                let Some((formula_node, formula, formula_ui, formula_source_key)) =
+                    processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
+                else {
+                    self.runtime_cache.topology_dirty = true;
+                    continue;
+                };
+                let Some(mut processor) = processor_from_snapshot(snapshot, processor_node, &formula) else {
+                    self.runtime_cache.topology_dirty = true;
+                    continue;
+                };
+                apply_processor_context_property_bindings(
+                    snapshot,
+                    processor_node,
+                    processor.id,
+                    &mut processor,
+                    context_provider,
+                );
+                let bindings = processor_binding_analysis(snapshot, processor_node, &processor, &runtime_processor.runtime, context_provider);
+                runtime_processor
+                    .runtime
+                    .rebuild_execution_plan(context_provider, &bindings);
+                runtime_processor.processor = processor;
+                runtime_processor.managed_sources = managed_source_bindings(snapshot, &runtime_processor.processor, &runtime_processor.runtime);
+                runtime_processor.formula = formula;
+                runtime_processor.formula_node = formula_node;
+                runtime_processor.formula_ui = formula_ui;
+                runtime_processor.formula_source_key = formula_source_key;
+            }
+            let runtime_processor = self.runtime_cache.processors.get_mut(&processor_node).expect("dirty processor must remain materialized");
             let current_formula = processor_formula_node_uuid(snapshot, runtime_processor);
             if previous_formula != current_formula {
                 if let Some(previous) = previous_formula {
@@ -4095,6 +4167,26 @@ fn runtime_invalidation_for_node(
         current = node.parent;
     }
     RuntimeInvalidation::Ignore
+}
+
+fn processor_managed_structure_contains(snapshot: &ProcessTreeSnapshot, processor: NodeId, node: NodeId) -> bool {
+    let Some(regions) = snapshot.find_child_by_decl_id(
+        processor,
+        crate::app::systems_alchemist_processor::PROCESSOR_MANAGED_REGIONS_DECL_ID,
+    ) else {
+        return false;
+    };
+    let mut current = Some(node);
+    while let Some(candidate) = current {
+        if candidate == regions {
+            return true;
+        }
+        if candidate == processor {
+            return false;
+        }
+        current = snapshot.node(candidate).and_then(|entry| entry.parent);
+    }
+    false
 }
 
 fn collect_formulas_in_subtree(
