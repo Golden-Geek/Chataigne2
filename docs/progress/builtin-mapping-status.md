@@ -6,12 +6,12 @@
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
 - Active phase: 03/04 — backend palette availability and composable typed compilation (both in progress)
-- Last validated implementation commit: `e3b37a7b96267f4981ac6afe392d489c500f197f` (Phase 03 WIP; Phase 02 is the last complete phase)
-- Last verified remote implementation commit: `e3b37a7b96267f4981ac6afe392d489c500f197f` (Phase 03 WIP)
+- Last validated implementation commit: `74f5bd4581e23687775770f6cd32b65217cec351` (Phase 04 WIP; Phase 02 is the last complete phase)
+- Last verified remote implementation commit: `74f5bd4581e23687775770f6cd32b65217cec351` (Phase 04 WIP)
 - Current blockers: no environment blocker; Phase 03's palette integration and Phase 04's source-schema/Formula-boundary integration remain open
 - Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; M01–M16 and M18–M20 acceptance cases
 - Next concrete action: wire explicit backend source schemas, then connect the typed stage chain to managed Formula execution and the backend palette
-- Last updated: 2026-09-13T11:09:01+02:00
+- Last updated: 2026-09-13T11:09:53+02:00
 
 ## Phase ledger
 
@@ -21,7 +21,7 @@
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
 | 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `8e82b40c` observed at remote; direct branch push has no required CI. |
 | 03 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_VERIFIED | NOT_RUN | WIP `e3b37a7b` observed at remote; compiler-backed availability query now tested locally, but the backend palette is not wired to it. |
-| 04 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_PENDING | NOT_RUN | Typed channel stage chain runs Remap → Sum → Smooth and Extract Color in focused tests; source-schema and Formula-boundary integration remain open. |
+| 04 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_VERIFIED | NOT_RUN | WIP `74f5bd45` observed at remote; typed channel stage chain runs Remap → Sum → Smooth and Extract Color. Source-schema and Formula-boundary integration remain open. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
 | 06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Inputs and command argument bindings. |
 | 07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Required filter catalog. |
@@ -134,14 +134,14 @@
 - Acceptance gates satisfied: focused tests execute `Remap → Sum → Smooth` with an unselected Boolean passing through and extract a Color into stable component channels; evaluation keeps state across ticks. Full workspace type-check passes.
 - Remaining work: connect explicit source schemas and typed frames to managed Formula execution; support the complete Pack/Extract/Math chain, surrounding Formula operations, plan specialization sharing, authored preview attribution, and stale/unsupported graph diagnostics.
 - Exact checks and outcomes: see the 03/04 validation row. The app test suite passed before the new stage runtime was added; the workspace check covers current app compilation.
-- Implementation commit: pending in-progress checkpoint, not Phase 04 checkpoint A.
-- Verified remote ref, observed OID, and timestamp: pending.
+- Implementation commit: WIP `74f5bd4581e23687775770f6cd32b65217cec351`; this is not the Phase 04 checkpoint A.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `74f5bd4581e23687775770f6cd32b65217cec351`, 2026-09-13T11:09:53+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_RUN` while the phase is in progress.
 - Decisions/deviations and rationale: endpoint `StableRef` types describe endpoint identity, so ordinary values cannot supply stage types. Source schema must arrive as a backend structural event before compiling the typed chain.
 
 ## Blockers and handoff
 
 - What failed: the compiler-backed availability query is not yet used by the backend palette; the typed chain is not yet integrated with explicitly typed managed input layouts or surrounding Formula operations. An incremental MSVC app link failed on unrelated module symbols; disabling incremental compilation passed the full app suite. Plain workspace check requires the pinned ASIO SDK wrapper.
-- Last known-good checkpoint: Phase 02 complete at `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`; Phase 03 WIP `e3b37a7b96267f4981ac6afe392d489c500f197f` is validated and verified on `origin/codex/builtin-mapping`.
+- Last known-good checkpoint: Phase 02 complete at `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`; Phase 04 WIP `74f5bd4581e23687775770f6cd32b65217cec351` is validated and verified on `origin/codex/builtin-mapping`.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: publish the Phase 04 WIP checkpoint, then wire backend source schemas and the typed stage chain into managed Formula execution.
+- Next action: wire backend source schemas and the typed stage chain into managed Formula execution.
