@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
 	import {
+		cameraAtZoom as cameraAtZoomForAnchor,
+		cameraForBounds,
+		graphBoundsForNodes,
+		visibleViewport as calculateVisibleViewport
+	} from '../camera-geometry';
+	import {
 		buildGraphNodeSpatialIndex,
 		indexGraphEdgesByNode,
 		projectEffectiveNodes,
@@ -364,37 +370,8 @@
 	const clamp = (value: number, minimum: number, maximum: number): number =>
 		Math.min(maximum, Math.max(minimum, value));
 
-	const normalizedViewportInset = (): Required<GraphViewportInset> => {
-		const left = Math.max(0, finiteNumber(viewportInset.left, 0));
-		const right = Math.max(0, finiteNumber(viewportInset.right, 0));
-		const top = Math.max(0, finiteNumber(viewportInset.top, 0));
-		const bottom = Math.max(0, finiteNumber(viewportInset.bottom, 0));
-		const horizontalScale = Math.min(1, viewportWidth / Math.max(1, left + right));
-		const verticalScale = Math.min(1, viewportHeight / Math.max(1, top + bottom));
-		return {
-			left: left * horizontalScale,
-			right: right * horizontalScale,
-			top: top * verticalScale,
-			bottom: bottom * verticalScale
-		};
-	};
-
-	const visibleViewport = (): {
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-	} => {
-		const inset = normalizedViewportInset();
-		const width = Math.max(1, viewportWidth - inset.left - inset.right);
-		const height = Math.max(1, viewportHeight - inset.top - inset.bottom);
-		return {
-			x: inset.left,
-			y: inset.top,
-			width,
-			height
-		};
-	};
+	const visibleViewport = () =>
+		calculateVisibleViewport(viewportInset, viewportWidth, viewportHeight);
 
 	const visibleViewportCenter = (): GraphNodePosition => {
 		const viewport = visibleViewport();
@@ -913,14 +890,14 @@
 	};
 
 	const cameraAtZoom = (zoom: number, anchorX: number, anchorY: number): GraphCamera => {
-		const nextZoom = clamp(zoom, effectiveMinZoom, effectiveMaxZoom);
-		const worldX = (anchorX - camera.x) / camera.zoom;
-		const worldY = (anchorY - camera.y) / camera.zoom;
-		return {
-			x: anchorX - worldX * nextZoom,
-			y: anchorY - worldY * nextZoom,
-			zoom: nextZoom
-		};
+		return cameraAtZoomForAnchor(
+			camera,
+			zoom,
+			anchorX,
+			anchorY,
+			effectiveMinZoom,
+			effectiveMaxZoom
+		);
 	};
 
 	const cancelCameraAnimation = (): void => {
@@ -986,52 +963,23 @@
 		if (!container || bounds === null) {
 			return false;
 		}
-		const left = Math.min(bounds.left, bounds.right);
-		const top = Math.min(bounds.top, bounds.bottom);
-		const right = Math.max(bounds.left, bounds.right);
-		const bottom = Math.max(bounds.top, bounds.bottom);
-		if (![left, top, right, bottom].every(Number.isFinite)) {
-			return false;
-		}
-		const widthPx = Math.max(remPx, (right - left) * remPx);
-		const heightPx = Math.max(remPx, (bottom - top) * remPx);
-		const paddingPx = FRAME_PADDING_REM * remPx;
-		const viewport = visibleViewport();
-		const zoom = clamp(
-			Math.min(
-				(viewport.width - paddingPx * 2) / widthPx,
-				(viewport.height - paddingPx * 2) / heightPx
-			),
+		const target = cameraForBounds(
+			bounds,
+			visibleViewport(),
+			remPx,
+			FRAME_PADDING_REM,
 			effectiveMinZoom,
 			effectiveMaxZoom
 		);
-		const centerX = (left + right) * 0.5 * remPx;
-		const centerY = (top + bottom) * 0.5 * remPx;
-		const viewportCenter = {
-			x: viewport.x + viewport.width * 0.5,
-			y: viewport.y + viewport.height * 0.5
-		};
-		animateCamera({
-			x: viewportCenter.x - centerX * zoom,
-			y: viewportCenter.y - centerY * zoom,
-			zoom
-		});
+		if (!target) {
+			return false;
+		}
+		animateCamera(target);
 		return true;
 	};
 
-	const boundsForNodes = (candidates: GraphNode[]): GraphWorldBounds | null => {
-		if (candidates.length === 0) {
-			return null;
-		}
-		return {
-			left: Math.min(...candidates.map((node) => node.position.x)),
-			top: Math.min(...candidates.map((node) => node.position.y)),
-			right: Math.max(...candidates.map((node) => node.position.x + nodeWidth(node))),
-			bottom: Math.max(...candidates.map((node) => node.position.y + nodeHeight(node)))
-		};
-	};
-
-	const frameNodes = (candidates: GraphNode[]): boolean => frameBounds(boundsForNodes(candidates));
+	const frameNodes = (candidates: GraphNode[]): boolean =>
+		frameBounds(graphBoundsForNodes(candidates, nodeWidth, nodeHeight));
 
 	export const frameSelection = (): boolean => {
 		const selected = effectiveNodes.filter((node) => selectedIds.has(node.id));

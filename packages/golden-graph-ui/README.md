@@ -11,7 +11,9 @@ Chataigne mutation semantics.
 pure obstacle index, bounded route search, and SVG path construction; the canvas supplies current
 node geometry and retains its per-edge cache. `presentation-projection.ts` owns optimistic node
 overlays, spatial-index construction, viewport queries, and document-ordered visible-edge selection;
-the canvas supplies live measurements and revision dependencies.
+the canvas supplies live measurements and revision dependencies. `camera-geometry.ts` owns inset
+normalization, anchored zoom, graph bounds, and framing targets. Home and Frame Selection scan
+nodes once rather than spreading large node arrays into `Math.min`/`Math.max`.
 
 Domain packages adapt their typed graph model into these presentation contracts. Product DTO
 adaptation, command registration, persistence, and panel composition remain in the consuming app.
