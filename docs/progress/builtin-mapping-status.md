@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 04 — delivery checkpoint pending; Phase 05 follows
-- Last validated implementation commit: `a783b60c6424e47d007f1b40df0974a6c30807fe` (Phase 03)
-- Last verified remote implementation commit: `a783b60c6424e47d007f1b40df0974a6c30807fe` (Phase 03)
-- Current blockers: none for Phase 04 delivery; later phases still own flow control, command argument bindings, the built-in asset, and product UI.
+- Active phase: 05 — flow control, temporal scheduling, and state correctness (next phase turn)
+- Last validated implementation commit: `47f8794053509cfa8e821f343f93bc6c1d3d8f96` (Phase 04)
+- Last verified remote implementation commit: `47f8794053509cfa8e821f343f93bc6c1d3d8f96` (Phase 04)
+- Current blockers: none; later phases still own flow control, command argument bindings, the built-in asset, and product UI.
 - Product checks still outstanding: revised M01–M16 and M18–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: publish the Phase 04 implementation and status checkpoints, then begin Phase 05 flow and temporal state work.
-- Last updated: 2026-09-13T13:55:13+02:00
+- Next concrete action: begin Phase 05 flow and temporal state work after the Phase 04 status checkpoint is verified remotely.
+- Last updated: 2026-09-13T14:00:00+02:00
 
 ## Phase ledger
 
@@ -21,7 +21,7 @@
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
 | 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a4705f61` verified remotely; scalar/tuple source-shape gates pass. Whole-value filter execution belongs to Phase 03/04. |
 | 03 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a783b60c` verified remotely; whole-tuple palette rejects implicit subset routing, and three-operand Math/Sum/Average choices materialize exact sockets. Direct branch pushes have no required CI. |
-| 04 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Whole-tuple composition, authored Formula boundaries, bounded shared specializations, isolated state, and preview attribution pass crate/app/workspace gates; direct branch pushes have no required CI. |
+| 04 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `47f87940` observed at the remote; whole-tuple composition, authored Formula boundaries, shared specializations, isolated state, and previews pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
 | 06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Inputs and command argument bindings. |
 | 07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Required filter catalog. |
@@ -146,20 +146,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch have no configured required CI workflow.
 - Decisions/deviations and rationale: keep role, settings, and operation behavior on existing ANode declarations. Config changes remain structural; runtime socket values update compiled properties. Whole-tuple validation is separate from legacy routed validation until Phase 04 changes execution. Existing custom Formula behavior and persisted projects default to routed mode, avoiding a silent semantic change.
 
-### Phase 04 (delivery pending)
+### Phase 04 (complete)
 
 - Changes and affected public boundaries: the typed stage chain now compiles each standard Mapping filter against the entire scalar or ordered tuple, with declared sockets carrying each result into the next stage. The app-owned Alchemist evaluator exposes per-instance external graph nodes, and the processor lowers InputSet, FilterPipeline, and OutputSet at explicit Formula graph sockets while retaining surrounding authored operations. App snapshot materialization preserves managed metadata when a Formula also has graph nodes. A bounded manager-owned specialization cache shares compiled stage graphs across equivalent instances; result buffers, bindings, and temporal memory remain local.
 - Acceptance gates satisfied: focused tests run three floats through Remap, Sum, and Smooth to two commands, X/Y/Z through Math and Pack Vec3 to a Vec3 command, and Pack/Extract/Math/Pack in tuple mode. A mixed tuple rejects implicit subset application. A custom Formula runs routing operations before and after its managed filter once, with authored graph and filter-item previews. Missing graph boundaries diagnose; a runtime graph error suppresses intents and live previews. Equivalent smooth stages share an executable graph while their histories and preview identities stay separate. Backend metadata survives an authored graph node.
 - Remaining work: Phase 05 owns typed suppression/hold/default/trigger flow, temporal dirty tracking, and lane migration. Phase 06 owns explicit per-command argument bindings; the two-command Phase 04 case uses two OutputSet regions. Phase 08 owns the shipped Mapping asset and backend authoring. Trigger managed regions with an authored graph currently diagnose an unsupported boundary instead of silently running a sidecar. The older trigger filter runner is scheduled for replacement during Phase 05. The pre-existing oversized Alchemist runtime source remains Phase 11 cleanup.
 - Exact checks and outcomes: 164 Alchemist and 102 processor tests pass with `cargo test-fast`; 537 app tests pass with 5 existing manual tests ignored, plus the audio-host integration test. Full workspace check, strict Clippy across Alchemist/processor/app targets, root and Golden Core format, and whitespace checks pass.
-- Implementation commit: pending Phase 04 checkpoint A; prior WIP checkpoints `74f5bd45`, `fa4d16de`, and `1c70c88d` are not closure evidence.
-- Verified remote ref, observed OID, and timestamp: pending checkpoint A push verification.
+- Implementation commit: `47f8794053509cfa8e821f343f93bc6c1d3d8f96`; prior WIP checkpoints `74f5bd45`, `fa4d16de`, and `1c70c88d` are not closure evidence.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `47f8794053509cfa8e821f343f93bc6c1d3d8f96`, 2026-09-13T14:00:00+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: the graph-free Mapping path retains native typed frames; graph-backed custom Formulas use the ValueSet extension only at real graph sockets. Source schema remains a backend structural input. Runtime graph errors suppress the entire intent batch rather than dispatching an earlier partial result.
 
 ## Blockers and handoff
 
 - What failed or changed: the user replaced the standard Mapping channel model with one ordered source tuple and whole-value linear filtering. Phase 04 now enforces that runtime contract and executes custom Formula graph operations at explicit managed boundaries.
-- Last known-good checkpoint: Phase 03 `a783b60c6424e47d007f1b40df0974a6c30807fe` is the latest remotely verified implementation until Phase 04 checkpoint A is pushed.
+- Last known-good checkpoint: Phase 04 `47f8794053509cfa8e821f343f93bc6c1d3d8f96` is validated and verified at `origin/codex/builtin-mapping`.
 - Reproduction: no current Phase 04 failure; focused crate, app, workspace, and Clippy gates pass with the available toolchain.
-- Next action: finish final validation, publish and verify both Phase 04 checkpoints, then start Phase 05 on the next phase turn.
+- Next action: start Phase 05 on the next phase turn after this status checkpoint is verified.
