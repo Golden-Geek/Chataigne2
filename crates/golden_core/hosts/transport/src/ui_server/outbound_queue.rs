@@ -160,6 +160,40 @@ impl WsOutboundQueue {
         QueuePushResult::Queued
     }
 
+    /// Replaces only this subscription's queued updates with an explicit snapshot barrier.
+    /// Other subscriptions and control responses remain reliable; if they prevent the barrier
+    /// from fitting, the caller must close the client rather than silently discard them.
+    pub(super) fn replace_subscription_with_resync(&self, subscription_id: &str, reason: &str) -> QueuePushResult {
+        let outbound = WsOutbound::Message(UiServerMessage::ResyncRequired {
+            subscription_id: subscription_id.to_string(),
+            plane: None,
+            reason: reason.to_string(),
+        });
+        let bytes = outbound_retained_bytes(&outbound);
+        if bytes > self.bytes_capacity {
+            return QueuePushResult::Full;
+        }
+        let mut state = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let (removed_count, removed_bytes) = state
+            .entries
+            .iter()
+            .filter(|queued| outbound_subscription_id(&queued.outbound) == Some(subscription_id))
+            .fold((0usize, 0usize), |(count, bytes), queued| {
+                (count + 1, bytes + queued.bytes)
+            });
+        if state.entries.len() - removed_count >= self.capacity
+            || state.retained_bytes - removed_bytes + bytes > self.bytes_capacity
+        {
+            return QueuePushResult::Full;
+        }
+        state
+            .entries
+            .retain(|queued| outbound_subscription_id(&queued.outbound) != Some(subscription_id));
+        state.retained_bytes = state.retained_bytes - removed_bytes + bytes;
+        state.entries.push_back(WeightedOutbound { outbound, bytes });
+        QueuePushResult::Queued
+    }
+
     pub(super) fn pop(&self) -> Option<WsOutbound> {
         let mut state = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let queued = state.entries.pop_front()?;

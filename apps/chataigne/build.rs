@@ -83,7 +83,7 @@ fn emit_rerun_tracking(paths: &BuildPaths) -> std::io::Result<()> {
     if env_flag(GC_UI_ASSUME_BUILT) {
         emit_rerun_if_changed_for_dir(&paths.ui_root.join("build"))?;
     } else if !env_flag(GC_SKIP_UI_BUILD) {
-        track_ui_inputs(&paths.ui_root, &paths.package_lock)?;
+        track_ui_inputs(&paths.ui_root, &paths.workspace_root, &paths.package_lock)?;
     }
     Ok(())
 }
@@ -441,7 +441,7 @@ fn generate_builtin_formulas_module(formulas_dir: &Path, out_file: &Path) -> std
     fs::write(out_file, generated)
 }
 
-fn track_ui_inputs(ui_root: &Path, package_lock: &Path) -> std::io::Result<()> {
+fn track_ui_inputs(ui_root: &Path, workspace_root: &Path, package_lock: &Path) -> std::io::Result<()> {
     println!("cargo:rerun-if-changed={}", package_lock.display());
     for relative in ["package.json", "svelte.config.js", "vite.config.ts", "src/app.html"] {
         println!("cargo:rerun-if-changed={}", ui_root.join(relative).display());
@@ -449,6 +449,9 @@ fn track_ui_inputs(ui_root: &Path, package_lock: &Path) -> std::io::Result<()> {
 
     emit_rerun_if_changed_for_dir(&ui_root.join("src"))?;
     emit_rerun_if_changed_for_dir(&ui_root.join("static"))?;
+    for package in ["golden-ui", "golden-graph-ui", "golden-audio-ui"] {
+        emit_rerun_if_changed_for_dir(&workspace_root.join("packages").join(package))?;
+    }
 
     Ok(())
 }
@@ -466,6 +469,12 @@ fn emit_rerun_if_changed_for_dir(dir: &Path) -> std::io::Result<()> {
     for entry in entries {
         let path = entry.path();
         if path.is_dir() {
+            if path.file_name().is_some_and(|name| {
+                ["node_modules", "build", "dist", ".svelte-kit", "docs", "tests"]
+                    .contains(&name.to_string_lossy().as_ref())
+            }) {
+                continue;
+            }
             emit_rerun_if_changed_for_dir(&path)?;
         } else {
             println!("cargo:rerun-if-changed={}", path.display());

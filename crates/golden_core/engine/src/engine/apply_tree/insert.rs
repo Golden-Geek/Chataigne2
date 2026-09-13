@@ -562,7 +562,7 @@ impl<T: Node> Engine<T> {
                 root,
                 parent: root_parent,
                 nodes,
-                parent_children_after,
+                parent_children_after: Some(parent_children_after),
             }]);
         } else {
             // Small subtree: keep individual NodeCreated ops so the UI can resolve parent/index.

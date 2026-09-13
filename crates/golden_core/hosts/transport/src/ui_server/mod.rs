@@ -353,6 +353,7 @@ struct WsSubscriptionState {
     cursor: Option<EngineTime>,
     last_runtime_stats: Option<UiRuntimeStatsDto>,
     pending_value_events: PendingValueEvents,
+    awaiting_resync: bool,
 }
 
 impl WsSubscriptionState {
@@ -785,6 +786,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                             cursor: from,
                             last_runtime_stats: None,
                             pending_value_events: PendingValueEvents::default(),
+                            awaiting_resync: false,
                         },
                     )
                     .is_some();
@@ -982,6 +984,9 @@ fn dispatch_ws_batches(
     for (client_id, client) in clients.iter_mut() {
         for (subscription_id, subscription) in client.subscriptions.iter_mut() {
             subscriptions_count += 1;
+            if subscription.awaiting_resync {
+                continue;
+            }
             if let Some(cursor) = subscription.cursor {
                 if cursor > server_time {
                     // A full snapshot covers the complete read model through
@@ -1148,6 +1153,9 @@ fn dispatch_ws_batches(
     if value_flush_due {
         for (client_id, client) in clients.iter_mut() {
             for (subscription_id, subscription) in client.subscriptions.iter_mut() {
+                if subscription.awaiting_resync {
+                    continue;
+                }
                 if !subscription.interest.includes(UiDataPlane::Value) {
                     subscription.clear_pending_value_events();
                     continue;
@@ -1220,10 +1228,35 @@ fn ui_data_plane(event: &UiEventDto) -> UiDataPlane {
 }
 
 fn send_to_client(clients: &mut HashMap<u64, WsClientState>, client_id: u64, message: WsServerMessage) {
+    let delta_subscription = match &message {
+        WsServerMessage::Delta { subscription_id, .. } => Some(subscription_id.clone()),
+        _ => None,
+    };
+    if delta_subscription.as_ref().is_some_and(|subscription_id| {
+        clients
+            .get(&client_id)
+            .and_then(|client| client.subscriptions.get(subscription_id))
+            .is_some_and(|subscription| subscription.awaiting_resync)
+    }) {
+        return;
+    }
     let result = clients
         .get(&client_id)
         .map(|client| client.outbound.push(WsOutbound::Message(message)));
     if result == Some(QueuePushResult::Full) {
+        if let Some(subscription_id) = delta_subscription
+            && let Some(client) = clients.get_mut(&client_id)
+            && client
+                .outbound
+                .replace_subscription_with_resync(&subscription_id, "outbound_queue_overflow")
+                == QueuePushResult::Queued
+            && let Some(subscription) = client.subscriptions.get_mut(&subscription_id)
+        {
+            subscription.awaiting_resync = true;
+            subscription.clear_pending_value_events();
+            eprintln!("[ui-ws] pausing overloaded subscription '{subscription_id}' on client {client_id} for resync");
+            return;
+        }
         eprintln!("[ui-ws] disconnecting slow client {client_id}: reliable outbound queue exhausted");
         if let Some(client) = clients.remove(&client_id) {
             let _ = client.outbound.push(WsOutbound::Close);

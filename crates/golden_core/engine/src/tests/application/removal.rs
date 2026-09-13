@@ -53,8 +53,16 @@ fn remove_nodes_batch_restores_nonadjacent_siblings_in_one_ui_transaction() {
         .collect::<Vec<_>>();
     assert_eq!(graph_transactions.len(), 1);
     assert_eq!(graph_transactions[0].ops.len(), 2);
-    assert!(graph_transactions[0].ops.iter().all(
-        |op| matches!(op, UiGraphOp::SubtreeInserted { parent_children_after, .. } if parent_children_after == &before)
+    assert!(matches!(
+        &graph_transactions[0].ops[0],
+        UiGraphOp::SubtreeInserted {
+            parent_children_after: None,
+            ..
+        }
+    ));
+    assert!(matches!(
+        &graph_transactions[0].ops[1],
+        UiGraphOp::SubtreeInserted { parent_children_after: Some(children), .. } if children == &before
     ));
 
     engine.clear_ui_event_log();
@@ -205,12 +213,12 @@ fn remove_nodes_mixed_parent_selection_replays_exact_sibling_order() {
     assert!(matches!(
         &transactions[0].ops[0],
         UiGraphOp::SubtreeInserted { parent, parent_children_after, .. }
-            if *parent == parents[1] && parent_children_after == &b_children
+            if *parent == parents[1] && parent_children_after.as_ref() == Some(&b_children)
     ));
     assert!(matches!(
         &transactions[0].ops[1],
         UiGraphOp::SubtreeInserted { parent, parent_children_after, .. }
-            if *parent == parents[0] && parent_children_after == &a_children
+            if *parent == parents[0] && parent_children_after.as_ref() == Some(&a_children)
     ));
 
     engine.clear_ui_event_log();

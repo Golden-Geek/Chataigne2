@@ -330,6 +330,11 @@ export const createIncrementalGraphEventProjection = (
 			nodeIndex += 1;
 			return false;
 		}
+		if (!op.parent_children_after) {
+			nodeIndex = 0;
+			opIndex += 1;
+			return true;
+		}
 		if (!parentTask) {
 			parentTask = createParentTask(nextState, op.parent, op.parent_children_after);
 			return true;

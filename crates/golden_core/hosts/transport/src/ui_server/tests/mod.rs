@@ -9,6 +9,7 @@ use serde_json::json;
 use super::runtime_pacer::DeadlineSchedule;
 use super::*;
 
+mod outbound_recovery;
 mod snapshot_encoding;
 
 #[test]
@@ -204,6 +205,7 @@ fn client_with_subscription_count(count: usize) -> WsClientState {
                     cursor: None,
                     last_runtime_stats: None,
                     pending_value_events: PendingValueEvents::default(),
+                    awaiting_resync: false,
                 },
             )
         })

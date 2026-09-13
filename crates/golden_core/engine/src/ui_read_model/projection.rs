@@ -248,8 +248,8 @@ fn apply_graph_op(store: &mut NodeStore, parents: &mut ParentStore, op: &UiGraph
                 store.insert(node.clone());
             }
             parents.insert(*root, *parent);
-            if let Some(parent_dto) = store.get_mut(parent) {
-                parent_dto.children.clone_from(parent_children_after);
+            if let (Some(parent_dto), Some(children)) = (store.get_mut(parent), parent_children_after) {
+                parent_dto.children.clone_from(children);
             }
         }
         UiGraphOp::SubtreeRemoved {

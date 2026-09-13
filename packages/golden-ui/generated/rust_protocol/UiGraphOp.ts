@@ -36,9 +36,10 @@ parent: NodeId,
  */
 nodes: Array<UiNodeDto>,
 /**
- * Final direct child order for `parent` after insertion.
+ * Final direct child order for `parent` after insertion. A multi-root transaction
+ * may defer this to a later op for the same parent, avoiding repeated large lists.
  */
-parent_children_after: Array<NodeId>, } | { "kind": "subtreeRemoved",
+parent_children_after?: Array<NodeId> | null, } | { "kind": "subtreeRemoved",
 /**
  * Root of the removed subtree.
  */

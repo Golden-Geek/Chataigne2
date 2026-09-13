@@ -103,10 +103,10 @@ const graphOpCost = (op: UiGraphOp): StagedEventCost => {
 			return {
 				// Node count is available without walking every nested child list.
 				// The projector charges those child edges precisely while advancing.
-				work: 1 + op.nodes.length + op.parent_children_after.length,
+				work: 1 + op.nodes.length + (op.parent_children_after?.length ?? 0),
 				estimatedBytes:
 					op.nodes.length * ESTIMATED_NODE_BYTES +
-					op.parent_children_after.length * ESTIMATED_ID_BYTES
+					(op.parent_children_after?.length ?? 0) * ESTIMATED_ID_BYTES
 			};
 		case 'subtreeRemoved':
 			return {

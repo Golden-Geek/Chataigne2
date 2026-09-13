@@ -74,6 +74,48 @@ const snapshot = (): UiSnapshot =>
 	}) as UiSnapshot;
 
 describe('graph store scaling', () => {
+	it('applies batched subtree inserts with one final parent order', () => {
+		const store = createGraphStore();
+		const node = (id: number): UiNodeDto => ({
+			...parameterNode(),
+			node_id: id,
+			uuid: `00000000-0000-0000-0000-${String(id).padStart(12, '0')}`
+		});
+		store.loadSnapshot({
+			...snapshot(),
+			nodes: [{ ...node(1), children: [2] }, node(2)]
+		});
+		const event: UiEventBatch['events'][number] = {
+			time: eventTime(1),
+			kind: {
+				kind: 'graphTransaction',
+				tx_id: 1,
+				epoch: 1,
+				base_graph_version: 0,
+				next_graph_version: 1,
+				ops: [
+					{ kind: 'subtreeInserted', root: 3, parent: 1, nodes: [node(3)] },
+					{
+						kind: 'subtreeInserted',
+						root: 4,
+						parent: 1,
+						nodes: [node(4)],
+						parent_children_after: [2, 3, 4]
+					}
+				]
+			}
+		};
+		const work = store.createEventWork(event);
+		if (!work) throw new Error('batched insertion should support staged projection');
+		while (!work.advance(1).done) {
+			// Exercise the staged projector's smallest work unit.
+		}
+		expect(store.applyBatch({ from: eventTime(0), to: eventTime(1), events: [event] })).toBe(true);
+		expect(store.state.requiresResync).toBe(false);
+		expect(store.state.childrenById.get(1)).toEqual([2, 3, 4]);
+		expect(store.state.nodesById.size).toBe(4);
+	});
+
 	it('applies one multi-root removal transaction with a final parent order patch', () => {
 		const store = createGraphStore();
 		const original = snapshot();

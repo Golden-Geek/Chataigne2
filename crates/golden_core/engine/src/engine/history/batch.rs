@@ -174,7 +174,7 @@ fn push_restored_subtrees_ui_transaction<T: Node>(
             root: *root,
             parent: *parent,
             nodes,
-            parent_children_after: engine.ui_direct_children(*parent).unwrap_or_default(),
+            parent_children_after: Some(engine.ui_direct_children(*parent).unwrap_or_default()),
         });
     }
     engine.push_ui_graph_transaction(ops);

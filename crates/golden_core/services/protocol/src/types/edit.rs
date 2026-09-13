@@ -241,8 +241,10 @@ pub enum UiGraphOp {
         parent: NodeId,
         /// Full snapshots for all inserted nodes (root and descendants, depth-first).
         nodes: Vec<UiNodeDto>,
-        /// Final direct child order for `parent` after insertion.
-        parent_children_after: Vec<NodeId>,
+        /// Final direct child order for `parent` after insertion. A multi-root transaction
+        /// may defer this to a later op for the same parent, avoiding repeated large lists.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent_children_after: Option<Vec<NodeId>>,
     },
     /// Removes a subtree from the client's graph.
     SubtreeRemoved {

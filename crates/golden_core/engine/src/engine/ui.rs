@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::events::{CustomEvent, CustomEventRetention, Event, EventKind};
 use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
@@ -74,6 +76,30 @@ impl<T: Node> Engine<T> {
             return;
         }
 
+        // A transaction is applied atomically. When many roots share a parent, only its last
+        // child-order patch matters; repeating the complete sibling list on every insertion
+        // makes a large paste quadratic in the destination's existing child count.
+        let mut ordered_parents = HashSet::new();
+        let mut compacted = Vec::with_capacity(ops.len());
+        for mut op in ops.into_iter().rev() {
+            match &mut op {
+                UiGraphOp::SubtreeInserted {
+                    parent,
+                    parent_children_after,
+                    ..
+                } => {
+                    if parent_children_after.is_some() && !ordered_parents.insert(*parent) {
+                        *parent_children_after = None;
+                    }
+                }
+                UiGraphOp::ChildrenReordered { parent, .. } if !ordered_parents.insert(*parent) => continue,
+                UiGraphOp::ChildrenReordered { .. } => {}
+                _ => {}
+            }
+            compacted.push(op);
+        }
+        compacted.reverse();
+
         let base_graph_version = self.ui_graph_version;
         let next_graph_version = base_graph_version.saturating_add(1);
         self.ui_graph_version = next_graph_version;
@@ -87,9 +113,47 @@ impl<T: Node> Engine<T> {
                 epoch: self.ui_epoch,
                 base_graph_version,
                 next_graph_version,
-                ops,
+                ops: compacted,
             },
         });
+    }
+
+    /// The materializing graph transaction already contains the final parameter and metadata
+    /// state produced by loaded-node lifecycle callbacks. Publishing those earlier patches would
+    /// make a client apply them before the new nodes exist. Triggers carry an edge, not snapshot
+    /// state, so callers must publish them again after the transaction.
+    pub(crate) fn squash_pre_materialization_ui_events(&mut self, inserted: &HashSet<NodeId>) -> Vec<EventKind> {
+        if inserted.is_empty() {
+            return Vec::new();
+        }
+
+        self.ui_event_log.drain(..self.ui_event_log_start);
+        self.ui_event_log_start = 0;
+        let mut deferred_triggers = Vec::new();
+        self.ui_event_log.retain(|event| {
+            let owned = match &event.kind {
+                EventKind::ParamChanged { param, .. }
+                | EventKind::ParamControlChanged { param, .. }
+                | EventKind::ParamConstraintsChanged { param, .. } => inserted.contains(param),
+                EventKind::MetaChanged { node, .. } => inserted.contains(node),
+                _ => false,
+            };
+            if owned
+                && matches!(
+                    &event.kind,
+                    EventKind::ParamChanged {
+                        new_value: ParamValue::Trigger(),
+                        ..
+                    }
+                )
+            {
+                deferred_triggers.push(event.kind.clone());
+            }
+            !owned
+        });
+        self.ui_pending_param_event_times
+            .retain(|param, _| !inserted.contains(param));
+        deferred_triggers
     }
 
     pub(crate) fn ui_children_order_patch(&self, parent: NodeId) -> Option<UiChildrenOrderPatch> {

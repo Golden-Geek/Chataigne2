@@ -5629,7 +5629,10 @@ fn add_node_tree_large_emits_subtree_inserted_op() {
         );
         assert_eq!(*parent, engine.root, "insertion parent must be engine root");
         assert_eq!(
-            parent_children_after.len(),
+            parent_children_after
+                .as_ref()
+                .expect("single insertion carries parent order")
+                .len(),
             1,
             "root gains one direct child after insertion"
         );
@@ -5691,7 +5694,7 @@ fn undo_remove_large_subtree_emits_compact_insert_transaction() {
             assert_eq!(*root, subtree_root);
             assert_eq!(*parent, engine.root);
             assert_eq!(nodes.len(), 11);
-            assert_eq!(parent_children_after, &vec![subtree_root]);
+            assert_eq!(parent_children_after.as_ref(), Some(&vec![subtree_root]));
         }
         other => panic!("expected SubtreeInserted op, got {other:?}"),
     }

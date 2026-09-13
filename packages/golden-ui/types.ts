@@ -434,7 +434,7 @@ export type UiGraphOp =
 			root: NodeId;
 			parent: NodeId;
 			nodes: UiNodeDto[];
-			parent_children_after: NodeId[];
+			parent_children_after?: NodeId[] | null;
 	  }
 	| {
 			kind: 'subtreeRemoved';

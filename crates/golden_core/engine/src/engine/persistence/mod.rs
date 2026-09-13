@@ -322,7 +322,7 @@ impl<T: Node> Engine<T> {
                     root,
                     parent,
                     nodes,
-                    parent_children_after,
+                    parent_children_after: Some(parent_children_after),
                 });
                 return Ok(ops);
             }

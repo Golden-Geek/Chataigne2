@@ -591,6 +591,44 @@ and 7,143 authored Constant roots. These individual runs do not establish p95 or
 action-to-paint, server-side save-capture overlap, slow-client, endurance, packaged-native, or
 physical-device evidence.
 
+The new T19 live-workbench probe uses the normal bundled-UI headless binary and a headless browser,
+without synthesizing mouse or keyboard input. One public `duplicateNodes` HTTP intent duplicates
+43 authored Constant roots (602 tree nodes) per sample; the browser waits for the real WebSocket
+projection to update the workbench node count and then observes two frame callbacks. It records
+raw action-to-frame, mutation, HTTP acknowledgement, Long Task, browser-error, and transport
+recovery data with exact binary/fixture/source fingerprints. The diagnostic 10k pair took
+324–325 ms against the provisional 250 ms p95 target. At 100k, a pre-fix pair took 2,391/76,900 ms:
+the transport server exhausted its reliable outbound queue while sending a ~48 MB snapshot and
+the browser entered repeated disconnect/reconnect recovery. The transport host now atomically
+replaces that subscription's queued deltas with a resync marker and pauses it until re-subscribe,
+preserving control messages and other subscriptions. Focused overload tests and the full 43-test
+transport suite pass. A post-fix 100k pair took 2,440/2,727 ms with zero slow-client disconnects
+and one explicit resync. This is a recovery fix, not a p95 budget pass: backend batch application
+alone took ~0.67 s, while browser mutation arrived ~2.1–2.4 s after action start. The
+source-fingerprinted 20-sample matrix is the acceptance evidence for the still-open tail budget.
+
+The first 20-sample bundled-UI matrix exposed a graph publication ordering fault: duplicate
+lifecycle value patches reached the browser before the transaction that materialized their new
+nodes, so each edit forced a full snapshot. The engine now folds those patches into the insertion
+snapshot and publishes edge-trigger events after the transaction. With that ordering fixed, the
+10k case had no edit-triggered resync, but its p95 grew to 1,361 ms as each of 43 subtree ops
+repeated an expanding parent child-order list. The 100k p95 was 3,175 ms with eight staged/outbound
+overflows and 23 snapshots. Those are failing diagnostic results, not acceptance passes.
+
+The graph protocol now permits a subtree insertion to defer its parent-order patch to a later op
+in the same atomic transaction. The engine retains only the last order per parent; the read model,
+staged browser projector, cost estimator, and generated TypeScript contract use the same semantics.
+The protocol version advances to 0.5.0 because an older client cannot interpret an omitted order.
+The app bundle build also tracks reusable UI package source changes. The fresh, source-fingerprinted
+20-sample report at `target/qualification/live-workbench-paint/compacted-full/` measures 10k
+p50/p95/p99/max at 218/306/370/370 ms, down from 1,046/1,361/1,380/1,380 ms, with two total
+snapshots and zero overload recoveries or disconnects. At 100k it measures
+1,682/2,123/2,282/2,282 ms, down from 2,691/3,175/3,283/3,283 ms, with three total snapshots,
+zero overload recoveries or disconnects, and 101 Long Tasks. Both provisional p95 stress targets
+still fail. The 100k backend acknowledgement alone remains roughly 0.68 s per edit in the focused
+pair, already above its 500 ms action-to-paint target; remaining work includes that backend cost
+and browser rendering as the 10k scenario grows over 20 edits.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -614,7 +652,7 @@ physical-device evidence.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula, graph routing/projection/camera, logger, app-owned state placement, and generic vec2 geometry owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, sparse/dense parameter replay and save/reload, plus three-client headless transport resync/edit/reconnect and save-request-overlap/reload pass locally; browser p95, server-side save-capture overlap, slow-client/endurance, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k backend and three-client transport scenarios pass locally; live 20-sample 600-node browser p95 improved to 306 ms at 10k and 2,123 ms at 100k with zero overload recovery or disconnects after event-order and parent-order compaction, but both provisional budgets and the full product gate remain open |
 
 ## Finding status
 
@@ -813,9 +851,9 @@ Next dependency-ready work: continue T17's documented cohesive source splits, es
 remaining graph-canvas node layout/interactions, dashboard/curve editors, and app-owned
 formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to measure end-to-end action-to-paint and tail latency, then exercise large live
-Formula/state/graph edits, UI/transport, multi-client, and recovery paths at scale. Cross-platform,
-native-host, and physical-product evidence remains open.
+T19 next needs to reduce 100k backend batch acknowledgement and browser action-to-paint tails,
+then exercise large live Formula/state/graph edits, UI/transport, multi-client, and recovery paths
+at scale. Cross-platform, native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and
 Linux/ARM64 compilation are unavailable locally. Hardware qualification remains explicitly open.

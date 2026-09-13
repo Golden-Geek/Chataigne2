@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::blueprints::{BlueprintInstanceMeta, BlueprintRegistry};
 use crate::edit::NodeTree;
@@ -770,7 +770,12 @@ impl<T: Node> Engine<T> {
         for subtree in &committed {
             ui_ops.extend(self.loaded_subtree_ui_ops(subtree.node_ids.as_slice(), catalog_snapshot.as_deref())?);
         }
+        let deferred_triggers =
+            self.squash_pre_materialization_ui_events(&inserted_node_ids.iter().copied().collect::<HashSet<_>>());
         self.push_ui_graph_transaction(ui_ops);
+        for trigger in deferred_triggers {
+            self.push_ui_event_kind(trigger);
+        }
 
         let capture_active_session = self.has_active_edit_session();
         let mut transaction = HistoryTransaction::new();

@@ -698,7 +698,7 @@ fn push_history_subtree_inserted_ui_event<T: Node>(
         root,
         parent,
         nodes,
-        parent_children_after: engine.ui_direct_children(parent).unwrap_or_default(),
+        parent_children_after: Some(engine.ui_direct_children(parent).unwrap_or_default()),
     }]);
 
     Ok(())

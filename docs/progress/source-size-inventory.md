@@ -4,7 +4,7 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-includes 1,246 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
+includes 1,251 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
 files under `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
 `node_modules/`. It was refreshed on 2026-09-13 after the T17 script, UI-sync, persistence-adapter,
 history, App Control, received-value, formula integration, processor presentation, multiplex
@@ -54,6 +54,14 @@ intent and receives only a viewport-dependent position hint from the UI.
 The generic vec2 pad editor keeps pointer/edit-session interaction and trail state (884 lines),
 while `parameters/vec2-pad-geometry.ts` owns range validation, clamping, plot mapping, and grid
 projection. Four direct tests cover the extracted geometry.
+The transport host now replaces an overloaded subscription's queued deltas with one explicit
+resync marker, keeping control messages and other subscriptions reliable. Its recovery tests live
+beside the UI server; the server remains oversized. The new live-workbench qualification runner
+and browser probe remain under the line limit.
+The same 602-node batch exposed redundant sibling-order copies in graph transactions; the
+protocol, engine, read model, and staged UI projection now carry that final order once per parent.
+An adjacent engine regression covers lifecycle event ordering and the app UI test covers staged
+multi-root insertion without intermediate parent-order lists.
 
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
@@ -74,7 +82,7 @@ avoid mixing large structural moves into runtime race fixes.
 | 2,632 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs` | Split focused test suites |
 | 2,596 | `apps/chataigne/src/module/modules/generators/spatializer/mod.rs` | Split cohesive Rust module |
 | 2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte` | Decompose presentation and state |
-| 2,362 | `crates/golden_core/hosts/transport/src/ui_server/mod.rs` | Split cohesive Rust module |
+| 2,395 | `crates/golden_core/hosts/transport/src/ui_server/mod.rs` | Split cohesive Rust module |
 | 2,334 | `crates/golden_core/engine/src/engine/controls.rs` | Split cohesive Rust module |
 | 2,050 | `crates/golden_core/engine/src/app/mod.rs` | Split cohesive Rust module |
 | 1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte` | Decompose presentation and state |

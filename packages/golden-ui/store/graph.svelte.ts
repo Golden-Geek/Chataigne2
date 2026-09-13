@@ -243,8 +243,11 @@ const reduceEventInPlace = (
 ): { stateChanged: boolean; requiresRootRecompute: boolean } => {
 	let stateChanged = false;
 	let requiresRootRecompute = false;
-	const requireResync = (): void => {
+	const requireResync = (reason: string = event.kind.kind): void => {
 		if (!state.requiresResync) {
+			if (typeof window !== 'undefined' && window.localStorage.getItem('gc_ui_perf') === '1') {
+				console.warn(`[ui graph] projection requires resync: ${reason}`);
+			}
 			state.requiresResync = true;
 			stateChanged = true;
 		}
@@ -253,7 +256,7 @@ const reduceEventInPlace = (
 		case 'paramChanged': {
 			const node = state.nodesById.get(event.kind.param);
 			if (!node || node.data.kind !== 'parameter') {
-				requireResync();
+				requireResync(`paramChanged missing parameter ${event.kind.param}`);
 				break;
 			}
 			const updatedParam = {
@@ -271,7 +274,7 @@ const reduceEventInPlace = (
 		case 'paramControlChanged': {
 			const node = state.nodesById.get(event.kind.param);
 			if (!node || node.data.kind !== 'parameter') {
-				requireResync();
+				requireResync(`paramControlChanged missing parameter ${event.kind.param}`);
 				break;
 			}
 			const updatedParam = {
@@ -289,7 +292,7 @@ const reduceEventInPlace = (
 		case 'paramConstraintsChanged': {
 			const node = state.nodesById.get(event.kind.param);
 			if (!node || node.data.kind !== 'parameter') {
-				requireResync();
+				requireResync(`paramConstraintsChanged missing parameter ${event.kind.param}`);
 				break;
 			}
 			const updatedParam = {
@@ -449,7 +452,9 @@ const reduceEventInPlace = (
 					for (const node of op.nodes) {
 						upsertNodeSnapshot(state, node);
 					}
-					setNodeChildren(state, op.parent, op.parent_children_after);
+					if (op.parent_children_after) {
+						setNodeChildren(state, op.parent, op.parent_children_after);
+					}
 					stateChanged = true;
 					requiresRootRecompute = true;
 				} else if (op.kind === 'subtreeRemoved') {
@@ -491,7 +496,7 @@ const reduceEventInPlace = (
 				} else if (op.kind === 'paramPatched') {
 					const node = state.nodesById.get(op.param);
 					if (!node || node.data.kind !== 'parameter') {
-						requireResync();
+						requireResync(`graphTransaction paramPatched missing parameter ${op.param}`);
 						continue;
 					}
 					const param = {

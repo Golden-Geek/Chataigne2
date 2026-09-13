@@ -744,7 +744,7 @@ fn duplicate_nodes_batch_preserves_sibling_order_through_one_undo_and_redo() {
         .collect::<Vec<_>>();
     assert_eq!(graph_transactions.len(), 1);
     assert_eq!(graph_transactions[0].ops.len(), 2);
-    for op in &graph_transactions[0].ops {
+    for (index, op) in graph_transactions[0].ops.iter().enumerate() {
         let UiGraphOp::SubtreeInserted {
             parent,
             parent_children_after,
@@ -754,7 +754,7 @@ fn duplicate_nodes_batch_preserves_sibling_order_through_one_undo_and_redo() {
             panic!("batch redo should only insert subtrees");
         };
         assert_eq!(*parent, container);
-        assert_eq!(parent_children_after, &after);
+        assert_eq!(parent_children_after.as_ref(), (index == 1).then_some(&after));
     }
 }
 
