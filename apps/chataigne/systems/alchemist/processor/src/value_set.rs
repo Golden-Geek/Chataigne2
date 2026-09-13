@@ -3,6 +3,16 @@ use std::sync::Arc;
 use chataigne_alchemist::{ExtensionValue, StableRef, ValueTypeId};
 use golden_values::Value as RuntimeValue;
 
+#[cfg(test)]
+thread_local! {
+    static CODEC_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn codec_call_count() -> usize {
+    CODEC_CALLS.with(std::cell::Cell::get)
+}
+
 pub const VALUE_SET_TYPE: &str = "chataigne.value_set";
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -74,6 +84,8 @@ impl ValueSet {
     }
 
     pub fn to_runtime_value(&self) -> Result<RuntimeValue, ValueSetError> {
+        #[cfg(test)]
+        CODEC_CALLS.with(|calls| calls.set(calls.get() + 1));
         let payload = serde_json::to_vec(self).map_err(ValueSetError::Encode)?;
         Ok(RuntimeValue::Extension(ExtensionValue::new(
             ValueTypeId::new(VALUE_SET_TYPE),
@@ -82,6 +94,8 @@ impl ValueSet {
     }
 
     pub fn from_runtime_value(value: &RuntimeValue) -> Result<Self, ValueSetError> {
+        #[cfg(test)]
+        CODEC_CALLS.with(|calls| calls.set(calls.get() + 1));
         match value {
             RuntimeValue::Extension(extension) if extension.value_type.as_str() == VALUE_SET_TYPE => {
                 serde_json::from_slice(&extension.payload).map_err(ValueSetError::Decode)

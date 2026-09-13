@@ -464,7 +464,11 @@ impl AlchemistMemory {
 
     #[must_use]
     pub fn value(&self, slot: ValueSlotId) -> Option<&RuntimeValue> {
-        self.values.get(slot.index())
+        self.value_initialized
+            .get(slot.index())
+            .copied()
+            .filter(|initialized| *initialized)
+            .and_then(|_| self.values.get(slot.index()))
     }
 
     #[must_use]
@@ -731,7 +735,7 @@ pub struct EvaluationFrame<'a, 'ctx> {
     pub ctx: &'a EvaluationCtx<'ctx>,
     pub properties: &'a RuntimePropertyFrame,
     pub context: &'a RuntimeContextFrame,
-    pub debug: &'a mut DebugCaptureSink,
+    pub debug: Option<&'a mut DebugCaptureSink>,
     pub force_process_unchanged_inputs: bool,
     pub capture_unchanged_outputs: bool,
 }
@@ -743,15 +747,18 @@ pub struct NodeEvaluation<'a, 'ctx> {
     pub inputs: &'a [RuntimeValue],
     pub properties: &'a RuntimePropertyFrame,
     pub context: &'a RuntimeContextFrame,
-    pub debug: &'a mut DebugCaptureSink,
+    pub debug: Option<&'a mut DebugCaptureSink>,
     pub state: &'a mut [RuntimeValue],
     pub intents: &'a mut Vec<RuntimeIntent>,
 }
 
 impl<'a, 'ctx> NodeEvaluation<'a, 'ctx> {
     pub fn capture_debug_value(&mut self, output_socket: impl Into<SocketId>, value: RuntimeValue) {
+        let Some(debug) = self.debug.as_deref_mut() else {
+            return;
+        };
         let value_type = value.value_type();
-        self.debug.capture(DebugValueSample {
+        debug.capture(DebugValueSample {
             formula_id: None,
             context_key: (!self.context.context_key().is_default_lane()).then(|| self.context.context_key().clone()),
             author_node_id: self.author_node_id,
@@ -846,7 +853,7 @@ impl AlchemistRuntime {
                 ctx,
                 properties: &self.properties,
                 context: &context,
-                debug: &mut debug,
+                debug: Some(&mut debug),
                 force_process_unchanged_inputs: false,
                 capture_unchanged_outputs: false,
             },
@@ -867,7 +874,7 @@ impl AlchemistRuntime {
 pub fn evaluate_compiled_graph(
     compiled: &CompiledAlchemistGraph,
     memory: &mut AlchemistMemory,
-    frame: EvaluationFrame<'_, '_>,
+    mut frame: EvaluationFrame<'_, '_>,
 ) -> RuntimeOutput {
     let mut output = RuntimeOutput::default();
     seed_dirty_nodes(compiled, memory, &frame, &mut output);
@@ -927,7 +934,7 @@ pub fn evaluate_compiled_graph(
                 inputs: &inputs,
                 properties: frame.properties,
                 context: frame.context,
-                debug: &mut *frame.debug,
+                debug: frame.debug.as_deref_mut(),
                 state,
                 intents: &mut output.intents,
             },
@@ -935,7 +942,7 @@ pub fn evaluate_compiled_graph(
         match result {
             Ok(values) if values.len() == node.outputs.len() => {
                 let logged_output_values = node.log_enabled.then(|| values.clone());
-                let capture_debug_outputs = !frame.debug.mode().is_off();
+                let capture_debug_outputs = frame.debug.as_ref().is_some_and(|debug| !debug.mode().is_off());
                 for (output_index, (slot, value)) in node.outputs.iter().zip(values).enumerate() {
                     let previous_value = memory.values.get(slot.index());
                     let output_changed = !memory.value_initialized[slot.index()]
@@ -975,7 +982,9 @@ pub fn evaluate_compiled_graph(
                         logical_tick: frame.ctx.logical_tick,
                         status: OutputPreviewStatus::Unavailable,
                     };
-                    frame.debug.capture(sample);
+                    if let Some(debug) = frame.debug.as_deref_mut() {
+                        debug.capture(sample);
+                    }
                 }
                 if let Some(output_values) = logged_output_values {
                     for (output_index, value) in output_values.into_iter().enumerate() {
@@ -1004,10 +1013,16 @@ pub fn evaluate_compiled_graph(
             }),
         }
     }
-    if frame.capture_unchanged_outputs && !frame.debug.mode().is_off() {
-        capture_initialized_outputs(compiled, memory, frame.context, frame.ctx.logical_tick, frame.debug);
+    if frame.capture_unchanged_outputs
+        && let Some(debug) = frame.debug.as_deref_mut().filter(|debug| !debug.mode().is_off())
+    {
+        capture_initialized_outputs(compiled, memory, frame.context, frame.ctx.logical_tick, debug);
     }
-    output.debug_samples = frame.debug.samples().to_vec();
+    output.debug_samples = frame
+        .debug
+        .as_ref()
+        .map(|debug| debug.samples().to_vec())
+        .unwrap_or_default();
     output
 }
 

@@ -156,7 +156,7 @@ fn evaluate_capturing_unchanged_outputs(runtime: &mut AlchemistRuntime, logical_
             ctx: &ctx,
             properties: &runtime.properties,
             context: &context,
-            debug: &mut debug,
+            debug: Some(&mut debug),
             force_process_unchanged_inputs: false,
             capture_unchanged_outputs: true,
         },
@@ -528,7 +528,7 @@ fn evaluate_compiled_graph_uses_supplied_memory() {
             ctx: &first_ctx,
             properties: &properties,
             context: &context,
-            debug: &mut first_debug,
+            debug: Some(&mut first_debug),
             force_process_unchanged_inputs: false,
             capture_unchanged_outputs: false,
         },
@@ -549,7 +549,7 @@ fn evaluate_compiled_graph_uses_supplied_memory() {
             ctx: &second_ctx,
             properties: &properties,
             context: &context,
-            debug: &mut second_debug,
+            debug: Some(&mut second_debug),
             force_process_unchanged_inputs: false,
             capture_unchanged_outputs: false,
         },
@@ -605,7 +605,7 @@ fn fresh_reusing_evaluation_resets_stateful_graph_memory() {
                 ctx: &ctx,
                 properties: &properties,
                 context: &context,
-                debug: &mut debug,
+                debug: Some(&mut debug),
                 force_process_unchanged_inputs: false,
                 capture_unchanged_outputs: false,
             },
@@ -1190,6 +1190,29 @@ fn capture_off_preserves_runtime_memory_and_log_intents() {
         uncaptured_runtime.memory.last_executed_nodes(),
         captured_runtime.memory.last_executed_nodes()
     );
+}
+
+#[test]
+fn compiled_result_slot_keeps_initialized_value_when_unchanged_node_is_skipped() {
+    let mut graph = TestGraph::new();
+    let source = graph.add_node(constant(RuntimeValue::Float(4.25))).unwrap();
+    let mut runtime = runtime(&graph);
+    let slot = runtime
+        .compiled
+        .result_slot(source, &SocketId::new("value"))
+        .expect("constant output must have a compiled result slot");
+
+    assert_eq!(runtime.memory.value(slot), None);
+    let first = evaluate_with_capture_mode(&mut runtime, 1, DebugCaptureMode::Off);
+    assert!(first.diagnostics.is_empty());
+    assert!(first.debug_samples.is_empty());
+    assert_eq!(runtime.memory.value(slot), Some(&RuntimeValue::Float(4.25)));
+
+    let second = evaluate_with_capture_mode(&mut runtime, 2, DebugCaptureMode::Off);
+    assert!(second.diagnostics.is_empty());
+    assert!(second.debug_samples.is_empty());
+    assert!(runtime.memory.last_executed_nodes().is_empty());
+    assert_eq!(runtime.memory.value(slot), Some(&RuntimeValue::Float(4.25)));
 }
 
 #[test]

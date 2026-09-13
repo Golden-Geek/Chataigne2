@@ -186,6 +186,22 @@ pub struct CompiledAlchemistGraph {
     pub debug_map: DebugSourceMap,
 }
 
+impl CompiledAlchemistGraph {
+    /// Resolve an authored output once when preparing an execution binding.
+    #[must_use]
+    pub fn result_slot(&self, node_id: ANodeId, socket: &SocketId) -> Option<ValueSlotId> {
+        self.exec_nodes
+            .iter()
+            .find(|node| node.authored_id == node_id)
+            .and_then(|node| {
+                node.output_sockets
+                    .iter()
+                    .position(|output_socket| output_socket == socket)
+                    .and_then(|index| node.outputs.get(index).copied())
+            })
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct CompileResult {
     pub compiled: Option<Arc<CompiledAlchemistGraph>>,

@@ -761,7 +761,7 @@ impl ProcessorRuntime {
                         ctx,
                         properties: &properties,
                         context: &context,
-                        debug: &mut debug,
+                        debug: Some(&mut debug),
                         force_process_unchanged_inputs,
                         capture_unchanged_outputs,
                     };
@@ -837,7 +837,7 @@ impl ProcessorRuntime {
                     ctx,
                     properties: &properties,
                     context: &context,
-                    debug: &mut debug,
+                    debug: Some(&mut debug),
                     force_process_unchanged_inputs,
                     capture_unchanged_outputs,
                 };

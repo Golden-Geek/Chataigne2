@@ -46,6 +46,12 @@ fn elementwise_remap_preserves_lanes_and_values() {
     assert_eq!(mapped.entries[0].value, RuntimeValue::Float(0.25));
     assert_eq!(mapped.entries[1].key.as_str(), "b");
     assert_eq!(mapped.entries[1].value, RuntimeValue::Float(0.75));
+    assert!(output.debug_samples.is_empty());
+
+    let (unchanged, second_output) = runtime.evaluate(&values, &eval_ctx(&value_types, 3)).unwrap();
+    assert_clean(&second_output);
+    assert!(second_output.debug_samples.is_empty());
+    assert_eq!(unchanged.entries, mapped.entries);
 }
 
 #[test]
@@ -121,7 +127,7 @@ fn aggregate_reduces_multiple_lanes_to_one_value() {
     };
     let mut math = managed_item_for_primitive(PrimitiveNodeKind::Math);
     math.anode.config.set("num_inputs", RuntimeValue::Int(3));
-    let runtime =
+    let mut runtime =
         ValueSetProjectionRuntime::compile_aggregate(math, 3, ValueTypeId::new("float"), &lowering_ctx).unwrap();
     let values = float_value_set(1, [("x", "X", 1.0), ("y", "Y", 2.0), ("z", "Z", 3.0)]);
 
@@ -129,6 +135,7 @@ fn aggregate_reduces_multiple_lanes_to_one_value() {
 
     assert_clean(&output);
     assert_eq!(value, RuntimeValue::Float(6.0));
+    assert!(output.debug_samples.is_empty());
 }
 
 #[test]
@@ -140,7 +147,7 @@ fn pack_vec3_projects_three_lanes_to_vector() {
         nodes: &nodes,
         properties: None,
     };
-    let runtime = ValueSetProjectionRuntime::compile_pack_vec3(
+    let mut runtime = ValueSetProjectionRuntime::compile_pack_vec3(
         managed_item_for_primitive(PrimitiveNodeKind::PackVec3),
         &lowering_ctx,
     )
@@ -151,6 +158,7 @@ fn pack_vec3_projects_three_lanes_to_vector() {
 
     assert_clean(&output);
     assert_eq!(value, RuntimeValue::Vec3([1.0, 2.0, 3.0]));
+    assert!(output.debug_samples.is_empty());
 }
 
 #[test]

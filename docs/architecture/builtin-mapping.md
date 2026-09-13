@@ -66,6 +66,16 @@ pairs entries and enabled outputs by position. InputSet already derives a stable
 key from the authored item, but unresolved sources are omitted from the frame.
 These are implementation gaps, not contracts to preserve.
 
+Phase 01 resolves managed graph outputs to compiled slots and reads only initialized
+values after evaluation, including when an unchanged node is skipped. Stateless
+projection runs reuse an Alchemist scratch frame. Managed ValueSets now pass to
+OutputSet as native typed data; the JSON extension codec remains for actual
+Formula graph and persistence boundaries. Ordinary managed evaluation uses no
+debug samples. It still allocates an active-lane key set, result entries, context
+keys, property frames, per-node input/output vectors, and enabled-output lists;
+these are measured and reduced in later performance work rather than described
+as allocation-free.
+
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.
 Changed persisted filter or output semantics need narrow typed migrations. In
@@ -88,6 +98,13 @@ Windows x64, Rust 1.97.0 `bench` profile, Criterion 0.8.2 (10 samples,
 13.499, 51.411, 33.988, and 141.72 µs respectively. This measures the current
 managed runner, including debug-result capture; it is not a full processor or
 dispatch benchmark.
+
+With Phase 01's direct slots and capture-free managed path, the same five
+fixtures measured 0.713, 5.803, 22.653, 13.116, and 52.838 µs respectively
+on that host and profile. These are Criterion center estimates, not p95 or
+whole-product dispatch times. The comparison shows shorter managed-runner
+latency in the measured numeric cases; it says nothing yet about mixed layouts,
+temporal behavior, or large processor counts.
 
 Phase 11 must extend the fixture to 1,000 and 10,000 processors, mixed layouts,
 aggregation, sparse changes, multiple contexts, and bounded temporal history.

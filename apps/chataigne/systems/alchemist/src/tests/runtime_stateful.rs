@@ -68,7 +68,7 @@ impl RuntimeHarness {
                 ctx: &ctx,
                 properties: &self.runtime.properties,
                 context: &context,
-                debug: &mut debug,
+                debug: Some(&mut debug),
                 force_process_unchanged_inputs: false,
                 capture_unchanged_outputs: true,
             },

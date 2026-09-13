@@ -148,16 +148,11 @@ impl ValuePipelineRuntime {
         };
 
         match filtered {
-            ManagedFilterOutput::ValueSet(values) => match values.to_runtime_value() {
-                Ok(value) => {
-                    for output_set in &self.output_sets {
-                        merge_output_set(&mut output, output_set.materialize(&value, ctx));
-                    }
+            ManagedFilterOutput::ValueSet(values) => {
+                for output_set in &self.output_sets {
+                    merge_output_set(&mut output, output_set.materialize_values(&values, ctx));
                 }
-                Err(error) => output
-                    .diagnostics
-                    .push(runtime_error("managed_formula_valueset_error", error)),
-            },
+            }
             ManagedFilterOutput::Single(value) => {
                 for output_set in &self.output_sets {
                     merge_output_set(&mut output, output_set.materialize(&value, ctx));
@@ -684,7 +679,10 @@ impl ManagedFilterPipelineRuntime {
             }
         };
 
-        Ok(ManagedFilterCompiledRuntime::Projection { prefix, projection })
+        Ok(ManagedFilterCompiledRuntime::Projection {
+            prefix,
+            projection: Box::new(projection),
+        })
     }
 }
 
@@ -699,7 +697,7 @@ enum ManagedFilterCompiledRuntime {
     Elementwise(ValueSetPipelineRuntime),
     Projection {
         prefix: Option<ValueSetPipelineRuntime>,
-        projection: ValueSetProjectionRuntime,
+        projection: Box<ValueSetProjectionRuntime>,
     },
 }
 

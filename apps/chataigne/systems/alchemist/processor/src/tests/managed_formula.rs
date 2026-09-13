@@ -61,9 +61,12 @@ fn managed_formula_maps_inputs_to_outputs_without_filters() {
     };
     let ctx = eval_ctx(10, &inputs, &registries);
 
+    let codec_calls = crate::value_set::codec_call_count();
     let output = runtime.evaluate(&ctx);
 
     assert!(output.diagnostics.is_empty());
+    assert!(output.debug_samples.is_empty());
+    assert_eq!(crate::value_set::codec_call_count(), codec_calls);
     assert_eq!(output.intents.len(), 2);
     assert_eq!(output.intents[0].target.as_ref(), Some(&out_left));
     assert_eq!(output.intents[0].payload, RuntimeValue::Float(0.25));

@@ -130,6 +130,15 @@ impl OutputSetRuntime {
         }
     }
 
+    #[must_use]
+    pub fn materialize_values(&self, values: &ValueSet, ctx: &EvaluationCtx<'_>) -> OutputSetMaterialization {
+        let enabled_outputs = self.items.iter().filter(|item| item.enabled).collect::<Vec<_>>();
+        if enabled_outputs.is_empty() {
+            return OutputSetMaterialization::default();
+        }
+        self.materialize_value_set(values, &enabled_outputs, ctx)
+    }
+
     fn materialize_single(
         &self,
         value: &RuntimeValue,

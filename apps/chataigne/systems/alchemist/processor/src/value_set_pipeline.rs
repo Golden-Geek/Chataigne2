@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use chataigne_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistGraphDomain, AlchemistGraphTransaction, CompileCtx,
-    CompiledAlchemistGraph, ContextAxisId, ContextItemId, ContextKey, DebugCaptureMode, DebugCaptureSink,
-    EvaluationCtx, EvaluationFrame, FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketRef,
-    LaneRuntimePool, ManagedItemInstance, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionKind, ManagedSocketRef, OutputSocketRef, ParamUiHints, PipelineLoweringCtx, RuntimeContextFrame,
-    RuntimeOutput, RuntimePropertyFrame, SocketId, StableRef, SurfaceItemKind, ValueTypeId, compile_graph,
-    evaluate_compiled_graph, evaluate_compiled_graph_stateless, lower_filter_pipeline_region, single_shape,
+    ANodeInstance, ANodeTypeId, AlchemistGraphDomain, AlchemistGraphTransaction, AlchemistMemory, CompileCtx,
+    CompiledAlchemistGraph, ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, EvaluationFrame,
+    FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool,
+    ManagedItemInstance, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind,
+    ManagedSocketRef, OutputSocketRef, ParamUiHints, PipelineLoweringCtx, RuntimeContextFrame, RuntimeOutput,
+    RuntimePropertyFrame, SocketId, StableRef, SurfaceItemKind, ValueSlotId, ValueTypeId, compile_graph,
+    evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing, lower_filter_pipeline_region, single_shape,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::IndexMap;
@@ -20,16 +20,16 @@ const VALUE_LANE_AXIS: &str = "value_set_lane";
 
 pub struct ValueSetPipelineRuntime {
     compiled: Arc<CompiledAlchemistGraph>,
-    output_node: ANodeId,
-    output_socket: SocketId,
+    result_slot: ValueSlotId,
     memory: LaneRuntimePool,
+    scratch: AlchemistMemory,
 }
 
 pub struct ValueSetProjectionRuntime {
     compiled: Arc<CompiledAlchemistGraph>,
-    output_node: ANodeId,
-    output_socket: SocketId,
+    result_slot: ValueSlotId,
     property_ids: Vec<FormulaPropertyId>,
+    scratch: AlchemistMemory,
 }
 
 impl ValueSetPipelineRuntime {
@@ -105,13 +105,17 @@ impl ValueSetPipelineRuntime {
             return Err(ValueSetPipelineError::Compile(compiled.diagnostics));
         }
         let compiled = compiled.compiled.ok_or(ValueSetPipelineError::MissingCompiledGraph)?;
+        let result_slot = compiled
+            .result_slot(output_node, &SocketId::new("value"))
+            .ok_or(ValueSetPipelineError::MissingCompiledOutput)?;
         let memory = LaneRuntimePool::for_graph(&compiled);
+        let scratch = AlchemistMemory::for_graph(&compiled);
 
         Ok(Self {
             compiled,
-            output_node,
-            output_socket: SocketId::new("value"),
+            result_slot,
             memory,
+            scratch,
         })
     }
 
@@ -133,34 +137,27 @@ impl ValueSetPipelineRuntime {
             let context_key = lane_context_key(entry.key.as_str());
             let properties = property_frame(&self.compiled, entry.value.clone())?;
             let context = RuntimeContextFrame::new(context_key.clone());
-            let mut debug = DebugCaptureSink::new(DebugCaptureMode::SelectedNodes {
-                formula_id: None,
-                context_key: Some(context_key.clone()),
-                nodes: [self.output_node].into_iter().collect(),
-                history_len: 1,
-            });
             let frame = EvaluationFrame {
                 ctx,
                 properties: &properties,
                 context: &context,
-                debug: &mut debug,
-                force_process_unchanged_inputs: true,
-                capture_unchanged_outputs: true,
+                debug: None,
+                force_process_unchanged_inputs: false,
+                capture_unchanged_outputs: false,
             };
-            let lane_output = match self.memory.memory_for_key(context_key, &self.compiled) {
-                Some(memory) => evaluate_compiled_graph(&self.compiled, memory, frame),
-                None => evaluate_compiled_graph_stateless(&self.compiled, frame),
+            let (lane_output, value) = match self.memory.memory_for_key(context_key, &self.compiled) {
+                Some(memory) => {
+                    let output = evaluate_compiled_graph(&self.compiled, memory, frame);
+                    (output, memory.value(self.result_slot).cloned())
+                }
+                None => {
+                    let output = evaluate_compiled_graph_fresh_reusing(&self.compiled, &mut self.scratch, frame);
+                    (output, self.scratch.value(self.result_slot).cloned())
+                }
             };
             output.intents.extend(lane_output.intents);
             output.diagnostics.extend(lane_output.diagnostics);
-            output.debug_samples.extend(lane_output.debug_samples.clone());
-            let value = lane_output
-                .debug_samples
-                .iter()
-                .rev()
-                .find(|sample| sample.author_node_id == self.output_node && sample.output_socket == self.output_socket)
-                .map(|sample| sample.value.clone())
-                .ok_or_else(|| ValueSetPipelineError::MissingOutput(entry.label.clone()))?;
+            let value = value.ok_or_else(|| ValueSetPipelineError::MissingOutput(entry.label.clone()))?;
             entries.push(ValueSetEntry {
                 key: entry.key.clone(),
                 label: entry.label.clone(),
@@ -213,7 +210,7 @@ impl ValueSetProjectionRuntime {
     }
 
     pub fn evaluate(
-        &self,
+        &mut self,
         values: &ValueSet,
         ctx: &EvaluationCtx<'_>,
     ) -> Result<(RuntimeValue, RuntimeOutput), ValueSetPipelineError> {
@@ -226,27 +223,19 @@ impl ValueSetProjectionRuntime {
 
         let properties = property_frame_for_entries(&self.compiled, &self.property_ids, values)?;
         let context = RuntimeContextFrame::default_lane();
-        let mut debug = DebugCaptureSink::new(DebugCaptureMode::SelectedNodes {
-            formula_id: None,
-            context_key: None,
-            nodes: [self.output_node].into_iter().collect(),
-            history_len: 1,
-        });
         let frame = EvaluationFrame {
             ctx,
             properties: &properties,
             context: &context,
-            debug: &mut debug,
-            force_process_unchanged_inputs: true,
-            capture_unchanged_outputs: true,
+            debug: None,
+            force_process_unchanged_inputs: false,
+            capture_unchanged_outputs: false,
         };
-        let output = evaluate_compiled_graph_stateless(&self.compiled, frame);
-        let value = output
-            .debug_samples
-            .iter()
-            .rev()
-            .find(|sample| sample.author_node_id == self.output_node && sample.output_socket == self.output_socket)
-            .map(|sample| sample.value.clone())
+        let output = evaluate_compiled_graph_fresh_reusing(&self.compiled, &mut self.scratch, frame);
+        let value = self
+            .scratch
+            .value(self.result_slot)
+            .cloned()
             .ok_or_else(|| ValueSetPipelineError::MissingOutput("projection".into()))?;
         Ok((value, output))
     }
@@ -316,12 +305,16 @@ fn compile_projection(
         return Err(ValueSetPipelineError::Compile(compiled.diagnostics));
     }
     let compiled = compiled.compiled.ok_or(ValueSetPipelineError::MissingCompiledGraph)?;
+    let result_slot = compiled
+        .result_slot(output_node, &output_socket)
+        .ok_or(ValueSetPipelineError::MissingCompiledOutput)?;
+    let scratch = AlchemistMemory::for_graph(&compiled);
 
     Ok(ValueSetProjectionRuntime {
         compiled,
-        output_node,
-        output_socket,
+        result_slot,
         property_ids,
+        scratch,
     })
 }
 
@@ -389,6 +382,8 @@ pub enum ValueSetPipelineError {
     Compile(Vec<chataigne_alchemist::Diagnostic>),
     #[error("managed filter pipeline did not produce a compiled graph")]
     MissingCompiledGraph,
+    #[error("managed filter pipeline did not compile its declared result socket")]
+    MissingCompiledOutput,
     #[error("no default value registered for pipeline item type `{0:?}`")]
     MissingDefaultValue(ValueTypeId),
     #[error("projection pipeline requires at least one input lane")]
