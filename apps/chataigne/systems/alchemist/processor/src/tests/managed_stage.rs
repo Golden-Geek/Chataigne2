@@ -228,12 +228,14 @@ fn removed_element_history_is_released_before_the_source_is_added_again() {
             &ctx(&sources, &registries, 1),
         )
         .unwrap();
+    assert_eq!(original.retained_state_lane_count(), 2);
 
     let only_a = typed_layout(&[("a", "float")]);
     let mut removed = ManagedStageRuntime::compile(item.clone(), &only_a, &compile_ctx, ManagedFilterValueMode::Tuple)
         .unwrap()
         .unwrap();
     assert!(removed.migrate_memory_from(original));
+    assert_eq!(removed.retained_state_lane_count(), 1);
     let (output, _) = removed
         .evaluate(
             &frame(only_a, &[RuntimeValue::Float(6.0)], 2),
@@ -246,6 +248,7 @@ fn removed_element_history_is_released_before_the_source_is_added_again() {
         .unwrap()
         .unwrap();
     assert!(added.migrate_memory_from(removed));
+    assert_eq!(added.retained_state_lane_count(), 1);
     let (output, _) = added
         .evaluate(
             &frame(both, &[RuntimeValue::Float(8.0), RuntimeValue::Float(30.0)], 3),
@@ -254,6 +257,7 @@ fn removed_element_history_is_released_before_the_source_is_added_again() {
         .unwrap();
     assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(7.0)));
     assert_eq!(output.slots()[1].value, Some(RuntimeValue::Float(30.0)));
+    assert_eq!(added.retained_state_lane_count(), 2);
 }
 
 #[test]

@@ -11,11 +11,13 @@ use chataigne_alchemist::{
     StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
 };
 use chataigne_processor::{
-    ChannelSourceSchema, INPUT_SOURCE_FIELD, ManagedFormulaRuntime, OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD,
-    OutputBindingConfig, OutputValueSource, ValueLaneKey, alchemist::node_registry,
+    ChannelSourceSchema, INPUT_SOURCE_FIELD, ManagedFormulaRuntime, ManagedStageSpecializationCache,
+    OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD, OutputBindingConfig, OutputValueSource, RuntimeInputBinding,
+    ValueLaneKey, alchemist::node_registry,
 };
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use golden_values::Value as RuntimeValue;
+use indexmap::IndexSet;
 
 fn mapping_runtime(c: &mut Criterion) {
     let mut group = c.benchmark_group("mapping_runtime_float");
@@ -105,13 +107,13 @@ fn mapping_runtime_latency_distribution(c: &mut Criterion) {
     };
     assert!(sample_count >= 100, "latency distribution needs at least 100 samples");
 
-    for (label, processors, sources, depth, workload) in [
-        ("scalar_1000", 1_000, 1, 1, Workload::NumericChain),
-        ("scalar_10000", 10_000, 1, 1, Workload::NumericChain),
-        ("tuple_1000_8x8", 1_000, 8, 8, Workload::NumericChain),
-        ("sum_1000", 1_000, 3, 1, Workload::Sum),
-        ("pack_vec3_1000", 1_000, 3, 1, Workload::PackVec3),
-        ("mixed_1000", 1_000, 3, 1, Workload::MixedPassthrough),
+    for (label, processors, sources, depth, workload, baseline_p95_ns) in [
+        ("scalar_1000", 1_000, 1, 1, Workload::NumericChain, 1_546_000),
+        ("scalar_10000", 10_000, 1, 1, Workload::NumericChain, 41_880_000),
+        ("tuple_1000_8x8", 1_000, 8, 8, Workload::NumericChain, 89_707_000),
+        ("sum_1000", 1_000, 3, 1, Workload::Sum, 2_065_000),
+        ("pack_vec3_1000", 1_000, 3, 1, Workload::PackVec3, 2_110_000),
+        ("mixed_1000", 1_000, 3, 1, Workload::MixedPassthrough, 1_162_000),
     ] {
         let (mut runtimes, inputs, value_types) = build_case(processors, sources, depth, workload);
         let registries = RuntimeRegistries {
@@ -127,7 +129,8 @@ fn mapping_runtime_latency_distribution(c: &mut Criterion) {
             black_box(evaluate_batch(&mut runtimes, black_box(&context)));
             samples.push(start.elapsed().as_nanos() as u64);
         }
-        report_latency_distribution(label, &mut samples);
+        let p95 = report_latency_distribution(label, &mut samples);
+        assert_baseline_p95(label, p95, baseline_p95_ns);
     }
 
     let (mut runtimes, inputs, value_types) = build_case(1, 8, 8, Workload::NumericChain);
@@ -147,7 +150,8 @@ fn mapping_runtime_latency_distribution(c: &mut Criterion) {
         black_box(evaluate_contexts(&mut runtimes[0], black_box(&context), &keys));
         samples.push(start.elapsed().as_nanos() as u64);
     }
-    report_latency_distribution("contexts_8x8x8", &mut samples);
+    let p95 = report_latency_distribution("contexts_8x8x8", &mut samples);
+    assert_baseline_p95("contexts_8x8x8", p95, 440_000);
 
     let (mut runtimes, inputs, value_types) = build_case(1_000, 1, 1, Workload::NumericChain);
     let registries = RuntimeRegistries {
@@ -216,29 +220,208 @@ fn mapping_runtime_allocation_report(c: &mut Criterion) {
     group.finish();
 }
 
-fn report_latency_distribution(label: &str, samples: &mut [u64]) {
+fn mapping_runtime_activity_distribution(c: &mut Criterion) {
+    let Some(sample_count) = std::env::var("CHATAIGNE_MAPPING_ACTIVITY_SAMPLES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+    else {
+        return;
+    };
+    assert!(sample_count >= 100, "activity distribution needs at least 100 samples");
+
+    let (mut runtimes, mut inputs, value_types) = build_case(1, 1, 1, Workload::NumericChain);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let source = source_reference(0, 0);
+    report_activity("source_change_1", sample_count, 3_000, |tick| {
+        inputs.insert(
+            source.clone(),
+            RuntimeValue::Float(if tick % 2 == 0 { 0.25 } else { 0.75 }),
+        );
+        let context = evaluation_context_at(&inputs, &registries, tick as u64 + 1);
+        let output = runtimes[0].evaluate(&context);
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        (output.intents.len(), output.debug_samples.len())
+    });
+
+    let (mut runtimes, mut inputs, value_types, filter) = build_case_with_first_filter(1, 1, 1, Workload::NumericChain);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    inputs.insert(source_reference(0, 0), RuntimeValue::Float(0.5));
+    let filter = filter.expect("Remap benchmark has one filter");
+    let socket = SocketId::new("out_max");
+    report_activity("runtime_setting_1", sample_count, 3_000, |tick| {
+        let upper = if tick % 2 == 0 { 0.25 } else { 0.75 };
+        runtimes[0]
+            .update_filter_input(
+                filter,
+                &socket,
+                RuntimeInputBinding::Constant(RuntimeValue::Float(upper)),
+            )
+            .expect("live Remap setting should update without compilation");
+        let context = evaluation_context_at(&inputs, &registries, tick as u64 + 1);
+        let output = runtimes[0].evaluate(&context);
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(output.intents[0].payload, RuntimeValue::Float(upper * 0.5));
+        (output.intents.len(), output.debug_samples.len())
+    });
+
+    let (mut runtimes, mut inputs, value_types) = build_case(1, 1, 1, Workload::Smooth);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    assert!(runtimes[0].needs_continuous_evaluation());
+    report_activity("temporal_smooth_1", sample_count, 3_000, |tick| {
+        if tick == 16 {
+            inputs.insert(source_reference(0, 0), RuntimeValue::Float(1.0));
+        }
+        let context = evaluation_context_at(&inputs, &registries, tick as u64 + 1);
+        let output = runtimes[0].evaluate(&context);
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        (output.intents.len(), output.debug_samples.len())
+    });
+
+    let (mut runtimes, mut inputs, value_types) = build_case(1, 8, 8, Workload::NumericChain);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let source = source_reference(0, 0);
+    report_activity("preview_8x8", sample_count, 100_000, |tick| {
+        inputs.insert(
+            source.clone(),
+            RuntimeValue::Float(if tick % 2 == 0 { 0.25 } else { 0.75 }),
+        );
+        let context = evaluation_context_at(&inputs, &registries, tick as u64 + 1);
+        let output = runtimes[0].evaluate_with_context_frame(
+            &context,
+            &ContextKey::default_lane(),
+            None,
+            chataigne_alchemist::DebugCaptureMode::All { history_len: 1 },
+        );
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        (output.intents.len(), output.debug_samples.len())
+    });
+
+    report_context_cleanup(sample_count);
+
+    let (mut runtimes, inputs, value_types) = build_case(1, 1, 1, Workload::NumericChain);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let context = evaluation_context(&inputs, &registries);
+    let mut group = c.benchmark_group("mapping_runtime_activity_distribution");
+    group.bench_function("scalar_reference", |bench| {
+        bench.iter(|| black_box(evaluate_batch(&mut runtimes, black_box(&context))));
+    });
+    group.finish();
+}
+
+fn report_activity(
+    label: &str,
+    sample_count: usize,
+    baseline_p95_ns: u64,
+    mut evaluate: impl FnMut(usize) -> (usize, usize),
+) {
+    for tick in 0..16 {
+        black_box(evaluate(tick));
+    }
+    let mut samples = Vec::with_capacity(sample_count);
+    let (mut intents, mut previews) = (0, 0);
+    for sample in 0..sample_count {
+        let start = Instant::now();
+        let (sample_intents, sample_previews) = black_box(evaluate(sample + 16));
+        samples.push(start.elapsed().as_nanos() as u64);
+        intents += sample_intents;
+        previews += sample_previews;
+    }
+    println!("mapping_activity {label} samples={sample_count} intents={intents} previews={previews}");
+    let p95 = report_latency_distribution(label, &mut samples);
+    assert_baseline_p95(label, p95, baseline_p95_ns);
+}
+
+fn report_context_cleanup(sample_count: usize) {
+    let (mut runtimes, inputs, value_types) = build_case(1, 1, 1, Workload::Smooth);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let context = evaluation_context(&inputs, &registries);
+    let keys = (0..128)
+        .map(|index| ContextKey::single("benchmark", format!("context_{index}")))
+        .collect::<Vec<_>>();
+    let keep = keys.iter().take(8).cloned().collect::<IndexSet<_>>();
+    let runtime = &mut runtimes[0];
+    let mut samples = Vec::with_capacity(sample_count);
+    for cycle in 0..sample_count + 16 {
+        for key in &keys {
+            let output =
+                runtime.evaluate_with_context_frame(&context, key, None, chataigne_alchemist::DebugCaptureMode::Off);
+            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        }
+        assert_eq!(runtime.retained_state_lane_count(), keys.len());
+        let start = Instant::now();
+        runtime.retain_context_keys(&keep);
+        let elapsed = start.elapsed().as_nanos() as u64;
+        assert_eq!(runtime.retained_state_lane_count(), keep.len());
+        if cycle >= 16 {
+            samples.push(elapsed);
+        }
+    }
+    println!("mapping_retained_state before={} after={}", keys.len(), keep.len());
+    let p95 = report_latency_distribution("context_cleanup_128_to_8", &mut samples);
+    assert_baseline_p95("context_cleanup_128_to_8", p95, 100_000);
+}
+
+fn report_latency_distribution(label: &str, samples: &mut [u64]) -> u64 {
     samples.sort_unstable();
     let percentile = |percent: usize| samples[(samples.len() * percent).div_ceil(100) - 1];
+    let p95 = percentile(95);
     println!(
         "mapping_latency {label} samples={} p50_ns={} p95_ns={} p99_ns={}",
         samples.len(),
         percentile(50),
-        percentile(95),
+        p95,
         percentile(99),
     );
+    p95
+}
+
+fn assert_baseline_p95(label: &str, measured_ns: u64, baseline_ns: u64) {
+    if std::env::var_os("CHATAIGNE_MAPPING_ENFORCE_275HX_BASELINE").is_some() {
+        assert!(
+            measured_ns <= baseline_ns,
+            "{label} p95 {measured_ns} ns exceeded recorded 275HX baseline {baseline_ns} ns"
+        );
+    }
 }
 
 fn evaluation_context<'a>(
     inputs: &'a RuntimeInputSnapshot,
     registries: &'a RuntimeRegistries<'a>,
 ) -> EvaluationCtx<'a> {
+    evaluation_context_at(inputs, registries, 1)
+}
+
+fn evaluation_context_at<'a>(
+    inputs: &'a RuntimeInputSnapshot,
+    registries: &'a RuntimeRegistries<'a>,
+    logical_tick: u64,
+) -> EvaluationCtx<'a> {
     EvaluationCtx {
-        logical_tick: 1,
+        logical_tick,
         delta_time: Duration::from_millis(16),
         events: &[],
         inputs,
         registries,
     }
+}
+
+fn source_reference(processor: usize, index: usize) -> StableRef {
+    StableRef::new(
+        ValueTypeId::new("chataigne.module_endpoint"),
+        format!("source/{processor}/{index}"),
+    )
 }
 
 fn evaluate_batch(runtimes: &mut [ManagedFormulaRuntime], context: &EvaluationCtx<'_>) -> usize {
@@ -263,12 +446,13 @@ fn evaluate_contexts(runtime: &mut ManagedFormulaRuntime, context: &EvaluationCt
         .sum()
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Workload {
     NumericChain,
     Sum,
     PackVec3,
     MixedPassthrough,
+    Smooth,
 }
 
 fn build_case(
@@ -277,6 +461,22 @@ fn build_case(
     depth: usize,
     workload: Workload,
 ) -> (Vec<ManagedFormulaRuntime>, RuntimeInputSnapshot, ValueTypeRegistry) {
+    let (runtimes, inputs, value_types, _) =
+        build_case_with_first_filter(processor_count, source_count, depth, workload);
+    (runtimes, inputs, value_types)
+}
+
+fn build_case_with_first_filter(
+    processor_count: usize,
+    source_count: usize,
+    depth: usize,
+    workload: Workload,
+) -> (
+    Vec<ManagedFormulaRuntime>,
+    RuntimeInputSnapshot,
+    ValueTypeRegistry,
+    Option<ManagedItemId>,
+) {
     let formula = formula();
     let value_types = chataigne_processor::alchemist::value_type_registry();
     let nodes = node_registry();
@@ -287,14 +487,13 @@ fn build_case(
     };
     let mut inputs = RuntimeInputSnapshot::default();
     let mut runtimes = Vec::with_capacity(processor_count);
+    let mut cache = ManagedStageSpecializationCache::default();
+    let mut first_filter = None;
     for processor in 0..processor_count {
         let mut instance = formula.instantiate();
         let sources: Vec<_> = (0..source_count)
             .map(|index| {
-                let source = StableRef::new(
-                    ValueTypeId::new("chataigne.module_endpoint"),
-                    format!("source/{processor}/{index}"),
-                );
+                let source = source_reference(processor, index);
                 let value = match (workload, index) {
                     (Workload::MixedPassthrough, 1) => RuntimeValue::Bool(true),
                     (Workload::MixedPassthrough, 2) => RuntimeValue::String("benchmark".into()),
@@ -320,7 +519,11 @@ fn build_case(
             }
             Workload::PackVec3 => vec![item(PrimitiveNodeKind::PackVec3)],
             Workload::MixedPassthrough => Vec::new(),
+            Workload::Smooth => vec![item(PrimitiveNodeKind::SmoothFilter)],
         };
+        if first_filter.is_none() {
+            first_filter = filters.first().map(|filter| filter.id);
+        }
         instance
             .managed_regions
             .regions
@@ -340,27 +543,46 @@ fn build_case(
             .expect("benchmark Formula should compile")
             .expect("benchmark Formula should have managed regions");
         runtime
-            .reconcile_input_source_schema(|reference| {
-                let index = reference
-                    .stable_id
-                    .rsplit('/')
-                    .next()
-                    .and_then(|value| value.parse::<usize>().ok())
-                    .unwrap();
-                let value_type = match (workload, index) {
-                    (Workload::MixedPassthrough, 1) => "bool",
-                    (Workload::MixedPassthrough, 2) => "string",
-                    _ => "float",
-                };
-                Some(ChannelSourceSchema {
-                    value_type: ValueTypeId::new(value_type),
-                    metadata: Default::default(),
-                })
-            })
+            .reconcile_input_source_schema_with_cache(
+                |reference| {
+                    let index = reference
+                        .stable_id
+                        .rsplit('/')
+                        .next()
+                        .and_then(|value| value.parse::<usize>().ok())
+                        .unwrap();
+                    let value_type = match (workload, index) {
+                        (Workload::MixedPassthrough, 1) => "bool",
+                        (Workload::MixedPassthrough, 2) => "string",
+                        _ => "float",
+                    };
+                    Some(ChannelSourceSchema {
+                        value_type: ValueTypeId::new(value_type),
+                        metadata: Default::default(),
+                    })
+                },
+                Some(&mut cache),
+            )
             .expect("benchmark sources should resolve");
         runtimes.push(runtime);
     }
-    (runtimes, inputs, value_types)
+    let expected_plans = match workload {
+        Workload::NumericChain if depth > 1 => 2,
+        Workload::MixedPassthrough => 0,
+        _ => 1,
+    };
+    assert_eq!(
+        cache.len(),
+        expected_plans,
+        "equivalent Mapping stages should share compiled plans"
+    );
+    if std::env::var_os("CHATAIGNE_MAPPING_CACHE_REPORT").is_some() {
+        println!(
+            "mapping_cache processors={processor_count} sources={source_count} depth={depth} workload={workload:?} unique_stage_plans={}",
+            cache.len()
+        );
+    }
+    (runtimes, inputs, value_types, first_filter)
 }
 
 fn formula() -> AlchemistFormula {
@@ -473,6 +695,7 @@ criterion_group!(
     mapping_runtime_shapes,
     mapping_runtime_contexts,
     mapping_runtime_latency_distribution,
-    mapping_runtime_allocation_report
+    mapping_runtime_allocation_report,
+    mapping_runtime_activity_distribution
 );
 criterion_main!(benches);

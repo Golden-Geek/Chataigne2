@@ -366,6 +366,11 @@ impl ManagedStageRuntime {
     }
 
     #[must_use]
+    pub fn retained_state_lane_count(&self) -> usize {
+        self.memory.memory_count()
+    }
+
+    #[must_use]
     pub fn needs_continuous_evaluation(&self) -> bool {
         self.compiled.analysis.has_always_process_nodes
             && (!self.temporal_evaluated || !self.active_temporal_contexts.is_empty())

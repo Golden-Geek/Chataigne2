@@ -110,6 +110,14 @@ impl ManagedStageChain {
         }
     }
 
+    #[must_use]
+    pub fn retained_state_lane_count(&self) -> usize {
+        self.stages
+            .iter()
+            .map(ManagedStageRuntime::retained_state_lane_count)
+            .sum()
+    }
+
     pub fn migrate_memory_from(&mut self, previous: Self) {
         for (stage, old_stage) in self.stages.iter_mut().zip(previous.stages) {
             if !stage.migrate_memory_from(old_stage) {

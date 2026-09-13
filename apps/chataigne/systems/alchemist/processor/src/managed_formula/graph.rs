@@ -50,6 +50,10 @@ pub(super) struct GraphManagedFrame<'a, 'ctx> {
 }
 
 impl GraphManagedExecution {
+    pub(super) fn retained_state_lane_count(&self) -> usize {
+        self.memory.memory_count()
+    }
+
     pub(super) fn reset_memory(&mut self) {
         self.memory.clear();
         self.scratch.reset_for_fresh_evaluation(&self.compiled);

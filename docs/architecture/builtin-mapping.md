@@ -385,26 +385,43 @@ on the same Windows host and `bench` profile were:
 
 | Workload | p50 | p95 | p99 |
 | --- | ---: | ---: | ---: |
-| 1,000 processors × one Float × one stage | 0.992 ms | 1.016 ms | 1.197 ms |
-| 10,000 processors × one Float × one stage | 30.478 ms | 33.085 ms | 35.323 ms |
-| 1,000 processors × eight Floats × eight stages | 62.631 ms | 64.078 ms | 66.551 ms |
-| 1,000 processors × three Floats → Sum | 1.361 ms | 1.399 ms | 1.425 ms |
-| 1,000 processors × three Floats → Pack Vec3 | 1.359 ms | 1.393 ms | 1.414 ms |
-| 1,000 processors × Float/Bool/String passthrough | 0.466 ms | 0.568 ms | 0.578 ms |
-| Eight contexts × eight Floats × eight stages | 0.284 ms | 0.305 ms | 0.312 ms |
+| 1,000 processors × one Float × one stage | 0.929 ms | 0.942 ms | 1.146 ms |
+| 10,000 processors × one Float × one stage | 24.714 ms | 27.732 ms | 29.254 ms |
+| 1,000 processors × eight Floats × eight stages | 58.018 ms | 60.905 ms | 64.035 ms |
+| 1,000 processors × three Floats → Sum | 1.254 ms | 1.280 ms | 1.300 ms |
+| 1,000 processors × three Floats → Pack Vec3 | 1.259 ms | 1.361 ms | 1.662 ms |
+| 1,000 processors × Float/Bool/String passthrough | 0.462 ms | 0.558 ms | 0.566 ms |
+| Eight contexts × eight Floats × eight stages | 0.281 ms | 0.302 ms | 0.307 ms |
 
-These observations are from the final compact-output runtime and direct
-frame-to-command path. Earlier values above document intermediate code and
-different measurement durations; they are not regression thresholds. A
-separate 10-sample Criterion reference for the same final scalar batch had a
-1.317 ms center estimate, so the single-evaluation distribution should not be
-read as Criterion's aggregate timing.
+These observations use the compact-output runtime, direct frame-to-command
+path, and one shared stage-specialization cache within each fixture. The
+cache held one distinct compiled stage plan for 10,000 equivalent scalar
+processors, two for 1,000 eight-stage alternating Remap/Clamp processors,
+and none for mixed passthrough with no stage. The benchmark asserts those
+cache-entry counts. Earlier values above document intermediate code and
+different measurement durations. A separate 10-sample Criterion reference
+for the shared-cache scalar batch had a 1.197 ms center estimate, so the
+single-evaluation distribution should not be read as Criterion's aggregate
+timing.
 The individual timings report observed batch tails, including OS scheduling
 jitter, rather than percentiles inferred from Criterion's aggregate samples.
 To repeat them, set `CHATAIGNE_MAPPING_LATENCY_SAMPLES=500` and run the
 `mapping_baseline` bench with the `mapping_runtime_latency_distribution`
 filter. The ordinary Criterion cases remain available when that variable is
 unset.
+
+The optional `CHATAIGNE_MAPPING_ENFORCE_275HX_BASELINE` guard compares these
+seven observed p95 values against the first recorded 500-sample runtime p95
+values on the same 275HX host (1.546, 41.880, 89.707, 2.065, 2.110, 1.162,
+and 0.440 ms, in table order). These are host-specific managed-runtime upper
+bounds, not end-to-end application thresholds or a claim that the cache alone
+caused the later timing difference.
+
+The guarded repeat passed with p50/p95/p99 values of 0.940/0.954/1.141 ms
+for 1,000 scalar processors, 24.611/28.249/29.345 ms for 10,000 scalar
+processors, and 59.262/60.850/63.638 ms for 1,000 eight-source/eight-stage
+processors. The three-source Sum, Pack Vec3, and mixed tuple runs had p95
+values of 1.290, 1.295, and 0.558 ms; eight contexts had a 0.296 ms p95.
 
 An opt-in allocation report measures one complete warmed batch with the
 workspace's `allocation-counter` tool after 16 warmups. Before the reusable
@@ -423,9 +440,36 @@ this measurement does not attribute each one or establish state-cache bounds.
 Run it with `CHATAIGNE_MAPPING_ALLOCATION_REPORT=1` and the
 `mapping_runtime_allocation_report` benchmark filter.
 
-This fixture does not yet measure engine dirty scheduling, command delivery,
-preview capture, structural edits, bounded temporal history, or cache counts.
-Its fixed input snapshot and logical tick make it a steady evaluation
-benchmark. End-to-end percentile latency and regression thresholds require a
-broader workload; the historical lane fixture cannot supply a comparable
-threshold for the current Mapping runtime.
+An opt-in activity run separately measures a changing source, a live Remap
+setting edit, continuous Smooth evaluation after one source change, full
+preview capture for one changing element in an eight-source/eight-stage
+chain, and eviction of stateful context memories. It collects 500 consecutive
+warmed samples on the same host and build profile:
+
+| Managed-runtime activity | p50 | p95 | p99 | Observed volume or state |
+| --- | ---: | ---: | ---: | --- |
+| One changing source | 1.2 µs | 1.2 µs | 1.3 µs | 500 intents, no previews |
+| One live Remap bound edit | 1.2 µs | 1.2 µs | 1.2 µs | 500 intents, no previews; command values alternate |
+| One continuous Smooth stage | 0.7 µs | 0.7 µs | 0.7 µs | 500 intents after one source change |
+| Preview of eight sources × eight stages | 35.3 µs | 37.7 µs | 86.2 µs | 500 intents, 4,000 preview samples |
+| Evict 128 Smooth contexts to eight | 23.9 µs | 26.3 µs | 62.7 µs | Retained state lanes: 128 before, eight after |
+
+The source-change and setting-edit timers include the in-memory snapshot or
+binding update plus managed evaluation. The cleanup timer covers eviction
+only; context repopulation occurs outside it. The preview case changes one
+tuple element each sample and uses full capture. Run this report with
+`CHATAIGNE_MAPPING_ACTIVITY_SAMPLES=500` and the
+`mapping_runtime_activity_distribution` filter; set
+`CHATAIGNE_MAPPING_CACHE_REPORT=1` to print distinct stage-plan counts.
+
+The same optional 275HX guard also bounds activity p95 at 3 µs for each
+single-processor source, setting, and Smooth case, and 100 µs for preview
+and context cleanup. A guarded repeat passed: measured p95 values were
+1.2, 1.2, 0.7, 39.7, and 25.9 µs in table order. The state metric counts
+retained lanes, not heap bytes.
+
+The benchmark still does not measure full engine dirty scheduling, queued
+command delivery, structural edits, state memory bytes, or long-horizon
+temporal-history bounds. End-to-end percentile thresholds require those
+workloads; the historical lane fixture cannot supply a comparable threshold
+for the complete Mapping product path.
