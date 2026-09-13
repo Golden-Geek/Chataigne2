@@ -270,42 +270,56 @@ pub(super) fn constant_numeric_value_change_keeps_signature(
     let Some(snapshot) = ctx.tree_snapshot() else {
         return false;
     };
+    is_constant_value_param(snapshot, param)
+        && same_type_numeric_changes_for_param(&ctx.events, param)
+}
+
+pub(crate) fn is_constant_value_param(snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
     let Some(config) = snapshot.node(param).and_then(|node| node.parent) else {
         return false;
     };
-    if snapshot.find_child_by_decl_id(config, "config/value") != Some(param) {
-        return false;
-    }
     let Some(anode) = snapshot.node(config).and_then(|node| node.parent) else {
         return false;
     };
-    if !snapshot.node(anode).is_some_and(|node| {
-        node.node_type == ANODE_NODE_TYPE
-            && anode_type_from_tags(&node.tags).as_deref() == Some("constant")
-    }) {
-        return false;
+    constant_value_param_from_snapshot(snapshot, anode) == Some(param)
+}
+
+pub(super) fn constant_value_param_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    anode: NodeId,
+) -> Option<NodeId> {
+    let node = snapshot.node(anode)?;
+    if node.node_type != ANODE_NODE_TYPE
+        || anode_type_from_tags(&node.tags).as_deref() != Some("constant")
+    {
+        return None;
     }
-    let mut changed = false;
-    for event in &ctx.events {
-        if let EventKind::ParamChanged {
-            param: changed_param,
-            old_value,
-            new_value,
-        } = &event.kind
-        {
-            if *changed_param != param {
-                continue;
-            }
-            changed = true;
-            if !matches!(
-                (old_value, new_value),
-                (ParamValue::Float(_), ParamValue::Float(_)) | (ParamValue::Int(_), ParamValue::Int(_))
-            ) {
-                return false;
-            }
-        }
-    }
-    changed
+    let config = snapshot.find_child_by_decl_id(anode, "config")?;
+    snapshot.find_child_by_decl_id(config, "config/value")
+}
+
+pub(crate) fn same_type_numeric_change_param(event: &Event) -> Option<NodeId> {
+    let EventKind::ParamChanged {
+        param,
+        old_value,
+        new_value,
+    } = &event.kind else {
+        return None;
+    };
+    matches!(
+        (old_value, new_value),
+        (ParamValue::Float(_), ParamValue::Float(_)) | (ParamValue::Int(_), ParamValue::Int(_))
+    )
+    .then_some(*param)
+}
+
+pub(super) fn same_type_numeric_changes_for_param(events: &EventFrame, param: NodeId) -> bool {
+    events.iter().any(|event| {
+        matches!(&event.kind, EventKind::ParamChanged { param: changed, .. } if *changed == param)
+    }) && events.iter().all(|event| {
+        !matches!(&event.kind, EventKind::ParamChanged { param: changed, .. } if *changed == param)
+            || same_type_numeric_change_param(event) == Some(param)
+    })
 }
 
 pub(crate) fn formula_runtime_param_change_requires_rematerialization(

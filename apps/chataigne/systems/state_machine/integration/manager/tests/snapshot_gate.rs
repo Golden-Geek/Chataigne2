@@ -34,6 +34,7 @@ fn authored_formula_value_invalidates_runtime_but_layout_and_status_do_not() {
         (valid, context_scope_test_node(valid, Some(formula), None, None, "bool")),
     ]);
     nodes.get_mut(&formula).unwrap().uuid = formula_uuid;
+    nodes.get_mut(&anode).unwrap().tags.push("alchemist.anode.type:constant".into());
     nodes.get_mut(&position).unwrap().decl_id = "position".into();
     nodes.get_mut(&config).unwrap().decl_id = "config".into();
     nodes.get_mut(&value).unwrap().decl_id = "config/value".into();
@@ -53,7 +54,34 @@ fn authored_formula_value_invalidates_runtime_but_layout_and_status_do_not() {
 
     manager.runtime_cache.structure_dirty.clear();
     manager.runtime_cache.runtime_snapshot = Some(Arc::clone(&snapshot));
+    manager.runtime_cache.topology_dirty = false;
+    manager.runtime_cache.formula_catalog_dirty = false;
+    manager.runtime_cache.formula_catalog_initialized = true;
+    manager.runtime_cache.context_provider_dirty = false;
+    manager.runtime_cache.command_dispatch_snapshot_dirty = false;
     let mut no_snapshot = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 2, micro: 0, seq: 0 });
+    no_snapshot.events.push_shared(Arc::new(Event {
+        time: no_snapshot.time,
+        kind: EventKind::ParamChanged {
+            param: value,
+            old_value: ParamValue::Float(0.0),
+            new_value: ParamValue::Float(2.0),
+        },
+    }));
+    assert!(!manager.inbox_requires_tree_snapshot(&no_snapshot.events));
+    manager.runtime_cache.structure_dirty.insert(formula_uuid);
+    assert!(manager.inbox_requires_tree_snapshot(&no_snapshot.events));
+    manager.runtime_cache.structure_dirty.clear();
+    let mut type_change = ProcessCtx::new(ExecutionPhase::EngineTick, no_snapshot.time);
+    type_change.events.push_shared(Arc::new(Event {
+        time: no_snapshot.time,
+        kind: EventKind::ParamChanged {
+            param: value,
+            old_value: ParamValue::Float(0.0),
+            new_value: ParamValue::Vec3(1.0, 2.0, 3.0),
+        },
+    }));
+    assert!(manager.inbox_requires_tree_snapshot(&type_change.events));
     manager.on_param_change(&mut no_snapshot, manager_id, ParamValue::Float(0.0));
     assert!(manager.runtime_cache.structure_dirty.is_empty());
     manager.on_param_change(&mut no_snapshot, value, ParamValue::Float(0.0));

@@ -486,6 +486,19 @@ snapshot on the dispatch tick instead of two, with no redundant ANode parameter 
 The remaining snapshot and refresh costs are still substantial; these samples do not close the
 T19 product gate or establish p95 action-to-paint latency.
 
+The app-owned Formula and ANode callbacks now index Constant value parameters when a structural
+snapshot is available. For a same-type numeric value event they use that index and dirty only the
+changed ANode's materialization entry; external-file Formulas, type changes, and structural edits
+still require the snapshot path. StateMachineManager uses its retained structural snapshot to
+classify this exact value event only while its runtime/catalog caches are current. The next
+scheduled Formula refresh still builds a fresh snapshot to consume the changed value. The
+source-fingerprinted `target/qualification/authored-graph-scale/20260913T011701Z/` matrix passed
+all eighteen scenarios; its single 100k sparse/dense dispatch ticks measured 0/4 ms for 1/715
+values, with 263/260 ms Formula-refresh ticks. A separate all-7,143-Constant probe passed value
+and undo/redo replay checks with a 37 ms dispatch tick and 264 ms refresh tick. A trace confirmed
+zero full-tree snapshots on the sparse dispatch tick and one on the refresh tick. These are local
+backend samples, not p95 or browser action-to-paint evidence; the T19 product gate remains open.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -509,7 +522,7 @@ T19 product gate or establish p95 action-to-paint latency.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, 602-record structural edits, and sparse/dense parameter replay pass locally; dispatch/refresh exceed workbench budgets, while browser p95, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, 602-record structural edits, and sparse/dense parameter replay pass locally; scheduled Formula refresh, browser p95, platform, and physical evidence remain open |
 
 ## Finding status
 

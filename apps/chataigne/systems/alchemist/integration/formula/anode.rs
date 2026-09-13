@@ -54,7 +54,10 @@ impl Node for AlchemistOutputSocket {
     folder(inputs, label = "Inputs") {}
     folder(outputs, label = "Outputs") {}
 )]
-pub struct AlchemistANode {}
+pub struct AlchemistANode {
+    #[state(default = None)]
+    numeric_constant_value_param: Option<NodeId>,
+}
 
 #[node("alchemist_anode", from_struct)]
 impl Node for AlchemistANode {
@@ -62,6 +65,16 @@ impl Node for AlchemistANode {
     // Init only adjusts metadata, so it must not force a whole-graph snapshot.
     fn init_requires_tree_snapshot(&self) -> bool {
         false
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        let Some(param) = self.numeric_constant_value_param else {
+            return true;
+        };
+        events.is_empty()
+            || !events
+                .iter()
+                .all(|event| same_type_numeric_change_param(event) == Some(param))
     }
 
     fn user_item_kind(&self) -> &str {
@@ -78,6 +91,9 @@ impl Node for AlchemistANode {
         ctx: &mut ProcessCtx,
         context: NodeCreationContext,
     ) {
+        self.numeric_constant_value_param = ctx
+            .tree_snapshot()
+            .and_then(|snapshot| constant_value_param_from_snapshot(snapshot, self.id()));
         self.reconcile_structure(ctx);
         self.mirror_property_reference_presentation(ctx);
         if context == NodeCreationContext::Duplicate {
@@ -92,13 +108,24 @@ impl Node for AlchemistANode {
         }
     }
 
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            self.numeric_constant_value_param =
+                constant_value_param_from_snapshot(snapshot, self.id());
+        }
+        self.dispatch_inbox(ctx);
+    }
+
     fn on_param_change(
         &mut self,
         ctx: &mut ProcessCtx,
         param: NodeId,
         _old_value: ParamValue,
     ) {
-        if constant_numeric_value_change_keeps_signature(ctx, param) {
+        if (self.numeric_constant_value_param == Some(param)
+            && same_type_numeric_changes_for_param(&ctx.events, param))
+            || constant_numeric_value_change_keeps_signature(ctx, param)
+        {
             return;
         }
         let should_reconcile = ctx.tree_snapshot().is_some_and(|snapshot| {

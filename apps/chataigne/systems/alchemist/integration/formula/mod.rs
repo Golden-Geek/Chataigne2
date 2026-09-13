@@ -68,6 +68,7 @@ pub(crate) use snapshot::{
 };
 pub(crate) use value_bridge::{constraint_value_type, param_to_runtime_value, runtime_value_to_param};
 pub(crate) use value_bridge::formula_runtime_param_change_requires_rematerialization;
+pub(crate) use value_bridge::{is_constant_value_param, same_type_numeric_change_param};
 #[cfg(test)]
 pub(crate) use library::reset_shared_formula_watcher_for_test;
 pub use properties::{
@@ -191,6 +192,8 @@ impl Node for AlchemistConnection {
 pub struct AlchemistFormulaDefinition {
     #[state(default = ANodeMaterializationCache::default())]
     anode_materialization: ANodeMaterializationCache,
+    #[state(default = HashMap::new())]
+    numeric_constant_value_params: HashMap<NodeId, NodeId>,
 }
 
 const FORMULA_BULK_INBOX_THRESHOLD: usize = 32;
@@ -205,7 +208,29 @@ fn formula_inbox_requires_bulk(events: &EventFrame) -> bool {
 }
 
 impl AlchemistFormulaDefinition {
+    fn index_constant_value_params(&mut self, snapshot: &ProcessTreeSnapshot) {
+        self.numeric_constant_value_params.clear();
+        for anode in snapshot.child_ids(self.id()) {
+            if let Some(param) = constant_value_param_from_snapshot(snapshot, anode) {
+                self.numeric_constant_value_params.insert(param, anode);
+            }
+        }
+    }
+
     fn dispatch_bulk_inbox(&mut self, ctx: &mut ProcessCtx) {
+        let numeric_value_changes = ctx
+            .events
+            .iter()
+            .filter_map(|event| match &event.kind {
+                EventKind::ParamChanged { param, .. } => {
+                    Some((*param, same_type_numeric_change_param(event) == Some(*param)))
+                }
+                _ => None,
+            })
+            .fold(HashMap::<NodeId, bool>::new(), |mut changes, (param, numeric)| {
+                *changes.entry(param).or_insert(true) &= numeric;
+                changes
+            });
         let param_changes = ctx
             .events
             .iter()
@@ -259,7 +284,10 @@ impl AlchemistFormulaDefinition {
             if self.is_formula_internal_param(param) {
                 continue;
             }
-            if constant_numeric_value_change_keeps_signature(ctx, param) {
+            if (self.numeric_constant_value_params.contains_key(&param)
+                && numeric_value_changes.get(&param) == Some(&true))
+                || constant_numeric_value_change_keeps_signature(ctx, param)
+            {
                 needs_save = true;
                 continue;
             }
@@ -344,6 +372,15 @@ impl AlchemistFormulaDefinition {
 
 #[item("alchemist_formula", node = "alchemist_formula", from_struct)]
 impl Node for AlchemistFormulaDefinition {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        self.is_external_file_formula()
+            || events.is_empty()
+            || !events.iter().all(|event| {
+                same_type_numeric_change_param(event)
+                    .is_some_and(|param| self.numeric_constant_value_params.contains_key(&param))
+            })
+    }
+
     fn init(&mut self, ctx: &mut ProcessCtx) {
         if self.is_read_only_external_formula() {
             self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
@@ -360,6 +397,9 @@ impl Node for AlchemistFormulaDefinition {
         _context: NodeCreationContext,
     ) {
         self.anode_materialization.invalidate();
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            self.index_constant_value_params(snapshot);
+        }
         self.reconcile_external_formula_file_parameter(ctx);
         self.reconcile_external_formula_operation_parameters(ctx);
         self.reconcile_formula_copy_source_parameter(ctx);
@@ -383,9 +423,18 @@ impl Node for AlchemistFormulaDefinition {
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         let formula_id = self.id();
         if let Some(snapshot) = ctx.tree_snapshot() {
+            self.index_constant_value_params(snapshot);
             self.anode_materialization.observe_events(snapshot, formula_id, &ctx.events);
         } else {
-            self.anode_materialization.invalidate();
+            for event in &ctx.events {
+                let Some(anode) = same_type_numeric_change_param(event)
+                    .and_then(|param| self.numeric_constant_value_params.get(&param))
+                else {
+                    self.anode_materialization.invalidate();
+                    break;
+                };
+                self.anode_materialization.mark_dirty(*anode);
+            }
         }
         if !formula_inbox_requires_bulk(&ctx.events) {
             self.dispatch_inbox(ctx);
@@ -423,7 +472,10 @@ impl Node for AlchemistFormulaDefinition {
         if self.is_formula_internal_param(param) {
             return;
         }
-        if constant_numeric_value_change_keeps_signature(ctx, param) {
+        if (self.numeric_constant_value_params.contains_key(&param)
+            && same_type_numeric_changes_for_param(&ctx.events, param))
+            || constant_numeric_value_change_keeps_signature(ctx, param)
+        {
             self.save_external_formula_file(ctx);
             return;
         }

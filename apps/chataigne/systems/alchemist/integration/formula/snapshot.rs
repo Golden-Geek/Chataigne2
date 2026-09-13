@@ -236,6 +236,10 @@ impl ANodeMaterializationCache {
         self.dirty.clear();
     }
 
+    pub(super) fn mark_dirty(&mut self, anode: NodeId) {
+        self.dirty.insert(anode);
+    }
+
     pub(super) fn observe_events(
         &mut self,
         snapshot: &ProcessTreeSnapshot,

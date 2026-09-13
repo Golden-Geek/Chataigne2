@@ -1593,15 +1593,33 @@ impl Node for StateMachineManager {
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         events.iter().any(|event| match &event.kind {
-            EventKind::ParamChanged { param, .. } => runtime_param_change_requires_snapshot(
-                self.runtime_cache.context_provider_params.contains(param),
-                self.runtime_cache.source_listener_param_uuids.contains_key(param),
-                self.command_listener_observes_cached(*param),
-                self.runtime_cache
-                    .runtime_snapshot
-                    .as_deref()
-                    .is_some_and(|snapshot| is_condition_valid_result(snapshot, *param)),
-            ),
+            EventKind::ParamChanged { param, .. } => {
+                let context_provider_param = self.runtime_cache.context_provider_params.contains(param);
+                if !context_provider_param
+                    && self.runtime_cache.structure_dirty.is_empty()
+                    && !self.runtime_cache.formula_catalog_dirty
+                    && self.runtime_cache.formula_catalog_initialized
+                    && !self.runtime_cache.topology_dirty
+                    && !self.runtime_cache.context_provider_dirty
+                    && !self.runtime_cache.command_dispatch_snapshot_dirty
+                    && crate::app::systems_alchemist_formula::same_type_numeric_change_param(event)
+                        == Some(*param)
+                    && self.runtime_cache.runtime_snapshot.as_deref().is_some_and(|snapshot| {
+                        crate::app::systems_alchemist_formula::is_constant_value_param(snapshot, *param)
+                    })
+                {
+                    return false;
+                }
+                runtime_param_change_requires_snapshot(
+                    context_provider_param,
+                    self.runtime_cache.source_listener_param_uuids.contains_key(param),
+                    self.command_listener_observes_cached(*param),
+                    self.runtime_cache
+                        .runtime_snapshot
+                        .as_deref()
+                        .is_some_and(|snapshot| is_condition_valid_result(snapshot, *param)),
+                )
+            }
             EventKind::Custom(_) => false,
             _ => true,
         })
