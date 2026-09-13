@@ -390,7 +390,29 @@ impl<T: Node> Engine<T> {
         self.prune_loaded_duplicate_declared_children(loaded_node_ids.as_slice())?;
         loaded_node_ids = collect_nodes(self)?;
 
-        self.run_node_attached_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
+        let snapshot_consumers_can_reuse = matches!(ready_mode, LoadedReadyMode::Immediate)
+            && loaded_node_ids
+                .iter()
+                .filter_map(|node_id| self.nodes.get(*node_id))
+                .filter(|node| node.attached_requires_tree_snapshot() || node.ready_requires_tree_snapshot())
+                .all(Node::attached_snapshot_reusable_for_ready);
+        let shared_snapshot = snapshot_consumers_can_reuse
+            .then(|| {
+                self.batch_lifecycle_tree_snapshot("attached-ready-batch", loaded_node_ids.as_slice(), |node| {
+                    node.attached_requires_tree_snapshot() || node.ready_requires_tree_snapshot()
+                })
+            })
+            .flatten();
+        let snapshot_time = self.time;
+        let snapshot_node_count = self.nodes.len();
+        let snapshot_graph_version = self.ui_graph_version;
+        let snapshot_callback_ids = shared_snapshot.as_ref().map(|_| loaded_node_ids.clone());
+
+        self.run_node_attached_for_batch_with_snapshot(
+            loaded_node_ids.as_slice(),
+            Some(creation_context),
+            shared_snapshot.clone(),
+        )?;
         self.reconcile_loaded_declared_children(loaded_node_ids.as_slice(), creation_context)?;
         loaded_node_ids = collect_nodes(self)?;
         self.prune_loaded_duplicate_declared_children(loaded_node_ids.as_slice())?;
@@ -399,10 +421,18 @@ impl<T: Node> Engine<T> {
         loaded_node_ids = collect_nodes(self)?;
         self.run_node_init_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
 
+        let ready_snapshot = shared_snapshot.filter(|_| {
+            self.time == snapshot_time
+                && self.nodes.len() == snapshot_node_count
+                && self.ui_graph_version == snapshot_graph_version
+                && snapshot_callback_ids.as_ref() == Some(&loaded_node_ids)
+        });
         match ready_mode {
-            LoadedReadyMode::Immediate => {
-                self.run_node_ready_for_batch(loaded_node_ids.as_slice(), creation_context)?
-            }
+            LoadedReadyMode::Immediate => self.run_node_ready_for_batch_with_snapshot(
+                loaded_node_ids.as_slice(),
+                creation_context,
+                ready_snapshot,
+            )?,
             LoadedReadyMode::Deferred => {
                 for node_id in loaded_node_ids {
                     self.queue_node_ready(node_id, creation_context);

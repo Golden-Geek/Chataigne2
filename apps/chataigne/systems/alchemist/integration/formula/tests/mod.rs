@@ -23,7 +23,7 @@ use super::{
     ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX,
     AlchemistANode, AlchemistConnection, AlchemistFormulaDefinition,
     AlchemistFormulaFolder, AlchemistProperty, AlchemistPropertyManager,
-    AlchemistPropertiesManager, AlchemistInputSocket, AlchemistOutputSocket,
+    AlchemistPropertiesManager,
     FORMULA_EXTERNAL_FILE_CREATE_TYPE,
     FORMULA_EXTERNAL_FILE_DECL_ID, FORMULA_EXTERNAL_FILE_TAG,
     FORMULA_FOLDER_ITEM_KIND, FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
@@ -34,6 +34,7 @@ use super::{
 use crate::app::{AppEngine, AppNode};
 
 mod inbox_batch;
+mod lifecycle_reuse;
 mod snapshot_cache;
 mod value_change;
 
@@ -1256,19 +1257,6 @@ fn removing_source_property_anode_preserves_duplicate_getter() {
         "duplicate getter should remain when the source getter is removed"
     );
     assert_eq!(count_anodes_by_type(&engine, formula, "property"), 1);
-}
-
-#[test]
-fn anode_lifecycle_snapshots_follow_the_reconciliation_stage() {
-    let anode = AlchemistANode::new();
-    assert!(anode.attached_requires_tree_snapshot());
-    assert!(!anode.init_requires_tree_snapshot());
-    assert!(anode.ready_requires_tree_snapshot());
-
-    let input = AlchemistInputSocket::new();
-    let output = AlchemistOutputSocket::new();
-    assert!(!input.lifecycle_requires_tree_snapshot());
-    assert!(!output.lifecycle_requires_tree_snapshot());
 }
 
 #[test]

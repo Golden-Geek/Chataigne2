@@ -1,7 +1,7 @@
 use super::*;
 
 impl<T: Node> Engine<T> {
-    fn batch_lifecycle_tree_snapshot(
+    pub(crate) fn batch_lifecycle_tree_snapshot(
         &mut self,
         stage: &'static str,
         node_ids: &[NodeId],
@@ -23,6 +23,7 @@ impl<T: Node> Engine<T> {
         let snapshot = self.build_process_tree_snapshot();
         let elapsed = started.elapsed();
         self.tick_scratch.stats.snapshot_builds += 1;
+        self.tick_scratch.stats.lifecycle_snapshot_builds += 1;
         self.tick_scratch.stats.snapshot_nodes_cloned += snapshot_node_count;
         self.tick_scratch.stats.snapshot_build_ns += elapsed.as_nanos();
         if *crate::engine::runtime::PERF_TRACE_ENABLED {
@@ -39,13 +40,23 @@ impl<T: Node> Engine<T> {
         node_ids: &[NodeId],
         creation_context: Option<NodeCreationContext>,
     ) -> Result<(), EngineEditError> {
+        self.run_node_attached_for_batch_with_snapshot(node_ids, creation_context, None)
+    }
+
+    pub(crate) fn run_node_attached_for_batch_with_snapshot(
+        &mut self,
+        node_ids: &[NodeId],
+        creation_context: Option<NodeCreationContext>,
+        prepared_snapshot: Option<Arc<crate::process_ctx::ProcessTreeSnapshot>>,
+    ) -> Result<(), EngineEditError> {
         if node_ids.is_empty() {
             return Ok(());
         }
 
         let event_cursor = self.inbox.events.len();
-        let tree_snapshot =
-            self.batch_lifecycle_tree_snapshot("attached-batch", node_ids, Node::attached_requires_tree_snapshot);
+        let tree_snapshot = prepared_snapshot.or_else(|| {
+            self.batch_lifecycle_tree_snapshot("attached-batch", node_ids, Node::attached_requires_tree_snapshot)
+        });
         for node_id in node_ids.iter().copied() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;

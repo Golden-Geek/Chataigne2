@@ -629,6 +629,29 @@ still fail. The 100k backend acknowledgement alone remains roughly 0.68 s per ed
 pair, already above its 500 ms action-to-paint target; remaining work includes that backend cost
 and browser rendering as the 10k scenario grows over 20 edits.
 
+Loaded-subtree lifecycle now has a conservative, app-agnostic snapshot-reuse contract. A node
+may opt in only when attachment, reconciliation, and init cannot change snapshot fields its ready
+callback reads; the engine additionally rejects reuse if the callback set, node count, graph
+version, or engine time changes between stages. Chataigne Constant ANodes opt in through the app
+node registry; other node types keep the post-reconciliation snapshot boundary. A focused 100k
+diagnostic reduced backend duplicate acknowledgement from roughly 0.68 s to 0.47 s by replacing
+the two ~100k-node lifecycle snapshots with one. The regression asserts the lifecycle snapshot
+count for Constant duplication, and the 531-active-test app suite and 444-active-test engine suite
+pass.
+
+The fresh 20-sample bundled-UI report at
+`target/qualification/live-workbench-paint/shared-snapshot-full/` measures 10k
+p50/p95/p99/max at 180/248/298/298 ms, provisionally passing its 250 ms p95 budget. Its 100k
+case measures 1,286/2,199/2,398/2,398 ms: the median improves from the previous 1,682 ms, but
+the p95 is slightly worse than the previous 2,123 ms and still fails the 500 ms budget. The
+100k HTTP acknowledgement p50/p95 is 527/879 ms, and browser mutation p50/p95 is
+1,232/1,900 ms. Both cases have zero browser errors, overflow recoveries, and slow-client
+disconnects; they recorded two and three total WebSocket snapshots respectively. The 100k
+staged graph projector still walks the full ~7k-child parent order and prior sibling set per
+600-node insertion, so an authoritative child-order splice is the next likely boundary to
+address. These Windows headless-browser measurements are not a product-gate or cross-platform
+pass.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -652,7 +675,7 @@ and browser rendering as the 10k scenario grows over 20 edits.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula, graph routing/projection/camera, logger, app-owned state placement, and generic vec2 geometry owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k backend and three-client transport scenarios pass locally; live 20-sample 600-node browser p95 improved to 306 ms at 10k and 2,123 ms at 100k with zero overload recovery or disconnects after event-order and parent-order compaction, but both provisional budgets and the full product gate remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k backend and three-client transport scenarios pass locally; live 20-sample 600-node browser p95 is 248 ms at 10k (provisional pass) and 2,199 ms at 100k (budget fail) after Constant lifecycle snapshot reuse, with zero overload recovery or disconnects; the full product gate remains open |
 
 ## Finding status
 

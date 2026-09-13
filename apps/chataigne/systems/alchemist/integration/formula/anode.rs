@@ -67,6 +67,12 @@ impl Node for AlchemistANode {
         false
     }
 
+    fn attached_snapshot_reusable_for_ready(&self) -> bool {
+        // Constant reconciliation only reads its own persisted subtree and the parent formula's
+        // read-only tag. Its init changes permissions, which are not in the process snapshot.
+        anode_type_from_tags(&self.node_data().meta.tags).as_deref() == Some("constant")
+    }
+
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         let Some(param) = self.numeric_constant_value_param else {
             return true;

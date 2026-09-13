@@ -22,6 +22,8 @@ pub struct TickStats {
     pub snapshot_rebuilds: usize,
     /// Number of full process-tree snapshots constructed this tick.
     pub snapshot_builds: usize,
+    /// Number of process-tree snapshots built specifically for lifecycle callbacks.
+    pub lifecycle_snapshot_builds: usize,
     /// Time spent building full process-tree snapshots this tick.
     pub snapshot_build_ns: u128,
     /// Number of node records cloned into full process-tree snapshots this tick.

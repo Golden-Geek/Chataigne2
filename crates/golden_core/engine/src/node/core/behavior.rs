@@ -820,6 +820,14 @@ pub trait Node: Send + Any {
         self.lifecycle_requires_tree_snapshot()
     }
 
+    /// Permits a loaded-subtree batch to share its attachment snapshot with ready callbacks.
+    /// Opt in only when attachment/reconciliation/init cannot change any snapshot field the
+    /// ready callback reads. The engine also rejects reuse if events or structural identity
+    /// changed between stages; the default keeps the after-reconciliation snapshot boundary.
+    fn attached_snapshot_reusable_for_ready(&self) -> bool {
+        false
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::default()
     }
