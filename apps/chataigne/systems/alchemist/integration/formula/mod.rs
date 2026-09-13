@@ -259,6 +259,10 @@ impl AlchemistFormulaDefinition {
             if self.is_formula_internal_param(param) {
                 continue;
             }
+            if constant_numeric_value_change_keeps_signature(ctx, param) {
+                needs_save = true;
+                continue;
+            }
             if ctx
                 .tree_snapshot()
                 .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), param))
@@ -417,6 +421,10 @@ impl Node for AlchemistFormulaDefinition {
             return;
         }
         if self.is_formula_internal_param(param) {
+            return;
+        }
+        if constant_numeric_value_change_keeps_signature(ctx, param) {
+            self.save_external_formula_file(ctx);
             return;
         }
         if ctx

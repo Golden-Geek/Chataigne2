@@ -98,6 +98,9 @@ impl Node for AlchemistANode {
         param: NodeId,
         _old_value: ParamValue,
     ) {
+        if constant_numeric_value_change_keeps_signature(ctx, param) {
+            return;
+        }
         let should_reconcile = ctx.tree_snapshot().is_some_and(|snapshot| {
             let Some(config_folder) =
                 snapshot.find_child_by_decl_id(self.id(), "config")

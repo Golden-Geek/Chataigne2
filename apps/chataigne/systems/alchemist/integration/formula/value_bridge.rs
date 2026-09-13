@@ -263,6 +263,51 @@ pub(super) fn is_anode_layout_node(
         .is_some_and(|node| is_anode_layout_decl_id(node.decl_id.as_str()))
 }
 
+pub(super) fn constant_numeric_value_change_keeps_signature(
+    ctx: &ProcessCtx,
+    param: NodeId,
+) -> bool {
+    let Some(snapshot) = ctx.tree_snapshot() else {
+        return false;
+    };
+    let Some(config) = snapshot.node(param).and_then(|node| node.parent) else {
+        return false;
+    };
+    if snapshot.find_child_by_decl_id(config, "config/value") != Some(param) {
+        return false;
+    }
+    let Some(anode) = snapshot.node(config).and_then(|node| node.parent) else {
+        return false;
+    };
+    if !snapshot.node(anode).is_some_and(|node| {
+        node.node_type == ANODE_NODE_TYPE
+            && anode_type_from_tags(&node.tags).as_deref() == Some("constant")
+    }) {
+        return false;
+    }
+    let mut changed = false;
+    for event in &ctx.events {
+        if let EventKind::ParamChanged {
+            param: changed_param,
+            old_value,
+            new_value,
+        } = &event.kind
+        {
+            if *changed_param != param {
+                continue;
+            }
+            changed = true;
+            if !matches!(
+                (old_value, new_value),
+                (ParamValue::Float(_), ParamValue::Float(_)) | (ParamValue::Int(_), ParamValue::Int(_))
+            ) {
+                return false;
+            }
+        }
+    }
+    changed
+}
+
 pub(crate) fn formula_runtime_param_change_requires_rematerialization(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,

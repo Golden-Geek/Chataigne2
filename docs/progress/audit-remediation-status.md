@@ -475,6 +475,17 @@ backend batch application took 0/3 ms, dispatch ticks 422/440 ms, and subsequent
 ticks 285/280 ms. These are single backend samples, not UI transport, browser action-to-paint,
 or p95 latency evidence. The T19 product gate remains open.
 
+For a same-type numeric Constant `config/value` edit, the app-owned ANode and Formula callbacks
+now leave socket shape unchanged, while the state-machine runtime still refreshes the Formula
+content on its scheduled tick. Type changes and other config edits retain full reconciliation.
+The source-fingerprinted `target/qualification/authored-graph-scale/20260913T005315Z/` matrix
+passed all eighteen scenarios again. Its single 100k sparse/dense samples edited 1/715 values:
+the dispatch ticks measured 201/206 ms, down from 422/440 ms in the prior local run, and the
+Formula-refresh ticks measured 263/263 ms. A trace of the sparse case showed one full-tree
+snapshot on the dispatch tick instead of two, with no redundant ANode parameter mutations.
+The remaining snapshot and refresh costs are still substantial; these samples do not close the
+T19 product gate or establish p95 action-to-paint latency.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |

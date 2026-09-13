@@ -35,6 +35,7 @@ use crate::app::{AppEngine, AppNode};
 
 mod inbox_batch;
 mod snapshot_cache;
+mod value_change;
 
 #[test]
 fn trigger_parameter_snapshot_materializes_idle() {
