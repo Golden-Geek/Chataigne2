@@ -109,6 +109,15 @@ rebuild the processor. The current managed runner does not yet execute every
 resolved layout or multiple-output application; Phase 04 replaces that runner
 before such applications are exposed as executable palette choices.
 
+The in-progress typed stage compiler builds one Alchemist graph per configured
+stage and applies it to stable selected channel groups. It keeps per-group
+memory, reusable output frames, and a structural input-layout check. Composing
+stages already works for `Remap → Sum → Smooth` on mixed layouts and for Color
+extraction with stable component identities in focused processor tests. This
+chain is not yet connected to the managed Formula runtime. Its integration
+requires explicit source schemas from the backend: endpoint references name
+sources, not their value types, and ordinary samples must not set the layout.
+
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.
 Changed persisted filter or output semantics need narrow typed migrations. In

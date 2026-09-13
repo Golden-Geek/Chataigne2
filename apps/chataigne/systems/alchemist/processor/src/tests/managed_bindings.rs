@@ -1,6 +1,7 @@
 use chataigne_alchemist::{
-    ContextAxisId, ContextKey, EvaluationCtx, ManagedRegionId, PipelineLoweringCtx, PrimitiveNodeKind,
-    RuntimeInputSnapshot, RuntimeRegistries, SocketId, StableRef, ValueTypeId,
+    ANodeInstance, ANodeTypeId, ChannelDescriptor, ChannelLayout, CompileCtx, ContextAxisId, ContextKey, EvaluationCtx,
+    ManagedRegionId, PipelineLoweringCtx, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries, SocketId,
+    StableRef, ValueTypeId,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -8,9 +9,58 @@ use super::managed_formula::{
     command_target, compile_managed_formula, endpoint_ref, eval_ctx, formula_and_instance, input_item,
     managed_item_for_primitive, output_item, region, remap_item,
 };
-use crate::RuntimeInputBinding;
 use crate::value_set_pipeline::ValueSetPipelineRuntime;
+use crate::{
+    ManagedFilterAvailabilityError, RuntimeInputBinding, executable_filter_applications,
+    validate_executable_filter_application,
+};
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry};
+
+#[test]
+fn palette_only_returns_applications_the_current_managed_compiler_can_execute() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let channel = |id: &str, value_type: &str| {
+        ChannelDescriptor::input(
+            ValueLaneKey::new(id).unwrap(),
+            id,
+            StableRef::new(ValueTypeId::new("source"), id),
+            Some(ValueTypeId::new(value_type)),
+        )
+    };
+    let two_floats = ChannelLayout::new(vec![channel("a", "float"), channel("b", "float")]).unwrap();
+    let available = executable_filter_applications(&two_floats, &ctx);
+    let math_modes = available
+        .iter()
+        .filter(|candidate| candidate.instance.type_id.as_str() == "math")
+        .map(|candidate| candidate.instance.config.get("application"))
+        .collect::<Vec<_>>();
+    assert_eq!(math_modes.len(), 2);
+    assert!(math_modes.contains(&None));
+    assert!(math_modes.contains(&Some(&RuntimeValue::String("each".into()))));
+
+    let mixed = ChannelLayout::new(vec![channel("a", "float"), channel("b", "bool")]).unwrap();
+    assert!(executable_filter_applications(&mixed, &ctx).is_empty());
+    let mut math = ANodeInstance::new(ANodeTypeId::new("math"), "Math");
+    math.config.set("application", RuntimeValue::String("each".into()));
+    math.config.set(
+        "managed_selection",
+        RuntimeValue::Array(vec![RuntimeValue::String("a".into())]),
+    );
+    assert!(matches!(
+        validate_executable_filter_application(&math, &two_floats, &ctx),
+        Err(ManagedFilterAvailabilityError::SelectionOrGroup)
+    ));
+
+    let color = ChannelLayout::new(vec![channel("color", "color")]).unwrap();
+    let extract = ANodeInstance::new(ANodeTypeId::new("extract_color"), "Extract Color");
+    assert!(validate_executable_filter_application(&extract, &color, &ctx).is_err());
+}
 
 #[test]
 fn math_apply_to_each_uses_the_graph_math_kernel_with_an_auxiliary_operand() {

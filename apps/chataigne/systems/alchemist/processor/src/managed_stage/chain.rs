@@ -1,0 +1,75 @@
+use std::sync::Arc;
+
+use chataigne_alchemist::{
+    ChannelLayout, CompileCtx, EvaluationCtx, ManagedItemId, ManagedItemInstance, RuntimeOutput, SocketId,
+};
+
+use crate::{ChannelFrame, RuntimeInputBinding};
+
+use super::{ManagedStageError, ManagedStageRuntime};
+
+pub struct ManagedStageChain {
+    input_layout: Arc<ChannelLayout>,
+    output_layout: Arc<ChannelLayout>,
+    stages: Vec<ManagedStageRuntime>,
+}
+
+impl ManagedStageChain {
+    pub fn compile(
+        items: &[ManagedItemInstance],
+        input_layout: Arc<ChannelLayout>,
+        ctx: &CompileCtx<'_>,
+    ) -> Result<Self, ManagedStageError> {
+        let mut output_layout = Arc::clone(&input_layout);
+        let mut stages = Vec::with_capacity(items.len());
+        for item in items.iter().filter(|item| item.enabled && item.anode.enabled) {
+            if let Some(stage) = ManagedStageRuntime::compile(item.clone(), &output_layout, ctx)? {
+                output_layout = Arc::clone(stage.output_layout());
+                stages.push(stage);
+            }
+        }
+        Ok(Self {
+            input_layout,
+            output_layout,
+            stages,
+        })
+    }
+
+    #[must_use]
+    pub fn output_layout(&self) -> &Arc<ChannelLayout> {
+        &self.output_layout
+    }
+
+    pub fn update_runtime_input(
+        &mut self,
+        item: ManagedItemId,
+        socket: &SocketId,
+        binding: RuntimeInputBinding,
+    ) -> Result<(), ManagedStageError> {
+        self.stages
+            .iter_mut()
+            .find(|stage| stage.item_id() == item)
+            .ok_or(ManagedStageError::MissingStage(item))?
+            .update_runtime_input(socket, binding)
+    }
+
+    pub fn evaluate<'a>(
+        &'a mut self,
+        input: &'a ChannelFrame,
+        ctx: &EvaluationCtx<'_>,
+    ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
+        if !input.layout().has_same_structure(&self.input_layout) {
+            return Err(ManagedStageError::InputLayoutChanged);
+        }
+        let mut output = RuntimeOutput::default();
+        for index in 0..self.stages.len() {
+            let (previous, remaining) = self.stages.split_at_mut(index);
+            let current = previous.last().map_or(input, |stage| &stage.output_frame);
+            let (_, stage_output) = remaining[0].evaluate(current, ctx)?;
+            output.intents.extend(stage_output.intents);
+            output.diagnostics.extend(stage_output.diagnostics);
+            output.debug_samples.extend(stage_output.debug_samples);
+        }
+        Ok((self.stages.last().map_or(input, |stage| &stage.output_frame), output))
+    }
+}

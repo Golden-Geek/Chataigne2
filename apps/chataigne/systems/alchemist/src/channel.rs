@@ -128,6 +128,16 @@ pub struct ChannelLayout {
 }
 
 impl ChannelLayout {
+    #[must_use]
+    pub fn has_same_structure(&self, other: &Self) -> bool {
+        self.channels.len() == other.channels.len()
+            && self
+                .channels
+                .iter()
+                .zip(other.channels.iter())
+                .all(|(a, b)| a.same_structure(b))
+    }
+
     pub fn new(channels: Vec<ChannelDescriptor>) -> Result<Self, ChannelLayoutError> {
         validate_unique(&channels)?;
         Ok(Self {

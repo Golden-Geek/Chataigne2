@@ -270,6 +270,12 @@ pub trait ANodeDeclaration: Send + Sync {
     fn role_capabilities_for(&self, _instance: &ANodeInstance) -> Vec<ANodeRoleCapability> {
         self.role_capabilities()
     }
+    fn managed_application_variants(&self) -> Vec<ANodeInstance> {
+        self.supports_role(SurfaceItemKind::Filter)
+            .then(|| ANodeInstance::new(self.type_id(), self.label()))
+            .into_iter()
+            .collect()
+    }
     fn supports_role(&self, role: SurfaceItemKind) -> bool {
         self.role_capabilities()
             .iter()

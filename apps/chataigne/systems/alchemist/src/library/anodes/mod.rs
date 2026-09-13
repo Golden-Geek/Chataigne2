@@ -605,6 +605,20 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
         }
     }
 
+    fn managed_application_variants(&self) -> Vec<ANodeInstance> {
+        let default = ANodeInstance::new(self.type_id(), self.label());
+        if self.kind != PrimitiveNodeKind::Math {
+            return self
+                .supports_role(SurfaceItemKind::Filter)
+                .then_some(default)
+                .into_iter()
+                .collect();
+        }
+        let mut each = default.clone();
+        each.config.set("application", RuntimeValue::String("each".into()));
+        vec![default, each]
+    }
+
     fn signature(&self, ctx: &SignatureCtx<'_>, instance: &ANodeInstance, _bindings: &TypeBindings) -> ANodeSignature {
         match self.kind {
             PrimitiveNodeKind::Constant => constant_signature(instance),

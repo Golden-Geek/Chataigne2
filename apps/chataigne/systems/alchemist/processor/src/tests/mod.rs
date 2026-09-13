@@ -8,6 +8,7 @@ mod kernel_profile;
 mod lane_reorder;
 mod managed_bindings;
 mod managed_formula;
+mod managed_stage;
 mod manager;
 mod output_set;
 mod processor;

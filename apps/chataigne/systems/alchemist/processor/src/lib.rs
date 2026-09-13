@@ -5,6 +5,7 @@ mod channel_frame;
 mod input_set;
 mod kernel_profile;
 mod managed_formula;
+mod managed_stage;
 mod manager;
 mod output_set;
 mod processor;
@@ -21,7 +22,11 @@ pub use input_set::{
 };
 #[cfg(feature = "kernel-profiling")]
 pub use kernel_profile::{ProcessorKernelProfile, processor_kernel_profile_snapshot};
-pub use managed_formula::{ManagedFormulaError, ManagedFormulaRuntime};
+pub use managed_formula::{
+    ExecutableFilterApplication, ManagedFilterAvailabilityError, ManagedFormulaError, ManagedFormulaRuntime,
+    executable_filter_applications, validate_executable_filter_application,
+};
+pub use managed_stage::{ManagedStageChain, ManagedStageError, ManagedStageRuntime};
 pub use manager::{
     ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,
     ProcessorManagerId,
