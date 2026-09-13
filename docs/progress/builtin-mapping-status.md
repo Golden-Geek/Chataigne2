@@ -5,20 +5,20 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 01 — direct results and native handoff
-- Last validated implementation commit: `0ba08c66eee40b65c1e91cd78816549f70d657fc` (Phase 00)
-- Last verified remote implementation commit: `0ba08c66eee40b65c1e91cd78816549f70d657fc` (Phase 00)
+- Active phase: 02 — typed channel layouts and identity (not started)
+- Last validated implementation commit: `7e62ca593b925a62f32e5064b53187ccbcf4a7d7` (Phase 01)
+- Last verified remote implementation commit: `7e62ca593b925a62f32e5064b53187ccbcf4a7d7` (Phase 01)
 - Current blockers: none; the ambient `CPAL_ASIO_DIR` points at an incomplete SDK, so Windows default-feature checks require the repository's pinned `tools/asio.ps1` wrapper
-- Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; all M01–M20 acceptance cases
-- Next concrete action: commit and push Phase 01 implementation, verify the remote, then publish its factual status checkpoint
-- Last updated: 2026-09-13T09:52:40+02:00
+- Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; M01–M16 and M18–M20 acceptance cases
+- Next concrete action: publish the Phase 01 status checkpoint, then start Phase 02 typed layouts and stable identity
+- Last updated: 2026-09-13T09:53:39+02:00
 
 ## Phase ledger
 
 | Phase | Status | Implementation | Validation | Delivery | CI | Evidence / blocker |
 | --- | --- | --- | --- | --- | --- | --- |
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
-| 01 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | All Phase 01 checks pass; branch CI triggers only on PR/main. |
+| 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
 | 02 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Typed layouts and identity. |
 | 03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Declarative applications and live bindings. |
 | 04 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Composable managed compilation. |
@@ -84,6 +84,7 @@
 - Exact checks and outcomes: see validation evidence; default Windows ASIO check requires the documented pinned SDK wrapper.
 - Implementation commit: `0ba08c66eee40b65c1e91cd78816549f70d657fc`.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `0ba08c66eee40b65c1e91cd78816549f70d657fc`, 2026-09-13T09:37:15+02:00 (`git ls-remote`).
+- Published status checkpoint: `1ceb7fb650ee7c90e918d21cc738014a21f6768d`, observed at `refs/heads/codex/builtin-mapping` before Phase 01 implementation.
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for this docs/benchmark phase; repository CI is configured for PRs and pushes to `main`, not a direct push to this branch.
 - Decisions/deviations and rationale: branched from local `main` to preserve its one unpublished commit; moved the untracked plan to the path required by the plan. The existing Golden Engine benchmark baseline is unqualified and cannot establish a Mapping latency threshold.
 
@@ -91,16 +92,16 @@
 
 - Changes and affected public boundaries: in progress; compiled result-slot access belongs to reusable Alchemist runtime, managed native handoff to the app-owned processor crate.
 - Acceptance gates satisfied: initialized result slots remain available when unchanged nodes skip; managed preview-off evaluation passes no debug sink and has no debug samples or ValueSet codec calls in focused tests. Existing Remap, Smooth, aggregate, and Pack Vec3 tests pass.
-- Remaining work: implementation and status delivery checkpoints. Pre-existing `runtime.rs` length remains a Phase 11 source-layout cleanup item; no new file exceeds the source-size limit.
+- Remaining work: no Phase 01 behavior work. Pre-existing `runtime.rs` length remains a Phase 11 source-layout cleanup item; no new file exceeds the source-size limit.
 - Exact checks and outcomes: see validation evidence. Focused Alchemist/processor/state-machine tests, full app test before the final optional-capture API edit, Action-filtered app test after it, full workspace check, strict Clippy, and five-case benchmark pass.
-- Implementation commit: pending.
-- Verified remote ref, observed OID, and timestamp: pending.
+- Implementation commit: `7e62ca593b925a62f32e5064b53187ccbcf4a7d7`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `7e62ca593b925a62f32e5064b53187ccbcf4a7d7`, 2026-09-13T09:53:39+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; this repository triggers CI on PRs and `main`, and Phase 01 has no separately designated mandatory CI run.
 - Decisions/deviations and rationale: retain the JSON extension codec at actual graph/persistence boundaries; the managed processor handoff is native. Reuse scratch memory for stateless projections and make debug capture optional in the Alchemist evaluator. Remaining per-lane/property/evaluator allocations are documented, not claimed eliminated. A concurrent edit to the older implementation plan is unrelated and excluded from Mapping staging.
 
 ## Blockers and handoff
 
 - What failed: no implementation gate currently failed. Plain workspace check encountered a pre-existing incomplete ambient ASIO SDK; the pinned wrapper passed.
-- Last known-good checkpoint: Phase 00 implementation `0ba08c66eee40b65c1e91cd78816549f70d657fc`, with status checkpoint `1ceb7fb650ee7c90e918d21cc738014a21f6768d` verified on `origin/codex/builtin-mapping`.
+- Last known-good checkpoint: Phase 01 implementation `7e62ca593b925a62f32e5064b53187ccbcf4a7d7`, verified on `origin/codex/builtin-mapping`.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: commit, push, and verify Phase 01 implementation, then publish its status checkpoint.
+- Next action: publish this factual Phase 01 status checkpoint, then start Phase 02.
