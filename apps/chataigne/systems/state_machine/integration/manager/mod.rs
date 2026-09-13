@@ -1949,6 +1949,9 @@ impl StateMachineManager {
                 break;
             }
         }
+        // The compiled socket updates in place, but a steady primary source
+        // still needs one evaluation to observe this new auxiliary value.
+        self.runtime_cache.dirty_source_processors.insert(processor_node);
         self.runtime_cache.processor_overview_runtimes.remove(&processor_node);
         true
     }

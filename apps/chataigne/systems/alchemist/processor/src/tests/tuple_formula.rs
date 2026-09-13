@@ -1,6 +1,6 @@
 use chataigne_alchemist::{
-    CompileCtx, ManagedFilterValueMode, ManagedRegionId, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
-    SocketId,
+    ColorValue, CompileCtx, ManagedFilterValueMode, ManagedRegionId, PrimitiveNodeKind, RuntimeInputSnapshot,
+    RuntimeRegistries, SocketId, ValueComponent,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -10,8 +10,95 @@ use super::managed_formula::{
 };
 use crate::{
     ChannelSourceSchema, CommandArgumentValues, ManagedFormulaRuntime, OUTPUT_BINDINGS_FIELD, OutputArgumentBinding,
-    OutputBindingConfig, OutputValueSource,
+    OutputBindingConfig, OutputValueSource, ValueLaneKey,
 };
+
+#[test]
+fn tuple_mapping_extracts_color_alpha_for_a_typed_command() {
+    let (mut formula, mut instance) = formula_and_instance();
+    formula
+        .surface
+        .managed_regions
+        .iter_mut()
+        .find(|region| region.id == ManagedRegionId::new("filters"))
+        .unwrap()
+        .filter_value_mode = ManagedFilterValueMode::Tuple;
+    let source = endpoint_ref("module/color");
+    let input = input_item("Color", source.clone());
+    let alpha_key = ValueLaneKey::input(input.id).extracted(ValueComponent::A);
+    instance
+        .managed_regions
+        .regions
+        .insert(ManagedRegionId::new("inputs"), region("inputs", vec![input]));
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("filters"),
+        region(
+            "filters",
+            vec![managed_item_for_primitive(PrimitiveNodeKind::ExtractColor)],
+        ),
+    );
+    let target = command_target("target/alpha");
+    let argument = command_target("target/alpha/value");
+    let mut output = output_item("Alpha", target.clone());
+    output.anode.config.set(
+        OUTPUT_BINDINGS_FIELD,
+        OutputBindingConfig {
+            value: OutputValueSource::Element(alpha_key.clone()),
+            arguments: vec![OutputArgumentBinding {
+                parameter: argument.clone(),
+                source: OutputValueSource::Element(alpha_key),
+            }],
+            ..OutputBindingConfig::default()
+        }
+        .to_runtime_value()
+        .unwrap(),
+    );
+    instance
+        .managed_regions
+        .regions
+        .insert(ManagedRegionId::new("outputs"), region("outputs", vec![output]));
+
+    let (value_types, nodes) = registries();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
+        .unwrap()
+        .unwrap();
+    runtime
+        .reconcile_input_source_schema(|_| {
+            Some(ChannelSourceSchema {
+                value_type: "color".into(),
+                metadata: Default::default(),
+            })
+        })
+        .unwrap();
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(
+        source,
+        RuntimeValue::Color(ColorValue {
+            red: 0.1,
+            green: 0.2,
+            blue: 0.3,
+            alpha: 0.4,
+        }),
+    );
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let evaluated = runtime.evaluate(&eval_ctx(1, &inputs, &registries));
+    assert!(evaluated.diagnostics.is_empty(), "{:?}", evaluated.diagnostics);
+    assert_eq!(evaluated.intents.len(), 1);
+    assert_eq!(evaluated.intents[0].target.as_ref(), Some(&target));
+    let payload = CommandArgumentValues::from_runtime_value(&evaluated.intents[0].payload)
+        .unwrap()
+        .unwrap();
+    assert_eq!(payload.value, RuntimeValue::Float(0.4));
+    assert_eq!(payload.arguments[0].parameter, argument);
+    assert_eq!(payload.arguments[0].value, RuntimeValue::Float(0.4));
+}
 
 #[test]
 fn tuple_mapping_runs_remap_sum_smooth_and_sends_to_two_commands() {

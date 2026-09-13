@@ -9,11 +9,11 @@ mod managed_stage;
 mod manager;
 mod output_set;
 mod processor;
+mod runtime_input_binding;
 #[cfg(any(test, feature = "testkit"))]
 #[doc(hidden)]
 pub mod testkit;
 pub mod value_set;
-mod value_set_pipeline;
 
 pub use channel_frame::{ChannelFrame, ChannelFrameError, ChannelSlot, ChannelValidity};
 pub use chataigne_alchemist::ValueLaneKey;
@@ -48,10 +48,8 @@ pub use processor::{
     ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel, processor_output_preview_samples,
     processor_output_preview_samples_from_lanes,
 };
+pub use runtime_input_binding::RuntimeInputBinding;
 pub use value_set::{ValueSet, ValueSetEntry, ValueSetError};
-pub use value_set_pipeline::{
-    RuntimeInputBinding, ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime,
-};
 
 #[cfg(test)]
 mod tests;

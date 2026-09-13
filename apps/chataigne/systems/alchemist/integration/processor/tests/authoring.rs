@@ -19,8 +19,8 @@ use golden_core::{
 use golden_values::Value as RuntimeValue;
 
 use crate::app::{
-    AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary, OutputsManager, StateProcessor,
-    StateProcessorManager,
+    AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary, OutputsManager, StateMachineManager,
+    StateMachineState, StateProcessor, StateProcessorManager,
 };
 use crate::app::systems_alchemist_formula::{
     anode_from_snapshot, formula_from_snapshot, ANODE_CREATE_PREFIX,
@@ -151,6 +151,160 @@ fn source_param(engine: &mut AppEngine, label: &str, value: f64) -> NodeUuid {
     engine.add_node(parameter.into(), None);
     engine.apply_edits().unwrap();
     uuid
+}
+
+fn activate_mapping_processor(engine: &mut AppEngine, processor: NodeId) {
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let manager = snapshot
+        .child_ids(engine.root)
+        .into_iter()
+        .find(|id| snapshot.node(*id).is_some_and(|node| node.node_type == StateMachineManager::NODE_TYPE))
+        .unwrap();
+    engine.add_user_item(StateMachineState::new().into(), Some(manager));
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let state = snapshot
+        .child_ids(manager)
+        .into_iter()
+        .find(|id| snapshot.node(*id).is_some_and(|node| node.node_type == StateMachineState::NODE_TYPE))
+        .unwrap();
+    let state_processors = snapshot.find_child_by_decl_id(state, "processors").unwrap();
+    let move_ack = engine.apply_ui_intent(UiEditIntent::MoveNode {
+        node: processor,
+        new_parent: state_processors,
+        new_prev_sibling: None,
+    });
+    assert!(move_ack.success, "processor should move into an active State: {move_ack:?}");
+    engine.apply_edits().unwrap();
+}
+
+#[test]
+fn mapping_self_target_is_applied_by_the_queued_engine_path() {
+    let (mut engine, _, processor) = mapping_engine();
+    activate_mapping_processor(&mut engine, processor);
+    let source = source_param(&mut engine, "Feedback", 1.0);
+    let inputs = region(&engine, processor, "inputs");
+    let input = create_item(
+        &mut engine,
+        inputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.input_source"),
+    );
+    set_config(
+        &mut engine,
+        input,
+        "source",
+        ParamValue::Reference(NodeReference::new(source)),
+    );
+    let outputs = region(&engine, processor, "outputs");
+    let output = create_item(
+        &mut engine,
+        outputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
+    );
+    set_config(
+        &mut engine,
+        output,
+        "target",
+        ParamValue::Reference(NodeReference::new(source)),
+    );
+    let bindings = OutputBindingConfig {
+        value: OutputValueSource::Constant(RuntimeValue::Float(2.0)),
+        send_policy: OutputSendPolicy::OnChange,
+        ..OutputBindingConfig::default()
+    };
+    set_config(
+        &mut engine,
+        output,
+        "bindings",
+        ParamValue::Str(bindings.to_authoring_json().unwrap()),
+    );
+
+    for _ in 0..12 {
+        engine.run_tick(Duration::from_millis(8)).unwrap();
+    }
+    let snapshot = engine.process_tree_snapshot();
+    let source_node = snapshot.node_id_by_uuid(source).unwrap();
+    assert_eq!(snapshot.node(source_node).unwrap().param_value, Some(ParamValue::Float(2.0)));
+    let event_count = engine.ui_event_log().len();
+    for _ in 0..12 {
+        engine.run_tick(Duration::from_millis(8)).unwrap();
+    }
+    assert_eq!(engine.ui_event_log().len(), event_count);
+}
+
+#[test]
+fn mapping_output_changes_its_filter_coefficient_on_the_next_engine_tick() {
+    let (mut engine, _, processor) = mapping_engine();
+    activate_mapping_processor(&mut engine, processor);
+    let source = source_param(&mut engine, "Input", 2.0);
+    let sink = source_param(&mut engine, "Result", 0.0);
+    let inputs = region(&engine, processor, "inputs");
+    let input = create_item(
+        &mut engine,
+        inputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.input_source"),
+    );
+    set_config(&mut engine, input, "source", ParamValue::Reference(NodeReference::new(source)));
+
+    let filters = region(&engine, processor, "filters");
+    let remap_type = engine
+        .nodes
+        .get(filters)
+        .unwrap()
+        .user_creatable_items()
+        .into_iter()
+        .find(|item| item.node_type.starts_with(&format!("{ANODE_CREATE_PREFIX}remap@managed/0")))
+        .map(|item| item.node_type)
+        .expect("a Float input should expose Remap");
+    let remap = create_item(&mut engine, filters, &remap_type);
+    set_socket_default(&mut engine, remap, "in_max", ParamValue::Float(5.0));
+    let snapshot = engine.process_tree_snapshot();
+    let remap_inputs = snapshot.find_child_by_decl_id(remap, "inputs").unwrap();
+    let maximum_socket = snapshot.find_child_by_decl_id(remap_inputs, "inputs/in_max").unwrap();
+    let maximum = snapshot
+        .find_child_by_decl_id(maximum_socket, "inputs/in_max/value")
+        .unwrap();
+    let maximum_uuid = snapshot.node(maximum).unwrap().uuid;
+
+    let outputs = region(&engine, processor, "outputs");
+    let feedback = create_item(
+        &mut engine,
+        outputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
+    );
+    set_config(
+        &mut engine,
+        feedback,
+        "target",
+        ParamValue::Reference(NodeReference::new(maximum_uuid)),
+    );
+    let feedback_binding = OutputBindingConfig {
+        value: OutputValueSource::Constant(RuntimeValue::Float(4.0)),
+        send_policy: OutputSendPolicy::OnChange,
+        ..OutputBindingConfig::default()
+    };
+    set_config(
+        &mut engine,
+        feedback,
+        "bindings",
+        ParamValue::Str(feedback_binding.to_authoring_json().unwrap()),
+    );
+    let result = create_item(
+        &mut engine,
+        outputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
+    );
+    set_config(&mut engine, result, "target", ParamValue::Reference(NodeReference::new(sink)));
+
+    for _ in 0..12 {
+        engine.run_tick(Duration::from_millis(8)).unwrap();
+    }
+    let snapshot = engine.process_tree_snapshot();
+    assert_eq!(snapshot.node(maximum).unwrap().param_value, Some(ParamValue::Float(4.0)));
+    let sink_node = snapshot.node_id_by_uuid(sink).unwrap();
+    assert_eq!(snapshot.node(sink_node).unwrap().param_value, Some(ParamValue::Float(0.5)));
 }
 
 #[test]

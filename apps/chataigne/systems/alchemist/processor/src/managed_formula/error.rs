@@ -3,10 +3,7 @@ use chataigne_alchemist::{
     ManagedRegionKind, ManagedRegionValidationError, ValueTypeId,
 };
 
-use crate::{
-    INPUT_SOURCE_FIELD, InputSetError, ManagedStageError, OUTPUT_TARGET_FIELD, OutputSetError, ValueSetError,
-    ValueSetPipelineError,
-};
+use crate::{INPUT_SOURCE_FIELD, InputSetError, ManagedStageError, OUTPUT_TARGET_FIELD, OutputSetError, ValueSetError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManagedFormulaError {
@@ -88,8 +85,6 @@ pub enum ManagedFormulaError {
     FilterDiagnostics { messages: Vec<String> },
     #[error("{0}")]
     ValueSet(#[from] ValueSetError),
-    #[error("{0}")]
-    ValueSetPipeline(#[from] ValueSetPipelineError),
 }
 
 impl ManagedFormulaError {
@@ -132,7 +127,6 @@ impl ManagedFormulaError {
             Self::TriggerFilterExpectedSingleValue { .. } => "managed_formula_trigger_filter_expected_single_value",
             Self::FilterDiagnostics { .. } => "managed_formula_filter_diagnostics",
             Self::ValueSet(_) => "managed_formula_valueset_error",
-            Self::ValueSetPipeline(_) => "managed_formula_valueset_pipeline_error",
         }
     }
 }

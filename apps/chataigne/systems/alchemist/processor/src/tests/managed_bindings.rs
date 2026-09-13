@@ -1,7 +1,6 @@
 use chataigne_alchemist::{
-    ANodeInstance, ANodeTypeId, ChannelDescriptor, ChannelLayout, CompileCtx, ContextAxisId, ContextKey, EvaluationCtx,
-    ManagedRegionId, PipelineLoweringCtx, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries, SocketId,
-    StableRef, ValueTypeId,
+    ANodeInstance, ANodeTypeId, ChannelDescriptor, ChannelLayout, CompileCtx, ManagedRegionId, PrimitiveNodeKind,
+    RuntimeInputSnapshot, RuntimeRegistries, SocketId, StableRef, ValueTypeId,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -9,12 +8,11 @@ use super::managed_formula::{
     bind_parallel_outputs, command_target, compile_managed_formula, endpoint_ref, eval_ctx, formula_and_instance,
     input_item, managed_item_for_primitive, output_item, region, remap_item,
 };
-use crate::value_set_pipeline::ValueSetPipelineRuntime;
+use crate::ValueLaneKey;
 use crate::{
     ManagedFilterAvailabilityError, RuntimeInputBinding, executable_filter_applications,
     validate_executable_filter_application, validate_mapping_filter_application, validate_trigger_filter_application,
 };
-use crate::{ValueLaneKey, ValueSet, ValueSetEntry};
 
 #[test]
 fn palette_only_returns_applications_the_current_managed_compiler_can_execute() {
@@ -313,62 +311,4 @@ fn auxiliary_reference_tracks_external_value_without_recompilation() {
     let second = runtime.evaluate(&eval_ctx(2, &inputs, &registries));
     assert!(second.diagnostics.is_empty(), "{:?}", second.diagnostics);
     assert_eq!(second.intents[0].payload, RuntimeValue::Float(7.0));
-}
-
-#[test]
-fn auxiliary_reference_resolves_each_channel_context_before_shared_value() {
-    let mut math = managed_item_for_primitive(PrimitiveNodeKind::Math);
-    math.anode
-        .config
-        .set("application", RuntimeValue::String("each".into()));
-    let coefficient = StableRef::new(ValueTypeId::new("float"), "module/coefficient");
-    math.anode
-        .input_defaults
-        .insert(SocketId::new("value2"), RuntimeValue::Ref(coefficient.clone()));
-    let value_types = crate::alchemist::value_type_registry();
-    let nodes = crate::alchemist::node_registry();
-    let lowering = PipelineLoweringCtx {
-        value_types: &value_types,
-        nodes: &nodes,
-        properties: None,
-    };
-    let mut runtime =
-        ValueSetPipelineRuntime::compile_elementwise(vec![math], ValueTypeId::new("float"), &lowering).unwrap();
-    let values = ValueSet::with_entries(
-        1,
-        vec![
-            ValueSetEntry::new(ValueLaneKey::new("a").unwrap(), "A", RuntimeValue::Float(3.0)),
-            ValueSetEntry::new(ValueLaneKey::new("b").unwrap(), "B", RuntimeValue::Float(3.0)),
-        ],
-    );
-    let mut inputs = RuntimeInputSnapshot::default();
-    inputs.insert(coefficient.clone(), RuntimeValue::Float(100.0));
-    let axis = ContextAxisId::new("value_set_lane");
-    let axes = [axis.clone()].into_iter().collect();
-    inputs.insert_context(
-        coefficient.clone(),
-        &axes,
-        ContextKey::single(axis.clone(), "a"),
-        RuntimeValue::Float(2.0),
-    );
-    inputs.insert_context(
-        coefficient,
-        &axes,
-        ContextKey::single(axis, "b"),
-        RuntimeValue::Float(4.0),
-    );
-    let registries = RuntimeRegistries {
-        value_types: &value_types,
-    };
-    let ctx = EvaluationCtx {
-        logical_tick: 1,
-        delta_time: std::time::Duration::ZERO,
-        events: &[],
-        inputs: &inputs,
-        registries: &registries,
-    };
-    let (mapped, output) = runtime.evaluate(&values, &ctx).unwrap();
-    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert_eq!(mapped.entries[0].value, RuntimeValue::Float(5.0));
-    assert_eq!(mapped.entries[1].value, RuntimeValue::Float(7.0));
 }

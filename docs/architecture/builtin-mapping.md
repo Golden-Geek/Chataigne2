@@ -65,7 +65,7 @@ Validate all local targets and required
 arguments before accepting the dispatch batch. Update per-output change caches
 only after local acceptance; external IO and retry remain with module runtimes.
 
-## Current baseline and migration boundary
+## Baseline and completed migration
 
 At `b6ac86eb702d703560593c108b599f95545a417c`, the managed ValueSet runner
 supports homogeneous elementwise chains and a terminal aggregate/reshape
@@ -79,11 +79,11 @@ Phase 01 resolves managed graph outputs to compiled slots and reads only initial
 values after evaluation, including when an unchanged node is skipped. Stateless
 projection runs reuse an Alchemist scratch frame. Managed ValueSets now pass to
 OutputSet as native typed data; the extension codec remains at actual Formula
-graph sockets and command intents carrying argument overrides. Ordinary managed evaluation uses no
-debug samples. It still allocates an active-lane key set, result entries, context
-keys, property frames, per-node input/output vectors, and output payloads;
-these are measured and reduced in later performance work rather than described
-as allocation-free.
+graph sockets and command intents carrying argument overrides. Ordinary managed
+evaluation uses no debug samples. The shipped typed stage runner reuses its
+property frame and result slots; final result entries, context keys, and
+output payloads still allocate. These paths require allocation measurements
+before any allocation-free claim.
 
 Phase 02 introduced `ChannelLayout` and `ValueLaneKey` in the app-owned
 Alchemist crate. Its descriptors and `ChannelFrame` can carry the types, authored
@@ -91,9 +91,7 @@ source identities, metadata, and runtime validity of a tuple. InputSet retains
 declared positions when a source is disabled or unavailable, and explicit backend
 schema events resolve dynamic source types without rebuilding on value samples.
 This internal representation also supports selections and groups for custom
-Formula work. The revised standard Mapping contract still needs a scalar/tuple
-shape boundary and whole-value filter semantics; the old Phase 02 validation
-alone does not prove them. `MappingValueShape` now reports incomplete, scalar,
+Formula work. `MappingValueShape` reports incomplete, scalar,
 or ordered tuple source shapes without introducing authored channels. Input
 reconciliation retains a resolved type across reorder when both source identity
 and reference are unchanged, and resets it when the source is replaced. Filters
@@ -115,7 +113,7 @@ and output sockets and state scope. A standard Mapping rejects explicit channel
 selection and grouping, and does not silently pass incompatible tuple elements
 through a filter. Custom Formula regions retain routed behavior. Their persisted
 filter mode defaults to routed for older projects; the built-in Mapping asset
-will declare tuple mode in Phase 08. Math's elementwise and tuple-combine
+declares tuple mode. Math's elementwise and tuple-combine
 applications and the Sum/Average reductions use the same arithmetic kernel as
 their graph nodes.
 Elementwise auxiliary sockets are bound as Formula properties; they can read a
@@ -239,10 +237,12 @@ that queue and clock. An inactive processor does not advance its evaluation
 clock; disabling a stage removes its memory, and re-enabling it starts fresh.
 The existing one-tick delay remains a separate operation.
 
-The ANode declaration registry remains centralized because one trait binds
-type identity, signatures, roles, and kernel compilation exhaustively. This
-temporarily exceeds the usual source-file length target; Phase 11 owns a
-cohesive split after catalog and authoring behavior settle.
+The ANode declaration registry keeps one exhaustive trait implementation for
+type identity, roles, and kernel compilation. Configuration fields and type
+signatures live in adjacent `config_fields` and `signature` modules so the
+registry remains reviewable. The runtime similarly separates context and
+preview contracts from numeric operation helpers in `runtime/context` and
+`runtime/operations`.
 
 Phase 08 gives the bundled Mapping recipe authored InputSet, tuple FilterPipeline,
 and OutputSet definitions at its existing graph sockets. Its stable catalog UUID
@@ -331,15 +331,16 @@ The pre-change functional reference is the locked Rust test set for
 `chataigne_alchemist`, `chataigne_processor`, `chataigne_condition`, and
 `chataigne_state_machine`, plus the root UI checks. The existing
 `crates/golden_core/engine/benches/baseline.json` is explicitly unqualified for
-wall-clock comparison and does not measure Mapping. The pre-change managed-runner
-fixture is `apps/chataigne/systems/alchemist/processor/benches/mapping_baseline.rs`.
-It measures 1/8/32 float channels with one Remap and 8/32 channels with eight
+wall-clock comparison and does not measure Mapping. The historical pre-change
+managed-runner fixture occupied
+`apps/chataigne/systems/alchemist/processor/benches/mapping_baseline.rs`.
+It measured 1/8/32 float lanes with one Remap and 8/32 lanes with eight
 alternating Remap/Clamp stages after warmup. On an Intel Core Ultra 9 275HX,
 Windows x64, Rust 1.97.0 `bench` profile, Criterion 0.8.2 (10 samples,
 1-second warmup, 2-second measurement), its center estimates were 1.681,
-13.499, 51.411, 33.988, and 141.72 µs respectively. This measures the current
-managed runner, including debug-result capture; it is not a full processor or
-dispatch benchmark.
+13.499, 51.411, 33.988, and 141.72 µs respectively. That fixture measured an
+older lane-oriented evaluator, including debug-result capture. The shipped
+Mapping no longer uses it; Phase 11 removed that evaluator.
 
 With Phase 01's direct slots and capture-free managed path, the same five
 fixtures measured 0.713, 5.803, 22.653, 13.116, and 52.838 µs respectively
@@ -348,9 +349,30 @@ whole-product dispatch times. The comparison shows shorter managed-runner
 latency in the measured numeric cases; it says nothing yet about mixed layouts,
 temporal behavior, or large processor counts.
 
-Phase 11 must extend the fixture to 1,000 and 10,000 processors, scalar and mixed
-tuples, elementwise work, aggregation, compound construction, sparse changes,
-multiple contexts, and bounded temporal history.
-Record raw samples, allocations, cache counts, and p50/p95/p99 on matching
-hardware before setting regression thresholds. The five-case reference above
-must not be used as a threshold for the unmeasured scenarios.
+The Phase 11 fixture now compiles and evaluates the actual
+`ManagedFormulaRuntime` used by Mapping, with capture disabled. The first
+numeric run after removing per-stage property-map and temporary result-vector
+construction measured 1.262, 8.682, 34.206, 43.403, and 170.50 µs for
+1/8/32 sources at one stage and 8/32 sources at eight stages. Batch center estimates
+were 1.533 ms for 1,000 single-source single-stage processors, 33.874 ms for
+10,000 of those processors, and 74.242 ms for 1,000 processors with eight
+sources and eight stages. These are warmed, full-batch evaluation timings on
+the same host and profile, not p95 or product dispatch latency. The benchmark
+also contains mixed-tuple, Sum, Pack Vec3, and multi-context cases.
+
+The expanded 10-sample run on the same host measured 1.557 ms for 1,000
+three-input Sum processors, 1.517 ms for 1,000 three-input Pack Vec3
+processors, and 0.894 ms for 1,000 mixed float/bool/string passthrough
+processors. Eight contexts through one eight-source, eight-stage processor
+took 380.58 µs per complete context batch. The expanded run's numeric
+batch center estimates were 1.505 ms, 33.389 ms, and 73.133 ms for the same three
+processor-count cases above. The mixed case measures tuple transport without
+a numeric stage; invalid mixed-type numeric application is covered by
+correctness tests rather than timed as successful work.
+
+This fixture does not yet measure engine dirty scheduling, command delivery,
+preview capture, structural edits, bounded temporal history, allocations, or
+cache counts. Its fixed input snapshot and logical tick make it a steady
+evaluation benchmark. Percentile latency and regression thresholds require
+raw samples and a broader end-to-end workload; the historical lane fixture
+cannot supply a comparable threshold for the current Mapping runtime.

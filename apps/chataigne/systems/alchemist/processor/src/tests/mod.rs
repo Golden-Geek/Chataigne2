@@ -17,4 +17,3 @@ mod output_set;
 mod processor;
 mod tuple_formula;
 mod value_set;
-mod value_set_pipeline;

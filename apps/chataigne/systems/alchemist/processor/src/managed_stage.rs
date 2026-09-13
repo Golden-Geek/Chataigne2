@@ -14,7 +14,7 @@ use chataigne_alchemist::{
     ValueSlotId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
 };
 use golden_values::Value as RuntimeValue;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 
 use crate::{ChannelFrame, ChannelFrameError, ChannelSlot, ChannelValidity, RuntimeInputBinding};
 
@@ -65,6 +65,7 @@ pub struct ManagedStageRuntime {
     output_slots: Vec<ValueSlotId>,
     groups: Vec<StageGroup>,
     group_results: Vec<Vec<ChannelSlot>>,
+    property_frame: RuntimePropertyFrame,
     outputs: Vec<StageOutputBinding>,
     output_frame: ChannelFrame,
     memory: LaneRuntimePool,
@@ -88,6 +89,30 @@ struct StageGroup {
 enum StageOutputBinding {
     Passthrough(usize),
     Result { group: usize, output: usize },
+}
+
+fn fill_group_results(
+    memory: &AlchemistMemory,
+    output_slots: &[ValueSlotId],
+    results: &mut [ChannelSlot],
+    inputs_deliver: bool,
+) {
+    for (result, slot) in results.iter_mut().zip(output_slots) {
+        let value = memory.value(*slot).cloned();
+        let flow = memory.slot_flow(*slot);
+        *result = ChannelSlot {
+            validity: if flow == NodeFlow::Suppress {
+                ChannelValidity::Suppressed
+            } else if value.is_some() {
+                ChannelValidity::Valid
+            } else {
+                ChannelValidity::Invalid
+            },
+            value: (flow == NodeFlow::Deliver).then_some(value).flatten(),
+            changed: false,
+            deliver: flow == NodeFlow::Deliver && inputs_deliver,
+        };
+    }
 }
 
 impl ManagedStageRuntime {
@@ -308,6 +333,7 @@ impl ManagedStageRuntime {
         let group_results = vec![vec![ChannelSlot::default(); output_slots.len()]; application.groups.len()];
         let memory = LaneRuntimePool::for_graph(&compiled);
         let scratch = AlchemistMemory::for_graph(&compiled);
+        let property_frame = RuntimePropertyFrame::from_defaults(&compiled.properties);
         Ok(Some(Self {
             item,
             input_layout: input_layout.clone(),
@@ -319,6 +345,7 @@ impl ManagedStageRuntime {
             output_slots,
             groups,
             group_results,
+            property_frame,
             outputs,
             output_frame: ChannelFrame::new(Arc::new(output_layout)),
             memory,
@@ -401,14 +428,14 @@ impl ManagedStageRuntime {
         let mut stage_failed = false;
         for (group_index, group) in self.groups.iter().enumerate() {
             let group_context = ContextKey::new(context_key.iter().cloned().chain(group.context.iter().cloned()));
-            let inputs = group
-                .inputs
-                .iter()
-                .map(|index| input.slots().get(*index).ok_or(ManagedStageError::InputLayoutChanged))
-                .collect::<Result<Vec<_>, _>>()?;
-            let invalid = inputs
-                .iter()
-                .find(|slot| slot.validity != ChannelValidity::Valid || slot.value.is_none());
+            let mut invalid = None;
+            for index in &group.inputs {
+                let slot = input.slots().get(*index).ok_or(ManagedStageError::InputLayoutChanged)?;
+                if slot.validity != ChannelValidity::Valid || slot.value.is_none() {
+                    invalid = Some(slot);
+                    break;
+                }
+            }
             if let Some(slot) = invalid {
                 for result in &mut self.group_results[group_index] {
                     *result = ChannelSlot {
@@ -421,9 +448,17 @@ impl ManagedStageRuntime {
                 continue;
             }
             active_temporal_work = true;
-            let mut overrides = IndexMap::new();
-            for (property, slot) in self.input_properties.iter().zip(&inputs) {
-                overrides.insert(property.clone(), slot.value.clone().expect("validated group input"));
+            let mut inputs_deliver = true;
+            for (property, index) in self.input_properties.iter().zip(&group.inputs) {
+                let slot = &input.slots()[*index];
+                inputs_deliver &= slot.deliver;
+                self.property_frame
+                    .set_override(
+                        &self.compiled.properties,
+                        property,
+                        slot.value.clone().expect("validated group input"),
+                    )
+                    .map_err(ManagedStageError::PropertyFrame)?;
             }
             for auxiliary in &self.auxiliary {
                 let value = match &auxiliary.binding {
@@ -442,10 +477,10 @@ impl ManagedStageRuntime {
                         actual: value.value_type(),
                     });
                 }
-                overrides.insert(auxiliary.property.clone(), value);
+                self.property_frame
+                    .set_override(&self.compiled.properties, &auxiliary.property, value)
+                    .map_err(ManagedStageError::PropertyFrame)?;
             }
-            let properties = RuntimePropertyFrame::with_overrides(&self.compiled.properties, &overrides)
-                .map_err(ManagedStageError::PropertyFrame)?;
             let context = RuntimeContextFrame::new(group_context.clone());
             let graph_capture_mode = if matches!(capture_mode, DebugCaptureMode::SelectedNodes { .. }) {
                 DebugCaptureMode::Off
@@ -455,40 +490,36 @@ impl ManagedStageRuntime {
             let mut debug = (!graph_capture_mode.is_off()).then(|| DebugCaptureSink::new(graph_capture_mode));
             let frame = EvaluationFrame {
                 ctx,
-                properties: &properties,
+                properties: &self.property_frame,
                 context: &context,
                 debug: debug.as_mut(),
                 force_process_unchanged_inputs: false,
                 capture_unchanged_outputs: false,
             };
-            let (evaluated, results, flows) = match self.memory.memory_for_key(group_context, &self.compiled) {
+            let evaluated = match self.memory.memory_for_key(group_context, &self.compiled) {
                 Some(memory) => {
                     let evaluated = evaluate_compiled_graph(&self.compiled, memory, frame);
-                    let values = self
-                        .output_slots
-                        .iter()
-                        .map(|slot| memory.value(*slot).cloned())
-                        .collect::<Vec<_>>();
-                    let flows = self
-                        .output_slots
-                        .iter()
-                        .map(|slot| memory.slot_flow(*slot))
-                        .collect::<Vec<_>>();
-                    (evaluated, values, flows)
+                    if evaluated.diagnostics.is_empty() {
+                        fill_group_results(
+                            memory,
+                            &self.output_slots,
+                            &mut self.group_results[group_index],
+                            inputs_deliver,
+                        );
+                    }
+                    evaluated
                 }
                 None => {
                     let evaluated = evaluate_compiled_graph_fresh_reusing(&self.compiled, &mut self.scratch, frame);
-                    let values = self
-                        .output_slots
-                        .iter()
-                        .map(|slot| self.scratch.value(*slot).cloned())
-                        .collect::<Vec<_>>();
-                    let flows = self
-                        .output_slots
-                        .iter()
-                        .map(|slot| self.scratch.slot_flow(*slot))
-                        .collect::<Vec<_>>();
-                    (evaluated, values, flows)
+                    if evaluated.diagnostics.is_empty() {
+                        fill_group_results(
+                            &self.scratch,
+                            &self.output_slots,
+                            &mut self.group_results[group_index],
+                            inputs_deliver,
+                        );
+                    }
+                    evaluated
                 }
             };
             if !evaluated.diagnostics.is_empty() {
@@ -513,21 +544,6 @@ impl ManagedStageRuntime {
                     sample.author_node_id = self.item.anode.id;
                     Some(sample)
                 }));
-            let inputs_deliver = inputs.iter().all(|slot| slot.deliver);
-            for ((result, value), flow) in self.group_results[group_index].iter_mut().zip(results).zip(flows) {
-                *result = ChannelSlot {
-                    validity: if flow == NodeFlow::Suppress {
-                        ChannelValidity::Suppressed
-                    } else if value.is_some() {
-                        ChannelValidity::Valid
-                    } else {
-                        ChannelValidity::Invalid
-                    },
-                    value: (flow == NodeFlow::Deliver).then_some(value).flatten(),
-                    changed: false,
-                    deliver: flow == NodeFlow::Deliver && inputs_deliver,
-                };
-            }
         }
         self.temporal_evaluated = true;
         if stage_failed {
