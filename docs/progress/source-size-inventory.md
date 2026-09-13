@@ -4,12 +4,12 @@
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,
 vendored dependencies, and long-form documentation are outside this source limit. This inventory
-includes 1,220 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
+includes 1,242 current Rust, TypeScript, Svelte, JavaScript, Python, PowerShell, and shell source
 files under `apps/`, `crates/`, `packages/`, and `tools/`, excluding `generated/`, `gen/`, `build/`, and
-`node_modules/`. It was refreshed on 2026-09-12 after the T17 script, UI-sync, persistence-adapter,
-history, App Control, received-value, formula integration, processor presentation, and multiplex
-test splits and the T19 authored-graph qualification harness. The 44-file audit count was a
-historical baseline; 46 files currently exceed 1,000
+`node_modules/`. It was refreshed on 2026-09-13 after the T17 script, UI-sync, persistence-adapter,
+history, App Control, received-value, formula integration, processor presentation, multiplex
+test, generic graph, and logger splits and the T19 qualification harnesses. The 44-file audit
+count was a historical baseline; 45 files currently exceed 1,000
 lines. No oversized runtime or test-source exception is approved yet.
 
 `golden_engine::script` was split by ownership in this batch: its node lifecycle remains in
@@ -42,6 +42,12 @@ runtime timing (310), interaction/transaction checks (312), an opt-in scale prob
 worker-equivalence checks (186) in adjacent test modules. State-manager scale fixture extraction
 (50) is test-only.
 
+The generic graph canvas now delegates edge routing, presentation projection, and camera geometry
+to focused modules; its remaining node layout, interactions, and rendering still exceed the limit.
+The logger panel keeps scrolling, filtering controls, and selection interaction (868 lines), while
+record decoration, duplicate grouping, and clipboard projection live in `logger/log-projection.ts`
+(267 lines). Seven direct logger projection tests cover its display modes and cache invalidation.
+
 The entries below are remaining work, not exceptions or evidence that a mechanical line-limit
 split is sufficient. Prioritize boundaries already being changed; preserve behavior tests and
 avoid mixing large structural moves into runtime race fixes.
@@ -53,40 +59,39 @@ avoid mixing large structural moves into runtime race fixes.
 | 13,350 | `crates/golden_core/engine/src/engine/tests/engine.rs` | Split focused test suites |
 | 6,423 | `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte` | Decompose presentation and state |
 | 5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte` | Decompose presentation and state |
-| 5,224 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Split cohesive Rust module |
+| 5,449 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Split cohesive Rust module |
 | 5,056 | `crates/golden_core/support/macros/src/lib.rs` | Split macro families |
-| 3,533 | `packages/golden-graph-ui/components/GraphCanvas.svelte` | Decompose presentation and state |
 | 3,152 | `apps/chataigne/src/module/modules/protocol/midi/midi_module/mod.rs` | Split cohesive Rust module |
+| 3,110 | `packages/golden-graph-ui/components/GraphCanvas.svelte` | Decompose presentation and state |
 | 2,673 | `apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte` | Decompose presentation and state |
-| 2,596 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs` | Split focused test suites |
+| 2,632 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs` | Split focused test suites |
 | 2,596 | `apps/chataigne/src/module/modules/generators/spatializer/mod.rs` | Split cohesive Rust module |
 | 2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte` | Decompose presentation and state |
 | 2,362 | `crates/golden_core/hosts/transport/src/ui_server/mod.rs` | Split cohesive Rust module |
-| 2,325 | `crates/golden_core/engine/src/engine/controls.rs` | Split cohesive Rust module |
-| 2,046 | `crates/golden_core/engine/src/app/mod.rs` | Split cohesive Rust module |
+| 2,334 | `crates/golden_core/engine/src/engine/controls.rs` | Split cohesive Rust module |
+| 2,050 | `crates/golden_core/engine/src/app/mod.rs` | Split cohesive Rust module |
 | 1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte` | Decompose presentation and state |
 | 1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs` | Split focused test suites |
-| 1,773 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs` | Split focused test suites |
+| 1,774 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs` | Split focused test suites |
 | 1,684 | `apps/chataigne/systems/alchemist/integration/processor/catalog.rs` | Split cohesive Rust module |
 | 1,673 | `packages/golden-ui/transport/http.ts` | Split transport/state concerns |
-| 1,641 | `crates/golden_core/engine/src/node_macros.rs` | Split cohesive Rust module |
+| 1,646 | `crates/golden_core/engine/src/node_macros.rs` | Split cohesive Rust module |
 | 1,631 | `apps/chataigne/systems/alchemist/integration/processor/tests/processor.rs` | Split focused test suites |
 | 1,594 | `apps/chataigne/src/module/modules/controllers/joycon/mod.rs` | Split cohesive Rust module |
 | 1,487 | `apps/chataigne/systems/alchemist/src/runtime.rs` | Split cohesive Rust module |
 | 1,480 | `packages/golden-ui/components/common/NodeContextMenu.svelte` | Decompose presentation and state |
 | 1,447 | `apps/chataigne/src/module/modules/protocol/osc/generic_osc_module/tests/mod.rs` | Split focused test suites |
 | 1,359 | `apps/chataigne/ui/scripts/ui-browser-tools.mjs` | Split browser harness |
+| 1,354 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs` | Split cohesive Rust module |
 | 1,334 | `apps/chataigne/systems/alchemist/src/tests/runtime.rs` | Split focused test suites |
 | 1,331 | `crates/golden_core/engine/src/node/curve/model.rs` | Split cohesive Rust module |
-| 1,320 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs` | Split cohesive Rust module |
-| 1,276 | `crates/golden_core/engine/src/node/core/behavior.rs` | Split cohesive Rust module |
+| 1,281 | `crates/golden_core/engine/src/node/core/behavior.rs` | Split cohesive Rust module |
 | 1,275 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mouse_runtime.rs` | Split cohesive Rust module |
 | 1,255 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs` | Split focused test suites |
 | 1,231 | `packages/golden-ui/components/panels/inspector/ParameterInspector.svelte` | Decompose presentation and state |
 | 1,230 | `apps/chataigne/src/module/modules/controllers/gamepad/gamepad/mod.rs` | Split cohesive Rust module |
 | 1,166 | `apps/chataigne/src/module/modules/protocol/midi/commands/mod.rs` | Split cohesive Rust module |
 | 1,139 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mod.rs` | Split cohesive Rust module |
-| 1,110 | `packages/golden-ui/components/panels/logger/LoggerPanel.svelte` | Decompose presentation and state |
 | 1,095 | `apps/chataigne/src/module/modules/generators/signals/mod.rs` | Split cohesive Rust module |
 | 1,091 | `apps/chataigne/ui/src/lib/systems/state_machine/components/StateMachinePanel.svelte` | Decompose presentation and state |
 | 1,086 | `apps/chataigne/src/module/modules/protocol/mqtt/mod.rs` | Split cohesive Rust module |

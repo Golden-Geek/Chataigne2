@@ -45,7 +45,7 @@ formula adapter now separates ANode/socket, property, construction, conversion, 
 external-file, reconciliation, and library responsibilities. Its nested node files register
 through the owning module's public re-exports. Processor debug/presentation projection now has
 its own module, and the multiplex test separates runtime measurements from interaction checks.
-The refreshed inventory finds 46 remaining oversized source files; none has an approved
+The refreshed inventory finds 45 remaining oversized source files; none has an approved
 exception. The old multiplex stop-point instructions are labeled historical.
 
 T16 — ordinary desktop audio artifacts are implemented and qualified locally on Windows x64.
@@ -98,7 +98,7 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
   App Control keeps worker/process/folder ownership in its runtime (879 lines), while window
   discovery and actions live in a platform adapter (209). Its module node splits lifecycle (869),
   watch processing (608), watch structure (462), and script request parsing (102). The inventory
-  records 46 remaining files above 1,000 lines with no approved exceptions. Received-value
+  records 45 remaining files above 1,000 lines with no approved exceptions. Received-value
   batch planning (874 lines) and incremental application (221) are now separate.
 - The app-owned formula integration root is 572 lines; its eight focused siblings range from 297
   to 824 lines. App-node codegen keeps nested node-bearing children under their declared module
@@ -129,6 +129,11 @@ run on this patch, and no named physical stream, hotplug, or continuity test has
   `GraphCanvas.svelte` fell from 3,533 to 3,110 lines across the three splits, so it remains
   oversized. Thirteen direct generic graph regressions, all 83 app UI tests, the zero-warning
   Svelte type check, and the production UI build pass locally.
+- Logger record decoration, duplicate grouping, filtering, and clipboard presentation now belong
+  in `logger/log-projection.ts` (267 lines); `LoggerPanel.svelte` retains panel state, controls,
+  scroll/focus behavior, and rendering (868 lines). Seven direct projection tests, all 83 app UI
+  tests, the zero-warning Svelte check, and a production UI build pass locally. The refreshed
+  source inventory has 45 files above 1,000 lines, with no approved exceptions.
 
 ## T18 initial profiling boundary
 
@@ -587,7 +592,7 @@ evidence.
 | T14  | T03, T07, T11                                 | complete                                                     |
 | T15  | T05, T09, T10, T12                            | complete                                                     |
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
-| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula and graph routing/projection/camera owners split; more cohesive splits pending |
+| T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula, graph routing/projection/camera, and logger owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
 | T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, sparse/dense parameter replay and save/reload, plus three-client headless transport resync/edit/reconnect pass locally; browser p95, concurrent save/slow-client/endurance, platform, and physical evidence remain open |
 
@@ -613,7 +618,7 @@ the current branch contains implementation and verification evidence.
 | F13 — benchmark/product proof      | partially fixed | T03 comparator rejects invalid/incomplete/incomparable evidence; workflow retains raw stdout/stderr, fingerprint, and upstream failures; T13 adds a production-browser gate; T14 adds source-fingerprinted release runtime and selection qualification.                                                                                                                                           | T13/T14 product gates pass. Historical values are explicitly unqualified; matching hosted reference and T19's final evidence matrix remain open.                                                                                                              |
 | F14 — facades/edit acknowledgement | fixed           | T10 maps authoritative actor-turn acknowledgement into typed graph/project transaction results and adds a crate-external edit consumer. T15 puts codecs, wire DTOs, script declarations, and VM/runtime primitives in their owning crates while engine application stays in adapters; the full facade composes the ready-to-launch host.                                                           | Persistence, protocol, script fake-host, headless-host, and full-host external consumers pass. Focused dependency trees exclude forbidden engine, QuickJS, desktop, Tauri, audio, and Chataigne edges as applicable.                                      |
 | F15 — ordinary audio portability | partially fixed | Default app forwards ASIO/JACK/realtime; canonical matrix, pinned SDK, app catalog test, and standalone Git/CPAL consumer are in place. | Windows x64 default artifact, headless startup, JACK missing-server state, 513 app tests, and external consumer pass. Hosted six-platform artifact gate and named physical streams remain unrun. |
-| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, App Control, received-value, formula, processor presentation, and generic graph routing/projection/camera now have focused owners; stale multiplex notes are archival. | Independent Git consumer, 415 active engine and 513 app Rust tests, and strict Clippy passed after the prior splits. Thirteen generic graph tests, 83 app UI tests, the Svelte check, and production UI build pass after the graph splits. The current inventory has 46 remaining oversized files and no approved exceptions. |
+| F16 — gitlinks/docs/source size | partially fixed | Four orphan gitlinks were removed without deleting local checkouts; script, UI-sync, persistence, history, App Control, received-value, formula, processor presentation, generic graph routing/projection/camera, and logger projection now have focused owners; stale multiplex notes are archival. | Independent Git consumer, 415 active engine and 513 app Rust tests, and strict Clippy passed after the prior splits. Thirteen generic graph and seven logger projection tests, 83 app UI tests, the Svelte check, and production UI build pass after the UI splits. The refreshed inventory has 45 remaining oversized files and no approved exceptions. |
 
 ## Commands and results
 

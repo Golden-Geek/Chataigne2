@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { NodeId, UiLogRecord } from '../../../types';
+	import type { NodeId } from '../../../types';
 	import type { PanelProps, PanelState } from '../../../dockview/panel-types';
 	import { appState } from '../../../store/workbench.svelte';
 	import {
@@ -11,6 +11,13 @@
 	} from '../../../store/logger-ui-config';
 	import { sendClearLogsIntent, sendSetLogMaxEntriesIntent } from '../../../store/ui-intents';
 	import { copyTextToClipboard } from '../../../utils/clipboard';
+	import {
+		LoggerProjection,
+		filterLoggerEntries,
+		formatLogEntryForClipboard,
+		normalizeSearchText,
+		type LoggerEntry
+	} from './log-projection';
 	import { text } from '@sveltejs/kit';
 	import { fade, slide } from 'svelte/transition';
 
@@ -36,30 +43,8 @@
 		panel = next;
 	};
 
-	interface LoggerEntry {
-		key: string;
-		record: UiLogRecord;
-		sourceLabel: string;
-		sourceFilterText: string;
-		tagFilterText: string;
-		contentFilterText: string;
-		formattedTime: string;
-		repeatCount: number;
-	}
-
-	const ENGINE_SOURCE_LABEL = 'engine';
 	const LIST_BOTTOM_EPSILON_PX = 6;
 	const LIVE_TAIL_RENDER_LIMIT = 200;
-
-	const normalizeSearchText = (value: string): string => value.trim().toLowerCase();
-
-	const repeatCountForRecord = (record: UiLogRecord): number => {
-		const raw = Number(record.repeat_count ?? 1);
-		if (!Number.isFinite(raw)) {
-			return 1;
-		}
-		return Math.max(1, Math.floor(raw));
-	};
 
 	let session = $derived(appState.session);
 	let records = $derived(session?.logRecords ?? []);
@@ -98,127 +83,10 @@
 			: rawEntryLimit
 	);
 
-	interface CachedRecordDecorations {
-		timestampMs: number;
-		sourceLabel: string;
-		sourceFilterText: string;
-		tagFilterText: string;
-		contentFilterText: string;
-		formattedTime: string;
-	}
-
-	interface DisplayedEntriesResult {
-		entries: LoggerEntry[];
-		collapsedGroupCount: number;
-	}
-
-	interface CollapsedGroup {
-		signature: string;
-		key: string;
-		record: UiLogRecord;
-		repeatCount: number;
-		latestRecordIndex: number;
-	}
-
-	const sourceLabelCache = new Map<NodeId, string>();
-	const recordDecorationsCache = new Map<number, CachedRecordDecorations>();
+	const logProjection = new LoggerProjection();
 	let lastSessionRef: typeof session = null;
-
 	let copyButtonText = $state<string | null>(null);
 	let overRecordKey = $state<string | null>(null);
-
-	const resolveSourceLabel = (record: UiLogRecord): string => {
-		if (record.origin === undefined) {
-			return ENGINE_SOURCE_LABEL;
-		}
-
-		const cached = sourceLabelCache.get(record.origin);
-		if (cached !== undefined) {
-			return cached;
-		}
-
-		const label = session?.graph.state.nodesById.get(record.origin)?.meta.label;
-		const resolved = label ? `${label}` : `node ${record.origin}`;
-		sourceLabelCache.set(record.origin, resolved);
-		return resolved;
-	};
-
-	const formatTimestamp = (timestampMs: number): string => {
-		const date = new Date(timestampMs);
-		const hours = String(date.getHours()).padStart(2, '0');
-		const minutes = String(date.getMinutes()).padStart(2, '0');
-		const seconds = String(date.getSeconds()).padStart(2, '0');
-		const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
-		return `${hours}:${minutes}:${seconds}.${milliseconds}`;
-	};
-
-	const decorationsForRecord = (record: UiLogRecord): CachedRecordDecorations => {
-		const sourceLabel = resolveSourceLabel(record);
-		const sourceFilterText = sourceLabel.toLowerCase();
-		const tagFilterText = record.tag.toLowerCase();
-		const contentFilterText = record.message.toLowerCase();
-
-		const cached = recordDecorationsCache.get(record.id);
-		if (
-			cached &&
-			cached.timestampMs === record.timestamp_ms &&
-			cached.sourceFilterText === sourceFilterText &&
-			cached.tagFilterText === tagFilterText &&
-			cached.contentFilterText === contentFilterText
-		) {
-			return cached;
-		}
-
-		const next: CachedRecordDecorations = {
-			timestampMs: record.timestamp_ms,
-			sourceLabel,
-			sourceFilterText,
-			tagFilterText,
-			contentFilterText,
-			formattedTime: formatTimestamp(record.timestamp_ms)
-		};
-		recordDecorationsCache.set(record.id, next);
-		return next;
-	};
-
-	const makeEntry = (record: UiLogRecord, key: string, repeatCount: number): LoggerEntry => {
-		const decorations = decorationsForRecord(record);
-		return {
-			key,
-			record,
-			sourceLabel: decorations.sourceLabel,
-			sourceFilterText: decorations.sourceFilterText,
-			tagFilterText: decorations.tagFilterText,
-			contentFilterText: decorations.contentFilterText,
-			formattedTime: decorations.formattedTime,
-			repeatCount
-		};
-	};
-
-	const uniqueRecordKey = (recordId: number, duplicateIndex: number): string => {
-		if (duplicateIndex <= 0) {
-			return `r:${recordId}`;
-		}
-		return `r:${recordId}:d${duplicateIndex}`;
-	};
-
-	const collapseSignatureForRecord = (record: UiLogRecord): string => {
-		return JSON.stringify([record.level, record.tag, record.origin ?? null, record.message]);
-	};
-
-	const formatLogEntryForClipboard = (entry: LoggerEntry): string => {
-		const record = entry.record;
-		const headerParts = [
-			`[${entry.formattedTime}]`,
-			`[${record.level}]`,
-			`[${entry.sourceLabel}]`,
-			record.tag.trim().length > 0 ? `[${record.tag}]` : null,
-			entry.repeatCount > 1 ? `[x${entry.repeatCount}]` : null
-		].filter((part): part is string => part !== null);
-		const message = record.message;
-		const header = headerParts.join(' ');
-		return message.length > 0 ? `${header}\n${message}` : header;
-	};
 
 	const hasLoggerSelection = (): boolean => {
 		if (!loggerList || typeof window === 'undefined') {
@@ -240,116 +108,23 @@
 	$effect(() => {
 		if (session !== lastSessionRef) {
 			lastSessionRef = session;
-			sourceLabelCache.clear();
-			recordDecorationsCache.clear();
+			logProjection.clear();
 		}
 	});
 
 	$effect(() => {
-		if (records.length === 0) {
-			recordDecorationsCache.clear();
-			return;
-		}
-
-		const retainedIds = new Set(records.map((record) => record.id));
-		for (const cachedId of [...recordDecorationsCache.keys()]) {
-			if (retainedIds.has(cachedId)) {
-				continue;
-			}
-			recordDecorationsCache.delete(cachedId);
-		}
+		logProjection.retain(records);
 	});
 
-	let displayedEntriesResult = $derived.by<DisplayedEntriesResult>(() => {
-		const renderLimit = effectiveRenderLimit;
-		if (collapseDuplicates) {
-			if (collapseAllDuplicates) {
-				const groupsBySignature = new Map<string, CollapsedGroup>();
-
-				for (let recordIndex = 0; recordIndex < records.length; recordIndex += 1) {
-					const record = records[recordIndex];
-					const signature = collapseSignatureForRecord(record);
-					const repeatCount = repeatCountForRecord(record);
-					const existing = groupsBySignature.get(signature);
-					if (existing) {
-						existing.record = record;
-						existing.latestRecordIndex = recordIndex;
-						existing.repeatCount += repeatCount;
-					} else {
-						groupsBySignature.set(signature, {
-							signature,
-							key: `g:${record.id}`,
-							record,
-							repeatCount,
-							latestRecordIndex: recordIndex
-						});
-					}
-				}
-
-				const sortedGroups = [...groupsBySignature.values()].sort(
-					(left, right) => left.latestRecordIndex - right.latestRecordIndex
-				);
-				const startIndex = Math.max(0, sortedGroups.length - renderLimit);
-				const entries = sortedGroups
-					.slice(startIndex)
-					.map((group) => makeEntry(group.record, group.key, group.repeatCount));
-				return {
-					entries,
-					collapsedGroupCount: sortedGroups.length
-				};
-			}
-
-			const entries: LoggerEntry[] = [];
-			const duplicateCountById = new Map<number, number>();
-			const startIndex = Math.max(0, records.length - renderLimit);
-			for (let recordIndex = startIndex; recordIndex < records.length; recordIndex += 1) {
-				const record = records[recordIndex];
-				const duplicateIndex = duplicateCountById.get(record.id) ?? 0;
-				duplicateCountById.set(record.id, duplicateIndex + 1);
-				entries.push(
-					makeEntry(
-						record,
-						uniqueRecordKey(record.id, duplicateIndex),
-						repeatCountForRecord(record)
-					)
-				);
-			}
-			return {
-				entries,
-				collapsedGroupCount: entries.length
-			};
-		}
-
-		let remaining = renderLimit;
-		const reversedEntries: LoggerEntry[] = [];
-		const duplicateCountById = new Map<number, number>();
-
-		for (let recordIndex = records.length - 1; recordIndex >= 0; recordIndex -= 1) {
-			if (remaining <= 0) {
-				break;
-			}
-
-			const record = records[recordIndex];
-			const duplicateIndex = duplicateCountById.get(record.id) ?? 0;
-			duplicateCountById.set(record.id, duplicateIndex + 1);
-			const recordKey = uniqueRecordKey(record.id, duplicateIndex);
-			const repeatCount = repeatCountForRecord(record);
-			const takeCount = Math.min(remaining, repeatCount);
-
-			for (let offset = 0; offset < takeCount; offset += 1) {
-				const occurrenceIndex = repeatCount - 1 - offset;
-				reversedEntries.push(makeEntry(record, `${recordKey}:o${occurrenceIndex}`, 1));
-			}
-
-			remaining -= takeCount;
-		}
-
-		reversedEntries.reverse();
-		return {
-			entries: reversedEntries,
-			collapsedGroupCount: 0
-		};
-	});
+	let displayedEntriesResult = $derived.by(() =>
+		logProjection.display(
+			records,
+			effectiveRenderLimit,
+			collapseDuplicates,
+			collapseAllDuplicates,
+			(origin) => session?.graph.state.nodesById.get(origin)?.meta.label
+		)
+	);
 
 	let displayedEntries = $derived(displayedEntriesResult.entries);
 	let collapsedGroupCount = $derived(displayedEntriesResult.collapsedGroupCount);
@@ -364,30 +139,13 @@
 				: rawEntryLimit > effectiveRenderLimit)
 	);
 
-	let filteredEntries = $derived.by<LoggerEntry[]>(() => {
-		if (!isFiltered) {
-			return displayedEntries;
-		}
-
-		return displayedEntries.filter((entry) => {
-			if (
-				normalizedSourceFilter.length > 0 &&
-				!entry.sourceFilterText.includes(normalizedSourceFilter)
-			) {
-				return false;
-			}
-			if (normalizedTagFilter.length > 0 && !entry.tagFilterText.includes(normalizedTagFilter)) {
-				return false;
-			}
-			if (
-				normalizedContentFilter.length > 0 &&
-				!entry.contentFilterText.includes(normalizedContentFilter)
-			) {
-				return false;
-			}
-			return true;
-		});
-	});
+	let filteredEntries = $derived(
+		filterLoggerEntries(displayedEntries, {
+			source: normalizedSourceFilter,
+			tag: normalizedTagFilter,
+			content: normalizedContentFilter
+		})
+	);
 
 	let renderedEntries = $derived(filteredEntries);
 
