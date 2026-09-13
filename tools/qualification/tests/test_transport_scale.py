@@ -14,6 +14,7 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
         "roots": graph_roots,
         "node_identity_sha256": "a" * 64,
         "root_identity_sha256": "c" * 64,
+        "constant_value_identity_sha256": "d" * 64,
     }
     row = {
         "contract": transport_scale.CONTRACT,
@@ -160,6 +161,12 @@ class ProductTransportScaleTests(unittest.TestCase):
                 f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
             )
         row["saved_reload_snapshots"][1]["root_identity_sha256"] = "c" * 64
+        row["saved_reload_snapshots"][1]["constant_value_identity_sha256"] = "e" * 64
+        with self.assertRaisesRegex(ValueError, "Constant value identities"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["saved_reload_snapshots"][1]["constant_value_identity_sha256"] = "d" * 64
         row["saved_reload_snapshots"][1]["node_identity_sha256"] = "b" * 64
         with self.assertRaisesRegex(ValueError, "different node identities"):
             transport_scale.parse_probe_result(

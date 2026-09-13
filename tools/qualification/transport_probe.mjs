@@ -187,6 +187,22 @@ async function snapshot(client, requestId) {
 	return message.snapshot;
 }
 
+function authoredConstantValues(nodes, roots) {
+	const byId = new Map(nodes.map((node) => [node.node_id, node]));
+	return roots.map((root) => {
+		const config = root.children
+			?.map((id) => byId.get(id))
+			.find((node) => node?.decl_id === 'config');
+		const value = config?.children
+			?.map((id) => byId.get(id))
+			.find((node) => node?.decl_id === 'config/value');
+		if (!value || typeof value.uuid !== 'string') {
+			throw new Error(`authored Constant ${root.decl_id} has no stable config/value identity`);
+		}
+		return { root, value };
+	});
+}
+
 function snapshotCounts(snapshotValue, minimumNodes, expectedRoots) {
 	const nodes = snapshotValue?.nodes;
 	if (!Array.isArray(nodes) || nodes.length < minimumNodes) {
@@ -209,11 +225,18 @@ function snapshotCounts(snapshotValue, minimumNodes, expectedRoots) {
 		.sort()) {
 		rootDigest.update(identity).update('\n');
 	}
+	const valueDigest = createHash('sha256');
+	for (const identity of authoredConstantValues(nodes, roots)
+		.map(({ root, value }) => `${root.uuid}\0${value.uuid}\0${value.node_type}\0${value.decl_id}`)
+		.sort()) {
+		valueDigest.update(identity).update('\n');
+	}
 	return {
 		nodes: nodes.length,
 		roots: roots.length,
 		node_identity_sha256: digest.digest('hex'),
-		root_identity_sha256: rootDigest.digest('hex')
+		root_identity_sha256: rootDigest.digest('hex'),
+		constant_value_identity_sha256: valueDigest.digest('hex')
 	};
 }
 
@@ -231,15 +254,10 @@ function resyncReason(message) {
 }
 
 function constantValueTarget(snapshotValue) {
-	const nodes = new Map(snapshotValue.nodes.map((node) => [node.node_id, node]));
-	for (const root of snapshotValue.nodes) {
-		if (typeof root.decl_id !== 'string' || !root.decl_id.startsWith('scale_constant_')) continue;
-		const config = root.children
-			?.map((id) => nodes.get(id))
-			.find((node) => node?.decl_id === 'config');
-		const value = config?.children
-			?.map((id) => nodes.get(id))
-			.find((node) => node?.decl_id === 'config/value');
+	const roots = snapshotValue.nodes.filter(
+		(node) => typeof node.decl_id === 'string' && node.decl_id.startsWith('scale_constant_')
+	);
+	for (const { value } of authoredConstantValues(snapshotValue.nodes, roots)) {
 		const before = value?.data?.param?.value;
 		if (typeof before?.Float === 'number') {
 			return { node_id: value.node_id, uuid: value.uuid, after: { Float: before.Float + 1 } };
@@ -513,10 +531,11 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 			restoredCounts.some(
 				(entry) =>
 					entry.nodes !== counts[0].nodes ||
-					entry.root_identity_sha256 !== counts[0].root_identity_sha256
+					entry.root_identity_sha256 !== counts[0].root_identity_sha256 ||
+					entry.constant_value_identity_sha256 !== counts[0].constant_value_identity_sha256
 			)
 		) {
-			throw new Error('saved project reload changed the authored root identities or node count');
+			throw new Error('saved project reload changed authored root/value identities or node count');
 		}
 		if (new Set(restoredCounts.map((entry) => entry.node_identity_sha256)).size !== 1) {
 			throw new Error('saved project reload gave clients different node identities');
@@ -540,7 +559,7 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 			throw new Error('saved project reload has a missing or inconsistent edited Constant value');
 		}
 		return {
-			contract: 'chataigne-product-transport-probe-v3',
+			contract: 'chataigne-product-transport-probe-v4',
 			status: 'PASS',
 			minimum_live_nodes: minimumNodes,
 			graph_roots: expectedRoots,

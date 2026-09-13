@@ -30,7 +30,7 @@ else:
 
 
 RESULT_PREFIX = "PRODUCT_TRANSPORT_RESULT="
-CONTRACT = "chataigne-product-transport-probe-v3"
+CONTRACT = "chataigne-product-transport-probe-v4"
 BUILD_COMMAND = (
     "cargo", "build", "--locked", "-q", "-p", "Chataigne2", "--bin", "Chataigne2",
     "--target-dir", "target/t16-app-default",
@@ -46,7 +46,10 @@ RESULT_FIELDS = {
     "saved_reload_value", "saved_reload_resync_reasons", "saved_reload_snapshots",
     "saved_reload_full_identity_stable",
 }
-SNAPSHOT_FIELDS = {"nodes", "roots", "node_identity_sha256", "root_identity_sha256"}
+SNAPSHOT_FIELDS = {
+    "nodes", "roots", "node_identity_sha256", "root_identity_sha256",
+    "constant_value_identity_sha256",
+}
 
 
 def parse_probe_result(output: str, exit_code: int, target: int, graph_roots: int) -> dict[str, Any]:
@@ -96,13 +99,17 @@ def parse_probe_result(output: str, exit_code: int, target: int, graph_roots: in
             raise ValueError("product transport snapshot missed the authored-node target")
         if type(snapshot["roots"]) is not int or snapshot["roots"] != graph_roots:
             raise ValueError("product transport snapshot missed the authored graph roots")
-        for digest_field in ("node_identity_sha256", "root_identity_sha256"):
+        for digest_field in (
+            "node_identity_sha256", "root_identity_sha256", "constant_value_identity_sha256",
+        ):
             if not isinstance(snapshot[digest_field], str) or re.fullmatch(
                 r"[0-9a-f]{64}", snapshot[digest_field]
             ) is None:
                 raise ValueError(f"product transport snapshot has no valid {digest_field} digest")
     if len({snapshot["node_identity_sha256"] for snapshot in [*snapshots, row["reconnect_snapshot"]]}) != 1:
         raise ValueError("product transport client snapshots contain different node identities")
+    if len({snapshot["constant_value_identity_sha256"] for snapshot in [*snapshots, row["reconnect_snapshot"]]}) != 1:
+        raise ValueError("product transport client snapshots contain different Constant value identities")
     if row["resync_reasons"] != ["project_loaded"] * 3:
         raise ValueError("product transport did not deliver project replacement resync to every client")
     if row["save_pending_at_edit_send"] is not True:
@@ -126,6 +133,8 @@ def parse_probe_result(output: str, exit_code: int, target: int, graph_roots: in
             raise ValueError("product transport saved reload changed the authored node counts")
         if after["root_identity_sha256"] != before["root_identity_sha256"]:
             raise ValueError("product transport saved reload changed the authored root identities")
+        if after["constant_value_identity_sha256"] != before["constant_value_identity_sha256"]:
+            raise ValueError("product transport saved reload changed the authored Constant value identities")
         if not isinstance(after["node_identity_sha256"], str) or re.fullmatch(
             r"[0-9a-f]{64}", after["node_identity_sha256"]
         ) is None:
@@ -232,7 +241,7 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
     if working_tree_sha(root) != tested_tree_sha:
         raise ValueError("source tree changed during product transport qualification")
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "evidence_id": "product.transport-scale.local",
         "status": "PASS" if build.returncode == 0 and all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "product_qualification": "OPEN",
@@ -251,7 +260,8 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
             "headless Chataigne product project load, three live workbench WebSockets, "
             "project-replacement resync, concurrent full snapshots, one client intent edit "
             "delivered to all clients, one reconnect preserving the edit, and an edit sent while "
-            "a project save request is outstanding followed by a three-client reload of that file"
+            "a project save request is outstanding followed by a three-client reload of that file "
+            "with all authored Constant root and value-node identities retained"
         ),
         "not_covered": [
             "browser rendering, action-to-paint, and UI long tasks",

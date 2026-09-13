@@ -574,10 +574,11 @@ workbench-plane WebSockets, checks three full snapshots and their complete node-
 then sends a WebSocket `setParam` intent for one authored Constant. All three clients must receive
 the matching parameter delta and show the edited value in fresh full snapshots. The probe then
 disconnects and reconnects one client in the same runtime session and verifies the edit persists.
-The v3 probe also starts a project save, sends a second edit while its HTTP response is outstanding,
+The v4 probe also starts a project save, sends a second edit while its HTTP response is outstanding,
 and requires the edit acknowledgement before that response. It reloads the saved file through the
 real project endpoint, checks a recovery resync and snapshot on all three clients, equal node counts
-and authored-root identity digests, and one consistent old-or-new captured value. A replacement can
+and authored-root plus every Constant `config/value` identity digest, and one consistent old-or-new
+captured value. A replacement can
 resync with `cursor_ahead_of_server_time` when a subscription cursor exceeds the restored engine
 clock. The saved reload's complete generated-node digest is recorded separately; it changed in the
 local 1k/10k/100k runs, so generated descendant UUID stability is not claimed. The edit was captured
