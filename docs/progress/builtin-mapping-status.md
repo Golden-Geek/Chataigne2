@@ -5,19 +5,19 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 00 — baseline and evidence
-- Last validated implementation commit: none
-- Last verified remote implementation commit: none
+- Active phase: 01 — direct results and native handoff (not started)
+- Last validated implementation commit: `0ba08c66eee40b65c1e91cd78816549f70d657fc` (Phase 00)
+- Last verified remote implementation commit: `0ba08c66eee40b65c1e91cd78816549f70d657fc` (Phase 00)
 - Current blockers: none; the ambient `CPAL_ASIO_DIR` points at an incomplete SDK, so Windows default-feature checks require the repository's pinned `tools/asio.ps1` wrapper
 - Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; all M01–M20 acceptance cases
-- Next concrete action: close and publish Phase 00 after final formatter and diff checks, then begin Phase 01
-- Last updated: 2026-09-13T09:36:30+02:00
+- Next concrete action: implement Phase 01 direct output slots and native managed ValueSet handoff
+- Last updated: 2026-09-13T09:37:15+02:00
 
 ## Phase ledger
 
 | Phase | Status | Implementation | Validation | Delivery | CI | Evidence / blocker |
 | --- | --- | --- | --- | --- | --- | --- |
-| 00 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Docs/benchmark baseline checked; branch CI triggers only on PR/main. |
+| 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Direct result slots and native ValueSet handoff. |
 | 02 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Typed layouts and identity. |
 | 03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Declarative applications and live bindings. |
@@ -74,16 +74,16 @@
 
 - Changes and affected public boundaries: canonical plan, status ledger, Mapping architecture documentation, and a managed-runner benchmark fixture; no public runtime boundary changed.
 - Acceptance gates satisfied: baseline owner and known runtime limitations identified; M01–M20 assigned to phases; baseline Rust/UI gates and representative pre-change benchmark pass.
-- Remaining work: review final diff, format, and publish the phase checkpoints. Full product and expanded performance qualification belong to later phases.
+- Remaining work: no Phase 00 work. Full product and expanded performance qualification belong to later phases.
 - Exact checks and outcomes: see validation evidence; default Windows ASIO check requires the documented pinned SDK wrapper.
-- Implementation commit: pending.
-- Verified remote ref, observed OID, and timestamp: pending.
+- Implementation commit: `0ba08c66eee40b65c1e91cd78816549f70d657fc`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `0ba08c66eee40b65c1e91cd78816549f70d657fc`, 2026-09-13T09:37:15+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for this docs/benchmark phase; repository CI is configured for PRs and pushes to `main`, not a direct push to this branch.
 - Decisions/deviations and rationale: branched from local `main` to preserve its one unpublished commit; moved the untracked plan to the path required by the plan. The existing Golden Engine benchmark baseline is unqualified and cannot establish a Mapping latency threshold.
 
 ## Blockers and handoff
 
 - What failed: no implementation gate currently failed. Plain workspace check encountered a pre-existing incomplete ambient ASIO SDK; the pinned wrapper passed.
-- Last known-good checkpoint: `b6ac86eb702d703560593c108b599f95545a417c`, with Phase 00 documentation uncommitted.
+- Last known-good checkpoint: Phase 00 implementation `0ba08c66eee40b65c1e91cd78816549f70d657fc`, verified on `origin/codex/builtin-mapping`.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: finish formatter/diff review, then commit, push, verify, and publish Phase 00 status.
+- Next action: publish this factual Phase 00 status checkpoint, then start Phase 01.
