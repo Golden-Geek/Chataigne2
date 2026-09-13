@@ -23,12 +23,12 @@ pub(super) struct AngleConversionEval {
 }
 
 impl CompiledNodeEvaluator for AngleConversionEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [value] = float_inputs::<1>(evaluation.inputs)?;
         let result = match self.mode {
             AngleMode::DegreesToRadians => value.to_radians(),
             AngleMode::RadiansToDegrees => value.to_degrees(),
         };
-        Ok(vec![RuntimeValue::Float(result)])
+        Ok(crate::node_outputs![RuntimeValue::Float(result)])
     }
 }

@@ -1,5 +1,42 @@
 use super::*;
 
+pub(super) fn runtime_node_inputs_into(
+    node: &CompiledExecNode,
+    memory: &mut AlchemistMemory,
+    ctx: &EvaluationCtx<'_>,
+) -> Result<(), String> {
+    memory.runtime_inputs.clear();
+    for source in &node.inputs {
+        let value = runtime_input_value(source, memory, ctx.inputs, ctx.registries.value_types)?;
+        memory.runtime_inputs.push(value);
+    }
+    Ok(())
+}
+
+pub(super) fn change_detection_inputs_into(
+    change_inputs: &mut Vec<RuntimeValue>,
+    operation: &CompiledNodeOperation,
+    inputs: &[RuntimeValue],
+    properties: &RuntimePropertyFrame,
+    ctx: &EvaluationCtx<'_>,
+    context: &RuntimeContextFrame,
+) -> Result<(), String> {
+    change_inputs.clear();
+    change_inputs.extend_from_slice(inputs);
+    if let CompiledNodeOperation::ReadProperty(slot) = operation {
+        change_inputs.push(
+            properties
+                .get(*slot)
+                .cloned()
+                .ok_or_else(|| format!("property slot {} is unavailable", slot.index()))?,
+        );
+    }
+    if let CompiledNodeOperation::Custom(evaluator) = operation {
+        change_inputs.extend(evaluator.change_detection_inputs(ctx, context)?);
+    }
+    Ok(())
+}
+
 pub(super) fn runtime_input_value(
     source: &InputValueSource,
     memory: &AlchemistMemory,
@@ -44,7 +81,7 @@ pub(super) fn runtime_input_value(
 pub(super) fn evaluate_operation(
     operation: &CompiledNodeOperation,
     mut evaluation: NodeEvaluation<'_, '_>,
-) -> Result<Vec<RuntimeValue>, String> {
+) -> Result<SmallVec<[RuntimeValue; 4]>, String> {
     match operation {
         CompiledNodeOperation::Disabled { outputs } => Ok(outputs
             .iter()
@@ -56,32 +93,32 @@ pub(super) fn evaluate_operation(
                     .unwrap_or_else(|| output.default_value.clone())
             })
             .collect()),
-        CompiledNodeOperation::Constant(value) => Ok(vec![value.clone()]),
+        CompiledNodeOperation::Constant(value) => Ok(smallvec::smallvec![value.clone()]),
         CompiledNodeOperation::ReadProperty(slot) => evaluation
             .properties
             .get(*slot)
             .cloned()
-            .map(|value| vec![value])
+            .map(|value| smallvec::smallvec![value])
             .ok_or_else(|| format!("property slot {} is unavailable", slot.index())),
         CompiledNodeOperation::Add => {
             let [left, right] = require_inputs::<2>(evaluation.inputs)?;
-            Ok(vec![add_values(left, right)?])
+            Ok(smallvec::smallvec![add_values(left, right)?])
         }
         CompiledNodeOperation::Compare => {
             let [left, right] = require_inputs::<2>(evaluation.inputs)?;
-            Ok(vec![RuntimeValue::Bool(left == right)])
+            Ok(smallvec::smallvec![RuntimeValue::Bool(left == right)])
         }
         CompiledNodeOperation::BoolAnd => {
             let [left, right] = bool_inputs::<2>(evaluation.inputs)?;
-            Ok(vec![RuntimeValue::Bool(left && right)])
+            Ok(smallvec::smallvec![RuntimeValue::Bool(left && right)])
         }
         CompiledNodeOperation::BoolOr => {
             let [left, right] = bool_inputs::<2>(evaluation.inputs)?;
-            Ok(vec![RuntimeValue::Bool(left || right)])
+            Ok(smallvec::smallvec![RuntimeValue::Bool(left || right)])
         }
         CompiledNodeOperation::BoolNot => {
             let [value] = bool_inputs::<1>(evaluation.inputs)?;
-            Ok(vec![RuntimeValue::Bool(!value)])
+            Ok(smallvec::smallvec![RuntimeValue::Bool(!value)])
         }
         CompiledNodeOperation::Edge => {
             let [value] = bool_inputs::<1>(evaluation.inputs)?;
@@ -89,7 +126,7 @@ pub(super) fn evaluate_operation(
             if let Some(state) = evaluation.state.first_mut() {
                 *state = RuntimeValue::Bool(value);
             }
-            Ok(vec![RuntimeValue::Trigger(TriggerValue {
+            Ok(smallvec::smallvec![RuntimeValue::Trigger(TriggerValue {
                 fired: value && !previous,
                 edge_id: u64::from(evaluation.exec_node.index() as u32),
                 logical_tick: evaluation.ctx.logical_tick,
@@ -103,13 +140,13 @@ pub(super) fn evaluate_operation(
             let RuntimeValue::Bool(open) = open else {
                 return Err("Gate expects a boolean open input".into());
             };
-            Ok(vec![RuntimeValue::Trigger(TriggerValue {
+            Ok(smallvec::smallvec![RuntimeValue::Trigger(TriggerValue {
                 fired: trigger.fired && *open,
                 ..*trigger
             })])
         }
-        CompiledNodeOperation::MapRange => Ok(vec![map_range_values(evaluation.inputs)?]),
-        CompiledNodeOperation::Clamp => Ok(vec![clamp_values(evaluation.inputs)?]),
+        CompiledNodeOperation::MapRange => Ok(smallvec::smallvec![map_range_values(evaluation.inputs)?]),
+        CompiledNodeOperation::Clamp => Ok(smallvec::smallvec![clamp_values(evaluation.inputs)?]),
         CompiledNodeOperation::DelayOneTick => {
             let [value] = require_inputs::<1>(evaluation.inputs)?;
             let [initialized, previous] = evaluation.state else {
@@ -122,7 +159,7 @@ pub(super) fn evaluate_operation(
             };
             *initialized = RuntimeValue::Bool(true);
             *previous = value.clone();
-            Ok(vec![output])
+            Ok(smallvec::smallvec![output])
         }
         CompiledNodeOperation::DebugLog => {
             let [value] = require_inputs::<1>(evaluation.inputs)?;
@@ -134,7 +171,7 @@ pub(super) fn evaluate_operation(
                 payload: value.clone(),
                 logical_tick: evaluation.ctx.logical_tick,
             });
-            Ok(Vec::new())
+            Ok(SmallVec::new())
         }
         CompiledNodeOperation::Custom(evaluator) => evaluator.evaluate(&mut evaluation),
     }
@@ -142,9 +179,8 @@ pub(super) fn evaluate_operation(
 
 fn require_inputs<const N: usize>(inputs: &[RuntimeValue]) -> Result<[&RuntimeValue; N], String> {
     inputs
-        .iter()
-        .collect::<Vec<_>>()
         .try_into()
+        .map(<[RuntimeValue; N]>::each_ref)
         .map_err(|_| format!("node expects {N} input(s)"))
 }
 

@@ -161,6 +161,61 @@ fn mapping_runtime_latency_distribution(c: &mut Criterion) {
     group.finish();
 }
 
+fn mapping_runtime_allocation_report(c: &mut Criterion) {
+    if std::env::var_os("CHATAIGNE_MAPPING_ALLOCATION_REPORT").is_none() {
+        return;
+    }
+    let mut reference_allocations_per_processor = None;
+    for (label, processors, sources, depth, workload) in [
+        ("scalar_1_depth_1", 1, 1, 1, Workload::NumericChain),
+        ("tuple_8_depth_1", 1, 8, 1, Workload::NumericChain),
+        ("tuple_32_depth_1", 1, 32, 1, Workload::NumericChain),
+        ("tuple_8_depth_8", 1, 8, 8, Workload::NumericChain),
+        ("tuple_32_depth_8", 1, 32, 8, Workload::NumericChain),
+        ("scalar_1000", 1_000, 1, 1, Workload::NumericChain),
+        ("sum_1000", 1_000, 3, 1, Workload::Sum),
+        ("pack_vec3_1000", 1_000, 3, 1, Workload::PackVec3),
+        ("mixed_1000", 1_000, 3, 1, Workload::MixedPassthrough),
+    ] {
+        let (mut runtimes, inputs, value_types) = build_case(processors, sources, depth, workload);
+        let registries = RuntimeRegistries {
+            value_types: &value_types,
+        };
+        let context = evaluation_context(&inputs, &registries);
+        for _ in 0..16 {
+            black_box(evaluate_batch(&mut runtimes, &context));
+        }
+        let allocations = allocation_counter::measure(|| {
+            black_box(evaluate_batch(&mut runtimes, black_box(&context)));
+        });
+        let reference = *reference_allocations_per_processor.get_or_insert(allocations.count_total);
+        assert_eq!(
+            allocations.count_total,
+            reference * u64::try_from(processors).expect("benchmark processor count fits in u64"),
+            "{label} introduced tuple-element or stage allocations"
+        );
+        assert_eq!(
+            allocations.count_current, 0,
+            "{label} retained allocations in one warmed evaluation"
+        );
+        println!(
+            "mapping_allocations {label} count_total={} bytes_total={} count_current={} bytes_current={}",
+            allocations.count_total, allocations.bytes_total, allocations.count_current, allocations.bytes_current,
+        );
+    }
+
+    let (mut runtimes, inputs, value_types) = build_case(1_000, 1, 1, Workload::NumericChain);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let context = evaluation_context(&inputs, &registries);
+    let mut group = c.benchmark_group("mapping_runtime_allocation_report");
+    group.bench_function("scalar_1000_reference", |bench| {
+        bench.iter(|| black_box(evaluate_batch(&mut runtimes, black_box(&context))));
+    });
+    group.finish();
+}
+
 fn report_latency_distribution(label: &str, samples: &mut [u64]) {
     samples.sort_unstable();
     let percentile = |percent: usize| samples[(samples.len() * percent).div_ceil(100) - 1];
@@ -417,6 +472,7 @@ criterion_group!(
     mapping_runtime_batch,
     mapping_runtime_shapes,
     mapping_runtime_contexts,
-    mapping_runtime_latency_distribution
+    mapping_runtime_latency_distribution,
+    mapping_runtime_allocation_report
 );
 criterion_main!(benches);

@@ -6,8 +6,8 @@ use super::support::float_inputs;
 pub(super) struct PackVec2Eval;
 
 impl CompiledNodeEvaluator for PackVec2Eval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [x, y] = float_inputs::<2>(evaluation.inputs)?;
-        Ok(vec![RuntimeValue::Vec2([x, y])])
+        Ok(crate::node_outputs![RuntimeValue::Vec2([x, y])])
     }
 }

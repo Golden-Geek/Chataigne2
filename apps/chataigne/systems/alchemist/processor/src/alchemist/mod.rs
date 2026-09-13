@@ -488,8 +488,10 @@ fn manager_ref_from_config(instance: &ANodeInstance, kind: ChataigneNodeKind) ->
 struct RoutingEval;
 
 impl CompiledNodeEvaluator for RoutingEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        Ok(vec![evaluation.inputs.first().cloned().unwrap_or(RuntimeValue::Unit)])
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<chataigne_alchemist::NodeOutputs, String> {
+        Ok(chataigne_alchemist::node_outputs![
+            evaluation.inputs.first().cloned().unwrap_or(RuntimeValue::Unit)
+        ])
     }
 }
 
@@ -507,7 +509,7 @@ impl CompiledNodeEvaluator for ManagerSourceEval {
         Ok(vec![manager_source_change_value(&self.source, ctx)])
     }
 
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<chataigne_alchemist::NodeOutputs, String> {
         let value = self
             .source
             .as_ref()
@@ -518,7 +520,7 @@ impl CompiledNodeEvaluator for ManagerSourceEval {
                     .to_runtime_value()
                     .expect("empty ValueSet must serialize")
             });
-        Ok(vec![value])
+        Ok(chataigne_alchemist::node_outputs![value])
     }
 }
 
@@ -540,12 +542,12 @@ impl CompiledNodeEvaluator for ConditionManagerEval {
         ])
     }
 
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<chataigne_alchemist::NodeOutputs, String> {
         let value = condition_manager_source_value(&self.source, evaluation.ctx, evaluation.context)
             .and_then(ConditionManagerValue::from_runtime_value)
             .unwrap_or_default();
 
-        Ok(vec![
+        Ok(chataigne_alchemist::node_outputs![
             RuntimeValue::Bool(value.valid),
             RuntimeValue::Trigger(value.on_true),
             RuntimeValue::Trigger(value.on_false),
@@ -579,12 +581,14 @@ fn manager_source_change_value(source: &Option<StableRef>, ctx: &EvaluationCtx<'
 struct ManagerFilterEval;
 
 impl CompiledNodeEvaluator for ManagerFilterEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        Ok(vec![evaluation.inputs.first().cloned().unwrap_or_else(|| {
-            ValueSet::new(evaluation.ctx.logical_tick)
-                .to_runtime_value()
-                .expect("empty ValueSet must serialize")
-        })])
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<chataigne_alchemist::NodeOutputs, String> {
+        Ok(chataigne_alchemist::node_outputs![
+            evaluation.inputs.first().cloned().unwrap_or_else(|| {
+                ValueSet::new(evaluation.ctx.logical_tick)
+                    .to_runtime_value()
+                    .expect("empty ValueSet must serialize")
+            })
+        ])
     }
 }
 
@@ -595,7 +599,7 @@ struct ManagerOutputEval {
 }
 
 impl CompiledNodeEvaluator for ManagerOutputEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<chataigne_alchemist::NodeOutputs, String> {
         let value = evaluation.inputs.first().cloned().unwrap_or_else(|| {
             ValueSet::new(evaluation.ctx.logical_tick)
                 .to_runtime_value()
@@ -632,7 +636,7 @@ impl CompiledNodeEvaluator for ManagerOutputEval {
                 logical_tick: evaluation.ctx.logical_tick,
             });
         }
-        Ok(Vec::new())
+        Ok(chataigne_alchemist::NodeOutputs::new())
     }
 }
 

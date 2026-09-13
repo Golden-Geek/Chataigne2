@@ -24,6 +24,7 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+allocation-counter.workspace = true
 criterion.workspace = true
 golden_graph.workspace = true
 

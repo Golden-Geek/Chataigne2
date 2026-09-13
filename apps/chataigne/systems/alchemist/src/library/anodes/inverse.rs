@@ -6,7 +6,7 @@ use super::support::numeric_map_checked;
 pub(super) struct InverseEval;
 
 impl CompiledNodeEvaluator for InverseEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let Some(value) = evaluation.inputs.first() else {
             return Err("numeric unary node expects one input".into());
         };
@@ -14,9 +14,9 @@ impl CompiledNodeEvaluator for InverseEval {
             if *number == 0 {
                 return Err("Inverse input cannot be zero".into());
             }
-            return Ok(vec![RuntimeValue::Int(1 / *number)]);
+            return Ok(crate::node_outputs![RuntimeValue::Int(1 / *number)]);
         }
-        Ok(vec![numeric_map_checked(value, |value| {
+        Ok(crate::node_outputs![numeric_map_checked(value, |value| {
             if value.abs() <= f64::EPSILON {
                 Err("Inverse input cannot be zero".into())
             } else {

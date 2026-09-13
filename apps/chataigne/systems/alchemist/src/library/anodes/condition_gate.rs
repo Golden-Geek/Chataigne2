@@ -85,7 +85,7 @@ impl ConditionGateEval {
 }
 
 impl CompiledNodeEvaluator for ConditionGateEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         if self.application == GateApplication::PerLane {
             return Err("ConditionGate per-lane application requires lane-aware ValueSet lowering".into());
         }
@@ -144,7 +144,7 @@ impl CompiledNodeEvaluator for ConditionGateEval {
                 }
             }
         };
-        Ok(vec![
+        Ok(crate::node_outputs![
             output_value,
             RuntimeValue::Bool(passes),
             RuntimeValue::Bool(!passes),

@@ -8,7 +8,7 @@ pub(super) struct ExtractColorEval {
 }
 
 impl CompiledNodeEvaluator for ExtractColorEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let Some(RuntimeValue::Color(color)) = evaluation.inputs.first() else {
             return Err("Extract Color expects a color input".into());
         };

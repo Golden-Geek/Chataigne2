@@ -38,12 +38,12 @@ pub(super) struct ConvertScalarEval {
 }
 
 impl CompiledNodeEvaluator for ConvertScalarEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [value] = evaluation.inputs else {
             return Err("scalar conversion expects one input".into());
         };
         let converted = convert(value, self.target)?;
-        Ok(vec![converted])
+        Ok(crate::node_outputs![converted])
     }
 }
 

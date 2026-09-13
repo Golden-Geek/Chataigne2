@@ -10,7 +10,7 @@ pub(super) struct SplitEval {
 }
 
 impl CompiledNodeEvaluator for SplitEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let Some(RuntimeValue::String(value)) = evaluation.inputs.first() else {
             return Err("Split expects a string input".into());
         };
@@ -25,6 +25,6 @@ impl CompiledNodeEvaluator for SplitEval {
             .filter(|part| !self.omit_empty || !part.is_empty())
             .map(|part| RuntimeValue::String(Arc::from(part)))
             .collect();
-        Ok(vec![RuntimeValue::Array(values)])
+        Ok(crate::node_outputs![RuntimeValue::Array(values)])
     }
 }

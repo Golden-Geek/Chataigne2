@@ -6,7 +6,7 @@ use super::support::float_inputs;
 pub(super) struct RemapEval;
 
 impl CompiledNodeEvaluator for RemapEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [value, in_min, in_max, out_min, out_max] = float_inputs::<5>(evaluation.inputs)?;
         if (in_max - in_min).abs() <= f64::EPSILON {
             return Err("Remap input range cannot be zero".into());
@@ -16,6 +16,6 @@ impl CompiledNodeEvaluator for RemapEval {
         if !result.is_finite() {
             return Err("Remap result is non-finite".into());
         }
-        Ok(vec![RuntimeValue::Float(result)])
+        Ok(crate::node_outputs![RuntimeValue::Float(result)])
     }
 }

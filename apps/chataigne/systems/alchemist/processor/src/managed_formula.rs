@@ -546,7 +546,7 @@ impl ValuePipelineRuntime {
         properties: Option<&RuntimePropertyFrame>,
         capture_mode: DebugCaptureMode,
     ) -> RuntimeOutput {
-        let input = self.input_set.materialize_for_context(ctx, context_key);
+        let input = self.input_set.materialize_frame_for_context(ctx, context_key);
         let mut output = RuntimeOutput::default();
         output
             .diagnostics
@@ -594,12 +594,17 @@ impl ValuePipelineRuntime {
         {
             return output;
         }
-        let values = match frame_values(frame) {
-            Ok(values) => values,
-            Err(error) => return runtime_error_output(error),
-        };
+        if let Some((descriptor, _)) = frame
+            .layout()
+            .channels()
+            .iter()
+            .zip(frame.slots())
+            .find(|(_, slot)| slot.validity != ChannelValidity::Valid || slot.value.is_none())
+        {
+            return runtime_error_output(ManagedFormulaError::InvalidStageChannel(descriptor.id.clone()));
+        }
         for output_set in &self.output_sets {
-            merge_output_set(&mut output, output_set.materialize_values(&values, ctx));
+            merge_output_set(&mut output, output_set.materialize_frame(frame, ctx));
         }
         output
     }

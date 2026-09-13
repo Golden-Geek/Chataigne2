@@ -9,7 +9,6 @@ use chataigne_alchemist::{
     RuntimeOutput, RuntimePropertyFrame, ValueSlotId, ValueTypeId, compile_graph,
     evaluate_compiled_graph_with_external,
 };
-use golden_values::Value as RuntimeValue;
 use indexmap::IndexSet;
 
 use crate::{ChannelFrame, ChannelValidity, ManagedStageChain, OutputSetRuntime, ValueSet};
@@ -249,12 +248,15 @@ impl ExternalNodeEvaluator for ManagedGraphBridge<'_> {
         self.boundary_exec_nodes
     }
 
-    fn evaluate(&mut self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(
+        &mut self,
+        evaluation: &mut NodeEvaluation<'_, '_>,
+    ) -> Result<chataigne_alchemist::NodeOutputs, String> {
         if evaluation.author_node_id == self.input_node {
             let values = frame_values(self.input).map_err(|error| error.to_string())?;
             return values
                 .to_runtime_value()
-                .map(|value| vec![value])
+                .map(|value| chataigne_alchemist::node_outputs![value])
                 .map_err(|error| error.to_string());
         }
         if let Some(filter) = self.filter.filter(|filter| filter.node == evaluation.author_node_id) {
@@ -296,12 +298,12 @@ impl ExternalNodeEvaluator for ManagedGraphBridge<'_> {
                 .any(|slot| slot.validity == ChannelValidity::Suppressed)
             {
                 evaluation.suppress_output(0);
-                return Ok(vec![source.clone()]);
+                return Ok(chataigne_alchemist::node_outputs![source.clone()]);
             }
             let values = frame_values(filtered).map_err(|error| error.to_string())?;
             return values
                 .to_runtime_value()
-                .map(|value| vec![value])
+                .map(|value| chataigne_alchemist::node_outputs![value])
                 .map_err(|error| error.to_string());
         }
         for output in self
@@ -333,7 +335,7 @@ impl ExternalNodeEvaluator for ManagedGraphBridge<'_> {
             }
             evaluation.intents.extend(materialized.output.intents);
         }
-        Ok(Vec::new())
+        Ok(chataigne_alchemist::NodeOutputs::new())
     }
 }
 

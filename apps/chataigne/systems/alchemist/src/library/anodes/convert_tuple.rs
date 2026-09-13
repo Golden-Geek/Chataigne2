@@ -1,4 +1,4 @@
-use crate::{CompiledNodeEvaluator, NodeEvaluation, RuntimeValue};
+use crate::{CompiledNodeEvaluator, NodeEvaluation};
 
 use super::convert_scalar::{ScalarTarget, convert};
 
@@ -8,7 +8,7 @@ pub(super) struct ConvertTupleEval {
 }
 
 impl CompiledNodeEvaluator for ConvertTupleEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         evaluation
             .inputs
             .iter()

@@ -31,8 +31,8 @@ pub(super) struct MathEval {
 }
 
 impl CompiledNodeEvaluator for MathEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        fold_numeric_inputs(evaluation.inputs, self.operator).map(|value| vec![value])
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
+        fold_numeric_inputs(evaluation.inputs, self.operator).map(|value| crate::node_outputs![value])
     }
 }
 
@@ -53,7 +53,7 @@ pub(super) struct ReductionEval {
 }
 
 impl CompiledNodeEvaluator for ReductionEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let value = match self.mode {
             ReductionMode::Sum => fold_numeric_inputs(evaluation.inputs, MathOperator::Add)?,
             ReductionMode::Product => fold_numeric_inputs(evaluation.inputs, MathOperator::Multiply)?,
@@ -77,7 +77,7 @@ impl CompiledNodeEvaluator for ReductionEval {
                 RuntimeValue::Float(finite_scalar(sum / evaluation.inputs.len() as f64)?)
             }
         };
-        Ok(vec![value])
+        Ok(crate::node_outputs![value])
     }
 }
 

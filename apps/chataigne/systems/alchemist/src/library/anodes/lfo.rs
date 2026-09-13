@@ -49,7 +49,7 @@ pub(super) struct LfoEval {
 }
 
 impl CompiledNodeEvaluator for LfoEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let dt = delta_seconds(evaluation.ctx.delta_time);
         let state = evaluation.state.first_mut();
         let mut values = state_values(state.as_deref(), 4);
@@ -67,6 +67,6 @@ impl CompiledNodeEvaluator for LfoEval {
         }
         let output = values[1];
         set_state_values(state, values);
-        Ok(vec![RuntimeValue::Float(output)])
+        Ok(crate::node_outputs![RuntimeValue::Float(output)])
     }
 }

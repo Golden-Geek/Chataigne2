@@ -58,9 +58,9 @@ pub(super) struct GradientSamplerEval {
 }
 
 impl CompiledNodeEvaluator for GradientSamplerEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [position] = float_inputs::<1>(evaluation.inputs)?;
-        Ok(vec![RuntimeValue::Color(sample_gradient(
+        Ok(crate::node_outputs![RuntimeValue::Color(sample_gradient(
             &self.stops,
             position.clamp(0.0, 1.0),
         ))])

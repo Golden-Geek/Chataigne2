@@ -122,6 +122,36 @@ fn multiple_inputs_materialize_in_authored_order() {
 }
 
 #[test]
+fn frame_only_materialization_matches_full_tuple_with_missing_and_mixed_sources() {
+    let float = input_ref("module/float");
+    let text = input_ref("module/text");
+    let missing = input_ref("module/missing");
+    let mut full = InputSetRuntime::new(vec![
+        crate::InputSetItem::new(ValueLaneKey::new("float").unwrap(), "Float", float.clone()),
+        crate::InputSetItem::new(ValueLaneKey::new("text").unwrap(), "Text", text.clone()),
+        crate::InputSetItem::new(ValueLaneKey::new("missing").unwrap(), "Missing", missing),
+    ])
+    .unwrap();
+    let mut frame_only = full.clone();
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(float, RuntimeValue::Float(0.75));
+    inputs.insert(text, RuntimeValue::String("hello".into()));
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(42, &inputs, &registries);
+
+    let complete = full.materialize(&ctx);
+    let frame = frame_only.materialize_frame_for_context(&ctx, &Default::default());
+
+    assert_eq!(frame.frame.slots(), complete.frame.slots());
+    assert_eq!(frame.diagnostics, complete.diagnostics);
+    assert_eq!(complete.value_set.entries.len(), 2);
+    assert_eq!(frame.frame.slots()[2].validity, ChannelValidity::MissingSource);
+}
+
+#[test]
 fn projected_color_input_uses_declared_schema_and_reports_invalid_projection() {
     let source = input_ref("module/color");
     let mut item = managed_input_item("Red", source.clone(), true);

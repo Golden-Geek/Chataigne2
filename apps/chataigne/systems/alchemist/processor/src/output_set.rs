@@ -6,7 +6,7 @@ use chataigne_alchemist::{
 use golden_values::Value as RuntimeValue;
 use serde::{Deserialize, Serialize};
 
-use crate::{ValueSet, ValueSetError};
+use crate::{ChannelFrame, ValueSet, ValueSetError};
 
 mod authoring;
 pub use authoring::{
@@ -343,6 +343,10 @@ impl OutputSetRuntime {
         self.materialize_input(OutputInput::Tuple(values), ctx)
     }
 
+    pub(crate) fn materialize_frame(&self, frame: &ChannelFrame, ctx: &EvaluationCtx<'_>) -> OutputSetMaterialization {
+        self.materialize_input(OutputInput::Frame(frame), ctx)
+    }
+
     fn materialize_input(&self, input: OutputInput<'_>, ctx: &EvaluationCtx<'_>) -> OutputSetMaterialization {
         let mut materialized = OutputSetMaterialization::default();
         for item in self.items.iter().filter(|item| item.enabled) {
@@ -370,6 +374,7 @@ impl OutputSetRuntime {
 enum OutputInput<'a> {
     Single(&'a RuntimeValue),
     Tuple(&'a ValueSet),
+    Frame(&'a ChannelFrame),
 }
 
 fn resolve_item(item: &OutputSetItem, input: OutputInput<'_>) -> Result<Option<RuntimeValue>, String> {
@@ -415,6 +420,14 @@ fn resolve_source(source: &OutputValueSource, input: OutputInput<'_>) -> Result<
                 "the result has {} tuple elements; select a stable element or use an explicit argument binding",
                 values.entries.len()
             )),
+            OutputInput::Frame(frame) if frame.slots().len() == 1 => Ok(frame.slots()[0]
+                .value
+                .clone()
+                .expect("Mapping frame was validated before output materialization")),
+            OutputInput::Frame(frame) => Err(format!(
+                "the result has {} tuple elements; select a stable element or use an explicit argument binding",
+                frame.slots().len()
+            )),
         },
         OutputValueSource::Element(key) => match input {
             OutputInput::Tuple(values) => values
@@ -422,6 +435,18 @@ fn resolve_source(source: &OutputValueSource, input: OutputInput<'_>) -> Result<
                 .iter()
                 .find(|entry| &entry.key == key)
                 .map(|entry| entry.value.clone())
+                .ok_or_else(|| format!("tuple element `{}` is unavailable", key.as_str())),
+            OutputInput::Frame(frame) => frame
+                .layout()
+                .channels()
+                .iter()
+                .zip(frame.slots())
+                .find(|(descriptor, _)| &descriptor.id == key)
+                .map(|(_, slot)| {
+                    slot.value
+                        .clone()
+                        .expect("Mapping frame was validated before output materialization")
+                })
                 .ok_or_else(|| format!("tuple element `{}` is unavailable", key.as_str())),
             OutputInput::Single(_) => Err(format!(
                 "result is scalar; tuple element `{}` is unavailable",

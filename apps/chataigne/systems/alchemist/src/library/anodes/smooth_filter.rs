@@ -47,7 +47,7 @@ impl SmoothFilterEval {
 }
 
 impl CompiledNodeEvaluator for SmoothFilterEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [input] = float_inputs::<1>(evaluation.inputs)?;
         let dt = delta_seconds(evaluation.ctx.delta_time);
         let state = evaluation.state.first_mut();
@@ -118,6 +118,6 @@ impl CompiledNodeEvaluator for SmoothFilterEval {
             evaluation.state.fill(RuntimeValue::Unit);
             return Err("Smooth Filter produced a non-finite result; its history was reset".into());
         }
-        Ok(vec![RuntimeValue::Float(output)])
+        Ok(crate::node_outputs![RuntimeValue::Float(output)])
     }
 }

@@ -8,7 +8,7 @@ pub(super) struct ConvertToColorEval {
 }
 
 impl CompiledNodeEvaluator for ConvertToColorEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [first, second, third, fourth] = float_inputs::<4>(evaluation.inputs)?;
         let color = match self.mode {
             super::color_mode::ColorMode::Rgba => ColorValue {
@@ -27,6 +27,6 @@ impl CompiledNodeEvaluator for ConvertToColorEval {
         {
             return Err("Convert To Color produced non-finite components".into());
         }
-        Ok(vec![RuntimeValue::Color(color)])
+        Ok(crate::node_outputs![RuntimeValue::Color(color)])
     }
 }

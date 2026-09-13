@@ -228,8 +228,30 @@ impl InputSetRuntime {
         ctx: &EvaluationCtx<'_>,
         context_key: &ContextKey,
     ) -> InputSetMaterialization<'_> {
-        self.frame.begin_tick(ctx.logical_tick);
         let mut value_set = ValueSet::new(ctx.logical_tick);
+        let materialized = self.materialize_frame_inner(ctx, context_key, Some(&mut value_set));
+        InputSetMaterialization {
+            value_set,
+            frame: materialized.frame,
+            diagnostics: materialized.diagnostics,
+        }
+    }
+
+    pub(crate) fn materialize_frame_for_context(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        context_key: &ContextKey,
+    ) -> InputFrameMaterialization<'_> {
+        self.materialize_frame_inner(ctx, context_key, None)
+    }
+
+    fn materialize_frame_inner(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        context_key: &ContextKey,
+        mut value_set: Option<&mut ValueSet>,
+    ) -> InputFrameMaterialization<'_> {
+        self.frame.begin_tick(ctx.logical_tick);
         let mut diagnostics = Vec::new();
 
         if self.items.is_empty() {
@@ -275,10 +297,7 @@ impl InputSetRuntime {
                         },
                         None => value.clone(),
                     };
-                    if let Err(error) = self
-                        .frame
-                        .set(index, Some(projected.clone()), ChannelValidity::Valid, true)
-                    {
+                    if let Err(error) = self.frame.set(index, Some(projected), ChannelValidity::Valid, true) {
                         self.frame
                             .set(index, None, ChannelValidity::Invalid, false)
                             .expect("invalid source state remains representable");
@@ -289,10 +308,16 @@ impl InputSetRuntime {
                         ));
                         continue;
                     }
-                    value_set.push(
-                        ValueSetEntry::new(item.key.clone(), item.label.clone(), projected)
+                    if let Some(value_set) = value_set.as_deref_mut() {
+                        value_set.push(
+                            ValueSetEntry::new(
+                                item.key.clone(),
+                                item.label.clone(),
+                                self.frame.slots()[index].value.clone().expect("valid input slot"),
+                            )
                             .with_source(item.source.clone()),
-                    );
+                        );
+                    }
                 }
                 None => {
                     self.frame
@@ -303,8 +328,7 @@ impl InputSetRuntime {
             }
         }
 
-        InputSetMaterialization {
-            value_set,
+        InputFrameMaterialization {
             frame: &self.frame,
             diagnostics,
         }
@@ -340,6 +364,11 @@ fn input_layout(items: &[InputSetItem]) -> Result<ChannelLayout, ChannelLayoutEr
 #[derive(Clone, Debug)]
 pub struct InputSetMaterialization<'a> {
     pub value_set: ValueSet,
+    pub frame: &'a ChannelFrame,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+pub(crate) struct InputFrameMaterialization<'a> {
     pub frame: &'a ChannelFrame,
     pub diagnostics: Vec<Diagnostic>,
 }

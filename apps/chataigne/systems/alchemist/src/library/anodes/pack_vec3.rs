@@ -6,8 +6,8 @@ use super::support::float_inputs;
 pub(super) struct PackVec3Eval;
 
 impl CompiledNodeEvaluator for PackVec3Eval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [x, y, z] = float_inputs::<3>(evaluation.inputs)?;
-        Ok(vec![RuntimeValue::Vec3([x, y, z])])
+        Ok(crate::node_outputs![RuntimeValue::Vec3([x, y, z])])
     }
 }

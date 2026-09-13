@@ -6,7 +6,7 @@ use super::support::{require_inputs, set_state_values, state_values, trigger_fir
 pub(super) struct CounterEval;
 
 impl CompiledNodeEvaluator for CounterEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [add, amount, reset] = require_inputs::<3>(evaluation.inputs)?;
         let state = evaluation.state.first_mut();
         let mut values = state_values(state.as_deref(), 1);
@@ -17,6 +17,6 @@ impl CompiledNodeEvaluator for CounterEval {
         }
         let output = values[0];
         set_state_values(state, values);
-        Ok(vec![RuntimeValue::Float(output)])
+        Ok(crate::node_outputs![RuntimeValue::Float(output)])
     }
 }

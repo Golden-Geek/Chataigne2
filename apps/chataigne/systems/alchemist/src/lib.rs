@@ -69,10 +69,11 @@ pub use registry::{
 pub use runtime::{
     AlchemistMemory, AlchemistRuntime, AxisSet, CompiledNodeEvaluator, ContextAxisId, ContextItemId, ContextKey,
     ContextKeyPart, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, EvaluationCtx,
-    EvaluationFrame, ExternalNodeEvaluator, LaneRuntimePool, NodeEvaluation, NodeFlow, OutputPreviewHistory,
-    OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent,
-    RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeRegistries, evaluate_compiled_graph,
-    evaluate_compiled_graph_fresh_reusing, evaluate_compiled_graph_stateless, evaluate_compiled_graph_with_external,
+    EvaluationFrame, ExternalNodeEvaluator, LaneRuntimePool, NodeEvaluation, NodeFlow, NodeOutputs,
+    OutputPreviewHistory, OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeEvent,
+    RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError,
+    RuntimeRegistries, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
+    evaluate_compiled_graph_stateless, evaluate_compiled_graph_with_external,
 };
 pub use typing::{
     ResolvedANode, ResolvedANodeSignature, ResolvedGraph, ResolvedSocket, TypeBinding, TypeBindingConflict,
@@ -83,6 +84,7 @@ pub use value::{
 };
 
 pub(crate) use golden_values::Value as RuntimeValue;
+pub use smallvec::smallvec as node_outputs;
 
 /// Current authored graph schema version.
 pub const ALCHEMIST_SCHEMA_VERSION: u32 = 1;

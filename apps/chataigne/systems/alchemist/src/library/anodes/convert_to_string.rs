@@ -30,7 +30,7 @@ pub(super) struct ConvertToStringEval {
 }
 
 impl CompiledNodeEvaluator for ConvertToStringEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let Some(value) = evaluation.inputs.first() else {
             return Err("Convert To String expects one input".into());
         };
@@ -48,7 +48,7 @@ impl CompiledNodeEvaluator for ConvertToStringEval {
             },
             StringFormat::Compact => format_runtime_value(value, self.decimals),
         };
-        Ok(vec![RuntimeValue::String(Arc::from(text))])
+        Ok(crate::node_outputs![RuntimeValue::String(Arc::from(text))])
     }
 }
 

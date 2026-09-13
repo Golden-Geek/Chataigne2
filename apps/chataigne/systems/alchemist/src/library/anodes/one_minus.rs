@@ -6,7 +6,7 @@ use super::support::numeric_map_checked;
 pub(super) struct OneMinusEval;
 
 impl CompiledNodeEvaluator for OneMinusEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let Some(value) = evaluation.inputs.first() else {
             return Err("numeric unary node expects one input".into());
         };
@@ -16,6 +16,6 @@ impl CompiledNodeEvaluator for OneMinusEval {
             }
             _ => numeric_map_checked(value, |number| Ok(1.0 - number))?,
         };
-        Ok(vec![result])
+        Ok(crate::node_outputs![result])
     }
 }

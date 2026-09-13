@@ -33,7 +33,7 @@ pub(super) struct ConvertCompoundEval {
 }
 
 impl CompiledNodeEvaluator for ConvertCompoundEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [value] = evaluation.inputs else {
             return Err("compound conversion expects one input".into());
         };
@@ -57,6 +57,6 @@ impl CompiledNodeEvaluator for ConvertCompoundEval {
                 alpha,
             }),
         };
-        Ok(vec![result])
+        Ok(crate::node_outputs![result])
     }
 }

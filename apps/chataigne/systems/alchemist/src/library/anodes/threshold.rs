@@ -16,7 +16,7 @@ impl ThresholdEval {
 }
 
 impl CompiledNodeEvaluator for ThresholdEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [value, threshold, hysteresis] = float_inputs::<3>(evaluation.inputs)?;
         if !threshold.is_finite() || !hysteresis.is_finite() || hysteresis < 0.0 {
             return Err("Threshold requires a finite threshold and nonnegative finite hysteresis".into());
@@ -44,6 +44,6 @@ impl CompiledNodeEvaluator for ThresholdEval {
         if let Some(state) = evaluation.state.first_mut() {
             *state = RuntimeValue::Bool(active);
         }
-        Ok(vec![RuntimeValue::Bool(active)])
+        Ok(crate::node_outputs![RuntimeValue::Bool(active)])
     }
 }

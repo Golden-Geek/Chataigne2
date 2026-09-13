@@ -385,18 +385,20 @@ on the same Windows host and `bench` profile were:
 
 | Workload | p50 | p95 | p99 |
 | --- | ---: | ---: | ---: |
-| 1,000 processors × one Float × one stage | 1.513 ms | 1.546 ms | 1.739 ms |
-| 10,000 processors × one Float × one stage | 38.142 ms | 41.880 ms | 44.612 ms |
-| 1,000 processors × eight Floats × eight stages | 88.557 ms | 89.707 ms | 93.902 ms |
-| 1,000 processors × three Floats → Sum | 2.019 ms | 2.065 ms | 2.138 ms |
-| 1,000 processors × three Floats → Pack Vec3 | 2.033 ms | 2.110 ms | 2.243 ms |
-| 1,000 processors × Float/Bool/String passthrough | 1.113 ms | 1.162 ms | 1.215 ms |
-| Eight contexts × eight Floats × eight stages | 0.417 ms | 0.440 ms | 0.453 ms |
+| 1,000 processors × one Float × one stage | 0.992 ms | 1.016 ms | 1.197 ms |
+| 10,000 processors × one Float × one stage | 30.478 ms | 33.085 ms | 35.323 ms |
+| 1,000 processors × eight Floats × eight stages | 62.631 ms | 64.078 ms | 66.551 ms |
+| 1,000 processors × three Floats → Sum | 1.361 ms | 1.399 ms | 1.425 ms |
+| 1,000 processors × three Floats → Pack Vec3 | 1.359 ms | 1.393 ms | 1.414 ms |
+| 1,000 processors × Float/Bool/String passthrough | 0.466 ms | 0.568 ms | 0.578 ms |
+| Eight contexts × eight Floats × eight stages | 0.284 ms | 0.305 ms | 0.312 ms |
 
-The longer 100-sample Criterion run on the same code was about 20% slower
-than the earlier short run for its three numeric batch cases (center estimates
-1.969, 38.251, and 88.839 ms). Because measurement duration and host thermal
-conditions differed, the short-run figures are not a regression threshold.
+These observations are from the final compact-output runtime and direct
+frame-to-command path. Earlier values above document intermediate code and
+different measurement durations; they are not regression thresholds. A
+separate 10-sample Criterion reference for the same final scalar batch had a
+1.317 ms center estimate, so the single-evaluation distribution should not be
+read as Criterion's aggregate timing.
 The individual timings report observed batch tails, including OS scheduling
 jitter, rather than percentiles inferred from Criterion's aggregate samples.
 To repeat them, set `CHATAIGNE_MAPPING_LATENCY_SAMPLES=500` and run the
@@ -404,9 +406,26 @@ To repeat them, set `CHATAIGNE_MAPPING_LATENCY_SAMPLES=500` and run the
 filter. The ordinary Criterion cases remain available when that variable is
 unset.
 
+An opt-in allocation report measures one complete warmed batch with the
+workspace's `allocation-counter` tool after 16 warmups. Before the reusable
+input/change buffers, compact node outputs, and direct frame materialization,
+the report counted 16 allocations for one scalar Mapping, 95 for eight sources
+with one stage, 363 for 32 sources with one stage, and 1,419 for 32 sources with
+eight stages. On the final measured code, every one-processor numeric shape
+(one/eight/32 sources and one/eight stages), three-source Sum, Pack Vec3, and
+mixed passthrough counted **three allocations, 1,320 bytes, and zero net
+retained allocations** per complete evaluation. Their 1,000-processor batches
+counted 3,000 allocations and 1,320,000 bytes. The opt-in benchmark asserts
+that allocation count scales only with processor count across those measured
+shapes; tuple elements and stages add no warmed per-evaluation heap allocation
+in this fixture. The remaining constant allocations include output-level work;
+this measurement does not attribute each one or establish state-cache bounds.
+Run it with `CHATAIGNE_MAPPING_ALLOCATION_REPORT=1` and the
+`mapping_runtime_allocation_report` benchmark filter.
+
 This fixture does not yet measure engine dirty scheduling, command delivery,
-preview capture, structural edits, bounded temporal history, allocations, or
-cache counts. Its fixed input snapshot and logical tick make it a steady
-evaluation benchmark. End-to-end percentile latency and regression thresholds
-require a broader workload; the historical lane fixture
-cannot supply a comparable threshold for the current Mapping runtime.
+preview capture, structural edits, bounded temporal history, or cache counts.
+Its fixed input snapshot and logical tick make it a steady evaluation
+benchmark. End-to-end percentile latency and regression thresholds require a
+broader workload; the historical lane fixture cannot supply a comparable
+threshold for the current Mapping runtime.

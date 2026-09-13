@@ -30,7 +30,7 @@ impl CurveRemapEval {
 }
 
 impl CompiledNodeEvaluator for CurveRemapEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [position] = float_inputs::<1>(evaluation.inputs)?;
         if !position.is_finite() {
             return Err("Curve Remap requires a finite position".into());
@@ -42,7 +42,7 @@ impl CompiledNodeEvaluator for CurveRemapEval {
         if !value.is_finite() {
             return Err("Curve Remap produced a non-finite value".into());
         }
-        Ok(vec![RuntimeValue::Float(value)])
+        Ok(crate::node_outputs![RuntimeValue::Float(value)])
     }
 }
 

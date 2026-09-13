@@ -34,7 +34,7 @@ impl MetronomeEval {
 }
 
 impl CompiledNodeEvaluator for MetronomeEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let dt = delta_seconds(evaluation.ctx.delta_time);
         let state = evaluation.state.first_mut();
         let mut values = state_values(state.as_deref(), 2);
@@ -75,7 +75,7 @@ impl CompiledNodeEvaluator for MetronomeEval {
         let on = values[0] < self.on_ratio;
         set_state_values(state, values);
         let edge_id = u64::from(evaluation.exec_node.index() as u32);
-        Ok(vec![
+        Ok(crate::node_outputs![
             RuntimeValue::Trigger(trigger(fired, edge_id, evaluation.ctx.logical_tick)),
             RuntimeValue::Bool(on),
         ])

@@ -1105,6 +1105,7 @@ dependencies = [
 name = "chataigne_processor"
 version = "0.1.0"
 dependencies = [
+ "allocation-counter",
  "chataigne_alchemist",
  "chataigne_condition",
  "chataigne_state_machine_model",

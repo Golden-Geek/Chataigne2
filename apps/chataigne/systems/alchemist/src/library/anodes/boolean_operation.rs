@@ -25,7 +25,7 @@ pub(super) struct BooleanOperationEval {
 }
 
 impl CompiledNodeEvaluator for BooleanOperationEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let values = evaluation
             .inputs
             .iter()
@@ -36,6 +36,6 @@ impl CompiledNodeEvaluator for BooleanOperationEval {
             BooleanOperator::Or => values.into_iter().any(|value| value),
             BooleanOperator::Xor => values.into_iter().filter(|value| *value).count() % 2 == 1,
         };
-        Ok(vec![RuntimeValue::Bool(result)])
+        Ok(crate::node_outputs![RuntimeValue::Bool(result)])
     }
 }

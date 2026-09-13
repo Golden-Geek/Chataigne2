@@ -30,13 +30,13 @@ impl TimedDelayEval {
 }
 
 impl CompiledNodeEvaluator for TimedDelayEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [value] = evaluation.inputs else {
             return Err("Timed Delay expects one input".into());
         };
         if self.seconds == 0.0 {
             evaluation.state.fill(RuntimeValue::Unit);
-            return Ok(vec![value.clone()]);
+            return Ok(crate::node_outputs![value.clone()]);
         }
         let size = value_size(value);
         if size > MAX_VALUE_BYTES {
@@ -89,10 +89,10 @@ impl CompiledNodeEvaluator for TimedDelayEval {
         evaluation.state[0] = RuntimeValue::Float(clock);
         evaluation.state[1] = RuntimeValue::Array(pending);
         if let Some(output) = output {
-            Ok(vec![output])
+            Ok(crate::node_outputs![output])
         } else {
             evaluation.suppress_output(0);
-            Ok(vec![RuntimeValue::Unit])
+            Ok(crate::node_outputs![RuntimeValue::Unit])
         }
     }
 }

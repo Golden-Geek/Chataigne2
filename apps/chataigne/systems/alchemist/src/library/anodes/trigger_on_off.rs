@@ -8,7 +8,7 @@ pub(super) struct TriggerOnOffEval {
 }
 
 impl CompiledNodeEvaluator for TriggerOnOffEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [value] = bool_inputs::<1>(evaluation.inputs)?;
         let state = evaluation.state.first_mut();
         let mut values = state_values(state.as_deref(), 2);
@@ -31,7 +31,7 @@ impl CompiledNodeEvaluator for TriggerOnOffEval {
         values[0] = f64::from(value);
         set_state_values(state, values);
         let edge_id = u64::from(evaluation.exec_node.index() as u32);
-        Ok(vec![
+        Ok(crate::node_outputs![
             RuntimeValue::Trigger(trigger(on, edge_id, evaluation.ctx.logical_tick)),
             RuntimeValue::Trigger(trigger(off, edge_id, evaluation.ctx.logical_tick)),
         ])

@@ -185,7 +185,7 @@ struct CountingTriggerEval {
 }
 
 impl CompiledNodeEvaluator for CountingTriggerEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<chataigne_alchemist::NodeOutputs, String> {
         self.count.fetch_add(1, Ordering::SeqCst);
         let trigger = if self.fired {
             TriggerValue::fired(
@@ -195,7 +195,7 @@ impl CompiledNodeEvaluator for CountingTriggerEval {
         } else {
             TriggerValue::default()
         };
-        Ok(vec![RuntimeValue::Trigger(trigger)])
+        Ok(chataigne_alchemist::node_outputs![RuntimeValue::Trigger(trigger)])
     }
 }
 
@@ -298,7 +298,7 @@ impl ANodeDeclaration for CommandEmitterDeclaration {
 struct CommandEmitterEval;
 
 impl CompiledNodeEvaluator for CommandEmitterEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<chataigne_alchemist::NodeOutputs, String> {
         evaluation.intents.push(RuntimeIntent {
             kind: "chataigne.command".into(),
             source_node: Some(evaluation.author_node_id),
@@ -307,7 +307,7 @@ impl CompiledNodeEvaluator for CommandEmitterEval {
             payload: RuntimeValue::Float(1.0),
             logical_tick: evaluation.ctx.logical_tick,
         });
-        Ok(Vec::new())
+        Ok(chataigne_alchemist::NodeOutputs::new())
     }
 }
 

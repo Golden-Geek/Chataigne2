@@ -40,7 +40,7 @@ pub(super) struct NoiseGeneratorEval {
 }
 
 impl CompiledNodeEvaluator for NoiseGeneratorEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [position] = float_inputs::<1>(evaluation.inputs)?;
         let dt = delta_seconds(evaluation.ctx.delta_time);
         let state = evaluation.state.first_mut();
@@ -60,6 +60,6 @@ impl CompiledNodeEvaluator for NoiseGeneratorEval {
             NoiseAlgorithm::Fractal => fractal_noise_1d(self.seed, x, self.octaves, self.persistence, self.lacunarity),
         };
         set_state_values(state, values);
-        Ok(vec![RuntimeValue::Float(output.clamp(-1.0, 1.0))])
+        Ok(crate::node_outputs![RuntimeValue::Float(output.clamp(-1.0, 1.0))])
     }
 }

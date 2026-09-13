@@ -49,7 +49,7 @@ pub(super) struct FunctionEval {
 }
 
 impl CompiledNodeEvaluator for FunctionEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let result = if self.function == FunctionKind::Atan2 {
             let [y, x] = float_inputs::<2>(evaluation.inputs)?;
             y.atan2(x)
@@ -76,6 +76,6 @@ impl CompiledNodeEvaluator for FunctionEval {
         if !result.is_finite() {
             return Err("Function result is non-finite or outside its domain".into());
         }
-        Ok(vec![RuntimeValue::Float(result)])
+        Ok(crate::node_outputs![RuntimeValue::Float(result)])
     }
 }

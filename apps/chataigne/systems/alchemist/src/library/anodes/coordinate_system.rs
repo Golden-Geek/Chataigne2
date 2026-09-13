@@ -23,7 +23,7 @@ pub(super) struct CoordinateSystemEval {
 }
 
 impl CompiledNodeEvaluator for CoordinateSystemEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let Some(RuntimeValue::Vec2(value)) = evaluation.inputs.first() else {
             return Err("Coordinate System expects a vec2 input".into());
         };
@@ -39,6 +39,6 @@ impl CompiledNodeEvaluator for CoordinateSystemEval {
                 [radius * angle.cos(), radius * angle.sin()]
             }
         };
-        Ok(vec![RuntimeValue::Vec2(result)])
+        Ok(crate::node_outputs![RuntimeValue::Vec2(result)])
     }
 }

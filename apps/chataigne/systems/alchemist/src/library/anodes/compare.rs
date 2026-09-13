@@ -41,7 +41,7 @@ pub(super) struct CompareEval {
 }
 
 impl CompiledNodeEvaluator for CompareEval {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<crate::NodeOutputs, String> {
         let [left, right] = require_inputs::<2>(evaluation.inputs)?;
         if !finite_primitive(left) || !finite_primitive(right) {
             return Err("Compare requires finite values".into());
@@ -65,7 +65,7 @@ impl CompiledNodeEvaluator for CompareEval {
             }
             Comparator::Darker => color_pair(left, right).map(|(left, right)| brightness(left) < brightness(right))?,
         };
-        Ok(vec![RuntimeValue::Bool(result)])
+        Ok(crate::node_outputs![RuntimeValue::Bool(result)])
     }
 }
 
