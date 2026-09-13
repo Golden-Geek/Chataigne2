@@ -785,6 +785,13 @@ pub trait CompiledNodeEvaluator: Send + Sync + Debug {
     fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String>;
 }
 
+/// Supplies instance-owned behavior at authored graph nodes while retaining a shared graph plan.
+pub trait ExternalNodeEvaluator {
+    fn active_nodes(&self) -> &[ExecNodeId];
+
+    fn evaluate(&mut self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String>;
+}
+
 pub struct AlchemistRuntime {
     pub compiled: Arc<CompiledAlchemistGraph>,
     pub memory: AlchemistMemory,
@@ -874,16 +881,45 @@ impl AlchemistRuntime {
 pub fn evaluate_compiled_graph(
     compiled: &CompiledAlchemistGraph,
     memory: &mut AlchemistMemory,
+    frame: EvaluationFrame<'_, '_>,
+) -> RuntimeOutput {
+    evaluate_compiled_graph_inner(compiled, memory, frame, None)
+}
+
+pub fn evaluate_compiled_graph_with_external(
+    compiled: &CompiledAlchemistGraph,
+    memory: &mut AlchemistMemory,
+    frame: EvaluationFrame<'_, '_>,
+    external: &mut dyn ExternalNodeEvaluator,
+) -> RuntimeOutput {
+    evaluate_compiled_graph_inner(compiled, memory, frame, Some(external))
+}
+
+fn evaluate_compiled_graph_inner(
+    compiled: &CompiledAlchemistGraph,
+    memory: &mut AlchemistMemory,
     mut frame: EvaluationFrame<'_, '_>,
+    mut external: Option<&mut dyn ExternalNodeEvaluator>,
 ) -> RuntimeOutput {
     let mut output = RuntimeOutput::default();
     seed_dirty_nodes(compiled, memory, &frame, &mut output);
+    if let Some(external) = external.as_ref() {
+        for exec_id in external.active_nodes() {
+            *memory
+                .dirty_nodes
+                .get_mut(exec_id.index())
+                .expect("external node belongs to compiled graph") = true;
+        }
+    }
     for exec_id in &compiled.topo_order {
         if !memory.dirty_nodes[exec_id.index()] {
             continue;
         }
         memory.dirty_nodes[exec_id.index()] = false;
         let node = &compiled.exec_nodes[exec_id.index()];
+        let externally_evaluated = external
+            .as_ref()
+            .is_some_and(|external| external.active_nodes().contains(exec_id));
         let inputs = runtime_node_inputs(node, memory, frame.ctx);
         let inputs = match inputs {
             Ok(inputs) => inputs,
@@ -906,7 +942,7 @@ pub fn evaluate_compiled_graph(
                     continue;
                 }
             };
-        if node.process_on_input_change_only && !frame.force_process_unchanged_inputs {
+        if node.process_on_input_change_only && !frame.force_process_unchanged_inputs && !externally_evaluated {
             let previous_inputs = memory.node_inputs.get(exec_id.index()).and_then(Option::as_ref);
             if memory.node_initialized[exec_id.index()]
                 && previous_inputs.is_some_and(|previous| runtime_values_equivalent(previous, &change_inputs))
@@ -925,20 +961,25 @@ pub fn evaluate_compiled_graph(
         memory.node_initialized[exec_id.index()] = true;
         memory.last_executed_nodes.push(*exec_id);
         let state = &mut memory.states[node.state_range.clone()];
-        let result = evaluate_operation(
-            &node.operation,
-            NodeEvaluation {
-                exec_node: *exec_id,
-                author_node_id: node.authored_id,
-                ctx: frame.ctx,
-                inputs: &inputs,
-                properties: frame.properties,
-                context: frame.context,
-                debug: frame.debug.as_deref_mut(),
-                state,
-                intents: &mut output.intents,
-            },
-        );
+        let mut evaluation = NodeEvaluation {
+            exec_node: *exec_id,
+            author_node_id: node.authored_id,
+            ctx: frame.ctx,
+            inputs: &inputs,
+            properties: frame.properties,
+            context: frame.context,
+            debug: frame.debug.as_deref_mut(),
+            state,
+            intents: &mut output.intents,
+        };
+        let result = if externally_evaluated {
+            external
+                .as_deref_mut()
+                .expect("external node was identified")
+                .evaluate(&mut evaluation)
+        } else {
+            evaluate_operation(&node.operation, evaluation)
+        };
         match result {
             Ok(values) if values.len() == node.outputs.len() => {
                 let logged_output_values = node.log_enabled.then(|| values.clone());

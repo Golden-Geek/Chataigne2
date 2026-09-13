@@ -1,8 +1,8 @@
 //! Palette availability is checked against the same typed stage compiler used at runtime.
 
 use chataigne_alchemist::{
-    ANodeInstance, ChannelLayout, CompileCtx, ManagedApplication, ManagedApplicationError, ManagedItemId,
-    ManagedItemInstance, ManagedItemUiState, SignatureCtx,
+    ANodeInstance, ChannelLayout, CompileCtx, ManagedApplication, ManagedApplicationError, ManagedFilterValueMode,
+    ManagedItemId, ManagedItemInstance, ManagedItemUiState, SignatureCtx,
 };
 
 use crate::{ManagedStageError, ManagedStageRuntime};
@@ -29,7 +29,7 @@ pub fn validate_executable_filter_application(
     layout: &ChannelLayout,
     ctx: &CompileCtx<'_>,
 ) -> Result<ManagedApplication, ManagedFilterAvailabilityError> {
-    validate_filter_application(instance, layout, ctx, false)
+    validate_filter_application(instance, layout, ctx, ManagedFilterValueMode::Routed)
 }
 
 pub fn validate_mapping_filter_application(
@@ -37,14 +37,14 @@ pub fn validate_mapping_filter_application(
     layout: &ChannelLayout,
     ctx: &CompileCtx<'_>,
 ) -> Result<ManagedApplication, ManagedFilterAvailabilityError> {
-    validate_filter_application(instance, layout, ctx, true)
+    validate_filter_application(instance, layout, ctx, ManagedFilterValueMode::Tuple)
 }
 
 fn validate_filter_application(
     instance: &ANodeInstance,
     layout: &ChannelLayout,
     ctx: &CompileCtx<'_>,
-    whole_tuple: bool,
+    mode: ManagedFilterValueMode,
 ) -> Result<ManagedApplication, ManagedFilterAvailabilityError> {
     if layout.channels().iter().any(|channel| channel.value_type.is_none()) {
         return Err(ManagedFilterAvailabilityError::UnresolvedInputType);
@@ -53,12 +53,13 @@ fn validate_filter_application(
         value_types: ctx.value_types,
         properties: ctx.properties,
     };
-    let application = if whole_tuple {
-        ctx.nodes
-            .resolve_mapping_application(instance, layout, &signature_ctx)?
-    } else {
-        ctx.nodes
-            .resolve_managed_application(instance, layout, &signature_ctx)?
+    let application = match mode {
+        ManagedFilterValueMode::Tuple => ctx
+            .nodes
+            .resolve_mapping_application(instance, layout, &signature_ctx)?,
+        ManagedFilterValueMode::Routed => ctx
+            .nodes
+            .resolve_managed_application(instance, layout, &signature_ctx)?,
     };
     let item = ManagedItemInstance {
         id: ManagedItemId::new(),
@@ -66,7 +67,8 @@ fn validate_filter_application(
         enabled: true,
         ui_state: ManagedItemUiState::default(),
     };
-    ManagedStageRuntime::compile(item, layout, ctx)?.ok_or(ManagedFilterAvailabilityError::NoCompatibleChannels)?;
+    ManagedStageRuntime::compile(item, layout, ctx, mode)?
+        .ok_or(ManagedFilterAvailabilityError::NoCompatibleChannels)?;
     Ok(application)
 }
 

@@ -80,6 +80,8 @@ pub struct CompiledExecNode {
     pub authored_id: ANodeId,
     pub execution_kind: ExecutionKind,
     pub operation: CompiledNodeOperation,
+    pub input_sockets: Vec<SocketId>,
+    pub input_types: Vec<Option<ValueTypeId>>,
     pub inputs: Vec<InputValueSource>,
     pub outputs: Vec<ValueSlotId>,
     pub output_sockets: Vec<SocketId>,
@@ -431,6 +433,13 @@ fn compile_document_graph(
             authored_id: *node_id,
             execution_kind: resolved.execution_kind,
             operation,
+            input_sockets: resolved.signature.inputs.keys().cloned().collect(),
+            input_types: resolved
+                .signature
+                .inputs
+                .values()
+                .map(|socket| socket.value_type.clone())
+                .collect(),
             inputs,
             outputs,
             output_sockets,

@@ -129,17 +129,27 @@ structural change to managed regions refreshes the affected palette and emits
 one reusable creatable-items event; ordinary input samples and runtime socket
 edits do not recompute it. The UI applies that event to its graph store.
 
-The current typed stage compiler builds one Alchemist graph per configured stage and
-applies it to selected internal elements. It keeps per-element memory,
-reusable output frames, and a structural input-layout check. Focused tests run
-`Remap → Sum → Smooth`, `Pack Vec3 → Extract Vec3 → Math → Pack Vec3`, mixed
-pass-through, and multi-output Color extraction under the earlier channel
-semantics. The value pipeline uses this chain after backend schema reconciliation.
-It must be adapted so a standard Mapping treats the full scalar/tuple as one
-linear value and does not expose implicit pass-through lanes. The older value
-runner remains only for the trigger pipeline; typed flow control and the Formula
-graph boundary are unfinished. A custom Formula with managed regions and surrounding graph nodes
-must execute those graph nodes as well.
+Phase 04 compiles every enabled Mapping filter against the entire typed scalar
+or ordered tuple. Each stage's declared input/output sockets determine its next
+shape, so Remap → Sum → Smooth and elementwise Math → Pack Vec3 use the same
+linear stage runner. Tuple mode rejects empty input and implicit subset
+pass-through. Routed mode remains available inside custom Formulas. The app
+runtime keeps a bounded stage specialization cache: equivalent instances share
+compiled Alchemist graphs, while output frames, result buffers, socket bindings,
+and lane memory remain instance-owned. Authored filter previews map cached graph
+nodes back to each instance's node identity.
+
+For a Formula with an authored graph, the managed InputSet, FilterPipeline, and
+OutputSet must declare typed ValueSet sockets on graph nodes. The processor
+reuses the catalog's compiled graph, substitutes the managed region evaluator at
+those nodes, and runs all surrounding authored operations in graph order. It
+rejects missing or disconnected boundaries instead of evaluating a reduced
+sidecar. The ValueSet extension codec is still used at this actual graph
+boundary; the graph-free Mapping path keeps native typed frames. Trigger
+pipelines with authored graph nodes currently diagnose an unsupported boundary
+rather than silently skipping that graph. Phase 05 completes typed flow and
+temporal behavior; Phase 06 replaces the positional OutputSet adapter with
+explicit command argument bindings.
 
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.

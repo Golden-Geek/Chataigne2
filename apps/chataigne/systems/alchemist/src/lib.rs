@@ -67,10 +67,10 @@ pub use registry::{
 pub use runtime::{
     AlchemistMemory, AlchemistRuntime, AxisSet, CompiledNodeEvaluator, ContextAxisId, ContextItemId, ContextKey,
     ContextKeyPart, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, EvaluationCtx,
-    EvaluationFrame, LaneRuntimePool, NodeEvaluation, OutputPreviewHistory, OutputPreviewStatus, RuntimeContextFrame,
-    RuntimeDiagnostic, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput, RuntimePropertyFrame,
-    RuntimePropertyFrameError, RuntimeRegistries, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
-    evaluate_compiled_graph_stateless,
+    EvaluationFrame, ExternalNodeEvaluator, LaneRuntimePool, NodeEvaluation, OutputPreviewHistory, OutputPreviewStatus,
+    RuntimeContextFrame, RuntimeDiagnostic, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput,
+    RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeRegistries, evaluate_compiled_graph,
+    evaluate_compiled_graph_fresh_reusing, evaluate_compiled_graph_stateless, evaluate_compiled_graph_with_external,
 };
 pub use typing::{
     ResolvedANode, ResolvedANodeSignature, ResolvedGraph, ResolvedSocket, TypeBinding, TypeBindingConflict,

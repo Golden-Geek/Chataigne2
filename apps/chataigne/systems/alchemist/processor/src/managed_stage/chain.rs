@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use chataigne_alchemist::{
-    ChannelLayout, CompileCtx, EvaluationCtx, ManagedItemId, ManagedItemInstance, RuntimeOutput, SocketId,
+    ChannelLayout, CompileCtx, DebugCaptureMode, EvaluationCtx, ManagedFilterValueMode, ManagedItemId,
+    ManagedItemInstance, RuntimeOutput, SocketId,
 };
 
 use crate::{ChannelFrame, RuntimeInputBinding};
 
-use super::{ManagedStageError, ManagedStageRuntime};
+use super::{ManagedStageError, ManagedStageRuntime, ManagedStageSpecializationCache};
 
 pub struct ManagedStageChain {
     input_layout: Arc<ChannelLayout>,
@@ -19,11 +20,24 @@ impl ManagedStageChain {
         items: &[ManagedItemInstance],
         input_layout: Arc<ChannelLayout>,
         ctx: &CompileCtx<'_>,
+        mode: ManagedFilterValueMode,
+    ) -> Result<Self, ManagedStageError> {
+        Self::compile_with_cache(items, input_layout, ctx, mode, None)
+    }
+
+    pub fn compile_with_cache(
+        items: &[ManagedItemInstance],
+        input_layout: Arc<ChannelLayout>,
+        ctx: &CompileCtx<'_>,
+        mode: ManagedFilterValueMode,
+        mut cache: Option<&mut ManagedStageSpecializationCache>,
     ) -> Result<Self, ManagedStageError> {
         let mut output_layout = Arc::clone(&input_layout);
         let mut stages = Vec::with_capacity(items.len());
         for item in items.iter().filter(|item| item.enabled && item.anode.enabled) {
-            if let Some(stage) = ManagedStageRuntime::compile(item.clone(), &output_layout, ctx)? {
+            if let Some(stage) =
+                ManagedStageRuntime::compile_with_cache(item.clone(), &output_layout, ctx, mode, cache.as_deref_mut())?
+            {
                 output_layout = Arc::clone(stage.output_layout());
                 stages.push(stage);
             }
@@ -33,6 +47,11 @@ impl ManagedStageChain {
             output_layout,
             stages,
         })
+    }
+
+    #[must_use]
+    pub fn input_layout(&self) -> &Arc<ChannelLayout> {
+        &self.input_layout
     }
 
     #[must_use]
@@ -58,6 +77,15 @@ impl ManagedStageChain {
         input: &'a ChannelFrame,
         ctx: &EvaluationCtx<'_>,
     ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
+        self.evaluate_with_capture(input, ctx, DebugCaptureMode::Off)
+    }
+
+    pub fn evaluate_with_capture<'a>(
+        &'a mut self,
+        input: &'a ChannelFrame,
+        ctx: &EvaluationCtx<'_>,
+        capture_mode: DebugCaptureMode,
+    ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
         if !input.layout().has_same_structure(&self.input_layout) {
             return Err(ManagedStageError::InputLayoutChanged);
         }
@@ -65,7 +93,7 @@ impl ManagedStageChain {
         for index in 0..self.stages.len() {
             let (previous, remaining) = self.stages.split_at_mut(index);
             let current = previous.last().map_or(input, |stage| &stage.output_frame);
-            let (_, stage_output) = remaining[0].evaluate(current, ctx)?;
+            let (_, stage_output) = remaining[0].evaluate_with_capture(current, ctx, capture_mode.clone())?;
             output.intents.extend(stage_output.intents);
             output.diagnostics.extend(stage_output.diagnostics);
             output.debug_samples.extend(stage_output.debug_samples);

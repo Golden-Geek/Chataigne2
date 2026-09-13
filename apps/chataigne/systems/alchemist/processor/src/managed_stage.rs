@@ -5,12 +5,12 @@ use std::sync::Arc;
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraphDomain, AlchemistGraphTransaction, AlchemistMemory, ChannelDescriptor,
     ChannelLayout, ChannelLayoutError, CompileCtx, CompiledAlchemistGraph, ContextAxisId, ContextItemId, ContextKey,
-    Diagnostic, EvaluationCtx, EvaluationFrame, FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema,
-    InputSocketRef, LaneRuntimePool, MANAGED_GROUPS_FIELD, ManagedApplication, ManagedApplicationError,
-    ManagedItemInstance, OutputSocketRef, ParamUiHints, PipelineCardinality, RuntimeContextFrame, RuntimeOutput,
-    RuntimePropertyFrame, RuntimePropertyFrameError, SignatureCtx, SocketId, StableRef, TypeConstraint, ValueComponent,
-    ValueLaneKey, ValueSlotId, ValueTypeId, compile_graph, evaluate_compiled_graph,
-    evaluate_compiled_graph_fresh_reusing,
+    DebugCaptureMode, DebugCaptureSink, Diagnostic, EvaluationCtx, EvaluationFrame, FormulaPropertyDecl,
+    FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool, MANAGED_GROUPS_FIELD,
+    ManagedApplication, ManagedApplicationError, ManagedFilterValueMode, ManagedItemInstance, OutputSocketRef,
+    ParamUiHints, PipelineCardinality, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
+    RuntimePropertyFrameError, SignatureCtx, SocketId, StableRef, TypeConstraint, ValueComponent, ValueLaneKey,
+    ValueSlotId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::{IndexMap, IndexSet};
@@ -19,18 +19,23 @@ use crate::{ChannelFrame, ChannelFrameError, ChannelSlot, ChannelValidity, Runti
 
 const STAGE_AXIS: &str = "managed_stage_lane";
 
+mod cache;
 mod chain;
 
+pub use cache::ManagedStageSpecializationCache;
+use cache::{StageSpecialization, StageSpecializationKey};
 pub use chain::ManagedStageChain;
 
 pub struct ManagedStageRuntime {
     item: ManagedItemInstance,
     input_layout: ChannelLayout,
     compiled: Arc<CompiledAlchemistGraph>,
+    compiled_stage_node: chataigne_alchemist::ANodeId,
     input_properties: Vec<FormulaPropertyId>,
     auxiliary: Vec<StageAuxiliaryBinding>,
     output_slots: Vec<ValueSlotId>,
     groups: Vec<StageGroup>,
+    group_results: Vec<Vec<ChannelSlot>>,
     outputs: Vec<StageOutputBinding>,
     output_frame: ChannelFrame,
     memory: LaneRuntimePool,
@@ -59,16 +64,37 @@ impl ManagedStageRuntime {
         item: ManagedItemInstance,
         input_layout: &ChannelLayout,
         ctx: &CompileCtx<'_>,
+        mode: ManagedFilterValueMode,
+    ) -> Result<Option<Self>, ManagedStageError> {
+        Self::compile_with_cache(item, input_layout, ctx, mode, None)
+    }
+
+    pub fn compile_with_cache(
+        item: ManagedItemInstance,
+        input_layout: &ChannelLayout,
+        ctx: &CompileCtx<'_>,
+        mode: ManagedFilterValueMode,
+        mut cache: Option<&mut ManagedStageSpecializationCache>,
     ) -> Result<Option<Self>, ManagedStageError> {
         let signature_ctx = SignatureCtx {
             value_types: ctx.value_types,
             properties: ctx.properties,
         };
-        let application = ctx
-            .nodes
-            .resolve_managed_application(&item.anode, input_layout, &signature_ctx)?;
+        let application = match mode {
+            ManagedFilterValueMode::Routed => {
+                ctx.nodes
+                    .resolve_managed_application(&item.anode, input_layout, &signature_ctx)?
+            }
+            ManagedFilterValueMode::Tuple => {
+                ctx.nodes
+                    .resolve_mapping_application(&item.anode, input_layout, &signature_ctx)?
+            }
+        };
         if application.selection.no_compatible_channels {
-            return Ok(None);
+            return match mode {
+                ManagedFilterValueMode::Routed => Ok(None),
+                ManagedFilterValueMode::Tuple => Err(ManagedStageError::EmptyTuple),
+            };
         }
         if !matches!(
             application.cardinality,
@@ -174,22 +200,36 @@ impl ManagedStageRuntime {
         transaction
             .commit(&mut graph, &domain)
             .map_err(ManagedStageError::AuthoringEdit)?;
-        let compiled = compile_graph(
-            &graph,
-            &CompileCtx {
-                value_types: ctx.value_types,
-                nodes: ctx.nodes,
-                properties: Some(&properties),
-            },
-        );
-        if compiled.has_errors() {
-            return Err(ManagedStageError::Compile(compiled.diagnostics));
-        }
-        let compiled = compiled.compiled.ok_or(ManagedStageError::MissingCompiledGraph)?;
+        let key = StageSpecializationKey::new(&item, primary_types, ctx.properties);
+        let specialization = if let Some(cached) = cache.as_ref().and_then(|cache| cache.get(&key)) {
+            cached
+        } else {
+            let result = compile_graph(
+                &graph,
+                &CompileCtx {
+                    value_types: ctx.value_types,
+                    nodes: ctx.nodes,
+                    properties: Some(&properties),
+                },
+            );
+            if result.has_errors() {
+                return Err(ManagedStageError::Compile(result.diagnostics));
+            }
+            let compiled = result.compiled.ok_or(ManagedStageError::MissingCompiledGraph)?;
+            let specialization = StageSpecialization {
+                compiled,
+                authored_node: node_id,
+            };
+            if let Some(cache) = cache.as_mut() {
+                cache.insert(key, specialization.clone());
+            }
+            specialization
+        };
+        let compiled = specialization.compiled;
         let exec = compiled
             .exec_nodes
             .iter()
-            .find(|node| node.authored_id == node_id)
+            .find(|node| node.authored_id == specialization.authored_node)
             .ok_or(ManagedStageError::MissingCompiledNode)?;
         let mut output_slots = Vec::with_capacity(application.outputs.len());
         let mut output_types = Vec::with_capacity(application.outputs.len());
@@ -207,6 +247,13 @@ impl ManagedStageRuntime {
             );
         }
         let (output_layout, outputs) = output_layout(&item, &application, input_layout, &output_types)?;
+        if mode == ManagedFilterValueMode::Tuple
+            && outputs
+                .iter()
+                .any(|binding| matches!(binding, StageOutputBinding::Passthrough(_)))
+        {
+            return Err(ManagedStageError::PartialTupleApplication);
+        }
         let groups = application
             .groups
             .iter()
@@ -215,16 +262,19 @@ impl ManagedStageRuntime {
                 inputs: inputs.clone(),
             })
             .collect();
+        let group_results = vec![vec![ChannelSlot::default(); output_slots.len()]; application.groups.len()];
         let memory = LaneRuntimePool::for_graph(&compiled);
         let scratch = AlchemistMemory::for_graph(&compiled);
         Ok(Some(Self {
             item,
             input_layout: input_layout.clone(),
             compiled,
+            compiled_stage_node: specialization.authored_node,
             input_properties,
             auxiliary,
             output_slots,
             groups,
+            group_results,
             outputs,
             output_frame: ChannelFrame::new(Arc::new(output_layout)),
             memory,
@@ -235,6 +285,11 @@ impl ManagedStageRuntime {
     #[must_use]
     pub fn output_layout(&self) -> &Arc<ChannelLayout> {
         self.output_frame.layout()
+    }
+
+    #[must_use]
+    pub fn shares_compiled_plan_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.compiled, &other.compiled)
     }
 
     pub fn update_runtime_input(
@@ -267,6 +322,15 @@ impl ManagedStageRuntime {
         input: &ChannelFrame,
         ctx: &EvaluationCtx<'_>,
     ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
+        self.evaluate_with_capture(input, ctx, DebugCaptureMode::Off)
+    }
+
+    pub fn evaluate_with_capture<'a>(
+        &'a mut self,
+        input: &ChannelFrame,
+        ctx: &EvaluationCtx<'_>,
+        capture_mode: DebugCaptureMode,
+    ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
         if !input.layout().has_same_structure(&self.input_layout) {
             return Err(ManagedStageError::InputLayoutChanged);
         }
@@ -277,8 +341,7 @@ impl ManagedStageRuntime {
             .collect::<IndexSet<_>>();
         self.memory.retain_keys(&active);
         let mut output = RuntimeOutput::default();
-        let mut group_results = Vec::with_capacity(self.groups.len());
-        for group in &self.groups {
+        for (group_index, group) in self.groups.iter().enumerate() {
             let inputs = group
                 .inputs
                 .iter()
@@ -288,15 +351,14 @@ impl ManagedStageRuntime {
                 .iter()
                 .find(|slot| slot.validity != ChannelValidity::Valid || slot.value.is_none());
             if let Some(slot) = invalid {
-                group_results.push(vec![
-                    ChannelSlot {
+                for result in &mut self.group_results[group_index] {
+                    *result = ChannelSlot {
                         value: None,
                         validity: slot.validity,
                         changed: false,
                         deliver: false,
                     };
-                    self.output_slots.len()
-                ]);
+                }
                 continue;
             }
             let mut overrides = IndexMap::new();
@@ -325,11 +387,12 @@ impl ManagedStageRuntime {
             let properties = RuntimePropertyFrame::with_overrides(&self.compiled.properties, &overrides)
                 .map_err(ManagedStageError::PropertyFrame)?;
             let context = RuntimeContextFrame::new(group.context.clone());
+            let mut debug = (!capture_mode.is_off()).then(|| DebugCaptureSink::new(capture_mode.clone()));
             let frame = EvaluationFrame {
                 ctx,
                 properties: &properties,
                 context: &context,
-                debug: None,
+                debug: debug.as_mut(),
                 force_process_unchanged_inputs: false,
                 capture_unchanged_outputs: false,
             };
@@ -353,24 +416,35 @@ impl ManagedStageRuntime {
                     (evaluated, values)
                 }
             };
-            output.intents.extend(evaluated.intents);
+            output.intents.extend(evaluated.intents.into_iter().map(|mut intent| {
+                if intent.source_node == Some(self.compiled_stage_node) {
+                    intent.source_node = Some(self.item.anode.id);
+                }
+                intent
+            }));
             output.diagnostics.extend(evaluated.diagnostics);
+            output
+                .debug_samples
+                .extend(evaluated.debug_samples.into_iter().filter_map(|mut sample| {
+                    if sample.author_node_id != self.compiled_stage_node {
+                        return None;
+                    }
+                    sample.author_node_id = self.item.anode.id;
+                    Some(sample)
+                }));
             let deliver = inputs.iter().all(|slot| slot.deliver);
-            group_results.push(
-                results
-                    .into_iter()
-                    .map(|value| ChannelSlot {
-                        validity: if value.is_some() {
-                            ChannelValidity::Valid
-                        } else {
-                            ChannelValidity::Invalid
-                        },
-                        value,
-                        changed: false,
-                        deliver,
-                    })
-                    .collect::<Vec<_>>(),
-            );
+            for (result, value) in self.group_results[group_index].iter_mut().zip(results) {
+                *result = ChannelSlot {
+                    validity: if value.is_some() {
+                        ChannelValidity::Valid
+                    } else {
+                        ChannelValidity::Invalid
+                    },
+                    value,
+                    changed: false,
+                    deliver,
+                };
+            }
         }
         self.output_frame.begin_tick(ctx.logical_tick);
         for (index, binding) in self.outputs.iter().enumerate() {
@@ -379,7 +453,7 @@ impl ManagedStageRuntime {
                     .slots()
                     .get(*source)
                     .ok_or(ManagedStageError::InputLayoutChanged)?,
-                StageOutputBinding::Result { group, output } => &group_results[*group][*output],
+                StageOutputBinding::Result { group, output } => &self.group_results[*group][*output],
             };
             self.output_frame
                 .set(index, slot.value.clone(), slot.validity, slot.deliver)
@@ -534,6 +608,10 @@ pub enum ManagedStageError {
     MixedGroupSpecializations,
     #[error("managed stage has no selected groups")]
     EmptyGroups,
+    #[error("a standard Mapping filter requires at least one typed input value")]
+    EmptyTuple,
+    #[error("a standard Mapping filter would pass through part of the input tuple")]
+    PartialTupleApplication,
     #[error("managed stage group has {actual} inputs, expected {expected}")]
     GroupArity { expected: usize, actual: usize },
     #[error("managed stage group includes one channel twice")]

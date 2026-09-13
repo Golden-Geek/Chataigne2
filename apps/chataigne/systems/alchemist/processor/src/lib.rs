@@ -27,7 +27,7 @@ pub use managed_formula::{
     executable_filter_applications, validate_executable_filter_application, validate_mapping_filter_application,
     validate_trigger_filter_application,
 };
-pub use managed_stage::{ManagedStageChain, ManagedStageError, ManagedStageRuntime};
+pub use managed_stage::{ManagedStageChain, ManagedStageError, ManagedStageRuntime, ManagedStageSpecializationCache};
 pub use manager::{
     ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,
     ProcessorManagerId,

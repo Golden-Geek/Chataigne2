@@ -16,6 +16,10 @@ pub enum ManagedFormulaError {
     InvalidStageChannel(chataigne_alchemist::ValueLaneKey),
     #[error("{0}")]
     ManagedStage(#[from] ManagedStageError),
+    #[error("managed Formula graph cannot compile: {0:?}")]
+    GraphCompile(Vec<Diagnostic>),
+    #[error("managed Formula graph boundary is invalid: {0}")]
+    GraphBoundary(String),
     #[error("managed filter item `{0}` does not exist")]
     MissingFilterItem(ManagedItemId),
     #[error("{0}")]
@@ -98,6 +102,8 @@ impl ManagedFormulaError {
             Self::UnresolvedManagedInputSchema => "managed_formula_unresolved_input_schema",
             Self::InvalidStageChannel(_) => "managed_formula_invalid_stage_channel",
             Self::ManagedStage(_) => "managed_formula_stage_error",
+            Self::GraphCompile(_) => "managed_formula_graph_compile",
+            Self::GraphBoundary(_) => "managed_formula_graph_boundary",
             Self::Formula(_) => "managed_formula_materialization_error",
             Self::ManagedRegionValidation(_) => "managed_formula_region_validation_error",
             Self::MixedManagedFormulaPipelines => "managed_formula_mixed_region_kinds",

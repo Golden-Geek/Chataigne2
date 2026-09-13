@@ -1,23 +1,28 @@
+use std::sync::Arc;
+
 use chataigne_alchemist::{
     ANodeId, ANodeRegistry, AlchemistFormula, AlchemistFormulaInstance, ChannelLayout, ChannelProvenance, CompileCtx,
-    Diagnostic, DiagnosticOrigin, EvaluationCtx, ExecNodeId, FormulaPropertySchema, ManagedItemInstance,
-    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, PipelineCardinality,
-    PipelineLoweringCtx, PipelineShape, PipelineShapeCheckItem, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput,
-    SignatureCtx, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry, check_filter_pipeline_shapes,
-    value_set_shape,
+    CompiledAlchemistGraph, DebugCaptureMode, Diagnostic, DiagnosticOrigin, EvaluationCtx, ExecNodeId,
+    FormulaPropertySchema, ManagedFilterValueMode, ManagedItemInstance, ManagedRegionDefinition, ManagedRegionId,
+    ManagedRegionInstance, ManagedRegionKind, PipelineCardinality, PipelineLoweringCtx, PipelineShape,
+    PipelineShapeCheckItem, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput, RuntimePropertyFrame, SignatureCtx,
+    StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry, check_filter_pipeline_shapes, value_set_shape,
 };
 use golden_values::Value as RuntimeValue;
 
 use crate::{
     COMMAND_INTENT_KIND, ChannelFrame, ChannelSourceSchema, ChannelValidity, INPUT_SOURCE_FIELD, InputSetRuntime,
-    ManagedStageChain, OUTPUT_TARGET_FIELD, OutputSetMaterialization, OutputSetRuntime, RuntimeInputBinding,
-    ValueLaneKey, ValueSet, ValueSetEntry, ValueSetPipelineRuntime, ValueSetProjectionRuntime,
+    ManagedStageChain, ManagedStageSpecializationCache, OUTPUT_TARGET_FIELD, OutputSetMaterialization,
+    OutputSetRuntime, RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry, ValueSetPipelineRuntime,
+    ValueSetProjectionRuntime,
 };
 
 mod availability;
 mod error;
+mod graph;
 mod legacy_filter;
 
+use graph::GraphManagedExecution;
 use legacy_filter::ManagedFilterPipelineRuntime;
 
 pub use availability::{
@@ -40,7 +45,9 @@ enum ManagedFormulaRuntimeKind {
 struct ValuePipelineRuntime {
     input_set: InputSetRuntime,
     filter_items: Vec<ManagedItemInstance>,
+    filter_value_mode: ManagedFilterValueMode,
     typed_stages: Option<ManagedStageChain>,
+    graph: Option<GraphManagedExecution>,
     value_types: ValueTypeRegistry,
     nodes: ANodeRegistry,
     properties: Option<FormulaPropertySchema>,
@@ -59,6 +66,24 @@ impl ManagedFormulaRuntime {
         instance: &AlchemistFormulaInstance,
         ctx: &CompileCtx<'_>,
     ) -> Result<Option<Self>, ManagedFormulaError> {
+        Self::compile_inner(formula, instance, ctx, None)
+    }
+
+    pub fn compile_with_shared_graph(
+        formula: &AlchemistFormula,
+        instance: &AlchemistFormulaInstance,
+        ctx: &CompileCtx<'_>,
+        graph: Arc<CompiledAlchemistGraph>,
+    ) -> Result<Option<Self>, ManagedFormulaError> {
+        Self::compile_inner(formula, instance, ctx, Some(graph))
+    }
+
+    fn compile_inner(
+        formula: &AlchemistFormula,
+        instance: &AlchemistFormulaInstance,
+        ctx: &CompileCtx<'_>,
+        graph: Option<Arc<CompiledAlchemistGraph>>,
+    ) -> Result<Option<Self>, ManagedFormulaError> {
         let has_value_pipeline_regions = formula.surface.managed_regions.iter().any(is_value_pipeline_region);
         let has_trigger_pipeline_regions = formula.surface.managed_regions.iter().any(is_trigger_pipeline_region);
         if !has_value_pipeline_regions && !has_trigger_pipeline_regions {
@@ -76,15 +101,22 @@ impl ManagedFormulaRuntime {
             .map_err(ManagedFormulaError::ManagedRegionValidation)?;
 
         if has_trigger_pipeline_regions {
+            if formula.graph.nodes().next().is_some() {
+                return Err(ManagedFormulaError::GraphBoundary(
+                    "trigger managed regions in an authored Formula graph require explicit graph boundary lowering"
+                        .to_owned(),
+                ));
+            }
             return Self::compile_trigger_pipeline(formula, instance, ctx).map(Some);
         }
-        Self::compile_value_pipeline(formula, instance, ctx).map(Some)
+        Self::compile_value_pipeline(formula, instance, ctx, graph).map(Some)
     }
 
     fn compile_value_pipeline(
         formula: &AlchemistFormula,
         instance: &AlchemistFormulaInstance,
         ctx: &CompileCtx<'_>,
+        shared_graph: Option<Arc<CompiledAlchemistGraph>>,
     ) -> Result<Self, ManagedFormulaError> {
         let input = required_region(&formula.surface.managed_regions, ManagedRegionKind::InputSet)?;
         let outputs = required_regions(&formula.surface.managed_regions, ManagedRegionKind::OutputSet)?;
@@ -92,7 +124,7 @@ impl ManagedFormulaRuntime {
 
         let input_instance = required_region_instance(instance, &input.id)?;
         let output_sets = outputs
-            .into_iter()
+            .iter()
             .map(|definition| {
                 let region = required_region_instance(instance, &definition.id)?;
                 OutputSetRuntime::from_managed_region(definition, region).map_err(ManagedFormulaError::from)
@@ -102,22 +134,25 @@ impl ManagedFormulaRuntime {
             .map(|definition| required_region_instance(instance, &definition.id).map(|region| (definition, region)))
             .transpose()?;
 
-        let filter_items = if let Some((definition, region)) = filter_instance {
+        let (filter_items, filter_value_mode) = if let Some((definition, region)) = filter_instance {
             validate_filter_region(definition, region)?;
-            region.items.clone()
+            (region.items.clone(), definition.filter_value_mode)
         } else {
-            Vec::new()
+            (Vec::new(), ManagedFilterValueMode::Routed)
         };
+        let graph = GraphManagedExecution::compile(formula, input, filter, &outputs, ctx, shared_graph)?;
         let mut runtime = ValuePipelineRuntime {
             input_set: InputSetRuntime::from_managed_region(input, input_instance)?,
             filter_items,
+            filter_value_mode,
             typed_stages: None,
+            graph,
             value_types: ctx.value_types.clone(),
             nodes: ctx.nodes.clone(),
             properties: ctx.properties.cloned(),
             output_sets,
         };
-        runtime.prepare_typed_stages()?;
+        runtime.prepare_typed_stages(None)?;
         Ok(Self {
             kind: ManagedFormulaRuntimeKind::ValuePipeline(Box::new(runtime)),
         })
@@ -154,10 +189,24 @@ impl ManagedFormulaRuntime {
     }
 
     pub fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
+        self.evaluate_with_graph_frame(ctx, None, DebugCaptureMode::Off)
+    }
+
+    pub fn evaluate_with_graph_frame(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        properties: Option<&RuntimePropertyFrame>,
+        capture_mode: DebugCaptureMode,
+    ) -> RuntimeOutput {
         match &mut self.kind {
-            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime.evaluate(ctx),
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime.evaluate(ctx, properties, capture_mode),
             ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => runtime.evaluate(ctx),
         }
+    }
+
+    #[must_use]
+    pub fn uses_authored_graph(&self) -> bool {
+        matches!(&self.kind, ManagedFormulaRuntimeKind::ValuePipeline(runtime) if runtime.graph.is_some())
     }
 
     #[must_use]
@@ -196,9 +245,17 @@ impl ManagedFormulaRuntime {
         &mut self,
         resolve: impl FnMut(&StableRef) -> Option<ChannelSourceSchema>,
     ) -> Result<(), ManagedFormulaError> {
+        self.reconcile_input_source_schema_with_cache(resolve, None)
+    }
+
+    pub fn reconcile_input_source_schema_with_cache(
+        &mut self,
+        resolve: impl FnMut(&StableRef) -> Option<ChannelSourceSchema>,
+        cache: Option<&mut ManagedStageSpecializationCache>,
+    ) -> Result<(), ManagedFormulaError> {
         if let ManagedFormulaRuntimeKind::ValuePipeline(runtime) = &mut self.kind {
             runtime.input_set.reconcile_source_schema(resolve)?;
-            runtime.prepare_typed_stages()?;
+            runtime.prepare_typed_stages(cache)?;
         }
         Ok(())
     }
@@ -219,7 +276,10 @@ impl ManagedFormulaRuntime {
 }
 
 impl ValuePipelineRuntime {
-    fn prepare_typed_stages(&mut self) -> Result<(), ManagedFormulaError> {
+    fn prepare_typed_stages(
+        &mut self,
+        cache: Option<&mut ManagedStageSpecializationCache>,
+    ) -> Result<(), ManagedFormulaError> {
         let unresolved = self
             .input_set
             .layout()
@@ -235,10 +295,12 @@ impl ValuePipelineRuntime {
             nodes: &self.nodes,
             properties: self.properties.as_ref(),
         };
-        self.typed_stages = Some(ManagedStageChain::compile(
+        self.typed_stages = Some(ManagedStageChain::compile_with_cache(
             &self.filter_items,
             self.input_set.layout().clone(),
             &ctx,
+            self.filter_value_mode,
+            cache,
         )?);
         Ok(())
     }
@@ -267,7 +329,12 @@ impl ValuePipelineRuntime {
         Ok(())
     }
 
-    fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
+    fn evaluate(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        properties: Option<&RuntimePropertyFrame>,
+        capture_mode: DebugCaptureMode,
+    ) -> RuntimeOutput {
         let input = self.input_set.materialize(ctx);
         let mut output = RuntimeOutput::default();
         output
@@ -280,7 +347,14 @@ impl ValuePipelineRuntime {
         let Some(stages) = self.typed_stages.as_mut() else {
             return runtime_error_output(ManagedFormulaError::UnresolvedManagedInputSchema);
         };
-        let (frame, stage_output) = match stages.evaluate(input.frame, ctx) {
+        if let Some(graph) = self.graph.as_mut() {
+            merge_runtime_output(
+                &mut output,
+                graph.evaluate(input.frame, stages, &self.output_sets, ctx, properties, capture_mode),
+            );
+            return output;
+        }
+        let (frame, stage_output) = match stages.evaluate_with_capture(input.frame, ctx, capture_mode) {
             Ok(result) => result,
             Err(error) => return runtime_error_output(error.into()),
         };

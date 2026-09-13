@@ -581,13 +581,6 @@ pub(super) fn formula_managed_regions_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,
 ) -> Result<Vec<ManagedRegionDefinition>, String> {
-    if snapshot.child_ids(formula_node).into_iter().any(|child| {
-        snapshot
-            .node(child)
-            .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
-    }) {
-        return Ok(Vec::new());
-    }
     let Some(ParamValue::Str(raw)) =
         child_param(snapshot, formula_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
     else {

@@ -15,8 +15,8 @@ use golden_values::Value as RuntimeValue;
 
 use crate::alchemist::node_registry;
 use crate::{
-    ChannelSourceSchema, DefaultProcessorContextProvider, INPUT_SOURCE_FIELD, ManagedFormulaRuntime,
-    OUTPUT_TARGET_FIELD, Processor, ProcessorDebugCapture, ProcessorLifecycleEvent, ProcessorRuntime,
+    ChannelSourceSchema, INPUT_SOURCE_FIELD, ManagedFormulaRuntime, OUTPUT_TARGET_FIELD, Processor,
+    ProcessorLifecycleEvent, ProcessorRuntime,
 };
 
 #[test]
@@ -566,11 +566,10 @@ fn manager_condition_gate_matches_direct_anode_result() {
 }
 
 #[test]
-fn processor_runtime_evaluates_managed_trigger_pipeline_sidecar() {
+fn processor_runtime_rejects_trigger_pipeline_with_unbound_authored_graph() {
     let (mut formula, mut instance) = trigger_pipeline_formula_and_instance();
     let mut constant = primitive_anode(PrimitiveNodeKind::Constant);
     constant.config.set("value", RuntimeValue::Bool(true));
-    let constant_id = constant.id;
     let domain = AlchemistGraphDomain::with_primitives();
     let mut transaction = chataigne_alchemist::AlchemistGraphTransaction::for_document(&formula.graph);
     AlchemistGraphDomain::insert_node(&mut transaction, constant);
@@ -594,36 +593,8 @@ fn processor_runtime_evaluates_managed_trigger_pipeline_sidecar() {
     };
     let mut runtime = ProcessorRuntime::new(processor.id);
 
-    assert!(runtime.compile(&processor, &formula, &compile_ctx));
-    runtime.apply_lifecycle(&processor, ProcessorLifecycleEvent::StateEnter(StateId::new()));
-
-    let mut inputs = RuntimeInputSnapshot::default();
-    inputs.insert(source, RuntimeValue::Trigger(TriggerValue::fired(10, 18)));
-    let registries = RuntimeRegistries {
-        value_types: &value_types,
-    };
-    let ctx = eval_ctx(18, &inputs, &registries);
-
-    let provider = DefaultProcessorContextProvider;
-    let mut lanes = runtime.evaluate_processor_with_context_provider_and_runtime_capture(
-        &processor,
-        &ctx,
-        &provider,
-        &ProcessorDebugCapture::All { history_len: 64 },
-    );
-    assert_eq!(lanes.len(), 1);
-    let output = lanes.remove(0).output;
-
-    assert!(output.diagnostics.is_empty());
-    assert_eq!(output.intents.len(), 1);
-    assert_eq!(output.intents[0].target.as_ref(), Some(&target));
-    assert!(
-        output
-            .debug_samples
-            .iter()
-            .any(|sample| sample.author_node_id == constant_id),
-        "managed sidecar evaluation should retain authored-graph activity samples"
-    );
+    assert!(!runtime.compile(&processor, &formula, &compile_ctx));
+    assert_eq!(runtime.diagnostics[0].code, "managed_formula_graph_boundary");
 }
 
 #[test]

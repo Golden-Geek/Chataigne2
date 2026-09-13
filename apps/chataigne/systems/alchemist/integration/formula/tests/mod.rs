@@ -550,6 +550,26 @@ fn formula_manager_property_roles_survive_project_reload() {
 }
 
 #[test]
+fn authored_graph_keeps_managed_region_metadata() {
+    let (mut engine, formula) = engine_with_formula();
+    let metadata = engine.process_tree_snapshot()
+        .find_child_by_decl_id(formula, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+        .expect("Formula should expose managed regions");
+    let raw = r#"[{"id":"inputs","kind":"input_set","label":"Inputs","input_socket":null,"output_socket":null,"accepted_roles":["Input"]}]"#;
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: metadata,
+        value: ParamValue::Str(raw.to_owned()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "metadata edit should succeed: {ack:?}");
+    engine.apply_edits().unwrap();
+    create_anode(&mut engine, formula, "constant", 0.0, 0.0);
+    let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula).unwrap();
+    assert_eq!(materialized.surface.managed_regions.len(), 1);
+    assert_eq!(materialized.surface.managed_regions[0].id.as_str(), "inputs");
+}
+
+#[test]
 fn materialized_anode_preserves_enabled_state() {
     let (mut engine, formula) = engine_with_formula();
     let previous_children = direct_children(&engine, formula).len();

@@ -432,7 +432,12 @@ impl ProcessorRuntime {
             compiled,
             self.diagnostics.clone(),
         ));
-        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+        let managed_formula = match ManagedFormulaRuntime::compile_with_shared_graph(
+            formula,
+            &processor.formula_instance,
+            ctx,
+            Arc::clone(&compiled_formula.graph),
+        ) {
             Ok(managed_formula) => managed_formula,
             Err(error) => {
                 self.clear_runtime();
@@ -465,7 +470,12 @@ impl ProcessorRuntime {
         compiled: Arc<CompiledAlchemistFormula>,
         ctx: &CompileCtx<'_>,
     ) -> bool {
-        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+        let managed_formula = match ManagedFormulaRuntime::compile_with_shared_graph(
+            formula,
+            &processor.formula_instance,
+            ctx,
+            Arc::clone(&compiled.graph),
+        ) {
             Ok(managed_formula) => managed_formula,
             Err(error) => {
                 self.clear_runtime();
@@ -483,7 +493,12 @@ impl ProcessorRuntime {
         compiled: Arc<CompiledAlchemistFormula>,
         ctx: &CompileCtx<'_>,
     ) -> bool {
-        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+        let managed_formula = match ManagedFormulaRuntime::compile_with_shared_graph(
+            formula,
+            &processor.formula_instance,
+            ctx,
+            Arc::clone(&compiled.graph),
+        ) {
             Ok(managed_formula) => managed_formula,
             Err(error) => {
                 self.clear_runtime();
@@ -738,18 +753,46 @@ impl ProcessorRuntime {
             if !self.condition_passes(ctx, context_provider, &context_key) {
                 return Vec::new();
             }
-            let managed_formula = self
+            let graph_backed = self
                 .managed_formula
-                .as_mut()
-                .expect("managed formula presence was checked before condition evaluation");
-            let mut output = managed_formula.evaluate(ctx);
+                .as_ref()
+                .is_some_and(ManagedFormulaRuntime::uses_authored_graph);
             let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
+                let output = self
+                    .managed_formula
+                    .as_mut()
+                    .expect("managed formula presence was checked before condition evaluation")
+                    .evaluate(ctx);
                 return vec![ProcessorLaneOutput {
                     context_key: None,
                     output,
                 }];
             };
             let capture_mode = capture.debug_capture_mode(&compiled.formula_ref.id, &context_key);
+            let properties = if graph_backed {
+                match self.resolve_property_frame(processor, &compiled, &context_key, context_provider) {
+                    Ok(properties) => Some(properties),
+                    Err(error) => {
+                        return vec![ProcessorLaneOutput {
+                            context_key: None,
+                            output: property_frame_error_output(error),
+                        }];
+                    }
+                }
+            } else {
+                None
+            };
+            let mut output = self
+                .managed_formula
+                .as_mut()
+                .expect("managed formula presence was checked before condition evaluation")
+                .evaluate_with_graph_frame(ctx, properties.as_ref(), capture_mode.clone());
+            if graph_backed {
+                return vec![ProcessorLaneOutput {
+                    context_key: None,
+                    output,
+                }];
+            }
             if !matches!(capture_mode, DebugCaptureMode::Off) {
                 let context_key = ContextKey::default_lane();
                 let context = RuntimeContextFrame::new(context_key.clone());

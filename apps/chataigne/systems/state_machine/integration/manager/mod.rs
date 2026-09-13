@@ -23,7 +23,7 @@ use chataigne_state_machine::{
     ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorOverviewDemandDto, ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
     ProcessorUiDto, StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto,
-    RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry,
+    RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry, ManagedStageSpecializationCache,
 };
 
 use crate::app::systems_alchemist_conditions::compiler::{
@@ -1454,6 +1454,7 @@ struct StateMachineRuntimeCache {
     formulas: Arc<HashMap<NodeUuid, AlchemistFormula>>,
     formula_input_values: Arc<HashMap<StableRef, RuntimeValue>>,
     compiled_formulas: HashMap<FormulaCompileKey, Arc<CompiledAlchemistFormula>>,
+    managed_stage_specializations: ManagedStageSpecializationCache,
     source_listener_params: HashSet<NodeId>,
     source_listener_param_uuids: HashMap<NodeId, NodeUuid>,
     source_listener_values: HashMap<NodeId, ParamValue>,
@@ -3333,7 +3334,10 @@ impl StateMachineManager {
             Err(_) => compile_processor_runtime_for_cache_rebuild(&mut runtime, &processor, &formula, compile_ctx),
         };
         if let Some(managed) = runtime.managed_formula.as_mut() {
-            if let Err(error) = managed.reconcile_input_source_schema(|source| managed_source_schema(snapshot, source)) {
+            if let Err(error) = managed.reconcile_input_source_schema_with_cache(
+                |source| managed_source_schema(snapshot, source),
+                Some(&mut self.runtime_cache.managed_stage_specializations),
+            ) {
                 runtime.diagnostics.push(error.into_diagnostic());
                 compiled = false;
             }

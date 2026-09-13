@@ -76,6 +76,12 @@ and dispatch through OutputSet. Trigger pipelines read one enabled trigger
 input, run the same filter pipeline, and emit command intents through CommandSet.
 No product-named processor owns a special evaluator for filters or conditions.
 
+Managed value regions on an authored Formula graph are tied to explicit typed
+ValueSet graph sockets. Alchemist's compiled dependency plan stays shared;
+the processor evaluates managed regions at their graph nodes with per-instance
+bindings and memory. Authored operations on either side of the filter continue
+to execute. Missing or disconnected boundaries produce compile diagnostics.
+
 For users and module authors, this means:
 
 ```text
