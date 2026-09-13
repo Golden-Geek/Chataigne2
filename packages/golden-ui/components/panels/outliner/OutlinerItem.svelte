@@ -21,8 +21,10 @@
 	const EMPTY_AUTO_EXPAND_ANCESTORS: ReadonlySet<NodeId> = new Set<NodeId>();
 
 	let {
-		node,
-		siblingNodeIds = node ? [node.node_id] : [],
+		node: providedNode = null,
+		nodeId = null,
+		siblingNodeIds = providedNode ? [providedNode.node_id] : [],
+		siblingParentId = null,
 		level = 0,
 		maxLevels = undefined,
 		mode = 'outliner',
@@ -47,8 +49,10 @@
 		onNodeDrop = null,
 		onNodeDragEnd = null
 	} = $props<{
-		node: UiNodeDto | null;
+		node?: UiNodeDto | null;
+		nodeId?: NodeId | null;
 		siblingNodeIds?: readonly NodeId[];
+		siblingParentId?: NodeId | null;
 		level?: number;
 		maxLevels?: number;
 		mode?: 'outliner' | 'tree';
@@ -76,6 +80,9 @@
 
 	let session = $derived(appState.session);
 	let mainGraphState = $derived(session?.graph.state ?? null);
+	let node = $derived(
+		nodeId === null ? providedNode : (mainGraphState?.nodesById.get(nodeId) ?? null)
+	);
 	let meta = $derived(node?.meta ?? null);
 	let isOutlinerMode = $derived(mode === 'outliner');
 	let ResolvedRowSupplementComponent = $derived(
@@ -89,7 +96,11 @@
 		if (!mainGraphState) {
 			return [];
 		}
-		return siblingNodeIds.filter((nodeId: NodeId) => {
+		const siblingIds =
+			siblingParentId === null
+				? siblingNodeIds
+				: (mainGraphState.nodesById.get(siblingParentId)?.children ?? []);
+		return siblingIds.filter((nodeId: NodeId) => {
 			const sibling = mainGraphState.nodesById.get(nodeId) ?? null;
 			return subtreeHasVisibleNode(sibling) && isSelectable(sibling);
 		});
@@ -475,8 +486,8 @@
 				transition:slide|local={{ duration: transitionDurationMs }}>
 				{#each node.children as child (child)}
 					<Self
-						node={mainGraphState?.nodesById.get(child) ?? null}
-						siblingNodeIds={node.children}
+						nodeId={child}
+						siblingParentId={node.node_id}
 						level={level + 1}
 						{maxLevels}
 						{mode}

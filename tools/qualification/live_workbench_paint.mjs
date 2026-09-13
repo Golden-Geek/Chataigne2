@@ -243,6 +243,12 @@ async function run() {
 		);
 		const snapshot = await request(baseUrl, '/api/ui/snapshot', { scope: 'wholeGraph' });
 		report.base_nodes = snapshot.nodes.length;
+		report.base_dom = await page.evaluate(() => ({
+			outliner_items: document.querySelectorAll('.outliner-item').length,
+			canvas_visible_nodes: Array.from(document.querySelectorAll('[data-visible-node-count]')).map(
+				(node) => Number(node.getAttribute('data-visible-node-count'))
+			)
+		}));
 		const duplicate = chooseDuplicateSources(snapshot);
 		report.duplicated_roots_per_sample = duplicate.nodes.length;
 		report.inserted_nodes_per_sample = duplicate.insertedNodes;
@@ -251,6 +257,13 @@ async function run() {
 		});
 		for (let sample = 0; sample < samples; sample += 1) {
 			captureEventTrace = true;
+			let cpuProfiler;
+			if (sample === 0 && process.env.GC_CAPTURE_CPU_PROFILE === '1') {
+				cpuProfiler = await page.context().newCDPSession(page);
+				await cpuProfiler.send('Profiler.enable');
+				await cpuProfiler.send('Profiler.setSamplingInterval', { interval: 1000 });
+				await cpuProfiler.send('Profiler.start');
+			}
 			const baseCount = await page.evaluate(() =>
 				Number(document.querySelector('.gc-main')?.getAttribute('data-graph-node-count'))
 			);
@@ -301,6 +314,32 @@ async function run() {
 			}
 			report.latencies_ms.push(painted.latency_ms);
 			report.mutation_ms.push(painted.mutation_ms);
+			if (cpuProfiler) {
+				const { profile } = await cpuProfiler.send('Profiler.stop');
+				await writeFile(join(outputDir, 'browser-action.cpuprofile'), JSON.stringify(profile));
+				await cpuProfiler.detach();
+			}
+		}
+		if (process.env.GC_VERIFY_OUTLINER_META === '1') {
+			const source = duplicate.nodes[0].source;
+			const label = '__outliner_projection_probe__';
+			const acknowledgement = await request(baseUrl, '/api/ui/intent', {
+				kind: 'patchMeta',
+				node: source,
+				patch: { label }
+			});
+			if (acknowledgement.success !== true) {
+				throw new Error(`outliner metadata probe rejected: ${JSON.stringify(acknowledgement)}`);
+			}
+			await page.waitForFunction(
+				({ source, label }) =>
+					document
+						.querySelector(`.outliner-item-content[data-node-id="${source}"] .outliner-item-label`)
+						?.textContent?.trim() === label,
+				{ source, label },
+				{ timeout: 30_000 }
+			);
+			report.outliner_meta_probe = { source, label, status: 'PASS' };
 		}
 		report.long_tasks = await page.evaluate(() => globalThis.__gcLongTasks);
 		report.p50_ms = percentile(report.latencies_ms, 0.5);

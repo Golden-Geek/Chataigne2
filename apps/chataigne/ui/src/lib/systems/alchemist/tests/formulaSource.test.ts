@@ -17,7 +17,8 @@ import {
 	formulaIsReadOnly,
 	formulaSourceDisplay,
 	formulaSourceKind,
-	sharedFormulaDir
+	sharedFormulaDir,
+	type FormulaSourceGraph
 } from '../formulaSource';
 
 type TestNodeOptions = {
@@ -48,6 +49,14 @@ const testNode = (nodeId: NodeId, options: TestNodeOptions = {}): UiNodeDto =>
 const nodeMap = (...nodes: UiNodeDto[]): ReadonlyMap<NodeId, UiNodeDto> =>
 	new Map(nodes.map((node) => [node.node_id, node]));
 
+const sourceGraph = (rootId: NodeId, ...nodes: UiNodeDto[]): FormulaSourceGraph => {
+	const parentById = new Map<NodeId, NodeId>();
+	for (const parent of nodes) {
+		for (const child of parent.children) parentById.set(child, parent.node_id);
+	}
+	return { rootId, nodesById: nodeMap(...nodes), parentById };
+};
+
 describe('formula source classification', () => {
 	it('gives built-in metadata precedence and preserves its source presentation', () => {
 		const formula = testNode(1, {
@@ -61,7 +70,7 @@ describe('formula source classification', () => {
 		expect(formulaIsBuiltIn(formula)).toBe(true);
 		expect(formulaIsExternalFile(formula)).toBe(true);
 		expect(formulaIsReadOnly(formula)).toBe(true);
-		expect(formulaSourceKind(formula, nodeMap(formula))).toBe('builtin');
+		expect(formulaSourceKind(formula, sourceGraph(1, formula))).toBe('builtin');
 		expect(formulaSourceDisplay('builtin')).toMatchObject({
 			badgeLabel: 'Built-in',
 			title: 'Built-in formula'
@@ -69,6 +78,7 @@ describe('formula source classification', () => {
 	});
 
 	it('derives the shared folder from Preferences and compares Windows paths case-insensitively', () => {
+		const root = testNode(0, { children: [1, 4] });
 		const preferences = testNode(1, {
 			declId: PREFERENCES_DECL_ID,
 			children: [2]
@@ -89,17 +99,19 @@ describe('formula source classification', () => {
 			declId: FORMULA_EXTERNAL_FILE_DECL_ID,
 			fileValue: 'c:\\chataigne\\data\\formulas\\Mix.json'
 		});
-		const nodes = nodeMap(preferences, saveAndLoad, dataFolder, formula, externalFile);
+		const graph = sourceGraph(0, root, preferences, saveAndLoad, dataFolder, formula, externalFile);
 
-		expect(sharedFormulaDir(nodes)).toBe('C:\\Chataigne\\Data\\formulas');
-		expect(formulaExternalFilePath(formula, nodes)).toBe('c:\\chataigne\\data\\formulas\\Mix.json');
-		expect(formulaSourceKind(formula, nodes)).toBe('shared');
+		expect(sharedFormulaDir(graph, formula)).toBe('C:\\Chataigne\\Data\\formulas');
+		expect(formulaExternalFilePath(formula, graph.nodesById)).toBe(
+			'c:\\chataigne\\data\\formulas\\Mix.json'
+		);
+		expect(formulaSourceKind(formula, graph)).toBe('shared');
 	});
 
 	it('uses the formula-library folder when Preferences does not expose a data folder', () => {
 		const library = testNode(1, {
 			nodeType: FORMULA_LIBRARY_NODE_TYPE,
-			children: [2]
+			children: [2, 3]
 		});
 		const sharedDir = testNode(2, {
 			declId: FORMULA_LIBRARY_SHARED_DIR_DECL_ID,
@@ -113,16 +125,16 @@ describe('formula source classification', () => {
 			declId: FORMULA_EXTERNAL_FILE_DECL_ID,
 			fileValue: '/srv/chataigne/formulas/Envelope.json'
 		});
-		const nodes = nodeMap(library, sharedDir, formula, externalFile);
+		const graph = sourceGraph(1, library, sharedDir, formula, externalFile);
 
-		expect(sharedFormulaDir(nodes)).toBe('/srv/chataigne/formulas');
-		expect(formulaSourceKind(formula, nodes)).toBe('shared');
+		expect(sharedFormulaDir(graph, formula)).toBe('/srv/chataigne/formulas');
+		expect(formulaSourceKind(formula, graph)).toBe('shared');
 	});
 
 	it('classifies external files outside the shared folder as project formulas', () => {
 		const library = testNode(1, {
 			nodeType: FORMULA_LIBRARY_NODE_TYPE,
-			children: [2]
+			children: [2, 3]
 		});
 		const sharedDir = testNode(2, {
 			declId: FORMULA_LIBRARY_SHARED_DIR_DECL_ID,
@@ -136,16 +148,37 @@ describe('formula source classification', () => {
 			declId: FORMULA_EXTERNAL_FILE_DECL_ID,
 			fileValue: '/project/formulas/Local.json'
 		});
-		const nodes = nodeMap(library, sharedDir, formula, externalFile);
+		const graph = sourceGraph(1, library, sharedDir, formula, externalFile);
 
-		expect(formulaSourceKind(formula, nodes)).toBe('project');
+		expect(formulaSourceKind(formula, graph)).toBe('project');
 	});
 
 	it('treats a plain formula as project-owned and does not invent an external path', () => {
 		const formula = testNode(1);
-		const nodes = nodeMap(formula);
+		const graph = sourceGraph(1, formula);
 
-		expect(formulaExternalFilePath(formula, nodes)).toBeNull();
-		expect(formulaSourceKind(formula, nodes)).toBe('project');
+		expect(formulaExternalFilePath(formula, graph.nodesById)).toBeNull();
+		expect(formulaSourceKind(formula, graph)).toBe('project');
+	});
+
+	it('resolves the shared folder without enumerating the graph node map', () => {
+		const root = testNode(0, { children: [1] });
+		const preferences = testNode(1, { declId: PREFERENCES_DECL_ID, children: [2] });
+		const saveAndLoad = testNode(2, {
+			declId: PREFERENCES_SAVE_AND_LOAD_DECL_ID,
+			children: [3]
+		});
+		const dataFolder = testNode(3, {
+			declId: PREFERENCES_DATA_FOLDER_DECL_ID,
+			fileValue: '/srv/chataigne'
+		});
+		const graph = sourceGraph(0, root, preferences, saveAndLoad, dataFolder);
+		Object.defineProperty(graph.nodesById, 'values', {
+			value: () => {
+				throw new Error('Formula source lookup must not scan the complete graph');
+			}
+		});
+
+		expect(sharedFormulaDir(graph, null)).toBe('/srv/chataigne/formulas');
 	});
 });

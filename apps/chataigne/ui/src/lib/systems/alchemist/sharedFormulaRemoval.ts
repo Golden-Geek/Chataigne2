@@ -31,10 +31,7 @@ const collectSharedFormulas = (
 ): void => {
 	if (seen.has(node.node_id)) return;
 	seen.add(node.node_id);
-	if (
-		node.node_type === FORMULA_NODE_TYPE &&
-		formulaSourceKind(node, request.graph.nodesById) === 'shared'
-	) {
+	if (node.node_type === FORMULA_NODE_TYPE && formulaSourceKind(node, request.graph) === 'shared') {
 		collected.push(node);
 	}
 	for (const childId of node.children) {

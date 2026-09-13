@@ -672,6 +672,30 @@ disconnects; the 100k case still has 91 Long Tasks. The unchanged-sibling stagin
 real bottleneck, not the whole tail. Next qualification work must separate app-owned Formula
 graph presentation, generic canvas update/paint, and remaining backend acknowledgement cost.
 
+An opt-in Chromium CPU profile of one 100k edit found the app-owned Formula source badge walking
+the entire `VersionedNodeMap` to locate Preferences; the iterator accounted for roughly 0.29 s of
+sampled self time. Formula source classification now takes the graph root and parent index, reads
+Preferences from the root's direct children, and resolves the Formula Library fallback through
+the formula's ancestors. A test makes node-map enumeration throw, proving that this lookup stays
+local. The reusable outliner now resolves recursive rows by node id and retrieves sibling order
+only for range-selection actions, avoiding a changed parent array as a prop on every existing
+child row. The profiling harness can optionally write a Chromium CPU profile and records mounted
+outliner/canvas counts. Its 100k fixture mounted about 7,203 outliner items but no graph canvas;
+this existing workbench-root measurement does not establish canvas action-to-paint coverage.
+
+The final source-fingerprinted 20-sample workbench-root report at
+`target/qualification/live-workbench-paint/root-lookup-row-id-meta-final/` measures 10k
+p50/p95/p99/max at 157/243/307/307 ms. At 100k it measures 1,216/1,783/1,899/1,899 ms:
+the median is lower than the preceding 1,443 ms, but p95 remains near the earlier 1,806 ms
+and fails the 500 ms provisional budget. Its HTTP acknowledgement p50/p95 is 523/1,015 ms and
+browser mutation p50/p95 is 1,090/1,612 ms. The 100k case recorded 76 Long Tasks, zero browser
+errors, zero overflow recoveries, and zero slow-client disconnects. Another 20-sample run of
+the preceding source fingerprint had a 2,071 ms p95, so these tail measurements fluctuate and
+do not establish a p95 improvement. An opt-in HTTP metadata patch confirmed that an id-based
+outliner row updates its label. A complete graph-canvas scenario and outliner
+virtualization/update work remain open; a single profiled action is attribution evidence, not
+a tail-latency qualification.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -695,7 +719,7 @@ graph presentation, generic canvas update/paint, and remaining backend acknowled
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula, graph routing/projection/camera, logger, app-owned state placement, and generic vec2 geometry owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k backend and three-client transport scenarios pass locally; live 20-sample 600-node browser p95 is 223 ms at 10k (provisional pass) and 1,806 ms at 100k (budget fail) after authoritative child insertion, with zero overload recovery or disconnects; the full product gate remains open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k backend and three-client transport scenarios pass locally; the workbench-root 20-sample 600-node browser p95 is 215 ms at 10k and 2,071 ms at 100k (budget fail), with zero overload recovery or disconnects; the canvas was not mounted, so complete action-to-paint coverage and the full product gate remain open |
 
 ## Finding status
 
@@ -894,9 +918,9 @@ Next dependency-ready work: continue T17's documented cohesive source splits, es
 remaining graph-canvas node layout/interactions, dashboard/curve editors, and app-owned
 formula/state integration. T18 production parallel remains
 deferred pending a real sparse-dirty/full-tick benefit and a generation-safe commit boundary.
-T19 next needs to attribute the remaining 100k tail among app-owned Formula presentation,
-generic canvas update/paint, and backend batch acknowledgement, then reduce the demonstrated
-costs. It still needs large live Formula/state/graph edits, UI/transport, multi-client, and
+T19 next needs to bound the 7k-row outliner update cost, qualify a genuinely mounted graph
+canvas separately from the workbench-root benchmark, and reduce 100k backend acknowledgement
+tails. It still needs large live Formula/state/graph edits, UI/transport, multi-client, and
 recovery paths at scale. Cross-platform, native-host, and physical-product evidence remains open.
 
 Known blockers and independent work that can continue: patched-source macOS playback and

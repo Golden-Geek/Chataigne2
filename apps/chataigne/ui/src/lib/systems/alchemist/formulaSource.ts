@@ -14,6 +14,12 @@ const SHARED_FORMULA_SUBDIR = 'formulas';
 
 export type FormulaSourceKind = 'builtin' | 'shared' | 'project';
 
+export type FormulaSourceGraph = {
+	rootId: NodeId | null;
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>;
+	parentById: ReadonlyMap<NodeId, NodeId>;
+};
+
 export type FormulaSourceDisplay = {
 	filterLabel: string;
 	badgeLabel: string;
@@ -95,15 +101,37 @@ const joinPathSegment = (base: string, segment: string): string | null => {
 	return `${trimmed}${separator}${segment}`;
 };
 
-const preferencesDataFolder = (nodesById: ReadonlyMap<NodeId, UiNodeDto>): string | null => {
-	for (const node of nodesById.values()) {
-		if (node.decl_id !== PREFERENCES_DECL_ID) {
-			continue;
-		}
-		const saveAndLoad = findChildByDeclId(node, nodesById, PREFERENCES_SAVE_AND_LOAD_DECL_ID);
-		const dataFolder = findChildByDeclId(saveAndLoad, nodesById, PREFERENCES_DATA_FOLDER_DECL_ID);
-		const path = stringParamValue(dataFolder);
-		return path && path.trim().length > 0 ? path : null;
+const preferencesDataFolder = (graph: FormulaSourceGraph): string | null => {
+	const root = graph.rootId === null ? null : graph.nodesById.get(graph.rootId);
+	const preferences =
+		root?.decl_id === PREFERENCES_DECL_ID
+			? root
+			: findChildByDeclId(root, graph.nodesById, PREFERENCES_DECL_ID);
+	const saveAndLoad = findChildByDeclId(
+		preferences,
+		graph.nodesById,
+		PREFERENCES_SAVE_AND_LOAD_DECL_ID
+	);
+	const dataFolder = findChildByDeclId(
+		saveAndLoad,
+		graph.nodesById,
+		PREFERENCES_DATA_FOLDER_DECL_ID
+	);
+	const path = stringParamValue(dataFolder);
+	return path && path.trim().length > 0 ? path : null;
+};
+
+const formulaLibraryAncestor = (
+	graph: FormulaSourceGraph,
+	node: UiNodeDto | null | undefined
+): UiNodeDto | null => {
+	let current = node;
+	const visited = new Set<NodeId>();
+	while (current && !visited.has(current.node_id)) {
+		if (current.node_type === FORMULA_LIBRARY_NODE_TYPE) return current;
+		visited.add(current.node_id);
+		const parent = graph.parentById.get(current.node_id);
+		current = parent === undefined ? null : graph.nodesById.get(parent);
 	}
 	return null;
 };
@@ -122,8 +150,11 @@ export const formulaExternalFilePath = (
 };
 
 /** The resolved shared-formulas folder, derived from Preferences and exposed fallbacks. */
-export const sharedFormulaDir = (nodesById: ReadonlyMap<NodeId, UiNodeDto>): string | null => {
-	const dataFolder = preferencesDataFolder(nodesById);
+export const sharedFormulaDir = (
+	graph: FormulaSourceGraph,
+	formula: UiNodeDto | null | undefined
+): string | null => {
+	const dataFolder = preferencesDataFolder(graph);
 	if (dataFolder) {
 		const sharedDir = joinPathSegment(dataFolder, SHARED_FORMULA_SUBDIR);
 		if (sharedDir) {
@@ -131,14 +162,10 @@ export const sharedFormulaDir = (nodesById: ReadonlyMap<NodeId, UiNodeDto>): str
 		}
 	}
 
-	for (const node of nodesById.values()) {
-		if (node.node_type === FORMULA_LIBRARY_NODE_TYPE) {
-			const dirParam = findChildByDeclId(node, nodesById, FORMULA_LIBRARY_SHARED_DIR_DECL_ID);
-			const dir = stringParamValue(dirParam);
-			return dir && dir.trim().length > 0 ? dir : null;
-		}
-	}
-	return null;
+	const library = formulaLibraryAncestor(graph, formula);
+	const dirParam = findChildByDeclId(library, graph.nodesById, FORMULA_LIBRARY_SHARED_DIR_DECL_ID);
+	const dir = stringParamValue(dirParam);
+	return dir && dir.trim().length > 0 ? dir : null;
 };
 
 const normalizeForPathCompare = (path: string): string => path.replace(/\\/g, '/').toLowerCase();
@@ -155,14 +182,14 @@ const normalizeForPathCompare = (path: string): string => path.replace(/\\/g, '/
  */
 export const formulaSourceKind = (
 	node: UiNodeDto | null | undefined,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+	graph: FormulaSourceGraph
 ): FormulaSourceKind => {
 	if (formulaIsBuiltIn(node)) {
 		return 'builtin';
 	}
-	const filePath = formulaExternalFilePath(node, nodesById);
+	const filePath = formulaExternalFilePath(node, graph.nodesById);
 	if (filePath) {
-		const sharedDir = sharedFormulaDir(nodesById);
+		const sharedDir = sharedFormulaDir(graph, node);
 		if (
 			sharedDir &&
 			normalizeForPathCompare(filePath).startsWith(normalizeForPathCompare(sharedDir))

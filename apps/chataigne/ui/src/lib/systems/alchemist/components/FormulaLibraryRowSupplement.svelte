@@ -20,8 +20,8 @@
 
 	let { node }: { node: UiNodeDto } = $props();
 
-	let nodesById = $derived(appState.session?.graph.state.nodesById ?? new Map());
-	let sourceKind = $derived(formulaSourceKind(node, nodesById));
+	let graphState = $derived(appState.session?.graph.state);
+	let sourceKind = $derived(graphState ? formulaSourceKind(node, graphState) : 'project');
 	let sourceDisplay = $derived(formulaSourceDisplay(sourceKind));
 	let external = $derived(formulaIsExternalFile(node));
 	let sourceTitle = $derived(
@@ -29,7 +29,7 @@
 			? 'Project formula linked to an external file'
 			: sourceDisplay.title
 	);
-	let sharedDir = $derived(sharedFormulaDir(nodesById));
+	let sharedDir = $derived(graphState ? sharedFormulaDir(graphState, node) : null);
 	// Only a plain, in-project-authored formula makes sense to publish to the
 	// cross-project Shared folder; built-ins/shared/external-file-linked ones
 	// already have a canonical source elsewhere.

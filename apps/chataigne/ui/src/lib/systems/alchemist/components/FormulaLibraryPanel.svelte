@@ -49,13 +49,14 @@
 		activeSources = next;
 	};
 
-	let nodesById = $derived(appState.session?.graph.state.nodesById ?? new Map());
+	let graphState = $derived(appState.session?.graph.state);
 
 	// Folders always pass through; only formula leaves are filtered by source,
 	// so a folder containing a mix of sources stays browsable.
 	const matchesActiveSource = (candidate: UiNodeDto): boolean =>
 		candidate.node_type !== FORMULA_NODE_TYPE ||
-		activeSources.has(formulaSourceKind(candidate, nodesById));
+		!graphState ||
+		activeSources.has(formulaSourceKind(candidate, graphState));
 
 	export const setPanelState = (_next: PanelState): void => {};
 </script>

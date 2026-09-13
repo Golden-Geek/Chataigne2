@@ -503,7 +503,7 @@
 		if (previewTarget?.kind === 'formula') return previewTargetNode(previewTarget);
 		return requestedFormula ?? formulaNodes[0] ?? null;
 	});
-	let formulaSource = $derived(formulaSourceKind(formula, graphState?.nodesById ?? new Map()));
+	let formulaSource = $derived(graphState ? formulaSourceKind(formula, graphState) : 'project');
 	let formulaSourceDisplay = $derived(getFormulaSourceDisplay(formulaSource));
 	let formulaExternalFile = $derived(formulaIsExternalFile(formula));
 	let formulaReadOnly = $derived(formulaIsReadOnly(formula));
