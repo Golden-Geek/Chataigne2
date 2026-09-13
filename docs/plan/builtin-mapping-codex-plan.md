@@ -232,7 +232,7 @@ Replace the managed ValueSet JSON encode/decode handoff with native typed data t
 
 Validate identity uniqueness, tuple arity, and type/frame consistency at authoring/materialization boundaries. Preserve source identity and tuple position through temporary unavailability and input disabling. Add backend-owned shape queries needed by later UI work.
 
-**Exit gates:** tests cover scalar and mixed tuple shapes, repeated references to one source, stable reorder, source rename, disable/reenable, removal diagnostics, compound preservation, metadata-only updates, and empty/incomplete authoring states. Value changes do not rebuild shapes. No standard Mapping edit requires a channel selection or group.
+**Exit gates:** tests cover scalar and mixed tuple shapes, repeated references to one source, stable reorder, source rename, disable/reenable, removal diagnostics, compound preservation, metadata-only updates, and empty/incomplete authoring states. Value changes do not rebuild shapes. Source authoring requires no channel selection or group. Filter applicability and whole-tuple execution are Phase 03/04 gates.
 
 ### Phase 03 — Declarative filter applications and runtime bindings
 

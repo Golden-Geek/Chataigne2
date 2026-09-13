@@ -329,7 +329,11 @@ fn authored_sources_form_one_scalar_or_ordered_typed_tuple() {
         .reconcile_source_schema(|source| {
             (source == &third.source).then(|| ChannelSourceSchema {
                 value_type: ValueTypeId::new("bool"),
-                metadata: ChannelMetadata::default(),
+                metadata: ChannelMetadata {
+                    minimum: None,
+                    maximum: None,
+                    unit: Some("switch".into()),
+                },
             })
         })
         .unwrap();
@@ -343,6 +347,7 @@ fn authored_sources_form_one_scalar_or_ordered_typed_tuple() {
         runtime.value_shape(),
         MappingValueShape::Tuple(vec![Some("bool".into()), Some("float".into()), Some("float".into())])
     );
+    assert_eq!(runtime.layout().channels()[0].metadata.unit.as_deref(), Some("switch"));
     runtime
         .reconcile_items(vec![crate::InputSetItem::new(
             ValueLaneKey::new("flag").unwrap(),
@@ -351,6 +356,7 @@ fn authored_sources_form_one_scalar_or_ordered_typed_tuple() {
         )])
         .unwrap();
     assert_eq!(runtime.value_shape(), MappingValueShape::Single(None));
+    assert_eq!(runtime.layout().channels()[0].metadata.unit, None);
 }
 
 #[test]

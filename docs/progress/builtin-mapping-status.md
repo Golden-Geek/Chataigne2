@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 02 — reconcile the typed source tuple contract after the product decision; Phase 03/04 groundwork remains incomplete
+- Active phase: 02 — typed source tuple phase checkpoint pending remote verification; Phase 03/04 groundwork remains incomplete
 - Last validated implementation commit: `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` (tuple-contract/managed-palette WIP; Phase 01 is the last complete phase under the revised plan)
 - Last verified remote implementation commit: `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595` (WIP)
-- Current blockers: no environment blocker; the standard Mapping still uses an internal channel-oriented runner and lacks the scalar/tuple authoring boundary. Phase 03's palette and Phase 04's Formula graph boundary and plan sharing remain open.
+- Current blockers: no environment blocker; Phase 03 must make filter applications and the palette consume the scalar/tuple contract, and Phase 04 must remove implicit channel routing from standard Mapping execution while preserving custom Formula graph semantics.
 - Product checks still outstanding: revised M01–M16 and M18–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: finish scalar/ordered-tuple shape and whole-value semantics for the standard Mapping, preserving custom Formula channel capabilities; then validate the backend filter palette against the exact tuple operation it creates
-- Last updated: 2026-09-13T12:50:56+02:00
+- Next concrete action: publish the revised Phase 02 checkpoint, then implement tuple-aware filter applications and exact palette creation in Phase 03
+- Last updated: 2026-09-13T12:53:05+02:00
 
 ## Phase ledger
 
@@ -19,7 +19,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
-| 02 | IN_PROGRESS | IN_PROGRESS | RUNNING | PUSH_VERIFIED | NOT_RUN | WIP `1c70c88d` verified remotely; scalar/tuple shape and app unit tests pass, but whole-value Mapping behavior has no phase checkpoint. |
+| 02 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Scalar/tuple source-shape gates pass; implementation checkpoint A awaits commit/push. Whole-value filter execution belongs to Phase 03/04. |
 | 03 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `1c70c88d` verified remotely; the internal-layout palette is compiler-backed, while a tuple-aware Mapping palette and multi-input merge authoring remain open. |
 | 04 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `1c70c88d` verified remotely; earlier typed stages remain channel-oriented. Whole-value tuple stages, Formula graph boundaries, and plan sharing remain open. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
@@ -88,6 +88,7 @@
 | 2026-09-13T12:46+02:00 | 02/03 revised | working tree on `04c99834` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --bin Chataigne2 --quiet` | Windows x64, pinned ASIO SDK | PASSED | 536 app unit tests passed, 5 existing manual qualification tests ignored. The broader `-p Chataigne2` command could not replace `target/debug/Chataigne2.exe` while another app process used it; the separate audio-host integration check remains outstanding for this revision. |
 | 2026-09-13T12:49+02:00 | 02/03 revised | working tree on `04c99834` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --test default_audio_hosts --quiet`; `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy; root and Golden Core `cargo fmt --all --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Audio-host integration test, 161 Alchemist and 90 processor tests, `-D warnings`, and both format scopes pass. Together with the scoped bin test, these cover the app package tests after the broad command encountered a file lock. |
 | 2026-09-13T12:49+02:00 | 02/03 revised | working tree on `04c99834` | `.\tools\asio.ps1 -- cargo check --locked --workspace`; `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check and whitespace validation pass after the tuple-shape and palette work. |
+| 2026-09-13T12:53+02:00 | 02 revised | working tree on `c962867a` | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy; root and Golden Core `cargo fmt --all --check`; `git diff --check` | Windows x64, Rust 1.97.0 | PASSED | 161 Alchemist and 90 processor tests pass after final metadata/replacement assertions; `-D warnings`, both format scopes, and whitespace checks pass. The app unit and audio-host integration checks passed on the preceding WIP checkpoint, and this delta changes only a processor test and plan wording. |
 
 ## Phase reports
 
@@ -114,17 +115,19 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; this repository triggers CI on PRs and `main`, and Phase 01 has no separately designated mandatory CI run.
 - Decisions/deviations and rationale: retain the JSON extension codec at actual graph/persistence boundaries; the managed processor handoff is native. Reuse scratch memory for stateless projections and make debug capture optional in the Alchemist evaluator. Remaining per-lane/property/evaluator allocations are documented, not claimed eliminated. A concurrent edit to the older implementation plan is unrelated and excluded from Mapping staging.
 
-### Phase 02 (historical channel-layout checkpoint; revised tuple contract in progress)
+### Phase 02 (revised tuple contract; delivery pending)
 
 - Changes and affected public boundaries: Alchemist now owns immutable channel layouts, stable authored IDs, selection/group resolution, and pre-evaluation layout projections. Processor InputSet owns source-aligned runtime frames, validity/change/delivery state, and explicit source-schema reconciliation; backend callers can query the declared input layout.
 - Acceptance gates satisfied under the previous plan: focused tests cover mixed typed values, repeated source references, stable reorder, rename, disabled/re-enabled and missing inputs, metadata-only revision, empty inputs, wrong source types, and value updates without a layout rebuild. Extraction and grouping tests cover internal/custom Formula machinery, not the revised standard Mapping UX.
-- Remaining work under the revised plan: expose a scalar/ordered-tuple shape and whole-value validity contract for standard Mapping, test 1/N source semantics and heterogeneous diagnostics, and remove the need for authored channel selections/groups. Phase 04 will connect tuple stages; Phase 09 will present backend value-shape queries in the inspector.
+- Revised acceptance gates satisfied: `MappingValueShape` distinguishes incomplete, one typed source, and an ordered heterogeneous tuple without conflating a single array source with a tuple. InputSet retains authored identity, declared position, value validity, and resolved schema/metadata across reorder; source replacement invalidates the old schema. Existing focused tests cover repeated references, rename, disable/reenable, removal, compound values, metadata-only updates, and no value-driven shape rebuild. Input source authoring uses no channel selection or group.
+- Remaining Phase 02 work: none after delivery verification. Phase 03/04 own tuple-aware filter applicability and whole-value execution; Phase 09 presents the backend shape query.
 - Exact checks and outcomes: see validation table. The final 156/78 Alchemist/processor tests, strict Clippy, full workspace check, 531 app tests plus 1 audio-host integration test, root and Golden Core format, and whitespace checks passed.
 - Implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`, 2026-09-13T10:10:55+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; repository CI triggers on PRs and `main`.
 - Decisions/deviations and rationale: preserve dynamic source identity with an unresolved type until a backend schema event; never infer shape from ordinary value samples. The native frame can carry tuple-element validity while the existing managed runner is adapted. The user's later tuple decision superseded channel selections and grouping for standard Mapping; the historical implementation commit remains verified but this phase is reopened for the revised contract.
 - Revised WIP checkpoint: `1c70c88d8d3c92f147a5ab5f0c57c9f826a97595`, observed at `refs/heads/codex/builtin-mapping` on `origin` at 2026-09-13T12:50:56+02:00. It adds the scalar/tuple shape query and schema-preserving input reconciliation, but does not close Phase 02.
+- Revised Phase 02 implementation checkpoint A: pending commit/push verification. Direct pushes to this branch have no configured mandatory CI workflow; the targeted crate/app/workspace gates above passed.
 
 ### Phase 03 (in progress)
 
