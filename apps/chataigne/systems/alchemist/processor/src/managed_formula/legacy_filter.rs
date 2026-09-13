@@ -280,6 +280,101 @@ impl ManagedFilterPipelineRuntime {
     }
 }
 
+pub fn validate_trigger_filter_application(
+    instance: &chataigne_alchemist::ANodeInstance,
+    ctx: &CompileCtx<'_>,
+) -> Result<(), ManagedFormulaError> {
+    let layout = ChannelLayout::new(vec![chataigne_alchemist::ChannelDescriptor::input(
+        ValueLaneKey::new("trigger").expect("static trigger lane identity is non-empty"),
+        "Trigger",
+        StableRef::new(ValueTypeId::new("source"), "trigger"),
+        Some(ValueTypeId::new("trigger")),
+    )])
+    .expect("one static trigger lane has a valid layout");
+    let signature_ctx = SignatureCtx {
+        value_types: ctx.value_types,
+        properties: ctx.properties,
+    };
+    let application = ctx
+        .nodes
+        .resolve_managed_application(instance, &layout, &signature_ctx)
+        .map_err(|error| ManagedFormulaError::UnsupportedFilterPipeline(error.to_string()))?;
+    if application.cardinality != PipelineCardinality::WholeSet {
+        super::availability::validate_executable_filter_application(instance, &layout, ctx)
+            .map_err(|error| ManagedFormulaError::UnsupportedFilterPipeline(error.to_string()))?;
+    }
+    let pipeline = ManagedFilterPipelineRuntime::new(None, ctx)?;
+    let item = ManagedItemInstance {
+        id: chataigne_alchemist::ManagedItemId::new(),
+        anode: instance.clone(),
+        enabled: true,
+        ui_state: chataigne_alchemist::ManagedItemUiState::default(),
+    };
+    let key = ManagedFilterCompileKey {
+        item_type: ValueTypeId::new("trigger"),
+        lane_count: 1,
+    };
+    let mut compiled = pipeline.compile_for_key(std::slice::from_ref(&item), &key)?;
+    if application.cardinality == PipelineCardinality::WholeSet {
+        let declaration =
+            ctx.nodes
+                .get(&instance.type_id)
+                .ok_or_else(|| ManagedFormulaError::MissingFilterDeclaration {
+                    node_type: instance.type_id.clone(),
+                })?;
+        let signature = declaration.signature(&signature_ctx, instance, &instance.type_bindings);
+        let mut probe = item;
+        let mut has_boolean_auxiliary = false;
+        for input in &signature.inputs {
+            if application.auxiliary_inputs.contains(&input.id)
+                && input.constraint == chataigne_alchemist::TypeConstraint::Exact(ValueTypeId::new("bool"))
+            {
+                probe
+                    .anode
+                    .input_defaults
+                    .insert(input.id.clone(), RuntimeValue::Bool(false));
+                has_boolean_auxiliary = true;
+            }
+        }
+        if has_boolean_auxiliary {
+            compiled = pipeline.compile_for_key(&[probe], &key)?;
+        }
+        let inputs = chataigne_alchemist::RuntimeInputSnapshot::default();
+        let registries = chataigne_alchemist::RuntimeRegistries {
+            value_types: ctx.value_types,
+        };
+        let evaluation = EvaluationCtx {
+            logical_tick: 1,
+            delta_time: std::time::Duration::ZERO,
+            events: &[],
+            inputs: &inputs,
+            registries: &registries,
+        };
+        let values = ValueSet::with_entries(
+            1,
+            vec![ValueSetEntry::new(
+                ValueLaneKey::new("trigger").expect("static trigger lane identity is non-empty"),
+                "Trigger",
+                RuntimeValue::Trigger(golden_values::TriggerValue::fired(1, 1)),
+            )],
+        );
+        let result = compiled.evaluate(values, &evaluation)?;
+        let preserves_trigger = match result {
+            ManagedFilterOutput::Single(RuntimeValue::Trigger(_)) => true,
+            ManagedFilterOutput::ValueSet(values) => {
+                values.entries.len() == 1 && matches!(values.entries[0].value, RuntimeValue::Trigger(_))
+            }
+            _ => false,
+        };
+        if !preserves_trigger {
+            return Err(ManagedFormulaError::UnsupportedFilterPipeline(
+                "trigger filter must preserve a single trigger value".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, PartialEq, Eq)]
 struct ManagedFilterCompileKey {
     item_type: ValueTypeId,

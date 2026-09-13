@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 03 — backend palette integration (in progress); Phase 04 groundwork remains incomplete
+- Active phase: 02 — reconcile the typed source tuple contract after the product decision; Phase 03/04 groundwork remains incomplete
 - Last validated implementation commit: `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3` (Phase 03/04 WIP; Phase 02 is the last complete phase)
 - Last verified remote implementation commit: `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3` (Phase 03/04 WIP)
-- Current blockers: no environment blocker; Phase 03's backend Add palette still uses static roles, and Phase 04's Formula graph boundary and plan sharing remain open
-- Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; M01–M16 and M18–M20 acceptance cases
-- Next concrete action: connect the backend Add palette to the compiler-backed typed availability query without per-processor main-loop polling
-- Last updated: 2026-09-13T11:40:53+02:00
+- Current blockers: no environment blocker; the standard Mapping still uses an internal channel-oriented runner and lacks the scalar/tuple authoring boundary. Phase 03's palette and Phase 04's Formula graph boundary and plan sharing remain open.
+- Product checks still outstanding: revised M01–M16 and M18–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
+- Next concrete action: finish scalar/ordered-tuple shape and whole-value semantics for the standard Mapping, preserving custom Formula channel capabilities; then validate the backend filter palette against the exact tuple operation it creates
+- Last updated: 2026-09-13T12:50:18+02:00
 
 ## Phase ledger
 
@@ -19,9 +19,9 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
-| 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `8e82b40c` observed at remote; direct branch push has no required CI. |
-| 03 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_VERIFIED | NOT_RUN | WIP `fa4d16de` verified at remote; compiler-backed availability validates typed, mixed, and selected layouts, but the backend Add palette is still static. |
-| 04 | IN_PROGRESS | IN_PROGRESS | PASSED | PUSH_VERIFIED | NOT_RUN | WIP `fa4d16de` verified at remote; typed stages are connected to managed Formula and Golden parameter schemas. Formula graph boundaries and plan sharing remain open. |
+| 02 | IN_PROGRESS | IN_PROGRESS | RUNNING | NOT_COMMITTED | NOT_RUN | Historical channel-layout implementation `8e82b40c` is verified remotely; scalar/tuple shape and app unit tests pass, but whole-value Mapping behavior has no phase checkpoint. |
+| 03 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `fa4d16de` is verified remotely under earlier channel semantics. Tuple-aware palette and multi-input merge authoring remain open. |
+| 04 | IN_PROGRESS | IN_PROGRESS | NOT_RUN | PUSH_VERIFIED | NOT_RUN | WIP `fa4d16de` is verified remotely under earlier channel semantics. Whole-value tuple stages, Formula graph boundaries, and plan sharing remain open. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
 | 06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Inputs and command argument bindings. |
 | 07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Required filter catalog. |
@@ -34,18 +34,18 @@
 
 | Acceptance ID | Scenario | Owning phase | Test/evidence | Status |
 | --- | --- | --- | --- | --- |
-| M01 | Remap → Sum → Smooth → two commands | 04, 06 | Pending | NOT_RUN |
-| M02 | Pack Vec3 → Extract → reorder → Pack Vec3 | 04, 07 | Pending | NOT_RUN |
-| M03 | Mixed float/bool/string; float selection | 02, 04 | Pending | NOT_RUN |
-| M04 | Color extract, component smoothing, rebuild | 05, 07 | Pending | NOT_RUN |
+| M01 | Three floats → elementwise Remap → Sum → Smooth → two commands | 04, 06 | Pending | NOT_RUN |
+| M02 | X/Y/Z → elementwise filter → Pack Vec3 → one 3D command | 04, 06 | Pending | NOT_RUN |
+| M03 | Mixed float/bool/string → numeric filter diagnostic; explicit conversion | 02, 04 | Pending | NOT_RUN |
+| M04 | Color conversion or explicit extraction → typed command | 06, 07 | Pending | NOT_RUN |
 | M05 | Closed numeric suppressing gate | 05 | Pending | NOT_RUN |
 | M06 | Gate changes with steady source | 05 | Pending | NOT_RUN |
 | M07 | Hold/default first sample and reopen | 05 | Pending | NOT_RUN |
-| M08 | Rename/reorder/add channels during smoothing | 02, 05 | Pending | NOT_RUN |
+| M08 | Rename/reorder/add tuple inputs during elementwise smoothing | 02, 05 | Pending | NOT_RUN |
 | M09 | Shared structure, isolated processor/context state | 04, 05 | Pending | NOT_RUN |
 | M10 | External edits to coefficient, key, stop, binding | 03, 07, 08 | Pending | NOT_RUN |
-| M11 | Fan-out and multi-argument commands | 06 | Pending | NOT_RUN |
-| M12 | Unavailable source/target, type/selection changes | 02, 06 | Pending | NOT_RUN |
+| M11 | Whole-value fan-out and tuple-element command arguments | 06 | Pending | NOT_RUN |
+| M12 | Unavailable source/target and tuple type/arity changes | 02, 06 | Pending | NOT_RUN |
 | M13 | Repeat equal-valued triggers | 05 | Pending | NOT_RUN |
 | M14 | Persistence, copy, undo/redo, migration | 08 | Pending | NOT_RUN |
 | M15 | Managed regions plus extra Formula operations | 04 | Pending | NOT_RUN |
@@ -83,6 +83,11 @@
 | 2026-09-13T11:38+02:00 | 03/04 | working tree on `7469d0d5` | `.\tools\asio.ps1 -- cargo test-fast --locked -p chataigne_processor --quiet`; `cargo clippy --locked -p chataigne_alchemist -p chataigne_processor --all-targets -- -D warnings`; `.\tools\asio.ps1 -- cargo check --locked --workspace` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 88 processor tests pass after typed Formula integration; strict Clippy and full workspace type-check pass. |
 | 2026-09-13T11:38+02:00 | 03/04 | working tree on `7469d0d5` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 535 app tests pass, 5 existing manual tests ignored, 1 audio-host integration test passes; includes explicit schema and live parameter snapshot tests. This run began before the final enum boxing, which is covered by the workspace check and crate tests. |
 | 2026-09-13T11:40+02:00 | 03/04 | working tree on `7469d0d5` | `.\tools\asio.ps1 -- cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; root and Golden Core `cargo fmt --all`; `cargo fmt --all --check`; staged `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 161 Alchemist and 88 processor tests pass after final runtime boxing; formatter and staged whitespace checks pass. |
+| 2026-09-13T12:40+02:00 | 02 revised | working tree on `04c99834` | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet` | Windows x64, Rust 1.97.0 | PASSED | 161 Alchemist and 90 processor tests pass. Scalar/tuple shape test caught source schema loss on reorder; input reconciliation now retains a resolved schema only when authored identity and source reference agree, and replacement becomes unresolved. |
+| 2026-09-13T12:46+02:00 | 02/03 revised | working tree on `04c99834` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 backend_filter_palette_materializes_executable_variants_for_the_current_layout --quiet` | Windows x64, pinned ASIO SDK | PASSED | Backend palette materialization and availability test passed after a default incremental-link failure. |
+| 2026-09-13T12:46+02:00 | 02/03 revised | working tree on `04c99834` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --bin Chataigne2 --quiet` | Windows x64, pinned ASIO SDK | PASSED | 536 app unit tests passed, 5 existing manual qualification tests ignored. The broader `-p Chataigne2` command could not replace `target/debug/Chataigne2.exe` while another app process used it; the separate audio-host integration check remains outstanding for this revision. |
+| 2026-09-13T12:49+02:00 | 02/03 revised | working tree on `04c99834` | `CARGO_INCREMENTAL=0 .\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --test default_audio_hosts --quiet`; `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; strict crate Clippy; root and Golden Core `cargo fmt --all --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Audio-host integration test, 161 Alchemist and 90 processor tests, `-D warnings`, and both format scopes pass. Together with the scoped bin test, these cover the app package tests after the broad command encountered a file lock. |
+| 2026-09-13T12:49+02:00 | 02/03 revised | working tree on `04c99834` | `.\tools\asio.ps1 -- cargo check --locked --workspace`; `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check and whitespace validation pass after the tuple-shape and palette work. |
 
 ## Phase reports
 
@@ -109,33 +114,33 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; this repository triggers CI on PRs and `main`, and Phase 01 has no separately designated mandatory CI run.
 - Decisions/deviations and rationale: retain the JSON extension codec at actual graph/persistence boundaries; the managed processor handoff is native. Reuse scratch memory for stateless projections and make debug capture optional in the Alchemist evaluator. Remaining per-lane/property/evaluator allocations are documented, not claimed eliminated. A concurrent edit to the older implementation plan is unrelated and excluded from Mapping staging.
 
-### Phase 02
+### Phase 02 (historical channel-layout checkpoint; revised tuple contract in progress)
 
 - Changes and affected public boundaries: Alchemist now owns immutable channel layouts, stable authored IDs, selection/group resolution, and pre-evaluation layout projections. Processor InputSet owns source-aligned runtime frames, validity/change/delivery state, and explicit source-schema reconciliation; backend callers can query the declared input layout.
-- Acceptance gates satisfied: focused tests cover mixed typed values, repeated source references, stable reorder, rename, disabled/re-enabled and missing channels, removal, extraction/group insertion, metadata-only revision, empty inputs, wrong source types, and value updates without a layout rebuild. The full app suite remains green.
-- Remaining work: no Phase 02 behavior work. Phase 04 will migrate the homogeneous managed runner from ValueSet stage shape to layout/frame; Phase 06 will connect Golden source schema events; Phase 09 will present backend layout queries in the inspector.
+- Acceptance gates satisfied under the previous plan: focused tests cover mixed typed values, repeated source references, stable reorder, rename, disabled/re-enabled and missing inputs, metadata-only revision, empty inputs, wrong source types, and value updates without a layout rebuild. Extraction and grouping tests cover internal/custom Formula machinery, not the revised standard Mapping UX.
+- Remaining work under the revised plan: expose a scalar/ordered-tuple shape and whole-value validity contract for standard Mapping, test 1/N source semantics and heterogeneous diagnostics, and remove the need for authored channel selections/groups. Phase 04 will connect tuple stages; Phase 09 will present backend value-shape queries in the inspector.
 - Exact checks and outcomes: see validation table. The final 156/78 Alchemist/processor tests, strict Clippy, full workspace check, 531 app tests plus 1 audio-host integration test, root and Golden Core format, and whitespace checks passed.
 - Implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`, 2026-09-13T10:10:55+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; repository CI triggers on PRs and `main`.
-- Decisions/deviations and rationale: preserve dynamic source identity with an unresolved type until a backend schema event; never infer layout from ordinary value samples. The native frame remains the authoritative source of channel validity while the existing managed ValueSet runner is migrated in Phase 04.
+- Decisions/deviations and rationale: preserve dynamic source identity with an unresolved type until a backend schema event; never infer shape from ordinary value samples. The native frame can carry tuple-element validity while the existing managed runner is adapted. The user's later tuple decision superseded channel selections and grouping for standard Mapping; the historical implementation commit remains verified but this phase is reopened for the revised contract.
 
 ### Phase 03 (in progress)
 
 - Changes and affected public boundaries: ANode declarations now resolve capabilities from configured instances; `ManagedApplication` validates signatures, selections, groups, auxiliary types, and state scope. Math has per-channel and combine modes using its graph kernel. The processor binds auxiliary socket values or references through Formula properties and resolves contextual references per channel. Backend managed socket edits update a live binding and the authored instance without rebuilding the processor.
 - Acceptance gates satisfied: host-level parameter edit changes output without scheduling a rebuild; processor tests show unrelated SMA history survives an auxiliary edit; graph and Mapping Math use the same operation; invalid selection, arity, mode, and auxiliary types diagnose.
-- Remaining work: the backend Add palette must query actual managed compiler availability for the current layout and creation defaults. The public query now uses the typed compiler, but the palette still advertises static role matches. Do not mark Phase 03 complete before that boundary is implemented.
+- Remaining work: the backend Add palette must query actual compiler availability for the current scalar/tuple value shape and create the exact configuration it validates. Multi-input merging, including Sum/Average and X/Y/Z packing, must be straightforward without channel selectors. Do not mark Phase 03 complete from the channel-oriented query alone.
 - Exact checks and outcomes: see Phase 03 validation rows. An incremental MSVC app link failed with unresolved symbols in an unrelated module; the non-incremental full app run passed.
 - Implementation commits: WIP `e3b37a7b96267f4981ac6afe392d489c500f197f` and WIP `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`; neither is the Phase 03 checkpoint A.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, 2026-09-13T11:40:53+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_RUN` while the phase is in progress.
-- Decisions/deviations and rationale: keep role, settings, and operation behavior on the existing ANode declaration. Config changes remain structural; runtime socket values update compiled properties. No second kernel or UI-owned behavior registry was added.
+- Decisions/deviations and rationale: keep role, settings, and operation behavior on the existing ANode declaration. Config changes remain structural; runtime socket values update compiled properties. No second kernel or UI-owned behavior registry was added. Earlier per-channel Math mode work may serve tuple elementwise processing or custom Formulas, but does not itself satisfy the revised standard Mapping contract.
 
 ### Phase 04 (in progress)
 
 - Changes and affected public boundaries: a typed managed stage compiles a configured ANode once for selected channel groups, retains group-local Alchemist memory, and emits a stable output layout/frame. The value pipeline now composes these stages after explicit Golden parameter source-schema reconciliation. Host snapshots supply live values and source-change listeners. Extract Vec3 completes the focused Pack/Extract/Math/Pack composition case. The old runner is isolated to trigger flow.
-- Acceptance gates satisfied: focused tests execute `Remap → Sum → Smooth` with an unselected Boolean passing through, `Pack Vec3 → Extract Vec3 → Math → Pack Vec3`, and multi-output Color extraction; evaluation keeps state across ticks. The app test proves a declared parameter reaches a managed Formula through the host snapshot. Full workspace type-check and app tests pass.
-- Remaining work: preserve surrounding Formula graph operations, share compatible executable specializations, complete dependency tables and authored preview attribution, and diagnose unsupported graph boundaries. Phase 04 is still incomplete.
+- Acceptance gates satisfied under the earlier channel plan: focused tests execute `Remap → Sum → Smooth` with an unselected Boolean passing through, `Pack Vec3 → Extract Vec3 → Math → Pack Vec3`, and multi-output Color extraction; evaluation keeps state across ticks. The app test proves a declared parameter reaches a managed Formula through the host snapshot. These do not validate the new whole-value tuple semantics.
+- Remaining work: adapt stages to scalar/tuple semantics without implicit subset/pass-through routing; preserve surrounding Formula graph operations; share compatible executable specializations; complete dependency tables and authored preview attribution; and diagnose unsupported graph boundaries. Phase 04 is still incomplete.
 - Exact checks and outcomes: see the 03/04 validation row. The app test suite passed before the new stage runtime was added; the workspace check covers current app compilation.
 - Implementation commits: WIP `74f5bd4581e23687775770f6cd32b65217cec351` and WIP `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`; neither is the Phase 04 checkpoint A.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3`, 2026-09-13T11:40:53+02:00 (`git ls-remote`).
@@ -144,7 +149,7 @@
 
 ## Blockers and handoff
 
-- What failed: the compiler-backed availability query is not yet used by the backend palette, and managed sidecar execution still skips surrounding Formula graph operations. An incremental MSVC app link failed earlier on unrelated module symbols; disabling incremental compilation passed the full app suite. Plain workspace check requires the pinned ASIO SDK wrapper.
-- Last known-good checkpoint: Phase 02 complete at `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`; Phase 03/04 WIP `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3` is validated and verified on `origin/codex/builtin-mapping`.
+- What failed or changed: the user replaced the standard Mapping channel model with one ordered source tuple and whole-value linear filtering. The existing channel-oriented tests and stages are groundwork, not revised acceptance evidence. Managed sidecar execution still skips surrounding Formula graph operations. An incremental MSVC app link failed earlier on unrelated module symbols; disabling incremental compilation passed the app unit suite. The broad app package test command could not replace an executable in use; the app unit binary and audio-host integration test then passed separately. Plain workspace check requires the pinned ASIO SDK wrapper.
+- Last known-good checkpoint: historical Phase 02 channel layout at `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`; Phase 03/04 WIP `fa4d16de11aa75e8fe0d2790f0bdd24da3c0e7e3` was validated and verified on `origin/codex/builtin-mapping` before the product-contract revision.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: wire backend Add palette availability for the current typed layout and exact creation defaults; then close Phase 03 before continuing Phase 04.
+- Next action: establish the scalar/tuple backend boundary and verify that a standard Mapping can read several sources as one ordered value; then close the revised Phase 02 before completing the tuple-aware Phase 03 palette.

@@ -2,8 +2,8 @@ use std::{sync::Arc, time::Duration};
 
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, ChannelMetadata, EvaluationCtx, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
-    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, RuntimeInputSnapshot,
-    RuntimeRegistries, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
+    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, MappingValueShape,
+    RuntimeInputSnapshot, RuntimeRegistries, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -277,6 +277,7 @@ fn disable_rename_reorder_and_remove_keep_identity_and_report_missing_source() {
 #[test]
 fn empty_input_set_is_incomplete_and_duplicate_authored_id_is_rejected() {
     let mut runtime = InputSetRuntime::new(vec![]).unwrap();
+    assert_eq!(runtime.value_shape(), MappingValueShape::Incomplete);
     let inputs = RuntimeInputSnapshot::default();
     let value_types = ValueTypeRegistry::with_primitives();
     let registries = RuntimeRegistries {
@@ -287,6 +288,69 @@ fn empty_input_set_is_incomplete_and_duplicate_authored_id_is_rejected() {
     assert!(empty.frame.slots().is_empty());
     let item = crate::InputSetItem::new(ValueLaneKey::new("same").unwrap(), "A", input_ref("a"));
     assert!(InputSetRuntime::new(vec![item.clone(), item]).is_err());
+}
+
+#[test]
+fn authored_sources_form_one_scalar_or_ordered_typed_tuple() {
+    let collection = InputSetRuntime::new(vec![
+        crate::InputSetItem::new(
+            ValueLaneKey::new("collection").unwrap(),
+            "Collection",
+            input_ref("collection"),
+        )
+        .with_value_type(ValueTypeId::new("value_array")),
+    ])
+    .unwrap();
+    assert_eq!(
+        collection.value_shape(),
+        MappingValueShape::Single(Some(ValueTypeId::new("value_array")))
+    );
+    let shared = input_ref("shared");
+    let flag = input_ref("flag");
+    let first = crate::InputSetItem::new(ValueLaneKey::new("x").unwrap(), "X", shared.clone())
+        .with_value_type(ValueTypeId::new("float"));
+    let second = crate::InputSetItem::new(ValueLaneKey::new("y").unwrap(), "Y", shared)
+        .with_value_type(ValueTypeId::new("float"));
+    let third = crate::InputSetItem::new(ValueLaneKey::new("flag").unwrap(), "Flag", flag);
+    let mut runtime = InputSetRuntime::new(vec![first.clone()]).unwrap();
+    assert_eq!(
+        runtime.value_shape(),
+        MappingValueShape::Single(Some(ValueTypeId::new("float")))
+    );
+    runtime
+        .reconcile_items(vec![first.clone(), second.clone(), third.clone()])
+        .unwrap();
+    assert_eq!(
+        runtime.value_shape(),
+        MappingValueShape::Tuple(vec![Some("float".into()), Some("float".into()), None])
+    );
+    assert!(!runtime.value_shape().is_resolved());
+    runtime
+        .reconcile_source_schema(|source| {
+            (source == &third.source).then(|| ChannelSourceSchema {
+                value_type: ValueTypeId::new("bool"),
+                metadata: ChannelMetadata::default(),
+            })
+        })
+        .unwrap();
+    assert_eq!(
+        runtime.value_shape(),
+        MappingValueShape::Tuple(vec![Some("float".into()), Some("float".into()), Some("bool".into())])
+    );
+    assert!(runtime.value_shape().is_resolved());
+    runtime.reconcile_items(vec![third, second, first]).unwrap();
+    assert_eq!(
+        runtime.value_shape(),
+        MappingValueShape::Tuple(vec![Some("bool".into()), Some("float".into()), Some("float".into())])
+    );
+    runtime
+        .reconcile_items(vec![crate::InputSetItem::new(
+            ValueLaneKey::new("flag").unwrap(),
+            "Replacement",
+            input_ref("replacement"),
+        )])
+        .unwrap();
+    assert_eq!(runtime.value_shape(), MappingValueShape::Single(None));
 }
 
 #[test]

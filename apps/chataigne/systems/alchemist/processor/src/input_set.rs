@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use chataigne_alchemist::{
     ChannelDescriptor, ChannelLayout, ChannelLayoutError, ChannelMetadata, Diagnostic, DiagnosticOrigin,
     DiagnosticSeverity, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionKind, StableRef, SurfaceItemKind, ValueTypeId,
+    ManagedRegionKind, MappingValueShape, StableRef, SurfaceItemKind, ValueTypeId,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -74,7 +74,22 @@ impl InputSetRuntime {
         })
     }
 
-    pub fn reconcile_items(&mut self, items: Vec<InputSetItem>) -> Result<(), InputSetError> {
+    pub fn reconcile_items(&mut self, mut items: Vec<InputSetItem>) -> Result<(), InputSetError> {
+        let previous: HashMap<_, _> = self.items.iter().map(|item| (&item.key, item)).collect();
+        for item in &mut items {
+            if item.value_type.is_some() {
+                continue;
+            }
+            if let Some(previous) = previous
+                .get(&item.key)
+                .filter(|previous| previous.source == item.source)
+            {
+                item.value_type = previous.value_type.clone();
+                if item.metadata == ChannelMetadata::default() {
+                    item.metadata = previous.metadata.clone();
+                }
+            }
+        }
         let channels = input_descriptors(&items);
         let layout = Arc::new(self.frame.layout().reconcile(channels)?);
         self.frame = self.frame.with_layout(layout);
@@ -159,6 +174,11 @@ impl InputSetRuntime {
     #[must_use]
     pub fn layout(&self) -> &Arc<ChannelLayout> {
         self.frame.layout()
+    }
+
+    #[must_use]
+    pub fn value_shape(&self) -> MappingValueShape {
+        self.frame.layout().mapping_value_shape()
     }
 
     pub fn materialize(&mut self, ctx: &EvaluationCtx<'_>) -> InputSetMaterialization<'_> {

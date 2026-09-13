@@ -541,13 +541,13 @@ const reduceEventInPlace = (
 				}
 				requireResync();
 			} else if (
-				event.kind.topic === 'state_processor_manager_items_changed' &&
+				event.kind.topic === 'golden.node_creatable_items_changed' &&
 				event.kind.origin !== undefined
 			) {
-				const managerNode = state.nodesById.get(event.kind.origin);
-				if (managerNode && Array.isArray(event.kind.payload)) {
+				const node = state.nodesById.get(event.kind.origin);
+				if (node && Array.isArray(event.kind.payload)) {
 					state.nodesById.set(event.kind.origin, {
-						...managerNode,
+						...node,
 						creatable_user_items: event.kind.payload as import('../types').UiCreatableUserItem[]
 					});
 					stateChanged = true;

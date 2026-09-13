@@ -12,7 +12,7 @@ records evidence.
 
 | Responsibility | Owner |
 | --- | --- |
-| ANode declarations, signatures, typed stage layouts, graph lowering, and reusable kernels | `apps/chataigne/systems/alchemist/src/` |
+| ANode declarations, signatures, typed value shapes, graph lowering, and reusable kernels | `apps/chataigne/systems/alchemist/src/` |
 | Input and command binding, per-processor/context memory, managed execution, and send policy | `apps/chataigne/systems/alchemist/processor/` |
 | Backend node materialization and edit transactions | `apps/chataigne/systems/alchemist/integration/` |
 | Mapping inspector and preview presentation | `apps/chataigne/ui/src/lib/systems/alchemist/` |
@@ -26,33 +26,42 @@ semantics, not export a transient compiled plan.
 
 ## Stage and binding contract
 
-Each stage receives an ordered typed layout and a frame of values with separate
-validity, change, and delivery state. Channel identities derive from authored input
-items or filter output ports, not source references, labels, or list positions.
-Compound values stay in one channel until explicitly extracted. A selection is
-`All compatible` or explicit channel identities; missing explicit identities are
-errors. Unselected channels pass through. Pack and reduce consume declared order
-and insert a replacement at the earliest consumed position; extraction replaces
-the source in place. Reorder and duplicate have declared output order and identity.
-Runtime-sized collections remain collection-valued.
+One source supplies one typed value; multiple sources supply one ordered typed
+tuple. Every filter consumes the preceding value and produces the next value.
+An elementwise filter can process compatible tuple elements in parallel; a
+reduction merges tuple elements into one value; Pack Vec3 can turn X/Y/Z inputs
+into one typed Vec3 command argument. Compound values remain whole until an
+explicit operation extracts or converts them. Mixed tuples require a declared
+compatible operation or a diagnostic; the Mapping does not silently select a
+subset. It has no authored channels, channel groups, or independent routing
+lanes. Custom Formulas own branching and per-source paths.
+
+Each authored source still has a stable identity for persistence, editing,
+diagnostics, and compatible elementwise state. The tuple shape records source
+order and types; runtime frames carry separate validity, change, and delivery
+state. Reorder changes tuple shape but cannot silently transfer state between
+sources. Internal `ChannelLayout` and frame machinery can represent tuple
+elements while the implementation is migrated. Runtime-sized collections remain
+values and do not change authored tuple arity with sample length.
 
 A stage's executable capability comes from its configured ANode and resolved
-signature. Runtime coefficients and condition values update bound slots; layout,
-selection, and operation changes produce a revisioned structural candidate.
+signature. Runtime coefficients and condition values update bound slots; tuple
+shape and operation changes produce a revisioned structural candidate.
 Resource edits update their resource revision and sampler. Compilation occurs away
 from ordinary evaluation and publishes only a complete current revision. An
 invalid committed revision does not dispatch through an obsolete plan.
 
-Suppression is a delivery state, never a zero, Unit, or removed channel. A closed
+Suppression is a delivery state, never a zero, Unit, or removed tuple element. A closed
 suppressing gate freezes affected downstream temporal state until reopened.
 `Hold last` has no value before its first accepted sample unless an explicit
 default was authored. `Output default` delivers its authored value. Trigger
 occurrences retain multiplicity and order. Runtime timestamps and label changes
 alone do not mark semantic values dirty.
 
-Each output is a command invocation with authored argument bindings to channels,
-compatible components, constants, or existing property/context values. More than
-one command may read one channel. Validate all local targets and required
+Each output is a command invocation with authored argument bindings to the final
+whole value, explicit tuple elements, compatible components, constants, or
+existing property/context values. More than one command may read one result.
+Validate all local targets and required
 arguments before accepting the dispatch batch. Update per-output change caches
 only after local acceptance; external IO and retry remain with module runtimes.
 
@@ -76,22 +85,21 @@ keys, property frames, per-node input/output vectors, and enabled-output lists;
 these are measured and reduced in later performance work rather than described
 as allocation-free.
 
-Phase 02 introduces `ChannelLayout` and `ValueLaneKey` in the app-owned
-Alchemist crate. A descriptor holds one channel's type, authored identity,
-semantic output port, provenance, label, and available range/unit metadata.
-Structural revisions track identity, order, type, binding, and port changes;
-presentation revisions also track labels and metadata. InputSet exposes the
-declared layout even when a source is disabled or unavailable. Explicit backend
-source-schema events resolve dynamic source types; ordinary value samples do not
-rebuild layouts. `ChannelFrame` in the processor crate stores values, validity,
-change, and delivery in separate aligned slots. Compound and array values remain
-single slots. A missing or wrong-typed source stays non-dispatching and diagnoses
-the authored input without filling a default. Selection resolves stable IDs;
-an all-compatible selection with no matches reports an identity-stage status.
-Pack/reduce, extraction, duplicate, and reorder layout projections resolve their
-identities and positions before runtime evaluation.
+Phase 02 introduced `ChannelLayout` and `ValueLaneKey` in the app-owned
+Alchemist crate. Its descriptors and `ChannelFrame` can carry the types, authored
+source identities, metadata, and runtime validity of a tuple. InputSet retains
+declared positions when a source is disabled or unavailable, and explicit backend
+schema events resolve dynamic source types without rebuilding on value samples.
+This internal representation also supports selections and groups for custom
+Formula work. The revised standard Mapping contract still needs a scalar/tuple
+shape boundary and whole-value filter semantics; the old Phase 02 validation
+alone does not prove them. `MappingValueShape` now reports incomplete, scalar,
+or ordered tuple source shapes without introducing authored channels. Input
+reconciliation retains a resolved type across reorder when both source identity
+and reference are unchanged, and resets it when the source is replaced. Filters
+and outputs still need to consume this boundary end to end.
 
-The value pipeline now executes typed frames through a composable stage chain.
+The current value pipeline executes typed frames through a composable stage chain.
 Golden parameter declarations resolve input schemas during processor rebuilds;
 the host reads live values from its parameter snapshot and marks dependent
 processors dirty on source changes. The final frame still passes through the
@@ -99,26 +107,33 @@ older positional OutputSet adapter. Phase 06 will replace that adapter with
 explicit command argument bindings. Ordinary value samples do not alter stage
 layouts.
 
-Phase 03 extends ANode role capabilities to the configured instance. The
-application resolver checks primary, auxiliary, and output sockets against its
-signature, resolves stable-channel selections and authored groups, and reports
-the state scope. Math uses its graph kernel in both `each` and `combine` modes.
+Phase 03 groundwork extends ANode role capabilities to the configured instance.
+The application resolver checks primary, auxiliary, and output sockets against
+its signature and reports the state scope. Its selection/group support can
+serve custom Formulas, while Mapping still needs automatic tuple operations.
+Math uses its graph kernel in both `each` and `combine` modes.
 Elementwise auxiliary sockets are bound as Formula properties; they can read a
-constant, a shared reference, or a channel-context reference at evaluation time.
+constant, a shared reference, or an element-context reference at evaluation time.
 An edit to an authored managed input socket updates a compiled binding and its
-processor instance without discarding lane memory. Structural config edits still
+processor instance without discarding compatible memory. Structural config edits still
 rebuild the processor. The availability query validates candidates with the
-typed stage compiler, including selected and mixed layouts. The backend Add
-palette still uses static role lists, so Phase 03 remains open.
+typed stage compiler, including selected and mixed layouts. The current backend
+Filter Add work validates against the internal layout but is not yet a
+whole-value/tuple Mapping palette. Trigger choices use the trigger runner's compiler. A
+structural change to managed regions refreshes the affected palette and emits
+one reusable creatable-items event; ordinary input samples and runtime socket
+edits do not recompute it. The UI applies that event to its graph store.
 
-The typed stage compiler builds one Alchemist graph per configured stage and
-applies it to stable selected channel groups. It keeps per-group memory,
+The current typed stage compiler builds one Alchemist graph per configured stage and
+applies it to selected internal elements. It keeps per-element memory,
 reusable output frames, and a structural input-layout check. Focused tests run
 `Remap → Sum → Smooth`, `Pack Vec3 → Extract Vec3 → Math → Pack Vec3`, mixed
-pass-through, and multi-output Color extraction. The value pipeline uses this
-chain after backend schema reconciliation. The older value runner remains only
-for the trigger pipeline; typed flow control and the Formula graph boundary are
-unfinished. A custom Formula with managed regions and surrounding graph nodes
+pass-through, and multi-output Color extraction under the earlier channel
+semantics. The value pipeline uses this chain after backend schema reconciliation.
+It must be adapted so a standard Mapping treats the full scalar/tuple as one
+linear value and does not expose implicit pass-through lanes. The older value
+runner remains only for the trigger pipeline; typed flow control and the Formula
+graph boundary are unfinished. A custom Formula with managed regions and surrounding graph nodes
 must execute those graph nodes as well.
 
 Existing projects, Action and custom Formulas, processor contexts, state-machine
@@ -151,8 +166,9 @@ whole-product dispatch times. The comparison shows shorter managed-runner
 latency in the measured numeric cases; it says nothing yet about mixed layouts,
 temporal behavior, or large processor counts.
 
-Phase 11 must extend the fixture to 1,000 and 10,000 processors, mixed layouts,
-aggregation, sparse changes, multiple contexts, and bounded temporal history.
+Phase 11 must extend the fixture to 1,000 and 10,000 processors, scalar and mixed
+tuples, elementwise work, aggregation, compound construction, sparse changes,
+multiple contexts, and bounded temporal history.
 Record raw samples, allocations, cache counts, and p50/p95/p99 on matching
 hardware before setting regression thresholds. The five-case reference above
 must not be used as a threshold for the unmeasured scenarios.

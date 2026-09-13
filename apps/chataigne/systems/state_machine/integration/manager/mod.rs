@@ -7,8 +7,8 @@ use std::{
 use chataigne_alchemist::{
     compile_graph, formula_input_value_ref, ANodeId, AlchemistFormula, AlchemistGraphDomain, AxisSet,
     CompiledAlchemistFormula, ContextAxisId, ContextItemId, ContextKey, ContextKeyPart, ContextValuePath,
-    DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef, ManagedItemId, ManagedItemInstance,
-    ManagedItemUiState, ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent,
+    DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef, ManagedItemId,
+    OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent,
     RuntimeRegistries, SignatureCtx, SocketId, StableRef, SurfaceItemId, TriggerValue, ValueTypeId,
 };
 use chataigne_state_machine::{
@@ -56,14 +56,14 @@ use golden_values::Value as RuntimeValue;
 use smallvec::SmallVec;
 
 use crate::app::systems_alchemist_formula::{
-    anode_from_snapshot, constant_anode_for_value_param, constraint_value_type,
+    constant_anode_for_value_param, constraint_value_type,
     formula_from_snapshot_cached, local_signature_bindings,
     param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param,
     same_type_numeric_changes_for_param, ANodeMaterializationCache, ANODE_NODE_TYPE,
     FORMULA_EXTERNAL_READ_ONLY_TAG,
 };
 use crate::app::systems_alchemist_processor::{
-    processor_managed_region_decl_id, FormulaCatalog, FormulaSourceRef, PROCESSOR_FORMULA_SOURCE_DECL_ID,
+    managed_regions_from_snapshot, processor_formula_source_ref, FormulaCatalog, FormulaSourceRef,
     PROCESSOR_MANAGED_REGIONS_DECL_ID, PROCESSOR_MANAGED_REGION_DECL_PREFIX,
 };
 
@@ -4768,17 +4768,6 @@ fn apply_processor_context_property_bindings(
     collect_processor_context_property_bindings(snapshot, processor_node, processor_id, processor, provider);
 }
 
-fn processor_formula_source_ref(snapshot: &ProcessTreeSnapshot, processor_node: NodeId) -> Option<FormulaSourceRef> {
-    if let Some(ParamValue::Str(source)) = child_param(snapshot, processor_node, PROCESSOR_FORMULA_SOURCE_DECL_ID)
-        .filter(|value| matches!(value, ParamValue::Str(source) if !source.is_empty()))
-    {
-        if let Ok(source) = FormulaSourceRef::parse_processor_create_type(source) {
-            return Some(source);
-        }
-    }
-    child_reference_uuid(snapshot, processor_node, "formula").map(FormulaSourceRef::project_uuid)
-}
-
 fn processor_formula_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     processor_node: NodeId,
@@ -4807,39 +4796,7 @@ fn apply_processor_managed_regions(
     formula: &AlchemistFormula,
     processor: &mut Processor,
 ) -> Option<()> {
-    let Some(regions_root) = snapshot.find_child_by_decl_id(processor_node, PROCESSOR_MANAGED_REGIONS_DECL_ID) else {
-        return Some(());
-    };
-    for definition in &formula.surface.managed_regions {
-        let decl_id = processor_managed_region_decl_id(definition.id.as_str());
-        let Some(region_node) = snapshot.find_child_by_decl_id(regions_root, &decl_id) else {
-            continue;
-        };
-        let mut region = ManagedRegionInstance {
-            region_id: definition.id.clone(),
-            items: Vec::new(),
-        };
-        for child in snapshot.child_ids(region_node) {
-            let child_node = snapshot.node(child)?;
-            if child_node.node_type != ANODE_NODE_TYPE {
-                continue;
-            }
-            let anode = anode_from_snapshot(snapshot, child).ok()?;
-            region.items.push(ManagedItemInstance {
-                id: ManagedItemId::from_uuid(child_node.uuid.0),
-                anode,
-                enabled: child_node.enabled,
-                ui_state: ManagedItemUiState {
-                    collapsed: child_node.presentation.collapsed,
-                },
-            });
-        }
-        processor
-            .formula_instance
-            .managed_regions
-            .regions
-            .insert(definition.id.clone(), region);
-    }
+    processor.formula_instance.managed_regions = managed_regions_from_snapshot(snapshot, processor_node, formula)?;
     Some(())
 }
 

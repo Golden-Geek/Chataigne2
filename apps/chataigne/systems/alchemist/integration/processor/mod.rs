@@ -26,6 +26,12 @@ use crate::app::systems_alchemist_formula::{
 use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
 
 mod catalog;
+mod managed_regions;
+mod palette;
+mod source_schema;
+
+pub(crate) use managed_regions::managed_regions_from_snapshot;
+pub(crate) use source_schema::{managed_source_node, managed_source_schema};
 
 use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
 
@@ -206,6 +212,29 @@ const PROCESSOR_MANAGED_REGION_ROLE_TAG_PREFIX: &str =
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
+
+pub(crate) fn processor_formula_source_ref(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+) -> Option<FormulaSourceRef> {
+    if let Some(ParamValue::Str(source)) = snapshot
+        .find_child_by_decl_id(processor_node, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+        .and_then(|node| snapshot.node(node))
+        .and_then(|node| node.param_value.as_ref())
+        .filter(|value| matches!(value, ParamValue::Str(source) if !source.is_empty()))
+    {
+        if let Ok(source) = FormulaSourceRef::parse_processor_create_type(source) {
+            return Some(source);
+        }
+    }
+    snapshot.find_child_by_decl_id(processor_node, "formula")
+        .and_then(|node| snapshot.node(node))
+        .and_then(|node| match node.param_value.as_ref()? {
+            ParamValue::Reference(reference) => Some(reference.uuid()),
+            _ => None,
+        })
+        .map(FormulaSourceRef::project_uuid)
+}
 
 fn processor_container_rules() -> UserContainerRules {
     UserContainerRules::new(&[
@@ -670,7 +699,12 @@ impl Node for StateProcessorManagedRegions {
 }
 
 #[node("state_processor_managed_region", label = "Managed Region")]
-pub struct StateProcessorManagedRegion {}
+pub struct StateProcessorManagedRegion {
+    #[state(default = Vec::new())]
+    filter_items: Vec<UserCreatableItem>,
+    #[state(default = HashSet::new())]
+    structural_palette_params: HashSet<NodeId>,
+}
 
 #[node("state_processor_managed_region", from_struct)]
 impl Node for StateProcessorManagedRegion {
@@ -680,11 +714,18 @@ impl Node for StateProcessorManagedRegion {
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
         let roles = managed_region_roles_from_tags(&self.node_data().meta.tags);
+        if roles.contains(&SurfaceItemKind::Filter) {
+            return item_kind == ANODE_ITEM_KIND
+                && self.filter_items.iter().any(|item| item.node_type == item_type);
+        }
         anode_container_accepts_for_roles(item_type, item_kind, &roles)
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         let roles = managed_region_roles_from_tags(&self.node_data().meta.tags);
+        if roles.contains(&SurfaceItemKind::Filter) {
+            return self.filter_items.clone();
+        }
         anode_creatable_items_for_roles(&roles)
     }
 
@@ -700,6 +741,40 @@ impl Node for StateProcessorManagedRegion {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_edit_name = false;
         self.node_data_mut().meta.user_permissions = permissions;
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        if !managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Filter)
+        {
+            return;
+        }
+        let subscriptions = ctx.tree_snapshot().and_then(|snapshot| {
+            let regions_root = snapshot.node(self.id())?.parent?;
+            let processor = snapshot.node(regions_root)?.parent?;
+            let formula_params = ["formula", PROCESSOR_FORMULA_SOURCE_DECL_ID]
+                .into_iter()
+                .filter_map(|decl_id| snapshot.find_child_by_decl_id(processor, decl_id))
+                .collect::<Vec<_>>();
+            Some((regions_root, formula_params))
+        });
+        if let Some((regions_root, formula_params)) = subscriptions {
+            ctx.add_event_listener_subtree(self.id(), regions_root, u32::MAX);
+            for param in formula_params {
+                ctx.add_event_listener(self.id(), param);
+            }
+        }
+        self.refresh_filter_palette(ctx);
+    }
+
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        if filter_palette_events_require_refresh(&ctx.events, &self.structural_palette_params) {
+            self.refresh_filter_palette(ctx);
+        }
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        filter_palette_events_require_refresh(events, &self.structural_palette_params)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -808,9 +883,6 @@ impl Node for StateProcessorManager {
     }
 }
 
-const PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC: &str =
-    "state_processor_manager_items_changed";
-
 impl StateProcessorManager {
     fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
         self.formula_items = ctx
@@ -819,7 +891,7 @@ impl StateProcessorManager {
             .unwrap_or_default();
         let all_items = self.user_creatable_items();
         let _ = ctx.emit_custom_payload(
-            PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC,
+            golden_core::events::NODE_CREATABLE_ITEMS_CHANGED_TOPIC,
             Some(self.id()),
             &all_items,
         );
@@ -958,6 +1030,36 @@ pub struct StateProcessor {
     subscribed_formula: Option<NodeId>,
     #[state(default = HashSet::new())]
     condition_valid_params: HashSet<NodeId>,
+}
+
+fn filter_palette_events_require_refresh(
+    events: &EventFrame,
+    structural_params: &HashSet<NodeId>,
+) -> bool {
+    events.iter().any(|event| match &event.kind {
+        EventKind::ParamChanged { param, .. } => structural_params.contains(param),
+        EventKind::Custom(_) => false,
+        _ => true,
+    })
+}
+
+impl StateProcessorManagedRegion {
+    fn refresh_filter_palette(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+        let params = palette::structural_palette_params(snapshot, self.id());
+        let items = palette::filter_palette_from_snapshot(snapshot, self.id());
+        self.structural_palette_params = params;
+        if self.filter_items != items {
+            self.filter_items = items;
+            let _ = ctx.emit_latest_custom_payload(
+                golden_core::events::NODE_CREATABLE_ITEMS_CHANGED_TOPIC,
+                Some(self.id()),
+                &self.filter_items,
+            );
+        }
+    }
 }
 
 #[node(

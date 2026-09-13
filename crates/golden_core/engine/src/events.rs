@@ -8,6 +8,9 @@ pub use golden_model::CustomEventRetention;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+/// Announces a new `UserCreatableItem` list for the node in `CustomEvent::origin`.
+pub const NODE_CREATABLE_ITEMS_CHANGED_TOPIC: &str = "golden.node_creatable_items_changed";
+
 /// Timestamped engine event emitted while applying edits.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Event {

@@ -198,26 +198,39 @@ pub(crate) fn anode_container_accepts_for_roles(
     if item_type == ANODE_NODE_TYPE {
         return true;
     }
-    let Some(type_id) = item_type.strip_prefix(ANODE_CREATE_PREFIX) else {
+    let Some((type_id, variant_index)) = anode_create_spec(item_type) else {
         return false;
     };
     registry()
         .get(&ANodeTypeId::new(type_id))
         .is_some_and(|declaration| {
-            roles.is_empty()
+            variant_index.is_none_or(|index| {
+                declaration.managed_application_variants().get(index).is_some()
+            }) && (roles.is_empty()
                 || roles
                     .iter()
-                    .any(|role| declaration.supports_role(*role))
+                    .any(|role| declaration.supports_role(*role)))
         })
+}
+
+fn anode_create_spec(node_type: &str) -> Option<(&str, Option<usize>)> {
+    let spec = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+    if let Some((type_id, index)) = spec.split_once(ANODE_MANAGED_VARIANT_SEPARATOR) {
+        return Some((type_id, Some(index.parse().ok()?)));
+    }
+    Some((spec, None))
 }
 
 pub(crate) fn create_anode_user_item(node_type: &str) -> Option<Box<dyn Node>> {
     if node_type == ANODE_NODE_TYPE {
         return Some(Box::new(AlchemistANode::new()));
     }
-    let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+    let (type_id, variant_index) = anode_create_spec(node_type)?;
     let registry = registry();
     let declaration = registry.get(&ANodeTypeId::new(type_id))?;
+    if variant_index.is_some_and(|index| declaration.managed_application_variants().get(index).is_none()) {
+        return None;
+    }
     Some(Box::new(AlchemistANode::for_type(
         type_id,
         declaration.label(),
@@ -229,15 +242,21 @@ pub(crate) fn create_anode_user_item_tree(node_type: &str) -> Option<NodeTree> {
     if node_type == ANODE_NODE_TYPE {
         return Some(NodeTree::new(AlchemistANode::new()));
     }
-    let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+    let (type_id, variant_index) = anode_create_spec(node_type)?;
     let registry = registry();
     let declaration = registry.get(&ANodeTypeId::new(type_id))?;
-    Some(anode_tree_for_declaration(
-        type_id,
-        declaration.label(),
-        declaration.category(),
-        declaration.as_ref(),
-    ))
+    match variant_index {
+        Some(index) => {
+            let variant = declaration.managed_application_variants().into_iter().nth(index)?;
+            anode_tree_for_configured_instance(type_id, declaration.category(), declaration.as_ref(), variant)
+        }
+        None => Some(anode_tree_for_declaration(
+            type_id,
+            declaration.label(),
+            declaration.category(),
+            declaration.as_ref(),
+        )),
+    }
 }
 
 pub(super) fn create_formula_container_item(node_type: &str) -> Option<Box<dyn Node>> {
@@ -469,7 +488,10 @@ pub(super) fn config_field_trees_for_instance(
     );
     let mut trees = Vec::new();
 
-    for field in config_fields_for_instance(declaration, instance) {
+    for mut field in config_fields_for_instance(declaration, instance) {
+        if let Some(value) = instance.config.get(field.id.as_str()) {
+            field.default_value = value.clone();
+        }
         let value_decl = config_decl_id(field.id.as_str());
         if field.editor.as_deref() == Some("gradient") {
             let mut gradient = GradientNode::new_with_label(&field.label);
@@ -536,8 +558,30 @@ pub(super) fn anode_tree_for_declaration(
     category: &str,
     declaration: &dyn chataigne_alchemist::ANodeDeclaration,
 ) -> NodeTree {
-    let mut instance = ANodeInstance::new(declaration.type_id(), label);
-    instance.config = default_config_for_declaration(declaration);
+    anode_tree_for_configured_instance(
+        type_id,
+        category,
+        declaration,
+        ANodeInstance::new(declaration.type_id(), label),
+    )
+    .expect("a default ANode instance has a materializable config")
+}
+
+fn anode_tree_for_configured_instance(
+    type_id: &str,
+    category: &str,
+    declaration: &dyn chataigne_alchemist::ANodeDeclaration,
+    mut instance: ANodeInstance,
+) -> Option<NodeTree> {
+    let mut config = default_config_for_declaration(declaration);
+    for (field, value) in &instance.config.fields {
+        if !config.fields.contains_key(field) {
+            return None;
+        }
+        config.set(field.clone(), value.clone());
+    }
+    instance.config = config;
+    let label = instance.label.as_str();
 
     let value_types = value_types();
     let signature_ctx = SignatureCtx {
@@ -556,8 +600,11 @@ pub(super) fn anode_tree_for_declaration(
     let mut inputs_tree = NodeTree::new(declared_folder("Inputs", "inputs"));
     for input in signature.inputs {
         let value_type = constraint_value_type(&input.constraint, &signature_bindings);
-        let default = input
-            .default_value
+        let default = instance
+            .input_defaults
+            .get(&input.id)
+            .cloned()
+            .or(input.default_value)
             .or_else(|| default_runtime_value(&value_type).ok())
             .unwrap_or(RuntimeValue::Float(0.0));
         inputs_tree.push_child(input_socket_tree(
@@ -580,10 +627,10 @@ pub(super) fn anode_tree_for_declaration(
     }
 
     let anode = AlchemistANode::for_type(type_id, label, category);
-    NodeTree::new(anode)
+    Some(NodeTree::new(anode)
         .with_child(NodeTree::new(anode_position_parameter()))
         .with_child(NodeTree::new(anode_size_parameter()))
         .with_child(config_tree)
         .with_child(inputs_tree)
-        .with_child(outputs_tree)
+        .with_child(outputs_tree))
 }

@@ -12,7 +12,7 @@ use super::managed_formula::{
 use crate::value_set_pipeline::ValueSetPipelineRuntime;
 use crate::{
     ManagedFilterAvailabilityError, RuntimeInputBinding, executable_filter_applications,
-    validate_executable_filter_application,
+    validate_executable_filter_application, validate_trigger_filter_application,
 };
 use crate::{ValueLaneKey, ValueSet, ValueSetEntry};
 
@@ -73,6 +73,33 @@ fn palette_only_returns_applications_the_current_managed_compiler_can_execute() 
         validate_executable_filter_application(&math, &unresolved, &ctx),
         Err(ManagedFilterAvailabilityError::UnresolvedInputType)
     ));
+}
+
+#[test]
+fn trigger_filter_availability_uses_the_trigger_pipeline_compiler() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let default_gate = ANodeInstance::new(ANodeTypeId::new("condition_gate"), "Condition Gate");
+    assert!(validate_trigger_filter_application(&default_gate, &ctx).is_ok());
+    let mut gate = ANodeInstance::new(ANodeTypeId::new("condition_gate"), "Condition Gate");
+    gate.config.set("mode", RuntimeValue::String("block_trigger".into()));
+    let gate_result = validate_trigger_filter_application(&gate, &ctx);
+    assert!(gate_result.is_ok(), "{gate_result:?}");
+    let remap = ANodeInstance::new(ANodeTypeId::new("remap"), "Remap");
+    let trigger = ChannelLayout::new(vec![ChannelDescriptor::input(
+        ValueLaneKey::new("trigger").unwrap(),
+        "Trigger",
+        StableRef::new(ValueTypeId::new("source"), "trigger"),
+        Some(ValueTypeId::new("trigger")),
+    )])
+    .unwrap();
+    assert!(validate_executable_filter_application(&remap, &trigger, &ctx).is_err());
+    assert!(validate_trigger_filter_application(&remap, &ctx).is_err());
 }
 
 #[test]

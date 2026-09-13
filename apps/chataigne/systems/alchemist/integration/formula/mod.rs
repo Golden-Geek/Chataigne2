@@ -113,6 +113,7 @@ pub(crate) const FORMULA_COPY_SOURCE_DECL_ID: &str = "formula_copy_source";
 pub(crate) const ANODE_ITEM_KIND: &str = "alchemist_anode";
 pub(crate) const CONNECTION_ITEM_KIND: &str = "alchemist_connection";
 pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
+pub(crate) const ANODE_MANAGED_VARIANT_SEPARATOR: &str = "@managed/";
 pub(crate) const PROPERTY_ITEM_KIND: &str = "alchemist_property";
 pub(crate) const PROPERTY_MANAGER_ITEM_KIND: &str =
     "alchemist_property_manager";

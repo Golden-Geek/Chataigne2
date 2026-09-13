@@ -127,6 +127,26 @@ pub struct ChannelLayout {
     presentation_revision: u64,
 }
 
+/// The value presented to one linear Mapping filter. Internal channel slots are
+/// an implementation detail; several authored sources form one ordered tuple.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MappingValueShape {
+    Incomplete,
+    Single(Option<ValueTypeId>),
+    Tuple(Vec<Option<ValueTypeId>>),
+}
+
+impl MappingValueShape {
+    #[must_use]
+    pub fn is_resolved(&self) -> bool {
+        match self {
+            Self::Incomplete => false,
+            Self::Single(value_type) => value_type.is_some(),
+            Self::Tuple(value_types) => value_types.iter().all(Option::is_some),
+        }
+    }
+}
+
 impl ChannelLayout {
     #[must_use]
     pub fn has_same_structure(&self, other: &Self) -> bool {
@@ -164,6 +184,15 @@ impl ChannelLayout {
     #[must_use]
     pub fn channels(&self) -> &[ChannelDescriptor] {
         &self.channels
+    }
+
+    #[must_use]
+    pub fn mapping_value_shape(&self) -> MappingValueShape {
+        match self.channels.as_ref() {
+            [] => MappingValueShape::Incomplete,
+            [single] => MappingValueShape::Single(single.value_type.clone()),
+            elements => MappingValueShape::Tuple(elements.iter().map(|element| element.value_type.clone()).collect()),
+        }
     }
 
     #[must_use]

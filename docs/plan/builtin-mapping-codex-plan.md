@@ -2,9 +2,9 @@
 
 ## 1. Mission and starting point
 
-Implement the built-in Mapping as an Alchemist Formula with the familiar **Inputs → Filters → Outputs** workflow. Every filter must consume the typed channel layout produced by its predecessor. Packing, extraction, aggregation, conversion, and ordinary value processing must compose freely throughout the chain.
+Implement the built-in Mapping as an Alchemist Formula with the familiar **Inputs → Filters → Outputs** workflow. One source supplies one typed value; several sources supply one ordered, heterogeneous tuple. Each filter consumes the preceding value and produces the next value. Elementwise operations over compatible tuple elements, merging and aggregation, conversion, packing, and ordinary value processing must compose freely throughout the chain. Three X/Y/Z parameters can therefore be processed together and delivered as one typed 3D command argument.
 
-Keep exactly one Mapping entry in the processor creation menu. Multiple inputs, conditions, and multiple outputs are capabilities of that Mapping, not separate processor products. Reserve custom Formulas for genuinely graph-shaped logic, not ordinary linear chains that happen to change types or channel counts.
+Keep exactly one Mapping entry in the processor creation menu. Multiple inputs, conditions, and multiple outputs are capabilities of that Mapping, not separate processor products. Standard Mapping has one linear value path; it does not expose independent channels, channel selections, channel groups, or routing lanes. Custom Formulas provide explicit branching, independent per-source paths, and arbitrary graph-shaped routing. A Mapping can still apply an operation elementwise to a tuple, reduce several values to one, or construct a compound value without becoming a custom Formula.
 
 The reviewed Chataigne2 baseline is `5dd0be6f90d861573b3faa1dd1fe0c447dee0a5a`; `main` was rechecked against that commit on September 12, 2026. The Chataigne 1 comparison baseline is `f8634ae02c3efd1620077d5be3e387f896f5ddbc`. These are reference points, not instructions to reset a newer checkout. [R1]
 
@@ -18,7 +18,7 @@ Read the root `AGENTS.md` and applicable nested instructions before editing. [R6
 
 Preserve the existing product: panels, inspectors, outliner, Formula editor, module integrations, processor behavior, state machine, contexts, multiplexing, scripting, undo/redo, and existing development workflows. No phase may intentionally leave the application uncompilable or replace established UI with a placeholder.
 
-All authored input, filter, selection, grouping, binding, and output configuration must remain accessible through normal backend nodes and parameters. States, other Mappings, scripts, remote control, and the inspector must reach the same backend behavior. Compiled plans are execution representations, not hidden sources of truth.
+All authored input, filter, tuple-operation, binding, and output configuration must remain accessible through normal backend nodes and parameters. States, other Mappings, scripts, remote control, and the inspector must reach the same backend behavior. Compiled plans are execution representations, not hidden sources of truth.
 
 Implement calculations once, in reusable Alchemist operations. Do not create Mapping-specific copies of Math, Smooth, conversion, gating, or command dispatch. Any necessary Golden extension must be app-neutral and public. Do not introduce `golden_mapping`, move Alchemist into Golden, or import private files across crate boundaries.
 
@@ -152,29 +152,23 @@ Keep ANode contracts, signatures, and compilation under `apps/chataigne/systems/
 
 An optimized managed-stage plan is permitted only as a lowering of those same constructs. Custom Formulas and Mapping must share operations, flow semantics, state contracts, and effects. Do not clone a complete Formula graph per processor or multiplex lane.
 
-### 4.2 Typed layouts and identity
+### 4.2 Typed source value and identity
 
-Separate immutable layout descriptors from mutable runtime frames. Reuse existing suitable types; the conceptual names `PipelineLayout`, `ChannelId`, and `PipelineFrame` are not mandates to duplicate them.
+Separate immutable value-shape descriptors from mutable runtime frames. The shape is either one source's declared type or an ordered tuple of declared source types; it includes available range, unit, and provenance metadata. A runtime frame carries values plus separate validity, change, and delivery state. Runtime timestamps or labels must not make an otherwise unchanged value dirty. Existing `ChannelLayout` and frame types may represent tuple elements internally while the transition is implemented; they are not the standard Mapping's authoring or UI contract.
 
-A layout describes ordered channels, their stable identities, individual types, semantic ports, labels, provenance, and available range/unit information. A frame holds values plus separate validity, change, and delivery state. Runtime timestamps or labels must not make an otherwise unchanged value dirty.
+Heterogeneous tuples such as `(float, bool, vec3, string)` are supported. A Vec3, Color, or array remains one typed value. A tuple is distinct from a runtime-sized array: its arity and element types come from authored sources or a filter's declared output, never from changing sample lengths. Zero configured inputs is an incomplete, non-dispatching Mapping with actionable diagnostics; zero configured outputs is a valid non-dispatching authoring state.
 
-Mixed layouts such as `[float, bool, vec3, string]` are supported. A Vec3, Color, or array remains one typed value until explicitly extracted. Zero configured inputs is an incomplete, non-dispatching Mapping with actionable diagnostics; zero configured outputs is a valid non-dispatching authoring state.
+Each authored input retains a stable identity for editing, persistence, diagnostics, and compatible temporal state. Identity derives from the input item, not its source target, label, or list index. Two inputs referring to the same source remain distinct tuple positions. Reordering changes tuple order and therefore the shape presented to downstream filters; it must never silently transfer incompatible state or retarget output bindings. Temporary source unavailability preserves the declared tuple position and reports validity rather than shifting later elements.
 
-Input identity derives from the authored input item, not the source target or list index. Two inputs referring to the same source remain distinct. One-to-one filters preserve identity; aggregate/pack outputs use stable filter/group/output-port identities; extraction derives child identities from source and component; explicit duplicate outputs have authored identities. Reordering never transfers state or rebinds outputs accidentally.
-
-Selections are either `All compatible` or explicit stable channel references. Unselected channels pass through. Explicit incompatible or missing selections diagnose rather than silently retarget. If `All compatible` selects nothing, treat the stage as identity with visible informational status, not a fabricated output.
-
-Pack/reduce operations consume declared ordered selections and insert their replacement outputs at the earliest consumed position. Unconsumed channels retain order. Extract replaces each selected compound at its position. Reorder and duplicate use explicit declared order. Document exceptions for operations whose semantics require another rule.
-
-Runtime-sized collections remain collection-valued channels. Unbounded collection-to-channel expansion is outside this implementation. Fixed-size, explicitly configured extraction/duplication is required; values must not trigger graph rebuilding merely because an array length changes.
+An elementwise filter applies its declared operation to compatible tuple elements and preserves the tuple shape and positions; its applicability to mixed tuples must be explicit. A merge or reduction consumes the tuple as one input and produces one value. Packing three numeric tuple elements into Vec3 produces one Vec3; explicit projection or extraction produces a declared value or tuple shape. Filters must not create implicit independent routing lanes, pass-through groups, or automatic channel selections. Unbounded expansion of runtime-sized collections into authored tuple elements is outside this implementation.
 
 ### 4.3 Filter applications and live control
 
-A managed filter application resolves an ANode declaration, application mode, selected channels/groups, primary and auxiliary socket bindings, output layout, identity rules, parameter slots, state scope, and scheduling requirements.
+A managed filter application resolves an ANode declaration, application mode, input and output value shapes, primary and auxiliary socket bindings, parameter slots, state scope, and scheduling requirements.
 
-Support per-channel transforms, per-channel type conversion, reduction across channels, packing, extraction, reorganization, and whole-stream flow control. Resolve capabilities from the configured application and signature, not only a static cardinality enum.
+Support elementwise tuple transforms and conversions, reduction across tuple elements, packing, extraction, compound conversion, and whole-value flow control. Resolve capabilities from the configured application and signature, not only a static cardinality enum. An incompatible tuple must diagnose or require an explicit conversion; it must never be silently narrowed to a subset.
 
-Math must support both `Apply to each` and `Combine selected`, using the same numerical implementation. Auxiliary operands can use supported constants, properties, references, and context bindings. Define subtraction/division fold order explicitly.
+Math must support `Apply to each` on compatible tuple elements and `Combine tuple` for ordered numeric operands, using the same numerical implementation as graph Math. Sum, average, and other merges must be simple to insert for multiple sources. Auxiliary operands can use supported constants, properties, references, and context bindings. Define subtraction/division fold order explicitly.
 
 Classify settings as runtime values, structural configuration, resource revisions, or presentation. Runtime coefficients and gate conditions update slots without recompiling. Structural changes revalidate the affected plan. Curve/gradient changes update their existing resources and derived samplers, not the entire Formula graph. A live-bound value is never constant-folded as an immutable literal.
 
@@ -190,7 +184,7 @@ Distinguish unchanged, suppressed, invalid, explicit default, and held values. S
 
 A suppressing gate blocks affected downstream delivery and freezes affected downstream temporal state by default; upstream stages may continue. Hold/default modes supply actual values and may allow downstream temporal processing. Reductions suppress when a required operand is suppressed; using old operands requires an explicit policy. On reopening, make the current valid sample eligible for delivery without recompilation. Define hold-before-first-sample behavior without manufacturing an implicit zero.
 
-State identity includes processor, required processor-context key, authored filter identity, channel/group identity, and semantic state slot. Processor contexts and Mapping channels are distinct. Reconcile sparse lane pools at structural/context membership changes, not by rebuilding active-key collections every tick.
+State identity includes processor, required processor-context key, authored filter identity, semantic state slot, and tuple-element identity only when an elementwise stateful operation needs it. A standard Mapping has no independent routing channel pool. Reconcile sparse element state at structural/context membership changes, not by rebuilding active-key collections every tick.
 
 Preserve compatible state across rename, reorder, and unrelated additions. A type change, source replacement, or change in an upstream temporal dependency requires deliberate per-operation reset/migration rules; stable identity alone is not proof that old state remains valid. Reuse processor lifecycle policies. The statechart retains one global active-state truth.
 
@@ -200,9 +194,9 @@ Use shared engine scheduling and event contracts, not a thread or timer per Mapp
 
 ### 4.5 Inputs and outputs
 
-Read a coherent source snapshot with explicit Golden projections and context resolution. Missing/disabled sources retain declared identity and produce appropriate validity; do not shift subsequent channels. Explicit removal changes layout. Never fabricate a default source value unless the user selected a fallback policy.
+Read a coherent source snapshot with explicit Golden projections and context resolution. Missing/disabled sources retain their authored tuple position and produce appropriate validity; do not shift subsequent elements. Explicit removal changes the tuple shape. Never fabricate a default source value unless the user selected a fallback policy.
 
-Each output is a normal command invocation with stable argument bindings, not a positional partner of one ValueSet entry. Support channels, compatible component projections, constants, and existing property/context bindings. Multiple commands may read the same final channel without a Duplicate filter.
+Each output is a normal command invocation with stable argument bindings, not a positional partner of a tuple element or ValueSet entry. Support the whole final value, explicit tuple-element or compatible component projections, constants, and existing property/context bindings. Multiple commands may read the same final value without a Duplicate filter. A Vec3 result can bind directly to one Vec3 command argument; a tuple can bind its elements to separate arguments when requested.
 
 Keep compound values typed unless the command binding explicitly projects or expands them. Verify target and argument compatibility before enqueueing the local dispatch batch. Structural/binding errors prevent malformed partial batches; intentional gate suppression is normal flow, not an error. Define which commands are eligible from their required argument deliveries.
 
@@ -232,29 +226,29 @@ Replace the managed ValueSet JSON encode/decode handoff with native typed data t
 
 **Exit gates:** existing Remap, Smooth, aggregate, Pack Vec3, and Action tests remain valid. Preview-off execution produces correct outputs; skipped unchanged nodes expose their current results. Instrumentation verifies zero intermediate JSON encoding and zero debug samples when capture is off. Characterize remaining allocations rather than claiming they are already eliminated.
 
-### Phase 02 — Typed channel layouts and stable identity
+### Phase 02 — Typed source value and stable input identity
 
-**Work:** implement heterogeneous descriptors/frames, stable channel identity, selection/grouping contracts, compound preservation, range/provenance metadata, and structural-versus-value revisions.
+**Work:** implement a typed value shape for one source and an ordered heterogeneous tuple shape for several sources, stable authored input identity, compound preservation, range/provenance metadata, and structural-versus-value revisions. Reuse existing internal layout/frame machinery where helpful without exposing authored Mapping channels.
 
-Validate identity uniqueness and type/frame consistency at authoring/materialization boundaries. Resolve output identities for pack/extract/duplicate before evaluation. Preserve declaration identity through temporary source unavailability and input disabling. Add backend-owned layout queries needed by later UI work.
+Validate identity uniqueness, tuple arity, and type/frame consistency at authoring/materialization boundaries. Preserve source identity and tuple position through temporary unavailability and input disabling. Add backend-owned shape queries needed by later UI work.
 
-**Exit gates:** tests cover mixed types, repeated references to one source, stable reorder, source rename, disable/reenable, removal diagnostics, extraction identity, grouping order, metadata-only updates, and empty/incomplete authoring states. Value changes do not rebuild layouts.
+**Exit gates:** tests cover scalar and mixed tuple shapes, repeated references to one source, stable reorder, source rename, disable/reenable, removal diagnostics, compound preservation, metadata-only updates, and empty/incomplete authoring states. Value changes do not rebuild shapes. No standard Mapping edit requires a channel selection or group.
 
 ### Phase 03 — Declarative filter applications and runtime bindings
 
-**Work:** extend the existing ANode capability API to describe instance-aware managed applications, multiple outputs, auxiliary bindings, selections, grouping, and state scope. Replace static-only assumptions without introducing a second registry of operation behavior.
+**Work:** extend the existing ANode capability API to describe instance-aware whole-value and tuple applications, multiple outputs, auxiliary bindings, and state scope. Replace static-only assumptions without introducing a second registry of operation behavior. Existing selection/group capabilities may serve custom Formulas internally; they are not required to author a standard Mapping filter.
 
-Implement Math's per-channel and combine modes. Bind runtime settings through existing parameter/property/context contracts. Add declaration validation so the palette cannot advertise an application that cannot lower or execute.
+Implement Math's elementwise and tuple-combine modes. Bind runtime settings through existing parameter/property/context contracts. Add declaration validation so the palette cannot advertise an application that cannot lower or execute for the current whole-value or tuple shape.
 
-**Exit gates:** a parameter change made through a backend edit updates filter behavior without recreating the plan or resetting unrelated memory. The same Math kernel serves graph and Mapping use. Signatures diagnose unsupported selection/type/socket combinations. Role/capability queries return executable choices, not optimistic placeholders.
+**Exit gates:** a parameter change made through a backend edit updates filter behavior without recreating the plan or resetting unrelated memory. The same Math kernel serves graph and Mapping use. Signatures diagnose unsupported tuple type, arity, and socket combinations. The backend palette returns executable choices with the creation configuration that was validated, including a three-operand merge where offered.
 
 ### Phase 04 — Arbitrary composable managed compilation
 
-**Work:** replace the terminal-projection restriction with generic composition of typed stages. Support repeated pack/extract/reduce/convert operations before, between, and after per-channel operations. Remove hardcoded Pack Vec3 projection dispatch in favor of declared socket/output bindings.
+**Work:** replace the terminal-projection restriction with generic composition of typed whole-value and tuple stages. Support repeated pack/extract/reduce/convert operations before, between, and after elementwise operations. Remove hardcoded Pack Vec3 projection dispatch in favor of declared socket/output bindings.
 
 Lower managed regions through actual Formula boundaries and preserve all surrounding authored operations. Support compatible plan sharing, specialization caching, reusable result buffers, dependency tables, instance binding maps, and authored preview attribution. Keep compilation out of steady-state evaluation.
 
-**Exit gates:** execute `Remap → Sum → Smooth`, `Pack Vec3 → Extract → Math → Pack Vec3`, and heterogeneous selected-channel chains. A custom Formula with managed regions plus an extra operation runs that operation. Equivalent instances share executable plans but not mutable state. Unsupported graphs diagnose instead of silently switching to a reduced evaluator.
+**Exit gates:** execute three floats → elementwise Remap → Sum → Smooth and X/Y/Z → elementwise filter → Pack Vec3 → one Vec3 command. A heterogeneous tuple either has a declared applicable operation or an actionable diagnostic, never an implicit subset selection. A custom Formula with managed regions plus an extra operation runs that operation. Equivalent instances share executable plans but not mutable state. Unsupported graphs diagnose instead of silently switching to a reduced evaluator.
 
 ### Phase 05 — Flow control, temporal scheduling, and state correctness
 
@@ -262,7 +256,7 @@ Lower managed regions through actual Formula boundaries and preserve all surroun
 
 Integrate processor contexts, sparse state, compatible migration, gate reopening, lifecycle reset/freeze/resume, and bounded retention. Publish revised plans atomically and reject stale builds. Reuse engine cycle/transaction handling for mappings controlling other mappings or their own settings.
 
-**Exit gates:** tests prove closed suppressing gates send no zero, defaults send only when selected, repeated triggers remain distinct, a changed gate condition reacts to an unchanged source, and smoothing progresses while its source is steady when appropriate. Context/channel histories remain isolated; rename/reorder do not exchange them. Add/remove/edit operations retain only compatible state, release removed state, and never execute partially updated chains.
+**Exit gates:** tests prove closed suppressing gates send no zero, defaults send only when selected, repeated triggers remain distinct, a changed gate condition reacts to an unchanged source, and smoothing progresses while its source is steady when appropriate. Context and elementwise tuple histories remain isolated; rename/reorder do not exchange them. Add/remove/edit operations retain only compatible state, release removed state, and never execute partially updated chains.
 
 ### Phase 06 — Complete input resolution and command output binding
 
@@ -270,7 +264,7 @@ Integrate processor contexts, sparse state, compatible migration, gate reopening
 
 Preserve existing generic parameter commands and module-provided commands. Do not introduce another device dispatch path. Expose binding diagnostics through the standard backend surfaces and include routing dependencies in execution planning.
 
-**Exit gates:** test one result driving several commands; multiple channels driving several arguments of one command; constants and compound projections; unavailable sources; removed selections; invalid targets; disabled outputs; changed destinations with unchanged data; suppression; enqueue rejection; and correct event order. Disabling or reordering an output must not remap unrelated bindings.
+**Exit gates:** test one result driving several commands; one tuple driving several arguments of one command; X/Y/Z packed into one Vec3 command argument; constants and compound projections; unavailable sources; changed tuple shapes; invalid targets; disabled outputs; changed destinations with unchanged data; suppression; enqueue rejection; and correct event order. Disabling or reordering an output must not remap unrelated bindings.
 
 ### Phase 07 — Complete the required filter catalog
 
@@ -278,9 +272,9 @@ Preserve existing generic parameter commands and module-provided commands. Do no
 
 | Family | Required Mapping capability |
 |---|---|
-| Numeric | Remap, Clamp, Math per-channel/across selected channels, negation/inverse, existing applicable numeric functions |
+| Numeric | Remap, Clamp, elementwise/tuple-combine Math, negation/inverse, existing applicable numeric functions |
 | Reduction | Sum, product, min, max, average, ordered difference, explicitly defined two-value distance |
-| Layout | Select/reorder/duplicate, Pack/Extract Vec2 and Vec3, Pack/Extract Color |
+| Tuple and compound | Pack/Extract Vec2 and Vec3, Pack/Extract Color, explicit tuple-to-compound and compound-to-tuple operations |
 | Conversion | Explicit integer/float/boolean/string conversion, component projections, declared vector/color conversions |
 | Curves | Curve remapping through existing Golden curve data and sampling facilities |
 | Temporal | Existing smoothing methods, speed, hold/freeze, one-tick delay, bounded timed delay |
@@ -289,13 +283,13 @@ Preserve existing generic parameter commands and module-provided commands. Do no
 
 For timed delay, define clock, bounded capacity, overflow diagnostics, memory limits, event ordering, and disable/reset policy. Do not expose unbounded queues. Define integer overflow, division by zero, invalid parsing, non-finite values, empty reduction, incompatible components, and missing operands for every affected operation.
 
-Curve keys and gradient stops remain editable/addressable through existing node contracts. Reuse Golden inspectors and compiled samplers. Do not add Mapping-only curve or gradient models. Collection split may remain collection-valued; unbounded channel explosion and arbitrary Script/subformula filters are not required for this release.
+Curve keys and gradient stops remain editable/addressable through existing node contracts. Reuse Golden inspectors and compiled samplers. Do not add Mapping-only curve or gradient models. Runtime-sized collections remain values; unbounded collection-to-tuple expansion and arbitrary Script/subformula filters are not required for this release. Explicit routing, branch-specific processing, and arbitrary component rewiring belong in custom Formulas.
 
-**Exit gates:** every advertised filter has declaration, layout, numerical/flow, state, error, persistence, and graph/Mapping equivalence tests where applicable. Live external edits to coefficients, curve keys, and gradient stops update processing. No unavailable filter is advertised as implemented.
+**Exit gates:** every advertised filter has declaration, value-shape, numerical/flow, state, error, persistence, and graph/Mapping equivalence tests where applicable. Live external edits to coefficients, curve keys, and gradient stops update processing. No unavailable filter is advertised as implemented.
 
 ### Phase 08 — Backend authoring, asset, and persistence integration
 
-**Work:** finish manager materialization and edit intents for inputs, filters, selections, grouping, and command argument bindings. Batch known node trees and transactions; avoid sequential child-creation storms and full snapshot rebuilds.
+**Work:** finish manager materialization and edit intents for inputs, linear filters, tuple-operation configuration, and command argument bindings. Batch known node trees and transactions; avoid sequential child-creation storms and full snapshot rebuilds.
 
 Update/export `Mapping.json` through supported tooling, retaining stable built-in catalog identity and hidden-from-project-library behavior. Keep one Mapping entry and normal read-only built-in inspection. Add precise migrations for changed processor/filter/output records and changed gate semantics. Remove superseded wrappers only after their necessary migration or explicit diagnostic boundary exists.
 
@@ -305,17 +299,17 @@ Regenerate affected DTOs and update consumers in the same phase. Test create/edi
 
 ### Phase 09 — Complete the Svelte 5 Mapping inspector
 
-**Work:** preserve the Inputs → Filters → Outputs interaction. Add compact filter rows, standard parameter editors, backend-derived compatible palettes, channel/group selectors, before/after layout summaries, command argument binding editors, and actionable diagnostics.
+**Work:** preserve the Inputs → Filters → Outputs interaction. Add compact filter rows, standard parameter editors, backend-derived compatible palettes, a scalar/tuple/compound value-shape summary before and after each filter, command argument binding editors, and actionable diagnostics. Do not add channel or group selectors to standard Mapping.
 
 Provide opt-in, bounded value previews for selected stages and one processor context; virtualize large lists where appropriate. Distinguish authored, pending, and active runtime revisions. Preview focus must not mutate runtime state or Formula defaults. Unmount/session changes unsubscribe and release capture/history.
 
 Use Golden inspector hooks and controls, runes, keyed stable identities, relative units, and generated DTOs. Do not reimplement type solving, label allocation, binding defaults, or structure repair in TypeScript.
 
-**Exit gates:** frontend tests cover ordinary creation/editing and repeated layout changes, keyboard/focus behavior where supported, undo/redo, diagnostics, preview context changes, and teardown. Verify the actual product surface rather than only mounting an isolated component. No mandatory preview traffic when the inspector is closed. Existing panels and Formula editor remain usable.
+**Exit gates:** frontend tests cover ordinary creation/editing and repeated tuple-shape changes, keyboard/focus behavior where supported, undo/redo, diagnostics, preview context changes, and teardown. Verify the actual product surface rather than only mounting an isolated component. No mandatory preview traffic when the inspector is closed. Existing panels and Formula editor remain usable.
 
 ### Phase 10 — Convert a configured Mapping to a custom Formula
 
-**Work:** implement an atomic backend operation that materializes the current configured Mapping, including selections, settings, auxiliary bindings, resources, output commands, and relevant exposed properties. Duplicating the empty built-in asset does not satisfy this phase.
+**Work:** implement an atomic backend operation that materializes the current configured Mapping, including its ordered sources, linear tuple operations, settings, auxiliary bindings, resources, output commands, and relevant exposed properties. Duplicating the empty built-in asset does not satisfy this phase.
 
 Use the same reusable operations and managed constructs so the result can be edited as a normal Formula. Preserve compatible state with a tested identity map, or perform an explicit documented reset where migration is unsupported. Keep processor identity and external references stable where possible.
 
@@ -337,18 +331,18 @@ Track these IDs from Phase 00 and add more where implementation reveals addition
 
 | ID | Scenario | Required result |
 |---|---|---|
-| M01 | Three floats → Remap → Sum → Smooth → two commands | Mid-chain aggregation, downstream state, ordinary fan-out |
-| M02 | Three floats → Pack Vec3 → Extract → reorder → Pack Vec3 | Repeated layout transitions and stable component bindings |
-| M03 | Float + bool + string; select only the float | Mixed types work; unselected channels remain intact |
-| M04 | Color → Extract RGB → Smooth selected components → rebuild | Per-component state; declared alpha handling |
+| M01 | Three floats → elementwise Remap → Sum → Smooth → two commands | Tuple element processing, mid-chain merge, downstream state, ordinary fan-out |
+| M02 | X/Y/Z parameters → elementwise filter → Pack Vec3 → one 3D command | Parallel tuple processing and one typed compound command argument |
+| M03 | Float + bool + string → incompatible numeric filter | Heterogeneous tuples diagnose instead of silently processing a subset; explicit compatible conversion works |
+| M04 | One Color → Color conversion or explicit extraction → typed command | Compound values stay whole until an explicit operation; declared alpha handling |
 | M05 | Closed numeric suppressing gate | No unintended zero/default command |
 | M06 | Gate condition changes while source is steady | Output eligibility changes without source-change dependence |
 | M07 | Hold/default before first accepted sample and after reopening | Explicit, deterministic behavior without fabricated values |
-| M08 | Rename/reorder/add unrelated channels during smoothing | Compatible state preserved; no cross-channel transfer |
+| M08 | Rename/reorder/add inputs during elementwise smoothing | Compatible state preserved; no cross-element transfer when tuple order changes |
 | M09 | Identical filters across processors and multiplex contexts | Shared executable structure; isolated state and settings |
 | M10 | State/script/Mapping changes coefficient, key, stop, or binding | Same backend behavior as inspector edits |
-| M11 | Several outputs bind one channel; one output binds several | Typed argument routing without positional pairing |
-| M12 | Source/target unavailable, type changed, selection removed | Stable identities and useful diagnostics; no malformed partial batch |
+| M11 | Several outputs bind one final value; one command binds several tuple elements | Typed argument routing without positional pairing |
+| M12 | Source/target unavailable or tuple element type/arity changes | Stable input identities and useful diagnostics; no malformed partial batch |
 | M13 | Same-valued trigger events repeat | Occurrences/order preserved under event contracts |
 | M14 | Save/load, copy/duplicate, undo/redo, semantic migration | Identities and authored meaning retained |
 | M15 | Custom Formula contains managed regions and extra operations | All authored graph semantics execute |
@@ -358,7 +352,7 @@ Track these IDs from Phase 00 and add more where implementation reveals addition
 | M19 | Mapping output changes its own or another Mapping's controls | Normal queued transaction/cycle rules; no recursive runaway |
 | M20 | Inspector/context switching and large lists | Bounded capture, cleanup, and preserved product responsiveness |
 
-Add property-based layout tests and deterministic differential tests using existing test tooling where suitable. Numeric comparisons use declared tolerances; identities, ordering, delivery flags, and intent counts use exact assertions. Avoid tautological tests that merely compare a function with itself through two wrappers.
+Add property-based tuple-shape tests and deterministic differential tests using existing test tooling where suitable. Numeric comparisons use declared tolerances; identities, ordering, delivery flags, and intent counts use exact assertions. Avoid tautological tests that merely compare a function with itself through two wrappers.
 
 ## 7. Validation and performance requirements
 
@@ -395,15 +389,15 @@ A pre-existing unrelated failure may be recorded separately; it must not conceal
 
 ### 7.2 Benchmark workloads and hard invariants
 
-Benchmark recorded hardware/build profiles with representative processor counts such as 1,000 and 10,000, channel counts such as 1/8/32, and short/long filter chains. Use a documented representative subset, not an impractical Cartesian product. Include mixed types, aggregation, multiple contexts, structural edits, and bounded temporal history.
+Benchmark recorded hardware/build profiles with representative processor counts such as 1,000 and 10,000, tuple widths such as 1/8/32 sources, and short/long filter chains. Use a documented representative subset, not an impractical Cartesian product. Include mixed types, elementwise processing, aggregation, compound construction, multiple contexts, structural edits, and bounded temporal history.
 
-Measure idle work, sparse source changes, runtime-setting changes, continuous filters, dispatch load, and previews separately. Record allocations, compile/cache counts, stages/channels evaluated, retained state, p50/p95/p99 latency, event/preview volume, and memory cleanup.
+Measure idle work, sparse source changes, runtime-setting changes, continuous filters, dispatch load, and previews separately. Record allocations, compile/cache counts, stages/tuple elements evaluated, retained state, p50/p95/p99 latency, event/preview volume, and memory cleanup.
 
 Required execution invariants:
 
 - No compilation, authored graph materialization, intermediate JSON serialization, or debug capture in ordinary steady-state Mapping evaluation.
 - No plan recompilation for changing a runtime coefficient, value, label, or preview selection.
-- For fixed-size numeric paths after warmup, no avoidable per-channel/per-stage allocation; close gaps in kernel output allocation through shared reusable buffers/sinks. Variable-size strings/collections have explicit measured bounds.
+- For fixed-size numeric paths after warmup, no avoidable per-element/per-stage allocation; close gaps in kernel output allocation through shared reusable buffers/sinks. Variable-size strings/collections have explicit measured bounds.
 - Idle and sparse work scales with dirty dependencies and due temporal work, not a repeated whole-project scan. Large-context memory reclamation must not require rebuilding all keys every tick.
 - Compatible processors share executable specializations while keeping mutable state isolated. Expansion/history limits and specialization caches are bounded.
 
@@ -411,7 +405,7 @@ Set wall-clock regression thresholds from the baseline and recorded target hardw
 
 ## 8. Definition of done and final handoff
 
-The feature is complete only when one file-authored built-in Mapping supports the required mixed layouts, selections, mid-chain shape changes, live controls, temporal/gating semantics, and command bindings; its UI remains usable; and conversion to custom Formula works through shared semantics.
+The feature is complete only when one file-authored built-in Mapping supports one or several typed sources as a scalar or ordered tuple, elementwise and merging operations, mid-chain shape changes, live controls, temporal/gating semantics, and command bindings; its UI remains usable; and conversion to custom Formula works through shared semantics.
 
 Every required filter must actually execute from the normal product palette. All authored controls remain backend-addressable. Existing Action/custom Formula/module/state-machine behavior and supported launch workflows remain intact. Hot paths no longer depend on debug capture or intermediate JSON.
 

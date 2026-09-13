@@ -19,7 +19,7 @@ pub mod value;
 
 pub use channel::{
     ChannelDescriptor, ChannelGroups, ChannelLayout, ChannelLayoutError, ChannelMetadata, ChannelProvenance,
-    ChannelSelection, ChannelSelectionResolution, ValueLaneKey,
+    ChannelSelection, ChannelSelectionResolution, MappingValueShape, ValueLaneKey,
 };
 pub use diagnostics::{Diagnostic, DiagnosticOrigin, DiagnosticSeverity};
 pub use domain::{

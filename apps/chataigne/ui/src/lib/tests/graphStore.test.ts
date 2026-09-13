@@ -461,7 +461,7 @@ describe('graph store scaling', () => {
 		expect(store.state.lastEventTime).toEqual(eventTime(2));
 	});
 
-	it('only invalidates for an applicable processor-manager projection', () => {
+	it('updates creatable items for the event origin', () => {
 		const store = createGraphStore();
 		store.loadSnapshot(snapshot());
 		const previousState = store.state;
@@ -474,7 +474,7 @@ describe('graph store scaling', () => {
 					time: eventTime(1),
 					kind: {
 						kind: 'custom',
-						topic: 'state_processor_manager_items_changed',
+						topic: 'golden.node_creatable_items_changed',
 						origin: 999,
 						payload: [],
 						retention: 'latest'
@@ -494,9 +494,18 @@ describe('graph store scaling', () => {
 					time: eventTime(2),
 					kind: {
 						kind: 'custom',
-						topic: 'state_processor_manager_items_changed',
+						topic: 'golden.node_creatable_items_changed',
 						origin: 1,
-						payload: [],
+						payload: [
+							{
+								node_type: 'alchemist_anode:remap',
+								item_kind: 'alchemist_anode',
+								label: 'Remap',
+								menu_path: ['Number'],
+								initial_params: [],
+								select_when_created: true
+							}
+						],
 						retention: 'latest'
 					}
 				}
@@ -506,6 +515,9 @@ describe('graph store scaling', () => {
 		expect(changed).toBe(true);
 		expect(store.state).not.toBe(previousState);
 		expect(store.state.lastEventTime).toEqual(eventTime(2));
+		expect(
+			store.state.nodesById.get(1)?.creatable_user_items.map((item) => item.node_type)
+		).toEqual(['alchemist_anode:remap']);
 	});
 
 	it('maintains the active warning index across metadata batches', () => {

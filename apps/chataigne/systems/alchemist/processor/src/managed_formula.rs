@@ -26,6 +26,8 @@ pub use availability::{
 };
 pub use error::ManagedFormulaError;
 
+pub use legacy_filter::validate_trigger_filter_application;
+
 pub struct ManagedFormulaRuntime {
     kind: ManagedFormulaRuntimeKind,
 }
@@ -167,6 +169,14 @@ impl ManagedFormulaRuntime {
     }
 
     #[must_use]
+    pub fn input_value_shape(&self) -> Option<chataigne_alchemist::MappingValueShape> {
+        match &self.kind {
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => Some(runtime.input_set.value_shape()),
+            ManagedFormulaRuntimeKind::TriggerPipeline(_) => None,
+        }
+    }
+
+    #[must_use]
     pub fn filter_output_layout(&self) -> Option<&ChannelLayout> {
         match &self.kind {
             ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime
@@ -175,6 +185,11 @@ impl ManagedFormulaRuntime {
                 .map(|stages| stages.output_layout().as_ref()),
             ManagedFormulaRuntimeKind::TriggerPipeline(_) => None,
         }
+    }
+
+    #[must_use]
+    pub fn filter_output_value_shape(&self) -> Option<chataigne_alchemist::MappingValueShape> {
+        self.filter_output_layout().map(ChannelLayout::mapping_value_shape)
     }
 
     pub fn reconcile_input_source_schema(

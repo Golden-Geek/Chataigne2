@@ -335,7 +335,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                     "application",
                     "Apply",
                     "combine",
-                    &[("each", "Apply to each"), ("combine", "Combine selected")],
+                    &[("each", "Apply to each"), ("combine", "Combine inputs")],
                 ),
                 enum_config(
                     "operator",
@@ -617,7 +617,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
     }
 
     fn managed_application_variants(&self) -> Vec<ANodeInstance> {
-        let default = ANodeInstance::new(self.type_id(), self.label());
+        let mut default = ANodeInstance::new(self.type_id(), self.label());
         if self.kind != PrimitiveNodeKind::Math {
             return self
                 .supports_role(SurfaceItemKind::Filter)
@@ -625,7 +625,9 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 .into_iter()
                 .collect();
         }
+        default.label = "Math (Combine)".into();
         let mut each = default.clone();
+        each.label = "Math (Each)".into();
         each.config.set("application", RuntimeValue::String("each".into()));
         vec![default, each]
     }

@@ -25,7 +25,7 @@ use super::{
     processor_managed_region_decl_id,
 };
 use crate::app::systems_alchemist_formula::{
-    AlchemistProperty, ANODE_CREATE_PREFIX, ANODE_NODE_TYPE,
+    AlchemistProperty, ANODE_CREATE_PREFIX,
     FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX,
     FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
     PROPERTY_CREATE_PREFIX, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_CREATE_PREFIX,
@@ -835,7 +835,7 @@ fn builtin_processor_created_inside_state_exposes_managers() {
 }
 
 #[test]
-fn managed_region_palette_accepts_only_matching_anode_roles() {
+fn managed_region_palette_does_not_advertise_filters_before_input_types_resolve() {
     let (mut engine, formula, formula_uuid) = engine_with_formula();
     seed_formula_managed_regions(&mut engine, formula, value_pipeline_regions_json());
     let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
@@ -879,9 +879,7 @@ fn managed_region_palette_accepts_only_matching_anode_roles() {
         .expect("Outputs region should exist")
         .user_creatable_items();
 
-    assert!(filter_items
-        .iter()
-        .any(|item| item.node_type == condition_gate_type));
+    assert!(filter_items.is_empty());
     assert!(input_items.is_empty());
     assert!(output_items.is_empty());
     assert!(!input_items
@@ -899,24 +897,16 @@ fn managed_region_palette_accepts_only_matching_anode_roles() {
         "Inputs region should reject filter-only ANodes"
     );
 
-    let accepted = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+    let rejected_filter = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: filters,
         node_type: condition_gate_type,
         label: None,
         initial_params: Vec::new(),
     });
     assert!(
-        accepted.success,
-        "Filters region should accept ConditionGate: {accepted:?}"
+        !rejected_filter.success,
+        "Filters region should reject applications it cannot compile: {rejected_filter:?}"
     );
-    let snapshot = engine.process_tree_snapshot();
-    assert!(snapshot.child_ids(filters).into_iter().any(|child| {
-        engine
-            .nodes
-            .get(child)
-            .is_some_and(|node| node.get_type() == ANODE_NODE_TYPE)
-    }));
-
 }
 
 #[test]
