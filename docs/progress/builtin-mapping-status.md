@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 02 — typed channel layouts and identity (in progress)
-- Last validated implementation commit: `7e62ca593b925a62f32e5064b53187ccbcf4a7d7` (Phase 01)
-- Last verified remote implementation commit: `7e62ca593b925a62f32e5064b53187ccbcf4a7d7` (Phase 01)
+- Active phase: 02 — typed channel layouts and identity (implementation delivered; status checkpoint pending)
+- Last validated implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904` (Phase 02)
+- Last verified remote implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904` (Phase 02)
 - Current blockers: none; the ambient `CPAL_ASIO_DIR` points at an incomplete SDK, so Windows default-feature checks require the repository's pinned `tools/asio.ps1` wrapper
 - Product checks still outstanding: desktop/headless/watch and interactive product smoke checks; expanded Mapping qualification benchmarks; M01–M16 and M18–M20 acceptance cases
-- Next concrete action: complete Phase 02 workspace validation, formatting, and source-control checkpoints
-- Last updated: 2026-09-13T10:10:01+02:00
+- Next concrete action: publish the Phase 02 status checkpoint, then start Phase 03 declarative applications and runtime bindings
+- Last updated: 2026-09-13T10:10:55+02:00
 
 ## Phase ledger
 
@@ -19,7 +19,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `0ba08c66` observed at remote; docs/benchmark phase has no required branch CI. |
 | 01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `7e62ca59` observed at remote; no required CI on direct branch push. |
-| 02 | IN_PROGRESS | IMPLEMENTED | PASSED | NOT_COMMITTED | NOT_APPLICABLE_WITH_REASON | Typed immutable layouts, stable IDs, selections/groups, and source-aligned frames pass Rust, app, workspace, Clippy, and format gates; delivery pending. |
+| 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `8e82b40c` observed at remote; direct branch push has no required CI. |
 | 03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Declarative applications and live bindings. |
 | 04 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Composable managed compilation. |
 | 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
@@ -106,16 +106,16 @@
 
 - Changes and affected public boundaries: Alchemist now owns immutable channel layouts, stable authored IDs, selection/group resolution, and pre-evaluation layout projections. Processor InputSet owns source-aligned runtime frames, validity/change/delivery state, and explicit source-schema reconciliation; backend callers can query the declared input layout.
 - Acceptance gates satisfied: focused tests cover mixed typed values, repeated source references, stable reorder, rename, disabled/re-enabled and missing channels, removal, extraction/group insertion, metadata-only revision, empty inputs, wrong source types, and value updates without a layout rebuild. The full app suite remains green.
-- Remaining work: implementation/status delivery. Phase 04 will migrate the homogeneous managed runner from ValueSet stage shape to layout/frame; Phase 06 will connect Golden source schema events; Phase 09 will present backend layout queries in the inspector.
+- Remaining work: no Phase 02 behavior work. Phase 04 will migrate the homogeneous managed runner from ValueSet stage shape to layout/frame; Phase 06 will connect Golden source schema events; Phase 09 will present backend layout queries in the inspector.
 - Exact checks and outcomes: see validation table. The final 156/78 Alchemist/processor tests, strict Clippy, full workspace check, 531 app tests plus 1 audio-host integration test, root and Golden Core format, and whitespace checks passed.
-- Implementation commit: pending.
-- Verified remote ref, observed OID, and timestamp: pending.
+- Implementation commit: `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`, 2026-09-13T10:10:55+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON` for direct branch push; repository CI triggers on PRs and `main`.
 - Decisions/deviations and rationale: preserve dynamic source identity with an unresolved type until a backend schema event; never infer layout from ordinary value samples. The native frame remains the authoritative source of channel validity while the existing managed ValueSet runner is migrated in Phase 04.
 
 ## Blockers and handoff
 
 - What failed: no implementation gate currently failed. Plain workspace check encountered a pre-existing incomplete ambient ASIO SDK; the pinned wrapper passed.
-- Last known-good checkpoint: Phase 01 implementation `7e62ca593b925a62f32e5064b53187ccbcf4a7d7`, verified on `origin/codex/builtin-mapping`.
+- Last known-good checkpoint: Phase 02 implementation `8e82b40c71ab1237ba39d57d3902f19d5ffbd904`, verified on `origin/codex/builtin-mapping`.
 - Reproduction: `cargo check --locked --workspace` with the ambient `CPAL_ASIO_DIR` fails in `asio-sys`; `.\tools\asio.ps1 -- cargo check --locked --workspace` passes.
-- Next action: publish this factual Phase 01 status checkpoint, then start Phase 02.
+- Next action: publish this factual Phase 02 status checkpoint, then start Phase 03.
