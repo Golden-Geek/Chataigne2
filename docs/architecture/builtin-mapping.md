@@ -179,6 +179,14 @@ old chain. No asynchronous compilation completion can race that publication
 path. Output commands continue through the engine's queued intent/transaction
 path, including commands aimed at another processor's controls.
 
+On ordinary ticks the manager visits only active processors selected by dirty
+source listeners, changed Formula values or overrides, pending temporal work,
+or explicit preview/overview demand. Topology and context rebuilds visit all
+active processors. The active-order index keeps sparse evaluations in document
+order, and the Formula reverse index and temporal set are refreshed as runtime
+plans change. An idle tick does not scan the full active processor list merely
+to discover that no Mapping needs evaluation.
+
 Phase 06 makes each OutputSet item select the whole scalar result, one stable
 tuple element, a component of a compound value, or a constant. A scalar result
 fans out to any number of enabled outputs. A multi-element tuple needs explicit

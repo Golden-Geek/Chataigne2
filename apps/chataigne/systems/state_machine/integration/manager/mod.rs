@@ -1340,6 +1340,8 @@ pub(crate) struct StateMachineRuntimePerfStats {
     #[cfg(test)]
     pub processor_evaluation_calls: u64,
     #[cfg(test)]
+    pub processor_candidate_visits: u64,
+    #[cfg(test)]
     pub processor_lanes_evaluated: u64,
     #[cfg(test)]
     pub processor_command_batches: u64,
@@ -1501,6 +1503,7 @@ struct StateMachineRuntimeCache {
     registered_runtime_listener_params: HashSet<NodeId>,
     active_states: Arc<[NodeId]>,
     active_processor_nodes: Arc<[NodeId]>,
+    active_processor_order: HashMap<NodeId, usize>,
     structure_dirty: HashSet<NodeUuid>,
     value_only_formula_dirty: HashSet<NodeUuid>,
     formula_materialization: HashMap<NodeUuid, ANodeMaterializationCache>,
@@ -1508,6 +1511,7 @@ struct StateMachineRuntimeCache {
     numeric_change_values: HashMap<NodeId, ParamValue>,
     pending_constant_values: HashMap<NodeId, ParamValue>,
     dirty_formula_values: HashSet<NodeUuid>,
+    formula_value_processor_nodes: HashMap<NodeUuid, HashSet<NodeId>>,
     dirty_processor_overrides: HashSet<NodeId>,
     dirty_input_source_params: HashSet<NodeUuid>,
     formulas: Arc<HashMap<NodeUuid, AlchemistFormula>>,
@@ -1540,7 +1544,7 @@ struct StateMachineRuntimeCache {
     #[cfg(all(test, feature = "kernel-profiling"))]
     scale_captured_inputs: HashMap<ProcessorId, RuntimeInputSnapshot>,
     processor_overview_runtimes: HashMap<NodeId, RuntimeProcessor>,
-    continuous_processor_count: usize,
+    continuous_processor_nodes: HashSet<NodeId>,
     formula_default_previews: HashMap<chataigne_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
     continuous_formula_default_preview_count: usize,
     output_preview_snapshot: HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
@@ -1566,11 +1570,22 @@ struct StateMachineRuntimeCache {
 }
 
 impl StateMachineRuntimeCache {
-    fn replace_processors(&mut self, processors: HashMap<NodeId, RuntimeProcessor>) {
-        self.continuous_processor_count = processors
-            .values()
-            .filter(|processor| processor_needs_continuous_evaluation(&processor.runtime))
-            .count();
+    fn replace_processors(&mut self, processors: HashMap<NodeId, RuntimeProcessor>, snapshot: &ProcessTreeSnapshot) {
+        self.continuous_processor_nodes = processors
+            .iter()
+            .filter_map(|(node, processor)| {
+                processor_needs_continuous_evaluation(&processor.runtime).then_some(*node)
+            })
+            .collect();
+        self.formula_value_processor_nodes.clear();
+        for (node, processor) in &processors {
+            if let Some(formula) = processor_formula_node_uuid(snapshot, processor) {
+                self.formula_value_processor_nodes
+                    .entry(formula)
+                    .or_default()
+                    .insert(*node);
+            }
+        }
         self.processors = processors;
     }
 
@@ -2456,6 +2471,12 @@ impl StateMachineManager {
                 .filter_map(|state| snapshot.find_child_by_decl_id(*state, PROCESSOR_MANAGER_DECL_ID))
                 .flat_map(|processor_manager| processor_nodes(snapshot, processor_manager))
                 .collect::<Vec<_>>();
+            self.runtime_cache.active_processor_order = active_processor_nodes
+                .iter()
+                .copied()
+                .enumerate()
+                .map(|(order, node)| (node, order))
+                .collect();
             self.runtime_cache.active_states = Arc::from(active_states);
             self.runtime_cache.active_processor_nodes = Arc::from(active_processor_nodes);
             self.runtime_cache.context_provider_dirty = true;
@@ -2593,7 +2614,40 @@ impl StateMachineManager {
             self.runtime_cache.last_processor_overview_sample_at = Some(ctx.runtime_elapsed);
         }
 
-        for processor_node in active_processor_nodes.iter().copied() {
+        let processor_candidates = if cache_rebuilt || context_provider_changed {
+            ordered_active_processor_candidates(
+                active_processor_nodes.as_ref(),
+                &self.runtime_cache.active_processor_order,
+                None,
+            )
+        } else {
+            let mut candidates = HashSet::new();
+            candidates.extend(self.runtime_cache.dirty_source_processors.iter().copied());
+            candidates.extend(dirty_processor_overrides.iter().copied());
+            candidates.extend(self.runtime_cache.continuous_processor_nodes.iter().copied());
+            for formula in &dirty_formula_values {
+                if let Some(processors) = self.runtime_cache.formula_value_processor_nodes.get(formula) {
+                    candidates.extend(processors.iter().copied());
+                }
+            }
+            let preview_processor_ids = preview_selection.processor_ids();
+            for processor_id in preview_processor_ids.iter().chain(&processor_overview_ids) {
+                if let Some(node) = snapshot.node_id_by_uuid(NodeUuid(processor_id.as_uuid())) {
+                    candidates.insert(node);
+                }
+            }
+            ordered_active_processor_candidates(
+                active_processor_nodes.as_ref(),
+                &self.runtime_cache.active_processor_order,
+                Some(candidates),
+            )
+        };
+        #[cfg(test)]
+        {
+            self.runtime_cache.perf_stats.processor_candidate_visits += processor_candidates.len() as u64;
+        }
+
+        for processor_node in processor_candidates {
             let source_signal_dirty = self.runtime_cache.dirty_source_processors.contains(&processor_node);
             let Some(runtime_processor) = self.runtime_cache.processors.get(&processor_node) else {
                 continue;
@@ -2763,6 +2817,11 @@ impl StateMachineManager {
                         &capture,
                     )
             };
+            if processor_needs_continuous_evaluation(&runtime_processor.runtime) {
+                self.runtime_cache.continuous_processor_nodes.insert(processor_node);
+            } else {
+                self.runtime_cache.continuous_processor_nodes.remove(&processor_node);
+            }
             let context_revision = runtime_processor.runtime.managed_context_revision();
             if context_revision != runtime_processor.send_context_revision {
                 runtime_processor.output_send_cache.retain_context_keys(|key| {
@@ -3485,7 +3544,7 @@ impl StateMachineManager {
                 next_processors.insert(processor_node, runtime_processor);
             }
         }
-        self.runtime_cache.replace_processors(next_processors);
+        self.runtime_cache.replace_processors(next_processors, snapshot);
         self.runtime_cache.command_invocation_streams.clear();
         self.runtime_cache.dirty_processor_overrides.clear();
         self.runtime_cache.dirty_formula_values.clear();
@@ -3630,7 +3689,7 @@ impl StateMachineManager {
             let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node) else {
                 continue;
             };
-            let was_continuous = processor_needs_continuous_evaluation(&runtime_processor.runtime);
+            let previous_formula = processor_formula_node_uuid(snapshot, runtime_processor);
             let Some((formula_node, formula, formula_ui, formula_source_key)) =
                 processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
@@ -3658,15 +3717,38 @@ impl StateMachineManager {
             runtime_processor.formula_node = formula_node;
             runtime_processor.formula_ui = formula_ui;
             runtime_processor.formula_source_key = formula_source_key;
+            let current_formula = processor_formula_node_uuid(snapshot, runtime_processor);
+            if previous_formula != current_formula {
+                if let Some(previous) = previous_formula {
+                    if let Some(processors) = self.runtime_cache.formula_value_processor_nodes.get_mut(&previous) {
+                        processors.remove(&processor_node);
+                    }
+                    if self
+                        .runtime_cache
+                        .formula_value_processor_nodes
+                        .get(&previous)
+                        .is_some_and(HashSet::is_empty)
+                    {
+                        self.runtime_cache.formula_value_processor_nodes.remove(&previous);
+                    }
+                }
+                if let Some(current) = current_formula {
+                    self.runtime_cache
+                        .formula_value_processor_nodes
+                        .entry(current)
+                        .or_default()
+                        .insert(processor_node);
+                }
+            }
             runtime_processor.command_dispatch_plans.reset();
             runtime_processor.output_send_cache.clear();
             runtime_processor.send_context_revision = runtime_processor.runtime.managed_context_revision();
             let is_continuous = processor_needs_continuous_evaluation(&runtime_processor.runtime);
-            update_continuous_runtime_count(
-                &mut self.runtime_cache.continuous_processor_count,
-                was_continuous,
-                is_continuous,
-            );
+            if is_continuous {
+                self.runtime_cache.continuous_processor_nodes.insert(processor_node);
+            } else {
+                self.runtime_cache.continuous_processor_nodes.remove(&processor_node);
+            }
         }
         dirty_processors
     }
@@ -5164,6 +5246,22 @@ fn processor_formula_node_uuid(
     runtime_processor
         .formula_node
         .and_then(|node| snapshot.node(node).map(|node| node.uuid))
+}
+
+fn ordered_active_processor_candidates(
+    active: &[NodeId],
+    order: &HashMap<NodeId, usize>,
+    candidates: Option<HashSet<NodeId>>,
+) -> Vec<NodeId> {
+    let Some(candidates) = candidates else {
+        return active.to_vec();
+    };
+    let mut candidates = candidates
+        .into_iter()
+        .filter(|node| order.contains_key(node))
+        .collect::<Vec<_>>();
+    candidates.sort_unstable_by_key(|node| order[node]);
+    candidates
 }
 
 fn processor_requires_forced_recompute(

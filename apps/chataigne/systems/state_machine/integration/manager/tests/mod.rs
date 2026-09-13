@@ -57,6 +57,7 @@ use super::{
 mod command_dispatch;
 mod context_cache;
 mod output_arguments;
+mod processor_candidates;
 mod snapshot_gate;
 mod source_schema;
 
@@ -925,6 +926,7 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
 
     let mut manager = StateMachineManager::new();
     manager.runtime_cache.topology_dirty = false;
+    let snapshot = ProcessTreeSnapshot::new(NodeId(0), HashMap::new());
     manager.runtime_cache.replace_processors(HashMap::from([(
         NodeId(42),
         RuntimeProcessor {
@@ -940,9 +942,9 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
             output_send_cache: Default::default(),
             send_context_revision: 0,
         },
-    )]));
+    )]), &snapshot);
 
-    assert_eq!(manager.runtime_cache.continuous_processor_count, 1);
+    assert_eq!(manager.runtime_cache.continuous_processor_nodes.len(), 1);
     let catalog = processor_lane_catalog_entries(
         &manager.runtime_cache.processors,
         &SnapshotProcessorContextProvider::default(),
@@ -954,9 +956,9 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
     assert!(catalog[0].context_key.is_none());
     assert!(!manager.update_requires_tree_snapshot());
 
-    manager.runtime_cache.replace_processors(HashMap::new());
+    manager.runtime_cache.replace_processors(HashMap::new(), &snapshot);
 
-    assert_eq!(manager.runtime_cache.continuous_processor_count, 0);
+    assert_eq!(manager.runtime_cache.continuous_processor_nodes.len(), 0);
     assert!(!manager.update_requires_tree_snapshot());
 }
 

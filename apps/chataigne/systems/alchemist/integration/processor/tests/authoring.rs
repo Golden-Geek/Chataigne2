@@ -180,6 +180,63 @@ fn activate_mapping_processor(engine: &mut AppEngine, processor: NodeId) {
     engine.apply_edits().unwrap();
 }
 
+fn manager_candidate_visits(engine: &AppEngine) -> u64 {
+    engine
+        .nodes
+        .iter()
+        .find_map(|(_, node)| match node {
+            AppNode::StateMachineManager(manager) => Some(manager.runtime_perf_stats().processor_candidate_visits),
+            _ => None,
+        })
+        .expect("active StateMachineManager should exist")
+}
+
+#[test]
+fn mapping_idle_and_sparse_ticks_visit_only_dirty_processors() {
+    let (mut engine, _, processor) = mapping_engine();
+    activate_mapping_processor(&mut engine, processor);
+    let snapshot = engine.process_tree_snapshot();
+    let manager = snapshot
+        .child_ids(engine.root)
+        .into_iter()
+        .find(|id| snapshot.node(*id).is_some_and(|node| node.node_type == StateMachineManager::NODE_TYPE))
+        .unwrap();
+    let state = snapshot
+        .child_ids(manager)
+        .into_iter()
+        .find(|id| snapshot.node(*id).is_some_and(|node| node.node_type == StateMachineState::NODE_TYPE))
+        .unwrap();
+    let state_processors = snapshot.find_child_by_decl_id(state, "processors").unwrap();
+    engine.add_user_item(StateProcessor::new().into(), Some(state_processors));
+    engine.apply_edits().unwrap();
+
+    let source = source_param(&mut engine, "Sparse source", 1.0);
+    let inputs = region(&engine, processor, "inputs");
+    let input = create_item(
+        &mut engine,
+        inputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.input_source"),
+    );
+    set_config(&mut engine, input, "source", ParamValue::Reference(NodeReference::new(source)));
+    for _ in 0..8 {
+        engine.run_tick(Duration::from_millis(8)).unwrap();
+    }
+    let settled = manager_candidate_visits(&engine);
+    engine.run_tick(Duration::from_millis(8)).unwrap();
+    assert_eq!(manager_candidate_visits(&engine), settled, "idle tick should visit no processors");
+
+    let source_node = engine.process_tree_snapshot().node_id_by_uuid(source).unwrap();
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: source_node,
+        value: ParamValue::Float(2.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "source edit should apply: {ack:?}");
+    engine.apply_edits().unwrap();
+    engine.run_tick(Duration::from_millis(8)).unwrap();
+    assert_eq!(manager_candidate_visits(&engine) - settled, 1);
+}
+
 #[test]
 fn mapping_self_target_is_applied_by_the_queued_engine_path() {
     let (mut engine, _, processor) = mapping_engine();
