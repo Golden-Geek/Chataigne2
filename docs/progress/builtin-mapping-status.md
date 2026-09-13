@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 09 — Svelte Mapping inspector (implemented and validated; delivery pending)
-- Last validated implementation commit: `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` (Phase 08)
-- Last verified remote implementation commit: `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` (Phase 08)
+- Active phase: 09 — Svelte Mapping inspector (complete); Phase 10 begins in the next phase turn.
+- Last validated implementation commit: `be13b2f5ecba404e039c76cfa9922ffa7a02525c` (Phase 09)
+- Last verified remote implementation commit: `be13b2f5ecba404e039c76cfa9922ffa7a02525c` (Phase 09)
 - Current blockers: none; Phase 10 owns conversion and Phase 11 qualification.
 - Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks.
-- Next concrete action: publish and verify Phase 09 implementation and status checkpoints; begin Phase 10 in the next phase turn.
-- Last updated: 2026-09-13T19:04:14+02:00
+- Next concrete action: begin Phase 10 configured Mapping-to-Formula conversion in the next phase turn.
+- Last updated: 2026-09-13T19:06:47+02:00
 
 ## Phase ledger
 
@@ -26,7 +26,7 @@
 | 06 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `fb837c38` observed at the remote; stable source projections, typed command argument overrides, fan-out, accepted-value send policy, and host validation pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 07 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `5712b226` observed at the remote; catalog, resource persistence, and full code gates pass. Direct branch pushes have no required CI. |
 | 08 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `44dd4f7d` observed at the remote; built-in authoring, execution, persistence, duplication, and gate migration pass. Direct branch pushes have no required CI. |
-| 09 | IN_PROGRESS | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Svelte processor inspector, generated DTOs, typed binding migration, bounded stage preview, Rust and UI gates pass; checkpoint A awaits push verification. Direct branch pushes have no required CI. |
+| 09 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `be13b2f5` observed at the remote; Svelte processor inspector, generated DTOs, typed binding migration, bounded stage preview, and Rust/UI gates pass. Direct branch pushes have no required CI. |
 | 10 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Conversion to custom Formula. |
 | 11 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Qualification, performance, cleanup. |
 
@@ -218,20 +218,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: the standard Mapping remains one ordered tuple with no authored channels, so multiple sources can merge or form compound values in one chain; custom Formula provides branching. The generic Golden `UiEditIntent` and protocol DTOs already cover backend authoring, so no Rust/TypeScript protocol declarations changed in this phase. The existing state-machine wrappers remain used by Action and custom Formula but are not exposed as managed Mapping items; historical gate semantics receive a narrow project migration instead of compatibility logic in runtime evaluation.
 
-### Phase 09 (implemented; delivery pending)
+### Phase 09 (complete)
 
 - Changes and affected public boundaries: the app-owned Alchemist UI mounts a dedicated Mapping view inside the processor inspector and editor panel while retaining the generic Formula path. It presents Inputs, Filters, and Outputs with backend palettes, Golden parameter editors, typed stage-shape summaries, command argument bindings, diagnostics, keyboard row navigation, virtualized lists, and undo/redo. Rust owns the stage-shape and output-target queries, typed authoring DTOs, generated TypeScript protocol, one-time migration of historical binding strings, and manager-owned inspection and selected-stage preview leases.
 - Acceptance gates satisfied: a real processor inspector render shows the three regions, tuple-to-compound shape transition, and diagnostics. UI tests cover create/move/duplicate intent identities, repeated tuple shape changes, source choices, keyboard index, large-list windowing, preview context and release payload. Rust tests cover scalar and tuple selected-stage values, bounded demand/release, read-only context catalogs, and historical binding migration. Selected-stage focus does not force runtime evaluation; capture is opt-in and cleared when the last lease ends. Standard Mapping uses no authored channels or groups.
 - Remaining work: Phase 10 owns configured Mapping-to-Formula conversion. Phase 11 owns the remaining combined acceptance cases, interactive desktop/headless/watch and panel smoke checks, performance qualification, and large-list product interaction. No Phase 09 code gate remains open.
 - Exact checks and outcomes: see Phase 09 validation rows. Full target Rust tests, workspace check, strict workspace Clippy, all 98 UI tests, Svelte check, lint, and build pass; root and Golden Core formatting and whitespace checks are recorded with checkpoint A.
-- Implementation commit: pending checkpoint A.
-- Delivery state: `PUSH_PENDING`; remote OID and timestamp will be recorded after checkpoint A verification.
+- Implementation commit: `be13b2f5ecba404e039c76cfa9922ffa7a02525c`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `be13b2f5ecba404e039c76cfa9922ffa7a02525c`, 2026-09-13T19:06:47+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: the inspector requests a catalog without capture, then requests one bounded processor/context/stage capture only when selected. Typed output binding DTOs avoid a second hand-maintained TypeScript schema. The historical string document is converted once at project load, preserving persisted behavior without runtime compatibility branches. Interactive UI smoke is excluded because repository agent rules prohibit desktop control; Phase 11 retains product qualification.
 
 ## Blockers and handoff
 
 - What failed or changed: Phase 09 adds the Svelte Mapping inspector, typed binding protocol and migration, backend stage-shape summaries, and bounded preview leases. No current phase validation failure remains.
-- Last known-good checkpoint: Phase 08 `44dd4f7dc7ba552ab77de09fe089482db0e2d8c0` is validated and verified at `origin/codex/builtin-mapping`.
+- Last known-good checkpoint: Phase 09 `be13b2f5ecba404e039c76cfa9922ffa7a02525c` is validated and verified at `origin/codex/builtin-mapping`.
 - Reproduction: Alchemist, processor, state-machine, and full app tests, UI tests/check/lint/build, workspace check, strict Clippy, and both formatter scopes pass with the available toolchain.
-- Next action: publish and verify Phase 09 checkpoints A and B; begin Phase 10 in the next phase turn.
+- Next action: begin Phase 10 configured Mapping-to-Formula conversion in the next phase turn.
