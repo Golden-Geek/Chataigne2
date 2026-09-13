@@ -9,7 +9,12 @@ from tools.qualification import transport_scale
 
 
 def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
-    snapshot = {"nodes": target + 250, "roots": graph_roots, "node_identity_sha256": "a" * 64}
+    snapshot = {
+        "nodes": target + 250,
+        "roots": graph_roots,
+        "node_identity_sha256": "a" * 64,
+        "root_identity_sha256": "c" * 64,
+    }
     row = {
         "contract": transport_scale.CONTRACT,
         "status": "PASS",
@@ -26,6 +31,12 @@ def complete_output(target: int = 1_000, graph_roots: int = 72) -> str:
         "edited_value_snapshot_clients": 3,
         "intent_applied": True,
         "reconnect_edited_value": True,
+        "save_pending_at_edit_send": True,
+        "edit_ack_before_save_response": True,
+        "saved_reload_value": "before_concurrent_edit",
+        "saved_reload_resync_reasons": ["cursor_ahead_of_server_time"] * 3,
+        "saved_reload_snapshots": [snapshot.copy() for _ in range(3)],
+        "saved_reload_full_identity_stable": True,
     }
     return f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}\n"
 
@@ -92,7 +103,7 @@ class ProductTransportScaleTests(unittest.TestCase):
                 f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
             )
         row["reconnect_snapshot"]["node_identity_sha256"] = "short"
-        with self.assertRaisesRegex(ValueError, "valid node-identity digest"):
+        with self.assertRaisesRegex(ValueError, "valid node_identity_sha256 digest"):
             transport_scale.parse_probe_result(
                 f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
             )
@@ -113,6 +124,50 @@ class ProductTransportScaleTests(unittest.TestCase):
         row["reconnect_edited_value"] = True
         row["edited_param_uuid"] = "invalid"
         with self.assertRaisesRegex(ValueError, "UUID is invalid"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+
+    def test_rejects_missing_save_reload_evidence(self) -> None:
+        row = json.loads(complete_output().split(transport_scale.RESULT_PREFIX, 1)[1])
+        row["save_pending_at_edit_send"] = False
+        with self.assertRaisesRegex(ValueError, "outstanding save request"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["save_pending_at_edit_send"] = True
+        row["edit_ack_before_save_response"] = False
+        with self.assertRaisesRegex(ValueError, "before the save response"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["edit_ack_before_save_response"] = True
+        row["saved_reload_resync_reasons"][1] = "missing"
+        with self.assertRaisesRegex(ValueError, "did not resync every client"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["saved_reload_resync_reasons"][1] = "cursor_ahead_of_server_time"
+        row["saved_reload_value"] = "unknown"
+        with self.assertRaisesRegex(ValueError, "valid edit ordering"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["saved_reload_value"] = "after_concurrent_edit"
+        row["saved_reload_snapshots"][1]["root_identity_sha256"] = "b" * 64
+        with self.assertRaisesRegex(ValueError, "changed the authored root identities"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["saved_reload_snapshots"][1]["root_identity_sha256"] = "c" * 64
+        row["saved_reload_snapshots"][1]["node_identity_sha256"] = "b" * 64
+        with self.assertRaisesRegex(ValueError, "different node identities"):
+            transport_scale.parse_probe_result(
+                f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
+            )
+        row["saved_reload_snapshots"][0]["node_identity_sha256"] = "b" * 64
+        row["saved_reload_snapshots"][2]["node_identity_sha256"] = "b" * 64
+        with self.assertRaisesRegex(ValueError, "full-identity claim"):
             transport_scale.parse_probe_result(
                 f"{transport_scale.RESULT_PREFIX}{json.dumps(row)}", 0, 1_000, 72,
             )

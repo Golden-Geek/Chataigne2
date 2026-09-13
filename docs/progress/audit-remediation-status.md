@@ -574,11 +574,21 @@ workbench-plane WebSockets, checks three full snapshots and their complete node-
 then sends a WebSocket `setParam` intent for one authored Constant. All three clients must receive
 the matching parameter delta and show the edited value in fresh full snapshots. The probe then
 disconnects and reconnects one client in the same runtime session and verifies the edit persists.
+The v3 probe also starts a project save, sends a second edit while its HTTP response is outstanding,
+and requires the edit acknowledgement before that response. It reloads the saved file through the
+real project endpoint, checks a recovery resync and snapshot on all three clients, equal node counts
+and authored-root identity digests, and one consistent old-or-new captured value. A replacement can
+resync with `cursor_ahead_of_server_time` when a subscription cursor exceeds the restored engine
+clock. The saved reload's complete generated-node digest is recorded separately; it changed in the
+local 1k/10k/100k runs, so generated descendant UUID stability is not claimed. The edit was captured
+in the saved file in all three runs, with the acknowledgement preceding the save response. This is
+client-observed save-request overlap, not proof of server-side capture/edit concurrency.
+
 The source- and artifact-fingerprinted report under `target/qualification/transport-scale/` covers
 1k/10k/100k; the initial 100k local baseline loaded in 7,299 ms and showed 100,247 live nodes
 and 7,143 authored Constant roots. These individual runs do not establish p95 or browser
-action-to-paint, concurrent-save, slow-client, endurance, packaged-native, or physical-device
-evidence.
+action-to-paint, server-side save-capture overlap, slow-client, endurance, packaged-native, or
+physical-device evidence.
 
 ## Task status and dependencies
 
@@ -603,7 +613,7 @@ evidence.
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula, graph routing/projection/camera, logger, app-owned state placement, and generic vec2 geometry owners split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, sparse/dense parameter replay and save/reload, plus three-client headless transport resync/edit/reconnect pass locally; browser p95, concurrent save/slow-client/endurance, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, sparse/dense parameter replay and save/reload, plus three-client headless transport resync/edit/reconnect and save-request-overlap/reload pass locally; browser p95, server-side save-capture overlap, slow-client/endurance, platform, and physical evidence remain open |
 
 ## Finding status
 

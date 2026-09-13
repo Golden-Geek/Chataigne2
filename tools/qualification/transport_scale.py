@@ -30,7 +30,7 @@ else:
 
 
 RESULT_PREFIX = "PRODUCT_TRANSPORT_RESULT="
-CONTRACT = "chataigne-product-transport-probe-v2"
+CONTRACT = "chataigne-product-transport-probe-v3"
 BUILD_COMMAND = (
     "cargo", "build", "--locked", "-q", "-p", "Chataigne2", "--bin", "Chataigne2",
     "--target-dir", "target/t16-app-default",
@@ -42,8 +42,11 @@ RESULT_FIELDS = {
     "subscribed_clients_after_reconnect", "session_consistent",
     "edited_param_uuid", "edited_value_delta_clients", "edited_value_snapshot_clients",
     "intent_applied", "reconnect_edited_value",
+    "save_pending_at_edit_send", "edit_ack_before_save_response",
+    "saved_reload_value", "saved_reload_resync_reasons", "saved_reload_snapshots",
+    "saved_reload_full_identity_stable",
 }
-SNAPSHOT_FIELDS = {"nodes", "roots", "node_identity_sha256"}
+SNAPSHOT_FIELDS = {"nodes", "roots", "node_identity_sha256", "root_identity_sha256"}
 
 
 def parse_probe_result(output: str, exit_code: int, target: int, graph_roots: int) -> dict[str, Any]:
@@ -93,14 +96,46 @@ def parse_probe_result(output: str, exit_code: int, target: int, graph_roots: in
             raise ValueError("product transport snapshot missed the authored-node target")
         if type(snapshot["roots"]) is not int or snapshot["roots"] != graph_roots:
             raise ValueError("product transport snapshot missed the authored graph roots")
-        if not isinstance(snapshot["node_identity_sha256"], str) or re.fullmatch(
-            r"[0-9a-f]{64}", snapshot["node_identity_sha256"]
-        ) is None:
-            raise ValueError("product transport snapshot has no valid node-identity digest")
+        for digest_field in ("node_identity_sha256", "root_identity_sha256"):
+            if not isinstance(snapshot[digest_field], str) or re.fullmatch(
+                r"[0-9a-f]{64}", snapshot[digest_field]
+            ) is None:
+                raise ValueError(f"product transport snapshot has no valid {digest_field} digest")
     if len({snapshot["node_identity_sha256"] for snapshot in [*snapshots, row["reconnect_snapshot"]]}) != 1:
         raise ValueError("product transport client snapshots contain different node identities")
     if row["resync_reasons"] != ["project_loaded"] * 3:
         raise ValueError("product transport did not deliver project replacement resync to every client")
+    if row["save_pending_at_edit_send"] is not True:
+        raise ValueError("product transport edit did not start during an outstanding save request")
+    if row["edit_ack_before_save_response"] is not True:
+        raise ValueError("product transport edit was not acknowledged before the save response")
+    if row["saved_reload_value"] not in ("before_concurrent_edit", "after_concurrent_edit"):
+        raise ValueError("product transport saved reload has no valid edit ordering")
+    reload_reasons = row["saved_reload_resync_reasons"]
+    if not isinstance(reload_reasons, list) or len(reload_reasons) != 3 or any(
+        reason not in ("project_loaded", "cursor_ahead_of_server_time") for reason in reload_reasons
+    ):
+        raise ValueError("product transport saved reload did not resync every client")
+    saved_snapshots = row["saved_reload_snapshots"]
+    if not isinstance(saved_snapshots, list) or len(saved_snapshots) != 3:
+        raise ValueError("product transport saved reload requires three client snapshots")
+    if type(row["saved_reload_full_identity_stable"]) is not bool:
+        raise ValueError("product transport saved reload omitted full node-identity stability")
+    for before, after in zip(snapshots, saved_snapshots):
+        if after.keys() != SNAPSHOT_FIELDS or after["nodes"] != before["nodes"] or after["roots"] != before["roots"]:
+            raise ValueError("product transport saved reload changed the authored node counts")
+        if after["root_identity_sha256"] != before["root_identity_sha256"]:
+            raise ValueError("product transport saved reload changed the authored root identities")
+        if not isinstance(after["node_identity_sha256"], str) or re.fullmatch(
+            r"[0-9a-f]{64}", after["node_identity_sha256"]
+        ) is None:
+            raise ValueError("product transport saved reload has no valid full node-identity digest")
+    if len({after["node_identity_sha256"] for after in saved_snapshots}) != 1:
+        raise ValueError("product transport saved reload gave clients different node identities")
+    stable = all(after["node_identity_sha256"] == before["node_identity_sha256"]
+                 for before, after in zip(snapshots, saved_snapshots))
+    if row["saved_reload_full_identity_stable"] != stable:
+        raise ValueError("product transport saved reload full-identity claim does not match snapshots")
     return row
 
 
@@ -197,7 +232,7 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
     if working_tree_sha(root) != tested_tree_sha:
         raise ValueError("source tree changed during product transport qualification")
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "evidence_id": "product.transport-scale.local",
         "status": "PASS" if build.returncode == 0 and all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "product_qualification": "OPEN",
@@ -215,11 +250,13 @@ def build_report(root: Path, output_dir: Path) -> dict[str, Any]:
         "scope": (
             "headless Chataigne product project load, three live workbench WebSockets, "
             "project-replacement resync, concurrent full snapshots, one client intent edit "
-            "delivered to all clients, and one reconnect preserving the edit"
+            "delivered to all clients, one reconnect preserving the edit, and an edit sent while "
+            "a project save request is outstanding followed by a three-client reload of that file"
         ),
         "not_covered": [
             "browser rendering, action-to-paint, and UI long tasks",
-            "edits during saves, slow-client recovery, and multi-client endurance",
+            "server-side save-capture/edit overlap, generated descendant identity stability, "
+            "slow-client recovery, and multi-client endurance",
             "desktop native surfaces, physical devices, and cross-platform packaged artifacts",
         ],
     }
