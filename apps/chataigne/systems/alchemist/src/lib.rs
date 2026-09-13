@@ -46,9 +46,9 @@ pub use ids::{
 };
 pub use library::{PrimitiveNodeDeclaration, PrimitiveNodeKind, primitive_node_registry, register_primitive_nodes};
 pub use managed_application::{
-    MANAGED_GROUPS_FIELD, MANAGED_SELECTION_FIELD, ManagedApplication, ManagedApplicationError, ManagedSettingPath,
-    ManagedStateScope, classify_managed_setting, configured_managed_variant, resolve_managed_application,
-    resolve_mapping_application,
+    MANAGED_GROUPS_FIELD, MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, MANAGED_SELECTION_FIELD, ManagedApplication,
+    ManagedApplicationError, ManagedSettingPath, ManagedStateScope, classify_managed_setting,
+    configured_managed_variant, resolve_managed_application, resolve_mapping_application,
 };
 pub use node::{
     ANodeConfigFieldDecl, ANodeDeclaration, ANodeRoleCapability, ANodeSignature, AutoWirePolicy, ExecutionKind,
@@ -67,9 +67,9 @@ pub use registry::{
 pub use runtime::{
     AlchemistMemory, AlchemistRuntime, AxisSet, CompiledNodeEvaluator, ContextAxisId, ContextItemId, ContextKey,
     ContextKeyPart, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, EvaluationCtx,
-    EvaluationFrame, ExternalNodeEvaluator, LaneRuntimePool, NodeEvaluation, OutputPreviewHistory, OutputPreviewStatus,
-    RuntimeContextFrame, RuntimeDiagnostic, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput,
-    RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeRegistries, evaluate_compiled_graph,
+    EvaluationFrame, ExternalNodeEvaluator, LaneRuntimePool, NodeEvaluation, NodeFlow, OutputPreviewHistory,
+    OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent,
+    RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeRegistries, evaluate_compiled_graph,
     evaluate_compiled_graph_fresh_reusing, evaluate_compiled_graph_stateless, evaluate_compiled_graph_with_external,
 };
 pub use typing::{

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use chataigne_alchemist::{
-    ChannelDescriptor, ChannelLayout, ChannelLayoutError, ChannelMetadata, Diagnostic, DiagnosticOrigin,
+    ChannelDescriptor, ChannelLayout, ChannelLayoutError, ChannelMetadata, ContextKey, Diagnostic, DiagnosticOrigin,
     DiagnosticSeverity, EvaluationCtx, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
     ManagedRegionKind, MappingValueShape, StableRef, SurfaceItemKind, ValueTypeId,
 };
@@ -182,6 +182,14 @@ impl InputSetRuntime {
     }
 
     pub fn materialize(&mut self, ctx: &EvaluationCtx<'_>) -> InputSetMaterialization<'_> {
+        self.materialize_for_context(ctx, &ContextKey::default_lane())
+    }
+
+    pub fn materialize_for_context(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        context_key: &ContextKey,
+    ) -> InputSetMaterialization<'_> {
         self.frame.begin_tick(ctx.logical_tick);
         let mut value_set = ValueSet::new(ctx.logical_tick);
         let mut diagnostics = Vec::new();
@@ -202,7 +210,11 @@ impl InputSetRuntime {
                     .expect("input frame and layout have equal length");
                 continue;
             }
-            match ctx.inputs.get(&item.source) {
+            match ctx
+                .inputs
+                .get_context(&item.source, context_key)
+                .or_else(|| ctx.inputs.get(&item.source))
+            {
                 Some(value) => {
                     if let Err(error) = self.frame.set(index, Some(value.clone()), ChannelValidity::Valid, true) {
                         self.frame

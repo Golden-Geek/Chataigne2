@@ -2,6 +2,7 @@
 use super::*;
 
 mod channel_frame;
+mod flow;
 mod graph_managed_formula;
 mod input_set;
 #[cfg(feature = "kernel-profiling")]

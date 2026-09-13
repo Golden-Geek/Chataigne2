@@ -304,7 +304,12 @@ fn condition_gate_false_condition_blocks_value() {
     let output = evaluate(&mut runtime, 1);
 
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert_eq!(sample_value(&output, gate, "value"), RuntimeValue::Float(0.0));
+    assert!(
+        !output
+            .debug_samples
+            .iter()
+            .any(|sample| sample.author_node_id == gate && sample.output_socket == SocketId::new("value"))
+    );
     assert_eq!(sample_value(&output, gate, "passed"), RuntimeValue::Bool(false));
     assert_eq!(sample_value(&output, gate, "blocked"), RuntimeValue::Bool(true));
 }
@@ -407,11 +412,13 @@ fn condition_gate_block_trigger_suppresses_fired_edge() {
     let output = evaluate(&mut runtime, 1);
 
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    let RuntimeValue::Trigger(trigger) = sample_value(&output, gate, "value") else {
-        panic!("ConditionGate should output a trigger");
-    };
-    assert!(!trigger.fired);
-    assert_eq!(trigger.edge_id, 7);
+    assert!(
+        !output
+            .debug_samples
+            .iter()
+            .any(|sample| sample.author_node_id == gate && sample.output_socket == SocketId::new("value"))
+    );
+    assert_eq!(sample_value(&output, gate, "blocked"), RuntimeValue::Bool(true));
 }
 
 #[test]
@@ -456,7 +463,12 @@ fn condition_gate_whole_valueset_gate_uses_default_whole_value() {
     let output = evaluate(&mut runtime, 1);
 
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert_eq!(sample_value(&output, gate, "value"), default_value);
+    assert!(
+        !output
+            .debug_samples
+            .iter()
+            .any(|sample| sample.author_node_id == gate && sample.output_socket == SocketId::new("value"))
+    );
 }
 
 #[test]
@@ -1190,6 +1202,26 @@ fn capture_off_preserves_runtime_memory_and_log_intents() {
         uncaptured_runtime.memory.last_executed_nodes(),
         captured_runtime.memory.last_executed_nodes()
     );
+}
+
+#[test]
+fn condition_gate_hold_last_uses_connected_default_before_first_pass() {
+    let mut graph = TestGraph::new();
+    let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
+    let condition = graph.add_node(constant(RuntimeValue::Bool(false))).unwrap();
+    let default = graph.add_node(constant(RuntimeValue::Float(9.0))).unwrap();
+    let mut gate_node = node("condition_gate");
+    gate_node.config.set("mode", RuntimeValue::String("hold_last".into()));
+    let gate = graph.add_node(gate_node).unwrap();
+    for (source, input) in [(value, "value"), (condition, "condition"), (default, "default_value")] {
+        graph
+            .connect(OutputSocketRef::new(source, "value"), InputSocketRef::new(gate, input))
+            .unwrap();
+    }
+    let mut runtime = runtime(&graph);
+    let output = evaluate(&mut runtime, 1);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(sample_value(&output, gate, "value"), RuntimeValue::Float(9.0));
 }
 
 #[test]

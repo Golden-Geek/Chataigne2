@@ -10,7 +10,7 @@ use golden_values::Value as RuntimeValue;
 use super::managed_formula::managed_item_for_primitive;
 use crate::{
     ChannelFrame, ChannelValidity, ManagedStageChain, ManagedStageRuntime, ManagedStageSpecializationCache,
-    ValueLaneKey,
+    RuntimeInputBinding, ValueLaneKey,
 };
 
 fn typed_layout(channels: &[(&str, &str)]) -> ChannelLayout {
@@ -59,6 +59,258 @@ fn remap() -> ManagedItemInstance {
             .insert(SocketId::new(socket), RuntimeValue::Float(value));
     }
     item
+}
+
+#[test]
+fn closed_gate_suppresses_each_tuple_element_and_reopens_on_control_change() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let layout = typed_layout(&[("a", "float"), ("b", "float")]);
+    let mut gate = managed_item_for_primitive(PrimitiveNodeKind::ConditionGate);
+    gate.anode
+        .input_defaults
+        .insert(SocketId::new("condition"), RuntimeValue::Bool(false));
+    let mut stage = ManagedStageRuntime::compile(gate, &layout, &compile_ctx, ManagedFilterValueMode::Tuple)
+        .unwrap()
+        .unwrap();
+    let sources = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let first = frame(layout.clone(), &[RuntimeValue::Float(0.5), RuntimeValue::Float(1.5)], 1);
+    let (blocked, result) = stage.evaluate(&first, &ctx(&sources, &registries, 1)).unwrap();
+    assert!(result.diagnostics.is_empty());
+    assert!(
+        blocked
+            .slots()
+            .iter()
+            .all(|slot| slot.validity == ChannelValidity::Suppressed && slot.value.is_none() && !slot.deliver)
+    );
+
+    stage
+        .update_runtime_input(
+            &SocketId::new("condition"),
+            RuntimeInputBinding::Constant(RuntimeValue::Bool(true)),
+        )
+        .unwrap();
+    let second = frame(layout, &[RuntimeValue::Float(0.5), RuntimeValue::Float(1.5)], 2);
+    let (opened, result) = stage.evaluate(&second, &ctx(&sources, &registries, 2)).unwrap();
+    assert!(result.diagnostics.is_empty());
+    assert_eq!(
+        opened.slots().iter().map(|slot| slot.value.clone()).collect::<Vec<_>>(),
+        vec![Some(RuntimeValue::Float(0.5)), Some(RuntimeValue::Float(1.5))]
+    );
+    assert!(
+        opened
+            .slots()
+            .iter()
+            .all(|slot| slot.validity == ChannelValidity::Valid && slot.deliver)
+    );
+}
+
+#[test]
+fn smoothing_continues_after_input_stops_changing() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let layout = typed_layout(&[("x", "float")]);
+    let item = managed_item_for_primitive(PrimitiveNodeKind::SmoothFilter);
+    let mut stage = ManagedStageRuntime::compile(item, &layout, &compile_ctx, ManagedFilterValueMode::Tuple)
+        .unwrap()
+        .unwrap();
+    let sources = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    stage
+        .evaluate(
+            &frame(layout.clone(), &[RuntimeValue::Float(0.0)], 1),
+            &ctx(&sources, &registries, 1),
+        )
+        .unwrap();
+    let (moving, _) = stage
+        .evaluate(
+            &frame(layout.clone(), &[RuntimeValue::Float(10.0)], 2),
+            &ctx(&sources, &registries, 2),
+        )
+        .unwrap();
+    let Some(RuntimeValue::Float(moving)) = moving.slots()[0].value else {
+        panic!("expected smooth value")
+    };
+    let (settling, _) = stage
+        .evaluate(
+            &frame(layout, &[RuntimeValue::Float(10.0)], 3),
+            &ctx(&sources, &registries, 3),
+        )
+        .unwrap();
+    let Some(RuntimeValue::Float(settling)) = settling.slots()[0].value else {
+        panic!("expected smooth value")
+    };
+    assert!(settling > moving && settling < 10.0);
+}
+
+#[test]
+fn elementwise_history_follows_source_identity_across_rename_and_reorder() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let original = typed_layout(&[("a", "float"), ("b", "float")]);
+    let mut item = managed_item_for_primitive(PrimitiveNodeKind::SmoothFilter);
+    item.anode.config.set("method", RuntimeValue::String("sma".into()));
+    item.anode.config.set("window", RuntimeValue::Int(2));
+    let mut previous =
+        ManagedStageRuntime::compile(item.clone(), &original, &compile_ctx, ManagedFilterValueMode::Tuple)
+            .unwrap()
+            .unwrap();
+    let sources = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    previous
+        .evaluate(
+            &frame(original, &[RuntimeValue::Float(2.0), RuntimeValue::Float(10.0)], 1),
+            &ctx(&sources, &registries, 1),
+        )
+        .unwrap();
+    item.anode.label = "Renamed smooth".into();
+    let reordered = typed_layout(&[("b", "float"), ("a", "float")]);
+    let mut rebuilt = ManagedStageRuntime::compile(item, &reordered, &compile_ctx, ManagedFilterValueMode::Tuple)
+        .unwrap()
+        .unwrap();
+    assert!(rebuilt.migrate_memory_from(previous));
+    let (output, effects) = rebuilt
+        .evaluate(
+            &frame(reordered, &[RuntimeValue::Float(30.0), RuntimeValue::Float(6.0)], 2),
+            &ctx(&sources, &registries, 2),
+        )
+        .unwrap();
+    assert!(effects.diagnostics.is_empty());
+    assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(20.0)));
+    assert_eq!(output.slots()[1].value, Some(RuntimeValue::Float(4.0)));
+}
+
+#[test]
+fn removed_element_history_is_released_before_the_source_is_added_again() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let mut item = managed_item_for_primitive(PrimitiveNodeKind::SmoothFilter);
+    item.anode.config.set("method", RuntimeValue::String("sma".into()));
+    item.anode.config.set("window", RuntimeValue::Int(2));
+    let both = typed_layout(&[("a", "float"), ("b", "float")]);
+    let mut original = ManagedStageRuntime::compile(item.clone(), &both, &compile_ctx, ManagedFilterValueMode::Tuple)
+        .unwrap()
+        .unwrap();
+    let sources = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    original
+        .evaluate(
+            &frame(both.clone(), &[RuntimeValue::Float(2.0), RuntimeValue::Float(10.0)], 1),
+            &ctx(&sources, &registries, 1),
+        )
+        .unwrap();
+
+    let only_a = typed_layout(&[("a", "float")]);
+    let mut removed = ManagedStageRuntime::compile(item.clone(), &only_a, &compile_ctx, ManagedFilterValueMode::Tuple)
+        .unwrap()
+        .unwrap();
+    assert!(removed.migrate_memory_from(original));
+    let (output, _) = removed
+        .evaluate(
+            &frame(only_a, &[RuntimeValue::Float(6.0)], 2),
+            &ctx(&sources, &registries, 2),
+        )
+        .unwrap();
+    assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(4.0)));
+
+    let mut added = ManagedStageRuntime::compile(item, &both, &compile_ctx, ManagedFilterValueMode::Tuple)
+        .unwrap()
+        .unwrap();
+    assert!(added.migrate_memory_from(removed));
+    let (output, _) = added
+        .evaluate(
+            &frame(both, &[RuntimeValue::Float(8.0), RuntimeValue::Float(30.0)], 3),
+            &ctx(&sources, &registries, 3),
+        )
+        .unwrap();
+    assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(7.0)));
+    assert_eq!(output.slots()[1].value, Some(RuntimeValue::Float(30.0)));
+}
+
+#[test]
+fn upstream_temporal_edit_resets_downstream_history() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let layout = typed_layout(&[("a", "float")]);
+    let smooth = || {
+        let mut item = managed_item_for_primitive(PrimitiveNodeKind::SmoothFilter);
+        item.anode.config.set("method", RuntimeValue::String("sma".into()));
+        item.anode.config.set("window", RuntimeValue::Int(2));
+        item
+    };
+    let first = smooth();
+    let second = smooth();
+    let mut original = ManagedStageChain::compile(
+        &[first.clone(), second.clone()],
+        Arc::new(layout.clone()),
+        &compile_ctx,
+        ManagedFilterValueMode::Tuple,
+    )
+    .unwrap();
+    let sources = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    original
+        .evaluate(
+            &frame(layout.clone(), &[RuntimeValue::Float(2.0)], 1),
+            &ctx(&sources, &registries, 1),
+        )
+        .unwrap();
+    original
+        .evaluate(
+            &frame(layout.clone(), &[RuntimeValue::Float(4.0)], 2),
+            &ctx(&sources, &registries, 2),
+        )
+        .unwrap();
+
+    let mut changed_first = first;
+    changed_first.anode.config.set("window", RuntimeValue::Int(3));
+    let mut rebuilt = ManagedStageChain::compile(
+        &[changed_first, second],
+        Arc::new(layout.clone()),
+        &compile_ctx,
+        ManagedFilterValueMode::Tuple,
+    )
+    .unwrap();
+    rebuilt.migrate_memory_from(original);
+    let third = frame(layout, &[RuntimeValue::Float(6.0)], 3);
+    let (output, _) = rebuilt.evaluate(&third, &ctx(&sources, &registries, 3)).unwrap();
+    assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(6.0)));
 }
 
 #[test]

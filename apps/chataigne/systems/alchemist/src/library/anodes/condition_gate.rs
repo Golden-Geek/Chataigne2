@@ -45,6 +45,8 @@ impl GateApplication {
 pub(super) struct ConditionGateEval {
     mode: ConditionGateMode,
     application: GateApplication,
+    explicit_default: bool,
+    implicit_managed_default: bool,
 }
 
 impl ConditionGateEval {
@@ -52,6 +54,11 @@ impl ConditionGateEval {
         Self {
             mode: ConditionGateMode::from_config(instance),
             application: GateApplication::from_config(instance),
+            explicit_default: instance
+                .input_defaults
+                .contains_key(&crate::SocketId::new("default_value")),
+            implicit_managed_default: instance.config.get(crate::MANAGED_IMPLICIT_GATE_DEFAULT_FIELD)
+                == Some(&RuntimeValue::Bool(true)),
         }
     }
 }
@@ -74,6 +81,26 @@ impl CompiledNodeEvaluator for ConditionGateEval {
             ConditionGateMode::PassWhenFalse => !condition,
             _ => *condition,
         };
+        if !passes {
+            match self.mode {
+                ConditionGateMode::PassWhenTrue
+                | ConditionGateMode::PassWhenFalse
+                | ConditionGateMode::BlockTrigger => {
+                    evaluation.suppress_output(0);
+                }
+                ConditionGateMode::HoldLast
+                    if !(self.explicit_default
+                        || (!self.implicit_managed_default && evaluation.input_has_connection(2)))
+                        && evaluation
+                            .state
+                            .first()
+                            .is_none_or(|value| matches!(value, RuntimeValue::Unit)) =>
+                {
+                    evaluation.suppress_output(0);
+                }
+                ConditionGateMode::HoldLast | ConditionGateMode::OutputDefault => {}
+            }
+        }
         let output_value = match self.mode {
             ConditionGateMode::HoldLast => hold_last_output(evaluation.state, value, default_value, passes),
             ConditionGateMode::BlockTrigger => block_trigger_output(value, default_value, passes),

@@ -4,11 +4,13 @@ use std::sync::Arc;
 
 use chataigne_alchemist::{
     ANodeId, AlchemistFormula, AlchemistMemory, ChannelLayout, CompileCtx, CompiledAlchemistGraph, CompiledExecNode,
-    DebugCaptureMode, DebugCaptureSink, EvaluationCtx, EvaluationFrame, ExternalNodeEvaluator, InputValueSource,
-    ManagedRegionDefinition, ManagedSocketRef, NodeEvaluation, RuntimeContextFrame, RuntimeOutput,
-    RuntimePropertyFrame, ValueSlotId, ValueTypeId, compile_graph, evaluate_compiled_graph_with_external,
+    ContextKey, DebugCaptureMode, DebugCaptureSink, EvaluationCtx, EvaluationFrame, ExternalNodeEvaluator,
+    InputValueSource, LaneRuntimePool, ManagedRegionDefinition, ManagedSocketRef, NodeEvaluation, RuntimeContextFrame,
+    RuntimeOutput, RuntimePropertyFrame, ValueSlotId, ValueTypeId, compile_graph,
+    evaluate_compiled_graph_with_external,
 };
 use golden_values::Value as RuntimeValue;
+use indexmap::IndexSet;
 
 use crate::{ChannelFrame, ChannelValidity, ManagedStageChain, OutputSetRuntime, ValueSet};
 
@@ -32,7 +34,8 @@ struct OutputBoundary {
 
 pub(super) struct GraphManagedExecution {
     compiled: Arc<CompiledAlchemistGraph>,
-    memory: AlchemistMemory,
+    memory: LaneRuntimePool,
+    scratch: AlchemistMemory,
     default_properties: RuntimePropertyFrame,
     input: InputBoundary,
     filter: Option<FilterBoundary>,
@@ -40,7 +43,29 @@ pub(super) struct GraphManagedExecution {
     boundary_exec_nodes: Vec<chataigne_alchemist::ExecNodeId>,
 }
 
+pub(super) struct GraphManagedFrame<'a, 'ctx> {
+    pub ctx: &'a EvaluationCtx<'ctx>,
+    pub context_key: &'a ContextKey,
+    pub properties: Option<&'a RuntimePropertyFrame>,
+    pub capture_mode: DebugCaptureMode,
+}
+
 impl GraphManagedExecution {
+    pub(super) fn reset_memory(&mut self) {
+        self.memory.clear();
+        self.scratch.reset_for_fresh_evaluation(&self.compiled);
+    }
+
+    pub(super) fn retain_context_keys(&mut self, active: &IndexSet<ContextKey>) {
+        self.memory.retain_keys(active);
+    }
+
+    pub(super) fn migrate_memory_from(&mut self, previous: Self) {
+        if Arc::ptr_eq(&self.compiled, &previous.compiled) {
+            self.memory = previous.memory;
+        }
+    }
+
     pub(super) fn compile(
         formula: &AlchemistFormula,
         input: &ManagedRegionDefinition,
@@ -135,7 +160,8 @@ impl GraphManagedExecution {
                 return Err(boundary_error("managed graph value does not reach OutputSet input"));
             }
         }
-        let memory = AlchemistMemory::for_graph(&compiled);
+        let memory = LaneRuntimePool::for_graph(&compiled);
+        let scratch = AlchemistMemory::for_graph(&compiled);
         let default_properties = RuntimePropertyFrame::from_defaults(&compiled.properties);
         let mut boundary_exec_nodes = vec![graph_node(&compiled, input.node)?.exec_id];
         if let Some(filter) = &filter {
@@ -150,6 +176,7 @@ impl GraphManagedExecution {
         Ok(Some(Self {
             compiled,
             memory,
+            scratch,
             default_properties,
             input,
             filter,
@@ -163,9 +190,7 @@ impl GraphManagedExecution {
         input: &ChannelFrame,
         stages: &mut ManagedStageChain,
         output_sets: &[OutputSetRuntime],
-        ctx: &EvaluationCtx<'_>,
-        properties: Option<&RuntimePropertyFrame>,
-        capture_mode: DebugCaptureMode,
+        frame: GraphManagedFrame<'_, '_>,
     ) -> RuntimeOutput {
         let mut bridge = ManagedGraphBridge {
             input,
@@ -175,16 +200,24 @@ impl GraphManagedExecution {
             filter: self.filter.as_ref(),
             outputs: &self.outputs,
             boundary_exec_nodes: &self.boundary_exec_nodes,
+            context_key: frame.context_key,
         };
-        let context = RuntimeContextFrame::default_lane();
-        let capture_enabled = !capture_mode.is_off();
-        let mut debug = DebugCaptureSink::new(capture_mode);
+        let context = RuntimeContextFrame::new(frame.context_key.clone());
+        let capture_enabled = !frame.capture_mode.is_off();
+        let mut debug = DebugCaptureSink::new(frame.capture_mode);
+        let memory = match self.memory.memory_for_key(frame.context_key.clone(), &self.compiled) {
+            Some(memory) => memory,
+            None => {
+                self.scratch.reset_for_fresh_evaluation(&self.compiled);
+                &mut self.scratch
+            }
+        };
         let mut output = evaluate_compiled_graph_with_external(
             &self.compiled,
-            &mut self.memory,
+            memory,
             EvaluationFrame {
-                ctx,
-                properties: properties.unwrap_or(&self.default_properties),
+                ctx: frame.ctx,
+                properties: frame.properties.unwrap_or(&self.default_properties),
                 context: &context,
                 debug: capture_enabled.then_some(&mut debug),
                 force_process_unchanged_inputs: false,
@@ -208,6 +241,7 @@ struct ManagedGraphBridge<'a> {
     filter: Option<&'a FilterBoundary>,
     outputs: &'a [OutputBoundary],
     boundary_exec_nodes: &'a [chataigne_alchemist::ExecNodeId],
+    context_key: &'a ContextKey,
 }
 
 impl ExternalNodeEvaluator for ManagedGraphBridge<'_> {
@@ -238,7 +272,7 @@ impl ExternalNodeEvaluator for ManagedGraphBridge<'_> {
                 });
             let (filtered, effects) = self
                 .stages
-                .evaluate_with_capture(&frame, evaluation.ctx, capture_mode)
+                .evaluate_with_capture_for_context(&frame, evaluation.ctx, capture_mode, self.context_key)
                 .map_err(|error| error.to_string())?;
             if !effects.diagnostics.is_empty() {
                 return Err(effects
@@ -255,6 +289,14 @@ impl ExternalNodeEvaluator for ManagedGraphBridge<'_> {
                         .then(|| evaluation.context.context_key().clone());
                     debug.capture(sample);
                 }
+            }
+            if filtered
+                .slots()
+                .iter()
+                .any(|slot| slot.validity == ChannelValidity::Suppressed)
+            {
+                evaluation.suppress_output(0);
+                return Ok(vec![source.clone()]);
             }
             let values = frame_values(filtered).map_err(|error| error.to_string())?;
             return values

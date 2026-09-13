@@ -5,7 +5,7 @@ use uuid::Uuid;
 use chataigne_alchemist::{
     AlchemistFormula, AlchemistFormulaInstance, AlchemistMemory, AxisSet, CompileCtx, CompiledAlchemistFormula,
     ContextAxisId, ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, Diagnostic, DiagnosticOrigin,
-    EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaPropertyId, FormulaRef, LaneRuntimePool,
+    EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaCompileKey, FormulaPropertyId, FormulaRef, LaneRuntimePool,
     RuntimeContextFrame, RuntimeDiagnostic, RuntimeInputSnapshot, RuntimeOutput, RuntimePropertyFrame,
     RuntimePropertyFrameError, RuntimeSubscription, SurfaceItemId, compile_graph, evaluate_compiled_graph,
     evaluate_compiled_graph_fresh_reusing,
@@ -20,8 +20,12 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::{ManagedFormulaRuntime, kernel_profile::profile_kernel};
 
+mod plan;
 mod presentation;
 
+pub use plan::{
+    DefaultProcessorContextProvider, ProcessorBindingAnalysis, ProcessorExecutionPlan, ProcessorExecutionStrategy,
+};
 pub use presentation::{
     ANodeOutputPreviewSample, ProcessorDebugCapture, ProcessorFormulaSourceKind, ProcessorFormulaUiState,
     ProcessorUiModel, processor_output_preview_samples, processor_output_preview_samples_from_lanes,
@@ -153,109 +157,6 @@ impl ConditionInputProvider for LaneConditionInputs<'_> {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ProcessorBindingAnalysis {
-    pub property_axes: AxisSet,
-    pub input_axes: AxisSet,
-    pub output_axes: AxisSet,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ProcessorExecutionStrategy {
-    SingleStateless,
-    MultiStateless,
-    SingleStateful,
-    MultiStatefulSparse,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProcessorExecutionPlan {
-    pub processor_id: ProcessorId,
-    pub available_axes: AxisSet,
-    pub required_eval_axes: AxisSet,
-    pub required_memory_axes: AxisSet,
-    pub strategy: ProcessorExecutionStrategy,
-}
-
-impl ProcessorExecutionPlan {
-    #[must_use]
-    pub fn analyze(
-        processor_id: ProcessorId,
-        formula: &FormulaAnalysis,
-        bindings: &ProcessorBindingAnalysis,
-        available_axes: AxisSet,
-    ) -> Self {
-        let mut required_eval_axes = AxisSet::new();
-        extend_axes(&mut required_eval_axes, &bindings.property_axes);
-        extend_axes(&mut required_eval_axes, &formula.explicit_context_axes);
-        extend_axes(&mut required_eval_axes, &bindings.input_axes);
-        extend_axes(&mut required_eval_axes, &bindings.output_axes);
-        extend_axes(&mut required_eval_axes, &formula.effect_axes);
-
-        let mut required_memory_axes = AxisSet::new();
-        if formula.has_stateful_nodes {
-            extend_axes(&mut required_memory_axes, &formula.state_axes);
-            extend_axes(&mut required_memory_axes, &bindings.property_axes);
-            extend_axes(&mut required_memory_axes, &bindings.input_axes);
-        }
-        if formula.has_input_gated_nodes {
-            extend_axes(&mut required_memory_axes, &bindings.property_axes);
-            extend_axes(&mut required_memory_axes, &formula.explicit_context_axes);
-            extend_axes(&mut required_memory_axes, &bindings.input_axes);
-            extend_axes(&mut required_memory_axes, &formula.effect_axes);
-        }
-
-        let strategy = match (formula.has_stateful_nodes, required_eval_axes.is_empty()) {
-            (false, true) => ProcessorExecutionStrategy::SingleStateless,
-            (false, false) => ProcessorExecutionStrategy::MultiStateless,
-            (true, true) => ProcessorExecutionStrategy::SingleStateful,
-            (true, false) => ProcessorExecutionStrategy::MultiStatefulSparse,
-        };
-
-        Self {
-            processor_id,
-            available_axes,
-            required_eval_axes,
-            required_memory_axes,
-            strategy,
-        }
-    }
-}
-
-fn extend_axes(target: &mut AxisSet, source: &AxisSet) {
-    target.extend(source.iter().cloned());
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct DefaultProcessorContextProvider;
-
-impl ProcessorContextProvider for DefaultProcessorContextProvider {
-    fn available_axes(&self, _processor_id: ProcessorId) -> AxisSet {
-        AxisSet::new()
-    }
-
-    fn iter_context_keys<'a>(
-        &'a self,
-        _processor_id: ProcessorId,
-        axes: &'a AxisSet,
-    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
-        if axes.is_empty() {
-            Box::new(std::iter::once(ContextKey::default_lane()))
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
-    fn resolve_context_value(
-        &self,
-        _key: &ContextKey,
-        _axis: &ContextAxisId,
-        _path: &ContextValuePath,
-    ) -> Option<RuntimeValue> {
-        None
-    }
-}
-
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Processor {
@@ -343,11 +244,13 @@ impl ProcessorDirtyFlags {
 pub struct ProcessorRuntime {
     pub id: ProcessorId,
     pub compiled: Option<Arc<CompiledAlchemistFormula>>,
+    compiled_formula_key: Option<FormulaCompileKey>,
     pub managed_formula: Option<ManagedFormulaRuntime>,
     pub plan: Option<ProcessorExecutionPlan>,
     pub compiled_condition: Option<Arc<CompiledConditionProgram>>,
     pub condition_runtimes: IndexMap<ContextKey, ConditionRuntime>,
     pub lanes: LaneRuntimePool,
+    managed_context_keys: IndexSet<ContextKey>,
     stateless_scratch: Option<AlchemistMemory>,
     pub active: bool,
     pub dirty: ProcessorDirtyFlags,
@@ -361,11 +264,13 @@ impl ProcessorRuntime {
         Self {
             id,
             compiled: None,
+            compiled_formula_key: None,
             managed_formula: None,
             plan: None,
             compiled_condition: None,
             condition_runtimes: IndexMap::new(),
             lanes: LaneRuntimePool::default(),
+            managed_context_keys: IndexSet::new(),
             stateless_scratch: None,
             active: false,
             dirty: ProcessorDirtyFlags {
@@ -375,6 +280,17 @@ impl ProcessorRuntime {
             subscriptions: Vec::new(),
             diagnostics: Vec::new(),
         }
+    }
+
+    #[must_use]
+    pub fn needs_continuous_evaluation(&self) -> bool {
+        self.compiled
+            .as_ref()
+            .is_some_and(|compiled| compiled.analysis.has_always_process_nodes)
+            || self
+                .managed_formula
+                .as_ref()
+                .is_some_and(ManagedFormulaRuntime::needs_continuous_evaluation)
     }
 
     #[cfg(test)]
@@ -539,7 +455,10 @@ impl ProcessorRuntime {
             return false;
         }
         self.subscriptions = compiled.graph.subscriptions.clone();
-        if !(preserve_compatible_lanes && self.lanes.is_compatible_with_graph(&compiled.graph)) {
+        let compile_key = FormulaCompileKey::from_formula(formula, 0, 0);
+        let same_executable_graph = self.compiled_formula_key.as_ref() == Some(&compile_key);
+        if !(preserve_compatible_lanes && same_executable_graph && self.lanes.is_compatible_with_graph(&compiled.graph))
+        {
             self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
         }
         if self.lanes.is_stateless() {
@@ -556,6 +475,7 @@ impl ProcessorRuntime {
             AxisSet::new(),
         ));
         self.compiled = Some(compiled);
+        self.compiled_formula_key = Some(compile_key);
         self.managed_formula = managed_formula;
         self.dirty = ProcessorDirtyFlags::default();
         true
@@ -563,13 +483,20 @@ impl ProcessorRuntime {
 
     fn clear_runtime(&mut self) {
         self.compiled = None;
+        self.compiled_formula_key = None;
         self.managed_formula = None;
         self.plan = None;
         self.compiled_condition = None;
         self.condition_runtimes.clear();
         self.lanes = LaneRuntimePool::default();
+        self.managed_context_keys.clear();
         self.stateless_scratch = None;
         self.subscriptions.clear();
+    }
+
+    pub fn invalidate(&mut self, diagnostic: Diagnostic) {
+        self.clear_runtime();
+        self.diagnostics = vec![diagnostic];
     }
 
     fn compile_condition(&mut self, processor: &Processor, preserve_compatible_state: bool) -> bool {
@@ -643,6 +570,9 @@ impl ProcessorRuntime {
         );
         if reset {
             self.lanes.clear();
+            if let Some(managed) = self.managed_formula.as_mut() {
+                managed.reset_memory();
+            }
         }
     }
 
@@ -749,56 +679,66 @@ impl ProcessorRuntime {
             return Vec::new();
         }
         if self.managed_formula.is_some() {
-            let context_key = ContextKey::default_lane();
-            if !self.condition_passes(ctx, context_provider, &context_key) {
-                return Vec::new();
+            let axes = self
+                .plan
+                .as_ref()
+                .map_or_else(AxisSet::new, |plan| plan.required_eval_axes.clone());
+            let mut context_keys = context_provider.iter_context_keys(self.id, &axes).collect::<Vec<_>>();
+            if context_keys.is_empty() && axes.is_empty() {
+                context_keys.push(ContextKey::default_lane());
+            }
+            if context_keys.len() != self.managed_context_keys.len()
+                || context_keys.iter().any(|key| !self.managed_context_keys.contains(key))
+            {
+                self.managed_context_keys = context_keys.iter().cloned().collect();
+                if let Some(managed) = self.managed_formula.as_mut() {
+                    managed.retain_context_keys(&self.managed_context_keys);
+                }
+                self.condition_runtimes
+                    .retain(|key, _| self.managed_context_keys.contains(key));
             }
             let graph_backed = self
                 .managed_formula
                 .as_ref()
                 .is_some_and(ManagedFormulaRuntime::uses_authored_graph);
-            let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
-                let output = self
+            let compiled = self.compiled.as_ref().map(Arc::clone);
+            let mut lanes = Vec::with_capacity(context_keys.len());
+            for context_key in context_keys {
+                if !self.condition_passes(ctx, context_provider, &context_key) {
+                    continue;
+                }
+                let capture_mode = compiled.as_ref().map_or(DebugCaptureMode::Off, |compiled| {
+                    capture.debug_capture_mode(&compiled.formula_ref.id, &context_key)
+                });
+                let properties = if graph_backed {
+                    match compiled.as_ref().map(|compiled| {
+                        self.resolve_property_frame(processor, compiled, &context_key, context_provider)
+                    }) {
+                        Some(Ok(properties)) => Some(properties),
+                        Some(Err(error)) => {
+                            lanes.push(ProcessorLaneOutput {
+                                context_key: (!context_key.is_default_lane()).then_some(context_key),
+                                output: property_frame_error_output(error),
+                            });
+                            continue;
+                        }
+                        None => None,
+                    }
+                } else {
+                    None
+                };
+                let mut output = self
                     .managed_formula
                     .as_mut()
                     .expect("managed formula presence was checked before condition evaluation")
-                    .evaluate(ctx);
-                return vec![ProcessorLaneOutput {
-                    context_key: None,
-                    output,
-                }];
-            };
-            let capture_mode = capture.debug_capture_mode(&compiled.formula_ref.id, &context_key);
-            let properties = if graph_backed {
-                match self.resolve_property_frame(processor, &compiled, &context_key, context_provider) {
-                    Ok(properties) => Some(properties),
-                    Err(error) => {
-                        return vec![ProcessorLaneOutput {
-                            context_key: None,
-                            output: property_frame_error_output(error),
-                        }];
-                    }
-                }
-            } else {
-                None
-            };
-            let mut output = self
-                .managed_formula
-                .as_mut()
-                .expect("managed formula presence was checked before condition evaluation")
-                .evaluate_with_graph_frame(ctx, properties.as_ref(), capture_mode.clone());
-            if graph_backed {
-                return vec![ProcessorLaneOutput {
-                    context_key: None,
-                    output,
-                }];
-            }
-            if !matches!(capture_mode, DebugCaptureMode::Off) {
-                let context_key = ContextKey::default_lane();
-                let context = RuntimeContextFrame::new(context_key.clone());
-                if let Ok(properties) =
-                    self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
+                    .evaluate_with_context_frame(ctx, &context_key, properties.as_ref(), capture_mode.clone());
+                if !graph_backed
+                    && !matches!(capture_mode, DebugCaptureMode::Off)
+                    && let Some(compiled) = &compiled
+                    && let Ok(properties) =
+                        self.resolve_property_frame(processor, compiled, &context_key, context_provider)
                 {
+                    let context = RuntimeContextFrame::new(context_key.clone());
                     let mut debug = DebugCaptureSink::new(capture_mode);
                     let frame = EvaluationFrame {
                         ctx,
@@ -808,7 +748,7 @@ impl ProcessorRuntime {
                         force_process_unchanged_inputs,
                         capture_unchanged_outputs,
                     };
-                    let preview = match self.lanes.memory_for_key(context_key, &compiled.graph) {
+                    let preview = match self.lanes.memory_for_key(context_key.clone(), &compiled.graph) {
                         Some(memory) => profile_kernel(|| evaluate_compiled_graph(&compiled.graph, memory, frame)),
                         None => {
                             let scratch = self
@@ -819,11 +759,12 @@ impl ProcessorRuntime {
                     };
                     output.debug_samples = preview.debug_samples;
                 }
+                lanes.push(ProcessorLaneOutput {
+                    context_key: (!context_key.is_default_lane()).then_some(context_key),
+                    output,
+                });
             }
-            return vec![ProcessorLaneOutput {
-                context_key: None,
-                output,
-            }];
+            return lanes;
         }
         let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
             return Vec::new();

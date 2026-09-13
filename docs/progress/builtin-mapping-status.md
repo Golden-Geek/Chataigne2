@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 05 — flow control, temporal scheduling, and state correctness (next phase turn)
+- Active phase: 05 — flow control, temporal scheduling, and state correctness (delivery pending)
 - Last validated implementation commit: `47f8794053509cfa8e821f343f93bc6c1d3d8f96` (Phase 04)
 - Last verified remote implementation commit: `47f8794053509cfa8e821f343f93bc6c1d3d8f96` (Phase 04)
-- Current blockers: none; later phases still own flow control, command argument bindings, the built-in asset, and product UI.
-- Product checks still outstanding: revised M01–M16 and M18–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: begin Phase 05 flow and temporal state work after the Phase 04 status checkpoint is verified remotely.
-- Last updated: 2026-09-13T14:00:00+02:00
+- Current blockers: none; later phases own command argument bindings, the built-in asset, and product UI.
+- Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
+- Next concrete action: commit and verify the Phase 05 implementation and status checkpoint, then begin Phase 06 on the next phase turn.
+- Last updated: 2026-09-13T14:51:17+02:00
 
 ## Phase ledger
 
@@ -22,7 +22,7 @@
 | 02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a4705f61` verified remotely; scalar/tuple source-shape gates pass. Whole-value filter execution belongs to Phase 03/04. |
 | 03 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `a783b60c` verified remotely; whole-tuple palette rejects implicit subset routing, and three-operand Math/Sum/Average choices materialize exact sockets. Direct branch pushes have no required CI. |
 | 04 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `47f87940` observed at the remote; whole-tuple composition, authored Formula boundaries, shared specializations, isolated state, and previews pass crate/app/workspace gates. Direct branch pushes have no required CI. |
-| 05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Flow, temporal state, revision safety. |
+| 05 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Suppression, default/hold, trigger flow, temporal wakeups, context state, compatible migration, and revision safety pass crate/app/workspace gates; direct branch pushes have no required CI. |
 | 06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Inputs and command argument bindings. |
 | 07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Required filter catalog. |
 | 08 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Backend authoring, asset, persistence. |
@@ -38,21 +38,21 @@
 | M02 | X/Y/Z → elementwise filter → Pack Vec3 → one 3D command | 04, 06 | Processor tuple Formula test dispatches one Vec3 value; command argument bindings remain Phase 06 | PARTIAL |
 | M03 | Mixed float/bool/string → numeric filter diagnostic; explicit conversion | 02, 04 | Mixed float/bool tuple rejects implicit numeric subset; full float/bool/string and conversion catalog remain Phase 07 | PARTIAL |
 | M04 | Color conversion or explicit extraction → typed command | 06, 07 | Pending | NOT_RUN |
-| M05 | Closed numeric suppressing gate | 05 | Pending | NOT_RUN |
-| M06 | Gate changes with steady source | 05 | Pending | NOT_RUN |
-| M07 | Hold/default first sample and reopen | 05 | Pending | NOT_RUN |
-| M08 | Rename/reorder/add tuple inputs during elementwise smoothing | 02, 05 | Pending | NOT_RUN |
-| M09 | Shared structure, isolated processor/context state | 04, 05 | Equivalent stages share compiled graph but keep separate smoothing history and preview identity; processor/context lifecycle remains Phase 05 | PARTIAL |
+| M05 | Closed numeric suppressing gate | 05 | Closed Mapping and authored-graph gates suppress downstream values and commands without a fallback zero; control outputs remain available. | PASSED |
+| M06 | Gate changes with steady source | 05 | Changing gate control reopens a Mapping with an unchanged source; gated temporal work sleeps while closed. | PASSED |
+| M07 | Hold/default first sample and reopen | 05 | HoldLast suppresses before its first accepted value unless an authored or graph-connected default exists; OutputDefault emits its selected value. | PASSED |
+| M08 | Rename/reorder/add tuple inputs during elementwise smoothing | 02, 05 | Element history follows stable authored identity across rename/reorder; removed state is released and incompatible upstream edits reset downstream history. | PASSED |
+| M09 | Shared structure, isolated processor/context state | 04, 05 | Equivalent stages share a compiled graph but retain separate processor, context, and tuple-element histories; context membership pruning and lifecycle reset pass. | PASSED |
 | M10 | External edits to coefficient, key, stop, binding | 03, 07, 08 | Pending | NOT_RUN |
 | M11 | Whole-value fan-out and tuple-element command arguments | 06 | Pending | NOT_RUN |
 | M12 | Unavailable source/target and tuple type/arity changes | 02, 06 | Pending | NOT_RUN |
-| M13 | Repeat equal-valued triggers | 05 | Pending | NOT_RUN |
+| M13 | Repeat equal-valued triggers | 05 | Typed trigger stages emit separate intents for separate occurrences even when values are equal. | PASSED |
 | M14 | Persistence, copy, undo/redo, migration | 08 | Pending | NOT_RUN |
 | M15 | Managed regions plus extra Formula operations | 04 | Graph-backed processor executes routing before and after managed filter, with command and preview assertions | PASSED |
 | M16 | Convert configured Mapping to Formula | 10 | Pending | NOT_RUN |
 | M17 | Preview-off execution | 01 | Direct result-slot, codec-call, and capture-off Rust tests; app Action and workspace gates pass | PASSED |
-| M18 | Structural edit during compile/evaluation | 05 | Pending | NOT_RUN |
-| M19 | Mapping controls Mapping or itself | 05, 08 | Pending | NOT_RUN |
+| M18 | Structural edit during compile/evaluation | 05 | Synchronous snapshot materialization publishes complete runtimes; a failed structural specialization invalidates the previous chain and never dispatches it. | PASSED |
+| M19 | Mapping controls Mapping or itself | 05, 08 | Processor intents use the existing queued engine transaction path; a built-in Mapping self-cycle product test awaits the Phase 08 asset. | PARTIAL |
 | M20 | Inspector/context switching and large lists | 09, 11 | Pending | NOT_RUN |
 
 ## Validation evidence
@@ -95,6 +95,9 @@
 | 2026-09-13T13:58+02:00 | 04 | working tree before checkpoint A | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet` | Windows x64, Rust 1.97.0 | PASSED | 164 Alchemist and 102 processor tests, including whole-tuple composition, graph boundaries, shared plans, isolated state, preview attribution, and graph-error suppression. |
 | 2026-09-13T13:58+02:00 | 04 | working tree before checkpoint A | `cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, Rust 1.97.0 | PASSED | 537 app unit tests passed, 5 existing manual tests ignored, and 1 audio-host integration test passed; includes managed metadata with authored graph nodes. |
 | 2026-09-13T13:58+02:00 | 04 | working tree before checkpoint A | `cargo check --locked --workspace`; `cargo clippy --locked -p chataigne_alchemist -p chataigne_processor -p Chataigne2 --all-targets -- -D warnings`; root and Golden Core `cargo fmt --all`; `cargo fmt --all --check`; `git diff --check` | Windows x64, Rust 1.97.0 | PASSED | Full workspace and strict targeted Clippy passed, both formatter scopes and whitespace check passed. |
+| 2026-09-13T14:50+02:00 | 05 | working tree before checkpoint A | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 165 Alchemist and 115 processor tests pass; 538 app tests pass, 5 existing manual tests ignored, and the audio-host integration test passes. Tests cover gate flow, defaults, triggers, contexts, temporal scheduling, migration, and invalid revisions. |
+| 2026-09-13T14:50+02:00 | 05 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo check --locked --workspace`; `cargo clippy --locked -p chataigne_alchemist -p chataigne_processor --all-targets -- -D warnings`; `.\tools\asio.ps1 -- cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings`; root and Golden Core `cargo fmt --all` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace check, strict crate/app Clippy, and both formatter scopes pass after the final runtime changes. |
+| 2026-09-13T14:51+02:00 | 05 | working tree before checkpoint A | Root and Golden Core `cargo fmt --all --check`; `git diff --check` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and whitespace validation pass; Git reports only Windows line-ending conversion notices. |
 
 ## Phase reports
 
@@ -157,9 +160,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: the graph-free Mapping path retains native typed frames; graph-backed custom Formulas use the ValueSet extension only at real graph sockets. Source schema remains a backend structural input. Runtime graph errors suppress the entire intent batch rather than dispatching an earlier partial result.
 
+### Phase 05 (delivery pending)
+
+- Changes and affected public boundaries: Alchemist result slots now carry explicit delivery flow. ConditionGate suppresses closed value outputs while preserving control outputs; the app-owned processor propagates that flow through typed Mapping, trigger, and authored-graph stages. Managed sources resolve by processor context. Elementwise memory is keyed by tuple-element identity and context, with compatible migration and pruning. The state-machine manager publishes complete revised runtimes and invalidates failed specializations.
+- Acceptance gates satisfied: closed gates do not send zero, defaults and HoldLast honor first-sample selection, a changed condition reopens a steady source, repeated trigger occurrences remain distinct, and due smoothing advances on a steady source. Context and element histories stay isolated across reorder; source and operation changes reset incompatible state, removal releases it, and invalid revisions cannot dispatch an old chain. Output command argument eligibility and accepted-value send caches remain Phase 06 work.
+- Remaining work: Phase 06 owns per-command bindings and send policy; Phase 08 owns the built-in Mapping asset and a product self-cycle test. Trigger regions with authored graph nodes still diagnose unsupported boundaries rather than skipping the graph. The existing oversized Alchemist runtime source and retained low-level ValueSet runner belong to Phase 11 cleanup.
+- Exact checks and outcomes: see Phase 05 validation rows. 165 Alchemist, 115 processor, and 538 app tests plus audio-host integration pass; 5 existing manual app tests remain ignored. Full workspace check, strict crate/app Clippy, and root/Golden Core format pass.
+- Implementation commit: `PUSH_PENDING`.
+- Verified remote ref, observed OID, and timestamp: `PUSH_PENDING`.
+- CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
+- Decisions/deviations and rationale: standard Mapping remains one ordered tuple without authored channels; internal per-element stage groups preserve scalar gate semantics without leaking gate control sockets into the tuple. Compiled Formula graphs retain memory only when their structural compile key matches, while changed source provenance or upstream temporal work resets affected histories. The manager materializes from a coherent engine snapshot and swaps runtimes synchronously, so no asynchronous stale build can publish.
+
 ## Blockers and handoff
 
-- What failed or changed: the user replaced the standard Mapping channel model with one ordered source tuple and whole-value linear filtering. Phase 04 now enforces that runtime contract and executes custom Formula graph operations at explicit managed boundaries.
-- Last known-good checkpoint: Phase 04 `47f8794053509cfa8e821f343f93bc6c1d3d8f96` is validated and verified at `origin/codex/builtin-mapping`.
-- Reproduction: no current Phase 04 failure; focused crate, app, workspace, and Clippy gates pass with the available toolchain.
-- Next action: start Phase 05 on the next phase turn after this status checkpoint is verified.
+- What failed or changed: Phase 05 adds explicit suppression and context-aware temporal state to the ordered-tuple Mapping contract. No current phase failure remains.
+- Last known-good checkpoint: Phase 04 `47f8794053509cfa8e821f343f93bc6c1d3d8f96` is validated and verified at `origin/codex/builtin-mapping`; Phase 05 awaits delivery.
+- Reproduction: focused crate and full app tests, workspace check, and strict Clippy pass with the available toolchain.
+- Next action: finish Phase 05 commit/push verification and publish the factual status checkpoint; begin Phase 06 on the next phase turn.

@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use chataigne_alchemist::{CompileCtx, EvaluationCtx, ManagedRegionId, RuntimeInputSnapshot, RuntimeRegistries, StableRef, ValueTypeId};
-use chataigne_state_machine::{ProcessorRuntime, INPUT_SOURCE_FIELD};
+use chataigne_alchemist::{CompileCtx, ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ManagedRegionId, RuntimeInputSnapshot, RuntimeRegistries, StableRef, ValueTypeId};
+use chataigne_state_machine::{ProcessorId, ProcessorRuntime, INPUT_SOURCE_FIELD};
 use golden_core::{
     node::{NodeId, NodeUuid},
-    parameter::{ParamValue, ParameterConstraints, RangeConstraint},
+    parameter::{ParamValue, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, RangeConstraint},
     process_ctx::ProcessTreeSnapshot,
 };
 
-use super::super::source_schema::{insert_managed_source_values, managed_source_bindings, managed_source_schema};
-use super::context_scope_test_node;
+use super::super::source_schema::{insert_managed_source_values, insert_managed_source_values_with_context, managed_source_bindings, managed_source_schema};
+use super::{context_axis, context_list, context_provider, context_runtime, context_scope_test_node};
 use super::snapshot_gate::managed_remap_processor;
 
 #[test]
@@ -70,6 +70,39 @@ fn managed_source_snapshot_uses_latest_param_event_value_for_each_reference() {
     assert_eq!(inputs.get(&references[0]), Some(&golden_values::Value::Float(2.0)));
     assert_eq!(inputs.get(&references[1]), Some(&golden_values::Value::Float(2.0)));
     assert_eq!(inputs.get(&references[2]), None);
+}
+
+#[test]
+fn managed_source_snapshot_resolves_context_link_values_per_processor_lane() {
+    let (root, source) = (NodeId(1), NodeId(2));
+    let mut nodes = HashMap::from([
+        (root, context_scope_test_node(root, None, Some(source), None, "root")),
+        (source, context_scope_test_node(source, Some(root), None, None, "float")),
+    ]);
+    nodes.get_mut(&source).unwrap().param_value = Some(ParamValue::Float(1.0));
+    nodes.get_mut(&source).unwrap().param_control = Some(ParameterControlState::new(
+        ParameterControlMode::ContextLink,
+        ParameterControlSpec::ContextLink { symbol: "value".into(), projection: None },
+    ));
+    let snapshot = ProcessTreeSnapshot::new(root, nodes);
+    let processor_id = ProcessorId::new();
+    let axis = ContextAxisId::new("device");
+    let a = ContextItemId::new("a");
+    let b = ContextItemId::new("b");
+    let provider = context_provider(processor_id, context_runtime(
+        vec![context_axis(axis.clone(), "Device", vec![a.clone(), b.clone()])],
+        vec![context_list(axis.clone(), "value", "values", [
+            (a.clone(), golden_values::Value::Float(2.0)),
+            (b.clone(), golden_values::Value::Float(8.0)),
+        ])],
+    ));
+    let reference = StableRef::new(ValueTypeId::new("float"), "source");
+    let mut inputs = RuntimeInputSnapshot::default();
+    insert_managed_source_values_with_context(
+        &snapshot, &HashMap::new(), &[(reference.clone(), source)], processor_id, &provider, &mut inputs,
+    );
+    assert_eq!(inputs.get_context(&reference, &ContextKey::single(axis.clone(), a)), Some(&golden_values::Value::Float(2.0)));
+    assert_eq!(inputs.get_context(&reference, &ContextKey::single(axis, b)), Some(&golden_values::Value::Float(8.0)));
 }
 
 #[test]

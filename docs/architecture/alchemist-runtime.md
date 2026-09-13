@@ -221,8 +221,10 @@ never require an adapter module to be instantiated.
 
 ## ValueSet And Managed Pipelines
 
-`ValueSet` is the Chataigne collection boundary for multi-lane values. It keeps
-stable lane keys, labels, sources, and runtime values together. The old
+`ValueSet` is the Chataigne collection boundary at actual Formula graph sockets.
+It keeps stable tuple-element keys, labels, sources, and runtime values together.
+Graph-free managed Mapping evaluation passes an ordered typed `ChannelFrame`
+through its filter chain. The old
 `chataigne.param_array` type is a clean schema break and is rejected rather than
 registered as an alias.
 
@@ -232,19 +234,23 @@ aggregate, reshape, expand, or whole-set. Unsupported transitions produce typed
 diagnostics instead of silently broadcasting, merging, or wiring scalar sockets
 to opaque extension payloads.
 
-Chataigne owns the lane-aware managed pipeline runtime. Elementwise filters
-compile once and run per `ValueSet` lane through stable `ContextKey` values.
-Stateful filters use `LaneRuntimePool`, so each lane keeps independent memory.
-Aggregate/projection pipelines, including Pack Vec3, use explicit fixed-slot
-projection instead of implicit lane collapse.
+Chataigne owns the managed stage chain. Each stage compiles through the same
+ANode graph kernel as a custom Formula. Elementwise filters reuse one compiled
+specialization and keep memory by stable tuple-element and processor-context
+keys; reductions and Pack Vec3 consume the declared ordered operands. A stage
+whose source or operation changes resets incompatible history, while rename and
+reorder retain the matching element state. Inactive contexts and removed
+elements release their memory on membership or structural changes.
 
-`ConditionGate` is a reusable filter-capable ANode. Whole-value gating works for
-single values, triggers, command-intent-like extension values, and complete
-`ValueSet` payloads. The raw reusable Alchemist runtime still reports a
-diagnostic for `gate_application = per_lane` because it has no Chataigne
-`ValueSet` lane context. Chataigne's managed `ValueSetPipelineRuntime` owns that
-lane boundary: when it lowers an elementwise filter pipeline, `per_lane`
-ConditionGate items are compiled as scalar gates inside each stable value lane.
+`ConditionGate` is a reusable filter-capable ANode. A closed suppressing gate
+marks its value output as suppressed; downstream nodes do not consume a hidden
+zero or default. `HoldLast` requires a prior accepted value or explicit default.
+The gate's `passed` and `blocked` control outputs remain available in custom
+Formulas. Standard Mapping applies one gate across its ordered tuple through
+the typed stage chain; custom Formulas may branch with those control sockets.
+The legacy `gate_application = per_lane` mode has no generic graph evaluator and
+must use an explicit custom-Formula path rather than silently changing the
+standard Mapping's tuple contract.
 
 ## Runtime Intents And Diagnostics
 

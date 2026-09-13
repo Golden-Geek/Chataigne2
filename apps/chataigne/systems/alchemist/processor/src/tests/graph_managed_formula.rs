@@ -1,18 +1,18 @@
 use chataigne_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistFormulaInstance, AlchemistGraphDomain,
     AlchemistGraphTransaction, CompileCtx, InputSocketRef, ManagedFilterValueMode, ManagedRegionId, ManagedSocketRef,
-    OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, StableRef,
+    OutputSocketRef, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries, SocketId, StableRef,
 };
 use chataigne_state_machine_model::StateId;
 use golden_values::Value as RuntimeValue;
 
 use super::managed_formula::{
-    command_target, endpoint_ref, eval_ctx, formula_and_instance, input_item, output_item, region, registries,
-    remap_item,
+    command_target, endpoint_ref, eval_ctx, formula_and_instance, input_item, managed_item_for_primitive, output_item,
+    region, registries, remap_item,
 };
 use crate::{
     ChannelSourceSchema, DefaultProcessorContextProvider, ManagedFormulaRuntime, Processor, ProcessorDebugCapture,
-    ProcessorLifecycleEvent, ProcessorRuntime,
+    ProcessorLifecycleEvent, ProcessorRuntime, RuntimeInputBinding,
     alchemist::{FILTERS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, OUTPUTS_MANAGER_TYPE, ROUTING_TYPE},
 };
 
@@ -127,6 +127,90 @@ fn managed_regions_execute_inside_custom_formula_graph() {
         .unwrap();
     assert_eq!(command.target.as_ref(), Some(&target));
     assert_eq!(command.payload, RuntimeValue::Float(0.5));
+}
+
+#[test]
+fn graph_managed_gate_suppresses_downstream_nodes_then_reopens_on_control_change() {
+    let (formula, mut instance, source, target, _, _) = graph_fixture();
+    let mut gate = managed_item_for_primitive(PrimitiveNodeKind::ConditionGate);
+    gate.anode
+        .config
+        .set("mode", RuntimeValue::String("pass_when_true".into()));
+    gate.anode
+        .input_defaults
+        .insert(SocketId::new("condition"), RuntimeValue::Bool(false));
+    gate.anode
+        .input_defaults
+        .insert(SocketId::new("default_value"), RuntimeValue::Float(7.0));
+    let gate_id = gate.id;
+    instance
+        .managed_regions
+        .regions
+        .get_mut(&ManagedRegionId::new("filters"))
+        .unwrap()
+        .items = vec![gate];
+    let (value_types, nodes) = registries();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
+        .unwrap()
+        .unwrap();
+    runtime
+        .reconcile_input_source_schema(|_| {
+            Some(ChannelSourceSchema {
+                value_type: "float".into(),
+                metadata: Default::default(),
+            })
+        })
+        .unwrap();
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Float(5.0));
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let blocked = runtime.evaluate(&eval_ctx(1, &inputs, &registries));
+    assert!(blocked.diagnostics.is_empty(), "{:?}", blocked.diagnostics);
+    assert!(
+        blocked
+            .intents
+            .iter()
+            .all(|intent| intent.target.as_ref() != Some(&target))
+    );
+    assert_eq!(
+        blocked
+            .intents
+            .iter()
+            .filter(|intent| intent.kind.as_ref() == "debug.log")
+            .count(),
+        1
+    );
+
+    runtime
+        .update_filter_input(
+            gate_id,
+            &SocketId::new("condition"),
+            RuntimeInputBinding::Constant(RuntimeValue::Bool(true)),
+        )
+        .unwrap();
+    let opened = runtime.evaluate(&eval_ctx(2, &inputs, &registries));
+    assert!(opened.diagnostics.is_empty(), "{:?}", opened.diagnostics);
+    assert_eq!(
+        opened
+            .intents
+            .iter()
+            .filter(|intent| intent.kind.as_ref() == "debug.log")
+            .count(),
+        2
+    );
+    assert!(
+        opened
+            .intents
+            .iter()
+            .any(|intent| intent.target.as_ref() == Some(&target) && intent.payload == RuntimeValue::Float(5.0))
+    );
 }
 
 #[test]

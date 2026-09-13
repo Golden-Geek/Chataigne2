@@ -1,12 +1,15 @@
 //! Instance-aware managed filter contracts resolved from the same ANode declaration as graph use.
 
 use crate::{
-    ANodeDeclaration, ANodeInstance, ANodeSignature, ANodeTypeId, ChannelGroups, ChannelLayout, ChannelLayoutError,
-    ChannelSelection, ChannelSelectionResolution, ManagedSettingClass, PipelineCardinality, RuntimeValue, SignatureCtx,
-    SocketId, SurfaceItemKind, TypeConstraint, ValueLaneKey, ValueTypeId,
+    ANodeDeclaration, ANodeInstance, ANodeSignature, ANodeTypeId, AutoWirePolicy, ChannelGroups, ChannelLayout,
+    ChannelLayoutError, ChannelSelection, ChannelSelectionResolution, ManagedSettingClass, PipelineCardinality,
+    RuntimeValue, SignatureCtx, SocketId, SurfaceItemKind, TypeConstraint, ValueLaneKey, ValueTypeId,
 };
 
 pub const MANAGED_SELECTION_FIELD: &str = "managed_selection";
+/// Internal stage lowering marks a synthesized default connection so HoldLast can still
+/// distinguish it from an explicit authored default edge in a Formula graph.
+pub const MANAGED_IMPLICIT_GATE_DEFAULT_FIELD: &str = "_managed_implicit_gate_default";
 pub const MANAGED_GROUPS_FIELD: &str = "managed_groups";
 
 /// Resolve the same configured variant for palette validation and backend creation.
@@ -130,7 +133,7 @@ pub fn resolve_managed_application(
             }
         }
     }
-    let outputs: Vec<_> = signature.outputs.iter().map(|output| output.id.clone()).collect();
+    let mut outputs: Vec<_> = signature.outputs.iter().map(|output| output.id.clone()).collect();
     if outputs.is_empty() {
         return Err(ManagedApplicationError::NoOutputs);
     }
@@ -138,6 +141,9 @@ pub fn resolve_managed_application(
         && !outputs.contains(&primary)
     {
         return Err(ManagedApplicationError::UnknownPrimaryOutput(primary));
+    }
+    if let AutoWirePolicy::Gate { output, .. } = &capability.autowire {
+        outputs = vec![output.clone()];
     }
 
     let selection = parse_selection(instance)?;
@@ -150,6 +156,7 @@ pub fn resolve_managed_application(
         |value_type: &ValueTypeId| accepts_constraint(&first_constraint.constraint, &signature, value_type, ctx);
     let selection = selection.resolve(layout, accepts)?;
     let per_channel = capability.cardinality == PipelineCardinality::Elementwise
+        || matches!(&capability.autowire, AutoWirePolicy::Gate { .. })
         || (capability.cardinality == PipelineCardinality::Reshape && primary_inputs.len() == 1 && outputs.len() > 1);
     let groups = match parse_groups(instance)? {
         Some(groups) => {
@@ -187,6 +194,9 @@ pub fn resolve_managed_application(
         PipelineCardinality::Reshape if per_channel => ManagedStateScope::PerChannel,
         PipelineCardinality::Aggregate | PipelineCardinality::Reshape | PipelineCardinality::Expand => {
             ManagedStateScope::PerGroup
+        }
+        PipelineCardinality::WholeSet if matches!(&capability.autowire, AutoWirePolicy::Gate { .. }) => {
+            ManagedStateScope::PerChannel
         }
         PipelineCardinality::WholeSet => ManagedStateScope::WholeStream,
     };

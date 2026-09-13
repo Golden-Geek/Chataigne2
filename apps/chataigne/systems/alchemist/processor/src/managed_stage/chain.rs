@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use chataigne_alchemist::{
-    ChannelLayout, CompileCtx, DebugCaptureMode, EvaluationCtx, ManagedFilterValueMode, ManagedItemId,
+    ChannelLayout, CompileCtx, ContextKey, DebugCaptureMode, EvaluationCtx, ManagedFilterValueMode, ManagedItemId,
     ManagedItemInstance, RuntimeOutput, SocketId,
 };
+use indexmap::IndexSet;
 
 use crate::{ChannelFrame, RuntimeInputBinding};
 
@@ -59,6 +60,11 @@ impl ManagedStageChain {
         &self.output_layout
     }
 
+    #[must_use]
+    pub fn needs_continuous_evaluation(&self) -> bool {
+        self.stages.iter().any(ManagedStageRuntime::needs_continuous_evaluation)
+    }
+
     pub fn update_runtime_input(
         &mut self,
         item: ManagedItemId,
@@ -70,6 +76,32 @@ impl ManagedStageChain {
             .find(|stage| stage.item_id() == item)
             .ok_or(ManagedStageError::MissingStage(item))?
             .update_runtime_input(socket, binding)
+    }
+
+    pub fn reset_memory(&mut self) {
+        for stage in &mut self.stages {
+            stage.reset_memory();
+        }
+    }
+
+    pub fn suspend_context(&mut self, context_key: &ContextKey) {
+        for stage in &mut self.stages {
+            stage.suspend_context(context_key);
+        }
+    }
+
+    pub fn retain_context_keys(&mut self, active: &IndexSet<ContextKey>) {
+        for stage in &mut self.stages {
+            stage.retain_context_keys(active);
+        }
+    }
+
+    pub fn migrate_memory_from(&mut self, previous: Self) {
+        for (stage, old_stage) in self.stages.iter_mut().zip(previous.stages) {
+            if !stage.migrate_memory_from(old_stage) {
+                break;
+            }
+        }
     }
 
     pub fn evaluate<'a>(
@@ -86,6 +118,16 @@ impl ManagedStageChain {
         ctx: &EvaluationCtx<'_>,
         capture_mode: DebugCaptureMode,
     ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
+        self.evaluate_with_capture_for_context(input, ctx, capture_mode, &ContextKey::default_lane())
+    }
+
+    pub fn evaluate_with_capture_for_context<'a>(
+        &'a mut self,
+        input: &'a ChannelFrame,
+        ctx: &EvaluationCtx<'_>,
+        capture_mode: DebugCaptureMode,
+        context_key: &ContextKey,
+    ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
         if !input.layout().has_same_structure(&self.input_layout) {
             return Err(ManagedStageError::InputLayoutChanged);
         }
@@ -93,7 +135,8 @@ impl ManagedStageChain {
         for index in 0..self.stages.len() {
             let (previous, remaining) = self.stages.split_at_mut(index);
             let current = previous.last().map_or(input, |stage| &stage.output_frame);
-            let (_, stage_output) = remaining[0].evaluate_with_capture(current, ctx, capture_mode.clone())?;
+            let (_, stage_output) =
+                remaining[0].evaluate_with_capture_for_context(current, ctx, capture_mode.clone(), context_key)?;
             output.intents.extend(stage_output.intents);
             output.diagnostics.extend(stage_output.diagnostics);
             output.debug_samples.extend(stage_output.debug_samples);

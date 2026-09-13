@@ -1,16 +1,17 @@
 //! A typed managed stage compiles one ANode graph and applies it to authored channel groups.
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraphDomain, AlchemistGraphTransaction, AlchemistMemory, ChannelDescriptor,
     ChannelLayout, ChannelLayoutError, CompileCtx, CompiledAlchemistGraph, ContextAxisId, ContextItemId, ContextKey,
     DebugCaptureMode, DebugCaptureSink, Diagnostic, EvaluationCtx, EvaluationFrame, FormulaPropertyDecl,
     FormulaPropertyId, FormulaPropertySchema, InputSocketRef, LaneRuntimePool, MANAGED_GROUPS_FIELD,
-    ManagedApplication, ManagedApplicationError, ManagedFilterValueMode, ManagedItemInstance, OutputSocketRef,
-    ParamUiHints, PipelineCardinality, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
-    RuntimePropertyFrameError, SignatureCtx, SocketId, StableRef, TypeConstraint, ValueComponent, ValueLaneKey,
-    ValueSlotId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
+    MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, ManagedApplication, ManagedApplicationError, ManagedFilterValueMode,
+    ManagedItemInstance, NodeFlow, OutputSocketRef, ParamUiHints, PipelineCardinality, PrimitiveNodeKind,
+    RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, SignatureCtx, SocketId,
+    StableRef, TypeConstraint, ValueComponent, ValueLaneKey, ValueSlotId, ValueTypeId, compile_graph,
+    evaluate_compiled_graph, evaluate_compiled_graph_fresh_reusing,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::{IndexMap, IndexSet};
@@ -40,6 +41,8 @@ pub struct ManagedStageRuntime {
     output_frame: ChannelFrame,
     memory: LaneRuntimePool,
     scratch: AlchemistMemory,
+    active_temporal_contexts: HashSet<ContextKey>,
+    temporal_evaluated: bool,
 }
 
 struct StageAuxiliaryBinding {
@@ -98,7 +101,10 @@ impl ManagedStageRuntime {
         }
         if !matches!(
             application.cardinality,
-            PipelineCardinality::Elementwise | PipelineCardinality::Aggregate | PipelineCardinality::Reshape
+            PipelineCardinality::Elementwise
+                | PipelineCardinality::Aggregate
+                | PipelineCardinality::Reshape
+                | PipelineCardinality::WholeSet
         ) {
             return Err(ManagedStageError::UnsupportedCardinality(application.cardinality));
         }
@@ -129,7 +135,15 @@ impl ManagedStageRuntime {
         let mut graph = AlchemistGraphDomain::new_document();
         let mut transaction = AlchemistGraphTransaction::for_document(&graph);
         let node_id = item.anode.id;
-        AlchemistGraphDomain::insert_node(&mut transaction, item.anode.clone());
+        let mut stage_node = item.anode.clone();
+        if stage_node.type_id.as_str() == PrimitiveNodeKind::ConditionGate.type_name()
+            && !stage_node.input_defaults.contains_key(&SocketId::new("default_value"))
+        {
+            stage_node
+                .config
+                .set(MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, RuntimeValue::Bool(true));
+        }
+        AlchemistGraphDomain::insert_node(&mut transaction, stage_node);
         let mut input_properties = Vec::with_capacity(application.primary_inputs.len());
         let mut auxiliary = Vec::with_capacity(application.auxiliary_inputs.len());
         let mut connections = Vec::with_capacity(signature.inputs.len());
@@ -279,6 +293,8 @@ impl ManagedStageRuntime {
             output_frame: ChannelFrame::new(Arc::new(output_layout)),
             memory,
             scratch,
+            active_temporal_contexts: HashSet::new(),
+            temporal_evaluated: false,
         }))
     }
 
@@ -290,6 +306,12 @@ impl ManagedStageRuntime {
     #[must_use]
     pub fn shares_compiled_plan_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.compiled, &other.compiled)
+    }
+
+    #[must_use]
+    pub fn needs_continuous_evaluation(&self) -> bool {
+        self.compiled.analysis.has_always_process_nodes
+            && (!self.temporal_evaluated || !self.active_temporal_contexts.is_empty())
     }
 
     pub fn update_runtime_input(
@@ -331,17 +353,23 @@ impl ManagedStageRuntime {
         ctx: &EvaluationCtx<'_>,
         capture_mode: DebugCaptureMode,
     ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
+        self.evaluate_with_capture_for_context(input, ctx, capture_mode, &ContextKey::default_lane())
+    }
+
+    pub fn evaluate_with_capture_for_context<'a>(
+        &'a mut self,
+        input: &ChannelFrame,
+        ctx: &EvaluationCtx<'_>,
+        capture_mode: DebugCaptureMode,
+        context_key: &ContextKey,
+    ) -> Result<(&'a ChannelFrame, RuntimeOutput), ManagedStageError> {
         if !input.layout().has_same_structure(&self.input_layout) {
             return Err(ManagedStageError::InputLayoutChanged);
         }
-        let active = self
-            .groups
-            .iter()
-            .map(|group| group.context.clone())
-            .collect::<IndexSet<_>>();
-        self.memory.retain_keys(&active);
         let mut output = RuntimeOutput::default();
+        let mut active_temporal_work = false;
         for (group_index, group) in self.groups.iter().enumerate() {
+            let group_context = ContextKey::new(context_key.iter().cloned().chain(group.context.iter().cloned()));
             let inputs = group
                 .inputs
                 .iter()
@@ -361,6 +389,7 @@ impl ManagedStageRuntime {
                 }
                 continue;
             }
+            active_temporal_work = true;
             let mut overrides = IndexMap::new();
             for (property, slot) in self.input_properties.iter().zip(&inputs) {
                 overrides.insert(property.clone(), slot.value.clone().expect("validated group input"));
@@ -370,7 +399,7 @@ impl ManagedStageRuntime {
                     RuntimeInputBinding::Constant(value) => value.clone(),
                     RuntimeInputBinding::Reference(reference) => ctx
                         .inputs
-                        .get_context(reference, &group.context)
+                        .get_context(reference, &group_context)
                         .or_else(|| ctx.inputs.get(reference))
                         .cloned()
                         .ok_or_else(|| ManagedStageError::MissingReference(reference.clone()))?,
@@ -386,7 +415,7 @@ impl ManagedStageRuntime {
             }
             let properties = RuntimePropertyFrame::with_overrides(&self.compiled.properties, &overrides)
                 .map_err(ManagedStageError::PropertyFrame)?;
-            let context = RuntimeContextFrame::new(group.context.clone());
+            let context = RuntimeContextFrame::new(group_context.clone());
             let mut debug = (!capture_mode.is_off()).then(|| DebugCaptureSink::new(capture_mode.clone()));
             let frame = EvaluationFrame {
                 ctx,
@@ -396,7 +425,7 @@ impl ManagedStageRuntime {
                 force_process_unchanged_inputs: false,
                 capture_unchanged_outputs: false,
             };
-            let (evaluated, results) = match self.memory.memory_for_key(group.context.clone(), &self.compiled) {
+            let (evaluated, results, flows) = match self.memory.memory_for_key(group_context, &self.compiled) {
                 Some(memory) => {
                     let evaluated = evaluate_compiled_graph(&self.compiled, memory, frame);
                     let values = self
@@ -404,7 +433,12 @@ impl ManagedStageRuntime {
                         .iter()
                         .map(|slot| memory.value(*slot).cloned())
                         .collect::<Vec<_>>();
-                    (evaluated, values)
+                    let flows = self
+                        .output_slots
+                        .iter()
+                        .map(|slot| memory.slot_flow(*slot))
+                        .collect::<Vec<_>>();
+                    (evaluated, values, flows)
                 }
                 None => {
                     let evaluated = evaluate_compiled_graph_fresh_reusing(&self.compiled, &mut self.scratch, frame);
@@ -413,7 +447,12 @@ impl ManagedStageRuntime {
                         .iter()
                         .map(|slot| self.scratch.value(*slot).cloned())
                         .collect::<Vec<_>>();
-                    (evaluated, values)
+                    let flows = self
+                        .output_slots
+                        .iter()
+                        .map(|slot| self.scratch.slot_flow(*slot))
+                        .collect::<Vec<_>>();
+                    (evaluated, values, flows)
                 }
             };
             output.intents.extend(evaluated.intents.into_iter().map(|mut intent| {
@@ -432,19 +471,27 @@ impl ManagedStageRuntime {
                     sample.author_node_id = self.item.anode.id;
                     Some(sample)
                 }));
-            let deliver = inputs.iter().all(|slot| slot.deliver);
-            for (result, value) in self.group_results[group_index].iter_mut().zip(results) {
+            let inputs_deliver = inputs.iter().all(|slot| slot.deliver);
+            for ((result, value), flow) in self.group_results[group_index].iter_mut().zip(results).zip(flows) {
                 *result = ChannelSlot {
-                    validity: if value.is_some() {
+                    validity: if flow == NodeFlow::Suppress {
+                        ChannelValidity::Suppressed
+                    } else if value.is_some() {
                         ChannelValidity::Valid
                     } else {
                         ChannelValidity::Invalid
                     },
-                    value,
+                    value: (flow == NodeFlow::Deliver).then_some(value).flatten(),
                     changed: false,
-                    deliver,
+                    deliver: flow == NodeFlow::Deliver && inputs_deliver,
                 };
             }
+        }
+        self.temporal_evaluated = true;
+        if active_temporal_work {
+            self.active_temporal_contexts.insert(context_key.clone());
+        } else {
+            self.active_temporal_contexts.remove(context_key);
         }
         self.output_frame.begin_tick(ctx.logical_tick);
         for (index, binding) in self.outputs.iter().enumerate() {
@@ -465,6 +512,85 @@ impl ManagedStageRuntime {
     #[must_use]
     pub fn item_id(&self) -> chataigne_alchemist::ManagedItemId {
         self.item.id
+    }
+
+    pub fn reset_memory(&mut self) {
+        self.memory.clear();
+        self.scratch.reset_for_fresh_evaluation(&self.compiled);
+        self.active_temporal_contexts.clear();
+        self.temporal_evaluated = false;
+    }
+
+    pub fn suspend_context(&mut self, context_key: &ContextKey) {
+        self.active_temporal_contexts.remove(context_key);
+    }
+
+    pub fn retain_context_keys(&mut self, active: &IndexSet<ContextKey>) {
+        self.active_temporal_contexts.retain(|key| active.contains(key));
+        if active.is_empty() {
+            self.temporal_evaluated = true;
+        }
+        self.memory.retain_where(|key| {
+            let processor_key = ContextKey::new(key.iter().filter(|part| part.axis.as_str() != STAGE_AXIS).cloned());
+            active.contains(&processor_key)
+        });
+    }
+
+    /// A renamed or reordered elementwise source keeps its identity. A changed operation or
+    /// changed source provenance cannot inherit the old stage's temporal history.
+    pub fn migrate_memory_from(&mut self, mut previous: Self) -> bool {
+        if self.item.id != previous.item.id
+            || self.item.anode.type_id != previous.item.anode.type_id
+            || self.item.anode.config != previous.item.anode.config
+            || self.item.anode.type_bindings != previous.item.anode.type_bindings
+            || self.item.anode.forced_type_bindings != previous.item.anode.forced_type_bindings
+            || self
+                .auxiliary
+                .iter()
+                .map(|binding| (&binding.socket, &binding.value_type))
+                .ne(previous
+                    .auxiliary
+                    .iter()
+                    .map(|binding| (&binding.socket, &binding.value_type)))
+            || self.output_slots.len() != previous.output_slots.len()
+            || !previous.memory.is_compatible_with_graph(&self.compiled)
+        {
+            return false;
+        }
+        let old = previous.input_layout.channels();
+        let new = self.input_layout.channels();
+        let reorderable = self.groups.iter().all(|group| group.inputs.len() == 1)
+            && previous.groups.iter().all(|group| group.inputs.len() == 1);
+        let compatible = if reorderable {
+            old.iter().all(|channel| {
+                new.iter()
+                    .find(|candidate| candidate.id == channel.id)
+                    .is_none_or(|candidate| {
+                        candidate.value_type == channel.value_type
+                            && candidate.port == channel.port
+                            && candidate.provenance == channel.provenance
+                    })
+            })
+        } else {
+            self.input_layout.has_same_structure(&previous.input_layout)
+        };
+        if !compatible {
+            return false;
+        }
+        let active = self
+            .groups
+            .iter()
+            .map(|group| group.context.parts[0].item.clone())
+            .collect::<HashSet<_>>();
+        previous.memory.retain_where(|key| {
+            key.iter()
+                .find(|part| part.axis.as_str() == STAGE_AXIS)
+                .is_some_and(|part| active.contains(&part.item))
+        });
+        self.memory = previous.memory;
+        self.active_temporal_contexts = previous.active_temporal_contexts;
+        self.temporal_evaluated = previous.temporal_evaluated;
+        true
     }
 }
 
@@ -527,7 +653,7 @@ fn output_layout(
         let mut produced = Vec::with_capacity(application.outputs.len());
         for (output_index, (socket, value_type)) in application.outputs.iter().zip(output_types).enumerate() {
             let id = match application.cardinality {
-                PipelineCardinality::Elementwise => input.channels()[first].id.clone(),
+                PipelineCardinality::Elementwise | PipelineCardinality::WholeSet => input.channels()[first].id.clone(),
                 PipelineCardinality::Reshape if group.len() == 1 && application.outputs.len() > 1 => {
                     let source = &input.channels()[first].id;
                     ValueComponent::parse(socket.as_str())
@@ -550,7 +676,10 @@ fn output_layout(
                 ))
                 .expect("derived identity"),
             };
-            let mut descriptor = if application.cardinality == PipelineCardinality::Elementwise {
+            let mut descriptor = if matches!(
+                application.cardinality,
+                PipelineCardinality::Elementwise | PipelineCardinality::WholeSet
+            ) {
                 let mut descriptor = input.channels()[first].clone();
                 descriptor.value_type = Some(value_type.clone());
                 descriptor

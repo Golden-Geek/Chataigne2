@@ -161,33 +161,6 @@ fn pack_vec3_projects_three_lanes_to_vector() {
     assert!(output.debug_samples.is_empty());
 }
 
-#[test]
-fn condition_gate_per_lane_application_lowers_to_scalar_lanes_with_defaults() {
-    let value_types = value_type_registry();
-    let nodes = node_registry();
-    let lowering_ctx = PipelineLoweringCtx {
-        value_types: &value_types,
-        nodes: &nodes,
-        properties: None,
-    };
-    let mut item = managed_item_for_primitive(PrimitiveNodeKind::ConditionGate);
-    item.anode
-        .config
-        .set("gate_application", RuntimeValue::String("per_lane".into()));
-    item.anode
-        .input_defaults
-        .insert(SocketId::new("condition"), RuntimeValue::Bool(false));
-    let mut runtime =
-        ValueSetPipelineRuntime::compile_elementwise(vec![item], ValueTypeId::new("float"), &lowering_ctx).unwrap();
-    let values = float_value_set(1, [("a", "A", 0.5), ("b", "B", 1.5)]);
-
-    let (mapped, output) = runtime.evaluate(&values, &eval_ctx(&value_types, 3)).unwrap();
-
-    assert_clean(&output);
-    assert_eq!(mapped.entries[0].value, RuntimeValue::Float(0.0));
-    assert_eq!(mapped.entries[1].value, RuntimeValue::Float(0.0));
-}
-
 fn assert_clean(output: &chataigne_alchemist::RuntimeOutput) {
     assert!(
         output.diagnostics.is_empty(),

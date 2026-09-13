@@ -435,14 +435,23 @@ pub struct RuntimeOutput {
     pub debug_samples: Vec<DebugValueSample>,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NodeFlow {
+    #[default]
+    Deliver,
+    Suppress,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlchemistMemory {
     values: Vec<RuntimeValue>,
     value_initialized: Vec<bool>,
+    value_flow: Vec<NodeFlow>,
     value_revisions: Vec<u64>,
     states: Vec<RuntimeValue>,
     node_inputs: Vec<Option<Vec<RuntimeValue>>>,
     node_initialized: Vec<bool>,
+    node_flow: Vec<NodeFlow>,
     dirty_nodes: Vec<bool>,
     last_executed_nodes: Vec<ExecNodeId>,
 }
@@ -453,10 +462,12 @@ impl AlchemistMemory {
         Self {
             values: vec![RuntimeValue::Unit; compiled.state_layout.value_slot_count],
             value_initialized: vec![false; compiled.state_layout.value_slot_count],
+            value_flow: vec![NodeFlow::Deliver; compiled.state_layout.value_slot_count],
             value_revisions: vec![0; compiled.state_layout.value_slot_count],
             states: vec![RuntimeValue::Unit; compiled.state_layout.state_slot_count],
             node_inputs: vec![None; compiled.exec_nodes.len()],
             node_initialized: vec![false; compiled.exec_nodes.len()],
+            node_flow: vec![NodeFlow::Deliver; compiled.exec_nodes.len()],
             dirty_nodes: vec![false; compiled.exec_nodes.len()],
             last_executed_nodes: Vec::new(),
         }
@@ -467,8 +478,18 @@ impl AlchemistMemory {
         self.value_initialized
             .get(slot.index())
             .copied()
-            .filter(|initialized| *initialized)
+            .filter(|initialized| *initialized && self.value_flow[slot.index()] == NodeFlow::Deliver)
             .and_then(|_| self.values.get(slot.index()))
+    }
+
+    #[must_use]
+    pub fn node_flow(&self, node: ExecNodeId) -> NodeFlow {
+        self.node_flow[node.index()]
+    }
+
+    #[must_use]
+    pub fn slot_flow(&self, slot: ValueSlotId) -> NodeFlow {
+        self.value_flow[slot.index()]
     }
 
     #[must_use]
@@ -485,10 +506,12 @@ impl AlchemistMemory {
     fn is_compatible_with_graph(&self, compiled: &CompiledAlchemistGraph) -> bool {
         self.values.len() == compiled.state_layout.value_slot_count
             && self.value_initialized.len() == compiled.state_layout.value_slot_count
+            && self.value_flow.len() == compiled.state_layout.value_slot_count
             && self.value_revisions.len() == compiled.state_layout.value_slot_count
             && self.states.len() == compiled.state_layout.state_slot_count
             && self.node_inputs.len() == compiled.exec_nodes.len()
             && self.node_initialized.len() == compiled.exec_nodes.len()
+            && self.node_flow.len() == compiled.exec_nodes.len()
             && self.dirty_nodes.len() == compiled.exec_nodes.len()
     }
 
@@ -509,12 +532,14 @@ impl AlchemistMemory {
         }
         self.values.fill(RuntimeValue::Unit);
         self.value_initialized.fill(false);
+        self.value_flow.fill(NodeFlow::Deliver);
         self.value_revisions.fill(0);
         self.states.fill(RuntimeValue::Unit);
         for inputs in self.node_inputs.iter_mut().flatten() {
             inputs.clear();
         }
         self.node_initialized.fill(false);
+        self.node_flow.fill(NodeFlow::Deliver);
         self.dirty_nodes.fill(false);
         self.last_executed_nodes.clear();
     }
@@ -662,6 +687,12 @@ impl LaneRuntimePool {
         }
     }
 
+    pub fn retain_where(&mut self, mut keep: impl FnMut(&ContextKey) -> bool) {
+        if let Self::Stateful(lanes) = self {
+            lanes.retain(|key, _| keep(key));
+        }
+    }
+
     pub fn memory_for_key(
         &mut self,
         key: ContextKey,
@@ -745,14 +776,37 @@ pub struct NodeEvaluation<'a, 'ctx> {
     pub author_node_id: ANodeId,
     pub ctx: &'a EvaluationCtx<'ctx>,
     pub inputs: &'a [RuntimeValue],
+    pub input_sources: &'a [InputValueSource],
     pub properties: &'a RuntimePropertyFrame,
     pub context: &'a RuntimeContextFrame,
     pub debug: Option<&'a mut DebugCaptureSink>,
     pub state: &'a mut [RuntimeValue],
     pub intents: &'a mut Vec<RuntimeIntent>,
+    pub output_flow: &'a mut [NodeFlow],
 }
 
 impl<'a, 'ctx> NodeEvaluation<'a, 'ctx> {
+    pub fn suppress_output(&mut self, index: usize) {
+        self.output_flow[index] = NodeFlow::Suppress;
+    }
+
+    #[must_use]
+    pub fn input_has_connection(&self, index: usize) -> bool {
+        fn connected(source: &InputValueSource) -> bool {
+            match source {
+                InputValueSource::Slot(_) | InputValueSource::RuntimeInput { .. } => true,
+                InputValueSource::Converted { source, .. } | InputValueSource::Component { source, .. } => {
+                    connected(source)
+                }
+                InputValueSource::Composite { base, components, .. } => {
+                    connected(base) || components.iter().any(|(_, source)| connected(source))
+                }
+                InputValueSource::Constant(_) | InputValueSource::Unset => false,
+            }
+        }
+        self.input_sources.get(index).is_some_and(connected)
+    }
+
     pub fn capture_debug_value(&mut self, output_socket: impl Into<SocketId>, value: RuntimeValue) {
         let Some(debug) = self.debug.as_deref_mut() else {
             return;
@@ -920,6 +974,22 @@ fn evaluate_compiled_graph_inner(
         let externally_evaluated = external
             .as_ref()
             .is_some_and(|external| external.active_nodes().contains(exec_id));
+        if node
+            .inputs
+            .iter()
+            .any(|input| input_is_suppressed(input, memory, frame.ctx.inputs))
+        {
+            memory.node_initialized[exec_id.index()] = true;
+            memory.node_flow[exec_id.index()] = NodeFlow::Suppress;
+            for slot in &node.outputs {
+                if memory.value_flow[slot.index()] != NodeFlow::Suppress {
+                    memory.value_flow[slot.index()] = NodeFlow::Suppress;
+                    memory.value_revisions[slot.index()] = memory.value_revisions[slot.index()].saturating_add(1);
+                    mark_slot_dependents_dirty(compiled, memory, *slot);
+                }
+            }
+            continue;
+        }
         let inputs = runtime_node_inputs(node, memory, frame.ctx);
         let inputs = match inputs {
             Ok(inputs) => inputs,
@@ -945,6 +1015,7 @@ fn evaluate_compiled_graph_inner(
         if node.process_on_input_change_only && !frame.force_process_unchanged_inputs && !externally_evaluated {
             let previous_inputs = memory.node_inputs.get(exec_id.index()).and_then(Option::as_ref);
             if memory.node_initialized[exec_id.index()]
+                && memory.node_flow[exec_id.index()] == NodeFlow::Deliver
                 && previous_inputs.is_some_and(|previous| runtime_values_equivalent(previous, &change_inputs))
             {
                 continue;
@@ -960,17 +1031,21 @@ fn evaluate_compiled_graph_inner(
         }
         memory.node_initialized[exec_id.index()] = true;
         memory.last_executed_nodes.push(*exec_id);
+        let mut output_flow = SmallVec::<[NodeFlow; 4]>::new();
+        output_flow.resize(node.outputs.len(), NodeFlow::Deliver);
         let state = &mut memory.states[node.state_range.clone()];
         let mut evaluation = NodeEvaluation {
             exec_node: *exec_id,
             author_node_id: node.authored_id,
             ctx: frame.ctx,
             inputs: &inputs,
+            input_sources: &node.inputs,
             properties: frame.properties,
             context: frame.context,
             debug: frame.debug.as_deref_mut(),
             state,
             intents: &mut output.intents,
+            output_flow: output_flow.as_mut_slice(),
         };
         let result = if externally_evaluated {
             external
@@ -982,17 +1057,22 @@ fn evaluate_compiled_graph_inner(
         };
         match result {
             Ok(values) if values.len() == node.outputs.len() => {
+                memory.node_flow[exec_id.index()] = NodeFlow::Deliver;
                 let logged_output_values = node.log_enabled.then(|| values.clone());
                 let capture_debug_outputs = frame.debug.as_ref().is_some_and(|debug| !debug.mode().is_off());
                 for (output_index, (slot, value)) in node.outputs.iter().zip(values).enumerate() {
+                    let flow = output_flow[output_index];
                     let previous_value = memory.values.get(slot.index());
                     let output_changed = !memory.value_initialized[slot.index()]
+                        || memory.value_flow[slot.index()] != flow
                         || previous_value.is_none_or(|previous| !runtime_value_equivalent(previous, &value));
-                    let captured_value = (capture_debug_outputs
+                    let captured_value = (flow == NodeFlow::Deliver
+                        && capture_debug_outputs
                         && (!node.send_on_output_change_only || output_changed || frame.capture_unchanged_outputs))
                         .then(|| value.clone());
                     memory.values[slot.index()] = value;
                     memory.value_initialized[slot.index()] = true;
+                    memory.value_flow[slot.index()] = flow;
                     if output_changed {
                         memory.value_revisions[slot.index()] = memory.value_revisions[slot.index()].saturating_add(1);
                         mark_slot_dependents_dirty(compiled, memory, *slot);
@@ -1029,6 +1109,9 @@ fn evaluate_compiled_graph_inner(
                 }
                 if let Some(output_values) = logged_output_values {
                     for (output_index, value) in output_values.into_iter().enumerate() {
+                        if output_flow[output_index] == NodeFlow::Suppress {
+                            continue;
+                        }
                         output.intents.push(RuntimeIntent {
                             kind: Arc::from("debug.log"),
                             source_node: Some(node.authored_id),
@@ -1095,7 +1178,7 @@ fn capture_initialized_outputs(
     for exec_id in &compiled.topo_order {
         let node = &compiled.exec_nodes[exec_id.index()];
         for (output_index, slot) in node.outputs.iter().enumerate() {
-            if !memory.value_initialized[slot.index()] {
+            if !memory.value_initialized[slot.index()] || memory.value_flow[slot.index()] == NodeFlow::Suppress {
                 continue;
             }
             if let Some(sample) = current_output_samples.remove(&(*exec_id, *slot)) {
@@ -1199,6 +1282,25 @@ fn mark_slot_dependents_dirty(compiled: &CompiledAlchemistGraph, memory: &mut Al
         for dependent in dependents {
             memory.dirty_nodes[dependent.index()] = true;
         }
+    }
+}
+
+fn input_is_suppressed(source: &InputValueSource, memory: &AlchemistMemory, inputs: &RuntimeInputSnapshot) -> bool {
+    match source {
+        InputValueSource::Slot(slot) => memory.value_flow[slot.index()] == NodeFlow::Suppress,
+        InputValueSource::Converted { source, .. } | InputValueSource::Component { source, .. } => {
+            input_is_suppressed(source, memory, inputs)
+        }
+        InputValueSource::RuntimeInput { reference, fallback } => {
+            inputs.get(reference).is_none() && input_is_suppressed(fallback, memory, inputs)
+        }
+        InputValueSource::Composite { base, components, .. } => {
+            input_is_suppressed(base, memory, inputs)
+                || components
+                    .iter()
+                    .any(|(_, source)| input_is_suppressed(source, memory, inputs))
+        }
+        InputValueSource::Constant(_) | InputValueSource::Unset => false,
     }
 }
 

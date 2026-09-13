@@ -147,9 +147,39 @@ rejects missing or disconnected boundaries instead of evaluating a reduced
 sidecar. The ValueSet extension codec is still used at this actual graph
 boundary; the graph-free Mapping path keeps native typed frames. Trigger
 pipelines with authored graph nodes currently diagnose an unsupported boundary
-rather than silently skipping that graph. Phase 05 completes typed flow and
-temporal behavior; Phase 06 replaces the positional OutputSet adapter with
+rather than silently skipping that graph. Phase 06 replaces the positional OutputSet adapter with
 explicit command argument bindings.
+
+Phase 05 carries delivery flow separately from typed values. A closed
+ConditionGate suppresses its value output, including in an authored Formula
+graph, while its `passed` and `blocked` outputs remain available as controls.
+The managed stage chain propagates suppressed tuple elements without inventing
+a fallback value or advancing downstream temporal memory. `HoldLast` starts
+without delivery until it has accepted a value or the user supplied a default;
+an explicit Formula connection to the default input also counts. Trigger
+regions use the same typed stage chain, so separate trigger occurrences remain
+separate command intents.
+
+Each elementwise stage keys history by authored tuple-element identity and
+processor context. Rebuilds transfer a compatible stage's retained histories
+across source rename or reorder; a changed operation, source provenance, or
+upstream temporal dependency resets the affected stage and its successors.
+Removed elements and context keys release their histories on structural or
+membership changes. Processor lifecycle reset policy clears managed stage and
+authored-graph memory; inactivity freezes it. The manager schedules a processor
+when any typed stage has due temporal work, even if the outer Formula graph has
+none. A stage with only suppressed or missing inputs sleeps until a source or
+control changes. Normal stage evaluation still uses Alchemist's data/control
+dirty tracking, so an unchanged source can react to a changed gate condition.
+
+The state-machine manager compiles synchronously from a coherent engine
+snapshot. It prepares a complete runtime before replacing the processor cache,
+keys shared Formula graphs by authored revision and property schema, and
+invalidates a failed managed specialization instead of dispatching through an
+old chain. No asynchronous compilation completion can race that publication
+path. Output commands continue through the engine's queued intent/transaction
+path, including commands aimed at another processor's controls. Phase 06 owns
+per-command argument eligibility and accepted-value send caches.
 
 Existing projects, Action and custom Formulas, processor contexts, state-machine
 truth, module commands, script control, and undo/redo remain product contracts.

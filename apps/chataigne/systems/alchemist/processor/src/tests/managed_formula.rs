@@ -530,6 +530,42 @@ fn trigger_condition_gate_passes_command() {
 }
 
 #[test]
+fn distinct_trigger_occurrences_both_pass_through_typed_gate() {
+    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
+    let source = endpoint_ref("module/trigger");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("trigger"),
+        region("trigger", vec![input_item("Trigger", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("pipeline"),
+        region("pipeline", vec![condition_gate_item(true)]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region(
+            "commands",
+            vec![output_item("Command", command_target("target/command"))],
+        ),
+    );
+    let mut runtime = compile_managed_formula(&formula, &instance);
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source.clone(), RuntimeValue::Trigger(TriggerValue::fired(11, 1)));
+    let first = runtime.evaluate(&eval_ctx(1, &inputs, &registries));
+    assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
+    assert_eq!(first.intents.len(), 1);
+    inputs.insert(source, RuntimeValue::Trigger(TriggerValue::fired(12, 2)));
+    let second = runtime.evaluate(&eval_ctx(2, &inputs, &registries));
+    assert!(second.diagnostics.is_empty(), "{:?}", second.diagnostics);
+    assert_eq!(second.intents.len(), 1);
+    assert_ne!(first.intents[0].payload, second.intents[0].payload);
+}
+
+#[test]
 fn manager_condition_gate_matches_direct_anode_result() {
     let (formula, mut instance) = trigger_pipeline_formula_and_instance();
     let source = endpoint_ref("module/trigger");

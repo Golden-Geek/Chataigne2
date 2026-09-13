@@ -71,7 +71,7 @@ mod command_dispatch;
 mod source_schema;
 
 use command_dispatch::*;
-use source_schema::{insert_managed_source_values, managed_source_bindings, managed_source_schema};
+use source_schema::{insert_managed_source_values_with_context, managed_source_bindings, managed_source_schema};
 
 pub(crate) const STATE_ITEM_KIND: &str = "state";
 const STATE_NODE_TYPE: &str = "state";
@@ -1188,17 +1188,21 @@ fn runtime_value_type_for_context(value_type: UserContextValueType) -> Option<Va
 fn processor_binding_analysis(
     snapshot: &ProcessTreeSnapshot,
     processor_node: NodeId,
-    processor_id: ProcessorId,
+    processor: &Processor,
+    runtime: &ProcessorRuntime,
     provider: &SnapshotProcessorContextProvider,
 ) -> ProcessorBindingAnalysis {
     let mut analysis = ProcessorBindingAnalysis::default();
     collect_processor_context_link_axes(
         snapshot,
         processor_node,
-        processor_id,
+        processor.id,
         provider,
         &mut analysis.input_axes,
     );
+    for (_, source) in managed_source_bindings(snapshot, processor, runtime) {
+        analysis.input_axes.extend(context_control_multiplex_axes(snapshot, source, processor.id, provider));
+    }
     analysis
 }
 
@@ -3324,6 +3328,7 @@ impl StateMachineManager {
         if runtime.id != processor.id {
             runtime = ProcessorRuntime::new(processor.id);
         }
+        let previous_managed = runtime.managed_formula.take();
         let mut compiled = match self.shared_compiled_formula(&formula, compile_ctx) {
             Ok(compiled_formula) => runtime.compile_from_shared_formula_with_compile_ctx_preserving_compatible_lanes(
                 &processor,
@@ -3333,13 +3338,18 @@ impl StateMachineManager {
             ),
             Err(_) => compile_processor_runtime_for_cache_rebuild(&mut runtime, &processor, &formula, compile_ctx),
         };
-        if let Some(managed) = runtime.managed_formula.as_mut() {
-            if let Err(error) = managed.reconcile_input_source_schema_with_cache(
+        let managed_error = runtime.managed_formula.as_mut().and_then(|managed| {
+            managed.reconcile_input_source_schema_with_cache(
                 |source| managed_source_schema(snapshot, source),
                 Some(&mut self.runtime_cache.managed_stage_specializations),
-            ) {
-                runtime.diagnostics.push(error.into_diagnostic());
-                compiled = false;
+            ).err()
+        });
+        if let Some(error) = managed_error {
+            runtime.invalidate(error.into_diagnostic());
+            compiled = false;
+        } else if compiled {
+            if let (Some(current), Some(previous)) = (runtime.managed_formula.as_mut(), previous_managed) {
+                current.migrate_memory_from(previous);
             }
         }
         let compile_warning = (!compiled).then(|| {
@@ -3350,7 +3360,7 @@ impl StateMachineManager {
                 .unwrap_or("Processor formula failed to compile")
                 .to_owned()
         });
-        let bindings = processor_binding_analysis(snapshot, processor_node, processor.id, context_provider);
+        let bindings = processor_binding_analysis(snapshot, processor_node, &processor, &runtime, context_provider);
         runtime.rebuild_execution_plan(context_provider, &bindings);
         let runtime_processor = RuntimeProcessor {
             managed_sources: managed_source_bindings(snapshot, &processor, &runtime),
@@ -3566,7 +3576,7 @@ impl StateMachineManager {
                 &mut processor,
                 context_provider,
             );
-            let bindings = processor_binding_analysis(snapshot, processor_node, processor.id, context_provider);
+            let bindings = processor_binding_analysis(snapshot, processor_node, &processor, &runtime_processor.runtime, context_provider);
             runtime_processor
                 .runtime
                 .rebuild_execution_plan(context_provider, &bindings);
@@ -4159,10 +4169,7 @@ fn formula_default_output_preview_samples(
 }
 
 fn processor_needs_continuous_evaluation(runtime: &ProcessorRuntime) -> bool {
-    runtime
-        .compiled
-        .as_ref()
-        .is_some_and(|compiled| compiled.analysis.has_always_process_nodes)
+    runtime.needs_continuous_evaluation()
 }
 
 fn update_continuous_runtime_count(count: &mut usize, was_continuous: bool, is_continuous: bool) {
@@ -4872,7 +4879,14 @@ fn collect_processor_context_property_bindings(
 
 fn processor_runtime_inputs(context: &mut ProcessorRuntimeInputContext<'_>) -> RuntimeInputSnapshot {
     let mut inputs = RuntimeInputSnapshot::with_shared_values(Arc::clone(context.formula_input_values));
-    insert_managed_source_values(context.snapshot, context.live_param_values, context.managed_sources, &mut inputs);
+    insert_managed_source_values_with_context(
+        context.snapshot,
+        context.live_param_values,
+        context.managed_sources,
+        context.processor_id,
+        context.context_provider,
+        &mut inputs,
+    );
     collect_processor_runtime_inputs(context, context.processor_node, &mut inputs);
     inputs
 }

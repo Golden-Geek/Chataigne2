@@ -2,28 +2,25 @@ use std::sync::Arc;
 
 use chataigne_alchemist::{
     ANodeId, ANodeRegistry, AlchemistFormula, AlchemistFormulaInstance, ChannelLayout, ChannelProvenance, CompileCtx,
-    CompiledAlchemistGraph, DebugCaptureMode, Diagnostic, DiagnosticOrigin, EvaluationCtx, ExecNodeId,
+    CompiledAlchemistGraph, ContextKey, DebugCaptureMode, Diagnostic, DiagnosticOrigin, EvaluationCtx, ExecNodeId,
     FormulaPropertySchema, ManagedFilterValueMode, ManagedItemInstance, ManagedRegionDefinition, ManagedRegionId,
-    ManagedRegionInstance, ManagedRegionKind, PipelineCardinality, PipelineLoweringCtx, PipelineShape,
-    PipelineShapeCheckItem, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput, RuntimePropertyFrame, SignatureCtx,
-    StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry, check_filter_pipeline_shapes, value_set_shape,
+    ManagedRegionInstance, ManagedRegionKind, RuntimeDiagnostic, RuntimeIntent, RuntimeOutput, RuntimePropertyFrame,
+    StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
+use indexmap::IndexSet;
 
 use crate::{
     COMMAND_INTENT_KIND, ChannelFrame, ChannelSourceSchema, ChannelValidity, INPUT_SOURCE_FIELD, InputSetRuntime,
-    ManagedStageChain, ManagedStageSpecializationCache, OUTPUT_TARGET_FIELD, OutputSetMaterialization,
-    OutputSetRuntime, RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry, ValueSetPipelineRuntime,
-    ValueSetProjectionRuntime,
+    ManagedStageChain, ManagedStageRuntime, ManagedStageSpecializationCache, OUTPUT_TARGET_FIELD,
+    OutputSetMaterialization, OutputSetRuntime, RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry,
 };
 
 mod availability;
 mod error;
 mod graph;
-mod legacy_filter;
 
-use graph::GraphManagedExecution;
-use legacy_filter::ManagedFilterPipelineRuntime;
+use graph::{GraphManagedExecution, GraphManagedFrame};
 
 pub use availability::{
     ExecutableFilterApplication, ManagedFilterAvailabilityError, executable_filter_applications,
@@ -31,7 +28,42 @@ pub use availability::{
 };
 pub use error::ManagedFormulaError;
 
-pub use legacy_filter::validate_trigger_filter_application;
+pub fn validate_trigger_filter_application(
+    anode: &chataigne_alchemist::ANodeInstance,
+    ctx: &CompileCtx<'_>,
+) -> Result<(), ManagedFormulaError> {
+    let layout = ChannelLayout::new(vec![chataigne_alchemist::ChannelDescriptor::input(
+        ValueLaneKey::new("trigger").expect("static trigger identity"),
+        "Trigger",
+        StableRef::new(ValueTypeId::new("source"), "trigger"),
+        Some(ValueTypeId::new("trigger")),
+    )])
+    .expect("single trigger layout");
+    let item = ManagedItemInstance {
+        id: chataigne_alchemist::ManagedItemId::new(),
+        anode: anode.clone(),
+        enabled: true,
+        ui_state: chataigne_alchemist::ManagedItemUiState::default(),
+    };
+    let stage = ManagedStageRuntime::compile(item, &layout, ctx, ManagedFilterValueMode::Routed)?.ok_or_else(|| {
+        ManagedFormulaError::UnsupportedFilterPipeline("trigger filter has no compatible input".into())
+    })?;
+    require_single_trigger_output(stage.output_layout())
+}
+
+fn require_single_trigger_output(layout: &ChannelLayout) -> Result<(), ManagedFormulaError> {
+    if layout.channels().len() != 1 {
+        return Err(ManagedFormulaError::TriggerFilterExpectedSingleValue {
+            actual: layout.channels().len(),
+        });
+    }
+    if layout.channels()[0].value_type.as_ref() != Some(&ValueTypeId::new("trigger")) {
+        return Err(ManagedFormulaError::UnsupportedFilterPipeline(
+            "trigger filter must preserve a single trigger value".into(),
+        ));
+    }
+    Ok(())
+}
 
 pub struct ManagedFormulaRuntime {
     kind: ManagedFormulaRuntimeKind,
@@ -56,7 +88,8 @@ struct ValuePipelineRuntime {
 
 struct TriggerPipelineRuntime {
     trigger: TriggerInputRuntime,
-    filter_pipeline: ManagedFilterPipelineRuntime,
+    typed_stages: Option<ManagedStageChain>,
+    input_frame: Option<ChannelFrame>,
     commands: Vec<CommandSetRuntime>,
 }
 
@@ -133,6 +166,9 @@ impl ManagedFormulaRuntime {
         let filter_instance = filter
             .map(|definition| required_region_instance(instance, &definition.id).map(|region| (definition, region)))
             .transpose()?;
+        if let Some((definition, region)) = filter_instance {
+            validate_filter_region(definition, region)?;
+        }
 
         let (filter_items, filter_value_mode) = if let Some((definition, region)) = filter_instance {
             validate_filter_region(definition, region)?;
@@ -179,10 +215,30 @@ impl ManagedFormulaRuntime {
             .map(|definition| required_region_instance(instance, &definition.id).map(|region| (definition, region)))
             .transpose()?;
 
+        let trigger = TriggerInputRuntime::from_managed_region(trigger, trigger_instance)?;
+        let layout = trigger.layout();
+        let typed_stages = layout
+            .as_ref()
+            .map(|layout| {
+                ManagedStageChain::compile(
+                    filter_instance.map_or(&[][..], |(_, region)| region.items.as_slice()),
+                    Arc::clone(layout),
+                    ctx,
+                    filter_instance.map_or(ManagedFilterValueMode::Routed, |(definition, _)| {
+                        definition.filter_value_mode
+                    }),
+                )
+                .map_err(ManagedFormulaError::from)
+            })
+            .transpose()?;
+        if let Some(stages) = &typed_stages {
+            require_single_trigger_output(stages.output_layout())?;
+        }
         Ok(Self {
             kind: ManagedFormulaRuntimeKind::TriggerPipeline(Box::new(TriggerPipelineRuntime {
-                trigger: TriggerInputRuntime::from_managed_region(trigger, trigger_instance)?,
-                filter_pipeline: ManagedFilterPipelineRuntime::new(filter_instance, ctx)?,
+                trigger,
+                typed_stages,
+                input_frame: layout.map(ChannelFrame::new),
                 commands,
             })),
         })
@@ -198,15 +254,41 @@ impl ManagedFormulaRuntime {
         properties: Option<&RuntimePropertyFrame>,
         capture_mode: DebugCaptureMode,
     ) -> RuntimeOutput {
+        self.evaluate_with_context_frame(ctx, &ContextKey::default_lane(), properties, capture_mode)
+    }
+
+    pub fn evaluate_with_context_frame(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        context_key: &ContextKey,
+        properties: Option<&RuntimePropertyFrame>,
+        capture_mode: DebugCaptureMode,
+    ) -> RuntimeOutput {
         match &mut self.kind {
-            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime.evaluate(ctx, properties, capture_mode),
-            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => runtime.evaluate(ctx),
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => {
+                runtime.evaluate(ctx, context_key, properties, capture_mode)
+            }
+            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => runtime.evaluate(ctx, context_key),
         }
     }
 
     #[must_use]
     pub fn uses_authored_graph(&self) -> bool {
         matches!(&self.kind, ManagedFormulaRuntimeKind::ValuePipeline(runtime) if runtime.graph.is_some())
+    }
+
+    #[must_use]
+    pub fn needs_continuous_evaluation(&self) -> bool {
+        match &self.kind {
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime
+                .typed_stages
+                .as_ref()
+                .is_some_and(ManagedStageChain::needs_continuous_evaluation),
+            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => runtime
+                .typed_stages
+                .as_ref()
+                .is_some_and(ManagedStageChain::needs_continuous_evaluation),
+        }
     }
 
     #[must_use]
@@ -268,9 +350,67 @@ impl ManagedFormulaRuntime {
     ) -> Result<(), ManagedFormulaError> {
         match &mut self.kind {
             ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime.update_runtime_input(item, socket, binding),
-            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => {
-                runtime.filter_pipeline.update_runtime_input(item, socket, binding)
+            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => runtime
+                .typed_stages
+                .as_mut()
+                .ok_or(ManagedFormulaError::UnresolvedManagedInputSchema)?
+                .update_runtime_input(item, socket, binding)
+                .map_err(ManagedFormulaError::from),
+        }
+    }
+
+    pub fn reset_memory(&mut self) {
+        match &mut self.kind {
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => {
+                if let Some(stages) = runtime.typed_stages.as_mut() {
+                    stages.reset_memory();
+                }
+                if let Some(graph) = runtime.graph.as_mut() {
+                    graph.reset_memory();
+                }
             }
+            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => {
+                if let Some(stages) = runtime.typed_stages.as_mut() {
+                    stages.reset_memory();
+                }
+            }
+        }
+    }
+
+    pub fn retain_context_keys(&mut self, active: &IndexSet<ContextKey>) {
+        match &mut self.kind {
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => {
+                if let Some(stages) = runtime.typed_stages.as_mut() {
+                    stages.retain_context_keys(active);
+                }
+                if let Some(graph) = runtime.graph.as_mut() {
+                    graph.retain_context_keys(active);
+                }
+            }
+            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => {
+                if let Some(stages) = runtime.typed_stages.as_mut() {
+                    stages.retain_context_keys(active);
+                }
+            }
+        }
+    }
+
+    pub fn migrate_memory_from(&mut self, previous: Self) {
+        match (&mut self.kind, previous.kind) {
+            (ManagedFormulaRuntimeKind::ValuePipeline(current), ManagedFormulaRuntimeKind::ValuePipeline(old)) => {
+                if let (Some(current), Some(old)) = (current.typed_stages.as_mut(), old.typed_stages) {
+                    current.migrate_memory_from(old);
+                }
+                if let (Some(current), Some(old)) = (current.graph.as_mut(), old.graph) {
+                    current.migrate_memory_from(old);
+                }
+            }
+            (ManagedFormulaRuntimeKind::TriggerPipeline(current), ManagedFormulaRuntimeKind::TriggerPipeline(old)) => {
+                if let (Some(current), Some(old)) = (current.typed_stages.as_mut(), old.typed_stages) {
+                    current.migrate_memory_from(old);
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -295,13 +435,23 @@ impl ValuePipelineRuntime {
             nodes: &self.nodes,
             properties: self.properties.as_ref(),
         };
-        self.typed_stages = Some(ManagedStageChain::compile_with_cache(
+        let mut compiled = match ManagedStageChain::compile_with_cache(
             &self.filter_items,
             self.input_set.layout().clone(),
             &ctx,
             self.filter_value_mode,
             cache,
-        )?);
+        ) {
+            Ok(compiled) => compiled,
+            Err(error) => {
+                self.typed_stages = None;
+                return Err(error.into());
+            }
+        };
+        if let Some(previous) = self.typed_stages.take() {
+            compiled.migrate_memory_from(previous);
+        }
+        self.typed_stages = Some(compiled);
         Ok(())
     }
 
@@ -332,15 +482,19 @@ impl ValuePipelineRuntime {
     fn evaluate(
         &mut self,
         ctx: &EvaluationCtx<'_>,
+        context_key: &ContextKey,
         properties: Option<&RuntimePropertyFrame>,
         capture_mode: DebugCaptureMode,
     ) -> RuntimeOutput {
-        let input = self.input_set.materialize(ctx);
+        let input = self.input_set.materialize_for_context(ctx, context_key);
         let mut output = RuntimeOutput::default();
         output
             .diagnostics
             .extend(input.diagnostics.into_iter().map(runtime_diagnostic));
         if !output.diagnostics.is_empty() {
+            if let Some(stages) = self.typed_stages.as_mut() {
+                stages.suspend_context(context_key);
+            }
             return output;
         }
 
@@ -350,16 +504,34 @@ impl ValuePipelineRuntime {
         if let Some(graph) = self.graph.as_mut() {
             merge_runtime_output(
                 &mut output,
-                graph.evaluate(input.frame, stages, &self.output_sets, ctx, properties, capture_mode),
+                graph.evaluate(
+                    input.frame,
+                    stages,
+                    &self.output_sets,
+                    GraphManagedFrame {
+                        ctx,
+                        context_key,
+                        properties,
+                        capture_mode,
+                    },
+                ),
             );
             return output;
         }
-        let (frame, stage_output) = match stages.evaluate_with_capture(input.frame, ctx, capture_mode) {
-            Ok(result) => result,
-            Err(error) => return runtime_error_output(error.into()),
-        };
+        let (frame, stage_output) =
+            match stages.evaluate_with_capture_for_context(input.frame, ctx, capture_mode, context_key) {
+                Ok(result) => result,
+                Err(error) => return runtime_error_output(error.into()),
+            };
         merge_runtime_output(&mut output, stage_output);
         if !output.diagnostics.is_empty() {
+            return output;
+        }
+        if frame
+            .slots()
+            .iter()
+            .any(|slot| slot.validity == ChannelValidity::Suppressed)
+        {
             return output;
         }
         let values = match frame_values(frame) {
@@ -393,8 +565,8 @@ fn frame_values(frame: &ChannelFrame) -> Result<ValueSet, ManagedFormulaError> {
 }
 
 impl TriggerPipelineRuntime {
-    fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
-        let trigger = self.trigger.materialize(ctx);
+    fn evaluate(&mut self, ctx: &EvaluationCtx<'_>, context_key: &ContextKey) -> RuntimeOutput {
+        let trigger = self.trigger.materialize(ctx, context_key);
         let mut output = RuntimeOutput::default();
         output
             .diagnostics
@@ -406,12 +578,38 @@ impl TriggerPipelineRuntime {
             return output;
         }
 
-        let value = match self.filter_pipeline.evaluate_single(value, ctx) {
-            Ok(value) => value,
-            Err(error) => return runtime_error_output(error),
+        let Some(input_frame) = self.input_frame.as_mut() else {
+            return output;
+        };
+        input_frame.begin_tick(ctx.logical_tick);
+        if let Err(error) = input_frame.set(0, Some(value), ChannelValidity::Valid, true) {
+            return runtime_error_output(ManagedFormulaError::ManagedStage(crate::ManagedStageError::Frame(
+                error,
+            )));
+        }
+        let Some(stages) = self.typed_stages.as_mut() else {
+            return output;
+        };
+        let (frame, effects) =
+            match stages.evaluate_with_capture_for_context(input_frame, ctx, DebugCaptureMode::Off, context_key) {
+                Ok(result) => result,
+                Err(error) => return runtime_error_output(error.into()),
+            };
+        merge_runtime_output(&mut output, effects);
+        if !output.diagnostics.is_empty() {
+            return output;
+        }
+        let Some(slot) = frame.slots().first() else {
+            return output;
+        };
+        if slot.validity != ChannelValidity::Valid || !slot.deliver {
+            return output;
+        }
+        let Some(value) = slot.value.as_ref() else {
+            return output;
         };
         for commands in &self.commands {
-            merge_runtime_output(&mut output, commands.materialize(&value, ctx));
+            merge_runtime_output(&mut output, commands.materialize(value, ctx));
         }
         output
     }
@@ -484,6 +682,7 @@ struct TriggerInputRuntime {
 }
 
 struct TriggerInputItem {
+    id: chataigne_alchemist::ManagedItemId,
     label: String,
     source: StableRef,
     enabled: bool,
@@ -536,6 +735,7 @@ impl TriggerInputRuntime {
                     }
                 };
                 Ok(TriggerInputItem {
+                    id: item.id,
                     label: item.anode.label.clone(),
                     source,
                     enabled: item.enabled && item.anode.enabled,
@@ -546,7 +746,24 @@ impl TriggerInputRuntime {
         Ok(Self { items })
     }
 
-    fn materialize(&self, ctx: &EvaluationCtx<'_>) -> TriggerInputMaterialization {
+    fn layout(&self) -> Option<Arc<ChannelLayout>> {
+        let mut enabled = self.items.iter().filter(|item| item.enabled);
+        let item = enabled.next()?;
+        if enabled.next().is_some() {
+            return None;
+        }
+        let descriptor = chataigne_alchemist::ChannelDescriptor::input(
+            ValueLaneKey::input(item.id),
+            item.label.clone(),
+            item.source.clone(),
+            Some(ValueTypeId::new("trigger")),
+        );
+        Some(Arc::new(
+            ChannelLayout::new(vec![descriptor]).expect("one trigger input has a unique identity"),
+        ))
+    }
+
+    fn materialize(&self, ctx: &EvaluationCtx<'_>, context_key: &ContextKey) -> TriggerInputMaterialization {
         let enabled = self.items.iter().filter(|item| item.enabled).collect::<Vec<_>>();
         if enabled.is_empty() {
             return TriggerInputMaterialization {
@@ -569,7 +786,11 @@ impl TriggerInputRuntime {
         }
 
         let item = enabled[0];
-        match ctx.inputs.get(&item.source) {
+        match ctx
+            .inputs
+            .get_context(&item.source, context_key)
+            .or_else(|| ctx.inputs.get(&item.source))
+        {
             Some(RuntimeValue::Trigger(trigger)) => TriggerInputMaterialization {
                 value: Some(RuntimeValue::Trigger(*trigger)),
                 diagnostics: Vec::new(),
