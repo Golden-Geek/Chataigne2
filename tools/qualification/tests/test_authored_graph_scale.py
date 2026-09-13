@@ -71,6 +71,8 @@ def parameter_output(target: int = 1_000, roots: int = 72, edited: int = 1) -> s
         "base_nodes": target + 100,
         "graph_roots": roots,
         "edited_params": edited,
+        "reloaded_params": edited,
+        "reloaded_runtime_constants": edited,
         **{field: 17 for field in authored_graph_scale.PARAMETER_EDIT_ACTION_FIELDS},
     }
     return (
@@ -103,6 +105,15 @@ class AuthoredGraphScaleTests(unittest.TestCase):
             authored_graph_scale.parse_parameter_edit_result(output.replace('"edit_ms": 17', '"missing_edit_ms": 17'), 10_000, 715, 72)
         with self.assertRaisesRegex(ValueError, "nonnegative integers"):
             authored_graph_scale.parse_parameter_edit_result(output.replace('"edit_ms": 17', '"edit_ms": -1'), 10_000, 715, 72)
+        with self.assertRaisesRegex(ValueError, "save/reload did not preserve"):
+            authored_graph_scale.parse_parameter_edit_result(
+                output.replace('"reloaded_params": 72', '"reloaded_params": 71'), 10_000, 715, 72,
+            )
+        with self.assertRaisesRegex(ValueError, "save/reload did not preserve"):
+            authored_graph_scale.parse_parameter_edit_result(
+                output.replace('"reloaded_runtime_constants": 72', '"reloaded_runtime_constants": 71'),
+                10_000, 715, 72,
+            )
 
     def test_parameter_edit_runner_marks_missing_result_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

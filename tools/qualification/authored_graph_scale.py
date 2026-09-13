@@ -195,7 +195,10 @@ def parse_parameter_edit_result(
     if len(rows) != 1 or not RESULT_PATTERN.search(output):
         raise ValueError(f"expected one passing parameter edit result, found {len(rows)}")
     row = rows[0]
-    fields = {"base_nodes", "graph_roots", "edited_params", *PARAMETER_EDIT_ACTION_FIELDS}
+    fields = {
+        "base_nodes", "graph_roots", "edited_params", "reloaded_params",
+        "reloaded_runtime_constants", *PARAMETER_EDIT_ACTION_FIELDS,
+    }
     if not isinstance(row, dict) or row.keys() != fields:
         raise ValueError("parameter edit result fields differ from the qualification contract")
     if any(type(row[field]) is not int or row[field] < 0 for field in fields):
@@ -204,6 +207,8 @@ def parse_parameter_edit_result(
         raise ValueError("parameter edit missed the live-node target")
     if row["graph_roots"] != graph_roots or row["edited_params"] != requested_params:
         raise ValueError("parameter edit did not cover the requested authored roots and parameters")
+    if row["reloaded_params"] != requested_params or row["reloaded_runtime_constants"] != requested_params:
+        raise ValueError("parameter edit save/reload did not preserve every edited value and runtime Constant")
     return row
 
 
@@ -390,12 +395,12 @@ def build_report(
     else:
         not_covered.append("live edit and undo/redo at these scales")
     if include_parameter_edits:
-        scope += "; one-parameter and 10%-of-authored-roots Constant value batches with undo, redo, dispatch and refresh ticks"
+        scope += "; one-parameter and 10%-of-authored-roots Constant value batches with undo, redo, dispatch and refresh ticks, save/reload, and runtime rematerialization"
         not_covered.append("parameter edit p95 tails, UI transport, and browser paint")
     else:
         not_covered.append("sparse/dense authored Constant parameter edits")
     return {
-        "schema_version": 6,
+        "schema_version": 7,
         "evidence_id": EVIDENCE_ID,
         "status": "PASS" if all(row["status"] == "PASS" for row in scenarios) else "FAIL",
         "product_qualification": "OPEN",

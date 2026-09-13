@@ -407,12 +407,43 @@ fn authored_graph_changes_constant_values_and_replays_one_batch() {
     assert_eq!(engine.nodes.iter().count(), base_nodes);
     assert_runtime_constant_values(&engine, &selected_anodes, &params, true);
 
+    let saved = to_sparse_project_json_pretty(&engine).expect("edited project should save");
+    drop(engine);
+    let mut reloaded = from_sparse_project_json::<AppNode>(&saved).expect("edited project should reload");
+    let reloaded_snapshot = reloaded.process_tree_snapshot();
+    let reloaded_params = selected_anodes
+        .iter()
+        .zip(&params)
+        .map(|(anode_uuid, (_, before, after))| {
+            let anode = reloaded_snapshot.node_id_by_uuid(*anode_uuid).expect("edited Constant root should reload");
+            let config = reloaded_snapshot.find_child_by_decl_id(anode, "config")
+                .expect("reloaded Constant config should exist");
+            let param = reloaded_snapshot.find_child_by_decl_id(config, "config/value")
+                .expect("reloaded Constant value should exist");
+            assert_eq!(
+                reloaded_snapshot.node(param).and_then(|node| node.param_value.as_ref()),
+                Some(after),
+                "edited Constant value should survive save/reload"
+            );
+            (param, before.clone(), after.clone())
+        })
+        .collect::<Vec<_>>();
+    drop(reloaded_snapshot);
+    configure_loaded_engine(&mut reloaded).expect("reloaded edited project should configure");
+    prepare_engine_for_runtime(&mut reloaded).expect("reloaded edited project should prepare");
+    assert_runtime_constant_values(&reloaded, &selected_anodes, &reloaded_params, true);
+    reloaded.run_tick(Duration::from_millis(8)).expect("reloaded edited project should tick");
+    assert_parameter_values(&reloaded, &reloaded_params, true);
+    assert_runtime_constant_values(&reloaded, &selected_anodes, &reloaded_params, true);
+
     println!(
         "AUTHORED_PARAMETER_EDIT_RESULT={}",
         serde_json::json!({
             "base_nodes": base_nodes,
             "graph_roots": sources.len(),
             "edited_params": params.len(),
+            "reloaded_params": reloaded_params.len(),
+            "reloaded_runtime_constants": reloaded_params.len(),
             "edit_ms": edit_ms,
             "edit_tick_ms": edit_tick_ms,
             "edit_refresh_tick_ms": edit_refresh_tick_ms,

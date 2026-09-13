@@ -534,6 +534,15 @@ qualification-tool tests pass, including rejection of a missing or undercounted 
 Sparse-document byte/metadata equivalence and UUID identity for every declared descendant are
 not claimed; browser, transport, recovery, and tail-latency qualification remain open.
 
+The authored parameter report contract is schema v7. After each edit/undo/redo batch, the app
+saves and reloads the product project, resolves every selected Constant through its preserved
+authored graph-root UUID, verifies the edited parameter value, and checks the prepared Formula
+runtime both before and after a tick. The source-fingerprinted
+`target/qualification/authored-graph-scale/20260913T030500Z/` matrix passed all eighteen cases;
+the 100k sparse/dense cases persisted and rematerialized 1/715 edited Constants. A separate
+all-7,143-Constant 100k batch also passed those checks. This covers a completed backend save/reload
+after an edit, not edits concurrent with a save, transport reconnect/resync, or browser recovery.
+
 ## Task status and dependencies
 
 | Task | Dependencies                                  | Status                                                       |
@@ -557,7 +566,7 @@ not claimed; browser, transport, recovery, and tail-latency qualification remain
 | T16  | T01, T02                                      | implemented and Windows-qualified; hosted matrix and hardware pending |
 | T17  | T00; behavior fixes before related extraction | gitlinks removed, inventory refreshed, engine/App Control/formula adapters split; more cohesive splits pending |
 | T18  | T07, T11, T14, T15; informed by T12/T13       | real 1,016-lane kernel, 100k-lane stateful partitions, worker/reorder equivalence, and requested unchanged-input cost measured; production parallel deferred pending sparse/lifecycle/full-tick evidence |
-| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, and sparse/dense parameter replay pass locally; browser p95, transport/recovery, platform, and physical evidence remain open |
+| T19  | relevant implementation tasks                 | authored 1k/10k/100k startup, full ordered-tree reload equivalence, 602-record structural edits, and sparse/dense parameter replay plus edited-value save/reload pass locally; browser p95, concurrent save, transport/reconnect, platform, and physical evidence remain open |
 
 ## Finding status
 
