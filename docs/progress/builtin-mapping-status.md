@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 07 — required filter catalog (validated; implementation push pending)
-- Last validated implementation commit: `fb837c38d323db62c9960c060521d27d7b8124b5` (Phase 06)
-- Last verified remote implementation commit: `fb837c38d323db62c9960c060521d27d7b8124b5` (Phase 06)
+- Active phase: 07 — required filter catalog (complete); Phase 08 begins in the next turn
+- Last validated implementation commit: `5712b226e078e5a398836502cd27f5aeff9efed8` (Phase 07)
+- Last verified remote implementation commit: `5712b226e078e5a398836502cd27f5aeff9efed8` (Phase 07)
 - Current blockers: none; later phases own backend authoring, the built-in asset, historical persistence migration, and product UI.
 - Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: publish and verify Phase 07 implementation and status checkpoints, then begin Phase 08 in the next turn.
-- Last updated: 2026-09-13T16:58:00+02:00
+- Next concrete action: begin Phase 08 backend authoring, asset, and persistence integration in the next turn.
+- Last updated: 2026-09-13T16:59:01+02:00
 
 ## Phase ledger
 
@@ -24,7 +24,7 @@
 | 04 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `47f87940` observed at the remote; whole-tuple composition, authored Formula boundaries, shared specializations, isolated state, and previews pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 05 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `db9ba626` observed at the remote; suppression, default/hold, trigger flow, temporal wakeups, context state, compatible migration, and revision safety pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 06 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `fb837c38` observed at the remote; stable source projections, typed command argument overrides, fan-out, accepted-value send policy, and host validation pass crate/app/workspace gates. Direct branch pushes have no required CI. |
-| 07 | IN_PROGRESS | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Required catalog and resource persistence gates pass; implementation and status checkpoints await remote verification. Direct branch pushes have no required CI. |
+| 07 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `5712b226` observed at the remote; catalog, resource persistence, and full code gates pass. Direct branch pushes have no required CI. |
 | 08 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Backend authoring, asset, persistence. |
 | 09 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Svelte Mapping inspector. |
 | 10 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Conversion to custom Formula. |
@@ -189,20 +189,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: standard Mapping remains an ordered tuple, and output selectors are stable bindings rather than authored channels. An output command's arguments are validated as one invocation. The accepted-value cache is invalidated on runtime, routing, destination, and context changes; fired triggers bypass value-equality suppression. Command payload extensions are confined to the actual command-intent boundary; Phase 11 measures that dispatch cost.
 
-### Phase 07 (validated; push pending)
+### Phase 07 (complete)
 
 - Changes and affected public boundaries: the app-owned ANode catalog now exposes named numeric reductions, explicit scalar/tuple/compound conversions, Vec2 pack/extract, Curve Remap, Threshold, and bounded Timed Delay alongside existing numeric, temporal, condition, color, and string filters. Graph and managed Mapping stages use the same compiled kernels. Golden Curve and Gradient host editable resource children as user items so repeated keys/stops persist; Golden Curve's sampler cache is thread-safe.
 - Acceptance gates satisfied: ordered multi-source reduction, heterogeneous tuple conversion, compound shape changes, numerical overflow/division/non-finite diagnostics, malformed resource rejection, threshold hysteresis, timed delay order/capacity/memory/reset, failed-stage suppression, compatible palette advertisement, live resource edits, sparse resource reload, and graph/Mapping equivalence pass targeted and full suites.
 - Remaining work: Phase 08 owns backend edit intents, the built-in Mapping asset, and narrow migration of historical persistence records, including previously saved resource children with ordinary roles. Phase 09 owns the inspector; Phase 11 owns broader performance and product qualification. No Phase 07 behavior gate remains open.
 - Exact checks and outcomes: see Phase 07 validation rows. 446 Golden engine, 176 Alchemist, 124 processor, and 545 app tests pass; 3 existing Golden and 5 existing app tests are ignored. The audio-host integration test, full workspace check, strict four-package Clippy, both formatter scopes, and whitespace check pass.
-- Implementation commit: pending checkpoint A.
-- Verified remote ref, observed OID, and timestamp: pending checkpoint A push and remote read.
+- Implementation commit: `5712b226e078e5a398836502cd27f5aeff9efed8`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `5712b226e078e5a398836502cd27f5aeff9efed8`, 2026-09-13T16:59:01+02:00 (`git ls-remote`).
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: standard Mapping keeps one ordered tuple and uses explicit conversion before mixed-type numeric merging. Timed Delay has a 128-item, 1 MiB queue ceiling and a 64 KiB per-value ceiling; overflow diagnoses and resets the affected context. Curve and Gradient remain Golden-owned resources, not Mapping-specific models.
 
 ## Blockers and handoff
 
 - What failed or changed: Phase 07 adds explicit reductions, conversion, resource, and temporal filters. Golden resource children now persist as user items. No current phase failure remains.
-- Last known-good checkpoint: Phase 06 `fb837c38d323db62c9960c060521d27d7b8124b5` remains the last remotely verified implementation until Phase 07 checkpoint A is pushed.
+- Last known-good checkpoint: Phase 07 `5712b226e078e5a398836502cd27f5aeff9efed8` is validated and verified at `origin/codex/builtin-mapping`.
 - Reproduction: Golden, Alchemist, processor, and full app tests, workspace check, strict Clippy, and formatting pass with the available toolchain.
-- Next action: push and verify both Phase 07 checkpoints, then begin Phase 08 backend authoring and asset work in the next phase turn.
+- Next action: begin Phase 08 backend authoring and asset work in the next phase turn.
