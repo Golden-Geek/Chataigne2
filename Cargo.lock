@@ -1107,6 +1107,7 @@ dependencies = [
  "chataigne_alchemist",
  "chataigne_condition",
  "chataigne_state_machine_model",
+ "criterion 0.8.2",
  "golden_graph",
  "golden_values",
  "indexmap 2.14.0",

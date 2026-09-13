@@ -8,6 +8,7 @@ Choose a section based on what you are trying to do.
 - [Repository layout](reference/repository-layout.md)
 - [Golden Audio](architecture/golden-audio.md)
 - [Alchemist runtime](architecture/alchemist-runtime.md)
+- [Built-in Mapping](architecture/builtin-mapping.md) and its [implementation status](progress/builtin-mapping-status.md)
 - [State machine and Alchemist processing](architecture/statecharts-conditions-processors.md)
 
 ## Change the product

@@ -23,4 +23,9 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+criterion.workspace = true
 golden_graph.workspace = true
+
+[[bench]]
+name = "mapping_baseline"
+harness = false
