@@ -66,6 +66,34 @@ fn context() -> (RuntimeInputSnapshot, ValueTypeRegistry) {
 }
 
 #[test]
+fn authored_command_bindings_round_trip_and_reject_unknown_schema() {
+    let config = OutputBindingConfig {
+        value: OutputValueSource::Whole,
+        arguments: vec![OutputArgumentBinding {
+            parameter: StableRef::new(ValueTypeId::new("float"), "argument"),
+            source: OutputValueSource::Constant(RuntimeValue::Float(2.5)),
+        }],
+        send_policy: OutputSendPolicy::OnChange,
+    };
+    let json = config.to_authoring_json().unwrap();
+    assert_eq!(OutputBindingConfig::from_authoring_json(&json).unwrap(), config);
+    let mut unknown: serde_json::Value = serde_json::from_str(&json).unwrap();
+    unknown["route_by_position"] = serde_json::json!(true);
+    assert!(
+        OutputBindingConfig::from_authoring_json(&unknown.to_string())
+            .unwrap_err()
+            .contains("unknown field")
+    );
+    unknown.as_object_mut().unwrap().remove("route_by_position");
+    unknown["arguments"][0]["index"] = serde_json::json!(0);
+    assert!(
+        OutputBindingConfig::from_authoring_json(&unknown.to_string())
+            .unwrap_err()
+            .contains("unknown field")
+    );
+}
+
+#[test]
 fn single_value_output_creates_expected_intent() {
     let target = command_target("module/fader");
     let runtime = OutputSetRuntime::new(vec![OutputSetItem::new("Fader", target.clone())]);

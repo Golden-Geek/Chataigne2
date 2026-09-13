@@ -387,6 +387,87 @@ fn condition_gate_output_default_uses_default_input() {
 }
 
 #[test]
+fn migrated_false_polarity_gate_keeps_its_default_output() {
+    let mut graph = TestGraph::new();
+    let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
+    let condition = graph.add_node(constant(RuntimeValue::Bool(true))).unwrap();
+    let default = graph.add_node(constant(RuntimeValue::Float(9.0))).unwrap();
+    let mut gate_node = node("condition_gate");
+    gate_node
+        .config
+        .set("mode", RuntimeValue::String("output_default_when_false".into()));
+    let gate = graph.add_node(gate_node).unwrap();
+    graph
+        .connect(OutputSocketRef::new(value, "value"), InputSocketRef::new(gate, "value"))
+        .unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(condition, "value"),
+            InputSocketRef::new(gate, "condition"),
+        )
+        .unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(default, "value"),
+            InputSocketRef::new(gate, "default_value"),
+        )
+        .unwrap();
+    let mut runtime = runtime(&graph);
+    let output = evaluate(&mut runtime, 1);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(sample_value(&output, gate, "value"), RuntimeValue::Float(9.0));
+    assert_eq!(sample_value(&output, gate, "blocked"), RuntimeValue::Bool(true));
+}
+
+#[test]
+fn migrated_hold_gate_keeps_first_closed_default() {
+    let mut graph = TestGraph::new();
+    let value = graph.add_node(constant(RuntimeValue::Float(5.0))).unwrap();
+    let condition = graph.add_node(constant(RuntimeValue::Bool(false))).unwrap();
+    let mut gate_node = node("condition_gate");
+    gate_node
+        .config
+        .set("mode", RuntimeValue::String("hold_last_with_default".into()));
+    let gate = graph.add_node(gate_node).unwrap();
+    graph
+        .connect(OutputSocketRef::new(value, "value"), InputSocketRef::new(gate, "value"))
+        .unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(condition, "value"),
+            InputSocketRef::new(gate, "condition"),
+        )
+        .unwrap();
+    let mut runtime = runtime(&graph);
+    let output = evaluate(&mut runtime, 1);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(sample_value(&output, gate, "value"), RuntimeValue::Float(0.0));
+}
+
+#[test]
+fn unknown_gate_configuration_diagnoses_instead_of_selecting_a_default_mode() {
+    let mut graph = TestGraph::new();
+    let mut gate = node("condition_gate");
+    gate.config.set("mode", RuntimeValue::String("unknown_mode".into()));
+    graph.add_node(gate).unwrap();
+    let result = compile_graph(
+        &graph.to_document(),
+        &CompileCtx {
+            value_types: &ValueTypeRegistry::with_primitives(),
+            nodes: &primitive_node_registry(),
+            properties: None,
+        },
+    );
+    assert!(result.has_errors());
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "invalid_condition_gate_config")
+    );
+}
+
+#[test]
 fn condition_gate_block_trigger_suppresses_fired_edge() {
     let mut graph = TestGraph::new();
     let value = graph
@@ -1085,7 +1166,11 @@ fn log_config_emits_debug_intent_for_processed_node() {
 #[test]
 fn runtime_diagnostics_propagate_node_failures() {
     let mut graph = TestGraph::new();
-    graph.add_node(node("remap")).unwrap();
+    let mut remap = node("remap");
+    remap
+        .input_defaults
+        .insert(SocketId::new("in_max"), RuntimeValue::Float(0.0));
+    graph.add_node(remap).unwrap();
     let mut runtime = runtime(&graph);
 
     let output = evaluate(&mut runtime, 1);

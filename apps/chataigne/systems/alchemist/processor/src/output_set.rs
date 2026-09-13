@@ -30,6 +30,7 @@ pub enum OutputValueSource {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct OutputArgumentBinding {
     pub parameter: StableRef,
     pub source: OutputValueSource,
@@ -43,6 +44,7 @@ pub enum OutputSendPolicy {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct OutputBindingConfig {
     pub value: OutputValueSource,
     pub arguments: Vec<OutputArgumentBinding>,
@@ -50,6 +52,17 @@ pub struct OutputBindingConfig {
 }
 
 impl OutputBindingConfig {
+    pub fn to_authoring_json(&self) -> Result<String, String> {
+        self.validate()?;
+        serde_json::to_string(self).map_err(|error| error.to_string())
+    }
+
+    pub fn from_authoring_json(value: &str) -> Result<Self, String> {
+        let parsed: Self = serde_json::from_str(value).map_err(|error| error.to_string())?;
+        parsed.validate()?;
+        Ok(parsed)
+    }
+
     pub fn to_runtime_value(&self) -> Result<RuntimeValue, String> {
         self.validate()?;
         let payload = serde_json::to_vec(self).map_err(|error| error.to_string())?;
@@ -60,6 +73,9 @@ impl OutputBindingConfig {
     }
 
     fn from_runtime_value(value: &RuntimeValue) -> Result<Self, String> {
+        if let RuntimeValue::String(value) = value {
+            return Self::from_authoring_json(value);
+        }
         let RuntimeValue::Extension(extension) = value else {
             return Err(format!(
                 "expected `{OUTPUT_BINDINGS_TYPE}`, got `{}`",

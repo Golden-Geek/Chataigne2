@@ -112,11 +112,23 @@ fn embedded_builtin_formula_files_load_as_read_only_external_formulas() {
         let regions_param = snapshot
             .find_child_by_decl_id(*formula_id, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
             .unwrap_or_else(|| panic!("{label} formula should expose managed region metadata"));
-        assert_eq!(
-            snapshot.node(regions_param).and_then(|node| node.param_value.as_ref()),
-            Some(&ParamValue::Str(String::new())),
-            "{label} should not ship generated managed-region runtime metadata"
-        );
+        let Some(ParamValue::Str(regions)) = snapshot.node(regions_param).and_then(|node| node.param_value.as_ref()) else {
+            panic!("{label} should expose serialized managed regions");
+        };
+        if label == "Mapping" {
+            let regions: Vec<chataigne_alchemist::ManagedRegionDefinition> = serde_json::from_str(regions).unwrap();
+            assert_eq!(regions.iter().map(|region| region.id.as_str()).collect::<Vec<_>>(), vec!["inputs", "filters", "outputs"]);
+            assert_eq!(regions[1].filter_value_mode, chataigne_alchemist::ManagedFilterValueMode::Tuple);
+            let exported = FormulaCatalog::export_formula_json(&snapshot, *formula_id).unwrap();
+            let exported: serde_json::Value = serde_json::from_str(&exported).unwrap();
+            let root = exported["nodes"].as_array().unwrap().first().unwrap();
+            let exported_regions = exported_node_by_decl_id(root, FORMULA_MANAGED_REGIONS_JSON_DECL_ID).unwrap();
+            let encoded = exported_regions["data"]["param"]["value"]["value"].as_str().unwrap();
+            let round_tripped: Vec<chataigne_alchemist::ManagedRegionDefinition> = serde_json::from_str(encoded).unwrap();
+            assert_eq!(round_tripped, regions, "the supported Formula exporter should retain Mapping's authored regions");
+        } else {
+            assert!(regions.is_empty(), "{label} should not ship managed regions");
+        }
     }
 }
 
@@ -816,6 +828,40 @@ fn builtin_formula_without_sibling_icon_has_no_icon_presentation() {
     );
 
     fs::remove_dir_all(dir).expect("temp built-in formula dir should be removable");
+}
+
+#[test]
+fn missing_or_empty_builtin_asset_directory_reports_an_error() {
+    let dir = temp_builtin_formula_dir("missing_assets");
+    let empty = FormulaCatalog::builtin_formula_trees(&dir)
+        .err()
+        .expect("an empty override must not silently erase builtins");
+    assert!(empty.to_string().contains("contains no JSON formulas"));
+    fs::remove_dir_all(&dir).unwrap();
+    let missing = FormulaCatalog::builtin_formula_trees(&dir)
+        .err()
+        .expect("a missing override must report its IO failure");
+    assert!(missing.to_string().contains("failed to read builtin formula file"));
+}
+
+#[test]
+fn unmarked_shared_formula_with_historical_gate_reports_migration_boundary() {
+    let mut action: serde_json::Value = serde_json::from_str(ACTION_FORMULA).unwrap();
+    let root = action["nodes"].as_array_mut().unwrap().first_mut().unwrap();
+    root["children"].as_array_mut().unwrap().push(serde_json::json!({
+        "sourceUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "node_type": "alchemist_anode",
+        "decl_id": "anode",
+        "label": "Historical gate",
+        "meta": { "tags": ["alchemist.anode.type:condition_gate"] },
+        "children": []
+    }));
+    let dir = temp_builtin_formula_dir("historical_shared_gate");
+    let path = dir.join("Historical.json");
+    fs::write(&path, action.to_string()).unwrap();
+    let error = FormulaCatalog::external_formula_tree_from_file(&path).err().unwrap();
+    assert!(error.to_string().contains("pre-migration Condition Gate"));
+    fs::remove_dir_all(&dir).unwrap();
 }
 
 fn temp_builtin_formula_dir(name: &str) -> std::path::PathBuf {

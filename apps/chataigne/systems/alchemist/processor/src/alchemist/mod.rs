@@ -6,11 +6,12 @@ use std::{
 };
 
 use chataigne_alchemist::{
-    ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature, ANodeTypeId,
-    CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, EvaluationCtx, ExecutionKind, ExtensionValue, FacetId,
-    InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeContextFrame,
-    RuntimeIntent, SignatureCtx, StableRef, TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar,
-    ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
+    ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature, ANodeTypeId, AutoWirePolicy,
+    CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, DiagnosticOrigin, EvaluationCtx, ExecutionKind,
+    ExtensionValue, FacetId, InputSocketDecl, ManagedUiMode, NodeEvaluation, OutputSocketDecl, PipelineCardinality,
+    RegistryError, ResolvedANodeSignature, RuntimeContextFrame, RuntimeIntent, SignatureCtx, StableRef,
+    SurfaceItemKind, TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
+    ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -18,6 +19,9 @@ pub use chataigne_alchemist as alchemist;
 
 pub use crate::value_set::VALUE_SET_TYPE;
 use crate::value_set::ValueSet;
+use crate::{
+    INPUT_PROJECTION_FIELD, INPUT_SOURCE_FIELD, OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD, OutputBindingConfig,
+};
 
 pub const MODULE_TYPE: &str = "chataigne.module";
 pub const MODULE_ENDPOINT_TYPE: &str = "chataigne.module_endpoint";
@@ -33,6 +37,8 @@ pub const SEQUENCE_TYPE: &str = "chataigne.sequence";
 pub const STATE_TYPE: &str = "chataigne.state";
 pub const PROCESSOR_TYPE: &str = "chataigne.processor";
 pub const DASHBOARD_TARGET_TYPE: &str = "chataigne.dashboard_target";
+pub const INPUT_SOURCE_TYPE: &str = "chataigne.input_source";
+pub const OUTPUT_TARGET_TYPE: &str = "chataigne.output_target";
 pub const MANAGER_PROPERTY_FIELD: &str = "manager_id";
 pub const TRIGGER_ON_VALUES_SIGNAL_FIELD: &str = "trigger_on_values_signal";
 
@@ -190,15 +196,19 @@ pub enum ChataigneNodeKind {
     InputsManager,
     OutputsManager,
     Routing,
+    InputSource,
+    OutputTarget,
 }
 
 impl ChataigneNodeKind {
-    const ALL: [Self; 5] = [
+    const ALL: [Self; 7] = [
         Self::ConditionsManager,
         Self::FiltersManager,
         Self::InputsManager,
         Self::OutputsManager,
         Self::Routing,
+        Self::InputSource,
+        Self::OutputTarget,
     ];
 
     #[must_use]
@@ -215,6 +225,8 @@ impl ChataigneNodeKind {
             Self::InputsManager => INPUTS_MANAGER_TYPE,
             Self::OutputsManager => OUTPUTS_MANAGER_TYPE,
             Self::Routing => ROUTING_TYPE,
+            Self::InputSource => INPUT_SOURCE_TYPE,
+            Self::OutputTarget => OUTPUT_TARGET_TYPE,
         }
     }
 }
@@ -233,12 +245,15 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
             ChataigneNodeKind::InputsManager => "Inputs",
             ChataigneNodeKind::OutputsManager => "Outputs",
             ChataigneNodeKind::Routing => "Routing",
+            ChataigneNodeKind::InputSource => "Input Source",
+            ChataigneNodeKind::OutputTarget => "Output Command",
         }
     }
 
     fn category(&self) -> &'static str {
         match self.0 {
             ChataigneNodeKind::Routing => "Routing",
+            ChataigneNodeKind::InputSource | ChataigneNodeKind::OutputTarget => "Mapping",
             _ => "Managers",
         }
     }
@@ -251,7 +266,19 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
     }
 
     fn role_capabilities(&self) -> Vec<ANodeRoleCapability> {
-        Vec::new()
+        let role = match self.0 {
+            ChataigneNodeKind::InputSource => SurfaceItemKind::Input,
+            ChataigneNodeKind::OutputTarget => SurfaceItemKind::Output,
+            _ => return Vec::new(),
+        };
+        vec![ANodeRoleCapability {
+            role,
+            primary_input: None,
+            primary_output: None,
+            autowire: AutoWirePolicy::None,
+            cardinality: PipelineCardinality::WholeSet,
+            ui_mode: ManagedUiMode::CompactRow,
+        }]
     }
 
     fn config_fields(&self) -> Vec<chataigne_alchemist::ANodeConfigFieldDecl> {
@@ -287,6 +314,48 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
                 ]
             }
             ChataigneNodeKind::Routing => Vec::new(),
+            ChataigneNodeKind::InputSource => vec![
+                chataigne_alchemist::ANodeConfigFieldDecl::new(
+                    INPUT_SOURCE_FIELD,
+                    "Source",
+                    RuntimeValue::Ref(StableRef::new(ValueTypeId::new("reference"), "")),
+                )
+                .with_description("Parameter occupying this position in the Mapping tuple."),
+                chataigne_alchemist::ANodeConfigFieldDecl::new(
+                    INPUT_PROJECTION_FIELD,
+                    "Component",
+                    RuntimeValue::String(Arc::from("")),
+                )
+                .with_description("Optional component of the source value.")
+                .with_enum_options([
+                    ("", "Whole Value"),
+                    ("x", "X"),
+                    ("y", "Y"),
+                    ("z", "Z"),
+                    ("r", "Red"),
+                    ("g", "Green"),
+                    ("b", "Blue"),
+                    ("a", "Alpha"),
+                ]),
+            ],
+            ChataigneNodeKind::OutputTarget => vec![
+                chataigne_alchemist::ANodeConfigFieldDecl::new(
+                    OUTPUT_TARGET_FIELD,
+                    "Command",
+                    RuntimeValue::Ref(StableRef::new(ValueTypeId::new(COMMAND_TARGET_TYPE), "")),
+                )
+                .with_description("Command invoked by this Output item."),
+                chataigne_alchemist::ANodeConfigFieldDecl::new(
+                    OUTPUT_BINDINGS_FIELD,
+                    "Bindings",
+                    RuntimeValue::String(Arc::from(
+                        serde_json::to_string(&OutputBindingConfig::default())
+                            .expect("default output bindings are serializable"),
+                    )),
+                )
+                .with_description("Value and command-argument binding document.")
+                .with_editor("mapping_output_bindings"),
+            ],
         }
     }
 
@@ -349,6 +418,9 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
             };
         }
 
+        if matches!(self.0, ChataigneNodeKind::InputSource | ChataigneNodeKind::OutputTarget) {
+            return ANodeSignature::default();
+        }
         let variable = TypeVar::new("TValue");
         let mut signature = ANodeSignature {
             inputs: vec![InputSocketDecl::new(
@@ -388,6 +460,11 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
                 trigger_on_values_signal: config_bool(instance, TRIGGER_ON_VALUES_SIGNAL_FIELD, true),
             }))),
             ChataigneNodeKind::Routing => Ok(CompiledNodeOperation::Custom(Arc::new(RoutingEval))),
+            ChataigneNodeKind::InputSource | ChataigneNodeKind::OutputTarget => Err(Diagnostic::error(
+                "managed_item_requires_region",
+                "Input Source and Output Command execute only as items in their managed regions",
+                DiagnosticOrigin::Node(instance.id),
+            )),
         }
     }
 }

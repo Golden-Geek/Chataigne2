@@ -613,8 +613,11 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                         ("pass_when_true", "Pass When True"),
                         ("pass_when_false", "Pass When False"),
                         ("hold_last", "Hold Last"),
+                        ("hold_last_with_default", "Hold Last, Then Default"),
                         ("output_default", "Output Default"),
+                        ("output_default_when_false", "Output Default When False"),
                         ("block_trigger", "Block Trigger"),
+                        ("block_trigger_with_default", "Block Trigger With Default"),
                     ],
                 ),
                 enum_config("gate_application", "Application", "whole", &[("whole", "Whole")]),
@@ -929,7 +932,15 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             }
             PrimitiveNodeKind::Distance => float_signature(&["value1", "value2"], "result"),
             PrimitiveNodeKind::Function => function_signature(instance),
-            PrimitiveNodeKind::Remap => float_signature(&["value", "in_min", "in_max", "out_min", "out_max"], "result"),
+            PrimitiveNodeKind::Remap => {
+                let mut signature = float_signature(&["value", "in_min", "in_max", "out_min", "out_max"], "result");
+                for input in &mut signature.inputs {
+                    if matches!(input.id.as_str(), "in_max" | "out_max") {
+                        input.default_value = Some(RuntimeValue::Float(1.0));
+                    }
+                }
+                signature
+            }
             PrimitiveNodeKind::CurveRemap => float_signature(&["value"], "result"),
             PrimitiveNodeKind::Clamp => generic_numeric_signature(&["value", "minimum", "maximum"], "result"),
             PrimitiveNodeKind::SmoothFilter | PrimitiveNodeKind::Speed => float_signature(&["value"], "result"),
@@ -1277,9 +1288,15 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Threshold => {
                 CompiledNodeOperation::Custom(Arc::new(threshold::ThresholdEval::from_config(instance)))
             }
-            PrimitiveNodeKind::ConditionGate => {
-                CompiledNodeOperation::Custom(Arc::new(condition_gate::ConditionGateEval::from_config(instance)))
-            }
+            PrimitiveNodeKind::ConditionGate => CompiledNodeOperation::Custom(Arc::new(
+                condition_gate::ConditionGateEval::from_config(instance).map_err(|error| {
+                    Diagnostic::error(
+                        "invalid_condition_gate_config",
+                        error,
+                        crate::DiagnosticOrigin::Node(instance.id),
+                    )
+                })?,
+            )),
             PrimitiveNodeKind::TriggerOnOff => {
                 CompiledNodeOperation::Custom(Arc::new(trigger_on_off::TriggerOnOffEval {
                     toggle: config_bool(instance, "toggle", false),

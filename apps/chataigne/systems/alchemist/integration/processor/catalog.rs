@@ -498,9 +498,6 @@ impl FormulaCatalog {
         let path = path.as_ref();
         let entries = match fs::read_dir(path) {
             Ok(entries) => entries,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(Vec::new());
-            }
             Err(error) => {
                 return Err(BuiltinFormulaLoadError::Io {
                     path: path.to_path_buf(),
@@ -522,6 +519,12 @@ impl FormulaCatalog {
             paths.push(formula_path);
         }
         paths.sort();
+
+        if paths.is_empty() {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!("builtin formula directory '{}' contains no JSON formulas", path.display()),
+            });
+        }
 
         let assets = paths
             .into_iter()
@@ -566,6 +569,17 @@ impl FormulaCatalog {
                 source: error,
             })?;
         let tree = decode_exported_formula_tree(path, &source)?;
+        if tree.nodes.iter().any(|node| {
+            !node.meta.tags.iter().any(|tag| tag == crate::app::systems_alchemist_formula::GATE_SEMANTICS_V2_TAG)
+                && exported_node_contains_condition_gate(node)
+        }) {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!(
+                    "shared formula '{}' contains a pre-migration Condition Gate; re-export it from a migrated project or update its gate modes and semantics marker explicitly",
+                    path.display()
+                ),
+            });
+        }
         let icon = sibling_icon_data_uri(path)?;
         tree.into_external_node_tree(false, icon)
     }
@@ -1204,6 +1218,19 @@ impl ExportedNode {
     fn node_uuid(&self) -> NodeUuid {
         NodeUuid(self.source_uuid)
     }
+}
+
+fn exported_node_contains_condition_gate(node: &ExportedNode) -> bool {
+    (node.node_type == "alchemist_anode"
+        && (node.meta.tags.iter().any(|tag| tag == "alchemist.anode.type:condition_gate")
+            || node.children.iter().any(|child| {
+                child.decl_id == "anode_type"
+                    && exported_param_value(child)
+                        .ok()
+                        .flatten()
+                        == Some(ParamValue::Str("condition_gate".to_owned()))
+            })))
+        || node.children.iter().any(exported_node_contains_condition_gate)
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

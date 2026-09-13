@@ -5,13 +5,13 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 07 — required filter catalog (complete); Phase 08 begins in the next turn
+- Active phase: 08 — backend authoring, asset, and persistence integration (validated; implementation push pending)
 - Last validated implementation commit: `5712b226e078e5a398836502cd27f5aeff9efed8` (Phase 07)
 - Last verified remote implementation commit: `5712b226e078e5a398836502cd27f5aeff9efed8` (Phase 07)
-- Current blockers: none; later phases own backend authoring, the built-in asset, historical persistence migration, and product UI.
-- Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks
-- Next concrete action: begin Phase 08 backend authoring, asset, and persistence integration in the next turn.
-- Last updated: 2026-09-13T16:59:01+02:00
+- Current blockers: none; Phase 09 owns the product inspector, Phase 10 conversion, and Phase 11 qualification.
+- Product checks still outstanding: remaining revised M01–M20 acceptance cases, desktop/headless/watch and interactive product smoke checks, expanded Mapping qualification benchmarks.
+- Next concrete action: push and verify the Phase 08 implementation checkpoint, then publish its factual delivery status.
+- Last updated: 2026-09-13T17:57:15+02:00
 
 ## Phase ledger
 
@@ -25,7 +25,7 @@
 | 05 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `db9ba626` observed at the remote; suppression, default/hold, trigger flow, temporal wakeups, context state, compatible migration, and revision safety pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 06 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `fb837c38` observed at the remote; stable source projections, typed command argument overrides, fan-out, accepted-value send policy, and host validation pass crate/app/workspace gates. Direct branch pushes have no required CI. |
 | 07 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `5712b226` observed at the remote; catalog, resource persistence, and full code gates pass. Direct branch pushes have no required CI. |
-| 08 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Backend authoring, asset, persistence. |
+| 08 | DELIVERY_PENDING | IMPLEMENTED | PASSED | PUSH_PENDING | NOT_APPLICABLE_WITH_REASON | Built-in Mapping authoring, execution, persistence, duplication, and gate migration pass; direct branch pushes have no required CI. |
 | 09 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Svelte Mapping inspector. |
 | 10 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Conversion to custom Formula. |
 | 11 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_COMMITTED | NOT_RUN | Qualification, performance, cleanup. |
@@ -36,23 +36,23 @@
 | --- | --- | --- | --- | --- |
 | M01 | Three floats → elementwise Remap → Sum → Smooth → two commands | 04, 06 | Processor tuple Formula test sends two argument-bound commands from one OutputSet across two ticks; host tests verify typed command overrides. | PASSED |
 | M02 | X/Y/Z → elementwise filter → Pack Vec3 → one 3D command | 04, 06 | Processor tuple Formula test binds the packed Vec3 to one command argument; host validates a Vec3 parameter override. | PASSED |
-| M03 | Mixed float/bool/string → numeric filter diagnostic; explicit conversion | 02, 04 | Mixed float/bool tuple rejects implicit numeric subset; full float/bool/string and conversion catalog remain Phase 07 | PARTIAL |
-| M04 | Color conversion or explicit extraction → typed command | 06, 07 | Color component input/output projections and typed command binding pass; required conversion filters remain Phase 07. | PARTIAL |
+| M03 | Mixed float/bool/string → numeric filter diagnostic; explicit conversion | 02, 04 | Whole-tuple numeric validation rejects an implicit subset; explicit three-element float/bool/string conversion followed by Sum yields 4.5 and diagnoses an invalid string value. | PASSED |
+| M04 | Color conversion or explicit extraction → typed command | 06, 07 | Color extraction and stable component input/output projections pass, as does typed command binding. The combined color-to-command product case remains. | PARTIAL |
 | M05 | Closed numeric suppressing gate | 05 | Closed Mapping and authored-graph gates suppress downstream values and commands without a fallback zero; control outputs remain available. | PASSED |
 | M06 | Gate changes with steady source | 05 | Changing gate control reopens a Mapping with an unchanged source; gated temporal work sleeps while closed. | PASSED |
 | M07 | Hold/default first sample and reopen | 05 | HoldLast suppresses before its first accepted value unless an authored or graph-connected default exists; OutputDefault emits its selected value. | PASSED |
 | M08 | Rename/reorder/add tuple inputs during elementwise smoothing | 02, 05 | Element history follows stable authored identity across rename/reorder; removed state is released and incompatible upstream edits reset downstream history. | PASSED |
 | M09 | Shared structure, isolated processor/context state | 04, 05 | Equivalent stages share a compiled graph but retain separate processor, context, and tuple-element histories; context membership pruning and lifecycle reset pass. | PASSED |
-| M10 | External edits to coefficient, key, stop, binding | 03, 07, 08 | Pending | NOT_RUN |
+| M10 | External edits to coefficient, key, stop, binding | 03, 07, 08 | Remap bound changes through `SetParam` alter built-in execution; live Curve key and Gradient stop edits and typed output bindings have separate Phase 07/08 coverage. The combined product case remains. | PARTIAL |
 | M11 | Whole-value fan-out and tuple-element command arguments | 06 | One value fans out to several outputs; one tuple binds several command arguments by stable element identity, including a constant; output reorder/disable retains routing. | PASSED |
 | M12 | Unavailable source/target and tuple type/arity changes | 02, 06 | Input position/validity and projection tests, changed-shape and invalid-selector diagnostics, partial-batch suppression, disabled/missing target rejection, and host argument validation pass. | PASSED |
 | M13 | Repeat equal-valued triggers | 05 | Typed trigger stages emit separate intents for separate occurrences even when values are equal. | PASSED |
-| M14 | Persistence, copy, undo/redo, migration | 08 | Pending | NOT_RUN |
+| M14 | Persistence, copy, undo/redo, migration | 08 | Public intents create/edit/delete/reorder/duplicate authored items with distinct ownership IDs; undo/redo, sparse save/load, stable source and binding references, and one-time historical gate migration pass. | PASSED |
 | M15 | Managed regions plus extra Formula operations | 04 | Graph-backed processor executes routing before and after managed filter, with command and preview assertions | PASSED |
 | M16 | Convert configured Mapping to Formula | 10 | Pending | NOT_RUN |
 | M17 | Preview-off execution | 01 | Direct result-slot, codec-call, and capture-off Rust tests; app Action and workspace gates pass | PASSED |
 | M18 | Structural edit during compile/evaluation | 05 | Synchronous snapshot materialization publishes complete runtimes; a failed structural specialization invalidates the previous chain and never dispatches it. | PASSED |
-| M19 | Mapping controls Mapping or itself | 05, 08 | Processor intents use the existing queued engine transaction path; a built-in Mapping self-cycle product test awaits the Phase 08 asset. | PARTIAL |
+| M19 | Mapping controls Mapping or itself | 05, 08 | Processor intents use the queued engine transaction path; a built-in Mapping self-cycle product test remains for Phase 11 qualification. | PARTIAL |
 | M20 | Inspector/context switching and large lists | 09, 11 | Pending | NOT_RUN |
 
 ## Validation evidence
@@ -105,6 +105,9 @@
 | 2026-09-13T16:57+02:00 | 07 | working tree before checkpoint A | `cargo test-fast --locked -p golden_engine --quiet`; `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet` | Windows x64, Rust 1.97.0 | PASSED | 446 Golden engine tests pass with 3 existing ignored, plus 1 integration and 7 doctests; 176 Alchemist and 124 processor tests pass. Covers tuple reductions/conversions, stateful delay and threshold, and Golden resource persistence. |
 | 2026-09-13T16:57+02:00 | 07 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet`; `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 545 app tests pass, 5 existing manual tests ignored, and 1 audio-host integration test passes; full workspace check passes. Live Curve key and Gradient stop edits survive sparse save/reload. |
 | 2026-09-13T16:57+02:00 | 07 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo clippy --locked -p golden_engine -p chataigne_alchemist -p chataigne_processor -p Chataigne2 --all-targets -- -D warnings`; root and Golden Core `cargo fmt --all` and `--check`; `git diff --check` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Strict lint, both formatter scopes, and whitespace check pass; Git reports only Windows line-ending conversion notices. |
+| 2026-09-13T17:57+02:00 | 08 | working tree before checkpoint A | `cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 179 Alchemist, 125 processor, and 553 app tests pass; 5 existing app tests ignored, and 1 audio-host integration test passes. Built-in Mapping execution, backend authoring, persistence, duplication, asset diagnostics, and gate migration are covered. |
+| 2026-09-13T17:57+02:00 | 08 | working tree before checkpoint A | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked -p chataigne_alchemist -p chataigne_processor -p Chataigne2 --all-targets -- -D warnings` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace check and strict targeted Clippy pass. |
+| 2026-09-13T17:57+02:00 | 08 | working tree before checkpoint A | Root and Golden Core `cargo fmt --all` and `--check`; `git diff --check` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and whitespace check pass; Git reports only Windows line-ending conversion notices. |
 
 ## Phase reports
 
@@ -200,9 +203,20 @@
 - CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
 - Decisions/deviations and rationale: standard Mapping keeps one ordered tuple and uses explicit conversion before mixed-type numeric merging. Timed Delay has a 128-item, 1 MiB queue ceiling and a 64 KiB per-value ceiling; overflow diagnoses and resets the affected context. Curve and Gradient remain Golden-owned resources, not Mapping-specific models.
 
+### Phase 08 (delivery pending)
+
+- Changes and affected public boundaries: the app-owned Mapping asset now declares InputSet, tuple FilterPipeline, and OutputSet managed regions. Backend `UiEditIntent` authoring materializes typed source and output items and configured filter trees; output bindings use the existing string parameter with strict, validated JSON serialization. The catalog preflights replacement assets and diagnoses missing/unknown assets. Project load migrates unmarked historical ConditionGate modes once before formula synchronization, with an explicit persisted semantic marker. Built-in Formula identity, hidden-library policy, and read-only inspection remain stable.
+- Acceptance gates satisfied: public intents create and configure two ordered sources, elementwise Remap, Sum, and one bound command. A live Remap bound edit changes the evaluated command value from 1.0 to 1.25. Save/reload preserves authored IDs and bindings; duplicate gives a distinct authored identity while retaining its source reference; move/remove and undo/redo preserve order and history. Filter subtree creation is one history step and emits fewer than 256 UI events. Asset export round-trips managed regions, missing/empty asset directories and unmarked historical gate schemas diagnose, and historical gate behavior survives a sparse reload without user undo entries.
+- Remaining work: Phase 09 owns the Svelte inspector and any new UI-facing DTO contract; Phase 10 owns configured Mapping-to-Formula conversion; Phase 11 owns broader product and performance qualification, including the M19 self-cycle case. No Phase 08 backend gate remains open.
+- Exact checks and outcomes: see Phase 08 validation rows. 179 Alchemist, 125 processor, and 553 app tests pass; 5 existing app tests are ignored and the audio-host integration test passes. The full workspace check, strict targeted Clippy, both formatter scopes, and whitespace check pass.
+- Implementation commit: `PUSH_PENDING`.
+- Verified remote ref, observed OID, and timestamp: `PUSH_PENDING`.
+- CI status and relevant runs: `NOT_APPLICABLE_WITH_REASON`; direct pushes to this branch do not trigger required CI.
+- Decisions/deviations and rationale: the standard Mapping remains one ordered tuple with no authored channels, so multiple sources can merge or form compound values in one chain; custom Formula provides branching. The generic Golden `UiEditIntent` and protocol DTOs already cover backend authoring, so no Rust/TypeScript protocol declarations changed in this phase. The existing state-machine wrappers remain used by Action and custom Formula but are not exposed as managed Mapping items; historical gate semantics receive a narrow project migration instead of compatibility logic in runtime evaluation.
+
 ## Blockers and handoff
 
-- What failed or changed: Phase 07 adds explicit reductions, conversion, resource, and temporal filters. Golden resource children now persist as user items. No current phase failure remains.
-- Last known-good checkpoint: Phase 07 `5712b226e078e5a398836502cd27f5aeff9efed8` is validated and verified at `origin/codex/builtin-mapping`.
-- Reproduction: Golden, Alchemist, processor, and full app tests, workspace check, strict Clippy, and formatting pass with the available toolchain.
-- Next action: begin Phase 08 backend authoring and asset work in the next phase turn.
+- What failed or changed: Phase 08 adds a configured built-in Mapping asset, public backend authoring paths, strict asset/binding diagnostics, and persisted gate migration. No current phase failure remains.
+- Last known-good checkpoint: Phase 07 `5712b226e078e5a398836502cd27f5aeff9efed8` is validated and verified at `origin/codex/builtin-mapping`; Phase 08 implementation is locally validated and awaiting its delivery checkpoint.
+- Reproduction: Alchemist, processor, and full app tests, workspace check, strict Clippy, and formatting pass with the available toolchain.
+- Next action: push and verify Phase 08 implementation checkpoint A, then publish and verify checkpoint B. Begin Phase 09 only in the next phase turn.

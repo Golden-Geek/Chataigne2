@@ -34,6 +34,7 @@ use super::{
 use crate::app::{AppEngine, AppNode};
 
 mod inbox_batch;
+mod gate_migration;
 mod lifecycle_reuse;
 mod resources;
 mod snapshot_cache;

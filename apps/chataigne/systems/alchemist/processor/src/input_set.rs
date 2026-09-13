@@ -174,6 +174,7 @@ impl InputSetRuntime {
                 };
                 let projection =
                     match item.anode.config.get(INPUT_PROJECTION_FIELD) {
+                        Some(RuntimeValue::String(value)) if value.is_empty() => None,
                         Some(RuntimeValue::String(value)) => Some(ValueComponent::parse(value).ok_or_else(|| {
                             InputSetError::InvalidProjectionConfig {
                                 label: item.anode.label.clone(),

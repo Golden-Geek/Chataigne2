@@ -205,8 +205,7 @@ the relevant cache. Processor command suppression still blocks dispatch, and
 normal state/lifecycle routing remains in the state-machine manager. Parameter
 targets use the existing `set_param` path. The host keeps command event order
 when change-aware sends meet batched ordinary sends. The output-binding config
-and command arguments use app-owned typed extension payloads; Phase 08 owns
-backend edit intents and migration of persisted positional OutputSet records.
+and command arguments use app-owned typed extension payloads.
 
 Phase 07 extends the app-owned ANode catalog through the same graph and managed
 stage compiler. Numeric reductions consume the full ordered tuple: Sum,
@@ -245,12 +244,35 @@ type identity, signatures, roles, and kernel compilation exhaustively. This
 temporarily exceeds the usual source-file length target; Phase 11 owns a
 cohesive split after catalog and authoring behavior settle.
 
-Existing projects, Action and custom Formulas, processor contexts, state-machine
-truth, module commands, script control, and undo/redo remain product contracts.
-Changed persisted filter or output semantics need narrow typed migrations. In
-particular, a historical default-substituting gate must not silently become a
-suppressing gate. The built-in catalog identity stays stable while its file and
-processor records evolve.
+Phase 08 gives the bundled Mapping recipe authored InputSet, tuple FilterPipeline,
+and OutputSet definitions at its existing graph sockets. Its stable catalog UUID
+and read-only built-in status do not depend on the recipe contents. Creating a
+processor materializes the three editable regions. The ordinary `CreateUserItem`,
+`SetParam`, move, remove, duplicate, and history intents author real ANode trees;
+the Input Source and Output Command declarations provide complete default config
+trees, while the compatible filter palette provides configured variants. An Input
+Source stores a parameter reference and optional component projection. An Output
+Command stores a command reference plus a validated JSON encoding of the typed
+`OutputBindingConfig`; unknown binding fields and duplicate argument identities
+are rejected by the backend parser. The standard Formula exporter round-trips
+the built-in's managed definitions. Tree creation and built-in sync use one
+batched tree transaction rather than separately adding every declared child.
+
+Previous bundled Mapping versions had no authored managed regions, so no
+persisted Mapping input/filter/output item records exist to reinterpret. The
+older `sm_*` input/filter/output nodes remain in the state-machine/Action paths;
+they are not accepted as managed Mapping items. Custom Formulas with older
+managed-region records retain their historical routed filter mode. Gate modes
+did have changed semantics: on project open, an unmarked project translates
+historical pass, inverse-pass, hold, and trigger-block modes to explicit
+default-preserving modes in one transaction, then marks the project root with
+`chataigne.condition_gate.semantics.v2`. New projects and newly exported Formulas
+carry that marker, so reopening them never reinterprets suppressing gates.
+Unknown historical gate modes fail migration with a diagnostic. A shared file
+with an unmarked historical gate is rejected with an actionable import error
+because loading it cannot rewrite its authored source file safely. Missing or
+empty built-in asset directories and a catalog that omits an existing built-in
+report errors before removing any project nodes.
 
 ## Measurement fixture
 

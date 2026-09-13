@@ -121,11 +121,11 @@
             "param": {
               "value": {
                 "kind": "str",
-                "value": ""
+                "value": "[{\"id\":\"inputs\",\"kind\":\"input_set\",\"label\":\"Inputs\",\"input_socket\":null,\"output_socket\":{\"node\":\"fd181507-c241-49a4-ac90-42265163e724\",\"socket\":\"values\"},\"accepted_roles\":[\"Input\"]},{\"id\":\"filters\",\"kind\":\"filter_pipeline\",\"label\":\"Filters\",\"input_socket\":{\"node\":\"31a8a7de-9e20-416d-adb4-f6f07e033684\",\"socket\":\"values\"},\"output_socket\":{\"node\":\"31a8a7de-9e20-416d-adb4-f6f07e033684\",\"socket\":\"values\"},\"accepted_roles\":[\"Filter\"],\"filter_value_mode\":\"tuple\"},{\"id\":\"outputs\",\"kind\":\"output_set\",\"label\":\"Outputs\",\"input_socket\":{\"node\":\"a83ffdc3-c9bc-47c6-9fd1-5e994ea216f6\",\"socket\":\"values\"},\"output_socket\":null,\"accepted_roles\":[\"Output\"]}]"
               },
               "default_value": {
                 "kind": "str",
-                "value": ""
+                "value": "[{\"id\":\"inputs\",\"kind\":\"input_set\",\"label\":\"Inputs\",\"input_socket\":null,\"output_socket\":{\"node\":\"fd181507-c241-49a4-ac90-42265163e724\",\"socket\":\"values\"},\"accepted_roles\":[\"Input\"]},{\"id\":\"filters\",\"kind\":\"filter_pipeline\",\"label\":\"Filters\",\"input_socket\":{\"node\":\"31a8a7de-9e20-416d-adb4-f6f07e033684\",\"socket\":\"values\"},\"output_socket\":{\"node\":\"31a8a7de-9e20-416d-adb4-f6f07e033684\",\"socket\":\"values\"},\"accepted_roles\":[\"Filter\"],\"filter_value_mode\":\"tuple\"},{\"id\":\"outputs\",\"kind\":\"output_set\",\"label\":\"Outputs\",\"input_socket\":{\"node\":\"a83ffdc3-c9bc-47c6-9fd1-5e994ea216f6\",\"socket\":\"values\"},\"output_socket\":null,\"accepted_roles\":[\"Output\"]}]"
               },
               "event_behaviour": "Coalesce",
               "read_only": true,

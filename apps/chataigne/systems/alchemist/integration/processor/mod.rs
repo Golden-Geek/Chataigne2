@@ -20,7 +20,7 @@ use golden_core::{
 use crate::app::systems_alchemist_formula::{
     anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
     create_anode_user_item_tree, formula_from_snapshot, node_has_warning, node_warning_detail, node_warning_matches,
-    ANODE_ITEM_KIND, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
+    ANODE_ITEM_KIND, ANODE_NODE_TYPE, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
     PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
 use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
@@ -58,6 +58,19 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
     let builtin_candidates = FormulaCatalog::default_builtin_formula_trees()
         .map_err(|error| error.to_string())?;
     let existing_builtins = builtin_formula_nodes(&snapshot, library);
+    let candidate_uuids = builtin_candidates
+        .iter()
+        .map(|tree| tree.node.node_data().meta.uuid)
+        .collect::<HashSet<_>>();
+    for node_id in &existing_builtins {
+        let current = snapshot.node(*node_id).expect("listed builtin should exist");
+        if !candidate_uuids.contains(&current.uuid) {
+            return Err(format!(
+                "builtin formula '{}' ({}) is absent from the current asset catalog; project data was left intact",
+                current.label, current.uuid.0
+            ));
+        }
+    }
     let existing_by_uuid = existing_builtins
         .iter()
         .filter_map(|node_id| {
@@ -716,7 +729,8 @@ impl Node for StateProcessorManagedRegion {
         let roles = managed_region_roles_from_tags(&self.node_data().meta.tags);
         if roles.contains(&SurfaceItemKind::Filter) {
             return item_kind == ANODE_ITEM_KIND
-                && self.filter_items.iter().any(|item| item.node_type == item_type);
+                && (item_type == ANODE_NODE_TYPE
+                    || self.filter_items.iter().any(|item| item.node_type == item_type));
         }
         anode_container_accepts_for_roles(item_type, item_kind, &roles)
     }
