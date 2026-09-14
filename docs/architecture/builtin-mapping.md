@@ -577,6 +577,15 @@ took 571 seconds overall, dominated by authored graph construction and
 lifecycle work outside the timed source-change samples. This also needs
 separate large-graph qualification; the table is not a project-load
 benchmark.
+With `GOLDEN_PERF_TRACE=1`, the active 128-processor path identified
+`generic_trigger_parameter_command[Custom]` as the sole full-tree snapshot
+requester: its dynamic target reference and trigger-type check use the live
+tree. At 256 processors, a representative 23 ms active tick spent about
+12 ms building that 9,909-node snapshot and about 8 ms in the remaining
+stabilization work. This trace is diagnostic rather than an uninstrumented
+regression measurement. A future command lookup optimization must keep live
+UUID resolution, target-type validation, deletion handling, and per-execution
+overrides; caching a target ID without those checks would change behavior.
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle
 or steady dense interval adds no listener reconciliations. Set
