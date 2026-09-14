@@ -302,7 +302,11 @@ not advance temporal state or dispatch commands. A sample has at most 64 tuple
 elements and 16 KiB of estimated values. Changing context replaces the lease;
 unmount and session changes release capture and history. Runtime capture stays
 in the state-machine manager, independent of Formula defaults. Large item lists
-render a short visible window while edits use stable backend node IDs.
+render a short visible window while edits use stable backend node IDs. The
+window clamps stale scroll offsets when a list shrinks. Switching processors
+clears selected items, preview focus, and context, and gives each processor's
+region lists fresh scroll state; disappearing context lanes return to the
+default preview context.
 
 Phase 10 converts one configured processor through its backend trigger. The
 operation validates the exact built-in Mapping identity and its managed items,

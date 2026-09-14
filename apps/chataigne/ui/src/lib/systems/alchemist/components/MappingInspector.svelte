@@ -110,6 +110,25 @@
 	});
 	let busy = $state(false);
 	let actionError = $state('');
+	let selectedProcessorId = '';
+
+	$effect(() => {
+		const processorId = liveNode.uuid;
+		if (processorId === selectedProcessorId) return;
+		selectedProcessorId = processorId;
+		selectedId = null;
+		previewStageId = null;
+		selectedContextId = '__default__';
+	});
+
+	$effect(() => {
+		if (
+			selectedContextId !== '__default__' &&
+			!lanes.some((lane) => contextKeyId(lane.context_key) === selectedContextId)
+		) {
+			selectedContextId = '__default__';
+		}
+	});
 
 	$effect(() => {
 		const activeSession = session;
@@ -206,26 +225,28 @@
 		{#each ['input_set', 'filter_pipeline', 'output_set'] as kind (kind)}
 			{@const region = processorUi.managed_regions.find((candidate) => candidate.kind === kind)}
 			{#if region}
-				<MappingRegionList
-					{region}
-					instance={processorUi.managed_region_instances.find(
-						(instance) => instance.region_id === region.id
-					) ?? null}
-					regionNode={mappingRegionNode(liveNode, region, graph?.nodesById ?? new Map())}
-					pipeline={processorUi.mapping_pipeline}
-					diagnostics={processorUi.mapping_diagnostics}
-					outputs={processorUi.mapping_outputs}
-					nodesById={graph?.nodesById ?? new Map()}
-					{selectedId}
-					{previewStageId}
-					{busy}
-					onSelect={(id) => (selectedId = id)}
-					onPreview={(id) => (previewStageId = previewStageId === id ? null : id)}
-					onCreate={create}
-					onMove={move}
-					onDuplicate={duplicate}
-					onRemove={(item) => void mutate({ kind: 'removeNode', node: item.node_id })}
-					onToggle={toggle} />
+				{#key liveNode.uuid}
+					<MappingRegionList
+						{region}
+						instance={processorUi.managed_region_instances.find(
+							(instance) => instance.region_id === region.id
+						) ?? null}
+						regionNode={mappingRegionNode(liveNode, region, graph?.nodesById ?? new Map())}
+						pipeline={processorUi.mapping_pipeline}
+						diagnostics={processorUi.mapping_diagnostics}
+						outputs={processorUi.mapping_outputs}
+						nodesById={graph?.nodesById ?? new Map()}
+						{selectedId}
+						{previewStageId}
+						{busy}
+						onSelect={(id) => (selectedId = id)}
+						onPreview={(id) => (previewStageId = previewStageId === id ? null : id)}
+						onCreate={create}
+						onMove={move}
+						onDuplicate={duplicate}
+						onRemove={(item) => void mutate({ kind: 'removeNode', node: item.node_id })}
+						onToggle={toggle} />
+				{/key}
 			{/if}
 		{/each}
 		{#if previewItem}

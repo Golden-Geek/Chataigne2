@@ -112,11 +112,12 @@ export const mappingWindow = (
 ): MappingWindow => {
 	if (count <= 48) return { start: 0, end: count };
 	const safeHeight = Math.max(rowHeight, viewportHeight);
-	const start = Math.max(0, Math.floor(Math.max(0, scrollTop) / rowHeight) - overscan);
-	const end = Math.min(
-		count,
-		Math.ceil((Math.max(0, scrollTop) + safeHeight) / rowHeight) + overscan
+	const boundedScrollTop = Math.min(
+		Math.max(0, scrollTop),
+		Math.max(0, count * rowHeight - safeHeight)
 	);
+	const start = Math.max(0, Math.floor(boundedScrollTop / rowHeight) - overscan);
+	const end = Math.min(count, Math.ceil((boundedScrollTop + safeHeight) / rowHeight) + overscan);
 	return { start, end };
 };
 

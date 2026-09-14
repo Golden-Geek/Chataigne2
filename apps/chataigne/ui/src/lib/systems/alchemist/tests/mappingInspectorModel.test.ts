@@ -155,6 +155,9 @@ describe('Mapping product inspector model', () => {
 		const tail = mappingWindow(10_000, 9999 * 42.4, 260, 42.4);
 		expect(tail.end).toBe(10_000);
 		expect(tail.end - tail.start).toBeLessThan(20);
+		const shrunk = mappingWindow(50, 9999 * 42.4, 260, 42.4);
+		expect(shrunk.start).toBeLessThan(shrunk.end);
+		expect(shrunk.end).toBe(50);
 	});
 
 	it('requests no samples until a stage is selected and releases its lease on teardown', () => {

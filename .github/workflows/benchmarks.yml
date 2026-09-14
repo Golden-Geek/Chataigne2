@@ -47,7 +47,7 @@ jobs:
     name: Benchmark regression check
     runs-on: windows-latest
     env:
-      BENCH_EVIDENCE_DIR: ${{ runner.temp }}\bench-evidence
+      BENCH_EVIDENCE_DIR: ${{ github.workspace }}\target\bench-evidence
     steps:
       - uses: actions/checkout@v6
         with:
