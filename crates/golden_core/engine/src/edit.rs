@@ -60,6 +60,22 @@ impl NodeTree {
     }
 }
 
+/// One detached user item subtree to append during a forest insertion.
+/// All parents must already exist before the forest edit is applied.
+pub struct UserItemTreeInsertion {
+    /// Existing parent receiving this item root.
+    pub parent: NodeId,
+    /// Complete detached item subtree.
+    pub tree: NodeTree,
+}
+
+impl UserItemTreeInsertion {
+    /// Appends `tree` under `parent` when the forest edit is applied.
+    pub fn new(parent: NodeId, tree: NodeTree) -> Self {
+        Self { parent, tree }
+    }
+}
+
 /// Origin of an edit session boundary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EditOrigin {
@@ -160,6 +176,12 @@ pub enum Edit {
         parent: NodeId,
         /// Optional sibling after which insertion occurs.
         prev_sibling: Option<NodeId>,
+    },
+    /// Append detached user item subtrees under existing parents in one
+    /// lifecycle batch. Callbacks observe the complete inserted forest.
+    AddUserItemTrees {
+        /// Ordered item roots and their existing parents.
+        items: Vec<UserItemTreeInsertion>,
     },
     /// Insert a user-curated item node under `parent`, optionally after a sibling.
     AddUserItem {

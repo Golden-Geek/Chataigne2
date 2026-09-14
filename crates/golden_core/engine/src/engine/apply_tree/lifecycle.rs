@@ -362,6 +362,7 @@ fn lifecycle_edit_is_structural(edit: &crate::edit::Edit) -> bool {
         crate::edit::Edit::AddNode { .. }
             | crate::edit::Edit::AddNodeTree { .. }
             | crate::edit::Edit::AddUserItemTree { .. }
+            | crate::edit::Edit::AddUserItemTrees { .. }
             | crate::edit::Edit::AddUserItem { .. }
             | crate::edit::Edit::CreateBlueprintInstance { .. }
             | crate::edit::Edit::ReplaceNode { .. }

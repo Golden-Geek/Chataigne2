@@ -859,6 +859,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn create_user_item_tree(&self, node_type: &str) -> Option<$crate::edit::NodeTree> {
+                $crate::__dispatch_node_enum!(self, create_user_item_tree, node_type; $($variant),*)
+            }
+
+            #[inline(always)]
             fn execution_rule(&self) -> $crate::engine::NodeExecutionRule {
                 $crate::__dispatch_node_enum!(self, execution_rule; $($variant),*)
             }

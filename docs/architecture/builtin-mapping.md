@@ -552,14 +552,15 @@ execution-level result and does not establish full-engine scaling or UI
 render latency. The opt-in `mapping_full_engine_processor_scale_distribution`
 fixture constructs active built-in Mappings with a shared Float source and
 generic Trigger command, using one detached processor-folder subtree plus
-detached InputSet and OutputSet item trees. Each sample changes the source and runs two full engine
-ticks. The optimized Rust `test` profile on the same 275HX host produced:
+InputSet and OutputSet item trees queued as one forest edit. Each sample
+changes the source and runs two full engine ticks. The optimized Rust `test`
+profile on the same 275HX host produced:
 
 | Active processors | Idle p95 | Source + command p50/p95/p99 | Snapshot work per sample | Command batches |
 | ---: | ---: | ---: | ---: | ---: |
-| 128 | 20.8 µs | 1.502 / 1.620 / 1.777 ms | Zero builds | One for 128 executions |
-| 256 | 39.6 µs | 3.779 / 4.229 / 4.389 ms | Zero builds | One for 256 executions |
-| 1,000 | 170.9 µs | 42.471 / 43.680 / 43.886 ms | Zero builds | Two for 1,000 executions |
+| 128 | 15.7 µs | 1.725 / 2.106 / 2.435 ms | Zero builds | One for 128 executions |
+| 256 | 31.9 µs | 4.452 / 5.374 / 5.546 ms | Zero builds | One for 256 executions |
+| 1,000 | 172.7 µs | 41.661 / 43.467 / 44.093 ms | Zero builds | Two for 1,000 executions |
 
 Each row covers 100 warmed shared-source samples with previews off. The
 fixture asserts one evaluated lane and one command execution per processor
@@ -574,12 +575,11 @@ and recorded 27.49 ms p95 at 128 processors. The grouped fixture before
 the folder gate also built three snapshots and recorded 26.12 ms p95.
 The snapshot-free run still exceeds a smooth frame budget at 1,000 active
 processors, so this is a measured scaling limit rather than a passed
-large-graph latency gate. The current 1,000-processor opt-in test took 451
-seconds overall, versus 552 seconds before combined region insertion, dominated
-by authored graph construction and lifecycle work outside
-the timed source-change samples. This also needs
-separate large-graph qualification; the table is not a project-load
-benchmark.
+large-graph latency gate. The latest 1,000-processor opt-in test took 208
+seconds overall, versus 451 seconds before forest insertion and 552 seconds
+before combined region insertion. Most of that time remains in processor-group
+construction outside the timed source-change samples. This is not a
+project-load benchmark.
 The focused command lookup asks the engine only for UUIDs referenced by the
 current inbox. The engine resolves each UUID against its live index, copies
 the current parameter value, and supplies it to the callback. The command
@@ -601,17 +601,28 @@ in place. Before this change, the 128-processor `test-fast` fixture spent
 snapshots (2,221 ms; 2,953,036 cloned node records). With the combined
 region tree, that stage took 1,851 ms and 1,527 snapshots (1,393 ms;
 1,728,756 cloned records). Detached group assembly remained below 1 ms.
-The separate InputSet/OutputSet item-tree stage still builds 514 snapshots at
-128 processors; it took 2,912 ms after the change versus 3,223 ms before. In
-the optimized 1,000-processor run, the combined processor-group stage took
-150.45 seconds and built 11,991 snapshots (108.27 seconds of snapshot work),
-while the distinct item-tree stage took 250.40 seconds and built 4,002
-snapshots (144.47 seconds of snapshot work). These setup
-measurements use the development `test-fast` profile and are not directly
-comparable to the optimized steady-state latency table. Other declared
-children still materialize through callbacks, and each distinct user item
-tree currently runs lifecycle separately. Further construction scaling work
-belongs at the Golden detached-tree and lifecycle boundary.
+Golden now exposes an explicit `AddUserItemTrees` forest edit for independent
+item roots under existing parents. It checks every parent and item type before
+insertion, appends in request order, runs one shared lifecycle batch, records
+one undo transaction, and publishes one atomic UI graph transaction. The
+generated node-enum implementation forwards `create_user_item_tree`, so the
+app-owned ANode factory's complete config and socket descendants reach this
+edit instead of falling back to single-node creation. UI catalog lookup uses
+one tree snapshot for the forest. Ordinary individual item edits keep their
+existing behavior.
+
+The 128-processor `test-fast` item stage now takes 35 ms and three lifecycle
+snapshots (15 ms of snapshot work), versus 2,912 ms and 514 snapshots with
+separate edits, or 1,914 ms and 258 snapshots when only the roots were batched.
+The optimized 256-processor item stage takes 77 ms and three snapshots versus
+12,922 ms and 1,026 snapshots before the forest. At 1,000 processors, it takes
+393 ms and three snapshots (154 ms of snapshot work), versus 250.40 seconds
+and 4,002 snapshots (144.47 seconds of snapshot work). The 1,000-processor
+processor-group stage still takes 157.31 seconds and builds 11,991 lifecycle
+snapshots (112.68 seconds of snapshot work). It still creates declared
+processor children through callbacks; further construction scaling belongs at
+the app-owned detached processor tree and Golden lifecycle boundary. These
+are setup measurements, separate from steady-state latency and project load.
 
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle

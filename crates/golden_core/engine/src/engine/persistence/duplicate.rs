@@ -49,7 +49,7 @@ pub(crate) struct ProjectSubtreeCommitCheckpoint {
     ui_graph_version: u64,
     time: super::super::EngineTime,
     pending_node_ready: Vec<(NodeId, NodeCreationContext)>,
-    pending_added_subtree_ui_roots: Vec<NodeId>,
+    pending_added_subtree_ui_batches: Vec<super::super::PendingAddedSubtreeUiBatch>,
     parameter_values: Vec<(NodeId, ParamValue)>,
 }
 
@@ -552,7 +552,7 @@ impl<T: Node> Engine<T> {
             ui_graph_version: self.ui_graph_version,
             time: self.time,
             pending_node_ready: self.pending_node_ready.clone(),
-            pending_added_subtree_ui_roots: self.pending_added_subtree_ui_roots.clone(),
+            pending_added_subtree_ui_batches: self.pending_added_subtree_ui_batches.clone(),
             parameter_values: self
                 .nodes
                 .iter()
@@ -597,7 +597,7 @@ impl<T: Node> Engine<T> {
         self.ui_graph_version = checkpoint.ui_graph_version;
         self.time = checkpoint.time;
         self.pending_node_ready = checkpoint.pending_node_ready;
-        self.pending_added_subtree_ui_roots = checkpoint.pending_added_subtree_ui_roots;
+        self.pending_added_subtree_ui_batches = checkpoint.pending_added_subtree_ui_batches;
         self.resolve_reference_caches();
         self.rebuild_user_context_registry_from_nodes();
         self.mark_schedule_dirty();

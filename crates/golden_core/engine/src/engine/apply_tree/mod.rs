@@ -8,7 +8,7 @@ pub(super) use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 pub(super) use crate::ui_sync::UiGraphOp;
 
 pub(super) use super::history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
-pub(super) use super::{Engine, EngineEditError};
+pub(super) use super::{Engine, EngineEditError, PendingAddedSubtreeUiBatch};
 
 pub(super) struct PendingNodeTree<T: Node> {
     pub(super) node: T,

@@ -471,6 +471,109 @@ impl<T: Node> Engine<T> {
         })
     }
 
+    /// Inserts independent item roots before running their lifecycle callbacks.
+    /// Validating every parent and node type first keeps a malformed later item
+    /// from leaving earlier roots attached without their lifecycle pass.
+    pub(crate) fn apply_add_user_item_trees(
+        &mut self,
+        edit_index: usize,
+        items: Vec<crate::edit::UserItemTreeInsertion>,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<Vec<AddNodeEffect>, EngineEditError> {
+        const OP: &str = "AddUserItemTrees";
+        let mut prepared = Vec::with_capacity(items.len());
+        for item in items {
+            if !self.nodes.contains(item.parent) {
+                return Err(EngineEditError::ParentNotFound {
+                    edit_index,
+                    operation: OP,
+                    parent: item.parent,
+                });
+            }
+            let tree = self.coerce_pending_node_tree(edit_index, OP, item.tree)?;
+            self.ensure_item_kind_allowed(
+                edit_index,
+                OP,
+                item.parent,
+                tree.node.get_type(),
+                tree.node.user_item_kind(),
+            )?;
+            prepared.push((item.parent, tree));
+        }
+
+        let mut roots = Vec::with_capacity(prepared.len());
+        let mut inserted = Vec::new();
+        for (parent, mut tree) in prepared {
+            let label = self.next_unique_child_label(parent, tree.node.node_data().meta.label.as_str());
+            tree.node.node_data_mut().meta.label = label;
+            let root = self.insert_pending_node_tree(PendingTreeInsertion {
+                edit_index,
+                operation: OP,
+                tree,
+                parent,
+                prev_sibling: None,
+                user_role: UserNodeRole::ItemRoot,
+                inserted: &mut inserted,
+            })?;
+            roots.push((root, parent));
+        }
+        let effects = roots
+            .iter()
+            .map(|(node, parent)| {
+                let data = self
+                    .nodes
+                    .get(*node)
+                    .ok_or(EngineEditError::NodeNotFound {
+                        edit_index,
+                        operation: OP,
+                        node: *node,
+                    })?
+                    .node_data();
+                Ok(AddNodeEffect {
+                    node: *node,
+                    parent: *parent,
+                    prev_sibling: data.prev_sibling,
+                    next_sibling: data.next_sibling,
+                })
+            })
+            .collect::<Result<Vec<_>, EngineEditError>>()?;
+
+        for inserted_node in &inserted {
+            self.emit_inbox_event(EventKind::NodeCreated { node: inserted_node.id });
+            self.emit_inbox_event(EventKind::ChildAdded {
+                parent: inserted_node.parent,
+                child: inserted_node.id,
+                decl_id: inserted_node.decl_id.clone(),
+            });
+        }
+
+        let inserted_ids = inserted.iter().map(|node| node.id).collect::<Vec<_>>();
+        for node_id in &inserted_ids {
+            let enabled = self.is_effectively_enabled(*node_id);
+            if let Some(node) = self.nodes.get_mut(*node_id) {
+                node.node_data_mut().effective_enabled = enabled;
+            }
+        }
+
+        self.run_node_attached_for_batch(&inserted_ids, creation_context)?;
+        if let Some(context) = creation_context {
+            self.run_node_init_for_batch(&inserted_ids, creation_context)?;
+            if context.is_project_load() {
+                for node_id in &inserted_ids {
+                    self.queue_node_ready(*node_id, context);
+                }
+            } else {
+                self.run_node_ready_for_batch(&inserted_ids, context)?;
+            }
+        }
+
+        if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
+            self.queue_added_subtrees_ui_events(roots.iter().map(|(root, _)| *root));
+        }
+
+        Ok(effects)
+    }
+
     /// Applies an add-user-item edit and returns history data required for undo/redo.
     pub(crate) fn apply_add_user_item(
         &mut self,
@@ -495,14 +598,46 @@ impl<T: Node> Engine<T> {
     }
 
     fn queue_added_subtree_ui_events(&mut self, root: NodeId) {
-        self.pending_added_subtree_ui_roots.push(root);
+        self.pending_added_subtree_ui_batches.push(PendingAddedSubtreeUiBatch {
+            roots: vec![root],
+            atomic: false,
+        });
+        self.flush_added_subtree_ui_events();
+    }
+
+    fn queue_added_subtrees_ui_events(&mut self, roots: impl IntoIterator<Item = NodeId>) {
+        let roots = roots.into_iter().collect::<Vec<_>>();
+        if !roots.is_empty() {
+            self.pending_added_subtree_ui_batches
+                .push(PendingAddedSubtreeUiBatch { roots, atomic: true });
+        }
+        self.flush_added_subtree_ui_events();
+    }
+
+    fn flush_added_subtree_ui_events(&mut self) {
         if self.stabilization_scope_depth != 0 {
             return;
         }
 
-        let queued = std::mem::take(&mut self.pending_added_subtree_ui_roots);
-        let candidates = queued.iter().copied().collect::<HashSet<_>>();
+        let batches = std::mem::take(&mut self.pending_added_subtree_ui_batches);
+        let candidates = batches
+            .iter()
+            .flat_map(|batch| batch.roots.iter().copied())
+            .collect::<HashSet<_>>();
         let mut emitted = HashSet::new();
+        for batch in batches {
+            self.emit_added_subtree_ui_events(batch.roots, batch.atomic, &candidates, &mut emitted);
+        }
+    }
+
+    fn emit_added_subtree_ui_events(
+        &mut self,
+        queued: Vec<NodeId>,
+        atomic: bool,
+        candidates: &HashSet<NodeId>,
+        emitted: &mut HashSet<NodeId>,
+    ) {
+        let mut subtrees = Vec::new();
 
         for root in queued {
             if !emitted.insert(root) || !self.nodes.contains(root) {
@@ -525,7 +660,25 @@ impl<T: Node> Engine<T> {
             let Some(parent) = self.nodes.get(root).and_then(|node| node.node_data().parent) else {
                 continue;
             };
-            self.push_added_subtree_ui_events(root, parent);
+            subtrees.push((root, parent, self.collect_subtree_node_ids(root)));
+        }
+
+        let catalog_snapshot = subtrees
+            .iter()
+            .flat_map(|(_, _, node_ids)| node_ids)
+            .any(|node_id| self.catalog_creatable_items_require_tree_snapshot(*node_id))
+            .then(|| self.build_process_tree_snapshot());
+        let mut ops = Vec::new();
+        for (root, parent, node_ids) in subtrees {
+            let subtree_ops = self.added_subtree_ui_ops(root, parent, &node_ids, catalog_snapshot.as_deref());
+            if atomic {
+                ops.extend(subtree_ops);
+            } else if !subtree_ops.is_empty() {
+                self.push_ui_graph_transaction(subtree_ops);
+            }
+        }
+        if atomic && !ops.is_empty() {
+            self.push_ui_graph_transaction(ops);
         }
     }
 
@@ -534,13 +687,14 @@ impl<T: Node> Engine<T> {
     ///
     /// Must be called AFTER all lifecycle hooks (attached / init / ready) so that
     /// any declared children added during init are also included in the transaction.
-    fn push_added_subtree_ui_events(&mut self, root: NodeId, root_parent: NodeId) {
-        let node_ids = self.collect_subtree_node_ids(root);
+    fn added_subtree_ui_ops(
+        &self,
+        root: NodeId,
+        root_parent: NodeId,
+        node_ids: &[NodeId],
+        catalog_snapshot: Option<&crate::process_ctx::ProcessTreeSnapshot>,
+    ) -> Vec<UiGraphOp> {
         let parent_children_after = self.ui_direct_children(root_parent).unwrap_or_default();
-        let catalog_snapshot = node_ids
-            .iter()
-            .any(|node_id| self.catalog_creatable_items_require_tree_snapshot(*node_id))
-            .then(|| self.build_process_tree_snapshot());
 
         // Above this threshold, a single SubtreeInserted op replaces N NodeCreated + ChildrenReordered.
         // This avoids the O(N²) ui_child_index scan that the NodeCreated path needs for `index`.
@@ -548,8 +702,8 @@ impl<T: Node> Engine<T> {
 
         if node_ids.len() > SUBTREE_COMPACT_THRESHOLD {
             let mut nodes = Vec::with_capacity(node_ids.len());
-            for node_id in &node_ids {
-                let snapshot = match catalog_snapshot.as_deref() {
+            for node_id in node_ids {
+                let snapshot = match catalog_snapshot {
                     Some(catalog_snapshot) => {
                         self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot)
                     }
@@ -559,18 +713,18 @@ impl<T: Node> Engine<T> {
                     nodes.push(snapshot);
                 }
             }
-            self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeInserted {
+            vec![UiGraphOp::SubtreeInserted {
                 root,
                 parent: root_parent,
                 nodes,
                 parent_children_after: Some(parent_children_after),
-            }]);
+            }]
         } else {
             // Small subtree: keep individual NodeCreated ops so the UI can resolve parent/index.
             let mut ops = Vec::with_capacity(node_ids.len() + 1);
-            for node_id in &node_ids {
+            for node_id in node_ids {
                 let parent = self.nodes.get(*node_id).and_then(|n| n.node_data().parent);
-                let snapshot = match catalog_snapshot.as_deref() {
+                let snapshot = match catalog_snapshot {
                     Some(catalog_snapshot) => {
                         self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot)
                     }
@@ -592,7 +746,7 @@ impl<T: Node> Engine<T> {
                     children: parent_children_after,
                 });
             }
-            self.push_ui_graph_transaction(ops);
+            ops
         }
     }
 }

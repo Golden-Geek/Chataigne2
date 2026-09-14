@@ -5,7 +5,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::edit::{Edit, EditQueue, EditRequest, NodeTree};
+use crate::edit::{Edit, EditQueue, EditRequest, NodeTree, UserItemTreeInsertion};
 use crate::events::Inbox;
 use crate::node::*;
 #[cfg(test)]
@@ -107,6 +107,13 @@ pub(crate) struct ExpressionControlRuntime {
     pub script_runtime: Option<Arc<Mutex<Box<dyn crate::script::ScriptRuntime>>>>,
 }
 
+/// Pending insertion roots with their UI transaction boundary.
+#[derive(Clone)]
+pub(crate) struct PendingAddedSubtreeUiBatch {
+    pub(crate) roots: Vec<NodeId>,
+    pub(crate) atomic: bool,
+}
+
 /// Node engine storing graph state, pending edits, and emitted events.
 pub struct Engine<T: Node> {
     /// Backing node store indexed by stable node ids.
@@ -189,13 +196,14 @@ pub struct Engine<T: Node> {
     /// When non-zero, add-node inline stabilization is deferred to the outer pass
     /// to avoid deep recursive `apply_edits` chains.
     pub(crate) stabilization_scope_depth: usize,
-    /// Inserted subtree roots awaiting one coalesced UI projection.
+    /// Inserted subtree roots awaiting UI projection.
     ///
     /// Declared children and app-owned defaults can be materialized recursively
     /// while an outer insertion is stabilizing. Their final roots are collected
     /// here so the completed outer subtree is projected once instead of rebuilding
-    /// whole-graph UI snapshots for every generated child.
-    pub(crate) pending_added_subtree_ui_roots: Vec<NodeId>,
+    /// whole-graph UI snapshots for every generated child. Explicit forests retain
+    /// their atomic transaction boundary; ordinary nested insertions stay separate.
+    pub(crate) pending_added_subtree_ui_batches: Vec<PendingAddedSubtreeUiBatch>,
     /// Stable iteration list of parameter nodes with an active control or pending diagnostics.
     pub(crate) active_control_params: Vec<NodeId>,
     /// Membership companion for `active_control_params`.
@@ -311,7 +319,7 @@ impl<T: Node> Engine<T> {
             expression_runtime: HashMap::new(),
             pending_node_ready: Vec::new(),
             stabilization_scope_depth: 0,
-            pending_added_subtree_ui_roots: Vec::new(),
+            pending_added_subtree_ui_batches: Vec::new(),
             active_control_params: Vec::new(),
             active_control_param_set: HashSet::new(),
             control_source_dependents: HashMap::new(),
@@ -362,6 +370,14 @@ impl<T: Node> Engine<T> {
             tree,
             prev_sibling: None,
         });
+    }
+
+    /// Queues detached user item trees for one lifecycle batch. Each parent must
+    /// exist before application; items targeting the same parent append in order.
+    pub fn add_user_item_trees(&mut self, items: Vec<UserItemTreeInsertion>) {
+        if !items.is_empty() {
+            self.edits.push(Edit::AddUserItemTrees { items });
+        }
     }
 
     /// Queues insertion of a node after an existing sibling.
@@ -578,6 +594,16 @@ impl<T: Node> Engine<T> {
                         parent,
                         prev_sibling,
                     });
+                }
+                Edit::AddUserItemTrees { items } => {
+                    let mut validated = Vec::with_capacity(items.len());
+                    for item in items {
+                        validated.push(UserItemTreeInsertion {
+                            parent: item.parent,
+                            tree: self.coerce_node_tree_for_engine(edit_index, "AddUserItemTrees", item.tree)?,
+                        });
+                    }
+                    validated_edits.push(Edit::AddUserItemTrees { items: validated });
                 }
                 Edit::AddUserItem {
                     node,

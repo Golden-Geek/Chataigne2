@@ -247,6 +247,28 @@ impl<T: Node> Engine<T> {
                     }
                     (Ok(Some(effect.into())), true)
                 }
+                Edit::AddUserItemTrees { items } => {
+                    let effects = self.apply_add_user_item_trees(edit_index, items, creation_context)?;
+                    let changed = !effects.is_empty();
+                    if changed {
+                        missing_reference_warning_dirty = true;
+                        user_context_graph_dirty = true;
+                    }
+                    for effect in effects {
+                        if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                            user_context_graph_dirty = true;
+                        }
+                        if capture_history {
+                            let step = effect.into();
+                            if self.active_edit_session.is_some() {
+                                self.push_step_into_active_history_transaction(step);
+                            } else {
+                                transaction.push(step);
+                            }
+                        }
+                    }
+                    (Ok(None), changed)
+                }
                 Edit::AddUserItem {
                     node,
                     parent,
@@ -604,6 +626,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::AddNode { .. } => "AddNode",
         Edit::AddNodeTree { .. } => "AddNodeTree",
         Edit::AddUserItemTree { .. } => "AddUserItemTree",
+        Edit::AddUserItemTrees { .. } => "AddUserItemTrees",
         Edit::AddUserItem { .. } => "AddUserItem",
         Edit::CreateBlueprintInstance { .. } => "CreateBlueprintInstance",
         Edit::ReplaceNode { .. } => "ReplaceNode",

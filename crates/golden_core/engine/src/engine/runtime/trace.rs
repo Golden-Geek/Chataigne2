@@ -114,6 +114,9 @@ impl<T: Node> Engine<T> {
                 self.describe_node(*parent),
                 self.describe_optional_node(*prev_sibling)
             ),
+            Edit::AddUserItemTrees { items } => {
+                format!("AddUserItemTrees item_roots={}", items.len())
+            }
             Edit::AddUserItem {
                 node,
                 parent,

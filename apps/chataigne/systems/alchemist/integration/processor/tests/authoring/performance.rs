@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use super::*;
 
-use golden_core::edit::{Edit, NodeTree};
+use golden_core::edit::{Edit, NodeTree, UserItemTreeInsertion};
 use chataigne_state_machine::protocol::{FormulaPreviewDemandDto, FormulaPreviewModeDto};
 
 use crate::app::systems_alchemist_generic_commands::GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE;
@@ -479,6 +479,7 @@ fn mapping_full_engine_processor_scale_distribution() {
             (*processor == first_processor, input, output)
         })
         .collect::<Vec<_>>();
+    let mut item_trees = Vec::with_capacity(processor_count * 2 + 1);
     for (is_first, input, output) in &regions {
         let input_tree = engine
             .nodes
@@ -492,7 +493,7 @@ fn mapping_full_engine_processor_scale_distribution() {
             .unwrap()
             .create_user_item_tree(&format!("{ANODE_CREATE_PREFIX}chataigne.output_target"))
             .unwrap();
-        engine.add_user_item_tree(input_tree, Some(*input));
+        item_trees.push(UserItemTreeInsertion::new(*input, input_tree));
         if *is_first {
             let output_tree = engine
                 .nodes
@@ -500,11 +501,12 @@ fn mapping_full_engine_processor_scale_distribution() {
                 .unwrap()
                 .create_user_item_tree(&format!("{ANODE_CREATE_PREFIX}chataigne.output_target"))
                 .unwrap();
-            engine.add_user_item_tree(output_tree, Some(*output));
+            item_trees.push(UserItemTreeInsertion::new(*output, output_tree));
         }
-        engine.add_user_item_tree(command_output_tree, Some(*output));
+        item_trees.push(UserItemTreeInsertion::new(*output, command_output_tree));
     }
     let item_trees_queue_ms = setup_stage.elapsed().as_millis();
+    engine.add_user_item_trees(item_trees);
     engine.apply_edits().unwrap();
     let setup_snapshot_now = engine.tick_stats();
     println!("mapping_engine_scale_setup processors={processor_count} stage=item_trees queue_ms={item_trees_queue_ms} total_ms={} snapshots={} snapshot_ms={} cloned_nodes={}", setup_stage.elapsed().as_millis(), setup_snapshot_now.snapshot_builds - setup_snapshot_base.snapshot_builds, (setup_snapshot_now.snapshot_build_ns - setup_snapshot_base.snapshot_build_ns) / 1_000_000, setup_snapshot_now.snapshot_nodes_cloned - setup_snapshot_base.snapshot_nodes_cloned);
