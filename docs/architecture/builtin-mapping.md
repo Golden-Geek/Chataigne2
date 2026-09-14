@@ -573,9 +573,8 @@ full-tree snapshot per active sample; its p95 was 10.66/24.48/140.53 ms at
 processor palette manager's snapshot gate built three snapshots per sample
 and recorded 27.49 ms p95 at 128 processors. The grouped fixture before
 the folder gate also built three snapshots and recorded 26.12 ms p95.
-The snapshot-free run still exceeds a smooth frame budget at 1,000 active
-processors, so this is a measured scaling limit rather than a passed
-large-graph latency gate. The latest 1,000-processor opt-in test took 208
+At that checkpoint, the snapshot-free run still exceeded a smooth frame budget
+at 1,000 active processors. That 1,000-processor opt-in test took 208
 seconds overall, versus 451 seconds before forest insertion and 552 seconds
 before combined region insertion. Most of that time remains in processor-group
 construction outside the timed source-change samples. This is not a
@@ -691,6 +690,25 @@ on those repeats, above the prior 18.319 ms checkpoint; recipient count stayed
 at 201,400, so this change has no demonstrated steady routing gain. The sparse
 1,000-processor reload still preserved all 3,004 authored item roots and resumed
 1,000 command executions after a source change.
+
+The remaining steady cost was in the state-machine manager's snapshot-need
+check. A trace of 1,000 command-result events spent about 26 ms repeatedly
+asking cached processor plans whether each event was observed, even though the
+reconciled command-listener index was ready. The ready index is the union of
+every plan's listener roots and depth-one parents, so it now answers that
+membership directly. A missing snapshot node, dirty topology, or an unreconciled
+index still falls back to the exact per-plan scan. A focused test checks the
+indexed result against a resolved plan for a target, sibling, parent, unrelated
+nodes, and a missing node. Golden's opt-in dispatch trace now separates
+snapshot-requirement and edit-absorption time from callback time.
+
+Two untraced guarded optimized 1,000-processor repeats measured 11.167 and
+10.991 ms p95 for 100 shared-source samples, versus 29.087–33.685 ms before
+the exact ready-index lookup. Both delivered 100,000 commands with no steady
+snapshots or Formula/manager-cache rebuilds, and recipient deliveries remained
+201,400. A guarded optimized 256-processor run measured 2.590 ms p95 with
+25,600 exact commands and zero steady snapshots. The trace-enabled 1,000 case
+measured 11.148 ms p95; it is diagnostic rather than the latency baseline.
 
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle

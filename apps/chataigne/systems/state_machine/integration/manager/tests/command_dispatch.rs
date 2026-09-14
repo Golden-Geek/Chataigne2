@@ -1,4 +1,5 @@
 use super::*;
+use super::super::indexed_command_dependency_observes;
 
 #[test]
 fn command_observation_index_rejects_unrelated_parameter_changes() {
@@ -37,16 +38,40 @@ fn command_observation_index_rejects_unrelated_parameter_changes() {
     manager.runtime_cache.command_action_target_roots.insert(command_scope);
     manager.runtime_cache.command_dependency_target_uuids.insert(snapshot.node(argument).unwrap().uuid);
 
-    assert!(!manager.command_change_may_be_observed(unrelated, false));
-    assert!(!manager.command_change_may_be_observed(unrelated, true));
-    assert!(manager.command_change_may_be_observed(argument, false));
-    assert!(manager.command_change_may_be_observed(argument, true));
-    assert!(manager.command_change_may_be_observed(NodeId(u64::MAX), true));
+    assert_eq!(
+        indexed_command_dependency_observes(
+            snapshot.as_ref(),
+            unrelated,
+            &manager.runtime_cache.registered_command_dependency_roots,
+            &manager.runtime_cache.registered_command_dependency_parents,
+        ),
+        Some(false)
+    );
+    assert!(!manager.command_target_may_be_observed(unrelated));
+    assert_eq!(
+        indexed_command_dependency_observes(
+            snapshot.as_ref(),
+            argument,
+            &manager.runtime_cache.registered_command_dependency_roots,
+            &manager.runtime_cache.registered_command_dependency_parents,
+        ),
+        Some(true)
+    );
+    assert!(manager.command_target_may_be_observed(argument));
+    assert!(manager.command_target_may_be_observed(NodeId(u64::MAX)));
     manager.runtime_cache.registered_command_dependency_roots.clear();
     manager.runtime_cache.registered_command_dependency_parents.insert(command_scope);
-    assert!(manager.command_change_may_be_observed(argument, false));
+    assert_eq!(
+        indexed_command_dependency_observes(
+            snapshot.as_ref(),
+            argument,
+            &manager.runtime_cache.registered_command_dependency_roots,
+            &manager.runtime_cache.registered_command_dependency_parents,
+        ),
+        Some(true)
+    );
     manager.runtime_cache.topology_dirty = true;
-    assert!(manager.command_change_may_be_observed(unrelated, true));
+    assert!(manager.command_target_may_be_observed(unrelated));
 }
 
 #[test]
@@ -194,6 +219,30 @@ fn external_command_plan_dependency_survives_mutation_and_target_removal() {
         .expect("an external direct target should register a dependency");
     assert_eq!(dependency.root, target);
     assert_eq!(dependency.parent, Some(external_module));
+    let listener_roots = cache.listener_roots().collect::<HashSet<_>>();
+    let listener_parents = cache.listener_parents().collect::<HashSet<_>>();
+    for changed in [target, unrelated, external_module, processor_scope, engine.root] {
+        assert_eq!(
+            indexed_command_dependency_observes(
+                previous.as_ref(),
+                changed,
+                &listener_roots,
+                &listener_parents,
+            ),
+            Some(cache.observes_change(Some(previous.as_ref()), changed)),
+            "the reconciled listener index must match the plan for node {changed:?}"
+        );
+    }
+    assert_eq!(
+        indexed_command_dependency_observes(
+            previous.as_ref(),
+            NodeId(u64::MAX),
+            &listener_roots,
+            &listener_parents,
+        ),
+        None,
+        "unknown nodes must use the exact plan fallback"
+    );
     assert!(
         cache.observes_change(Some(previous.as_ref()), unrelated),
         "the depth-one parent listener observes sibling parameter events"

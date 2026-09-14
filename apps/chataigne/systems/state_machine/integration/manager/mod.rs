@@ -2235,8 +2235,21 @@ impl StateMachineManager {
     }
 
     fn command_listener_observes_cached(&self, node: NodeId) -> bool {
-        if !self.command_change_may_be_observed(node, false) {
-            return false;
+        if self.runtime_cache.command_observation_index_ready
+            && !self.runtime_cache.command_listener_index_dirty
+            && !self.runtime_cache.topology_dirty
+            && !self.runtime_cache.command_dispatch_snapshot_dirty
+        {
+            if let Some(snapshot) = self.runtime_cache.runtime_snapshot.as_deref() {
+                if let Some(observed) = indexed_command_dependency_observes(
+                    snapshot,
+                    node,
+                    &self.runtime_cache.registered_command_dependency_roots,
+                    &self.runtime_cache.registered_command_dependency_parents,
+                ) {
+                    return observed;
+                }
+            }
         }
         let snapshot = self.runtime_cache.runtime_snapshot.as_deref();
         self.runtime_cache
@@ -2246,7 +2259,7 @@ impl StateMachineManager {
     }
 
     fn command_target_contains_cached(&self, node: NodeId) -> bool {
-        if !self.command_change_may_be_observed(node, true) {
+        if !self.command_target_may_be_observed(node) {
             return false;
         }
         let snapshot = self.runtime_cache.runtime_snapshot.as_deref();
@@ -2261,7 +2274,7 @@ impl StateMachineManager {
             })
     }
 
-    fn command_change_may_be_observed(&self, node: NodeId, include_actions: bool) -> bool {
+    fn command_target_may_be_observed(&self, node: NodeId) -> bool {
         // The resolved target index rules out ordinary source/output changes without
         // visiting every processor. An outdated tree always falls back to the exact scan.
         if !self.runtime_cache.command_observation_index_ready
@@ -2276,21 +2289,13 @@ impl StateMachineManager {
         let Some(changed) = snapshot.node(node) else {
             return true;
         };
-        if include_actions && self.runtime_cache.command_dependency_target_uuids.contains(&changed.uuid) {
-            return true;
-        }
-        if !include_actions
-            && (self.runtime_cache.registered_command_dependency_parents.contains(&node)
-                || changed
-                    .parent
-                    .is_some_and(|parent| self.runtime_cache.registered_command_dependency_parents.contains(&parent)))
-        {
+        if self.runtime_cache.command_dependency_target_uuids.contains(&changed.uuid) {
             return true;
         }
         let mut current = Some(node);
         while let Some(candidate) = current {
             if self.runtime_cache.registered_command_dependency_roots.contains(&candidate)
-                || (include_actions && self.runtime_cache.command_action_target_roots.contains(&candidate))
+                || self.runtime_cache.command_action_target_roots.contains(&candidate)
             {
                 return true;
             }

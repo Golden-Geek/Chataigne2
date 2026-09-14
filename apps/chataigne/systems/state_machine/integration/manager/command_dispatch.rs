@@ -221,6 +221,32 @@ impl RuntimeCommandDispatchPlanCache {
     }
 }
 
+/// The reconciled listener sets are the union of every cached plan dependency.
+/// A missing snapshot node cannot be classified from the index and must use the
+/// ordinary plan scan instead.
+pub(super) fn indexed_command_dependency_observes(
+    snapshot: &ProcessTreeSnapshot,
+    changed: NodeId,
+    roots: &HashSet<NodeId>,
+    parents: &HashSet<NodeId>,
+) -> Option<bool> {
+    let changed_node = snapshot.node(changed)?;
+    if parents.contains(&changed)
+        || changed_node.parent.is_some_and(|parent| parents.contains(&parent))
+    {
+        return Some(true);
+    }
+
+    let mut current = Some(changed);
+    while let Some(node_id) = current {
+        if roots.contains(&node_id) {
+            return Some(true);
+        }
+        current = snapshot.node(node_id)?.parent;
+    }
+    Some(false)
+}
+
 #[derive(Default)]
 pub(super) struct PendingRuntimeCommandBatch {
     pub(super) command: Option<NodeId>,

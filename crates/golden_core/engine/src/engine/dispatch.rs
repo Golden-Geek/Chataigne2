@@ -228,6 +228,7 @@ impl<T: Node> Engine<T> {
         let mut trace_by_type: Option<HashMap<String, (usize, usize, u128)>> = trace.then(HashMap::new);
 
         let mut snapshot_requesters: Option<HashMap<String, usize>> = trace.then(HashMap::new);
+        let requirements_start = trace.then(Instant::now);
         let needs_tree_snapshot = run_app_callbacks
             && per_node_events.iter().any(|(node_id, events)| {
                 let requires = self
@@ -271,6 +272,7 @@ impl<T: Node> Engine<T> {
                 }
                 requires
             });
+        let requirements_us = requirements_start.map(|start| start.elapsed().as_micros());
         let snapshot_start = trace.then(Instant::now);
         let tree_snapshot = needs_tree_snapshot.then(|| {
             self.tick_scratch.stats.snapshot_builds += 1;
@@ -282,6 +284,7 @@ impl<T: Node> Engine<T> {
         });
         let snapshot_us = snapshot_start.map(|start| start.elapsed().as_micros());
 
+        let mut absorb_us = 0;
         for (node_id, events) in per_node_events {
             if events.is_empty() {
                 continue;
@@ -348,7 +351,11 @@ impl<T: Node> Engine<T> {
                     entry.1 += trace_event_count;
                     entry.2 += start.elapsed().as_micros();
                 }
+                let absorb_start = trace.then(Instant::now);
                 self.absorb_edits(&mut ctx)?;
+                if let Some(start) = absorb_start {
+                    absorb_us += start.elapsed().as_micros();
+                }
             }
             for event in self.inbox.events.iter().skip(events_before) {
                 match &event.kind {
@@ -394,10 +401,12 @@ impl<T: Node> Engine<T> {
                     .collect::<Vec<_>>()
                     .join(",");
                 eprintln!(
-                    "[engine] dispatch_profile total_ms={} snapshot={} snapshot_us={} snapshot_requesters={} recipients={}",
+                    "[engine] dispatch_profile total_ms={} requirements_us={} snapshot={} snapshot_us={} absorb_us={} snapshot_requesters={} recipients={}",
                     elapsed_ms,
+                    requirements_us.unwrap_or(0),
                     needs_tree_snapshot,
                     snapshot_us.unwrap_or(0),
+                    absorb_us,
                     snapshot_requesters,
                     summary
                 );
