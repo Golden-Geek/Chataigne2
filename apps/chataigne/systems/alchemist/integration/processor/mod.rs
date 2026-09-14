@@ -504,6 +504,18 @@ fn processor_managed_region_tree(definition: &ManagedRegionDefinition) -> NodeTr
     NodeTree::new(region)
 }
 
+fn processor_managed_regions_tree(definitions: &[ManagedRegionDefinition]) -> NodeTree {
+    let mut regions = StateProcessorManagedRegions::new();
+    let meta = &mut regions.node_data_mut().meta;
+    meta.decl_id = DeclId(PROCESSOR_MANAGED_REGIONS_DECL_ID.to_owned());
+    meta.presentation.show_in_inspector_content = false;
+    let mut tree = NodeTree::new(regions);
+    for definition in definitions {
+        tree.push_child(processor_managed_region_tree(definition));
+    }
+    tree
+}
+
 fn processor_surface_move_pending(
     ctx: &ProcessCtx,
     node: NodeId,
@@ -1050,10 +1062,6 @@ impl StateProcessorFolder {
         label = "Convert to Formula",
         show_in_inspector_content = false
     );
-    node managed_regions: StateProcessorManagedRegions = StateProcessorManagedRegions::new() (
-        label = "Managed Regions",
-        show_in_inspector_content = false
-    );
 )]
 pub struct StateProcessor {
     #[state(default = ProcessorFormulaSourceState::default(), persist)]
@@ -1430,6 +1438,7 @@ impl StateProcessor {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
+        let regions_root = snapshot.find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID);
         let definitions = match self.formula_source_ref() {
             Ok(Some(FormulaSourceRef::ProjectNode(_))) => {
                 let Some(formula) = self.formula_node(&snapshot) else {
@@ -1446,11 +1455,15 @@ impl StateProcessor {
             // A missing source can be transient while a sparse project is
             // materializing. Keep authored items until a valid Formula can
             // identify which regions actually need to change.
-            _ => return,
+            _ => {
+                if regions_root.is_none() {
+                    ctx.add_child_tree(self.id(), processor_managed_regions_tree(&[]), None);
+                }
+                return;
+            }
         };
-        let Some(regions_root) =
-            snapshot.find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
-        else {
+        let Some(regions_root) = regions_root else {
+            ctx.add_child_tree(self.id(), processor_managed_regions_tree(&definitions), None);
             return;
         };
         if definitions.is_empty() {
