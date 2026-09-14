@@ -119,6 +119,26 @@ jobs:
           }
           [System.IO.File]::WriteAllLines($combined, [string[]]$lines)
 
+      - name: Retain raw Criterion samples
+        if: always()
+        shell: pwsh
+        run: |
+          $scenarios = @{
+            'tick_20k_passive' = 'tick_20k_passive'
+            'tick_20k_sparse_active_200' = 'tick_20k_sparse_active/200'
+            'dispatch_10k_with_1k_listeners' = 'dispatch_10k_with_1k_listeners'
+          }
+          foreach ($scenario in $scenarios.GetEnumerator()) {
+            $source = Join-Path (Join-Path 'target/criterion' $scenario.Value) 'new'
+            $destination = Join-Path (Join-Path $env:BENCH_EVIDENCE_DIR 'criterion') $scenario.Key
+            New-Item -ItemType Directory -Force -Path $destination | Out-Null
+            foreach ($name in @('sample.json', 'estimates.json', 'benchmark.json')) {
+              $inputPath = Join-Path $source $name
+              if (-not (Test-Path $inputPath)) { throw "Missing Criterion evidence: $inputPath" }
+              Copy-Item -LiteralPath $inputPath -Destination (Join-Path $destination $name)
+            }
+          }
+
       - name: Check regressions
         id: comparison
         if: always()

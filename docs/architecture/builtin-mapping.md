@@ -343,7 +343,15 @@ The pre-change functional reference is the locked Rust test set for
 `chataigne_alchemist`, `chataigne_processor`, `chataigne_condition`, and
 `chataigne_state_machine`, plus the root UI checks. The existing
 `crates/golden_core/engine/benches/baseline.json` is explicitly unqualified for
-wall-clock comparison and does not measure Mapping. The historical pre-change
+wall-clock comparison and does not measure Mapping. The Golden Engine tick and
+dispatch fixtures now attach their 20,000- and 10,000-node graphs in one
+pre-cutover tree batch. This changes fixture setup, not the tick or event
+dispatch operation inside Criterion's measured loop. The benchmark workflow
+retains the exact runner fingerprint, command logs, and Criterion sample and
+estimate JSON for each scenario so a matching reference run can qualify that
+separate baseline.
+
+The historical pre-change
 managed-runner fixture occupied
 `apps/chataigne/systems/alchemist/processor/benches/mapping_baseline.rs`.
 It measured 1/8/32 float lanes with one Remap and 8/32 lanes with eight

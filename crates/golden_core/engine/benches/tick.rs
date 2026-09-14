@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use golden_engine::define_node_enum;
+use golden_engine::edit::NodeTree;
 use golden_engine::engine::{Engine, NodeExecutionRule};
 use golden_engine::node::{Folder, Node, NodeData};
 use golden_engine::process_ctx::ProcessCtx;
@@ -93,10 +94,10 @@ define_node_enum! {
 fn build_passive_engine(node_count: usize) -> Engine<BenchNode> {
     let root = Folder::new("root".to_string());
     let mut engine = Engine::new(BenchNode::from(root));
-    for i in 0..node_count {
-        engine.add_node(BenchNode::from(PassiveNode::new(&format!("n{i}"))), None);
-    }
-    engine.apply_edits().unwrap();
+    let trees = (0..node_count)
+        .map(|i| NodeTree::new(BenchNode::from(PassiveNode::new(&format!("n{i}")))))
+        .collect();
+    engine.apply_project_load_node_trees(trees, engine.root, None).unwrap();
     // Warm up: run one tick so the scheduler is resolved and all internal caches are hot.
     engine.run_tick(Duration::from_millis(5)).unwrap();
     engine
@@ -105,13 +106,11 @@ fn build_passive_engine(node_count: usize) -> Engine<BenchNode> {
 fn build_sparse_active_engine(total: usize, active: usize) -> Engine<BenchNode> {
     let root = Folder::new("root".to_string());
     let mut engine = Engine::new(BenchNode::from(root));
-    for i in 0..active {
-        engine.add_node(BenchNode::from(ActiveNode::new(&format!("a{i}"))), None);
-    }
-    for i in 0..(total - active) {
-        engine.add_node(BenchNode::from(PassiveNode::new(&format!("p{i}"))), None);
-    }
-    engine.apply_edits().unwrap();
+    let trees = (0..active)
+        .map(|i| NodeTree::new(BenchNode::from(ActiveNode::new(&format!("a{i}")))))
+        .chain((0..(total - active)).map(|i| NodeTree::new(BenchNode::from(PassiveNode::new(&format!("p{i}"))))))
+        .collect();
+    engine.apply_project_load_node_trees(trees, engine.root, None).unwrap();
     engine.run_tick(Duration::from_millis(5)).unwrap();
     engine
 }

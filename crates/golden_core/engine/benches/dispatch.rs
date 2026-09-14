@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use golden_engine::define_node_enum;
-use golden_engine::edit::Edit;
+use golden_engine::edit::{Edit, NodeTree};
 use golden_engine::engine::Engine;
 use golden_engine::events::CustomEvent;
 use golden_engine::node::{EventSubscription, Folder, Node, NodeData, NodeId};
@@ -90,27 +90,25 @@ fn build_dispatch_engine(total: usize, listeners: usize) -> (Engine<BenchNode>, 
     let mut engine = Engine::new(BenchNode::from(root));
     let root_id = engine.root;
 
-    // Background passive nodes.
-    for i in 0..(total - listeners) {
-        engine.add_node(BenchNode::from(PassiveNode::new(&format!("p{i}"))), None);
-    }
-    engine.apply_edits().unwrap();
+    let trees = (0..(total - listeners))
+        .map(|i| NodeTree::new(BenchNode::from(PassiveNode::new(&format!("p{i}")))))
+        .chain((0..listeners).map(|i| NodeTree::new(BenchNode::from(ListenerNode::new(&format!("l{i}"))))))
+        .collect();
+    engine.apply_project_load_node_trees(trees, root_id, None).unwrap();
 
-    // Add listener nodes one-by-one so we can capture each node id for subscription wiring.
-    for i in 0..listeners {
-        engine.add_node(BenchNode::from(ListenerNode::new(&format!("l{i}"))), None);
-        engine.apply_edits().unwrap();
-        let lid = engine
-            .nodes
-            .get(root_id)
-            .and_then(|n| n.node_data().last_child)
-            .unwrap();
+    let listener_ids: Vec<_> = engine
+        .nodes
+        .iter()
+        .filter_map(|(id, node)| (node.get_type() == "bench_listener").then_some(id))
+        .collect();
+    assert_eq!(listener_ids.len(), listeners);
+    for lid in listener_ids {
         engine.edits.push(Edit::AddEventListener {
             subscriber: lid,
             subscription: EventSubscription::node(root_id),
         });
-        engine.apply_edits().unwrap();
     }
+    engine.apply_project_load_edits().unwrap();
 
     // Warm up.
     engine.run_tick(Duration::from_millis(5)).unwrap();
