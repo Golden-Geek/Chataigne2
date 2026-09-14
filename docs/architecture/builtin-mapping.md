@@ -624,6 +624,29 @@ processor children through callbacks; further construction scaling belongs at
 the app-owned detached processor tree and Golden lifecycle boundary. These
 are setup measurements, separate from steady-state latency and project load.
 
+The optional sparse-project cycle uses the same authored graph after its 100
+warmed source/command samples. It saves through Golden persistence, decodes the
+sparse document, runs Chataigne's shipped-Formula sync hook, and prepares the
+runtime in the same order as the product host. The 275HX optimized `test`
+profile measured:
+
+| Active processors | Live nodes | Sparse JSON | Save | Decode | Formula sync | Runtime prepare | Resumed source + command |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 128 | 5,045 | 4.66 MB | 33 ms | 83 ms | 36 ms | 246 ms | 1 ms / 128 executions |
+| 1,000 | 38,181 | 36.35 MB | 226 ms | 759 ms | 326 ms | 2,042 ms | 34 ms / 1,000 executions |
+
+All 388/3,004 authored user-item root UUIDs remain stable at 128/1,000
+processors. Sparse reconstruction assigns new IDs to 1,288/10,008 derived
+children; the startup hook adds four file/reference/control nodes and 111
+bytes to the next sparse save. The fixture checks each authored root and the
+source/command/sink identities, then changes the source and requires exactly
+one command execution per reloaded processor. The repeated 1,000-processor
+run completed new-processor setup in 125.86 seconds and dense delivery at
+38.746 ms p95; those timings vary from the earlier row. Project open takes
+about 3.13 seconds across decode, Formula sync, and runtime preparation,
+so the remaining 125-second construction cost concerns bulk creation of new
+processors rather than opening an existing project.
+
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle
 or steady dense interval adds no listener reconciliations. Set

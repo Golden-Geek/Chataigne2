@@ -654,6 +654,119 @@ fn mapping_full_engine_processor_scale_distribution() {
         assert!(idle_p95_ns <= idle_limit_ns, "idle p95 {idle_p95_ns} ns exceeded {idle_limit_ns} ns");
         assert!(dense_p95_ns <= dense_limit_ns, "dense p95 {dense_p95_ns} ns exceeded {dense_limit_ns} ns");
     }
+    if std::env::var_os("CHATAIGNE_MAPPING_ENGINE_MEASURE_RELOAD").is_some() {
+        let authored_nodes = engine.nodes.len();
+        let mut authored_types = std::collections::BTreeMap::<String, usize>::new();
+        let authored_uuids = engine
+            .nodes
+            .iter()
+            .map(|(_, node)| node.node_data().meta.uuid)
+            .collect::<std::collections::HashSet<_>>();
+        let authored_item_roots = engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.node_data().user_role == golden_core::node::UserNodeRole::ItemRoot)
+            .map(|(_, node)| node.node_data().meta.uuid)
+            .collect::<std::collections::HashSet<_>>();
+        for (_, node) in engine.nodes.iter() {
+            *authored_types.entry(node.get_type().to_owned()).or_default() += 1;
+        }
+        let started = Instant::now();
+        let saved = golden_core::app::to_sparse_project_json_pretty(&engine)
+            .expect("authored Mapping graph should save");
+        let save_ms = started.elapsed().as_millis();
+        let saved_bytes = saved.len();
+        drop(engine);
+
+        let started = Instant::now();
+        let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&saved)
+            .expect("authored Mapping graph should reload");
+        let decode_ms = started.elapsed().as_millis();
+        let started = Instant::now();
+        sync_external_formulas(&mut loaded).expect("shipped Formulas should synchronize on project open");
+        let formula_sync_ms = started.elapsed().as_millis();
+        let started = Instant::now();
+        golden_core::app::prepare_engine_for_runtime(&mut loaded)
+            .expect("reloaded Mapping graph should prepare for runtime");
+        let prepare_ms = started.elapsed().as_millis();
+        let loaded_nodes = loaded.nodes.len();
+        let mut loaded_types = std::collections::BTreeMap::<String, usize>::new();
+        for (_, node) in loaded.nodes.iter() {
+            *loaded_types.entry(node.get_type().to_owned()).or_default() += 1;
+        }
+        for (node_type, authored_count) in &authored_types {
+            let loaded_count = loaded_types.get(node_type).copied().unwrap_or_default();
+            if *authored_count != loaded_count {
+                println!(
+                    "mapping_engine_scale_reload_type processors={processor_count} type={node_type} authored={authored_count} loaded={loaded_count}"
+                );
+            }
+        }
+        for (node_type, loaded_count) in &loaded_types {
+            if !authored_types.contains_key(node_type) {
+                println!(
+                    "mapping_engine_scale_reload_type processors={processor_count} type={node_type} authored=0 loaded={loaded_count}"
+                );
+            }
+        }
+        let loaded_uuids = loaded
+            .nodes
+            .iter()
+            .map(|(_, node)| node.node_data().meta.uuid)
+            .collect::<std::collections::HashSet<_>>();
+        let missing_uuids = authored_uuids.difference(&loaded_uuids).count();
+        let missing_item_roots = authored_item_roots.difference(&loaded_uuids).count();
+        println!(
+            "mapping_engine_scale_reload processors={processor_count} authored_nodes={authored_nodes} loaded_nodes={loaded_nodes} missing_uuids={missing_uuids} item_roots={} missing_item_roots={missing_item_roots} saved_bytes={saved_bytes} save_ms={save_ms} decode_ms={decode_ms} formula_sync_ms={formula_sync_ms} prepare_ms={prepare_ms}",
+            authored_item_roots.len(),
+        );
+        assert_eq!(missing_item_roots, 0, "reload lost authored user-item identities");
+        assert_eq!(
+            loaded
+                .nodes
+                .iter()
+                .filter(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
+                .count(),
+            processor_count,
+            "reload changed the Mapping processor count"
+        );
+        let loaded_snapshot = loaded.process_tree_snapshot();
+        assert!(loaded_snapshot.node_id_by_uuid(source).is_some());
+        assert!(loaded_snapshot.node_id_by_uuid(command_uuid).is_some());
+        let loaded_sink = loaded_snapshot.node_id_by_uuid(sink).expect("shared output sink should reload");
+        assert_eq!(loaded_snapshot.node(loaded_sink).unwrap().param_value, Some(ParamValue::Float(1.0)));
+        let resaved = golden_core::app::to_sparse_project_json_pretty(&loaded)
+            .expect("reloaded Mapping graph should save again");
+        let loaded_source = loaded_snapshot.node_id_by_uuid(source).expect("shared source should reload");
+        let started = Instant::now();
+        run_ticks(&mut loaded, 16);
+        let warmup_ms = started.elapsed().as_millis();
+        let before_resume = runtime_stats(&loaded);
+        let started = Instant::now();
+        loaded.edits.push(Edit::SetParam {
+            node: loaded_source,
+            value: ParamValue::Float(2.0),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        run_ticks(&mut loaded, 2);
+        let resume_ms = started.elapsed().as_millis();
+        assert_eq!(
+            loaded.process_tree_snapshot().node(loaded_sink).unwrap().param_value,
+            Some(ParamValue::Float(2.0)),
+            "reloaded Mappings should deliver a fresh source value"
+        );
+        let after_resume = runtime_stats(&loaded);
+        assert_eq!(
+            after_resume.processor_batched_executions - before_resume.processor_batched_executions,
+            processor_count as u64,
+            "reloaded Mappings should execute each shared command exactly once"
+        );
+        println!(
+            "mapping_engine_scale_reload_resume processors={processor_count} resaved_bytes={} warmup_ms={warmup_ms} resume_ms={resume_ms} command_executions={}",
+            resaved.len(),
+            after_resume.processor_batched_executions - before_resume.processor_batched_executions,
+        );
+    }
 }
 
 #[test]
