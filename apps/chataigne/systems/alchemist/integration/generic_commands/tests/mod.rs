@@ -3,15 +3,16 @@ use std::sync::Arc;
 use golden_core::{
     edit::Edit,
     engine::EngineTime,
-    events::{CustomEvent, Event, EventFrame},
+    events::{CustomEvent, Event, EventFrame, EventKind},
     node::{Folder, Node, NodeId, NodeReference},
     parameter::{Parameter, ParameterChangeCheck, ParameterEventBehaviour, ParamValue},
     process_ctx::{ExecutionPhase, ProcessCtx},
+    ui_sync::UiEditIntent,
 };
 
 use super::{
     GENERIC_COMMAND_ITEM_KIND, GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE, GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE,
-    GenericLogCommand, GenericLogRuntimeCache, LOG_INVOCATION_KEEPALIVE_TICKS, LOG_INVOCATION_STALE_TICKS,
+    GenericLogCommand, GenericLogRuntimeCache, GenericTriggerParameterCommand, LOG_INVOCATION_KEEPALIVE_TICKS, LOG_INVOCATION_STALE_TICKS,
     command_string_param_override, set_parameter_value, trigger_parameter,
 };
 use crate::app::module_command::{
@@ -121,6 +122,100 @@ fn parameter_commands_queue_core_parameter_edits() {
             behaviour: ParameterEventBehaviour::Append,
         } if *node == trigger_target.0
     ));
+}
+
+#[test]
+fn trigger_command_resolves_live_references_without_a_whole_tree_snapshot() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    let first = Parameter::new("First trigger", ParamValue::Trigger(), ParameterChangeCheck::None);
+    let first_uuid = first.node_data().meta.uuid;
+    let second = Parameter::new("Second trigger", ParamValue::Trigger(), ParameterChangeCheck::None);
+    let second_uuid = second.node_data().meta.uuid;
+    let wrong_type = Parameter::new("Float", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange);
+    let wrong_type_uuid = wrong_type.node_data().meta.uuid;
+    let command = GenericTriggerParameterCommand::create();
+    let command_uuid = command.node_data().meta.uuid;
+    engine.add_node(first.into(), None);
+    engine.add_node(second.into(), None);
+    engine.add_node(wrong_type.into(), None);
+    engine.add_node(command.into(), None);
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let first_id = snapshot.node_id_by_uuid(first_uuid).unwrap();
+    let second_id = snapshot.node_id_by_uuid(second_uuid).unwrap();
+    let command_id = snapshot.node_id_by_uuid(command_uuid).unwrap();
+    let target_param = snapshot.find_child_by_decl_id(command_id, "target").unwrap();
+    engine.edits.push(Edit::SetParam {
+        node: target_param,
+        value: ParamValue::Reference(NodeReference::new(first_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().unwrap();
+    engine.run_tick(std::time::Duration::from_millis(8)).unwrap();
+
+    let send = |engine: &mut crate::app::AppEngine, overrides: Vec<ModuleCommandParamOverride>| {
+        engine.clear_ui_event_log();
+        let ack = engine.apply_ui_intent(UiEditIntent::SendNodeEvent {
+            node: command_id,
+            topic: MODULE_COMMAND_EXECUTE_TOPIC.to_owned(),
+            payload: serde_json::to_value(ModuleCommandExecuteEvent {
+                command_id,
+                param_overrides: overrides,
+                invocation_id: None,
+                delivery_policy: ModuleCommandDeliveryPolicy::Standard,
+            })
+            .unwrap(),
+        });
+        assert!(ack.success, "command event should be accepted: {ack:?}");
+        engine.run_tick(std::time::Duration::from_millis(8)).unwrap();
+        assert_eq!(engine.tick_stats().snapshot_builds, 0);
+        let count = |param| {
+            engine
+                .ui_event_log()
+                .iter()
+                .filter(|event| matches!(event.kind, EventKind::ParamChanged { param: changed, .. } if changed == param))
+                .count()
+        };
+        (count(first_id), count(second_id))
+    };
+
+    assert_eq!(send(&mut engine, Vec::new()), (1, 0));
+    assert_eq!(send(&mut engine, Vec::new()), (1, 0));
+    assert_eq!(
+        send(&mut engine, vec![ModuleCommandParamOverride {
+            param_id: target_param,
+            value: ParamValue::Reference(NodeReference::with_cached_id(second_uuid, Some(first_id))),
+        }]),
+        (0, 1),
+        "persistent UUID must win over a stale cached node ID"
+    );
+    assert_eq!(
+        send(&mut engine, vec![ModuleCommandParamOverride {
+            param_id: target_param,
+            value: ParamValue::Reference(NodeReference::new(wrong_type_uuid)),
+        }]),
+        (0, 0),
+        "a non-trigger parameter must be rejected"
+    );
+    assert_eq!(
+        send(&mut engine, vec![ModuleCommandParamOverride {
+            param_id: target_param,
+            value: ParamValue::Reference(NodeReference::new(golden_core::node::NodeUuid(uuid::Uuid::new_v4()))),
+        }]),
+        (0, 0),
+        "a missing target must be rejected without failing the engine tick"
+    );
+    engine.edits.push(Edit::RemoveNode { node: second_id });
+    engine.apply_edits().unwrap();
+    assert_eq!(
+        send(&mut engine, vec![ModuleCommandParamOverride {
+            param_id: target_param,
+            value: ParamValue::Reference(NodeReference::with_cached_id(second_uuid, Some(second_id))),
+        }]),
+        (0, 0),
+        "a deleted target must not be reached through its cached node ID"
+    );
 }
 
 #[test]

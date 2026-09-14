@@ -198,6 +198,28 @@ impl GenericTriggerParameterCommand {
         trigger_parameter(ctx, snapshot, &target)
     }
 
+    fn execute_with_referenced_param(
+        &self,
+        ctx: &mut ProcessCtx,
+        overrides: &[module_command::ModuleCommandParamOverride],
+    ) -> Result<(), String> {
+        let reference = match overrides.iter().find(|override_value| override_value.param_id == self.target.id()) {
+            Some(override_value) => match &override_value.value {
+                ParamValue::Reference(reference) => reference,
+                _ => return Err("Trigger Parameter requires a valid target parameter".to_string()),
+            },
+            None => self.target.get_ref(),
+        };
+        let Some((target, value)) = ctx.referenced_param(reference) else {
+            return Err("Trigger Parameter requires a valid target parameter".to_string());
+        };
+        if !matches!(value, ParamValue::Trigger()) {
+            return Err("Trigger Parameter requires a trigger target".to_string());
+        }
+        ctx.set_param_with_behaviour(target, ParamValue::Trigger(), ParameterEventBehaviour::Append);
+        Ok(())
+    }
+
     fn run_current(&mut self, ctx: &mut ProcessCtx) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             self.update_operation_warning(ctx, Some("Trigger Parameter requires a tree snapshot".to_string()));
@@ -211,13 +233,14 @@ impl GenericTriggerParameterCommand {
         let Some(executions) = command_executions(event, self.id()) else {
             return;
         };
-        let Some(snapshot) = ctx.tree_snapshot_arc() else {
-            self.update_operation_warning(ctx, Some("Trigger Parameter requires a tree snapshot".to_string()));
-            return;
-        };
+        let snapshot = ctx.tree_snapshot_arc();
         let mut first_error = None;
         for execution in &executions {
-            if let Err(error) = self.execute(ctx, snapshot.as_ref(), &execution.param_overrides) {
+            let result = match snapshot.as_ref() {
+                Some(snapshot) => self.execute(ctx, snapshot.as_ref(), &execution.param_overrides),
+                None => self.execute_with_referenced_param(ctx, &execution.param_overrides),
+            };
+            if let Err(error) = result {
                 if first_error.is_none() {
                     first_error = Some(error);
                 }
@@ -249,7 +272,36 @@ impl Node for GenericTriggerParameterCommand {
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        command_inbox_requires_tree_snapshot(events, self.id())
+        events.iter().any(|event| matches!(event.kind, EventKind::ParamChanged { .. }))
+    }
+
+    fn visit_inbox_parameter_references(&self, events: &EventFrame, visit: &mut dyn FnMut(&node::NodeReference)) {
+        let mut needs_default = false;
+        for event in events {
+            let EventKind::Custom(custom) = &event.kind else {
+                continue;
+            };
+            let Some(executions) = command_executions(custom, self.id()) else {
+                continue;
+            };
+            for execution in &executions {
+                match execution
+                    .param_overrides
+                    .iter()
+                    .find(|override_value| override_value.param_id == self.target.id())
+                {
+                    Some(override_value) => {
+                        if let ParamValue::Reference(reference) = &override_value.value {
+                            visit(reference);
+                        }
+                    }
+                    None => needs_default = true,
+                }
+            }
+        }
+        if needs_default {
+            visit(self.target.get_ref());
+        }
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {

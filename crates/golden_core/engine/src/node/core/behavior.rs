@@ -792,6 +792,11 @@ pub trait Node: Send + Any {
         self.engine_param_snapshot().is_none()
     }
 
+    /// Lists parameter references this inbox will read when a full tree snapshot is
+    /// unnecessary. The engine resolves each UUID against the live node store and
+    /// attaches only those parameter values to the callback context.
+    fn visit_inbox_parameter_references(&self, _events: &EventFrame, _visit: &mut dyn FnMut(&NodeReference)) {}
+
     /// Returns `true` when this node's structural lifecycle callbacks
     /// ([`Self::on_attached`], [`Self::init`], [`Self::on_node_ready`]) require a
     /// tree snapshot in `ProcessCtx`.

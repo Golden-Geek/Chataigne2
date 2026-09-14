@@ -8,8 +8,8 @@ use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, EventFrame};
 use crate::node::{
-    DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning,
-    PresentationHint,
+    DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeReference, NodeUuid,
+    NodeWarning, PresentationHint,
 };
 use crate::parameter::{
     ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot,
@@ -430,6 +430,8 @@ pub struct ProcessCtx {
     pub runtime_elapsed: Duration,
     /// Optional read-only tree snapshot shared for this callback pass.
     tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    /// Live parameter targets requested by a callback that does not need the whole tree.
+    referenced_params: HashMap<NodeUuid, (NodeId, ParamValue)>,
     /// Thread-safe ingress used by IO workers to re-enter the engine edit pipeline.
     external_edit_sender: Option<Sender<Edit>>,
 }
@@ -445,6 +447,7 @@ impl ProcessCtx {
             delta_time: Duration::ZERO,
             runtime_elapsed: Duration::ZERO,
             tree_snapshot: None,
+            referenced_params: HashMap::new(),
             external_edit_sender: None,
         }
     }
@@ -479,6 +482,18 @@ impl ProcessCtx {
     /// Returns a cloned shared tree snapshot handle when available.
     pub fn tree_snapshot_arc(&self) -> Option<Arc<ProcessTreeSnapshot>> {
         self.tree_snapshot.clone()
+    }
+
+    /// Returns the live parameter target resolved for an inbox reference request.
+    /// The UUID, rather than the optional cached node id, determines identity.
+    pub fn referenced_param(&self, reference: &NodeReference) -> Option<(NodeId, &ParamValue)> {
+        self.referenced_params
+            .get(&reference.uuid())
+            .map(|(node, value)| (*node, value))
+    }
+
+    pub(crate) fn cache_referenced_param(&mut self, uuid: NodeUuid, node: NodeId, value: ParamValue) {
+        self.referenced_params.insert(uuid, (node, value));
     }
 
     /// Queues a parameter update edit.

@@ -396,6 +396,8 @@ fn mapping_full_engine_processor_scale_distribution() {
 
     let (mut engine, mapping_uuid, first_processor) = mapping_engine();
     activate_mapping_processor(&mut engine, first_processor);
+    let mut setup_stage = Instant::now();
+    let mut setup_snapshot_base = engine.tick_stats();
     let snapshot = engine.process_tree_snapshot();
     let manager = snapshot
         .child_ids(engine.root)
@@ -414,10 +416,15 @@ fn mapping_full_engine_processor_scale_distribution() {
         let processor = engine.nodes.get(processors).unwrap().create_user_item(&create_type).unwrap();
         processor_group.push_child(NodeTree::boxed(processor).as_user_item());
     }
+    let processor_group_build_ms = setup_stage.elapsed().as_millis();
     engine.add_user_item_tree(processor_group, Some(processors));
     for _ in 0..4 {
         engine.apply_edits().unwrap();
     }
+    let setup_snapshot_now = engine.tick_stats();
+    println!("mapping_engine_scale_setup processors={processor_count} stage=processor_group build_ms={processor_group_build_ms} total_ms={} snapshots={} snapshot_ms={} cloned_nodes={}", setup_stage.elapsed().as_millis(), setup_snapshot_now.snapshot_builds - setup_snapshot_base.snapshot_builds, (setup_snapshot_now.snapshot_build_ns - setup_snapshot_base.snapshot_build_ns) / 1_000_000, setup_snapshot_now.snapshot_nodes_cloned - setup_snapshot_base.snapshot_nodes_cloned);
+    setup_stage = Instant::now();
+    setup_snapshot_base = setup_snapshot_now;
     let source = source_param(&mut engine, "Shared scale source", 1.0);
     let sink = source_param(&mut engine, "Shared scale sink", 0.0);
     let trigger = Parameter::new(
@@ -445,6 +452,10 @@ fn mapping_full_engine_processor_scale_distribution() {
     });
     assert!(ack.success, "shared command should bind its trigger sink: {ack:?}");
     engine.apply_edits().unwrap();
+    let setup_snapshot_now = engine.tick_stats();
+    println!("mapping_engine_scale_setup processors={processor_count} stage=command elapsed_ms={} snapshots={} snapshot_ms={}", setup_stage.elapsed().as_millis(), setup_snapshot_now.snapshot_builds - setup_snapshot_base.snapshot_builds, (setup_snapshot_now.snapshot_build_ns - setup_snapshot_base.snapshot_build_ns) / 1_000_000);
+    setup_stage = Instant::now();
+    setup_snapshot_base = setup_snapshot_now;
     let snapshot = engine.process_tree_snapshot();
     let processor_nodes = snapshot
         .child_ids(processors)
@@ -493,7 +504,11 @@ fn mapping_full_engine_processor_scale_distribution() {
         }
         engine.add_user_item_tree(command_output_tree, Some(*output));
     }
+    let item_trees_queue_ms = setup_stage.elapsed().as_millis();
     engine.apply_edits().unwrap();
+    let setup_snapshot_now = engine.tick_stats();
+    println!("mapping_engine_scale_setup processors={processor_count} stage=item_trees queue_ms={item_trees_queue_ms} total_ms={} snapshots={} snapshot_ms={} cloned_nodes={}", setup_stage.elapsed().as_millis(), setup_snapshot_now.snapshot_builds - setup_snapshot_base.snapshot_builds, (setup_snapshot_now.snapshot_build_ns - setup_snapshot_base.snapshot_build_ns) / 1_000_000, setup_snapshot_now.snapshot_nodes_cloned - setup_snapshot_base.snapshot_nodes_cloned);
+    setup_stage = Instant::now();
     let snapshot = engine.process_tree_snapshot();
     for (is_first, input, output) in &regions {
         let input_item = snapshot.child_ids(*input)[0];
@@ -539,6 +554,7 @@ fn mapping_full_engine_processor_scale_distribution() {
     }
     engine.apply_edits().unwrap();
     run_ticks(&mut engine, 16);
+    println!("mapping_engine_scale_setup processors={processor_count} stage=bindings_and_warmup elapsed_ms={}", setup_stage.elapsed().as_millis());
     engine.clear_ui_event_log();
     let snapshot = engine.process_tree_snapshot();
     let source_node = snapshot.node_id_by_uuid(source).unwrap();

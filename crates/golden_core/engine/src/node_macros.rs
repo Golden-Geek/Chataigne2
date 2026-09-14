@@ -1012,6 +1012,15 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn visit_inbox_parameter_references(
+                &self,
+                events: &$crate::events::EventFrame,
+                visit: &mut dyn FnMut(&$crate::node::NodeReference),
+            ) {
+                $crate::__dispatch_node_enum!(self, visit_inbox_parameter_references, events, visit; $($variant),*)
+            }
+
+            #[inline(always)]
             fn lifecycle_requires_tree_snapshot(&self) -> bool {
                 $crate::__dispatch_node_enum!(self, lifecycle_requires_tree_snapshot; $($variant),*)
             }

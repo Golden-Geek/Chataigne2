@@ -303,17 +303,43 @@ impl<T: Node> Engine<T> {
             }
 
             let events_before = self.inbox.events.len();
-            if let Some(node) = self.nodes.get_mut(node_id) {
+            if self.nodes.contains(node_id) {
                 let node_start = trace.then(Instant::now);
-                let parameter_values = &self.parameter_values_cache;
-                crate::logger::with_node_origin(node_id, || {
-                    node.engine_preprocess_inbox(&mut ctx);
-                    let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
-                    node.engine_sync_bound_param_handles(&mut resolve);
-                    if run_app_callbacks {
-                        node.on_inbox(&mut ctx);
+                {
+                    let node = self.nodes.get_mut(node_id).expect("recipient was checked above");
+                    let parameter_values = &self.parameter_values_cache;
+                    crate::logger::with_node_origin(node_id, || {
+                        node.engine_preprocess_inbox(&mut ctx);
+                        let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
+                        node.engine_sync_bound_param_handles(&mut resolve);
+                    });
+                }
+                if run_app_callbacks {
+                    if tree_snapshot.is_none() {
+                        let mut requested = HashSet::new();
+                        if let Some(node) = self.nodes.get(node_id) {
+                            node.visit_inbox_parameter_references(&ctx.events, &mut |reference| {
+                                requested.insert(reference.uuid());
+                            });
+                        }
+                        for uuid in requested {
+                            if let Some(target) = self.uuid_index.get(&uuid).copied()
+                                && let Some(value) = self
+                                    .nodes
+                                    .get(target)
+                                    .and_then(|node| node.engine_param_snapshot())
+                                    .map(|snapshot| snapshot.value)
+                            {
+                                ctx.cache_referenced_param(uuid, target, value);
+                            }
+                        }
                     }
-                });
+                    if let Some(node) = self.nodes.get_mut(node_id) {
+                        crate::logger::with_node_origin(node_id, || {
+                            node.on_inbox(&mut ctx);
+                        });
+                    }
+                }
                 if let (Some(node_type), Some(start), Some(trace_by_type)) =
                     (trace_node_type, node_start, trace_by_type.as_mut())
                 {

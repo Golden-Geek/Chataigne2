@@ -557,35 +557,52 @@ ticks. The optimized Rust `test` profile on the same 275HX host produced:
 
 | Active processors | Idle p95 | Source + command p50/p95/p99 | Snapshot work per sample | Command batches |
 | ---: | ---: | ---: | ---: | ---: |
-| 128 | 32.7 µs | 9.43 / 10.66 / 11.47 ms | One build, 5,045 nodes, 5.42 ms | One for 128 executions |
-| 256 | 41.0 µs | 23.21 / 24.48 / 25.67 ms | One build, 9,909 nodes, 12.20 ms | One for 256 executions |
-| 1,000 | 158.1 µs | 132.53 / 140.53 / 147.32 ms | One build, 38,181 nodes, 54.36 ms | Two for 1,000 executions |
+| 128 | 21.4 µs | 1.410 / 1.582 / 1.673 ms | Zero builds | One for 128 executions |
+| 256 | 38.5 µs | 3.998 / 4.181 / 4.358 ms | Zero builds | One for 256 executions |
+| 1,000 | 157.0 µs | 43.943 / 45.364 / 45.681 ms | Zero builds | Two for 1,000 executions |
 
 Each row covers 100 warmed shared-source samples with previews off. The
 fixture asserts one evaluated lane and one command execution per processor
 per sample, correct output, no Formula catalog or manager-cache rebuild,
 and bounded command batches. The elapsed distribution covers the complete
-two-tick delivery path; snapshot time is an instrumented subset of that
-work, not an additional cost. An earlier direct-sibling fixture before the
+two-tick delivery path. The previous command implementation requested one
+full-tree snapshot per active sample; its p95 was 10.66/24.48/140.53 ms at
+128/256/1,000 processors, with snapshot construction averaging
+5.42/12.20/54.36 ms respectively. An earlier direct-sibling fixture before the
 processor palette manager's snapshot gate built three snapshots per sample
 and recorded 27.49 ms p95 at 128 processors. The grouped fixture before
 the folder gate also built three snapshots and recorded 26.12 ms p95.
-The current one-snapshot run still exceeds a smooth frame budget at 256
-and 1,000 active processors, so this is a measured scaling limit rather
-than a passed large-graph latency gate. The 1,000-processor opt-in test
-took 571 seconds overall, dominated by authored graph construction and
-lifecycle work outside the timed source-change samples. This also needs
+The snapshot-free run still exceeds a smooth frame budget at 1,000 active
+processors, so this is a measured scaling limit rather than a passed
+large-graph latency gate. The 1,000-processor opt-in test took 552 seconds
+overall, dominated by authored graph construction and lifecycle work outside
+the timed source-change samples. This also needs
 separate large-graph qualification; the table is not a project-load
 benchmark.
-With `GOLDEN_PERF_TRACE=1`, the active 128-processor path identified
-`generic_trigger_parameter_command[Custom]` as the sole full-tree snapshot
-requester: its dynamic target reference and trigger-type check use the live
-tree. At 256 processors, a representative 23 ms active tick spent about
-12 ms building that 9,909-node snapshot and about 8 ms in the remaining
-stabilization work. This trace is diagnostic rather than an uninstrumented
-regression measurement. A future command lookup optimization must keep live
-UUID resolution, target-type validation, deletion handling, and per-execution
-overrides; caching a target ID without those checks would change behavior.
+The focused command lookup asks the engine only for UUIDs referenced by the
+current inbox. The engine resolves each UUID against its live index, copies
+the current parameter value, and supplies it to the callback. The command
+still validates the Trigger type, handles missing/deleted targets as an
+operation error, preserves ordered trigger edges, and supports per-execution
+target overrides. A full snapshot remains available when another callback
+requires one. Before this change, `GOLDEN_PERF_TRACE=1` identified this
+command as the sole full-tree snapshot requester in the 128-processor active
+path; at 256 processors, a representative 23 ms tick spent about 12 ms
+building a 9,909-node snapshot and about 8 ms in other stabilization work.
+The trace is diagnostic; the uninstrumented table above is authoritative.
+
+Construction remains a separate bottleneck. In the 128-processor `test-fast`
+fixture, building the detached processor group took less than 1 ms, but
+applying it took 2,891 ms and built 2,670 lifecycle snapshots (2,221 ms;
+2,953,036 cloned node records). Queuing the detached InputSet/OutputSet item
+trees took 3 ms; applying them took 3,223 ms with 514 snapshots (1,927 ms;
+1,865,563 cloned node records). These setup measurements use the faster
+unoptimized development profile and are not directly comparable to the
+optimized steady-state latency table. Declared children currently materialize
+through attach callbacks, so a detached processor root does not enter the
+engine as a complete subtree. Fixing that boundary requires a separate
+Golden engine/macro lifecycle design, not a command-path cache.
+
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle
 or steady dense interval adds no listener reconciliations. Set
