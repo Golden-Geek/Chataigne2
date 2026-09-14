@@ -672,9 +672,25 @@ deliveries from 65,900 to 26,600 at 128 processors and from 502,300 to
 201,400 at 1,000 processors. The guarded optimized 1,000-processor p95 fell
 from 35.400 to 18.319 ms, with exactly 100,000 command executions and no
 steady snapshots. The 128-processor `test-fast` p95 stayed near 1.6 ms; a
-guarded optimized 256-processor run measured 3.294 ms p95. The 1,000 case
-remains above a 16.7 ms frame and still creates new processors in about
-125 seconds. These are separate responsiveness and authoring-scale limits.
+guarded optimized 256-processor run measured 3.294 ms p95. At that checkpoint,
+the 1,000 case remained above a 16.7 ms frame and still created new processors
+in about 125 seconds. These are separate responsiveness and authoring-scale
+limits.
+
+The detached processor factory now also captures Formula property surfaces as
+small descriptions. It materializes fresh parameter, manager, and nested folder
+nodes with the existing declaration IDs, labels, colors, values, and constraints
+before insertion. The live property reconciler uses the same description path;
+Formula property parameter and structural edits refresh the factory cache. A
+32-processor construction diagnostic fell from 282 lifecycle snapshots to 3.
+On two guarded optimized 1,000-processor repeats, constructing the processor
+group took 2.606 and 2.552 seconds with 3 snapshots, versus roughly 126 seconds
+and 8,994 snapshots before property preparation. Exact 100,000-command delivery
+and zero steady snapshots still pass. Steady p95 measured 33.685 and 29.087 ms
+on those repeats, above the prior 18.319 ms checkpoint; recipient count stayed
+at 201,400, so this change has no demonstrated steady routing gain. The sparse
+1,000-processor reload still preserved all 3,004 authored item roots and resumed
+1,000 command executions after a source change.
 
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle

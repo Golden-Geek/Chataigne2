@@ -11,9 +11,7 @@ use golden_core::{
         UserContextNode, UserCreatableItem, USER_CONTEXT_DEFAULT_LABEL,
         USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
     },
-    parameter::{
-        ParamValue, Parameter, ParameterChangeCheck, ReferenceTargetKind,
-    },
+    parameter::{ParamValue, ReferenceTargetKind},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -23,7 +21,7 @@ use crate::app::systems_alchemist_formula::{
     ANODE_ITEM_KIND, ANODE_NODE_TYPE, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
     PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
-use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
+use crate::app::{AppEngine, ConditionManager};
 
 mod catalog;
 mod conversion;
@@ -31,12 +29,14 @@ mod factory;
 mod managed_regions;
 mod palette;
 mod source_schema;
+mod surface;
 
 pub(crate) use managed_regions::managed_regions_from_snapshot;
 pub(crate) use source_schema::{managed_source_node, managed_source_schema};
 
 use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
 use self::factory::ProcessorTreeTemplates;
+use self::surface::processor_surface_child_tree;
 
 pub(crate) use self::catalog::{
     shared_formula_dir_from_snapshot, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
@@ -329,103 +329,6 @@ fn processor_surface_decl_id_for_source(source_uuid: NodeUuid, tags: &[String]) 
         .map(NodeUuid)
         .unwrap_or(source_uuid);
     processor_surface_decl_id(identity)
-}
-
-fn processor_property_parameter(
-    snapshot: &ProcessTreeSnapshot,
-    source: NodeId,
-) -> Option<Parameter> {
-    let source_node = snapshot.node(source)?;
-    let value_id = snapshot.find_child_by_decl_id(source, "value")?;
-    let value = snapshot.node(value_id)?.param_value.clone()?;
-    let mut parameter = Parameter::new(
-        &source_node.label,
-        value,
-        ParameterChangeCheck::ValueChange,
-    );
-    parameter.node_data_mut().meta.decl_id =
-        DeclId(processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags));
-    parameter.node_data_mut().meta.presentation.default_color =
-        source_node.presentation.color.or(source_node.presentation.default_color);
-    if let Some(constraints) = snapshot
-        .node(value_id)
-        .and_then(|value| value.param_constraints.clone())
-    {
-        parameter.constraints = constraints;
-    }
-    Some(parameter)
-}
-
-fn processor_property_manager(
-    snapshot: &ProcessTreeSnapshot,
-    source: NodeId,
-) -> Option<Box<dyn Node>> {
-    let source_node = snapshot.node(source)?;
-    let role = snapshot
-        .find_child_by_decl_id(source, "role")
-        .and_then(|role| snapshot.node(role))
-        .and_then(|role| role.param_value.as_ref())
-        .and_then(ParamValue::as_str)?;
-    let mut manager: Box<dyn Node> = match role.as_str() {
-        "condition" => Box::new(ConditionManager::new()),
-        "filter" => Box::new(FilterChainManager::new()),
-        "input" => Box::new(InputsManager::new()),
-        "output" => Box::new(OutputsManager::new()),
-        _ => return None,
-    };
-    manager.node_data_mut().meta.label = source_node.label.clone();
-    manager.node_data_mut().meta.decl_id =
-        DeclId(processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags));
-    manager.node_data_mut().meta.presentation.default_color =
-        source_node.presentation.color.or(source_node.presentation.default_color);
-    Some(manager)
-}
-
-fn is_property_exposed(snapshot: &ProcessTreeSnapshot, source: NodeId) -> bool {
-    snapshot
-        .find_child_by_decl_id(source, "exposed")
-        .and_then(|n| snapshot.node(n))
-        .and_then(|n| n.param_value.as_ref())
-        .and_then(ParamValue::as_bool)
-        .unwrap_or(true)
-}
-
-fn processor_surface_child_tree(
-    snapshot: &ProcessTreeSnapshot,
-    source: NodeId,
-) -> Option<NodeTree> {
-    match snapshot.node(source)?.node_type.as_str() {
-        PROPERTY_NODE_TYPE => {
-            if !is_property_exposed(snapshot, source) {
-                return None;
-            }
-            processor_property_parameter(snapshot, source).map(NodeTree::new)
-        }
-        PROPERTY_MANAGER_NODE_TYPE => {
-            if !is_property_exposed(snapshot, source) {
-                return None;
-            }
-            processor_property_manager(snapshot, source).map(NodeTree::boxed)
-        }
-        PROPERTY_FOLDER_NODE_TYPE => {
-            let source_node = snapshot.node(source)?;
-            let mut folder = StateProcessorFolder::new();
-            folder.node_data_mut().meta.label = source_node.label.clone();
-            folder.node_data_mut().meta.decl_id =
-                DeclId(processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags));
-            folder.node_data_mut().meta.presentation.default_color =
-                source_node.presentation.color.or(source_node.presentation.default_color);
-            folder.node_data_mut().meta.user_permissions = locked_instance_permissions();
-            let mut tree = NodeTree::new(folder);
-            for child in snapshot.child_ids(source) {
-                if let Some(child_tree) = processor_surface_child_tree(snapshot, child) {
-                    tree.push_child(child_tree);
-                }
-            }
-            Some(tree)
-        }
-        _ => None,
-    }
 }
 
 /// Removes every mirrored property surface node directly under `processor`.
