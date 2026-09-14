@@ -413,8 +413,8 @@ fn mapping_full_engine_processor_scale_distribution() {
     let create_type = FormulaSourceRef::project_uuid(mapping_uuid).processor_create_type();
     let mut processor_group = NodeTree::new(crate::app::StateProcessorFolder::new());
     for _ in 1..processor_count {
-        let processor = engine.nodes.get(processors).unwrap().create_user_item(&create_type).unwrap();
-        processor_group.push_child(NodeTree::boxed(processor).as_user_item());
+        let processor = engine.nodes.get(processors).unwrap().create_user_item_tree(&create_type).unwrap();
+        processor_group.push_child(processor.as_user_item());
     }
     let processor_group_build_ms = setup_stage.elapsed().as_millis();
     engine.add_user_item_tree(processor_group, Some(processors));

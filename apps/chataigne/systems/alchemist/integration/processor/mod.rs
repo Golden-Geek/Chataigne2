@@ -27,6 +27,7 @@ use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager,
 
 mod catalog;
 mod conversion;
+mod factory;
 mod managed_regions;
 mod palette;
 mod source_schema;
@@ -35,6 +36,7 @@ pub(crate) use managed_regions::managed_regions_from_snapshot;
 pub(crate) use source_schema::{managed_source_node, managed_source_schema};
 
 use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
+use self::factory::ProcessorTreeTemplates;
 
 pub(crate) use self::catalog::{
     shared_formula_dir_from_snapshot, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
@@ -831,6 +833,8 @@ impl Node for StateProcessorManagedRegion {
 pub struct StateProcessorManager {
     #[state(default = Vec::new())]
     formula_items: Vec<UserCreatableItem>,
+    #[state(default = ProcessorTreeTemplates::default())]
+    tree_templates: ProcessorTreeTemplates,
 }
 
 #[node(
@@ -865,6 +869,10 @@ impl Node for StateProcessorManager {
             return Some(Box::new(StateProcessorFolder::new()));
         }
         create_processor_for_formula_type(node_type)
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        self.tree_templates.create_tree(node_type, || self.create_user_item(node_type))
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -914,13 +922,23 @@ impl Node for StateProcessorManager {
         self.refresh_formula_items(ctx);
     }
 
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if self.tree_templates.watches(param) {
+            self.refresh_formula_items(ctx);
+        }
+    }
+
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        processor_palette_inbox_requires_tree_snapshot(events)
+        processor_palette_inbox_requires_tree_snapshot(events, &self.tree_templates)
     }
 }
 
 impl StateProcessorManager {
     fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
+        self.tree_templates = ctx
+            .tree_snapshot()
+            .map(ProcessorTreeTemplates::from_snapshot)
+            .unwrap_or_default();
         self.formula_items = ctx
             .tree_snapshot()
             .map(|snapshot| FormulaCatalog::from_snapshot(snapshot).processor_palette_items())
@@ -945,6 +963,8 @@ fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
 pub struct StateProcessorFolder {
     #[state(default = Vec::new())]
     formula_items: Vec<UserCreatableItem>,
+    #[state(default = ProcessorTreeTemplates::default())]
+    tree_templates: ProcessorTreeTemplates,
 }
 
 #[node(
@@ -979,6 +999,10 @@ impl Node for StateProcessorFolder {
             return Some(Box::new(StateProcessorFolder::new()));
         }
         create_processor_for_formula_type(node_type)
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        self.tree_templates.create_tree(node_type, || self.create_user_item(node_type))
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -1026,8 +1050,14 @@ impl Node for StateProcessorFolder {
         self.refresh_formula_items(ctx);
     }
 
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if self.tree_templates.watches(param) {
+            self.refresh_formula_items(ctx);
+        }
+    }
+
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        processor_palette_inbox_requires_tree_snapshot(events)
+        processor_palette_inbox_requires_tree_snapshot(events, &self.tree_templates)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -1037,6 +1067,10 @@ impl Node for StateProcessorFolder {
 
 impl StateProcessorFolder {
     fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
+        self.tree_templates = ctx
+            .tree_snapshot()
+            .map(ProcessorTreeTemplates::from_snapshot)
+            .unwrap_or_default();
         self.formula_items = ctx
             .tree_snapshot()
             .map(|snapshot| FormulaCatalog::from_snapshot(snapshot).processor_palette_items())
@@ -1072,7 +1106,10 @@ pub struct StateProcessor {
     condition_valid_params: HashSet<NodeId>,
 }
 
-fn processor_palette_inbox_requires_tree_snapshot(events: &EventFrame) -> bool {
+fn processor_palette_inbox_requires_tree_snapshot(
+    events: &EventFrame,
+    templates: &ProcessorTreeTemplates,
+) -> bool {
     events.iter().any(|event| {
         matches!(
             event.kind,
@@ -1081,7 +1118,7 @@ fn processor_palette_inbox_requires_tree_snapshot(events: &EventFrame) -> bool {
                 | EventKind::MetaChanged { .. }
                 | EventKind::ChildAdded { .. }
                 | EventKind::ChildRemoved { .. }
-        )
+        ) || matches!(event.kind, EventKind::ParamChanged { param, .. } if templates.watches(param))
     })
 }
 

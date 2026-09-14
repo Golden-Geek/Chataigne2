@@ -647,6 +647,23 @@ about 3.13 seconds across decode, Formula sync, and runtime preparation,
 so the remaining 125-second construction cost concerns bulk creation of new
 processors rather than opening an existing project.
 
+For new processor creation, the app's manager and folder factories now capture
+Formula-managed region definitions alongside their palette entries and put
+the region tree into each detached processor item. A change to the Formula's
+region metadata refreshes that factory cache on the normal engine event path;
+invalid or incomplete metadata falls back to live reconciliation. Golden's
+existing project decoder still reconstructs persisted sparse items, so this
+factory preparation does not change authored identity on reload. At 128
+processors, group construction built 1,146 rather than 1,527 lifecycle
+snapshots and took 1,614 rather than 1,851 ms in the `test-fast` profile.
+The 1,000-processor optimized repeat built 8,994 rather than 11,991
+snapshots (93.03 seconds of snapshot work). Group setup took 126.4 seconds
+versus 125.9 seconds on the previous repeat. The snapshot reduction is clear;
+setup wall time has not yet improved reliably. The same repeat delivered
+100,000 exact commands at 35.400 ms p95 with zero steady snapshots and
+reopened its sparse project in 3.22 seconds across decode, Formula sync, and
+runtime preparation.
+
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle
 or steady dense interval adds no listener reconciliations. Set

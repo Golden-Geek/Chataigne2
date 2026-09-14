@@ -577,7 +577,7 @@ pub(super) fn formula_surface_from_snapshot(
     })
 }
 
-pub(super) fn formula_managed_regions_from_snapshot(
+pub(crate) fn formula_managed_regions_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,
 ) -> Result<Vec<ManagedRegionDefinition>, String> {

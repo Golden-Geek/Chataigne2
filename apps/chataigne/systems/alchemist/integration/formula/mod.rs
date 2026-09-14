@@ -74,6 +74,7 @@ pub(crate) use snapshot::{
 };
 pub(crate) use value_bridge::{constraint_value_type, param_to_runtime_value, runtime_value_to_param};
 pub(crate) use value_bridge::formula_runtime_param_change_requires_rematerialization;
+pub(crate) use properties::formula_managed_regions_from_snapshot;
 pub(crate) use value_bridge::{
     constant_anode_for_value_param, is_constant_value_param,
     same_type_numeric_change_param, same_type_numeric_changes_for_param,
