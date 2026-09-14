@@ -664,6 +664,18 @@ setup wall time has not yet improved reliably. The same repeat delivered
 reopened its sparse project in 3.22 seconds across decode, Formula sync, and
 runtime preparation.
 
+Processor palette managers and folders now pass through parameter events
+outside their watched Formula region metadata. They still receive structural
+events and refresh their detached-tree templates when the metadata changes.
+In the shared-source/command fixture, this reduces 100-sample recipient
+deliveries from 65,900 to 26,600 at 128 processors and from 502,300 to
+201,400 at 1,000 processors. The guarded optimized 1,000-processor p95 fell
+from 35.400 to 18.319 ms, with exactly 100,000 command executions and no
+steady snapshots. The 128-processor `test-fast` p95 stayed near 1.6 ms; a
+guarded optimized 256-processor run measured 3.294 ms p95. The 1,000 case
+remains above a 16.7 ms frame and still creates new processors in about
+125 seconds. These are separate responsiveness and authoring-scale limits.
+
 The state-machine manager maintains an exact command-plan index and skips
 listener reconciliation on idle ticks; the fixture asserts that an idle
 or steady dense interval adds no listener reconciliations. Set

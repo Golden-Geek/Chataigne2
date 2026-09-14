@@ -6,7 +6,7 @@ use golden_core::{
     events::{Event, EventFrame, EventKind},
     node,
     node::{
-        CONTEXT_LINK_LANE_DEFERRED_TAG, DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
+        CONTEXT_LINK_LANE_DEFERRED_TAG, DeclId, EventPropagation, Node, NodeCreationContext, NodeId, NodeMetaPatch,
         NodeReference, NodeUuid, NodeUserPermissions, UserContainerRules,
         UserContextNode, UserCreatableItem, USER_CONTEXT_DEFAULT_LABEL,
         USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
@@ -931,6 +931,10 @@ impl Node for StateProcessorManager {
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         processor_palette_inbox_requires_tree_snapshot(events, &self.tree_templates)
     }
+
+    fn event_propagation(&self, event: &Event, _depth: u32) -> EventPropagation {
+        self.tree_templates.event_propagation(event)
+    }
 }
 
 impl StateProcessorManager {
@@ -1058,6 +1062,10 @@ impl Node for StateProcessorFolder {
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         processor_palette_inbox_requires_tree_snapshot(events, &self.tree_templates)
+    }
+
+    fn event_propagation(&self, event: &Event, _depth: u32) -> EventPropagation {
+        self.tree_templates.event_propagation(event)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

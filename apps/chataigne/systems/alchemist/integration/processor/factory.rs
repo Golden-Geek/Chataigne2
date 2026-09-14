@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use chataigne_alchemist::ManagedRegionDefinition;
 use golden_core::{
     edit::NodeTree,
-    node::{Node, NodeId},
+    events::{Event, EventKind},
+    node::{EventPropagation, Node, NodeId},
     process_ctx::ProcessTreeSnapshot,
 };
 
@@ -52,6 +53,13 @@ impl ProcessorTreeTemplates {
 
     pub(super) fn watches(&self, param: NodeId) -> bool {
         self.metadata_params.contains(&param)
+    }
+
+    pub(super) fn event_propagation(&self, event: &Event) -> EventPropagation {
+        match event.kind {
+            EventKind::ParamChanged { param, .. } if !self.watches(param) => EventPropagation::PassOn,
+            _ => EventPropagation::Notify,
+        }
     }
 
     pub(super) fn create_tree(
