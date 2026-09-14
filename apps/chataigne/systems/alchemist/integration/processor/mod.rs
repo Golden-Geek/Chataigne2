@@ -903,9 +903,7 @@ impl Node for StateProcessorManager {
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        events
-            .iter()
-            .any(|event| !matches!(event.kind, EventKind::Custom(_)))
+        processor_palette_inbox_requires_tree_snapshot(events)
     }
 }
 
@@ -1016,6 +1014,10 @@ impl Node for StateProcessorFolder {
         self.refresh_formula_items(ctx);
     }
 
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        processor_palette_inbox_requires_tree_snapshot(events)
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
@@ -1060,6 +1062,19 @@ pub struct StateProcessor {
     subscribed_formula: Option<NodeId>,
     #[state(default = HashSet::new())]
     condition_valid_params: HashSet<NodeId>,
+}
+
+fn processor_palette_inbox_requires_tree_snapshot(events: &EventFrame) -> bool {
+    events.iter().any(|event| {
+        matches!(
+            event.kind,
+            EventKind::NodeCreated { .. }
+                | EventKind::NodeDeleted { .. }
+                | EventKind::MetaChanged { .. }
+                | EventKind::ChildAdded { .. }
+                | EventKind::ChildRemoved { .. }
+        )
+    })
 }
 
 fn filter_palette_events_require_refresh(

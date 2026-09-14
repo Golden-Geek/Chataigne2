@@ -1,5 +1,6 @@
 use std::{
     hint::black_box,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -305,7 +306,9 @@ fn mapping_runtime_activity_distribution(c: &mut Criterion) {
     });
 
     report_context_cleanup(sample_count);
+    report_context_memory_bytes();
     report_temporal_horizon(sample_count);
+    report_variable_value_activity(sample_count);
 
     let (mut runtimes, inputs, value_types) = build_case(1, 1, 1, Workload::NumericChain);
     let registries = RuntimeRegistries {
@@ -374,6 +377,39 @@ fn report_context_cleanup(sample_count: usize) {
     assert_baseline_p95("context_cleanup_128_to_8", p95, 100_000);
 }
 
+fn report_context_memory_bytes() {
+    let (mut runtimes, inputs, value_types) = build_case(1, 1, 1, Workload::Smooth);
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let context = evaluation_context(&inputs, &registries);
+    let keys = (0..128)
+        .map(|index| ContextKey::single("memory", format!("context_{index}")))
+        .collect::<Vec<_>>();
+    let keep = keys.iter().take(8).cloned().collect::<IndexSet<_>>();
+    let runtime = &mut runtimes[0];
+    let added = allocation_counter::measure(|| {
+        for key in &keys {
+            let output =
+                runtime.evaluate_with_context_frame(&context, key, None, chataigne_alchemist::DebugCaptureMode::Off);
+            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+            black_box(output);
+        }
+    });
+    assert_eq!(runtime.retained_state_lane_count(), 128);
+    let released = allocation_counter::measure(|| runtime.retain_context_keys(&keep));
+    assert_eq!(runtime.retained_state_lane_count(), 8);
+    println!(
+        "mapping_context_memory lanes_before=128 lanes_after=8 added_bytes={} released_bytes={} added_allocations={} released_allocations={}",
+        added.bytes_current, -released.bytes_current, added.count_current, -released.count_current,
+    );
+    assert!(added.bytes_current > 0, "context insertion should retain state memory");
+    assert!(
+        released.bytes_current < 0,
+        "context pruning should release state memory"
+    );
+}
+
 fn report_temporal_horizon(sample_count: usize) {
     const HORIZON_TICKS: usize = 100_000;
     assert!(sample_count <= HORIZON_TICKS);
@@ -407,6 +443,100 @@ fn report_temporal_horizon(sample_count: usize) {
     assert_eq!(retained, 1, "long-running Smooth should retain one state lane");
     let p95 = report_latency_distribution("temporal_smooth_after_100000_ticks", &mut samples);
     assert_baseline_p95("temporal_smooth_after_100000_ticks", p95, 3_000);
+}
+
+fn report_variable_value_activity(sample_count: usize) {
+    let cases = [
+        (
+            "string_64",
+            Workload::StringPassthrough,
+            RuntimeValue::String(Arc::from("a".repeat(64))),
+            RuntimeValue::String(Arc::from("b".repeat(64))),
+            2_000,
+        ),
+        (
+            "string_65536",
+            Workload::StringPassthrough,
+            RuntimeValue::String(Arc::from("a".repeat(65_536))),
+            RuntimeValue::String(Arc::from("b".repeat(65_536))),
+            2_000,
+        ),
+        (
+            "array_8",
+            Workload::ArrayPassthrough,
+            RuntimeValue::Array(vec![RuntimeValue::Float(0.25); 8]),
+            RuntimeValue::Array(vec![RuntimeValue::Float(0.75); 8]),
+            3_000,
+        ),
+        (
+            "array_1024",
+            Workload::ArrayPassthrough,
+            RuntimeValue::Array(vec![RuntimeValue::Float(0.25); 1_024]),
+            RuntimeValue::Array(vec![RuntimeValue::Float(0.75); 1_024]),
+            30_000,
+        ),
+    ];
+    let mut string_allocations = None;
+    let mut array_allocation_count = None;
+    for (label, workload, first, second, baseline_p95_ns) in cases {
+        let (mut runtimes, mut inputs, value_types) = build_case(1, 1, 0, workload);
+        let registries = RuntimeRegistries {
+            value_types: &value_types,
+        };
+        let source = source_reference(0, 0);
+        let mut samples = Vec::with_capacity(sample_count);
+        for tick in 0..sample_count + 16 {
+            let selected = if tick % 2 == 0 { &first } else { &second };
+            let start = Instant::now();
+            inputs.insert(source.clone(), selected.clone());
+            let context = evaluation_context_at(&inputs, &registries, tick as u64 + 1);
+            let output = runtimes[0].evaluate(&context);
+            if tick >= 16 {
+                samples.push(start.elapsed().as_nanos() as u64);
+            }
+            assert!(output.diagnostics.is_empty(), "{label}: {:?}", output.diagnostics);
+            assert!(output.debug_samples.is_empty());
+            assert_eq!(output.intents.len(), 1);
+            assert_eq!(output.intents[0].payload, *selected);
+        }
+        let allocations = allocation_counter::measure(|| {
+            inputs.insert(source.clone(), first.clone());
+            let context = evaluation_context_at(&inputs, &registries, sample_count as u64 + 17);
+            black_box(runtimes[0].evaluate(&context));
+        });
+        assert_eq!(
+            allocations.count_current, 0,
+            "{label} retained allocations in one evaluation"
+        );
+        assert_eq!(
+            allocations.bytes_current, 0,
+            "{label} retained heap bytes in one evaluation"
+        );
+        match workload {
+            Workload::StringPassthrough => {
+                let reference = string_allocations.get_or_insert((allocations.count_total, allocations.bytes_total));
+                assert_eq!(
+                    (allocations.count_total, allocations.bytes_total),
+                    *reference,
+                    "string payload length should not increase warmed evaluation allocations"
+                );
+            }
+            Workload::ArrayPassthrough => {
+                let reference = array_allocation_count.get_or_insert(allocations.count_total);
+                assert_eq!(
+                    allocations.count_total, *reference,
+                    "array length should not add allocation sites"
+                );
+            }
+            _ => unreachable!("variable-value report must use passthrough workloads"),
+        }
+        println!(
+            "mapping_variable_value {label} samples={sample_count} allocation_count={} allocation_bytes={} retained_count={} retained_bytes={}",
+            allocations.count_total, allocations.bytes_total, allocations.count_current, allocations.bytes_current,
+        );
+        let p95 = report_latency_distribution(label, &mut samples);
+        assert_baseline_p95(label, p95, baseline_p95_ns);
+    }
 }
 
 fn report_latency_distribution(label: &str, samples: &mut [u64]) -> u64 {
@@ -489,6 +619,8 @@ enum Workload {
     PackVec3,
     MixedPassthrough,
     Smooth,
+    StringPassthrough,
+    ArrayPassthrough,
 }
 
 fn build_case(
@@ -533,6 +665,8 @@ fn build_case_with_first_filter(
                 let value = match (workload, index) {
                     (Workload::MixedPassthrough, 1) => RuntimeValue::Bool(true),
                     (Workload::MixedPassthrough, 2) => RuntimeValue::String("benchmark".into()),
+                    (Workload::StringPassthrough, _) => RuntimeValue::String("benchmark".into()),
+                    (Workload::ArrayPassthrough, _) => RuntimeValue::Array(vec![RuntimeValue::Float(0.0)]),
                     _ => RuntimeValue::Float(index as f64 / source_count as f64),
                 };
                 inputs.insert(source.clone(), value);
@@ -556,6 +690,7 @@ fn build_case_with_first_filter(
             Workload::PackVec3 => vec![item(PrimitiveNodeKind::PackVec3)],
             Workload::MixedPassthrough => Vec::new(),
             Workload::Smooth => vec![item(PrimitiveNodeKind::SmoothFilter)],
+            Workload::StringPassthrough | Workload::ArrayPassthrough => Vec::new(),
         };
         if first_filter.is_none() {
             first_filter = filters.first().map(|filter| filter.id);
@@ -590,6 +725,8 @@ fn build_case_with_first_filter(
                     let value_type = match (workload, index) {
                         (Workload::MixedPassthrough, 1) => "bool",
                         (Workload::MixedPassthrough, 2) => "string",
+                        (Workload::StringPassthrough, _) => "string",
+                        (Workload::ArrayPassthrough, _) => "value_array",
                         _ => "float",
                     };
                     Some(ChannelSourceSchema {
@@ -605,6 +742,7 @@ fn build_case_with_first_filter(
     let expected_plans = match workload {
         Workload::NumericChain if depth > 1 => 2,
         Workload::MixedPassthrough => 0,
+        Workload::StringPassthrough | Workload::ArrayPassthrough => 0,
         _ => 1,
     };
     assert_eq!(

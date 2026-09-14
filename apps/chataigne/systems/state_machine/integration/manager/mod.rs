@@ -1353,6 +1353,8 @@ pub(crate) struct StateMachineRuntimePerfStats {
     pub processor_budget_rejected_command_actions: u64,
     #[cfg(test)]
     pub processor_budget_rejected_command_intents: u64,
+    #[cfg(test)]
+    pub command_listener_reconciliations: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1525,6 +1527,10 @@ struct StateMachineRuntimeCache {
     source_listener_processors: HashMap<NodeId, HashSet<NodeId>>,
     registered_command_dependency_roots: HashSet<NodeId>,
     registered_command_dependency_parents: HashSet<NodeId>,
+    command_dependency_target_uuids: HashSet<NodeUuid>,
+    command_action_target_roots: HashSet<NodeId>,
+    command_listener_index_dirty: bool,
+    command_observation_index_ready: bool,
     command_listener_values: HashMap<NodeId, ParamValue>,
     command_dispatch_snapshot_dirty: bool,
     dirty_source_processors: HashSet<NodeId>,
@@ -1588,6 +1594,8 @@ impl StateMachineRuntimeCache {
             }
         }
         self.processors = processors;
+        self.command_listener_index_dirty = true;
+        self.command_observation_index_ready = false;
     }
 
     fn clear_formula_default_previews(&mut self) {
@@ -1656,6 +1664,8 @@ impl Node for StateMachineManager {
         self.node_data_mut().meta.user_permissions = permissions;
         self.runtime_cache.topology_dirty = true;
         self.runtime_cache.context_provider_dirty = true;
+        self.runtime_cache.command_listener_index_dirty = true;
+        self.runtime_cache.command_observation_index_ready = false;
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
@@ -2225,6 +2235,9 @@ impl StateMachineManager {
     }
 
     fn command_listener_observes_cached(&self, node: NodeId) -> bool {
+        if !self.command_change_may_be_observed(node, false) {
+            return false;
+        }
         let snapshot = self.runtime_cache.runtime_snapshot.as_deref();
         self.runtime_cache
             .processors
@@ -2233,6 +2246,9 @@ impl StateMachineManager {
     }
 
     fn command_target_contains_cached(&self, node: NodeId) -> bool {
+        if !self.command_change_may_be_observed(node, true) {
+            return false;
+        }
         let snapshot = self.runtime_cache.runtime_snapshot.as_deref();
         self.runtime_cache
             .processors
@@ -2243,6 +2259,47 @@ impl StateMachineManager {
                         processor.command_dispatch_plans.contains_target_param(snapshot, node)
                     })
             })
+    }
+
+    fn command_change_may_be_observed(&self, node: NodeId, include_actions: bool) -> bool {
+        // The resolved target index rules out ordinary source/output changes without
+        // visiting every processor. An outdated tree always falls back to the exact scan.
+        if !self.runtime_cache.command_observation_index_ready
+            || self.runtime_cache.topology_dirty
+            || self.runtime_cache.command_dispatch_snapshot_dirty
+        {
+            return true;
+        }
+        let Some(snapshot) = self.runtime_cache.runtime_snapshot.as_deref() else {
+            return true;
+        };
+        let Some(changed) = snapshot.node(node) else {
+            return true;
+        };
+        if include_actions && self.runtime_cache.command_dependency_target_uuids.contains(&changed.uuid) {
+            return true;
+        }
+        if !include_actions
+            && (self.runtime_cache.registered_command_dependency_parents.contains(&node)
+                || changed
+                    .parent
+                    .is_some_and(|parent| self.runtime_cache.registered_command_dependency_parents.contains(&parent)))
+        {
+            return true;
+        }
+        let mut current = Some(node);
+        while let Some(candidate) = current {
+            if self.runtime_cache.registered_command_dependency_roots.contains(&candidate)
+                || (include_actions && self.runtime_cache.command_action_target_roots.contains(&candidate))
+            {
+                return true;
+            }
+            let Some(entry) = snapshot.node(candidate) else {
+                return true;
+            };
+            current = entry.parent;
+        }
+        false
     }
 
     fn mark_command_dependency_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) -> bool {
@@ -2261,6 +2318,8 @@ impl StateMachineManager {
             processor.command_dispatch_plans.invalidate_plans();
             processor.output_send_cache.clear();
         }
+        self.runtime_cache.command_listener_index_dirty = true;
+        self.runtime_cache.command_observation_index_ready = false;
         if let Some(snapshot) = current {
             self.runtime_cache.runtime_snapshot = Some(snapshot);
             self.runtime_cache.command_listener_values.clear();
@@ -2632,6 +2691,7 @@ impl StateMachineManager {
         let mut evaluated_preview_lanes = HashMap::<ProcessorId, HashSet<ContextKey>>::new();
         let mut runtime_logs = Vec::new();
         let mut pending_command_batch = PendingRuntimeCommandBatch::default();
+        let mut command_plans_changed = false;
         let mut command_budget = RuntimeCommandTickBudget::default();
         let command_invocation_emitter = self.id();
         let mut evaluated_any = false;
@@ -2978,6 +3038,7 @@ impl StateMachineManager {
                             lane.context_key.as_ref(),
                             intent,
                         );
+                        command_plans_changed |= !runtime_processor.command_dispatch_plans.plans.contains_key(target);
                         let plan = runtime_processor
                             .command_dispatch_plans
                             .plan_for(snapshot, processor_node, target);
@@ -3026,38 +3087,6 @@ impl StateMachineManager {
                     ));
                 }
             }
-            pending_command_batch.flush(ctx);
-            let (rejected_executions, emission_error) = pending_command_batch.take_emission_issue();
-            if rejected_executions > 0 {
-                let detail = emission_error
-                    .as_deref()
-                    .map(|error| format!(": {error}"))
-                    .unwrap_or_default();
-                runtime_logs.push(LogMessage::new(
-                    LogLevel::Warning,
-                    "general".to_owned(),
-                    Some(processor_node),
-                    format!(
-                        "Processor rejected {rejected_executions} command execution(s) with an invalid payload or parameter override{detail}"
-                    ),
-                ));
-            } else if let Some(error) = emission_error {
-                runtime_logs.push(LogMessage::new(
-                    LogLevel::Warning,
-                    "general".to_owned(),
-                    Some(processor_node),
-                    format!("Processor command batch emission failed: {error}"),
-                ));
-            }
-            #[cfg(test)]
-            {
-                let (batch_events, batched_executions) = pending_command_batch.take_emission_counts();
-                self.runtime_cache.perf_stats.processor_rejected_command_executions += rejected_executions;
-                if batch_events > 0 {
-                    self.runtime_cache.perf_stats.processor_command_batches += batch_events;
-                    self.runtime_cache.perf_stats.processor_batched_executions += batched_executions;
-                }
-            }
             if let Some(overview_lane) = overview_lane_capture {
                 self.runtime_cache
                     .dirty_processor_overview_samples
@@ -3076,6 +3105,37 @@ impl StateMachineManager {
             } else if processor_overview_requested {
                 self.runtime_cache.dirty_processor_overview_samples.insert(processor_id);
             }
+        }
+
+        pending_command_batch.flush(ctx);
+        let (rejected_executions, emission_error) = pending_command_batch.take_emission_issue();
+        if rejected_executions > 0 {
+            let detail = emission_error
+                .as_deref()
+                .map(|error| format!(": {error}"))
+                .unwrap_or_default();
+            runtime_logs.push(LogMessage::new(
+                LogLevel::Warning,
+                "general".to_owned(),
+                Some(command_invocation_emitter),
+                format!(
+                    "State machine rejected {rejected_executions} command execution(s) with an invalid payload or parameter override{detail}"
+                ),
+            ));
+        } else if let Some(error) = emission_error {
+            runtime_logs.push(LogMessage::new(
+                LogLevel::Warning,
+                "general".to_owned(),
+                Some(command_invocation_emitter),
+                format!("State machine command batch emission failed: {error}"),
+            ));
+        }
+        #[cfg(test)]
+        {
+            let (batch_events, batched_executions) = pending_command_batch.take_emission_counts();
+            self.runtime_cache.perf_stats.processor_rejected_command_executions += rejected_executions;
+            self.runtime_cache.perf_stats.processor_command_batches += batch_events;
+            self.runtime_cache.perf_stats.processor_batched_executions += batched_executions;
         }
 
         let command_budget_rejections = command_budget.rejections();
@@ -3309,6 +3369,10 @@ impl StateMachineManager {
             self.runtime_cache.output_preview_snapshot.clear();
             self.runtime_cache.processor_lane_inspection_snapshot.clear();
             self.publish_output_preview(ctx, Vec::new(), Vec::new());
+        }
+        if command_plans_changed {
+            self.runtime_cache.command_listener_index_dirty = true;
+            self.runtime_cache.command_observation_index_ready = false;
         }
         self.reconcile_command_dependency_listeners(ctx);
     }
@@ -3813,6 +3877,8 @@ impl StateMachineManager {
                 }
             }
             runtime_processor.command_dispatch_plans.reset();
+            self.runtime_cache.command_listener_index_dirty = true;
+            self.runtime_cache.command_observation_index_ready = false;
             runtime_processor.output_send_cache.clear();
             runtime_processor.send_context_revision = runtime_processor.runtime.managed_context_revision();
             let is_continuous = processor_needs_continuous_evaluation(&runtime_processor.runtime);
@@ -3899,6 +3965,25 @@ impl StateMachineManager {
     }
 
     fn reconcile_command_dependency_listeners(&mut self, ctx: &mut ProcessCtx) {
+        if !std::mem::take(&mut self.runtime_cache.command_listener_index_dirty) {
+            return;
+        }
+        #[cfg(test)]
+        {
+            self.runtime_cache.perf_stats.command_listener_reconciliations += 1;
+        }
+        self.runtime_cache.command_dependency_target_uuids = self
+            .runtime_cache
+            .processors
+            .values()
+            .flat_map(|processor| processor.command_dispatch_plans.dependency_target_uuids())
+            .collect();
+        self.runtime_cache.command_action_target_roots = self
+            .runtime_cache
+            .processors
+            .values()
+            .flat_map(|processor| processor.command_dispatch_plans.action_targets())
+            .collect();
         let next_roots = self
             .runtime_cache
             .processors
@@ -3934,6 +4019,7 @@ impl StateMachineManager {
         for parent in next_parents.difference(&current_parents).copied() {
             ctx.add_event_listener_subtree(self.id(), parent, 1);
         }
+        self.runtime_cache.command_observation_index_ready = true;
     }
 }
 

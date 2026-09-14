@@ -477,6 +477,46 @@ the retained lane count and per-tick cost do not grow with elapsed ticks;
 it does not measure the lane's heap bytes.
 The guarded repeat passed with the same 0.9 µs late-history p95.
 
+An active, full-engine built-in Mapping with one Float source, an SMA Smooth
+stage, and one value sink also ran for 100,000 engine ticks after a source
+change. All 100,000 lanes evaluated, the sink converged to the source value,
+and no Formula catalog/compile, manager-cache rebuild, or preview capture
+occurred. Its early 500 ticks measured 6.3/6.7/9.2 µs p50/p95/p99; the final
+500 measured 5.9/6.2/6.4 µs. Run the ignored
+`mapping_full_engine_temporal_history_distribution` test with standard
+`cargo test` to repeat this host-bound path.
+
+The managed-runtime Smooth fixture measures heap ownership while materializing 128
+independent context lanes, then retaining eight. The measured insertion
+retained 272,416 bytes across 1,923 allocations; pruning released 97,200
+bytes across 1,800 allocations and left exactly eight state lanes. These
+are net allocator deltas around the two operations, so the remainder also
+includes reusable container capacity and unrelated runtime allocations.
+They do not describe a per-lane fixed size or a process-wide memory limit.
+
+The activity fixture also alternates prebuilt string and Float-array values
+through one graph-free Mapping with previews off. Each sample includes the
+source snapshot replacement and complete managed evaluation. A separate
+warmed allocation probe covers one replacement and evaluation:
+
+| Value | p50 | p95 | p99 | Allocations / transient bytes | Net retained |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 64-byte string | 0.2 µs | 0.3 µs | 0.3 µs | 3 / 1,320 | 0 |
+| 64 KiB string | 0.3 µs | 0.3 µs | 0.3 µs | 3 / 1,320 | 0 |
+| Eight-Float array | 0.4 µs | 0.4 µs | 0.4 µs | 6 / 2,472 | 0 |
+| 1,024-Float array | 11.5 µs | 11.6 µs | 11.8 µs | 6 / 148,776 | 0 |
+
+String storage is allocated before timing; shared `Arc<str>` payloads make
+the warmed Mapping cost independent of the measured string length. Array
+source replacement and output ownership clone its elements, so transient
+bytes and latency grow with array length even though the number of
+allocation sites stays fixed. The fixture asserts exact passthrough values,
+no debug capture or retained allocations, length-independent string
+allocation totals, and optional 275HX p95 guards of 2 µs for strings,
+3 µs for the eight-element array, and 30 µs for the 1,024-element array.
+These are measured shapes, not a global maximum collection size. Timed
+Delay separately enforces a 64 KiB per-value and 1 MiB queue budget.
+
 An opt-in full-engine fixture additionally runs an active built-in Mapping with
 a Float source, Remap, one value target, and one queued generic Trigger
 command. Each measured sample includes the engine edit or UI intent, two
@@ -507,8 +547,40 @@ On a guarded repeat after the no-full-rebuild assertion was added, p95 was
 and leased-preview activity respectively; all 500 structural edits still
 caused zero full manager rebuilds and Formula recompiles.
 
-The full-engine fixture does not yet cover 1,000/10,000 active processor
-dispatch, variable-size string/collection bounds, state memory bytes, or
-long-horizon temporal history. The managed-runtime processor-count benchmark
-above is a separate execution-level result and does not establish full-engine
-scaling or UI render latency.
+The managed-runtime processor-count benchmark above is a separate
+execution-level result and does not establish full-engine scaling or UI
+render latency. The opt-in `mapping_full_engine_processor_scale_distribution`
+fixture constructs active built-in Mappings with a shared Float source and
+generic Trigger command, using one detached processor-folder subtree plus
+detached InputSet and OutputSet item trees. Each sample changes the source and runs two full engine
+ticks. The optimized Rust `test` profile on the same 275HX host produced:
+
+| Active processors | Idle p95 | Source + command p50/p95/p99 | Snapshot work per sample | Command batches |
+| ---: | ---: | ---: | ---: | ---: |
+| 128 | 32.7 µs | 9.43 / 10.66 / 11.47 ms | One build, 5,045 nodes, 5.42 ms | One for 128 executions |
+| 256 | 41.0 µs | 23.21 / 24.48 / 25.67 ms | One build, 9,909 nodes, 12.20 ms | One for 256 executions |
+| 1,000 | 158.1 µs | 132.53 / 140.53 / 147.32 ms | One build, 38,181 nodes, 54.36 ms | Two for 1,000 executions |
+
+Each row covers 100 warmed shared-source samples with previews off. The
+fixture asserts one evaluated lane and one command execution per processor
+per sample, correct output, no Formula catalog or manager-cache rebuild,
+and bounded command batches. The elapsed distribution covers the complete
+two-tick delivery path; snapshot time is an instrumented subset of that
+work, not an additional cost. An earlier direct-sibling fixture before the
+processor palette manager's snapshot gate built three snapshots per sample
+and recorded 27.49 ms p95 at 128 processors. The grouped fixture before
+the folder gate also built three snapshots and recorded 26.12 ms p95.
+The current one-snapshot run still exceeds a smooth frame budget at 256
+and 1,000 active processors, so this is a measured scaling limit rather
+than a passed large-graph latency gate. The 1,000-processor opt-in test
+took 571 seconds overall, dominated by authored graph construction and
+lifecycle work outside the timed source-change samples. This also needs
+separate large-graph qualification; the table is not a project-load
+benchmark.
+The state-machine manager maintains an exact command-plan index and skips
+listener reconciliation on idle ticks; the fixture asserts that an idle
+or steady dense interval adds no listener reconciliations. Set
+`CHATAIGNE_MAPPING_ENFORCE_275HX_SCALE_BASELINE=1` to apply the recorded
+host's opt-in p95 regression limits to the 128, 256, or 1,000-processor
+fixtures. The guard preserves the measured cost ceiling; it does not
+represent a real-time responsiveness target.

@@ -1,6 +1,55 @@
 use super::*;
 
 #[test]
+fn command_observation_index_rejects_unrelated_parameter_changes() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(Folder::new("Command scope").into(), None);
+    engine.add_node(
+        Parameter::new("Unrelated", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(),
+        None,
+    );
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let command_scope = snapshot
+        .child_ids(engine.root)
+        .into_iter()
+        .find(|node| snapshot.node(*node).is_some_and(|node| node.label == "Command scope"))
+        .unwrap();
+    let unrelated = snapshot
+        .child_ids(engine.root)
+        .into_iter()
+        .find(|node| snapshot.node(*node).is_some_and(|node| node.label == "Unrelated"))
+        .unwrap();
+    engine.add_node(
+        Parameter::new("Command argument", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(),
+        Some(command_scope),
+    );
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let argument = snapshot.child_ids(command_scope).into_iter().find(|node| {
+        snapshot.node(*node).is_some_and(|node| node.label == "Command argument")
+    }).unwrap();
+    let mut manager = StateMachineManager::new();
+    manager.runtime_cache.runtime_snapshot = Some(snapshot.clone());
+    manager.runtime_cache.command_observation_index_ready = true;
+    manager.runtime_cache.registered_command_dependency_roots.insert(command_scope);
+    manager.runtime_cache.command_action_target_roots.insert(command_scope);
+    manager.runtime_cache.command_dependency_target_uuids.insert(snapshot.node(argument).unwrap().uuid);
+
+    assert!(!manager.command_change_may_be_observed(unrelated, false));
+    assert!(!manager.command_change_may_be_observed(unrelated, true));
+    assert!(manager.command_change_may_be_observed(argument, false));
+    assert!(manager.command_change_may_be_observed(argument, true));
+    assert!(manager.command_change_may_be_observed(NodeId(u64::MAX), true));
+    manager.runtime_cache.registered_command_dependency_roots.clear();
+    manager.runtime_cache.registered_command_dependency_parents.insert(command_scope);
+    assert!(manager.command_change_may_be_observed(argument, false));
+    manager.runtime_cache.topology_dirty = true;
+    assert!(manager.command_change_may_be_observed(unrelated, true));
+}
+
+#[test]
 fn output_target_param_write_skips_unchanged_non_trigger_values() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);

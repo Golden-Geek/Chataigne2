@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use super::*;
 
-use golden_core::edit::Edit;
+use golden_core::edit::{Edit, NodeTree};
 use chataigne_state_machine::protocol::{FormulaPreviewDemandDto, FormulaPreviewModeDto};
 
 use crate::app::systems_alchemist_generic_commands::GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE;
@@ -190,6 +190,7 @@ fn mapping_full_engine_latency_distribution() {
     }
     let after_idle = runtime_stats(&engine);
     assert_eq!(after_idle.processor_candidate_visits, prepared.processor_candidate_visits);
+    assert_eq!(after_idle.command_listener_reconciliations, prepared.command_listener_reconciliations);
     assert_eq!(after_idle.formula_compiles, prepared.formula_compiles);
     assert_eq!(after_idle.debug_samples_captured, prepared.debug_samples_captured);
     report("idle", &mut idle);
@@ -376,5 +377,356 @@ fn mapping_full_engine_latency_distribution() {
         runtime_stats(&engine).debug_samples_captured,
         after_release.debug_samples_captured,
         "releasing preview demand should stop debug capture"
+    );
+}
+
+#[test]
+#[ignore = "opt-in multi-processor full-engine Mapping qualification"]
+fn mapping_full_engine_processor_scale_distribution() {
+    let processor_count = std::env::var("CHATAIGNE_MAPPING_ENGINE_PROCESSORS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(128);
+    let samples = std::env::var("CHATAIGNE_MAPPING_ENGINE_SCALE_SAMPLES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(100);
+    assert!(processor_count >= 2);
+    assert!(samples >= 100);
+
+    let (mut engine, mapping_uuid, first_processor) = mapping_engine();
+    activate_mapping_processor(&mut engine, first_processor);
+    let snapshot = engine.process_tree_snapshot();
+    let manager = snapshot
+        .child_ids(engine.root)
+        .into_iter()
+        .find(|id| snapshot.node(*id).is_some_and(|node| node.node_type == StateMachineManager::NODE_TYPE))
+        .unwrap();
+    let state = snapshot
+        .child_ids(manager)
+        .into_iter()
+        .find(|id| snapshot.node(*id).is_some_and(|node| node.node_type == StateMachineState::NODE_TYPE))
+        .unwrap();
+    let processors = snapshot.find_child_by_decl_id(state, "processors").unwrap();
+    let create_type = FormulaSourceRef::project_uuid(mapping_uuid).processor_create_type();
+    let mut processor_group = NodeTree::new(crate::app::StateProcessorFolder::new());
+    for _ in 1..processor_count {
+        let processor = engine.nodes.get(processors).unwrap().create_user_item(&create_type).unwrap();
+        processor_group.push_child(NodeTree::boxed(processor).as_user_item());
+    }
+    engine.add_user_item_tree(processor_group, Some(processors));
+    for _ in 0..4 {
+        engine.apply_edits().unwrap();
+    }
+    let source = source_param(&mut engine, "Shared scale source", 1.0);
+    let sink = source_param(&mut engine, "Shared scale sink", 0.0);
+    let trigger = Parameter::new(
+        "Shared scale command sink",
+        ParamValue::Trigger(),
+        ParameterChangeCheck::None,
+    );
+    let trigger_sink = trigger.node_data().meta.uuid;
+    engine.add_node(trigger.into(), None);
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let command_manager = snapshot
+        .child_ids(first_processor)
+        .into_iter()
+        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
+        .expect("Mapping processor should expose commands");
+    let command = create_item(&mut engine, command_manager, GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE);
+    let snapshot = engine.process_tree_snapshot();
+    let command_target = snapshot.find_child_by_decl_id(command, "target").unwrap();
+    let command_uuid = snapshot.node(command).unwrap().uuid;
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: command_target,
+        value: ParamValue::Reference(NodeReference::new(trigger_sink)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "shared command should bind its trigger sink: {ack:?}");
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let processor_nodes = snapshot
+        .child_ids(processors)
+        .into_iter()
+        .flat_map(|node| {
+            if snapshot.node(node).is_some_and(|entry| entry.node_type == StateProcessor::NODE_TYPE) {
+                vec![node]
+            } else {
+                assert_eq!(snapshot.node(node).unwrap().node_type, crate::app::StateProcessorFolder::NODE_TYPE);
+                snapshot.child_ids(node)
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(processor_nodes.len(), processor_count);
+    let regions = processor_nodes
+        .iter()
+        .map(|processor| {
+            let root = snapshot.find_child_by_decl_id(*processor, PROCESSOR_MANAGED_REGIONS_DECL_ID).unwrap();
+            let input = snapshot.find_child_by_decl_id(root, &processor_managed_region_decl_id("inputs")).unwrap();
+            let output = snapshot.find_child_by_decl_id(root, &processor_managed_region_decl_id("outputs")).unwrap();
+            (*processor == first_processor, input, output)
+        })
+        .collect::<Vec<_>>();
+    for (is_first, input, output) in &regions {
+        let input_tree = engine
+            .nodes
+            .get(*input)
+            .unwrap()
+            .create_user_item_tree(&format!("{ANODE_CREATE_PREFIX}chataigne.input_source"))
+            .unwrap();
+        let command_output_tree = engine
+            .nodes
+            .get(*output)
+            .unwrap()
+            .create_user_item_tree(&format!("{ANODE_CREATE_PREFIX}chataigne.output_target"))
+            .unwrap();
+        engine.add_user_item_tree(input_tree, Some(*input));
+        if *is_first {
+            let output_tree = engine
+                .nodes
+                .get(*output)
+                .unwrap()
+                .create_user_item_tree(&format!("{ANODE_CREATE_PREFIX}chataigne.output_target"))
+                .unwrap();
+            engine.add_user_item_tree(output_tree, Some(*output));
+        }
+        engine.add_user_item_tree(command_output_tree, Some(*output));
+    }
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    for (is_first, input, output) in &regions {
+        let input_item = snapshot.child_ids(*input)[0];
+        let output_items = snapshot.child_ids(*output);
+        let command_output_item = *output_items.last().unwrap();
+        let input_config = snapshot.find_child_by_decl_id(input_item, "config").unwrap();
+        let command_output_config = snapshot.find_child_by_decl_id(command_output_item, "config").unwrap();
+        let input_source = snapshot.find_child_by_decl_id(input_config, "config/source").unwrap();
+        let command_output_target = snapshot.find_child_by_decl_id(command_output_config, "config/target").unwrap();
+        let command_output_bindings = snapshot.find_child_by_decl_id(command_output_config, "config/bindings").unwrap();
+        engine.edits.push(Edit::SetParam {
+            node: input_source,
+            value: ParamValue::Reference(NodeReference::new(source)),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        if *is_first {
+            let output_config = snapshot.find_child_by_decl_id(output_items[0], "config").unwrap();
+            let output_target = snapshot.find_child_by_decl_id(output_config, "config/target").unwrap();
+            engine.edits.push(Edit::SetParam {
+                node: output_target,
+                value: ParamValue::Reference(NodeReference::new(sink)),
+                behaviour: ParameterEventBehaviour::Coalesce,
+            });
+        }
+        engine.edits.push(Edit::SetParam {
+            node: command_output_target,
+            value: ParamValue::Reference(NodeReference::new(command_uuid)),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        engine.edits.push(Edit::SetParam {
+            node: command_output_bindings,
+            value: ParamValue::Str(
+                OutputBindingConfig {
+                    value: OutputValueSource::Whole,
+                    send_policy: OutputSendPolicy::EveryDelivery,
+                    ..OutputBindingConfig::default()
+                }
+                .to_authoring_json()
+                .unwrap(),
+            ),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+    }
+    engine.apply_edits().unwrap();
+    run_ticks(&mut engine, 16);
+    engine.clear_ui_event_log();
+    let snapshot = engine.process_tree_snapshot();
+    let source_node = snapshot.node_id_by_uuid(source).unwrap();
+    let sink_node = snapshot.node_id_by_uuid(sink).unwrap();
+    assert_eq!(snapshot.node(sink_node).unwrap().param_value, Some(ParamValue::Float(1.0)));
+    let prepared = runtime_stats(&engine);
+
+    let mut idle = Vec::with_capacity(samples);
+    for _ in 0..samples {
+        let start = Instant::now();
+        engine.run_tick(Duration::from_millis(8)).unwrap();
+        idle.push(start.elapsed().as_nanos() as u64);
+        engine.clear_ui_event_log();
+    }
+    let after_idle = runtime_stats(&engine);
+    assert_eq!(after_idle.processor_candidate_visits, prepared.processor_candidate_visits);
+    assert_eq!(after_idle.command_listener_reconciliations, prepared.command_listener_reconciliations);
+    idle.sort_unstable();
+    let idle_p95_ns = idle[(samples * 95).div_ceil(100) - 1];
+    println!(
+        "mapping_engine_scale idle processors={processor_count} samples={samples} p50_ns={} p95_ns={} p99_ns={}",
+        idle[(samples * 50).div_ceil(100) - 1],
+        idle_p95_ns,
+        idle[(samples * 99).div_ceil(100) - 1],
+    );
+
+    let mut dense = Vec::with_capacity(samples);
+    let mut snapshot_builds = 0usize;
+    let mut snapshot_nodes_cloned = 0usize;
+    let mut snapshot_build_ns = 0u128;
+    let mut dispatch_events = 0usize;
+    let mut dispatch_recipients = 0usize;
+    let mut events_emitted = 0usize;
+    for index in 0..samples {
+        let input = if index % 2 == 0 { 2.0 } else { 1.0 };
+        let start = Instant::now();
+        engine.edits.push(Edit::SetParam {
+            node: source_node,
+            value: ParamValue::Float(input),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..2 {
+            engine.run_tick(Duration::from_millis(8)).unwrap();
+            let stats = engine.tick_stats();
+            snapshot_builds += stats.snapshot_builds;
+            snapshot_nodes_cloned += stats.snapshot_nodes_cloned;
+            snapshot_build_ns += stats.snapshot_build_ns;
+            dispatch_events += stats.dispatch_events_routed;
+            dispatch_recipients += stats.dispatch_recipient_deliveries;
+            events_emitted += stats.events_emitted;
+        }
+        dense.push(start.elapsed().as_nanos() as u64);
+        assert_eq!(engine.process_tree_snapshot().node(sink_node).unwrap().param_value, Some(ParamValue::Float(input)));
+        engine.clear_ui_event_log();
+    }
+    let after_dense = runtime_stats(&engine);
+    assert_eq!(after_dense.command_listener_reconciliations, after_idle.command_listener_reconciliations);
+    let expected = (processor_count * samples) as u64;
+    assert_eq!(after_dense.processor_lanes_evaluated - after_idle.processor_lanes_evaluated, expected);
+    let command_batches = after_dense.processor_command_batches - after_idle.processor_command_batches;
+    let maximum_batches = samples
+        * (processor_count.div_ceil(crate::app::module_command::MODULE_COMMAND_EXECUTE_BATCH_MAX_EXECUTIONS) + 1);
+    assert!(
+        command_batches > 0 && command_batches <= maximum_batches as u64,
+        "consecutive processors targeting one command should share bounded batches: {command_batches} > {maximum_batches}"
+    );
+    assert_eq!(after_dense.processor_batched_executions - after_idle.processor_batched_executions, expected);
+    assert_eq!(after_dense.debug_samples_captured, after_idle.debug_samples_captured);
+    println!(
+        "mapping_engine_scale_breakdown processors={processor_count} input_preparation_ns={} evaluation_ns={} evaluation_calls={} formula_catalog_builds={} runtime_cache_rebuilds={}",
+        after_dense.processor_input_preparation_ns - after_idle.processor_input_preparation_ns,
+        after_dense.processor_evaluation_ns - after_idle.processor_evaluation_ns,
+        after_dense.processor_evaluation_calls - after_idle.processor_evaluation_calls,
+        after_dense.formula_catalog_builds - after_idle.formula_catalog_builds,
+        after_dense.runtime_cache_rebuilds - after_idle.runtime_cache_rebuilds,
+    );
+    println!(
+        "mapping_engine_scale_engine processors={processor_count} samples={samples} snapshot_builds={snapshot_builds} snapshot_nodes_cloned={snapshot_nodes_cloned} snapshot_build_ns={snapshot_build_ns} dispatch_events={dispatch_events} dispatch_recipients={dispatch_recipients} events_emitted={events_emitted}"
+    );
+    dense.sort_unstable();
+    let dense_p95_ns = dense[(samples * 95).div_ceil(100) - 1];
+    println!(
+        "mapping_engine_scale shared_source_with_command processors={processor_count} samples={samples} evaluated_lanes={expected} command_batches={command_batches} command_executions={expected} p50_ns={} p95_ns={} p99_ns={}",
+        dense[(samples * 50).div_ceil(100) - 1],
+        dense_p95_ns,
+        dense[(samples * 99).div_ceil(100) - 1],
+    );
+    if std::env::var_os("CHATAIGNE_MAPPING_ENFORCE_275HX_SCALE_BASELINE").is_some() {
+        let (idle_limit_ns, dense_limit_ns) = match processor_count {
+            128 => (100_000, 20_000_000),
+            256 => (150_000, 45_000_000),
+            1_000 => (750_000, 150_000_000),
+            _ => panic!("unrecorded 275HX full-engine processor count {processor_count}"),
+        };
+        assert!(idle_p95_ns <= idle_limit_ns, "idle p95 {idle_p95_ns} ns exceeded {idle_limit_ns} ns");
+        assert!(dense_p95_ns <= dense_limit_ns, "dense p95 {dense_p95_ns} ns exceeded {dense_limit_ns} ns");
+    }
+}
+
+#[test]
+#[ignore = "opt-in long-horizon full-engine Smooth Mapping qualification"]
+fn mapping_full_engine_temporal_history_distribution() {
+    const TICKS: usize = 100_000;
+    const SAMPLE_COUNT: usize = 500;
+    let (mut engine, _, processor) = mapping_engine();
+    activate_mapping_processor(&mut engine, processor);
+    let source = source_param(&mut engine, "Temporal engine source", 0.0);
+    let sink = source_param(&mut engine, "Temporal engine sink", 0.0);
+    let inputs = region(&engine, processor, "inputs");
+    let input = create_item(
+        &mut engine,
+        inputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.input_source"),
+    );
+    set_config(
+        &mut engine,
+        input,
+        "source",
+        ParamValue::Reference(NodeReference::new(source)),
+    );
+    let filters = region(&engine, processor, "filters");
+    let smooth_type = engine
+        .nodes
+        .get(filters)
+        .unwrap()
+        .user_creatable_items()
+        .into_iter()
+        .find(|item| item.node_type.starts_with(&format!("{ANODE_CREATE_PREFIX}smooth_filter")))
+        .map(|item| item.node_type)
+        .expect("Float source should expose Smooth Filter");
+    let smooth = create_item(&mut engine, filters, &smooth_type);
+    set_config(&mut engine, smooth, "method", ParamValue::Enum("sma".to_owned()));
+    let outputs = region(&engine, processor, "outputs");
+    let output = create_item(
+        &mut engine,
+        outputs,
+        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
+    );
+    set_config(
+        &mut engine,
+        output,
+        "target",
+        ParamValue::Reference(NodeReference::new(sink)),
+    );
+    run_ticks(&mut engine, 16);
+    let snapshot = engine.process_tree_snapshot();
+    let source_node = snapshot.node_id_by_uuid(source).unwrap();
+    let sink_node = snapshot.node_id_by_uuid(sink).unwrap();
+    let before = runtime_stats(&engine);
+    engine.edits.push(Edit::SetParam {
+        node: source_node,
+        value: ParamValue::Float(10.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    let mut early = Vec::with_capacity(SAMPLE_COUNT);
+    let mut late = Vec::with_capacity(SAMPLE_COUNT);
+    for tick in 0..TICKS {
+        let start = Instant::now();
+        engine.run_tick(Duration::from_millis(8)).unwrap();
+        let elapsed = start.elapsed().as_nanos() as u64;
+        if tick < SAMPLE_COUNT {
+            early.push(elapsed);
+        }
+        if tick >= TICKS - SAMPLE_COUNT {
+            late.push(elapsed);
+        }
+        engine.clear_ui_event_log();
+    }
+    let after = runtime_stats(&engine);
+    assert!(after.processor_lanes_evaluated - before.processor_lanes_evaluated >= TICKS as u64);
+    assert_eq!(after.formula_catalog_builds, before.formula_catalog_builds);
+    assert_eq!(after.formula_compiles, before.formula_compiles);
+    assert_eq!(after.runtime_cache_rebuilds, before.runtime_cache_rebuilds);
+    assert_eq!(after.debug_samples_captured, before.debug_samples_captured);
+    assert_eq!(
+        engine.process_tree_snapshot().node(sink_node).unwrap().param_value,
+        Some(ParamValue::Float(10.0)),
+    );
+    early.sort_unstable();
+    late.sort_unstable();
+    println!(
+        "mapping_engine_temporal_history ticks={TICKS} evaluated_lanes={} early_p50_ns={} early_p95_ns={} early_p99_ns={} late_p50_ns={} late_p95_ns={} late_p99_ns={}",
+        after.processor_lanes_evaluated - before.processor_lanes_evaluated,
+        early[SAMPLE_COUNT / 2 - 1],
+        early[(SAMPLE_COUNT * 95).div_ceil(100) - 1],
+        early[(SAMPLE_COUNT * 99).div_ceil(100) - 1],
+        late[SAMPLE_COUNT / 2 - 1],
+        late[(SAMPLE_COUNT * 95).div_ceil(100) - 1],
+        late[(SAMPLE_COUNT * 99).div_ceil(100) - 1],
     );
 }

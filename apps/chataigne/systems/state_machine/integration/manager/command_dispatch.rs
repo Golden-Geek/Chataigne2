@@ -204,6 +204,18 @@ impl RuntimeCommandDispatchPlanCache {
         self.dependencies.values().map(|dependency| dependency.root)
     }
 
+    pub(super) fn dependency_target_uuids(&self) -> impl Iterator<Item = NodeUuid> + '_ {
+        self.dependencies.values().map(|dependency| dependency.target_uuid)
+    }
+
+    pub(super) fn action_targets(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.plans.values().flat_map(|plan| {
+            plan.actions.iter().map(|action| match action {
+                RuntimeCommandDispatchAction::Command { node, .. } | RuntimeCommandDispatchAction::Param(node) => *node,
+            })
+        })
+    }
+
     pub(super) fn listener_parents(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.dependencies.values().filter_map(|dependency| dependency.parent)
     }

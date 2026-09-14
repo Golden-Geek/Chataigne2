@@ -10,7 +10,7 @@ use golden_core::{
 
 use crate::app::AppNode;
 
-use super::super::StateProcessor;
+use super::super::{StateProcessor, StateProcessorFolder, StateProcessorManager};
 
 #[test]
 fn condition_valid_cache_finds_the_real_processor_child() {
@@ -76,4 +76,37 @@ fn condition_valid_updates_skip_surface_snapshot_but_other_edits_do_not() {
             decl_id: DeclId("surface".to_owned()),
         },
     })])));
+}
+
+#[test]
+fn processor_palette_manager_requests_snapshot_only_for_structural_events() {
+    let manager = StateProcessorManager::new();
+    let folder = StateProcessorFolder::new();
+    let time = EngineTime {
+        tick: 1,
+        micro: 0,
+        seq: 0,
+    };
+    let changed = Arc::new(Event {
+        time,
+        kind: EventKind::ParamChanged {
+            param: NodeId(42),
+            old_value: ParamValue::Float(1.0),
+            new_value: ParamValue::Float(2.0),
+        },
+    });
+    for palette in [&manager as &dyn Node, &folder as &dyn Node] {
+        assert!(!palette.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::clone(&changed)])));
+    }
+    let added = Arc::new(Event {
+        time,
+        kind: EventKind::ChildAdded {
+            parent: NodeId(1),
+            child: NodeId(43),
+            decl_id: DeclId("formula".to_owned()),
+        },
+    });
+    for palette in [&manager as &dyn Node, &folder as &dyn Node] {
+        assert!(palette.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::clone(&added)])));
+    }
 }
