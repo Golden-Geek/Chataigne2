@@ -5,22 +5,22 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active corrective phase: R00 complete; R01 — restore normal hierarchy and default child inspection — is next.
+- Active corrective phase: R01 complete; R02 — unify command authoring and invocation — is next.
 - Corrective-plan anchor: `a94b9a7e20c9c240c7f29ab1674c90d304289987`; the revised plan supersedes the prior authoring/output/inspector contract while preserving useful runtime work.
-- Last validated corrective implementation commit: `8ea39994e559a81648a185311a6c9aae57e0eb14` (R00 corrective baseline).
-- Last verified remote corrective implementation commit: `8ea39994e559a81648a185311a6c9aae57e0eb14`.
+- Last validated corrective implementation commit: `ad552a0fd92657982cbf813c3d97609af8cdb183` (R01 direct Mapping hierarchy).
+- Last verified remote corrective implementation commit: `ad552a0fd92657982cbf813c3d97609af8cdb183`.
 - Last validated historical implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (old Phase 11 M20 inspector state and benchmark workflow checkpoint).
-- Current corrective blockers: none. Interactive desktop and headless/watch product gates remain future R05/R08 qualification work, not an R00 blocker.
-- Corrected product checks outstanding: N01–N24 all begin `NOT_RUN`; prior M01–M20 results are historical runtime evidence and do not prove the revised node-first contract.
-- Next concrete action: start R01 by merging managed items into the visible role managers with stable UUIDs and restoring ordinary child inspection.
-- Last updated: 2026-09-15T16:35:30+02:00
+- Current corrective blockers: none. Interactive desktop and headless/watch product gates remain future R05/R08 qualification work, not an R01 blocker.
+- Corrected product checks: N03 passes; the R01 portions of N01, N02, N04, N14, and N15 pass and remain `PARTIAL` until their later owning phases complete. Prior M01–M20 results remain historical runtime evidence.
+- Next concrete action: start R02 by replacing transitional OutputTarget adapters with the same concrete command children, typed controls, and invocation preparation used by Action.
+- Last updated: 2026-09-15T17:24:24+02:00
 
 ## Corrective phase ledger
 
 | Phase | Status | Implementation | Validation | Delivery | Evidence / blocker |
 | --- | --- | --- | --- | --- | --- |
 | R00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `8ea39994` is verified at `origin/codex/builtin-mapping`; canonical revised plan, exact correction map, backend characterization, and full runnable baseline pass. |
-| R01 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Restore one visible authoritative Mapping hierarchy and ordinary child inspection. |
+| R01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `ad552a0f` is verified at `origin/codex/builtin-mapping`; direct role managers, sparse UUID-preserving migration, ordinary child inspection, and full Rust/UI gates pass. |
 | R02 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Unify concrete command authoring and invocation. |
 | R03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Decouple filter creation from current executability. |
 | R04 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Complete normal controls, warnings, and optional preview supplements. |
@@ -33,10 +33,10 @@
 
 | ID | Scenario | Owning phase | Evidence | Status |
 | --- | --- | --- | --- | --- |
-| N01 | Fresh Mapping | R01, R07 | Real visible managers immediately; compression Off; no preview request. | NOT_RUN |
-| N02 | Every authored item is a node | R01, R02, R04 | Snapshot/outliner/reference evidence for items, bindings, and nested controls. | NOT_RUN |
-| N03 | No shadow authoring tree | R01 | One authoritative editable hierarchy and no duplicated manager contents. | NOT_RUN |
-| N04 | Ordinary inspector | R01, R04 | Default child renderer and standard context menus/editing. | NOT_RUN |
+| N01 | Fresh Mapping | R01, R07 | Fresh Mapping creates direct visible Inputs/Filters/Outputs with no hidden root or preview request; R07 owns the explicit compression-Off default. | PARTIAL |
+| N02 | Every authored item is a node | R01, R02, R04 | Inputs and filters are ordinary ANode descendants with typed child controls and stable references; R02/R04 own concrete command bindings and the remaining control audit. | PARTIAL |
+| N03 | No shadow authoring tree | R01 | Fresh and migrated Mappings have one authoritative direct region hierarchy; duplicate role managers and the hidden root are removed. | PASSED |
+| N04 | Ordinary inspector | R01, R04 | Processor Formula inspection always uses the standard child renderer; R04 owns warning and optional-preview supplements. | PARTIAL |
 | N05 | Create filters before inputs | R03 | Every registered filter creates, persists, and undoes with zero inputs. | NOT_RUN |
 | N06 | Create inside invalid chain | R03 | Palette and backend authoring remain available after incompatible stages. | NOT_RUN |
 | N07 | Warnings, then recovery | R03, R04 | Node-local warning, blocked dispatch, and identity-preserving recovery. | NOT_RUN |
@@ -46,8 +46,8 @@
 | N11 | Shared typed argument binding | R02, R04 | Ordinary typed controls and invocation overrides without authored-value mutation. | NOT_RUN |
 | N12 | Fan-out, groups, timing | R02, R05 | Shared result, delay/stagger/cancel, accepted-send, and exact effects. | NOT_RUN |
 | N13 | Controllable from everywhere | R04, R05 | State, Mapping, script, and headless edits reach normal nodes. | NOT_RUN |
-| N14 | Stable identity and state | R01, R03, R05 | Reorder/rename/add/type changes preserve or deliberately reset identity/state. | NOT_RUN |
-| N15 | Persistence/migration | R01, R02, R05 | Existing data retained or attributed; save/load/duplicate/undo and ownership pass. | NOT_RUN |
+| N14 | Stable identity and state | R01, R03, R05 | Structural migration preserves processor, region, ANode, source, and nested-control UUIDs; later invalid-chain and full requalification cases remain. | PARTIAL |
+| N15 | Persistence/migration | R01, R02, R05 | Sparse legacy load moves authored subtrees without cloning and direct manager UUIDs survive save/load; command migration and the full persistence matrix remain. | PARTIAL |
 | N16 | Custom Formula conversion | R05 | Commands, bindings, resources, graph semantics, and editor behavior survive. | NOT_RUN |
 | N17 | Compression default and scope | R07 | Expanded default; explicit compression removes actual workflow nodes. | NOT_RUN |
 | N18 | Dependency preflight | R06, R07 | Exact blockers preserve editable data and references. | NOT_RUN |
@@ -110,6 +110,10 @@
 | 2026-09-15T16:33+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings`; `cargo metadata --no-deps --format-version 1` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check, strict affected app all-target Clippy, and workspace metadata pass. |
 | 2026-09-15T16:34+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `npm run check --workspace chataigne-ui`; `npm test`; `npm run lint`; `npm run build` | Windows x64, Node 26.5.0 | PASSED | Svelte check reports zero errors/warnings; 27 Golden Audio UI, 17 Golden UI, and 98 Chataigne UI tests pass; Prettier and the production static build pass. |
 | 2026-09-15T16:35:30+02:00 | R00 | `8ea39994` corrective baseline checkpoint | Root and Golden Core `cargo fmt --all`/`--check`; `git diff --cached --check`; `git push origin codex/builtin-mapping`; exact `git ls-remote origin refs/heads/codex/builtin-mapping` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and staged whitespace pass. Remote OID exactly matches `8ea39994e559a81648a185311a6c9aae57e0eb14`. Only the five R00-owned plan/map/status/test paths were staged; the unrelated user-edited implementation plan remained unstaged. |
+| 2026-09-15T17:17+02:00 | R01 | R01 implementation worktree before `ad552a0f` | Focused processor authoring, factory, sparse migration, persistence, state-manager snapshot, and inspector tests | Windows x64, Rust 1.97.0 | PASSED | Fresh Mappings expose direct visible role managers with ordinary ANode children and no hidden root. Sparse legacy load removes the root and duplicate managers while preserving manager, ANode, InputSource, and nested UUIDs. Three sources still reduce through Sum to the queued sink, and the processor inspector renders ordinary children without preview data. |
+| 2026-09-15T17:22+02:00 | R01 | R01 implementation worktree before `ad552a0f` | `cargo test-fast -p chataigne_alchemist`; `cargo test-fast -p chataigne_processor`; `cargo test-fast -p chataigne_state_machine`; `cargo test-fast -p Chataigne2 --quiet` | Windows x64, Rust 1.97.0 | PASSED | 179 Alchemist, 123 processor, and 18 state-machine tests pass. The app reports 575 passed and eight opt-in performance tests ignored, plus one desktop audio-host integration test. |
+| 2026-09-15T17:23+02:00 | R01 | R01 implementation worktree before `ad552a0f` | `.\tools\asio.ps1 -- cargo check --workspace`; `.\tools\asio.ps1 -- cargo clippy -p Chataigne2 --all-targets -- -D warnings`; `cargo metadata --no-deps --format-version 1`; `npm test`; `npm run check`; `npm run lint`; `npm run build` | Windows x64, pinned ASIO SDK, Rust 1.97.0, Node 26.5.0 | PASSED | Full workspace check, strict app all-target Clippy, and metadata pass. All 98 Chataigne UI tests pass, Svelte reports zero errors/warnings, and Prettier plus the production static build pass. |
+| 2026-09-15T17:24:24+02:00 | R01 | `ad552a0f` direct-hierarchy checkpoint | Root and Golden Core `cargo fmt --all`/`--check`; `git diff --cached --check`; `git push origin codex/builtin-mapping`; exact `git ls-remote origin refs/heads/codex/builtin-mapping` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and staged whitespace pass. Remote OID exactly matches `ad552a0fd92657982cbf813c3d97609af8cdb183`. The unrelated user-edited implementation plan remained unstaged. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo metadata --no-deps --format-version 1` | Windows x64, Rust 1.97.0 | PASSED | Workspace/package identities resolved. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo fmt --all --check` | Windows x64, Rust 1.97.0 | PASSED | No formatting diff. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo test --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_condition -p chataigne_state_machine` | Windows x64, Rust 1.97.0 | PASSED | All four package test suites and doc tests passed. |
@@ -252,6 +256,17 @@
 - Implementation commit: `8ea39994e559a81648a185311a6c9aae57e0eb14`.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `8ea39994e559a81648a185311a6c9aae57e0eb14`, 2026-09-15T16:35:30+02:00 (`git ls-remote`).
 - Remaining R00 work: none. R01 owns the first behavior correction.
+
+### R01 (complete)
+
+- Changes and boundaries: Mapping's Inputs, Filters, and Outputs managed regions now live directly under `StateProcessor`. Formula surface reconciliation omits duplicate role managers, and extraction, conversion, palette refresh, state-manager lookup, context traversal, and debug discovery use that one direct hierarchy. The processor Formula inspector composes the standard child renderer.
+- Migration: a decoded legacy `StateProcessorManagedRegions` root is consumed immediately. Its regions and every child subtree are moved rather than cloned; children from duplicate role managers are merged into the matching direct region before the obsolete nodes are removed. Sparse load works before the built-in Formula asset resolves and preserves processor, manager, ANode, InputSource, and nested control UUIDs.
+- Multiple-input contract: standard Mapping retains one ordered heterogeneous tuple. Focused and crate tests cover three scalar sources merged by Sum/Average and three X/Y/Z sources packed to one Vec3 command argument without channel separation.
+- Transitional boundary: existing OutputTarget adapters and already-authored concrete command/group children remain readable in Outputs only through R02. R02 owns the shared concrete command factory, typed argument controls, lowering, and adapter migration.
+- Validation: focused hierarchy/migration/persistence/runtime/inspector coverage, 179 Alchemist tests, 123 processor tests, 18 state-machine tests, 575 app tests plus one desktop audio integration test, full workspace check, strict app Clippy, metadata, all 98 Chataigne UI tests, Svelte check, lint, build, both formatter scopes, and staged whitespace checks pass.
+- Implementation commit: `ad552a0fd92657982cbf813c3d97609af8cdb183`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `ad552a0fd92657982cbf813c3d97609af8cdb183`, 2026-09-15T17:24:24+02:00 (`git ls-remote`).
+- Remaining R01 work: none. R02 owns concrete shared command authoring and removal of transitional OutputTarget adapters.
 
 ## Historical phase reports
 
