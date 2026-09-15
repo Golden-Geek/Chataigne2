@@ -5,20 +5,21 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active corrective phase: R00 — reopen acceptance and establish the correction baseline.
+- Active corrective phase: R00 complete; R01 — restore normal hierarchy and default child inspection — is next.
 - Corrective-plan anchor: `a94b9a7e20c9c240c7f29ab1674c90d304289987`; the revised plan supersedes the prior authoring/output/inspector contract while preserving useful runtime work.
+- Last validated corrective implementation commit: `8ea39994e559a81648a185311a6c9aae57e0eb14` (R00 corrective baseline).
+- Last verified remote corrective implementation commit: `8ea39994e559a81648a185311a6c9aae57e0eb14`.
 - Last validated historical implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (old Phase 11 M20 inspector state and benchmark workflow checkpoint).
-- Last verified remote branch commit before R00: `a94b9a7e20c9c240c7f29ab1674c90d304289987`.
 - Current corrective blockers: none. Interactive desktop and headless/watch product gates remain future R05/R08 qualification work, not an R00 blocker.
 - Corrected product checks outstanding: N01–N24 all begin `NOT_RUN`; prior M01–M20 results are historical runtime evidence and do not prove the revised node-first contract.
-- Next concrete action: finish and deliver R00's plan replacement, implementation map, backend characterization, and runnable baseline; then start R01 normal hierarchy work.
-- Last updated: 2026-09-15T16:24:45+02:00
+- Next concrete action: start R01 by merging managed items into the visible role managers with stable UUIDs and restoring ordinary child inspection.
+- Last updated: 2026-09-15T16:35:30+02:00
 
 ## Corrective phase ledger
 
 | Phase | Status | Implementation | Validation | Delivery | Evidence / blocker |
 | --- | --- | --- | --- | --- | --- |
-| R00 | IN_PROGRESS | IMPLEMENTED | PASSED | NOT_DELIVERED | Canonical revised plan, exact correction map, backend characterization, and full runnable baseline pass in the worktree. |
+| R00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `8ea39994` is verified at `origin/codex/builtin-mapping`; canonical revised plan, exact correction map, backend characterization, and full runnable baseline pass. |
 | R01 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Restore one visible authoritative Mapping hierarchy and ordinary child inspection. |
 | R02 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Unify concrete command authoring and invocation. |
 | R03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Decouple filter creation from current executability. |
@@ -108,6 +109,7 @@
 | 2026-09-15T16:32+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `.\tools\asio.ps1 -- cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 179 Alchemist and 123 processor tests pass. The app reports 574 passed and eight existing ignored tests, plus one audio-host integration test. This preserves typed tuple/filter/runtime and existing Action/Mapping behavior as a correction baseline. |
 | 2026-09-15T16:33+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings`; `cargo metadata --no-deps --format-version 1` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check, strict affected app all-target Clippy, and workspace metadata pass. |
 | 2026-09-15T16:34+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `npm run check --workspace chataigne-ui`; `npm test`; `npm run lint`; `npm run build` | Windows x64, Node 26.5.0 | PASSED | Svelte check reports zero errors/warnings; 27 Golden Audio UI, 17 Golden UI, and 98 Chataigne UI tests pass; Prettier and the production static build pass. |
+| 2026-09-15T16:35:30+02:00 | R00 | `8ea39994` corrective baseline checkpoint | Root and Golden Core `cargo fmt --all`/`--check`; `git diff --cached --check`; `git push origin codex/builtin-mapping`; exact `git ls-remote origin refs/heads/codex/builtin-mapping` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and staged whitespace pass. Remote OID exactly matches `8ea39994e559a81648a185311a6c9aae57e0eb14`. Only the five R00-owned plan/map/status/test paths were staged; the unrelated user-edited implementation plan remained unstaged. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo metadata --no-deps --format-version 1` | Windows x64, Rust 1.97.0 | PASSED | Workspace/package identities resolved. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo fmt --all --check` | Windows x64, Rust 1.97.0 | PASSED | No formatting diff. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo test --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_condition -p chataigne_state_machine` | Windows x64, Rust 1.97.0 | PASSED | All four package test suites and doc tests passed. |
@@ -240,14 +242,16 @@
 
 ## Corrective phase reports
 
-### R00 (implementation complete; delivery pending)
+### R00 (complete)
 
 - Changes and boundaries: replaced the canonical plan with the 2026-09-15 node-first corrective revision; initialized R00–R08 and N01–N24 without altering historical M01–M20 evidence; added an app-owned implementation map and backend characterization tests.
 - Current Mapping baseline: the processor exposes ordinary role managers but authors items in a separate hidden managed-region subtree. Snapshot extraction accepts only ANode children. Mapping outputs use OutputTarget command references and opaque binding documents. Its dedicated inspector replaces ordinary child authoring when tuple-managed regions are present.
 - Current Action baseline: the Action asset materializes real OutputsManager children. OutputsManager uses the generic/module command catalogs and OutputGroup, initializes module targets, retains timing/cancellation/occurrence/override state, and dispatches queued execute events to concrete command nodes. ConsequencesManager remains a separate legacy registry boundary.
 - Keep/adapt/remove classification: typed tuple/runtime, sparse scheduling, shared executable plans, isolated state, optional capture, argument validation, queued dispatch, and concrete command scheduling are retained. Processor hierarchy/extraction, command lowering, palette validation, warnings, persistence, conversion, and inspector composition are adapted. The shadow hierarchy, default OutputTarget adapter authoring, opaque binding JSON controls, compile-dependent palette, and full custom Mapping editor are removed by later corrective phases.
 - Validation: focused structural and tuple-delivery characterizations, 302 Alchemist/processor tests, the full app suite, workspace check, strict app Clippy, all 142 UI tests, Svelte check, lint, build, metadata, and required formatting/whitespace gates pass. No protocol boundary changed, so no generated DTO output is expected.
-- Remaining R00 work: commit, push, verify the implementation checkpoint, then publish its exact SHA in this ledger. R01 owns the first behavior correction.
+- Implementation commit: `8ea39994e559a81648a185311a6c9aae57e0eb14`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `8ea39994e559a81648a185311a6c9aae57e0eb14`, 2026-09-15T16:35:30+02:00 (`git ls-remote`).
+- Remaining R00 work: none. R01 owns the first behavior correction.
 
 ## Historical phase reports
 
