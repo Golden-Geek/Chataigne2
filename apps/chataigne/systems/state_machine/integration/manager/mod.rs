@@ -1277,6 +1277,7 @@ fn collect_processor_context_link_axes(
         }
         if node.node_type == USER_CONTEXT_NODE_TYPE
             || node_matches_decl_id(node.decl_id.as_str(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
+            || node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
         {
             continue;
         }
@@ -4206,11 +4207,7 @@ fn managed_runtime_input_location(
     {
         return None;
     }
-    let regions_root = snapshot.node(region_node)?.parent?;
-    if !node_matches_decl_id(snapshot.node(regions_root)?.decl_id.as_str(), PROCESSOR_MANAGED_REGIONS_DECL_ID) {
-        return None;
-    }
-    let processor_node = snapshot.node(regions_root)?.parent?;
+    let processor_node = snapshot.node(region_node)?.parent?;
     if snapshot.node(processor_node)?.node_type != PROCESSOR_NODE_TYPE {
         return None;
     }
@@ -4261,19 +4258,18 @@ fn runtime_invalidation_for_node(
 }
 
 fn processor_managed_structure_contains(snapshot: &ProcessTreeSnapshot, processor: NodeId, node: NodeId) -> bool {
-    let Some(regions) = snapshot.find_child_by_decl_id(
-        processor,
-        crate::app::systems_alchemist_processor::PROCESSOR_MANAGED_REGIONS_DECL_ID,
-    ) else {
-        return false;
-    };
     let mut current = Some(node);
     while let Some(candidate) = current {
-        if candidate == regions {
-            return true;
-        }
         if candidate == processor {
             return false;
+        }
+        if snapshot.node(candidate).is_some_and(|entry| {
+            entry.parent == Some(processor)
+                && entry
+                    .decl_id
+                    .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+        }) {
+            return true;
         }
         current = snapshot.node(candidate).and_then(|entry| entry.parent);
     }
@@ -4398,7 +4394,11 @@ fn processor_for_override_change(snapshot: &ProcessTreeSnapshot, changed_node: N
         }
         // A change inside the managed-regions subtree is a managed ANode edit,
         // not a processor property override.
-        if node_matches_decl_id(node.decl_id.as_str(), PROCESSOR_MANAGED_REGIONS_DECL_ID) {
+        if node_matches_decl_id(node.decl_id.as_str(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
+            || node
+                .decl_id
+                .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+        {
             return None;
         }
         if node.decl_id.starts_with("surface/") {
@@ -5158,21 +5158,19 @@ fn processor_anode_node_ids(
             })
             .collect()
     });
-    if let Some(regions_root) = snapshot.find_child_by_decl_id(processor_node, PROCESSOR_MANAGED_REGIONS_DECL_ID) {
-        for region in snapshot.child_ids(regions_root) {
-            let Some(region_node) = snapshot.node(region) else {
+    for region in snapshot.child_ids(processor_node) {
+        let Some(region_node) = snapshot.node(region) else {
+            continue;
+        };
+        if !region_node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX) {
+            continue;
+        }
+        for child in snapshot.child_ids(region) {
+            let Some(node) = snapshot.node(child) else {
                 continue;
             };
-            if !region_node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX) {
-                continue;
-            }
-            for child in snapshot.child_ids(region) {
-                let Some(node) = snapshot.node(child) else {
-                    continue;
-                };
-                if node.node_type == ANODE_NODE_TYPE {
-                    nodes.insert(ANodeId::from_uuid(node.uuid.0), child);
-                }
+            if node.node_type == ANODE_NODE_TYPE {
+                nodes.insert(ANodeId::from_uuid(node.uuid.0), child);
             }
         }
     }

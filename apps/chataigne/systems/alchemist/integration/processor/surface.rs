@@ -5,6 +5,8 @@ use golden_core::{
     process_ctx::ProcessTreeSnapshot,
 };
 
+use chataigne_alchemist::SurfaceItemKind;
+
 use crate::app::systems_alchemist_formula::{
     PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
@@ -36,7 +38,11 @@ pub(super) struct ProcessorSurfaceTemplate {
 }
 
 impl ProcessorSurfaceTemplate {
-    pub(super) fn from_snapshot(snapshot: &ProcessTreeSnapshot, source: NodeId) -> Option<Self> {
+    pub(super) fn from_snapshot_excluding_roles(
+        snapshot: &ProcessTreeSnapshot,
+        source: NodeId,
+        excluded_roles: &[SurfaceItemKind],
+    ) -> Option<Self> {
         let source_node = snapshot.node(source)?;
         let kind = match source_node.node_type.as_str() {
             PROPERTY_NODE_TYPE => {
@@ -53,6 +59,11 @@ impl ProcessorSurfaceTemplate {
                 if !property_is_exposed(snapshot, source) {
                     return None;
                 }
+                if processor_surface_role(snapshot, source)
+                    .is_some_and(|role| excluded_roles.contains(&role))
+                {
+                    return None;
+                }
                 let role = snapshot
                     .find_child_by_decl_id(source, "role")
                     .and_then(|id| snapshot.node(id))
@@ -66,13 +77,23 @@ impl ProcessorSurfaceTemplate {
                     _ => return None,
                 }
             }
-            PROPERTY_FOLDER_NODE_TYPE => SurfaceKind::Folder(
-                snapshot
-                    .child_ids(source)
-                    .into_iter()
-                    .filter_map(|child| Self::from_snapshot(snapshot, child))
-                    .collect(),
-            ),
+            PROPERTY_FOLDER_NODE_TYPE => {
+                let source_children = snapshot.child_ids(source);
+                let children = source_children
+                    .iter()
+                    .filter_map(|child| {
+                        Self::from_snapshot_excluding_roles(
+                            snapshot,
+                            *child,
+                            excluded_roles,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                if !source_children.is_empty() && children.is_empty() {
+                    return None;
+                }
+                SurfaceKind::Folder(children)
+            }
             _ => return None,
         };
         Some(Self {
@@ -121,11 +142,39 @@ impl ProcessorSurfaceTemplate {
     }
 }
 
+pub(super) fn processor_surface_role(
+    snapshot: &ProcessTreeSnapshot,
+    source: NodeId,
+) -> Option<SurfaceItemKind> {
+    let source_node = snapshot.node(source)?;
+    if source_node.node_type != PROPERTY_MANAGER_NODE_TYPE {
+        return None;
+    }
+    let role = snapshot
+        .find_child_by_decl_id(source, "role")
+        .and_then(|id| snapshot.node(id))
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(ParamValue::as_str)?;
+    match role.as_str() {
+        "condition" => Some(SurfaceItemKind::Condition),
+        "filter" => Some(SurfaceItemKind::Filter),
+        "input" => Some(SurfaceItemKind::Input),
+        "output" => Some(SurfaceItemKind::Output),
+        _ => None,
+    }
+}
+
 pub(super) fn processor_surface_child_tree(
     snapshot: &ProcessTreeSnapshot,
     source: NodeId,
+    excluded_roles: &[SurfaceItemKind],
 ) -> Option<NodeTree> {
-    ProcessorSurfaceTemplate::from_snapshot(snapshot, source).map(ProcessorSurfaceTemplate::into_tree)
+    ProcessorSurfaceTemplate::from_snapshot_excluding_roles(
+        snapshot,
+        source,
+        excluded_roles,
+    )
+    .map(ProcessorSurfaceTemplate::into_tree)
 }
 
 fn property_is_exposed(snapshot: &ProcessTreeSnapshot, source: NodeId) -> bool {

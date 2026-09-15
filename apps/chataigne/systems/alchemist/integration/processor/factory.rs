@@ -14,7 +14,8 @@ use crate::app::systems_alchemist_formula::{
 };
 
 use super::{
-    find_formula_library, processor_managed_regions_tree, surface::ProcessorSurfaceTemplate,
+    find_formula_library, processor_managed_region_tree,
+    surface::ProcessorSurfaceTemplate,
     FormulaSourceRef, FORMULA_NODE_TYPE,
 };
 
@@ -51,10 +52,23 @@ impl ProcessorTreeTemplates {
                 templates.regions_by_type.insert(create_type.clone(), regions);
             }
             if let Some(properties) = snapshot.find_child_by_decl_id(formula_id, PROPERTIES_DECL_ID) {
+                let managed_roles = templates
+                    .regions_by_type
+                    .get(&create_type)
+                    .into_iter()
+                    .flatten()
+                    .flat_map(|definition| definition.accepted_roles.iter().copied())
+                    .collect::<Vec<_>>();
                 let surfaces = snapshot
                     .child_ids(properties)
                     .into_iter()
-                    .filter_map(|child| ProcessorSurfaceTemplate::from_snapshot(snapshot, child))
+                    .filter_map(|child| {
+                        ProcessorSurfaceTemplate::from_snapshot_excluding_roles(
+                            snapshot,
+                            child,
+                            &managed_roles,
+                        )
+                    })
                     .collect();
                 templates.surfaces_by_type.insert(create_type, surfaces);
                 let mut stack = vec![properties];
@@ -95,7 +109,9 @@ impl ProcessorTreeTemplates {
             }
         }
         if let Some(regions) = create_type.as_ref().and_then(|key| self.regions_by_type.get(key)) {
-            tree.push_child(processor_managed_regions_tree(regions));
+            for region in regions {
+                tree.push_child(processor_managed_region_tree(region));
+            }
         }
         Some(tree)
     }

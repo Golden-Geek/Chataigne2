@@ -24,23 +24,13 @@ use crate::app::AlchemistFormulaDefinition;
 
 use super::{
     managed_regions_from_snapshot, managed_source_schema, processor_formula_source_ref, FormulaSourceRef,
-    PROCESSOR_MANAGED_REGIONS_DECL_ID,
 };
 
 pub(super) fn filter_palette_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     region_node: NodeId,
 ) -> Vec<UserCreatableItem> {
-    let Some(regions_root) = snapshot.node(region_node).and_then(|region| region.parent) else {
-        return Vec::new();
-    };
-    if !snapshot
-        .node(regions_root)
-        .is_some_and(|root| root.decl_id == PROCESSOR_MANAGED_REGIONS_DECL_ID)
-    {
-        return Vec::new();
-    }
-    let Some(processor_node) = snapshot.node(regions_root).and_then(|root| root.parent) else {
+    let Some(processor_node) = snapshot.node(region_node).and_then(|region| region.parent) else {
         return Vec::new();
     };
     let Some(FormulaSourceRef::ProjectNode(reference)) = processor_formula_source_ref(snapshot, processor_node) else {
@@ -191,11 +181,20 @@ fn aggregate_input_count_override(
 }
 
 pub(super) fn structural_palette_params(snapshot: &ProcessTreeSnapshot, region_node: NodeId) -> HashSet<NodeId> {
-    let Some(regions_root) = snapshot.node(region_node).and_then(|region| region.parent) else {
+    let Some(processor) = snapshot.node(region_node).and_then(|region| region.parent) else {
         return HashSet::new();
     };
     let mut params = HashSet::new();
-    let mut pending = vec![regions_root];
+    let mut pending = snapshot
+        .child_ids(processor)
+        .into_iter()
+        .filter(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.decl_id
+                    .starts_with(super::PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+            })
+        })
+        .collect::<Vec<_>>();
     while let Some(parent) = pending.pop() {
         for child in snapshot.child_ids_slice(parent) {
             if let Some(node) = snapshot.node(*child) {
@@ -206,11 +205,9 @@ pub(super) fn structural_palette_params(snapshot: &ProcessTreeSnapshot, region_n
             }
         }
     }
-    if let Some(processor) = snapshot.node(regions_root).and_then(|node| node.parent) {
-        for decl_id in ["formula", super::PROCESSOR_FORMULA_SOURCE_DECL_ID] {
-            if let Some(param) = snapshot.find_child_by_decl_id(processor, decl_id) {
-                params.insert(param);
-            }
+    for decl_id in ["formula", super::PROCESSOR_FORMULA_SOURCE_DECL_ID] {
+        if let Some(param) = snapshot.find_child_by_decl_id(processor, decl_id) {
+            params.insert(param);
         }
     }
     params

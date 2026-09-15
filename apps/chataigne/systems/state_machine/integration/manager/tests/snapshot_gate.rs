@@ -104,16 +104,15 @@ fn authored_formula_value_invalidates_runtime_but_layout_and_status_do_not() {
 
 #[test]
 fn managed_socket_value_edit_identifies_authored_item_and_invalidates_when_runtime_is_absent() {
-    let (root, manager_id, processor, regions, region, anode, inputs, socket, value, value_type, position) = (
-        NodeId(1), NodeId(2), NodeId(3), NodeId(4), NodeId(5), NodeId(6), NodeId(7), NodeId(8), NodeId(9), NodeId(10), NodeId(11),
+    let (root, manager_id, processor, region, anode, inputs, socket, value, value_type, position) = (
+        NodeId(1), NodeId(2), NodeId(3), NodeId(5), NodeId(6), NodeId(7), NodeId(8), NodeId(9), NodeId(10), NodeId(11),
     );
     let anode_uuid = NodeUuid(uuid::Uuid::from_u128(6));
     let mut nodes = HashMap::from([
         (root, context_scope_test_node(root, None, Some(manager_id), None, "root")),
         (manager_id, context_scope_test_node(manager_id, Some(root), None, Some(processor), "state_machine_manager")),
-        (processor, context_scope_test_node(processor, Some(root), Some(regions), None, "state_processor")),
-        (regions, context_scope_test_node(regions, Some(processor), Some(region), None, "folder")),
-        (region, context_scope_test_node(region, Some(regions), Some(anode), None, "folder")),
+        (processor, context_scope_test_node(processor, Some(root), Some(region), None, "state_processor")),
+        (region, context_scope_test_node(region, Some(processor), Some(anode), None, "state_processor_managed_region")),
         (anode, context_scope_test_node(anode, Some(region), Some(inputs), None, "alchemist_anode")),
         (inputs, context_scope_test_node(inputs, Some(anode), Some(socket), Some(position), "folder")),
         (socket, context_scope_test_node(socket, Some(inputs), Some(value), None, "alchemist_input_socket")),
@@ -121,7 +120,6 @@ fn managed_socket_value_edit_identifies_authored_item_and_invalidates_when_runti
         (value_type, context_scope_test_node(value_type, Some(socket), None, None, "string")),
         (position, context_scope_test_node(position, Some(anode), None, None, "vec2")),
     ]);
-    nodes.get_mut(&regions).unwrap().decl_id = "managed_regions".into();
     nodes.get_mut(&region).unwrap().decl_id = "managed_region/filters".into();
     nodes.get_mut(&anode).unwrap().uuid = anode_uuid;
     nodes.get_mut(&inputs).unwrap().decl_id = "inputs".into();

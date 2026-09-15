@@ -1,7 +1,8 @@
 # Built-in Mapping correction map
 
-This map records the implementation at corrective baseline `a94b9a7e`. It is
-the starting point for phases R00–R08 in
+This map records the implementation at corrective baseline `a94b9a7e` and the
+boundary changes completed by later corrective phases. The baseline is the
+starting point for phases R00–R08 in
 `docs/plan/builtin-mapping-codex-plan.md`; it does not describe the desired
 final authoring contract.
 
@@ -37,6 +38,40 @@ from preview-catalog DTOs and uses `MappingRegionList.svelte`; ordinary child
 rendering is only its fallback. Opening the inspector is not required to
 materialize the backend tree, but the normal inspector is not the default
 Mapping authoring surface.
+
+## R01 resulting hierarchy
+
+R01 replaces that baseline with one authored processor tree:
+
+```text
+StateProcessor
+├── Inputs                         visible managed region
+│   └── Input Source              ordinary ANode item and typed controls
+├── Filters                        visible managed region
+│   └── Filter                    ordinary ANode item and descendants
+└── Outputs                        visible managed region
+    └── OutputTarget              transitional ANode item until R02
+```
+
+Factories create each managed region directly under `StateProcessor` and omit
+Formula property managers whose roles would duplicate those regions. Runtime
+extraction, conversion, palette refresh, state-machine dirty tracking, context
+lookup, and debug-node discovery consume the direct regions. The hidden
+`StateProcessorManagedRegions` type remains registered only so old persisted
+snapshots can decode and migrate.
+
+Migration moves each legacy region rather than cloning it, moves any children
+from a duplicate role manager into the matching region, and removes the legacy
+root and duplicate manager. Processor, region, ANode, and nested control UUIDs
+therefore remain stable, including during sparse load before the built-in
+Formula asset is available. Fresh and migrated Mappings expose the same tree to
+snapshot lookup, outliner, inspector, references, scripts, and headless edits.
+
+`ProcessorFormulaInspector.svelte` now always composes the standard child
+renderer. Preview controls remain optional header data and no longer provide
+the authored-item inventory. Mapping-specific OutputTarget adapters are
+accepted only as transitional R01 data; R02 replaces them with concrete shared
+command children.
 
 ## Action command path
 

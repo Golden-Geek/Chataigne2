@@ -46,22 +46,21 @@ fn processor_factory_tracks_live_formula_region_metadata() {
     let create_type = FormulaSourceRef::project_uuid(mapping_uuid).processor_create_type();
     for parent in [manager, folder] {
         let tree = engine.nodes.get(parent).unwrap().create_user_item_tree(&create_type).unwrap();
-        let root = tree
-            .children
-            .iter()
-            .find(|child| child.node.node_data().meta.decl_id.0 == PROCESSOR_MANAGED_REGIONS_DECL_ID)
-            .expect("detached processor should contain its managed regions");
-        let updated = root
+        let updated = tree
             .children
             .iter()
             .find(|child| child.node.node_data().meta.decl_id.0 == region_id)
-            .expect("detached processor should contain the updated region");
+            .expect("detached processor should contain the direct updated region");
         assert_eq!(updated.node.node_data().meta.label, "Updated Mapping Inputs");
+        assert!(tree
+            .children
+            .iter()
+            .all(|child| child.node.node_data().meta.decl_id.0 != PROCESSOR_MANAGED_REGIONS_DECL_ID));
     }
 }
 
 #[test]
-fn processor_factory_materializes_and_refreshes_formula_property_surfaces() {
+fn processor_factory_does_not_duplicate_managed_property_surfaces() {
     let (mut engine, mapping_uuid, first_processor) = mapping_engine();
     let snapshot = engine.process_tree_snapshot();
     let mapping = snapshot.node_id_by_uuid(mapping_uuid).unwrap();
@@ -87,20 +86,13 @@ fn processor_factory_materializes_and_refreshes_formula_property_surfaces() {
     let create_type = FormulaSourceRef::project_uuid(mapping_uuid).processor_create_type();
 
     let first = engine.nodes.get(manager).unwrap().create_user_item_tree(&create_type).unwrap();
-    let first_surface = first
+    assert!(first
         .children
         .iter()
-        .find(|child| child.node.node_data().meta.decl_id.0 == surface_decl_id)
-        .expect("detached processor should contain Formula property surfaces");
-    assert_eq!(first_surface.node.node_data().meta.label, source.label);
-    let first_uuid = first_surface.node.node_data().meta.uuid;
-    let second = engine.nodes.get(manager).unwrap().create_user_item_tree(&create_type).unwrap();
-    let second_surface = second
-        .children
-        .iter()
-        .find(|child| child.node.node_data().meta.decl_id.0 == surface_decl_id)
-        .unwrap();
-    assert_ne!(first_uuid, second_surface.node.node_data().meta.uuid);
+        .all(|child| child.node.node_data().meta.decl_id.0 != surface_decl_id));
+    assert!(first.children.iter().any(|child| {
+        child.node.node_data().meta.decl_id.0 == processor_managed_region_decl_id("inputs")
+    }));
 
     engine.edits.push(Edit::SetParam {
         node: exposed,

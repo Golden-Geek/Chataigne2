@@ -19,10 +19,9 @@ use super::{
     FormulaCatalog, FormulaSourceRef,
     PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE,
     PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_ITEM_KIND,
-    PROCESSOR_MANAGED_REGIONS_DECL_ID, StateProcessor,
+    PROCESSOR_MANAGED_REGION_DECL_PREFIX, PROCESSOR_MANAGED_REGIONS_DECL_ID, StateProcessor,
     StateProcessorFolder, StateProcessorManagedRegion,
-    StateProcessorManagedRegions, StateProcessorManager,
-    processor_managed_region_decl_id,
+    StateProcessorManager, processor_managed_region_decl_id,
 };
 use crate::app::systems_alchemist_formula::{
     AlchemistProperty, ANODE_CREATE_PREFIX,
@@ -617,21 +616,14 @@ fn project_formula_processor_instantiates_managed_region_folders() {
         )))
     );
 
-    let regions_root = snapshot
-        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
-        .expect("Processor should own a Managed Regions root");
-    assert_eq!(
-        engine
-            .nodes
-            .get(regions_root)
-            .expect("Managed Regions root should exist")
-            .get_type(),
-        StateProcessorManagedRegions::NODE_TYPE
-    );
-
     let actual = snapshot
-        .child_ids(regions_root)
+        .child_ids(processor_id)
         .into_iter()
+        .filter(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+            })
+        })
         .map(|child| {
             let node = engine.nodes.get(child).expect("region should exist");
             (
@@ -811,26 +803,11 @@ fn builtin_processor_created_inside_state_exposes_managers() {
         ]
     );
 
-    let regions_root = snapshot
-        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
-        .expect("Processor should own a Managed Regions root");
-
-    let actual = snapshot
-        .child_ids(regions_root)
-        .into_iter()
-        .map(|child| {
-            let node = engine.nodes.get(child).expect("region should exist");
-            (
-                node.get_type().to_owned(),
-                node.node_data().meta.decl_id.0.clone(),
-                node.node_data().meta.label.clone(),
-            )
-        })
-        .collect::<Vec<_>>();
-
     assert!(
-        actual.is_empty(),
-        "graph formulas should not synthesize managed sidecar regions: {actual:?}"
+        snapshot
+            .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+            .is_none(),
+        "graph formulas should not synthesize a managed sidecar root"
     );
 }
 
@@ -840,24 +817,21 @@ fn managed_region_palette_does_not_advertise_filters_before_input_types_resolve(
     seed_formula_managed_regions(&mut engine, formula, value_pipeline_regions_json());
     let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
     let snapshot = engine.process_tree_snapshot();
-    let regions_root = snapshot
-        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
-        .expect("Processor should own Managed Regions");
     let filters = snapshot
         .find_child_by_decl_id(
-            regions_root,
+            processor_id,
             &processor_managed_region_decl_id("filters"),
         )
         .expect("formula should expose a Filters region");
     let inputs = snapshot
         .find_child_by_decl_id(
-            regions_root,
+            processor_id,
             &processor_managed_region_decl_id("inputs"),
         )
         .expect("formula should expose an Inputs region");
     let outputs = snapshot
         .find_child_by_decl_id(
-            regions_root,
+            processor_id,
             &processor_managed_region_decl_id("outputs"),
         )
         .expect("formula should expose an Outputs region");

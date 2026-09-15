@@ -21,7 +21,13 @@ use crate::app::systems_alchemist_formula::{
     ANODE_ITEM_KIND, ANODE_NODE_TYPE, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
     PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
-use crate::app::{AppEngine, ConditionManager};
+use crate::app::{
+    AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager,
+};
+use crate::app::systems_alchemist_managed_nodes::{
+    OUTPUT_GROUP_ITEM_KIND, OUTPUT_GROUP_NODE_TYPE,
+};
+use crate::app::systems_alchemist_generic_commands::GENERIC_COMMAND_ITEM_KIND;
 
 mod catalog;
 mod conversion;
@@ -36,7 +42,7 @@ pub(crate) use source_schema::{managed_source_node, managed_source_schema};
 
 use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
 use self::factory::ProcessorTreeTemplates;
-use self::surface::processor_surface_child_tree;
+use self::surface::{processor_surface_child_tree, processor_surface_role};
 
 pub(crate) use self::catalog::{
     shared_formula_dir_from_snapshot, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
@@ -345,10 +351,19 @@ fn remove_processor_surface_children(
         let Some(node) = snapshot.node(child) else {
             continue;
         };
-        if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX) {
+        if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
+            && !node_removal_pending(ctx, child)
+        {
             ctx.edits.push(Edit::RemoveNode { node: child });
         }
     }
+}
+
+fn node_removal_pending(ctx: &ProcessCtx, node: NodeId) -> bool {
+    ctx.edits
+        .pending
+        .iter()
+        .any(|request| matches!(request.edit, Edit::RemoveNode { node: pending } if pending == node))
 }
 
 pub(crate) fn processor_managed_region_decl_id(region_id: &str) -> String {
@@ -400,25 +415,13 @@ fn managed_region_roles_from_tags(tags: &[String]) -> Vec<SurfaceItemKind> {
         .collect()
 }
 
-fn processor_managed_region_tree(definition: &ManagedRegionDefinition) -> NodeTree {
+pub(super) fn processor_managed_region_tree(definition: &ManagedRegionDefinition) -> NodeTree {
     let mut region = StateProcessorManagedRegion::new();
     let meta = &mut region.node_data_mut().meta;
     meta.label = definition.label.clone();
     meta.decl_id = DeclId(processor_managed_region_decl_id(definition.id.as_str()));
     meta.tags = managed_region_tags(definition);
     NodeTree::new(region)
-}
-
-fn processor_managed_regions_tree(definitions: &[ManagedRegionDefinition]) -> NodeTree {
-    let mut regions = StateProcessorManagedRegions::new();
-    let meta = &mut regions.node_data_mut().meta;
-    meta.decl_id = DeclId(PROCESSOR_MANAGED_REGIONS_DECL_ID.to_owned());
-    meta.presentation.show_in_inspector_content = false;
-    let mut tree = NodeTree::new(regions);
-    for definition in definitions {
-        tree.push_child(processor_managed_region_tree(definition));
-    }
-    tree
 }
 
 fn processor_surface_move_pending(
@@ -511,17 +514,25 @@ fn reconcile_properties_level(
     source_container: NodeId,
     dest_snapshot: &ProcessTreeSnapshot,
     dest_container: NodeId,
+    managed_roles: &[SurfaceItemKind],
     ctx: &mut ProcessCtx,
 ) {
     let mut desired = HashSet::new();
     let mut desired_children = Vec::new();
     let mut previous_existing = None;
     for source in source_snapshot.child_ids(source_container) {
+        if processor_surface_role(source_snapshot, source)
+            .is_some_and(|role| managed_roles.contains(&role))
+        {
+            continue;
+        }
         let Some(source_node) = source_snapshot.node(source) else {
             continue;
         };
         let decl_id = processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags);
-        let Some(expected_tree) = processor_surface_child_tree(source_snapshot, source) else {
+        let Some(expected_tree) =
+            processor_surface_child_tree(source_snapshot, source, managed_roles)
+        else {
             continue;
         };
         desired.insert(decl_id.clone());
@@ -605,6 +616,7 @@ fn reconcile_properties_level(
                 source,
                 dest_snapshot,
                 existing,
+                managed_roles,
                 ctx,
             );
         }
@@ -618,9 +630,125 @@ fn reconcile_properties_level(
         };
         if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
             && !desired.contains(&node.decl_id)
+            && !node_removal_pending(ctx, child)
         {
             ctx.edits.push(Edit::RemoveNode { node: child });
         }
+    }
+}
+
+fn managed_surface_nodes_for_roles(
+    snapshot: &ProcessTreeSnapshot,
+    source_container: NodeId,
+    destination_container: NodeId,
+    roles: &[SurfaceItemKind],
+) -> Vec<NodeId> {
+    let mut matches = Vec::new();
+    for source in snapshot.child_ids(source_container) {
+        let Some(source_node) = snapshot.node(source) else {
+            continue;
+        };
+        let decl_id = processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags);
+        if processor_surface_role(snapshot, source).is_some_and(|role| roles.contains(&role)) {
+            if let Some(destination) =
+                snapshot.find_child_by_decl_id(destination_container, &decl_id)
+            {
+                matches.push(destination);
+            }
+            continue;
+        }
+        if source_node.node_type != PROPERTY_FOLDER_NODE_TYPE {
+            continue;
+        }
+        let Some(destination) =
+            snapshot.find_child_by_decl_id(destination_container, &decl_id)
+        else {
+            continue;
+        };
+        matches.extend(managed_surface_nodes_for_roles(
+            snapshot,
+            source,
+            destination,
+            roles,
+        ));
+    }
+    matches
+}
+
+fn surface_role_from_processor_node_type(node_type: &str) -> Option<SurfaceItemKind> {
+    match node_type {
+        InputsManager::NODE_TYPE => Some(SurfaceItemKind::Input),
+        FilterChainManager::NODE_TYPE => Some(SurfaceItemKind::Filter),
+        OutputsManager::NODE_TYPE => Some(SurfaceItemKind::Output),
+        ConditionManager::NODE_TYPE => Some(SurfaceItemKind::Condition),
+        _ => None,
+    }
+}
+
+fn migrate_legacy_managed_root(
+    snapshot: &ProcessTreeSnapshot,
+    processor: NodeId,
+    legacy_root: NodeId,
+    ctx: &mut ProcessCtx,
+) {
+    let surfaces = snapshot
+        .child_ids(processor)
+        .into_iter()
+        .filter(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut previous_region = None;
+    for region in snapshot.child_ids(legacy_root) {
+        let Some(region_node) = snapshot.node(region) else {
+            continue;
+        };
+        if !region_node
+            .decl_id
+            .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+        {
+            ctx.edits.push(Edit::MoveNode {
+                node: region,
+                new_parent: processor,
+                new_prev_sibling: previous_region,
+            });
+            previous_region = Some(region);
+            continue;
+        }
+        let roles = managed_region_roles_from_tags(&region_node.tags);
+        let mut previous_child = snapshot.child_ids(region).last().copied();
+        for surface in &surfaces {
+            let Some(surface_node) = snapshot.node(*surface) else {
+                continue;
+            };
+            if !surface_role_from_processor_node_type(&surface_node.node_type)
+                .is_some_and(|role| roles.contains(&role))
+            {
+                continue;
+            }
+            for child in snapshot.child_ids(*surface) {
+                ctx.edits.push(Edit::MoveNode {
+                    node: child,
+                    new_parent: region,
+                    new_prev_sibling: previous_child,
+                });
+                previous_child = Some(child);
+            }
+            if !node_removal_pending(ctx, *surface) {
+                ctx.edits.push(Edit::RemoveNode { node: *surface });
+            }
+        }
+        ctx.edits.push(Edit::MoveNode {
+            node: region,
+            new_parent: processor,
+            new_prev_sibling: previous_region,
+        });
+        previous_region = Some(region);
+    }
+    if !node_removal_pending(ctx, legacy_root) {
+        ctx.edits.push(Edit::RemoveNode { node: legacy_root });
     }
 }
 
@@ -651,11 +779,40 @@ pub struct StateProcessorManagedRegion {
 #[node("state_processor_managed_region", from_struct)]
 impl Node for StateProcessorManagedRegion {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[ANODE_ITEM_KIND]))
+        Some(UserContainerRules::new(&[
+            ANODE_ITEM_KIND,
+            "sm_input",
+            "sm_filter",
+            GENERIC_COMMAND_ITEM_KIND,
+            crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
+            OUTPUT_GROUP_ITEM_KIND,
+        ]))
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
         let roles = managed_region_roles_from_tags(&self.node_data().meta.tags);
+        if roles.contains(&SurfaceItemKind::Input)
+            && item_kind == "sm_input"
+            && crate::app::declared_user_item_type_matches(item_type, item_kind)
+        {
+            return true;
+        }
+        if roles.contains(&SurfaceItemKind::Filter)
+            && item_kind == "sm_filter"
+            && crate::app::declared_user_item_type_matches(item_type, item_kind)
+        {
+            return true;
+        }
+        if roles.contains(&SurfaceItemKind::Output)
+            && (item_kind == GENERIC_COMMAND_ITEM_KIND
+                && crate::app::declared_user_item_type_matches(item_type, item_kind)
+                || item_kind == crate::app::module_command::MODULE_COMMAND_ITEM_KIND
+                    && crate::app::declared_user_item_type_matches(item_type, item_kind)
+                || item_kind == OUTPUT_GROUP_ITEM_KIND
+                    && item_type == OUTPUT_GROUP_NODE_TYPE)
+        {
+            return true;
+        }
         if roles.contains(&SurfaceItemKind::Filter) {
             return item_kind == ANODE_ITEM_KIND
                 && (item_type == ANODE_NODE_TYPE
@@ -681,9 +838,8 @@ impl Node for StateProcessorManagedRegion {
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        let mut permissions = NodeUserPermissions::all();
-        permissions.can_edit_name = false;
-        self.node_data_mut().meta.user_permissions = permissions;
+        self.node_data_mut().meta.user_permissions = locked_instance_permissions();
+        self.node_data_mut().meta.can_be_disabled = false;
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
@@ -693,16 +849,15 @@ impl Node for StateProcessorManagedRegion {
             return;
         }
         let subscriptions = ctx.tree_snapshot().and_then(|snapshot| {
-            let regions_root = snapshot.node(self.id())?.parent?;
-            let processor = snapshot.node(regions_root)?.parent?;
+            let processor = snapshot.node(self.id())?.parent?;
             let formula_params = ["formula", PROCESSOR_FORMULA_SOURCE_DECL_ID]
                 .into_iter()
                 .filter_map(|decl_id| snapshot.find_child_by_decl_id(processor, decl_id))
                 .collect::<Vec<_>>();
-            Some((regions_root, formula_params))
+            Some((processor, formula_params))
         });
-        if let Some((regions_root, formula_params)) = subscriptions {
-            ctx.add_event_listener_subtree(self.id(), regions_root, u32::MAX);
+        if let Some((processor, formula_params)) = subscriptions {
+            ctx.add_event_listener_subtree(self.id(), processor, u32::MAX);
             for param in formula_params {
                 ctx.add_event_listener(self.id(), param);
             }
@@ -1273,8 +1428,8 @@ impl StateProcessor {
     }
 
     fn reconcile_formula(&mut self, ctx: &mut ProcessCtx) {
-        self.reconcile_formula_properties(ctx);
         self.reconcile_formula_managed_regions(ctx);
+        self.reconcile_formula_properties(ctx);
         self.reconcile_formula_warning(ctx);
         self.reconcile_formula_icon(ctx);
     }
@@ -1367,6 +1522,16 @@ impl StateProcessor {
         let Some(formula) = self.formula_node(&snapshot) else {
             return;
         };
+        let managed_roles = formula_from_snapshot(&snapshot, formula)
+            .map(|formula| {
+                formula
+                    .surface
+                    .managed_regions
+                    .into_iter()
+                    .flat_map(|definition| definition.accepted_roles)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         let Some(source_properties) =
             snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
         else {
@@ -1378,6 +1543,7 @@ impl StateProcessor {
             source_properties,
             &snapshot,
             self.id(),
+            &managed_roles,
             ctx,
         );
     }
@@ -1386,33 +1552,28 @@ impl StateProcessor {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let regions_root = snapshot.find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID);
-        let definitions = match self.formula_source_ref() {
+        let legacy_root = snapshot.find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID);
+        if let Some(legacy_root) = legacy_root {
+            migrate_legacy_managed_root(&snapshot, self.id(), legacy_root, ctx);
+            return;
+        }
+        let (formula_node, definitions) = match self.formula_source_ref() {
             Ok(Some(FormulaSourceRef::ProjectNode(_))) => {
-                let Some(formula) = self.formula_node(&snapshot) else {
+                let Some(formula_node) = self.formula_node(&snapshot) else {
                     return;
                 };
-                let Ok(formula) = formula_from_snapshot(&snapshot, formula) else {
+                let Ok(formula) = formula_from_snapshot(&snapshot, formula_node) else {
                     // A project Formula may still be materializing on load. Its
                     // managed instance data must not be removed on a transient
                     // parse failure.
                     return;
                 };
-                formula.surface.managed_regions
+                (formula_node, formula.surface.managed_regions)
             }
             // A missing source can be transient while a sparse project is
             // materializing. Keep authored items until a valid Formula can
             // identify which regions actually need to change.
-            _ => {
-                if regions_root.is_none() {
-                    ctx.add_child_tree(self.id(), processor_managed_regions_tree(&[]), None);
-                }
-                return;
-            }
-        };
-        let Some(regions_root) = regions_root else {
-            ctx.add_child_tree(self.id(), processor_managed_regions_tree(&definitions), None);
-            return;
+            _ => return,
         };
         if definitions.is_empty() {
             // Sparse load can expose a Formula before its managed-region
@@ -1420,16 +1581,18 @@ impl StateProcessor {
             // to discard authored processor items.
             return;
         }
+        let source_properties = snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID);
         let mut desired = HashSet::new();
+        let mut desired_children = Vec::new();
+        let mut previous_region = None;
         for definition in definitions {
             let decl_id = processor_managed_region_decl_id(definition.id.as_str());
             desired.insert(decl_id.clone());
-            let Some(existing) =
-                snapshot.find_child_by_decl_id(regions_root, &decl_id)
-            else {
+            let direct = snapshot.find_child_by_decl_id(self.id(), &decl_id);
+            let Some(existing) = direct else {
                 let already_queued = ctx.edits.pending.iter().any(|req| {
                     if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
-                        *p == regions_root
+                        *p == self.id()
                             && tree.node.node_data().meta.decl_id.0 == decl_id
                     } else {
                         false
@@ -1437,13 +1600,15 @@ impl StateProcessor {
                 });
                 if !already_queued {
                     ctx.add_child_tree(
-                        regions_root,
+                        self.id(),
                         processor_managed_region_tree(&definition),
-                        None,
+                        previous_region,
                     );
                 }
                 continue;
             };
+            desired_children.push(existing);
+            previous_region = Some(existing);
             let Some(existing_node) = snapshot.node(existing) else {
                 continue;
             };
@@ -1460,9 +1625,30 @@ impl StateProcessor {
                     },
                 );
             }
+
+            if let Some(source_properties) = source_properties {
+                for surface in managed_surface_nodes_for_roles(
+                    &snapshot,
+                    source_properties,
+                    self.id(),
+                    &definition.accepted_roles,
+                ) {
+                    let mut previous_child = snapshot.child_ids(existing).last().copied();
+                    for child in snapshot.child_ids(surface) {
+                        ctx.edits.push(Edit::MoveNode {
+                            node: child,
+                            new_parent: existing,
+                            new_prev_sibling: previous_child,
+                        });
+                        previous_child = Some(child);
+                    }
+                }
+            }
         }
 
-        for child in snapshot.child_ids(regions_root) {
+        sync_processor_surface_order(&snapshot, self.id(), &desired_children, ctx);
+
+        for child in snapshot.child_ids(self.id()) {
             let Some(node) = snapshot.node(child) else {
                 continue;
             };

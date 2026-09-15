@@ -14,9 +14,14 @@
 	{@render inner?.()}
 {/snippet}
 
+{#snippet children()}
+	<div aria-label="Ordinary processor children">Ordinary manager and parameter nodes</div>
+{/snippet}
+
 <ProcessorFormulaInspector
 	{node}
 	level={0}
 	order="solo"
 	defaultHeader={header}
-	defaultContent={content} />
+	defaultContent={content}
+	defaultChildren={children} />

@@ -95,12 +95,9 @@ fn mapping_engine() -> (AppEngine, NodeUuid, NodeId) {
 
 fn region(engine: &AppEngine, processor: NodeId, id: &str) -> NodeId {
     let snapshot = engine.process_tree_snapshot();
-    let regions = snapshot
-        .find_child_by_decl_id(processor, PROCESSOR_MANAGED_REGIONS_DECL_ID)
-        .unwrap();
-    let available = snapshot.child_ids(regions).into_iter().filter_map(|child| snapshot.node(child)).map(|node| (node.decl_id.clone(), node.node_type.clone())).collect::<Vec<_>>();
+    let available = snapshot.child_ids(processor).into_iter().filter_map(|child| snapshot.node(child)).map(|node| (node.decl_id.clone(), node.node_type.clone())).collect::<Vec<_>>();
     snapshot
-        .find_child_by_decl_id(regions, &processor_managed_region_decl_id(id))
+        .find_child_by_decl_id(processor, &processor_managed_region_decl_id(id))
         .unwrap_or_else(|| panic!("missing {id}: {available:?}"))
 }
 
@@ -156,6 +153,17 @@ fn source_param(engine: &mut AppEngine, label: &str, value: f64) -> NodeUuid {
     engine.add_node(parameter.into(), None);
     engine.apply_edits().unwrap();
     uuid
+}
+
+fn transitional_command_manager(engine: &mut AppEngine) -> NodeId {
+    let manager = OutputsManager::new();
+    let uuid = manager.node_data().meta.uuid;
+    engine.add_node(manager.into(), None);
+    engine.apply_edits().unwrap();
+    engine
+        .process_tree_snapshot()
+        .node_id_by_uuid(uuid)
+        .expect("transitional OutputTarget command should remain addressable")
 }
 
 fn activate_mapping_processor(engine: &mut AppEngine, processor: NodeId) {
@@ -407,10 +415,7 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     let sum_instance = anode_from_snapshot(&engine.process_tree_snapshot(), sum).unwrap();
     assert_eq!(sum_instance.input_defaults.len(), 2);
 
-    let command_manager = engine.process_tree_snapshot().child_ids(processor)
-        .into_iter()
-        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
-        .expect("Mapping processor should expose its command manager");
+    let command_manager = transitional_command_manager(&mut engine);
     let command = create_item(&mut engine, command_manager, GENERIC_LOG_COMMAND_NODE_TYPE);
     let command_uuid = engine.nodes.get(command).unwrap().node_data().meta.uuid;
     let message = engine.process_tree_snapshot().find_child_by_decl_id(command, "message").unwrap();
@@ -507,7 +512,7 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     assert_eq!(converted_snapshot.node(converted_node).unwrap().presentation.icon, snapshot.node(mapping).unwrap().presentation.icon);
     assert!(converted_snapshot.node_id_by_uuid(command_uuid).is_some(), "conversion should retain the command node");
     assert_eq!(converted_snapshot.node(command_manager).unwrap().uuid, snapshot.node(command_manager).unwrap().uuid);
-    assert_eq!(converted_snapshot.child_ids(converted_processor).into_iter().filter(|id| converted_snapshot.node(*id).is_some_and(|node| node.node_type == OutputsManager::NODE_TYPE)).count(), 1);
+    assert_eq!(converted_snapshot.child_ids(converted_processor).into_iter().filter(|id| converted_snapshot.node(*id).is_some_and(|node| node.node_type == OutputsManager::NODE_TYPE)).count(), 0);
     assert!(!converted_snapshot.node(converted_node).unwrap().tags.iter().any(|tag| tag.contains("external.builtin")));
     assert_eq!(converted_snapshot.child_ids(region(&engine, converted_processor, "inputs")), vec![first, second]);
     let converted_formula = formula_from_snapshot(&converted_snapshot, converted_node).unwrap();
@@ -586,6 +591,9 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     let authored_output = anode_from_snapshot(&snapshot, output).unwrap();
     assert!(matches!(authored_output.config.get("bindings"), Some(RuntimeValue::String(_))));
 
+    let region_uuids = ["inputs", "filters", "outputs"].map(|name| {
+        snapshot.node(region(&engine, processor, name)).unwrap().uuid
+    });
     let input_uuids = [first, second].map(|id| snapshot.node(id).unwrap().uuid);
     let remap_uuid = snapshot.node(remap).unwrap().uuid;
     let sum_uuid = snapshot.node(sum).unwrap().uuid;
@@ -604,8 +612,12 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     assert_eq!(loaded_formula.surface.managed_regions.len(), 3);
     assert_eq!(loaded_formula.graph.nodes().count(), formula.graph.nodes().count());
     assert_eq!(loaded_formula.graph.edges().count(), formula.graph.edges().count());
-    for (name, expected) in [("inputs", vec![first, second]), ("filters", vec![remap, sum]), ("outputs", vec![output])] {
+    for ((name, expected), region_uuid) in [("inputs", vec![first, second]), ("filters", vec![remap, sum]), ("outputs", vec![output])]
+        .into_iter()
+        .zip(region_uuids)
+    {
         let region_node = region(&loaded, loaded_processor, name);
+        assert_eq!(loaded_snapshot.node(region_node).unwrap().uuid, region_uuid);
         let reloaded = loaded_snapshot.child_ids(region_node);
         assert_eq!(reloaded.len(), expected.len(), "{name} should keep its ordered items");
         for (actual, original) in reloaded.into_iter().zip(expected) {
@@ -705,10 +717,7 @@ fn mapping_conversion_starts_temporal_filters_with_fresh_state() {
     let smooth = create_item(&mut engine, filters, &smooth_type);
     set_config(&mut engine, smooth, "method", ParamValue::Enum("sma".to_owned()));
 
-    let command_manager = engine.process_tree_snapshot().child_ids(processor)
-        .into_iter()
-        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
-        .unwrap();
+    let command_manager = transitional_command_manager(&mut engine);
     let command = create_item(&mut engine, command_manager, GENERIC_LOG_COMMAND_NODE_TYPE);
     let command_uuid = engine.nodes.get(command).unwrap().node_data().meta.uuid;
     let outputs_region = region(&engine, processor, "outputs");
@@ -792,10 +801,7 @@ fn mapping_conversion_preserves_repeated_trigger_delivery() {
     let inputs_region = region(&engine, processor, "inputs");
     let input = create_item(&mut engine, inputs_region, &format!("{ANODE_CREATE_PREFIX}chataigne.input_source"));
     set_config(&mut engine, input, "source", ParamValue::Reference(NodeReference::new(trigger_uuid)));
-    let command_manager = engine.process_tree_snapshot().child_ids(processor)
-        .into_iter()
-        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
-        .unwrap();
+    let command_manager = transitional_command_manager(&mut engine);
     let command = create_item(&mut engine, command_manager, GENERIC_LOG_COMMAND_NODE_TYPE);
     let command_uuid = engine.nodes.get(command).unwrap().node_data().meta.uuid;
     let outputs_region = region(&engine, processor, "outputs");

@@ -10,7 +10,6 @@ use golden_core::{
 use super::{
     catalog::FormulaCatalog, find_formula_library, managed_regions_from_snapshot,
     processor_managed_region_decl_id, StateProcessor, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX,
-    PROCESSOR_MANAGED_REGIONS_DECL_ID,
 };
 
 const CONVERSION_WARNING_ID: &str = "mapping_conversion";
@@ -60,13 +59,10 @@ impl StateProcessor {
         }
         let formula = super::formula_from_snapshot(snapshot, source)
             .map_err(|error| format!("the Mapping Formula is invalid: {error}"))?;
-        let regions_root = snapshot
-            .find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
-            .ok_or_else(|| "the processor's managed regions are missing".to_owned())?;
         for definition in &formula.surface.managed_regions {
             if snapshot
                 .find_child_by_decl_id(
-                    regions_root,
+                    self.id(),
                     &processor_managed_region_decl_id(definition.id.as_str()),
                 )
                 .is_none()

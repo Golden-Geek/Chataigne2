@@ -122,11 +122,7 @@ fn mapping_full_engine_latency_distribution() {
         .find_child_by_decl_id(maximum_socket, "inputs/in_max/value")
         .unwrap();
 
-    let command_manager = snapshot
-        .child_ids(processor)
-        .into_iter()
-        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
-        .expect("Mapping processor should expose commands");
+    let command_manager = transitional_command_manager(&mut engine);
     let command = create_item(&mut engine, command_manager, GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE);
     let snapshot = engine.process_tree_snapshot();
     let target = snapshot.find_child_by_decl_id(command, "target").unwrap();
@@ -435,12 +431,7 @@ fn mapping_full_engine_processor_scale_distribution() {
     let trigger_sink = trigger.node_data().meta.uuid;
     engine.add_node(trigger.into(), None);
     engine.apply_edits().unwrap();
-    let snapshot = engine.process_tree_snapshot();
-    let command_manager = snapshot
-        .child_ids(first_processor)
-        .into_iter()
-        .find(|id| engine.nodes.get(*id).is_some_and(|node| node.get_type() == OutputsManager::NODE_TYPE))
-        .expect("Mapping processor should expose commands");
+    let command_manager = transitional_command_manager(&mut engine);
     let command = create_item(&mut engine, command_manager, GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE);
     let snapshot = engine.process_tree_snapshot();
     let command_target = snapshot.find_child_by_decl_id(command, "target").unwrap();
@@ -473,9 +464,8 @@ fn mapping_full_engine_processor_scale_distribution() {
     let regions = processor_nodes
         .iter()
         .map(|processor| {
-            let root = snapshot.find_child_by_decl_id(*processor, PROCESSOR_MANAGED_REGIONS_DECL_ID).unwrap();
-            let input = snapshot.find_child_by_decl_id(root, &processor_managed_region_decl_id("inputs")).unwrap();
-            let output = snapshot.find_child_by_decl_id(root, &processor_managed_region_decl_id("outputs")).unwrap();
+            let input = snapshot.find_child_by_decl_id(*processor, &processor_managed_region_decl_id("inputs")).unwrap();
+            let output = snapshot.find_child_by_decl_id(*processor, &processor_managed_region_decl_id("outputs")).unwrap();
             (*processor == first_processor, input, output)
         })
         .collect::<Vec<_>>();
