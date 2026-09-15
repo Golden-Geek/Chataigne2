@@ -77,7 +77,7 @@ impl OutputBindingConfig {
         )))
     }
 
-    fn from_runtime_value(value: &RuntimeValue) -> Result<Self, String> {
+    pub fn from_runtime_value(value: &RuntimeValue) -> Result<Self, String> {
         if let RuntimeValue::String(value) = value {
             return Self::from_authoring_json(value);
         }

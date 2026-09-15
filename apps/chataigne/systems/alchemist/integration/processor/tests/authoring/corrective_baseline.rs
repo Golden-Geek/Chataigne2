@@ -77,17 +77,7 @@ fn mapping_correction_baseline_preserves_tuple_reduction_and_queued_delivery() {
     create_item(&mut engine, filters, &sum_type);
 
     let outputs = region(&engine, processor, "outputs");
-    let output = create_item(
-        &mut engine,
-        outputs,
-        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
-    );
-    set_config(
-        &mut engine,
-        output,
-        "target",
-        ParamValue::Reference(NodeReference::new(sink)),
-    );
+    create_parameter_output(&mut engine, outputs, sink);
 
     for _ in 0..12 {
         engine.run_tick(Duration::from_millis(8)).unwrap();

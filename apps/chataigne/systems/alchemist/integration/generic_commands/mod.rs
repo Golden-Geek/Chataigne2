@@ -11,7 +11,10 @@ use golden_core::{
     events::{Event, EventFrame, EventKind},
     node,
     node::{Node, NodeCreationContext, NodeHandle, NodeId},
-    parameter::{ParameterEventBehaviour, ParamValue, ReferenceTargetKind},
+    parameter::{
+        Parameter, ParameterChangeCheck, ParameterEventBehaviour, ParamValue,
+        ReferenceTargetKind,
+    },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -21,6 +24,7 @@ use crate::app::module_command::{self, ModuleCommandDeliveryPolicy, ModuleComman
 pub(crate) const GENERIC_COMMAND_ITEM_KIND: &str = "generic_command";
 
 pub(crate) const GENERIC_LOG_COMMAND_NODE_TYPE: &str = "generic_log_command";
+pub(crate) const GENERIC_INVOKE_COMMAND_NODE_TYPE: &str = "generic_invoke_command";
 pub(crate) const GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE: &str = "generic_set_parameter_command";
 pub(crate) const GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE: &str = "generic_trigger_parameter_command";
 
@@ -59,6 +63,7 @@ pub(crate) fn generic_command_supports_batch(node_type: &str) -> bool {
     matches!(
         node_type,
         GENERIC_LOG_COMMAND_NODE_TYPE
+            | GENERIC_INVOKE_COMMAND_NODE_TYPE
             | GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE
             | GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE
     )
@@ -73,7 +78,8 @@ pub(crate) fn generic_command_supports_batch(node_type: &str) -> bool {
     );
     value: ParamValue = ParamValue::Bool(false) (
         label = "Value",
-        description = "Value converted and written through the target parameter's constraints."
+        description = "Value converted and written through the target parameter's constraints.",
+        tags = vec![module_command::COMMAND_PRIMARY_VALUE_TAG.to_owned()]
     );
 )]
 pub struct GenericSetParameterCommand {
@@ -131,6 +137,33 @@ impl GenericSetParameterCommand {
     fn update_operation_warning(&mut self, ctx: &mut ProcessCtx, error: Option<String>) {
         update_command_warning(ctx, self.id(), &mut self.operation_warning, error);
     }
+
+    fn sync_value_type_to_target(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Some(target) = resolve_parameter_target(
+            snapshot.as_ref(),
+            &ParamValue::Reference(self.target.get_ref().clone()),
+        ) else {
+            return;
+        };
+        let Some(value) = snapshot.node(target).and_then(|node| node.param_value.clone()) else {
+            return;
+        };
+        let Some(current) = snapshot.node(self.value.id()) else {
+            return;
+        };
+        let mut replacement = Parameter::new(
+            current.label.as_str(),
+            value,
+            ParameterChangeCheck::ValueChange,
+        );
+        replacement.node_data_mut().meta.uuid = current.uuid;
+        replacement.node_data_mut().meta.tags = current.tags.clone();
+        replacement.node_data_mut().meta.presentation = current.presentation.clone();
+        ctx.replace_node(self.value.id(), replacement);
+    }
 }
 
 #[golden_core::item(
@@ -155,6 +188,10 @@ impl Node for GenericSetParameterCommand {
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if param == self.target.id() {
+            self.sync_value_type_to_target(ctx);
+            return;
+        }
         if ctx
             .tree_snapshot()
             .is_some_and(|snapshot| module_command::module_command_triggered(snapshot, self.id(), param))
@@ -165,6 +202,10 @@ impl Node for GenericSetParameterCommand {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         self.run_event(ctx, &event);
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        self.sync_value_type_to_target(ctx);
     }
 }
 
@@ -407,6 +448,187 @@ fn trigger_parameter(
     Ok(())
 }
 
+#[node("generic_invoke_command", label = "Invoke Existing Command")]
+#[children(
+    target: golden_core::node::NodeReference = golden_core::node::NodeReference::default() (
+        label = "Command",
+        description = "Existing command or output group invoked through this explicit advanced adapter.",
+        reference_target_kind = ReferenceTargetKind::AnyNode
+    );
+    unresolved_legacy_target: String = String::new() (
+        label = "Unresolved Legacy Target",
+        description = "Original target retained by migration when it could not be represented as a node reference. Select Command above to resolve it.",
+        read_only = true
+    );
+)]
+pub struct GenericInvokeCommand {
+    #[state(default = None)]
+    operation_warning: Option<String>,
+    base: GenericCommandBase,
+}
+
+impl GenericInvokeCommand {
+    pub fn create() -> Self {
+        Self::new(GenericCommandBase::new())
+    }
+
+    fn forward(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        executions: Vec<module_command::ModuleCommandExecuteEvent>,
+    ) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.update_operation_warning(
+                ctx,
+                Some("Invoke Existing Command requires a tree snapshot".to_owned()),
+            );
+            return;
+        };
+        let target = match generic_invoke_target(snapshot.as_ref(), self.id()) {
+            Ok(target) => target,
+            Err(error) => {
+                self.update_operation_warning(ctx, Some(error));
+                return;
+            }
+        };
+        let mut forwarded = executions
+            .into_iter()
+            .map(|mut execution| {
+                execution.command_id = target;
+                execution
+            })
+            .collect::<Vec<_>>();
+        let result = if forwarded.len() == 1 {
+            let execution = forwarded.pop().expect("one forwarded execution");
+            module_command::emit_command_execute_with_invocation(
+                ctx,
+                target,
+                execution.param_overrides,
+                execution.invocation_id,
+                execution.delivery_policy,
+            )
+            .map(|_| ())
+        } else if forwarded.is_empty() {
+            Ok(())
+        } else {
+            module_command::emit_command_execute_batch(ctx, target, forwarded).map(|_| ())
+        };
+        self.update_operation_warning(ctx, result.err());
+    }
+
+    fn update_operation_warning(&mut self, ctx: &mut ProcessCtx, error: Option<String>) {
+        update_command_warning(ctx, self.id(), &mut self.operation_warning, error);
+    }
+}
+
+#[golden_core::item(
+    "generic_command",
+    node = "generic_invoke_command",
+    via = base,
+    from_struct
+)]
+impl Node for GenericInvokeCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == GENERIC_INVOKE_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        matches!(event.kind, EventKind::ParamChanged { .. })
+            .then_some(u32::MAX)
+            .unwrap_or(0)
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
+        command_inbox_requires_tree_snapshot(events, self.id())
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if ctx
+            .tree_snapshot()
+            .is_some_and(|snapshot| module_command::module_command_triggered(snapshot, self.id(), param))
+        {
+            self.forward(
+                ctx,
+                vec![module_command::ModuleCommandExecuteEvent {
+                    command_id: self.id(),
+                    param_overrides: Vec::new(),
+                    invocation_id: None,
+                    delivery_policy: ModuleCommandDeliveryPolicy::Standard,
+                }],
+            );
+        }
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        if let Some(executions) = command_executions(&event, self.id()) {
+            self.forward(ctx, executions);
+        }
+    }
+}
+
+pub(crate) fn generic_invoke_target(
+    snapshot: &ProcessTreeSnapshot,
+    command: NodeId,
+) -> Result<NodeId, String> {
+    let target_param = module_command::resolve_module_command_child(snapshot, command, "target")
+        .ok_or_else(|| "Invoke Existing Command has no target control".to_owned())?;
+    let reference = snapshot
+        .node(target_param)
+        .and_then(|target| target.param_value.as_ref())
+        .and_then(|value| match value {
+            ParamValue::Reference(reference) if !reference.is_empty() => Some(reference),
+            _ => None,
+        })
+        .ok_or_else(|| "Invoke Existing Command requires a target".to_owned())?;
+    let target = reference
+        .cached_id()
+        .filter(|target| snapshot.node(*target).is_some())
+        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))
+        .ok_or_else(|| "Invoke Existing Command target is unavailable".to_owned())?;
+    if invoke_chain_reaches(snapshot, target, command, 0) {
+        return Err("Invoke Existing Command cannot target itself or form a command cycle".to_owned());
+    }
+    if !crate::app::systems_alchemist_managed_nodes::is_output_node(snapshot, target)
+        && !crate::app::systems_alchemist_managed_nodes::is_output_container(snapshot, target)
+    {
+        return Err("Invoke Existing Command target is not a command or output group".to_owned());
+    }
+    Ok(target)
+}
+
+fn invoke_chain_reaches(
+    snapshot: &ProcessTreeSnapshot,
+    candidate: NodeId,
+    origin: NodeId,
+    depth: usize,
+) -> bool {
+    if candidate == origin || depth >= 64 {
+        return true;
+    }
+    if snapshot
+        .node(candidate)
+        .is_none_or(|node| node.node_type != GENERIC_INVOKE_COMMAND_NODE_TYPE)
+    {
+        return false;
+    }
+    let Some(target_param) =
+        module_command::resolve_module_command_child(snapshot, candidate, "target")
+    else {
+        return false;
+    };
+    let Some(ParamValue::Reference(reference)) = snapshot
+        .node(target_param)
+        .and_then(|target| target.param_value.as_ref())
+    else {
+        return false;
+    };
+    reference
+        .cached_id()
+        .filter(|target| snapshot.node(*target).is_some())
+        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))
+        .is_some_and(|target| invoke_chain_reaches(snapshot, target, origin, depth + 1))
+}
+
 fn update_command_warning(
     ctx: &mut ProcessCtx,
     command: NodeId,
@@ -572,7 +794,8 @@ impl GenericLogRuntimeCache {
 #[children(
     message: String = String::new() (
         label = "Message",
-        description = "Text written to the log when this command is triggered."
+        description = "Text written to the log when this command is triggered.",
+        tags = vec![module_command::COMMAND_PRIMARY_VALUE_TAG.to_owned()]
     );
 )]
 pub struct GenericLogCommand {

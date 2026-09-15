@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use chataigne_alchemist::{
     AxisSet, CompileCtx, ContextAxisId, ContextKey, DebugCaptureMode, EvaluationCtx,
     ManagedItemId, RuntimeEvent, RuntimeInputSnapshot, RuntimeRegistries, SocketId, StableRef,
-    TriggerValue, ValueTypeId,
+    TriggerValue, ValueComponent, ValueTypeId,
 };
 use chataigne_state_machine::{
     alchemist::{shared_node_registry, shared_value_type_registry},
@@ -11,6 +11,7 @@ use chataigne_state_machine::{
 };
 use golden_core::{
     app::ProjectFileSpec,
+    edit::Edit,
     application::ProductionRuntime,
     node::{Folder, Node, NodeId, NodeReference, NodeUuid},
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour},
@@ -23,12 +24,21 @@ use crate::app::{
     StateMachineState, StateProcessor, StateProcessorManager,
 };
 use crate::app::systems_alchemist_formula::{
-    anode_from_snapshot, formula_from_snapshot, ANODE_CREATE_PREFIX,
+    anode_from_snapshot, create_anode_user_item_tree, formula_from_snapshot,
+    runtime_value_to_param, ANODE_CREATE_PREFIX,
 };
-use crate::app::systems_alchemist_generic_commands::GENERIC_LOG_COMMAND_NODE_TYPE;
+use crate::app::systems_alchemist_generic_commands::{
+    GENERIC_INVOKE_COMMAND_NODE_TYPE, GENERIC_LOG_COMMAND_NODE_TYPE,
+    GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE,
+};
+use crate::app::systems_alchemist_managed_nodes::{
+    mapping_output_binding_config,
+};
 use crate::app::systems_alchemist_processor::{
-    managed_regions_from_snapshot, managed_source_schema, processor_managed_region_decl_id,
-    FormulaSourceRef, PROCESSOR_MANAGED_REGIONS_DECL_ID,
+    managed_regions_from_snapshot, managed_source_schema,
+    migrate_mapping_output_adapters, processor_managed_region_decl_id,
+    FormulaSourceRef, MAPPING_CONCRETE_OUTPUTS_V1_TAG,
+    PROCESSOR_MANAGED_REGIONS_DECL_ID,
 };
 use chataigne_state_machine::{
     CommandArgumentValues, OutputArgumentBinding, OutputBindingConfig, OutputSendPolicy, OutputValueSource,
@@ -102,6 +112,13 @@ fn region(engine: &AppEngine, processor: NodeId, id: &str) -> NodeId {
 }
 
 fn create_item(engine: &mut AppEngine, parent: NodeId, node_type: &str) -> NodeId {
+    let node_type = if node_type
+        == format!("{ANODE_CREATE_PREFIX}chataigne.output_target")
+    {
+        GENERIC_INVOKE_COMMAND_NODE_TYPE
+    } else {
+        node_type
+    };
     let before = engine.process_tree_snapshot().child_ids(parent);
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent,
@@ -121,6 +138,48 @@ fn create_item(engine: &mut AppEngine, parent: NodeId, node_type: &str) -> NodeI
 
 fn set_config(engine: &mut AppEngine, item: NodeId, field: &str, value: ParamValue) {
     let snapshot = engine.process_tree_snapshot();
+    if snapshot.node(item).is_some_and(|node| {
+        node.node_type == GENERIC_INVOKE_COMMAND_NODE_TYPE
+            || node.node_type == GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE
+    }) && field == "target"
+    {
+        drop(snapshot);
+        set_direct_child_param(engine, item, "target", value);
+        return;
+    }
+    if snapshot.node(item).is_some_and(|node| {
+        node.node_type == GENERIC_INVOKE_COMMAND_NODE_TYPE
+            || node.node_type == GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE
+    }) && field == "bindings"
+    {
+        let ParamValue::Str(document) = value else {
+            panic!("Mapping bindings must be an authored JSON document");
+        };
+        let mut config = OutputBindingConfig::from_authoring_json(&document).unwrap();
+        if snapshot
+            .node(item)
+            .is_some_and(|node| node.node_type == GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE)
+            && config.arguments.is_empty()
+        {
+            let value = snapshot.find_child_by_decl_id(item, "value").unwrap();
+            config.arguments.push(OutputArgumentBinding {
+                parameter: StableRef::new(
+                    ValueTypeId::new("float"),
+                    snapshot.node(value).unwrap().uuid.0.to_string(),
+                ),
+                source: config.value.clone(),
+            });
+        }
+        drop(snapshot);
+        set_mapping_bindings(engine, item, &config);
+        let snapshot = engine.process_tree_snapshot();
+        assert!(
+            mapping_output_binding_config(&snapshot, item).is_ok(),
+            "typed Mapping binding should materialize: {:?}",
+            mapping_output_binding_config(&snapshot, item)
+        );
+        return;
+    }
     let config = snapshot.find_child_by_decl_id(item, "config").unwrap();
     let field = snapshot
         .find_child_by_decl_id(config, &format!("config/{field}"))
@@ -132,6 +191,167 @@ fn set_config(engine: &mut AppEngine, item: NodeId, field: &str, value: ParamVal
     });
     assert!(ack.success, "config field should accept the edit: {ack:?}");
     engine.apply_edits().unwrap();
+}
+
+fn set_mapping_bindings(
+    engine: &mut AppEngine,
+    command: NodeId,
+    config: &OutputBindingConfig,
+) {
+    let snapshot = engine.process_tree_snapshot();
+    let bindings = snapshot
+        .find_child_by_decl_id(command, "mapping_bindings")
+        .unwrap();
+    let existing_arguments = snapshot
+        .child_ids(bindings)
+        .into_iter()
+        .filter(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.node_type == "mapping_command_argument_binding"
+            })
+        })
+        .collect::<Vec<_>>();
+    drop(snapshot);
+    set_authored_value_source(engine, bindings, &config.value);
+    set_direct_child_param(
+        engine,
+        bindings,
+        "send_policy",
+        ParamValue::Enum(
+            match config.send_policy {
+                OutputSendPolicy::EveryDelivery => "every_delivery",
+                OutputSendPolicy::OnChange => "on_change",
+            }
+            .to_owned(),
+        ),
+    );
+    for argument in existing_arguments {
+        engine.edits.push(Edit::RemoveNode { node: argument });
+    }
+    engine.apply_edits().unwrap();
+    for argument in &config.arguments {
+        let binding = create_item(
+            engine,
+            bindings,
+            "mapping_command_argument_binding",
+        );
+        let uuid = argument.parameter.stable_id.parse::<uuid::Uuid>().unwrap();
+        set_direct_child_param(
+            engine,
+            binding,
+            "parameter",
+            ParamValue::Reference(NodeReference::new(NodeUuid(uuid))),
+        );
+        set_authored_value_source(engine, binding, &argument.source);
+    }
+}
+
+fn set_authored_value_source(
+    engine: &mut AppEngine,
+    owner: NodeId,
+    source: &OutputValueSource,
+) {
+    let (kind, element, component, constant) = match source {
+        OutputValueSource::Whole => ("whole", "", "x", ParamValue::Bool(false)),
+        OutputValueSource::Element(element) => {
+            ("element", element.as_str(), "x", ParamValue::Bool(false))
+        }
+        OutputValueSource::Component { element, component } => (
+            "component",
+            element.as_ref().map_or("", |element| element.as_str()),
+            match component {
+                ValueComponent::X => "x",
+                ValueComponent::Y => "y",
+                ValueComponent::Z => "z",
+                ValueComponent::R => "r",
+                ValueComponent::G => "g",
+                ValueComponent::B => "b",
+                ValueComponent::A => "a",
+            },
+            ParamValue::Bool(false),
+        ),
+        OutputValueSource::Constant(value) => (
+            "constant",
+            "",
+            "x",
+            runtime_value_to_param(value).unwrap(),
+        ),
+    };
+    set_direct_child_param(
+        engine,
+        owner,
+        "value_source",
+        ParamValue::Enum(kind.to_owned()),
+    );
+    set_direct_child_param(
+        engine,
+        owner,
+        "value_element",
+        ParamValue::Str(element.to_owned()),
+    );
+    set_direct_child_param(
+        engine,
+        owner,
+        "value_component",
+        ParamValue::Enum(component.to_owned()),
+    );
+    let (constant_type, constant_decl) = match constant {
+        ParamValue::Bool(_) => ("bool", "value_constant_bool"),
+        ParamValue::Int(_) => ("int", "value_constant_int"),
+        ParamValue::Float(_) => ("float", "value_constant_float"),
+        ParamValue::Str(_) => ("string", "value_constant_string"),
+        ParamValue::Vec2(_, _) => ("vec2", "value_constant_vec2"),
+        ParamValue::Vec3(_, _, _) => ("vec3", "value_constant_vec3"),
+        ParamValue::Color(_, _, _, _) => ("color", "value_constant_color"),
+        _ => panic!("unsupported standard Mapping constant"),
+    };
+    set_direct_child_param(
+        engine,
+        owner,
+        "value_constant_type",
+        ParamValue::Enum(constant_type.to_owned()),
+    );
+    set_direct_child_param(engine, owner, constant_decl, constant);
+}
+
+fn set_direct_child_param(
+    engine: &mut AppEngine,
+    item: NodeId,
+    decl_id: &str,
+    value: ParamValue,
+) {
+    let parameter = engine
+        .process_tree_snapshot()
+        .find_child_by_decl_id(item, decl_id)
+        .unwrap();
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: parameter,
+        value,
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "command field should accept the edit: {ack:?}");
+    engine.apply_edits().unwrap();
+}
+
+fn create_parameter_output(
+    engine: &mut AppEngine,
+    parent: NodeId,
+    target: NodeUuid,
+) -> NodeId {
+    let output = create_item(engine, parent, GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE);
+    set_config(
+        engine,
+        output,
+        "target",
+        ParamValue::Reference(NodeReference::new(target)),
+    );
+    set_config(
+        engine,
+        output,
+        "bindings",
+        ParamValue::Str(OutputBindingConfig::default().to_authoring_json().unwrap()),
+    );
+    output
 }
 
 fn set_socket_default(engine: &mut AppEngine, item: NodeId, socket: &str, value: ParamValue) {
@@ -164,6 +384,204 @@ fn transitional_command_manager(engine: &mut AppEngine) -> NodeId {
         .process_tree_snapshot()
         .node_id_by_uuid(uuid)
         .expect("transitional OutputTarget command should remain addressable")
+}
+
+#[test]
+fn action_and_mapping_catalogs_create_the_same_concrete_command() {
+    let (mut engine, _, processor) = mapping_engine();
+    let mapping_outputs = region(&engine, processor, "outputs");
+    let action_outputs = transitional_command_manager(&mut engine);
+
+    for container in [mapping_outputs, action_outputs] {
+        assert!(
+            engine
+                .nodes
+                .get(container)
+                .unwrap()
+                .user_creatable_items()
+                .iter()
+                .any(|item| item.node_type == GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE),
+            "both output contexts should advertise Set Parameter"
+        );
+    }
+
+    let mapping_command = create_item(
+        &mut engine,
+        mapping_outputs,
+        GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE,
+    );
+    let action_command = create_item(
+        &mut engine,
+        action_outputs,
+        GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE,
+    );
+    let snapshot = engine.process_tree_snapshot();
+    assert_eq!(
+        snapshot.node(mapping_command).unwrap().node_type,
+        snapshot.node(action_command).unwrap().node_type
+    );
+    assert!(
+        snapshot
+            .find_child_by_decl_id(mapping_command, "mapping_bindings")
+            .is_some(),
+        "Mapping should add its binding controls around the concrete command"
+    );
+    assert!(
+        snapshot
+            .find_child_by_decl_id(action_command, "mapping_bindings")
+            .is_none(),
+        "Action should use the concrete command directly"
+    );
+}
+
+#[test]
+fn legacy_mapping_output_migrates_to_explicit_invoke_without_moving_target() {
+    let (mut engine, _, processor) = mapping_engine();
+    let outputs = region(&engine, processor, "outputs");
+    let action_outputs = transitional_command_manager(&mut engine);
+    let command = create_item(&mut engine, action_outputs, GENERIC_LOG_COMMAND_NODE_TYPE);
+    let snapshot = engine.process_tree_snapshot();
+    let command_uuid = snapshot.node(command).unwrap().uuid;
+    let message = snapshot.find_child_by_decl_id(command, "message").unwrap();
+    let message_uuid = snapshot.node(message).unwrap().uuid;
+    drop(snapshot);
+
+    let legacy_type = format!("{ANODE_CREATE_PREFIX}chataigne.output_target");
+    let tree = create_anode_user_item_tree(&legacy_type).unwrap();
+    let legacy_uuid = tree.node.node_data().meta.uuid;
+    engine.edits.push(Edit::AddNodeTree {
+        parent: outputs,
+        prev_sibling: None,
+        tree,
+    });
+    engine.apply_edits().unwrap();
+    let legacy = engine
+        .process_tree_snapshot()
+        .node_id_by_uuid(legacy_uuid)
+        .unwrap();
+    set_config(
+        &mut engine,
+        legacy,
+        "target",
+        ParamValue::Reference(NodeReference::new(command_uuid)),
+    );
+    let expected = OutputBindingConfig {
+        value: OutputValueSource::Whole,
+        arguments: vec![OutputArgumentBinding {
+            parameter: StableRef::new(
+                ValueTypeId::new("string"),
+                message_uuid.0.to_string(),
+            ),
+            source: OutputValueSource::Constant(RuntimeValue::String(Arc::from(
+                "migrated",
+            ))),
+        }],
+        send_policy: OutputSendPolicy::OnChange,
+    };
+    set_config(
+        &mut engine,
+        legacy,
+        "bindings",
+        ParamValue::Str(expected.to_authoring_json().unwrap()),
+    );
+
+    migrate_mapping_output_adapters(&mut engine).unwrap();
+    engine.run_tick(Duration::ZERO).unwrap();
+    engine.run_tick(Duration::ZERO).unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let migrated = snapshot.node_id_by_uuid(legacy_uuid).unwrap();
+    assert_eq!(
+        snapshot.node(migrated).unwrap().node_type,
+        GENERIC_INVOKE_COMMAND_NODE_TYPE
+    );
+    assert_eq!(snapshot.node(command).unwrap().parent, Some(action_outputs));
+    assert_eq!(mapping_output_binding_config(&snapshot, migrated).unwrap(), expected);
+    assert!(snapshot
+        .node(snapshot.root())
+        .unwrap()
+        .tags
+        .iter()
+        .any(|tag| tag == MAPPING_CONCRETE_OUTPUTS_V1_TAG));
+    assert!(!snapshot.child_ids(outputs).into_iter().any(|child| {
+        snapshot
+            .node(child)
+            .is_some_and(|node| node.node_type == "alchemist_anode")
+    }));
+
+    let project = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&project).unwrap();
+    let loaded_snapshot = loaded.process_tree_snapshot();
+    let loaded_output = loaded_snapshot.node_id_by_uuid(legacy_uuid).unwrap();
+    assert_eq!(
+        mapping_output_binding_config(&loaded_snapshot, loaded_output).unwrap(),
+        expected
+    );
+    assert!(loaded_snapshot.node_id_by_uuid(command_uuid).is_some());
+}
+
+#[test]
+fn legacy_mapping_output_retains_unrepresentable_bindings_for_resolution() {
+    let (mut engine, _, processor) = mapping_engine();
+    let outputs = region(&engine, processor, "outputs");
+    let action_outputs = transitional_command_manager(&mut engine);
+    let command = create_item(&mut engine, action_outputs, GENERIC_LOG_COMMAND_NODE_TYPE);
+    let command_uuid = engine.process_tree_snapshot().node(command).unwrap().uuid;
+
+    let legacy_type = format!("{ANODE_CREATE_PREFIX}chataigne.output_target");
+    let tree = create_anode_user_item_tree(&legacy_type).unwrap();
+    let legacy_uuid = tree.node.node_data().meta.uuid;
+    engine.edits.push(Edit::AddNodeTree {
+        parent: outputs,
+        prev_sibling: None,
+        tree,
+    });
+    engine.apply_edits().unwrap();
+    let legacy = engine
+        .process_tree_snapshot()
+        .node_id_by_uuid(legacy_uuid)
+        .unwrap();
+    set_config(
+        &mut engine,
+        legacy,
+        "target",
+        ParamValue::Reference(NodeReference::new(command_uuid)),
+    );
+    let bindings = OutputBindingConfig {
+        value: OutputValueSource::Constant(RuntimeValue::Unit),
+        ..OutputBindingConfig::default()
+    };
+    let authored = bindings.to_authoring_json().unwrap();
+    set_config(
+        &mut engine,
+        legacy,
+        "bindings",
+        ParamValue::Str(authored.clone()),
+    );
+
+    migrate_mapping_output_adapters(&mut engine).unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let migrated = snapshot.node_id_by_uuid(legacy_uuid).unwrap();
+    let binding_manager = snapshot
+        .find_child_by_decl_id(migrated, "mapping_bindings")
+        .unwrap();
+    let retained = snapshot
+        .find_child_by_decl_id(binding_manager, "unresolved_legacy_bindings")
+        .unwrap();
+    assert_eq!(
+        snapshot.node(retained).unwrap().param_value,
+        Some(ParamValue::Str(authored))
+    );
+    assert_eq!(
+        mapping_output_binding_config(&snapshot, migrated).unwrap(),
+        OutputBindingConfig::default()
+    );
+    assert!(snapshot
+        .node(migrated)
+        .unwrap()
+        .presentation
+        .warnings
+        .iter()
+        .any(|warning| warning.message.contains("original binding document is retained")));
 }
 
 fn activate_mapping_processor(engine: &mut AppEngine, processor: NodeId) {
@@ -268,17 +686,7 @@ fn mapping_self_target_is_applied_by_the_queued_engine_path() {
         ParamValue::Reference(NodeReference::new(source)),
     );
     let outputs = region(&engine, processor, "outputs");
-    let output = create_item(
-        &mut engine,
-        outputs,
-        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
-    );
-    set_config(
-        &mut engine,
-        output,
-        "target",
-        ParamValue::Reference(NodeReference::new(source)),
-    );
+    let output = create_parameter_output(&mut engine, outputs, source);
     let bindings = OutputBindingConfig {
         value: OutputValueSource::Constant(RuntimeValue::Float(2.0)),
         send_policy: OutputSendPolicy::OnChange,
@@ -339,17 +747,7 @@ fn mapping_output_changes_its_filter_coefficient_on_the_next_engine_tick() {
     let maximum_uuid = snapshot.node(maximum).unwrap().uuid;
 
     let outputs = region(&engine, processor, "outputs");
-    let feedback = create_item(
-        &mut engine,
-        outputs,
-        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
-    );
-    set_config(
-        &mut engine,
-        feedback,
-        "target",
-        ParamValue::Reference(NodeReference::new(maximum_uuid)),
-    );
+    let feedback = create_parameter_output(&mut engine, outputs, maximum_uuid);
     let feedback_binding = OutputBindingConfig {
         value: OutputValueSource::Constant(RuntimeValue::Float(4.0)),
         send_policy: OutputSendPolicy::OnChange,
@@ -361,12 +759,7 @@ fn mapping_output_changes_its_filter_coefficient_on_the_next_engine_tick() {
         "bindings",
         ParamValue::Str(feedback_binding.to_authoring_json().unwrap()),
     );
-    let result = create_item(
-        &mut engine,
-        outputs,
-        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
-    );
-    set_config(&mut engine, result, "target", ParamValue::Reference(NodeReference::new(sink)));
+    create_parameter_output(&mut engine, outputs, sink);
 
     for _ in 0..12 {
         engine.run_tick(Duration::from_millis(8)).unwrap();
@@ -462,8 +855,8 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
         registries: &registries,
     });
     assert!(output_frame.diagnostics.is_empty(), "{:?}", output_frame.diagnostics);
-    let command_id = command_uuid.0.to_string();
-    let command_intent = output_frame.intents.iter().find(|intent| intent.target.as_ref().is_some_and(|target| target.stable_id.as_ref() == command_id)).unwrap();
+    let output_id = snapshot.node(output).unwrap().uuid.0.to_string();
+    let command_intent = output_frame.intents.iter().find(|intent| intent.target.as_ref().is_some_and(|target| target.stable_id.as_ref() == output_id)).unwrap();
     let arguments = CommandArgumentValues::from_runtime_value(&command_intent.payload).unwrap().unwrap();
     assert_eq!(arguments.value, RuntimeValue::Float(1.0));
     assert_eq!(arguments.arguments[0].value, RuntimeValue::String(Arc::from("mapped")));
@@ -481,7 +874,7 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
         registries: &registries,
     });
     assert!(revised_output.diagnostics.is_empty(), "{:?}", revised_output.diagnostics);
-    let revised_command = revised_output.intents.iter().find(|intent| intent.target.as_ref().is_some_and(|target| target.stable_id.as_ref() == command_id)).unwrap();
+    let revised_command = revised_output.intents.iter().find(|intent| intent.target.as_ref().is_some_and(|target| target.stable_id.as_ref() == output_id)).unwrap();
     let revised_arguments = CommandArgumentValues::from_runtime_value(&revised_command.payload).unwrap().unwrap();
     assert_eq!(revised_arguments.value, RuntimeValue::Float(1.25));
 
@@ -588,8 +981,8 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     assert_eq!(redone.node(redo_formula_ref).unwrap().param_value, Some(ParamValue::Reference(NodeReference::new(converted_uuid))));
     assert_eq!(redone.child_ids(region(&engine, redone.node_id_by_uuid(processor_uuid).unwrap(), "inputs")), vec![first, second]);
 
-    let authored_output = anode_from_snapshot(&snapshot, output).unwrap();
-    assert!(matches!(authored_output.config.get("bindings"), Some(RuntimeValue::String(_))));
+    let authored_bindings = mapping_output_binding_config(&snapshot, output).unwrap();
+    assert_eq!(authored_bindings, bindings);
 
     let region_uuids = ["inputs", "filters", "outputs"].map(|name| {
         snapshot.node(region(&engine, processor, name)).unwrap().uuid
@@ -628,8 +1021,8 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
         assert!(loaded_snapshot.node_id_by_uuid(uuid).is_some(), "authored item {uuid:?} should survive reload");
     }
     let loaded_output = loaded_snapshot.node_id_by_uuid(output_uuid).unwrap();
-    let loaded_instance = anode_from_snapshot(&loaded_snapshot, loaded_output).unwrap();
-    assert_eq!(loaded_instance.config.get("bindings"), authored_output.config.get("bindings"));
+    let loaded_bindings = mapping_output_binding_config(&loaded_snapshot, loaded_output).unwrap();
+    assert_eq!(loaded_bindings, authored_bindings);
     assert!(loaded_snapshot.node_id_by_uuid(command_uuid).is_some(), "output command identity should survive");
     let mut loaded_instance = loaded_formula.instantiate();
     loaded_instance.managed_regions = managed_regions_from_snapshot(&loaded_snapshot, loaded_processor, &loaded_formula).unwrap();

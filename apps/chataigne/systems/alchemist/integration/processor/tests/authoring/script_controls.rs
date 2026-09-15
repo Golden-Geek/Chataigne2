@@ -61,17 +61,7 @@ fn remap_mapping_engine() -> (AppEngine, NodeId, NodeId, NodeId, NodeId) {
         .find_child_by_decl_id(maximum_socket, "inputs/in_max/value")
         .unwrap();
     let outputs = region(&engine, processor, "outputs");
-    let output = create_item(
-        &mut engine,
-        outputs,
-        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
-    );
-    set_config(
-        &mut engine,
-        output,
-        "target",
-        ParamValue::Reference(NodeReference::new(sink)),
-    );
+    create_parameter_output(&mut engine, outputs, sink);
     for _ in 0..12 {
         engine.run_tick(Duration::from_millis(20)).unwrap();
     }
@@ -160,13 +150,8 @@ fn activating_state_with_mapping_control_updates_another_mappings_live_filter() 
     );
     set_config(&mut engine, input, "source", ParamValue::Reference(NodeReference::new(source)));
     let outputs = region(&engine, controller, "outputs");
-    let output = create_item(
-        &mut engine,
-        outputs,
-        &format!("{ANODE_CREATE_PREFIX}chataigne.output_target"),
-    );
     let maximum_uuid = engine.process_tree_snapshot().node(maximum).unwrap().uuid;
-    set_config(&mut engine, output, "target", ParamValue::Reference(NodeReference::new(maximum_uuid)));
+    create_parameter_output(&mut engine, outputs, maximum_uuid);
 
     for _ in 0..8 {
         engine.run_tick(Duration::from_millis(8)).unwrap();

@@ -524,12 +524,22 @@ fn bound_argument_overrides(
     command: NodeId,
     arguments: &[chataigne_state_machine::ResolvedCommandArgument],
 ) -> Result<crate::app::module_command::ModuleCommandParamOverrides, String> {
+    let argument_root = if snapshot.node(command).is_some_and(|node| {
+        node.node_type
+            == crate::app::systems_alchemist_generic_commands::GENERIC_INVOKE_COMMAND_NODE_TYPE
+    }) {
+        crate::app::systems_alchemist_generic_commands::generic_invoke_target(
+            snapshot, command,
+        )?
+    } else {
+        command
+    };
     let mut seen = HashSet::new();
     let mut overrides = Vec::with_capacity(arguments.len());
     for argument in arguments {
         let param = resolve_stable_ref_node(snapshot, &argument.parameter)
             .ok_or_else(|| format!("command argument `{}` is unavailable", argument.parameter.stable_id))?;
-        if !node_is_within(snapshot, param, command) {
+        if !node_is_within(snapshot, param, argument_root) {
             return Err(format!(
                 "command argument `{}` is outside target command",
                 argument.parameter.stable_id

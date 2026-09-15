@@ -856,8 +856,10 @@ fn managed_region_palette_does_not_advertise_filters_before_input_types_resolve(
     assert!(filter_items.is_empty());
     assert_eq!(input_items.len(), 1);
     assert_eq!(input_items[0].node_type, format!("{ANODE_CREATE_PREFIX}chataigne.input_source"));
-    assert_eq!(output_items.len(), 1);
-    assert_eq!(output_items[0].node_type, format!("{ANODE_CREATE_PREFIX}chataigne.output_target"));
+    assert!(output_items.len() >= 4);
+    assert!(!output_items
+        .iter()
+        .any(|item| item.node_type == format!("{ANODE_CREATE_PREFIX}chataigne.output_target")));
     assert!(!input_items
         .iter()
         .any(|item| item.node_type == condition_gate_type));

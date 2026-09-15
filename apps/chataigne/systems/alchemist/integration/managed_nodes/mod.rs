@@ -15,11 +15,18 @@ use golden_core::{
 const INPUT_ITEM_KIND: &str = "sm_input";
 use crate::app::module_command;
 use crate::app::systems_alchemist_generic_commands::{
-    GENERIC_COMMAND_ITEM_KIND, GENERIC_LOG_COMMAND_NODE_TYPE, generic_command_supports_batch,
+    GENERIC_COMMAND_ITEM_KIND, GENERIC_INVOKE_COMMAND_NODE_TYPE,
+    GENERIC_LOG_COMMAND_NODE_TYPE, generic_command_supports_batch,
 };
 
+mod command_binding;
 mod schedule;
 
+pub use command_binding::{MappingCommandArgumentBinding, MappingCommandBindings};
+pub(crate) use command_binding::{
+    ensure_mapping_command_bindings, mapping_command_bindings_tree,
+    mapping_output_binding_config, UNRESOLVED_LEGACY_BINDINGS_DECL,
+};
 pub(crate) use schedule::{OutputRuntimeTarget, OutputSchedule};
 const GENERIC_OUTPUT_MENU_PATH: &str = "Generic";
 
@@ -499,21 +506,26 @@ pub struct OutputsManager {
     output_cache: OutputRuntimeCache,
 }
 
-fn output_generic_items() -> Vec<UserCreatableItem> {
+pub(crate) fn output_generic_items() -> Vec<UserCreatableItem> {
     crate::app::declared_user_creatable_items(GENERIC_COMMAND_ITEM_KIND)
         .into_iter()
         .map(|item| {
-            item.with_menu_path([GENERIC_OUTPUT_MENU_PATH])
+            let item = if item.node_type == GENERIC_INVOKE_COMMAND_NODE_TYPE {
+                item.with_menu_path([GENERIC_OUTPUT_MENU_PATH, "Advanced"])
+            } else {
+                item.with_menu_path([GENERIC_OUTPUT_MENU_PATH])
+            };
+            item
                 .with_select_when_created(false)
         })
         .collect()
 }
 
-fn output_group_item() -> UserCreatableItem {
+pub(crate) fn output_group_item() -> UserCreatableItem {
     UserCreatableItem::new(OUTPUT_GROUP_NODE_TYPE, OUTPUT_GROUP_ITEM_KIND, "Group").with_select_when_created(false)
 }
 
-fn output_container_accepts_item(item_type: &str, item_kind: &str) -> bool {
+pub(crate) fn output_container_accepts_item(item_type: &str, item_kind: &str) -> bool {
     item_kind == GENERIC_COMMAND_ITEM_KIND
         && crate::app::declared_user_item_type_matches(item_type, GENERIC_COMMAND_ITEM_KIND)
         || item_kind == crate::app::module_command::MODULE_COMMAND_ITEM_KIND
@@ -524,7 +536,7 @@ fn output_container_accepts_item(item_type: &str, item_kind: &str) -> bool {
         || item_kind == OUTPUT_GROUP_ITEM_KIND && item_type == OUTPUT_GROUP_NODE_TYPE
 }
 
-fn output_container_create_item(node_type: &str) -> Option<Box<dyn Node>> {
+pub(crate) fn output_container_create_item(node_type: &str) -> Option<Box<dyn Node>> {
     crate::app::create_declared_user_item(node_type, GENERIC_COMMAND_ITEM_KIND)
         .or_else(|| {
             crate::app::create_declared_user_item(node_type, crate::app::module_command::MODULE_COMMAND_ITEM_KIND)
@@ -549,7 +561,7 @@ fn collect_module_roots(snapshot: &ProcessTreeSnapshot) -> Vec<NodeId> {
     modules
 }
 
-fn output_module_command_items(
+pub(crate) fn output_module_command_items(
     snapshot: &ProcessTreeSnapshot,
     child_catalog: &dyn Fn(NodeId) -> Vec<UserCreatableItem>,
 ) -> Vec<UserCreatableItem> {

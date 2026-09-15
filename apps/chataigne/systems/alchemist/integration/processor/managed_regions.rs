@@ -1,10 +1,17 @@
 use chataigne_alchemist::{
-    AlchemistFormula, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionInstance,
-    ManagedRegionInstances,
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, ManagedItemId,
+    ManagedItemInstance, ManagedItemUiState, ManagedRegionInstance, ManagedRegionInstances,
+    StableRef, SurfaceItemKind, ValueTypeId,
 };
+use golden_values::Value as RuntimeValue;
 use golden_core::{node::NodeId, process_ctx::ProcessTreeSnapshot};
 
 use crate::app::systems_alchemist_formula::{anode_from_snapshot, ANODE_NODE_TYPE};
+use crate::app::systems_alchemist_managed_nodes::{
+    is_output_node, mapping_output_binding_config,
+};
+use chataigne_state_machine::{OUTPUT_BINDINGS_FIELD, OUTPUT_TARGET_FIELD};
+use chataigne_state_machine::alchemist::OUTPUT_TARGET_TYPE;
 
 use super::processor_managed_region_decl_id;
 
@@ -25,10 +32,15 @@ pub(crate) fn managed_regions_from_snapshot(
         };
         for child in snapshot.child_ids(region_node) {
             let child_node = snapshot.node(child)?;
-            if child_node.node_type != ANODE_NODE_TYPE {
+            let anode = if child_node.node_type == ANODE_NODE_TYPE {
+                anode_from_snapshot(snapshot, child).ok()?
+            } else if definition.accepted_roles.contains(&SurfaceItemKind::Output)
+                && is_output_node(snapshot, child)
+            {
+                command_output_anode(snapshot, child)?
+            } else {
                 continue;
-            }
-            let anode = anode_from_snapshot(snapshot, child).ok()?;
+            };
             region.items.push(ManagedItemInstance {
                 id: ManagedItemId::from_uuid(child_node.uuid.0),
                 anode,
@@ -41,4 +53,32 @@ pub(crate) fn managed_regions_from_snapshot(
         regions.regions.insert(definition.id.clone(), region);
     }
     Some(regions)
+}
+
+fn command_output_anode(
+    snapshot: &ProcessTreeSnapshot,
+    command: NodeId,
+) -> Option<ANodeInstance> {
+    let command_node = snapshot.node(command)?;
+    let mut anode = ANodeInstance::new(
+        ANodeTypeId::new(OUTPUT_TARGET_TYPE),
+        command_node.label.clone(),
+    );
+    anode.id = ANodeId::from_uuid(command_node.uuid.0);
+    anode.enabled = command_node.enabled;
+    anode.config.set(
+        OUTPUT_TARGET_FIELD,
+        RuntimeValue::Ref(StableRef::new(
+            ValueTypeId::new(command_node.node_type.clone()),
+            command_node.uuid.0.to_string(),
+        )),
+    );
+    anode.config.set(
+        OUTPUT_BINDINGS_FIELD,
+        mapping_output_binding_config(snapshot, command)
+            .ok()?
+            .to_runtime_value()
+            .ok()?,
+    );
+    Some(anode)
 }

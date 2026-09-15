@@ -28,6 +28,7 @@ pub(crate) const MODULE_COMMAND_EXECUTE_BATCH_MAX_EXECUTIONS: usize = 512;
 pub const MODULE_COMMAND_TESTER_LABEL: &str = "Command Tester";
 pub const MODULE_COMMAND_TESTER_DESCRIPTION: &str = "Create and trigger ad-hoc commands through this module.";
 pub const MODULE_COMMAND_TARGET_MODULE_PATH: &str = "target_module";
+pub const COMMAND_PRIMARY_VALUE_TAG: &str = "chataigne.command.primary_value";
 const MODULE_COMMAND_TRIGGER_PATH: &str = "trigger";
 const MODULE_COMMAND_AUTO_TRIGGER_PATH: &str = "auto_trigger";
 
@@ -117,6 +118,35 @@ pub(crate) fn resolve_module_command_child(
     find_direct_child_by_decl_id(snapshot, command_id, path)
         .or_else(|| find_descendant_by_decl_id(snapshot, command_id, path))
         .or_else(|| snapshot.resolve_path_from(command_id, path))
+}
+
+pub(crate) fn command_primary_value_parameter(
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+) -> Option<NodeId> {
+    snapshot
+        .child_ids(command_id)
+        .into_iter()
+        .find_map(|child| command_primary_value_parameter_in(snapshot, child))
+}
+
+fn command_primary_value_parameter_in(
+    snapshot: &ProcessTreeSnapshot,
+    node_id: NodeId,
+) -> Option<NodeId> {
+    let node = snapshot.node(node_id)?;
+    if node.param_value.is_some()
+        && node
+            .tags
+            .iter()
+            .any(|tag| tag == COMMAND_PRIMARY_VALUE_TAG)
+    {
+        return Some(node_id);
+    }
+    snapshot
+        .child_ids(node_id)
+        .into_iter()
+        .find_map(|child| command_primary_value_parameter_in(snapshot, child))
 }
 
 fn resolve_module_command_control(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<NodeId> {

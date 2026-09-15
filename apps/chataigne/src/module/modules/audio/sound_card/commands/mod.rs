@@ -301,7 +301,8 @@ impl Node for SoundCardStopAllFilesCommand {
 #[children(
     volume_db: f64 = 0.0 [-120.0..24.0] (
         label = "Volume",
-        description = "Master output target in decibels."
+        description = "Master output target in decibels.",
+        tags = vec![crate::app::module_command::COMMAND_PRIMARY_VALUE_TAG.to_owned()]
     );
 )]
 pub struct SoundCardSetMasterVolumeCommand {

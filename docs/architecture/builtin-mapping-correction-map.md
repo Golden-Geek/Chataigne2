@@ -6,7 +6,7 @@ starting point for phases R00–R08 in
 `docs/plan/builtin-mapping-codex-plan.md`; it does not describe the desired
 final authoring contract.
 
-## Current authored hierarchy
+## Corrective baseline hierarchy
 
 A built-in Formula is loaded from `apps/chataigne/resources/formulas/builtin`
 by the app-owned Formula catalog. Formula property managers declare processor
@@ -73,6 +73,32 @@ the authored-item inventory. Mapping-specific OutputTarget adapters are
 accepted only as transitional R01 data; R02 replaces them with concrete shared
 command children.
 
+## R02 resulting command boundary
+
+Action and Mapping now use the same registered generic and module command
+catalogs and the same concrete command factories. A Mapping Outputs region
+creates the selected command or output group directly. Each concrete Mapping
+command also owns a `MappingCommandBindings` child whose ordinary controls
+select the whole result, a stable tuple element, a component, or a typed
+constant for delivery and command-argument overrides. The filtered result may
+therefore remain an ordered heterogeneous tuple, reduce several sources to one
+value, or pack X/Y/Z into one Vec3 command argument without a channel model.
+
+The processor snapshot adapter lowers those concrete command descendants to
+the domain-neutral output runtime contract. The state-machine command boundary
+validates target parameters and applies incoming typed values only to the
+invocation; it never writes those values back into the command's authored
+parameters. Existing delay, stagger, cancellation, grouping, occurrence,
+accepted-send cache, and queued dispatch behavior remains shared with Action.
+
+`Invoke Existing Command` remains an explicit advanced generic command for
+references to commands owned elsewhere. The R02 migration replaces each old
+Mapping `OutputTarget` in place while preserving its UUID, position,
+presentation, target, and binding configuration. Referenced external commands
+remain with their original owner. A malformed target or a legacy constant that
+ordinary controls cannot represent is retained in a read-only resolution field
+with a warning; no compatibility evaluator remains on the execution path.
+
 ## Action command path
 
 The shipped Action asset is
@@ -91,21 +117,22 @@ overrides, and bounded batches, then emits the existing module-command execute
 event to the concrete command node. Generic and module command nodes consume
 the same execute contract in their app-owned implementations.
 
-`ConsequencesManager` is a separate older `sm_consequence` registry container;
-it does not use the `OutputsManager` catalog. R02 must consolidate shared
-command responsibilities deliberately rather than treating their labels as an
-already unified implementation.
+`ConsequencesManager` remains a separate older `sm_consequence` registry
+container. R02 consolidates Action and Mapping through the `OutputsManager`
+command catalogs and concrete factories; it does not treat the unrelated
+consequence registry as part of that shared command boundary.
 
 ## Current Mapping execution path
 
 Mapping's file-authored surface metadata declares input, filter, and output
-managed regions. The processor snapshot adapter turns region ANode children
-into `ManagedRegionInstances` and uses each ANode UUID as its stable
-`ManagedItemId`. The processor crate lowers the ordered Input Source values to
-one scalar or heterogeneous tuple, compiles the linear filter chain, and lowers
-OutputTarget adapters into validated command intents. The manager schedules
-dirty and temporal work, retains state by processor/context/item identity, and
-dispatches through the queued engine command boundary.
+managed regions. The processor snapshot adapter turns input/filter ANode
+children and concrete output commands into `ManagedRegionInstances`, using
+each authored item UUID as its stable `ManagedItemId`. The processor crate
+lowers the ordered Input Source values to one scalar or heterogeneous tuple,
+compiles the linear filter chain, and materializes validated command intents
+from each command's typed binding controls. The manager schedules dirty and
+temporal work, retains state by processor/context/item identity, and dispatches
+through the queued engine command boundary.
 
 The runtime pieces to preserve are:
 
@@ -140,18 +167,18 @@ migrated:
 The migration must preserve processor UUIDs, managed region role IDs, authored
 ANode UUIDs, stable tuple element identities, Formula source references,
 context identities, and references to nested filter/resource parameters.
-Visible processor surface declaration IDs currently derive from Formula
-property source UUIDs. Hidden region declaration IDs derive from stable Formula
-managed-region IDs. R01 must move existing authored item subtrees into the
-ordinary role managers without cloning them or allocating replacement UUIDs.
+Visible processor surface declaration IDs derive from Formula property source
+UUIDs. Hidden region declaration IDs derive from stable Formula managed-region
+IDs. R01 moved existing authored item subtrees into the ordinary role managers
+without cloning them or allocating replacement UUIDs.
 
 Existing Mapping output adapters contain a referenced command UUID and a
-serialized binding document. R02 owns their typed migration. A referenced
-external command must not be stolen or deleted; ambiguous adapters must retain
-their data with an attributed migration warning. Existing migration code lives
-in `integration/formula/binding_migration.rs`, while processor sparse
-persistence, duplication, and conversion coverage lives under
-`integration/processor/tests`.
+serialized binding document. R02 migrates them through
+`integration/processor/output_migration.rs`. A referenced external command is
+not stolen or deleted, and ambiguous data is retained with an attributed
+migration warning. Older binding-document normalization remains in
+`integration/formula/binding_migration.rs`; processor sparse persistence,
+duplication, and conversion coverage lives under `integration/processor/tests`.
 
 The shipped `Mapping.json` and `Action.json` assets, sparse project fixtures,
 old OutputTarget binding documents, converted custom Formula fixtures, copied

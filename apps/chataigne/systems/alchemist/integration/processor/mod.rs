@@ -25,7 +25,10 @@ use crate::app::{
     AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager,
 };
 use crate::app::systems_alchemist_managed_nodes::{
-    OUTPUT_GROUP_ITEM_KIND, OUTPUT_GROUP_NODE_TYPE,
+    OUTPUT_GROUP_ITEM_KIND, ensure_mapping_command_bindings,
+    is_output_node, output_container_accepts_item, output_container_create_item,
+    mapping_command_bindings_tree, output_generic_items, output_group_item,
+    output_module_command_items,
 };
 use crate::app::systems_alchemist_generic_commands::GENERIC_COMMAND_ITEM_KIND;
 
@@ -33,11 +36,15 @@ mod catalog;
 mod conversion;
 mod factory;
 mod managed_regions;
+mod output_migration;
 mod palette;
 mod source_schema;
 mod surface;
 
 pub(crate) use managed_regions::managed_regions_from_snapshot;
+pub(crate) use output_migration::{
+    migrate_mapping_output_adapters, MAPPING_CONCRETE_OUTPUTS_V1_TAG,
+};
 pub(crate) use source_schema::{managed_source_node, managed_source_schema};
 
 use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
@@ -803,15 +810,8 @@ impl Node for StateProcessorManagedRegion {
         {
             return true;
         }
-        if roles.contains(&SurfaceItemKind::Output)
-            && (item_kind == GENERIC_COMMAND_ITEM_KIND
-                && crate::app::declared_user_item_type_matches(item_type, item_kind)
-                || item_kind == crate::app::module_command::MODULE_COMMAND_ITEM_KIND
-                    && crate::app::declared_user_item_type_matches(item_type, item_kind)
-                || item_kind == OUTPUT_GROUP_ITEM_KIND
-                    && item_type == OUTPUT_GROUP_NODE_TYPE)
-        {
-            return true;
+        if roles.contains(&SurfaceItemKind::Output) {
+            return output_container_accepts_item(item_type, item_kind);
         }
         if roles.contains(&SurfaceItemKind::Filter) {
             return item_kind == ANODE_ITEM_KIND
@@ -826,15 +826,85 @@ impl Node for StateProcessorManagedRegion {
         if roles.contains(&SurfaceItemKind::Filter) {
             return self.filter_items.clone();
         }
+        if roles.contains(&SurfaceItemKind::Output) {
+            return output_generic_items()
+                .into_iter()
+                .chain(std::iter::once(output_group_item()))
+                .collect();
+        }
         anode_creatable_items_for_roles(&roles)
     }
 
+    fn user_creatable_items_require_tree_snapshot(&self) -> bool {
+        managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Output)
+    }
+
+    fn user_creatable_items_with_context(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        _parent: NodeId,
+        child_catalog: &dyn Fn(NodeId) -> Vec<UserCreatableItem>,
+    ) -> Vec<UserCreatableItem> {
+        if managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Output)
+        {
+            return output_module_command_items(snapshot, child_catalog)
+                .into_iter()
+                .chain(output_generic_items())
+                .chain(std::iter::once(output_group_item()))
+                .collect();
+        }
+        self.user_creatable_items()
+    }
+
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        if managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Output)
+        {
+            return output_container_create_item(node_type);
+        }
         create_anode_user_item(node_type)
     }
 
     fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        if managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Output)
+        {
+            return output_container_create_item(node_type).map(|command| {
+                NodeTree::boxed(command)
+                    .with_child(mapping_command_bindings_tree(None))
+            });
+        }
         create_anode_user_item_tree(node_type)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        if managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Output)
+            && matches!(
+                event.kind,
+                EventKind::ChildAdded { .. } | EventKind::ChildReplaced { .. }
+            )
+        {
+            u32::MAX
+        } else {
+            0
+        }
+    }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, child: NodeId) {
+        self.ensure_output_bindings_for_descendant(ctx, child);
+    }
+
+    fn on_child_replaced(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _parent: NodeId,
+        _old: NodeId,
+        new: NodeId,
+    ) {
+        self.ensure_output_bindings_for_descendant(ctx, new);
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -1200,6 +1270,34 @@ fn filter_palette_events_require_refresh(
 }
 
 impl StateProcessorManagedRegion {
+    fn ensure_output_bindings_for_descendant(
+        &self,
+        ctx: &mut ProcessCtx,
+        descendant: NodeId,
+    ) {
+        if !managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Output)
+        {
+            return;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let mut output = descendant;
+        loop {
+            let Some(parent) = snapshot.node(output).and_then(|node| node.parent) else {
+                return;
+            };
+            if parent == self.id() {
+                break;
+            }
+            output = parent;
+        }
+        if is_output_node(snapshot.as_ref(), output) {
+            ensure_mapping_command_bindings(ctx, output);
+        }
+    }
+
     fn refresh_filter_palette(&mut self, ctx: &mut ProcessCtx) {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return;

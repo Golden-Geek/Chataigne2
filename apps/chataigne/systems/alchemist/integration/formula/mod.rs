@@ -72,7 +72,10 @@ pub(crate) use snapshot::{
     local_signature_bindings, node_has_warning, node_warning_detail, node_warning_matches,
     ANodeMaterializationCache,
 };
-pub(crate) use value_bridge::{constraint_value_type, param_to_runtime_value, runtime_value_to_param};
+pub(crate) use value_bridge::{
+    constraint_value_type, param_to_runtime_value, param_to_untyped_runtime_value,
+    runtime_value_to_param,
+};
 pub(crate) use value_bridge::formula_runtime_param_change_requires_rematerialization;
 pub(crate) use properties::formula_managed_regions_from_snapshot;
 pub(crate) use value_bridge::{

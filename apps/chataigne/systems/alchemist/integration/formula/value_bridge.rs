@@ -130,7 +130,7 @@ pub(crate) fn param_to_runtime_value(
     }
 }
 
-pub(super) fn param_to_untyped_runtime_value(value: &ParamValue) -> Result<RuntimeValue, String> {
+pub(crate) fn param_to_untyped_runtime_value(value: &ParamValue) -> Result<RuntimeValue, String> {
     Ok(match value {
         ParamValue::Trigger() => RuntimeValue::Trigger(TriggerValue::default()),
         ParamValue::Bool(value) => RuntimeValue::Bool(*value),
