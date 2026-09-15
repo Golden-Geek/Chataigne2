@@ -5,15 +5,59 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active phase: 11 — qualification, performance, and final cleanup (in progress).
-- Last validated implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (Phase 11 M20 inspector state and benchmark workflow checkpoint)
-- Last verified remote implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (Phase 11 M20 inspector state and benchmark workflow checkpoint)
-- Current blockers: interactive desktop product checks cannot run under the repository's no-desktop-control rule; a headless readiness probe was rejected by automatic command review. The first exact-commit benchmark run executed all three scenarios but failed comparison because the historical Golden Engine baseline is unqualified; a raw-sample reference run is being prepared. Main CI completed with all app builds, Golden Engine, UI, and Windows/macOS audio hosts passing; the only failed job is the Linux Golden Audio null-backend soak, also seen on the prior `main` run. Indexed command-listener lookup reduces two guarded 1,000-processor dispatch repeats to 10.991–11.167 ms p95, with exact command delivery and zero steady snapshots. Creating 1,000 new processors takes 2.552–2.606 seconds with three lifecycle snapshots; sparse-project reload takes about 3.22 seconds.
-- Product checks still outstanding: interactive Mapping inspector/context switching and desktop/headless/watch smoke. The inspector now clamps a stale virtual-list offset and resets selection, preview, context, and list scroll when switching processors; actual product interaction still requires qualification.
-- Next concrete action: run the batch-built Golden Engine benchmark fixture on its reference runner, retain raw samples, and qualify its separate baseline; then qualify M20 and the unavailable desktop/headless/watch checks before closing Phase 11.
-- Last updated: 2026-09-14T14:05:24+02:00
+- Active corrective phase: R00 — reopen acceptance and establish the correction baseline.
+- Corrective-plan anchor: `a94b9a7e20c9c240c7f29ab1674c90d304289987`; the revised plan supersedes the prior authoring/output/inspector contract while preserving useful runtime work.
+- Last validated historical implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (old Phase 11 M20 inspector state and benchmark workflow checkpoint).
+- Last verified remote branch commit before R00: `a94b9a7e20c9c240c7f29ab1674c90d304289987`.
+- Current corrective blockers: none. Interactive desktop and headless/watch product gates remain future R05/R08 qualification work, not an R00 blocker.
+- Corrected product checks outstanding: N01–N24 all begin `NOT_RUN`; prior M01–M20 results are historical runtime evidence and do not prove the revised node-first contract.
+- Next concrete action: finish and deliver R00's plan replacement, implementation map, backend characterization, and runnable baseline; then start R01 normal hierarchy work.
+- Last updated: 2026-09-15T16:24:45+02:00
 
-## Phase ledger
+## Corrective phase ledger
+
+| Phase | Status | Implementation | Validation | Delivery | Evidence / blocker |
+| --- | --- | --- | --- | --- | --- |
+| R00 | IN_PROGRESS | IMPLEMENTED | PASSED | NOT_DELIVERED | Canonical revised plan, exact correction map, backend characterization, and full runnable baseline pass in the worktree. |
+| R01 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Restore one visible authoritative Mapping hierarchy and ordinary child inspection. |
+| R02 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Unify concrete command authoring and invocation. |
+| R03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Decouple filter creation from current executability. |
+| R04 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Complete normal controls, warnings, and optional preview supplements. |
+| R05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Requalify persistence, conversion, and expanded-node product behavior. |
+| R06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Add representation-independent command lowering and immutable frozen source. |
+| R07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Add explicit default-Off compression and atomic reversible transitions. |
+| R08 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Final N01–N24, performance, product, CI, and cleanup qualification. |
+
+## Corrected-contract acceptance coverage
+
+| ID | Scenario | Owning phase | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| N01 | Fresh Mapping | R01, R07 | Real visible managers immediately; compression Off; no preview request. | NOT_RUN |
+| N02 | Every authored item is a node | R01, R02, R04 | Snapshot/outliner/reference evidence for items, bindings, and nested controls. | NOT_RUN |
+| N03 | No shadow authoring tree | R01 | One authoritative editable hierarchy and no duplicated manager contents. | NOT_RUN |
+| N04 | Ordinary inspector | R01, R04 | Default child renderer and standard context menus/editing. | NOT_RUN |
+| N05 | Create filters before inputs | R03 | Every registered filter creates, persists, and undoes with zero inputs. | NOT_RUN |
+| N06 | Create inside invalid chain | R03 | Palette and backend authoring remain available after incompatible stages. | NOT_RUN |
+| N07 | Warnings, then recovery | R03, R04 | Node-local warning, blocked dispatch, and identity-preserving recovery. | NOT_RUN |
+| N08 | Identical headless creation | R03, R04 | UI, headless, script, paste, and duplicate share creatability rules. | NOT_RUN |
+| N09 | Shared command catalog | R02 | One registered command creates concrete Action and Mapping children. | NOT_RUN |
+| N10 | Real module command | R02 | Owned module command initializes target and executes without an adapter. | NOT_RUN |
+| N11 | Shared typed argument binding | R02, R04 | Ordinary typed controls and invocation overrides without authored-value mutation. | NOT_RUN |
+| N12 | Fan-out, groups, timing | R02, R05 | Shared result, delay/stagger/cancel, accepted-send, and exact effects. | NOT_RUN |
+| N13 | Controllable from everywhere | R04, R05 | State, Mapping, script, and headless edits reach normal nodes. | NOT_RUN |
+| N14 | Stable identity and state | R01, R03, R05 | Reorder/rename/add/type changes preserve or deliberately reset identity/state. | NOT_RUN |
+| N15 | Persistence/migration | R01, R02, R05 | Existing data retained or attributed; save/load/duplicate/undo and ownership pass. | NOT_RUN |
+| N16 | Custom Formula conversion | R05 | Commands, bindings, resources, graph semantics, and editor behavior survive. | NOT_RUN |
+| N17 | Compression default and scope | R07 | Expanded default; explicit compression removes actual workflow nodes. | NOT_RUN |
+| N18 | Dependency preflight | R06, R07 | Exact blockers preserve editable data and references. | NOT_RUN |
+| N19 | Compressed equivalence | R06, R07, R08 | Expanded/frozen values, commands, contexts, suppression, and triggers agree. | NOT_RUN |
+| N20 | Compressed lock and feedback | R07 | Frozen edits fail consistently; feedback remains useful; preview creates no nodes. | NOT_RUN |
+| N21 | Atomic transition and failure | R07 | Rollback, stale revision, state continuity, and no replay/double-run. | NOT_RUN |
+| N22 | Restore and duplicate compressed data | R07 | Reload/expand/undo/duplicate/import identity maps and effects pass. | NOT_RUN |
+| N23 | Product regression | R05, R08 | Action, modules, Formula editor, ordinary UI, context, and launch workflows. | NOT_RUN |
+| N24 | Separate performance qualification | R08 | Expanded/compressed counts and costs; no mandatory debug/JSON/tree creation. | NOT_RUN |
+
+## Historical phase ledger (superseded contract)
 
 | Phase | Status | Implementation | Validation | Delivery | CI | Evidence / blocker |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -30,7 +74,7 @@
 | 10 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | NOT_APPLICABLE_WITH_REASON | `e539ada8` observed at the remote; configured processor and project Formula conversion, reset policy, undo/redo, sparse persistence, continued inspector editing, and Rust/UI gates pass. Direct branch pushes have no required CI. |
 | 11 | IN_PROGRESS | IN_PROGRESS | PARTIAL | PUSH_VERIFIED_CHECKPOINT | FAILED_PREEXISTING | Phase 11 implementation through `1702780d` verified at the remote; broad Rust/UI/product gates and guarded 128/256/1,000 scale pass. M20 list-shrink and processor-switch behavior is repaired and covered by UI model/build gates, with interactive qualification outstanding. Indexed command-listener lookup measures 10.991–11.167 ms p95 with exact 1,000-processor delivery and zero steady snapshots. Benchmark run `34835891769` executed all scenarios but correctly rejected an unqualified historical baseline; raw-sample reference work is pending. Main CI's only failed job is the prior-main Linux audio soak. |
 
-## Acceptance coverage
+## Historical M01–M20 acceptance coverage
 
 | Acceptance ID | Scenario | Owning phase | Test/evidence | Status |
 | --- | --- | --- | --- | --- |
@@ -59,6 +103,11 @@
 
 | Timestamp | Phase | Tested revision | Command/scenario | Environment | Result | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-09-15T16:24+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | Canonical plan replacement and source inventory | Windows x64 | PASSED | The 2026-09-15 corrective plan now occupies `docs/plan/builtin-mapping-codex-plan.md`; R00–R08 and N01–N24 markers are present. The temporary review filename was removed. `docs/architecture/builtin-mapping-correction-map.md` traces Mapping and Action ownership, runtime IDs, shared command dispatch, persistence inputs, keep/adapt/remove decisions, and test ownership. |
+| 2026-09-15T16:31+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 mapping_correction_baseline --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Two new backend characterizations pass: the snapshot proves that the hidden managed authoring root and visible Inputs surface manager are distinct, and three typed sources reduce through Sum to an exact queued sink value without preview setup. |
+| 2026-09-15T16:32+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `.\tools\asio.ps1 -- cargo test-fast --locked -p chataigne_alchemist -p chataigne_processor --quiet`; `.\tools\asio.ps1 -- cargo test-fast --locked -p Chataigne2 --quiet` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | 179 Alchemist and 123 processor tests pass. The app reports 574 passed and eight existing ignored tests, plus one audio-host integration test. This preserves typed tuple/filter/runtime and existing Action/Mapping behavior as a correction baseline. |
+| 2026-09-15T16:33+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `.\tools\asio.ps1 -- cargo check --locked --workspace --quiet`; `.\tools\asio.ps1 -- cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings`; `cargo metadata --no-deps --format-version 1` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace type-check, strict affected app all-target Clippy, and workspace metadata pass. |
+| 2026-09-15T16:34+02:00 | R00 | Corrective baseline worktree on `a94b9a7e` | `npm run check --workspace chataigne-ui`; `npm test`; `npm run lint`; `npm run build` | Windows x64, Node 26.5.0 | PASSED | Svelte check reports zero errors/warnings; 27 Golden Audio UI, 17 Golden UI, and 98 Chataigne UI tests pass; Prettier and the production static build pass. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo metadata --no-deps --format-version 1` | Windows x64, Rust 1.97.0 | PASSED | Workspace/package identities resolved. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo fmt --all --check` | Windows x64, Rust 1.97.0 | PASSED | No formatting diff. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo test --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_condition -p chataigne_state_machine` | Windows x64, Rust 1.97.0 | PASSED | All four package test suites and doc tests passed. |
@@ -189,7 +238,18 @@
 | 2026-09-14T14:04+02:00 | 11 | Batched Golden Engine benchmark fixture worktree | Local 10-sample Criterion tick and dispatch runs; `cargo clippy --locked -p golden_engine --benches -- -D warnings`; root and Golden Core `cargo fmt --all`; `git diff --check` | Windows x64, Intel Core Ultra 9 275HX, Rust 1.97.0, pinned ASIO SDK, bench profile | PASSED | Setup attaches 20,000 tick nodes and 10,000 dispatch nodes in one pre-cutover batch; the measured operations and graph sizes remain unchanged. Local center estimates are 514 ns passive tick, 19,051 ns sparse-active tick, and 20,547,485 ns for 100-event/1,000-listener dispatch. The previous local diagnostic spent more than three minutes of CPU before its first sample with sequential fixture edits and was stopped. Strict benchmark Clippy and both formatter scopes pass. The workflow now copies raw Criterion sample/estimate/benchmark JSON into the evidence artifact. |
 | 2026-09-14T14:05+02:00 | 11 | Exact-commit main CI run `34835972137` on `1702780d` | GitHub Actions app build, UI, Golden Engine, and audio-host matrix; prior `main` run `34744439917` | Ubuntu/macOS/Windows hosted runners | FAILED_PREEXISTING | Golden Engine tests, UI quality/artifact, Windows/macOS audio hosts, and all seven app platform builds passed. Only Linux Golden Audio hosts failed `null_backend_soak_advances_signal_and_completes_planned_recovery` after observing one backend warning; the same assertion failed in prior `main` CI. This is not a Mapping-owned validation pass. |
 
-## Phase reports
+## Corrective phase reports
+
+### R00 (implementation complete; delivery pending)
+
+- Changes and boundaries: replaced the canonical plan with the 2026-09-15 node-first corrective revision; initialized R00–R08 and N01–N24 without altering historical M01–M20 evidence; added an app-owned implementation map and backend characterization tests.
+- Current Mapping baseline: the processor exposes ordinary role managers but authors items in a separate hidden managed-region subtree. Snapshot extraction accepts only ANode children. Mapping outputs use OutputTarget command references and opaque binding documents. Its dedicated inspector replaces ordinary child authoring when tuple-managed regions are present.
+- Current Action baseline: the Action asset materializes real OutputsManager children. OutputsManager uses the generic/module command catalogs and OutputGroup, initializes module targets, retains timing/cancellation/occurrence/override state, and dispatches queued execute events to concrete command nodes. ConsequencesManager remains a separate legacy registry boundary.
+- Keep/adapt/remove classification: typed tuple/runtime, sparse scheduling, shared executable plans, isolated state, optional capture, argument validation, queued dispatch, and concrete command scheduling are retained. Processor hierarchy/extraction, command lowering, palette validation, warnings, persistence, conversion, and inspector composition are adapted. The shadow hierarchy, default OutputTarget adapter authoring, opaque binding JSON controls, compile-dependent palette, and full custom Mapping editor are removed by later corrective phases.
+- Validation: focused structural and tuple-delivery characterizations, 302 Alchemist/processor tests, the full app suite, workspace check, strict app Clippy, all 142 UI tests, Svelte check, lint, build, metadata, and required formatting/whitespace gates pass. No protocol boundary changed, so no generated DTO output is expected.
+- Remaining R00 work: commit, push, verify the implementation checkpoint, then publish its exact SHA in this ledger. R01 owns the first behavior correction.
+
+## Historical phase reports
 
 ### Phase 00
 
