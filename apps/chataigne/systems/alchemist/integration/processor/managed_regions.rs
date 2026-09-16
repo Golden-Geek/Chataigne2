@@ -1,7 +1,7 @@
 use chataigne_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, ManagedItemId,
     ManagedItemInstance, ManagedItemUiState, ManagedRegionInstance, ManagedRegionInstances,
-    StableRef, SurfaceItemKind, ValueTypeId,
+    StableRef, SurfaceItemKind, ValueTypeId, MANAGED_AUTO_INPUT_COUNT_FIELD,
 };
 use golden_values::Value as RuntimeValue;
 use golden_core::{node::NodeId, process_ctx::ProcessTreeSnapshot};
@@ -33,7 +33,11 @@ pub(crate) fn managed_regions_from_snapshot(
         for child in snapshot.child_ids(region_node) {
             let child_node = snapshot.node(child)?;
             let anode = if child_node.node_type == ANODE_NODE_TYPE {
-                anode_from_snapshot(snapshot, child).ok()?
+                let mut anode = anode_from_snapshot(snapshot, child).ok()?;
+                if definition.kind == chataigne_alchemist::ManagedRegionKind::FilterPipeline {
+                    mark_auto_input_count(snapshot, child, &mut anode);
+                }
+                anode
             } else if definition.accepted_roles.contains(&SurfaceItemKind::Output)
                 && is_output_node(snapshot, child)
             {
@@ -53,6 +57,23 @@ pub(crate) fn managed_regions_from_snapshot(
         regions.regions.insert(definition.id.clone(), region);
     }
     Some(regions)
+}
+
+fn mark_auto_input_count(
+    snapshot: &ProcessTreeSnapshot,
+    anode_node: NodeId,
+    anode: &mut ANodeInstance,
+) {
+    let auto = snapshot
+        .find_child_by_decl_id(anode_node, "config")
+        .and_then(|config| snapshot.find_child_by_decl_id(config, "config/num_inputs"))
+        .and_then(|count| snapshot.node(count))
+        .is_some_and(|count| !count.enabled);
+    if auto {
+        anode
+            .config
+            .set(MANAGED_AUTO_INPUT_COUNT_FIELD, RuntimeValue::Bool(true));
+    }
 }
 
 fn command_output_anode(

@@ -1,9 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
 use chataigne_alchemist::{
-    ChannelDescriptor, ChannelLayout, ColorValue, CompileCtx, DebugCaptureMode, EvaluationCtx, ManagedFilterValueMode,
-    ManagedItemInstance, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries, SocketId, StableRef,
-    ValueComponent, ValueTypeId,
+    ChannelDescriptor, ChannelLayout, ColorValue, CompileCtx, DebugCaptureMode, EvaluationCtx,
+    MANAGED_AUTO_INPUT_COUNT_FIELD, ManagedFilterValueMode, ManagedItemInstance, PrimitiveNodeKind,
+    RuntimeInputSnapshot, RuntimeRegistries, SocketId, StableRef, ValueComponent, ValueTypeId,
 };
 use golden_values::Value as RuntimeValue;
 
@@ -59,6 +59,41 @@ fn remap() -> ManagedItemInstance {
             .insert(SocketId::new(socket), RuntimeValue::Float(value));
     }
     item
+}
+
+#[test]
+fn disabled_input_count_specializes_reduction_to_the_complete_tuple() {
+    let value_types = crate::alchemist::value_type_registry();
+    let nodes = crate::alchemist::node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: None,
+    };
+    let layout = typed_layout(&[("x", "float"), ("y", "float"), ("z", "float")]);
+    let mut sum = managed_item_for_primitive(PrimitiveNodeKind::Sum);
+    sum.anode
+        .config
+        .set(MANAGED_AUTO_INPUT_COUNT_FIELD, RuntimeValue::Bool(true));
+    let mut stage = ManagedStageRuntime::compile(sum, &layout, &compile_ctx, ManagedFilterValueMode::Tuple)
+        .unwrap()
+        .unwrap();
+    let input = frame(
+        layout,
+        &[
+            RuntimeValue::Float(1.0),
+            RuntimeValue::Float(2.0),
+            RuntimeValue::Float(3.0),
+        ],
+        1,
+    );
+    let inputs = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let (output, result) = stage.evaluate(&input, &ctx(&inputs, &registries, 1)).unwrap();
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(output.slots()[0].value, Some(RuntimeValue::Float(6.0)));
 }
 
 #[test]

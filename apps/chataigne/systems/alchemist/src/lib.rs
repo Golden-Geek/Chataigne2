@@ -48,8 +48,8 @@ pub use library::{
     PrimitiveNodeDeclaration, PrimitiveNodeKind, curve_config_value, primitive_node_registry, register_primitive_nodes,
 };
 pub use managed_application::{
-    MANAGED_GROUPS_FIELD, MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, MANAGED_SELECTION_FIELD, ManagedApplication,
-    ManagedApplicationError, ManagedSettingPath, ManagedStateScope, classify_managed_setting,
+    MANAGED_AUTO_INPUT_COUNT_FIELD, MANAGED_GROUPS_FIELD, MANAGED_IMPLICIT_GATE_DEFAULT_FIELD, MANAGED_SELECTION_FIELD,
+    ManagedApplication, ManagedApplicationError, ManagedSettingPath, ManagedStateScope, classify_managed_setting,
     configured_managed_variant, resolve_managed_application, resolve_mapping_application,
 };
 pub use node::{

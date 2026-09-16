@@ -162,6 +162,32 @@ migrated:
 - compile-dependent filter creation menus and backend shape rejection;
 - the full Mapping-specific region editor and parallel selection/undo state.
 
+## R03 resulting filter authoring contract
+
+The Filters region now exposes a registry-derived catalog containing every
+declared managed filter application. Catalog membership and creation identity
+depend only on the registered ANode declaration and application variant. They
+do not depend on the current sources, tuple width, neighboring filters, or
+whether the chain can execute. The same container acceptance and ANode factory
+contract serves UI creation, headless edits, paste, and duplication.
+
+A newly created filter is therefore a valid authored node even with no inputs
+or after an incompatible stage. It serializes, reloads, undoes, and duplicates
+with its UUID and ordinary controls intact. Execution remains stricter:
+Mapping recompiles the ordered chain against the current typed tuple and blocks
+dispatch at the first incompatible enabled filter. That filter receives an
+attributed warning and the Filters manager receives a concise aggregate
+warning. Reconciliation clears both when source or filter edits make the same
+node executable.
+
+Standard Mapping treats multiple input sources as one ordered heterogeneous
+tuple. Aggregate applications whose optional input-count control remains on
+automatic specialize to the tuple width at compile time, without rewriting the
+authored control or putting the width into the creation identifier. Explicit
+input counts remain explicit. Fixed-arity filters such as Vec3 packing and
+extraction validate against the tuple they receive, so X/Y/Z can be packed and
+delivered to one typed command while invalid partial input never dispatches.
+
 ## Identity and persistence inventory
 
 The migration must preserve processor UUIDs, managed region role IDs, authored

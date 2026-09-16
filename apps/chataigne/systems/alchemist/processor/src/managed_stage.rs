@@ -126,12 +126,28 @@ impl ManagedStageRuntime {
     }
 
     pub fn compile_with_cache(
-        item: ManagedItemInstance,
+        mut item: ManagedItemInstance,
         input_layout: &ChannelLayout,
         ctx: &CompileCtx<'_>,
         mode: ManagedFilterValueMode,
         mut cache: Option<&mut ManagedStageSpecializationCache>,
     ) -> Result<Option<Self>, ManagedStageError> {
+        if matches!(
+            item.anode
+                .config
+                .get(chataigne_alchemist::MANAGED_AUTO_INPUT_COUNT_FIELD),
+            Some(RuntimeValue::Bool(true))
+        ) {
+            if (2..=64).contains(&input_layout.channels().len()) {
+                item.anode
+                    .config
+                    .set("num_inputs", RuntimeValue::Int(input_layout.channels().len() as i64));
+            }
+            item.anode
+                .config
+                .fields
+                .shift_remove(chataigne_alchemist::MANAGED_AUTO_INPUT_COUNT_FIELD);
+        }
         let signature_ctx = SignatureCtx {
             value_types: ctx.value_types,
             properties: ctx.properties,

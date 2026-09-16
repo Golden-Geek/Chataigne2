@@ -11,6 +11,10 @@ pub const MANAGED_SELECTION_FIELD: &str = "managed_selection";
 /// distinguish it from an explicit authored default edge in a Formula graph.
 pub const MANAGED_IMPLICIT_GATE_DEFAULT_FIELD: &str = "_managed_implicit_gate_default";
 pub const MANAGED_GROUPS_FIELD: &str = "managed_groups";
+/// App-authored managed filters set this transient flag when their optional
+/// input-count control is disabled. The runtime specializes that declaration to
+/// the current ordered tuple without rewriting the authored control.
+pub const MANAGED_AUTO_INPUT_COUNT_FIELD: &str = "_managed_auto_input_count";
 
 /// Resolve the same configured variant for palette validation and backend creation.
 /// A sized variant is valid only for a declared aggregate with a `num_inputs` setting.

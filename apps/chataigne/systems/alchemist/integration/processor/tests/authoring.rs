@@ -49,6 +49,7 @@ use super::super::sync_external_formulas;
 mod script_controls;
 mod performance;
 mod factory;
+mod filter_creation;
 mod corrective_baseline;
 
 fn mapping_engine() -> (AppEngine, NodeUuid, NodeId) {

@@ -812,7 +812,7 @@ fn builtin_processor_created_inside_state_exposes_managers() {
 }
 
 #[test]
-fn managed_region_palette_does_not_advertise_filters_before_input_types_resolve() {
+fn managed_region_palette_advertises_filters_before_input_types_resolve() {
     let (mut engine, formula, formula_uuid) = engine_with_formula();
     seed_formula_managed_regions(&mut engine, formula, value_pipeline_regions_json());
     let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
@@ -835,7 +835,7 @@ fn managed_region_palette_does_not_advertise_filters_before_input_types_resolve(
             &processor_managed_region_decl_id("outputs"),
         )
         .expect("formula should expose an Outputs region");
-    let condition_gate_type = format!("{ANODE_CREATE_PREFIX}condition_gate");
+    let condition_gate_type = format!("{ANODE_CREATE_PREFIX}condition_gate@managed/0");
 
     let filter_items = engine
         .nodes
@@ -853,7 +853,10 @@ fn managed_region_palette_does_not_advertise_filters_before_input_types_resolve(
         .expect("Outputs region should exist")
         .user_creatable_items();
 
-    assert!(filter_items.is_empty());
+    assert!(!filter_items.is_empty());
+    assert!(filter_items
+        .iter()
+        .any(|item| item.node_type == condition_gate_type));
     assert_eq!(input_items.len(), 1);
     assert_eq!(input_items[0].node_type, format!("{ANODE_CREATE_PREFIX}chataigne.input_source"));
     assert!(output_items.len() >= 4);
@@ -875,15 +878,15 @@ fn managed_region_palette_does_not_advertise_filters_before_input_types_resolve(
         "Inputs region should reject filter-only ANodes"
     );
 
-    let rejected_filter = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+    let created_filter = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: filters,
         node_type: condition_gate_type,
         label: None,
         initial_params: Vec::new(),
     });
     assert!(
-        !rejected_filter.success,
-        "Filters region should reject applications it cannot compile: {rejected_filter:?}"
+        created_filter.success,
+        "Filters region should accept unresolved registered applications: {created_filter:?}"
     );
 }
 

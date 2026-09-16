@@ -18,7 +18,7 @@ use golden_core::{
 use crate::app::systems_alchemist_formula::{
     anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
     create_anode_user_item_tree, formula_from_snapshot, node_has_warning, node_warning_detail, node_warning_matches,
-    ANODE_ITEM_KIND, ANODE_NODE_TYPE, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
+    ANODE_ITEM_KIND, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
     PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
 use crate::app::{
@@ -35,6 +35,7 @@ use crate::app::systems_alchemist_generic_commands::GENERIC_COMMAND_ITEM_KIND;
 mod catalog;
 mod conversion;
 mod factory;
+mod filter_validation;
 mod managed_regions;
 mod output_migration;
 mod palette;
@@ -779,8 +780,6 @@ impl Node for StateProcessorManagedRegions {
 pub struct StateProcessorManagedRegion {
     #[state(default = Vec::new())]
     filter_items: Vec<UserCreatableItem>,
-    #[state(default = HashSet::new())]
-    structural_palette_params: HashSet<NodeId>,
 }
 
 #[node("state_processor_managed_region", from_struct)]
@@ -814,9 +813,7 @@ impl Node for StateProcessorManagedRegion {
             return output_container_accepts_item(item_type, item_kind);
         }
         if roles.contains(&SurfaceItemKind::Filter) {
-            return item_kind == ANODE_ITEM_KIND
-                && (item_type == ANODE_NODE_TYPE
-                    || self.filter_items.iter().any(|item| item.node_type == item_type));
+            return anode_container_accepts_for_roles(item_type, item_kind, &roles);
         }
         anode_container_accepts_for_roles(item_type, item_kind, &roles)
     }
@@ -910,6 +907,11 @@ impl Node for StateProcessorManagedRegion {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = locked_instance_permissions();
         self.node_data_mut().meta.can_be_disabled = false;
+        if managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Filter)
+        {
+            self.filter_items = palette::filter_catalog_items();
+        }
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
@@ -918,31 +920,24 @@ impl Node for StateProcessorManagedRegion {
         {
             return;
         }
-        let subscriptions = ctx.tree_snapshot().and_then(|snapshot| {
+        let processor = ctx.tree_snapshot().and_then(|snapshot| {
             let processor = snapshot.node(self.id())?.parent?;
-            let formula_params = ["formula", PROCESSOR_FORMULA_SOURCE_DECL_ID]
-                .into_iter()
-                .filter_map(|decl_id| snapshot.find_child_by_decl_id(processor, decl_id))
-                .collect::<Vec<_>>();
-            Some((processor, formula_params))
+            Some(processor)
         });
-        if let Some((processor, formula_params)) = subscriptions {
+        if let Some(processor) = processor {
             ctx.add_event_listener_subtree(self.id(), processor, u32::MAX);
-            for param in formula_params {
-                ctx.add_event_listener(self.id(), param);
-            }
         }
-        self.refresh_filter_palette(ctx);
+        filter_validation::reconcile_filter_warnings(ctx, self.id());
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
-        if filter_palette_events_require_refresh(&ctx.events, &self.structural_palette_params) {
-            self.refresh_filter_palette(ctx);
+        if filter_validation_events_require_refresh(&ctx.events) {
+            filter_validation::reconcile_filter_warnings(ctx, self.id());
         }
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        filter_palette_events_require_refresh(events, &self.structural_palette_params)
+        filter_validation_events_require_refresh(events)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -1258,14 +1253,20 @@ fn processor_palette_inbox_requires_tree_snapshot(
     })
 }
 
-fn filter_palette_events_require_refresh(
-    events: &EventFrame,
-    structural_params: &HashSet<NodeId>,
-) -> bool {
-    events.iter().any(|event| match &event.kind {
-        EventKind::ParamChanged { param, .. } => structural_params.contains(param),
-        EventKind::Custom(_) => false,
-        _ => true,
+fn filter_validation_events_require_refresh(events: &EventFrame) -> bool {
+    events.iter().any(|event| {
+        matches!(
+            event.kind,
+            EventKind::ParamChanged { .. }
+                | EventKind::ParamControlChanged { .. }
+                | EventKind::NodeCreated { .. }
+                | EventKind::NodeDeleted { .. }
+                | EventKind::ChildAdded { .. }
+                | EventKind::ChildRemoved { .. }
+                | EventKind::ChildReordered { .. }
+                | EventKind::ChildReplaced { .. }
+                | EventKind::ChildMoved { .. }
+        )
     })
 }
 
@@ -1298,22 +1299,6 @@ impl StateProcessorManagedRegion {
         }
     }
 
-    fn refresh_filter_palette(&mut self, ctx: &mut ProcessCtx) {
-        let Some(snapshot) = ctx.tree_snapshot() else {
-            return;
-        };
-        let params = palette::structural_palette_params(snapshot, self.id());
-        let items = palette::filter_palette_from_snapshot(snapshot, self.id());
-        self.structural_palette_params = params;
-        if self.filter_items != items {
-            self.filter_items = items;
-            let _ = ctx.emit_latest_custom_payload(
-                golden_core::events::NODE_CREATABLE_ITEMS_CHANGED_TOPIC,
-                Some(self.id()),
-                &self.filter_items,
-            );
-        }
-    }
 }
 
 #[node(
