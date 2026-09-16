@@ -239,6 +239,16 @@ migration warning. Older binding-document normalization remains in
 `integration/formula/binding_migration.rs`; processor sparse persistence,
 duplication, and conversion coverage lives under `integration/processor/tests`.
 
+R05 qualifies concrete commands as part of the expanded Mapping product. A
+command copied from Action keeps the source command and target intact, receives
+a new command UUID, and gains Mapping-local binding controls when it enters the
+Mapping Outputs region. The output region owns that reconciliation through its
+ordinary structural lifecycle. Converting a configured Mapping to a project
+Formula keeps the concrete command, binding controls, filter resources, nested
+resource UUIDs, and graph operations in place. Full and sparse persistence use
+the same project codecs, and the converted Formula continues through the
+ordinary processor inspector and Formula editor paths.
+
 The shipped `Mapping.json` and `Action.json` assets, sparse project fixtures,
 old OutputTarget binding documents, converted custom Formula fixtures, copied
 commands, and external references are the persisted inputs that require

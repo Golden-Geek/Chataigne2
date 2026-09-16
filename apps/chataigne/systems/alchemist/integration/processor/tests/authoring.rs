@@ -51,6 +51,7 @@ mod performance;
 mod factory;
 mod filter_creation;
 mod corrective_baseline;
+mod r05_product;
 
 fn mapping_engine() -> (AppEngine, NodeUuid, NodeId) {
     let root: AppNode = Folder::new("Mapping authoring").into();
@@ -881,7 +882,6 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     let filters = region(&engine, processor, "filters");
     let outputs = region(&engine, processor, "outputs");
     let input_type = format!("{ANODE_CREATE_PREFIX}chataigne.input_source");
-    let output_type = format!("{ANODE_CREATE_PREFIX}chataigne.output_target");
     let first_source = source_param(&mut engine, "X", 2.0);
     let second_source = source_param(&mut engine, "Y", 3.0);
     let first = create_item(&mut engine, inputs, &input_type);
@@ -912,13 +912,10 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     let sum_instance = anode_from_snapshot(&engine.process_tree_snapshot(), sum).unwrap();
     assert_eq!(sum_instance.input_defaults.len(), 2);
 
-    let command_manager = transitional_command_manager(&mut engine);
-    let command = create_item(&mut engine, command_manager, GENERIC_LOG_COMMAND_NODE_TYPE);
-    let command_uuid = engine.nodes.get(command).unwrap().node_data().meta.uuid;
-    let message = engine.process_tree_snapshot().find_child_by_decl_id(command, "message").unwrap();
+    let output = create_item(&mut engine, outputs, GENERIC_LOG_COMMAND_NODE_TYPE);
+    let command_uuid = engine.nodes.get(output).unwrap().node_data().meta.uuid;
+    let message = engine.process_tree_snapshot().find_child_by_decl_id(output, "message").unwrap();
     let message_uuid = engine.nodes.get(message).unwrap().node_data().meta.uuid;
-    let output = create_item(&mut engine, outputs, &output_type);
-    set_config(&mut engine, output, "target", ParamValue::Reference(NodeReference::new(command_uuid)));
     let bindings = OutputBindingConfig {
         value: OutputValueSource::Whole,
         arguments: vec![OutputArgumentBinding {
@@ -927,7 +924,7 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
         }],
         send_policy: OutputSendPolicy::OnChange,
     };
-    set_config(&mut engine, output, "bindings", ParamValue::Str(bindings.to_authoring_json().unwrap()));
+    set_mapping_bindings(&mut engine, output, &bindings);
 
     let snapshot = engine.process_tree_snapshot();
     let mapping = snapshot.node_id_by_uuid(mapping_uuid).unwrap();
@@ -1007,8 +1004,11 @@ fn mapping_can_be_authored_through_backend_intents_and_reloaded() {
     assert_ne!(converted_uuid, mapping_uuid);
     let converted_node = converted_snapshot.node_id_by_uuid(converted_uuid).unwrap();
     assert_eq!(converted_snapshot.node(converted_node).unwrap().presentation.icon, snapshot.node(mapping).unwrap().presentation.icon);
-    assert!(converted_snapshot.node_id_by_uuid(command_uuid).is_some(), "conversion should retain the command node");
-    assert_eq!(converted_snapshot.node(command_manager).unwrap().uuid, snapshot.node(command_manager).unwrap().uuid);
+    assert_eq!(
+        converted_snapshot.node_id_by_uuid(command_uuid),
+        Some(output),
+        "conversion should retain the concrete owned command node"
+    );
     assert_eq!(converted_snapshot.child_ids(converted_processor).into_iter().filter(|id| converted_snapshot.node(*id).is_some_and(|node| node.node_type == OutputsManager::NODE_TYPE)).count(), 0);
     assert!(!converted_snapshot.node(converted_node).unwrap().tags.iter().any(|tag| tag.contains("external.builtin")));
     assert_eq!(converted_snapshot.child_ids(region(&engine, converted_processor, "inputs")), vec![first, second]);

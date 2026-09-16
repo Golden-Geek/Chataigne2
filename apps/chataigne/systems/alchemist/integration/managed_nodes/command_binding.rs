@@ -392,12 +392,16 @@ pub(crate) fn ensure_mapping_command_bindings(
     ctx: &mut ProcessCtx,
     command: NodeId,
 ) {
-    let action = ctx.tree_snapshot().and_then(|snapshot| {
-        snapshot
-            .find_child_by_decl_id(command, MAPPING_COMMAND_BINDINGS_DECL_ID)
-            .map(|bindings| default_primary_binding(snapshot, command, bindings))
-    });
-    if let Some(Some((bindings, tree, tags))) = action {
+    let Some(snapshot) = ctx.tree_snapshot() else {
+        return;
+    };
+    let Some(bindings) = snapshot.find_child_by_decl_id(command, MAPPING_COMMAND_BINDINGS_DECL_ID)
+    else {
+        ctx.add_child_tree(command, mapping_command_bindings_tree(None), None);
+        return;
+    };
+    let action = default_primary_binding(snapshot, command, bindings);
+    if let Some((bindings, tree, tags)) = action {
         ctx.add_child_tree(bindings, tree, None);
         ctx.edits.push(golden_core::edit::Edit::PatchMeta {
             node: bindings,

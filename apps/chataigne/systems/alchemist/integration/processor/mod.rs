@@ -937,6 +937,7 @@ impl Node for StateProcessorManagedRegion {
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        self.dispatch_inbox(ctx);
         if filter_validation_events_require_refresh(
             &ctx.events,
             &self.filter_validation_dependencies,
@@ -946,10 +947,19 @@ impl Node for StateProcessorManagedRegion {
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        filter_validation_events_require_refresh(
-            events,
-            &self.filter_validation_dependencies,
-        )
+        let output_structure_changed = managed_region_roles_from_tags(&self.node_data().meta.tags)
+            .contains(&SurfaceItemKind::Output)
+            && events.iter().any(|event| {
+                matches!(
+                    event.kind,
+                    EventKind::ChildAdded { .. } | EventKind::ChildReplaced { .. }
+                )
+            });
+        output_structure_changed
+            || filter_validation_events_require_refresh(
+                events,
+                &self.filter_validation_dependencies,
+            )
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
