@@ -5,15 +5,15 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active corrective phase: R02 complete; R03 — decouple filter creation from current executability — is next.
+- Active corrective phase: R03 complete; R04 — complete normal controls, warnings, and optional preview supplements — is next.
 - Corrective-plan anchor: `a94b9a7e20c9c240c7f29ab1674c90d304289987`; the revised plan supersedes the prior authoring/output/inspector contract while preserving useful runtime work.
-- Last validated corrective implementation commit: `e4950d72fdac60f6c1fb1c8690a66ef562ddcbeb` (R02 shared concrete commands and typed bindings).
-- Last verified remote corrective implementation commit: `e4950d72fdac60f6c1fb1c8690a66ef562ddcbeb`.
+- Last validated corrective implementation commit: `e2115a79e5d38338c8467ad525940c7107113bd2` (R03 registry-driven filter creation and validation).
+- Last verified remote corrective implementation commit: `e2115a79e5d38338c8467ad525940c7107113bd2`.
 - Last validated historical implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (old Phase 11 M20 inspector state and benchmark workflow checkpoint).
-- Current corrective blockers: none. Interactive desktop and headless/watch product gates remain future R05/R08 qualification work, not an R02 blocker.
-- Corrected product checks: N03, N09, and N10 pass. R02 closes its portion of N02, N11, N12, and N15; those rows remain `PARTIAL` until their later owning phases complete. Prior M01–M20 results remain historical runtime evidence.
-- Next concrete action: start R03 by making every registered filter creatable before inputs and inside invalid chains, with node-local diagnostics and identity-preserving recovery.
-- Last updated: 2026-09-15T18:57:35+02:00
+- Current corrective blockers: none. Interactive desktop and headless/watch product gates remain future R05/R08 qualification work, not an R03 blocker.
+- Corrected product checks: N03, N05, N06, N09, and N10 pass. R03 closes its portion of N07, N08, and N14; those rows remain `PARTIAL` until their later owning phases complete. Prior M01–M20 results remain historical runtime evidence.
+- Next concrete action: start R04 by auditing ordinary controls and warning presentation, bounding optional preview subscriptions, and removing the obsolete Mapping-specific editor state.
+- Last updated: 2026-09-16T10:41+02:00
 
 ## Corrective phase ledger
 
@@ -22,7 +22,7 @@
 | R00 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `8ea39994` is verified at `origin/codex/builtin-mapping`; canonical revised plan, exact correction map, backend characterization, and full runnable baseline pass. |
 | R01 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `ad552a0f` is verified at `origin/codex/builtin-mapping`; direct role managers, sparse UUID-preserving migration, ordinary child inspection, and full Rust/UI gates pass. |
 | R02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `e4950d72` is verified at `origin/codex/builtin-mapping`; Action and Mapping share concrete command catalogs/factories, ordinary typed bindings, queued invocation, and lossless adapter migration. |
-| R03 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Decouple filter creation from current executability. |
+| R03 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `e2115a79` is verified at `origin/codex/builtin-mapping`; every registered filter application is independently creatable, invalid chains warn and block dispatch, and compatible edits recover in place. |
 | R04 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Complete normal controls, warnings, and optional preview supplements. |
 | R05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Requalify persistence, conversion, and expanded-node product behavior. |
 | R06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Add representation-independent command lowering and immutable frozen source. |
@@ -37,16 +37,16 @@
 | N02 | Every authored item is a node | R01, R02, R04 | Inputs and filters are ordinary ANode descendants; Mapping outputs are concrete command/group nodes with ordinary typed binding descendants. R04 owns the remaining control audit. | PARTIAL |
 | N03 | No shadow authoring tree | R01 | Fresh and migrated Mappings have one authoritative direct region hierarchy; duplicate role managers and the hidden root are removed. | PASSED |
 | N04 | Ordinary inspector | R01, R04 | Processor Formula inspection always uses the standard child renderer; R04 owns warning and optional-preview supplements. | PARTIAL |
-| N05 | Create filters before inputs | R03 | Every registered filter creates, persists, and undoes with zero inputs. | NOT_RUN |
-| N06 | Create inside invalid chain | R03 | Palette and backend authoring remain available after incompatible stages. | NOT_RUN |
-| N07 | Warnings, then recovery | R03, R04 | Node-local warning, blocked dispatch, and identity-preserving recovery. | NOT_RUN |
-| N08 | Identical headless creation | R03, R04 | UI, headless, script, paste, and duplicate share creatability rules. | NOT_RUN |
+| N05 | Create filters before inputs | R03 | Every registered managed application creates with zero inputs, survives sparse reload, and undoes through ordinary intents. | PASSED |
+| N06 | Create inside invalid chain | R03 | The registry catalog remains complete and every entry creates after an incompatible Pack Vec3 stage. | PASSED |
+| N07 | Warnings, then recovery | R03, R04 | The first incompatible filter and manager receive stable warnings, dispatch is blocked, and adding the compatible input clears warnings and executes without replacing the filter; R04 owns presentation audit. | PARTIAL |
+| N08 | Identical headless creation | R03, R04 | Registry identity, role-based container acceptance, public creation, and production-runtime duplication share one backend contract; R04 owns the remaining script/control audit. | PARTIAL |
 | N09 | Shared command catalog | R02 | The shared generic/module registries and factories create the same concrete Set Parameter type under Action and Mapping; Mapping adds only its binding subtree. | PASSED |
 | N10 | Real module command | R02 | Mapping exposes owned module command catalog entries with initialized module targets and lowers the concrete command itself through the existing queued execute boundary. | PASSED |
 | N11 | Shared typed argument binding | R02, R04 | Whole tuple, stable element, component, and typed constant controls produce invocation overrides without mutating authored command values. R04 owns the remaining warning/control audit. | PARTIAL |
 | N12 | Fan-out, groups, timing | R02, R05 | Concrete commands and output groups retain shared scheduling, repeated occurrences, accepted-send caching, and queued effects; R05 owns full product requalification. | PARTIAL |
 | N13 | Controllable from everywhere | R04, R05 | State, Mapping, script, and headless edits reach normal nodes. | NOT_RUN |
-| N14 | Stable identity and state | R01, R03, R05 | Structural migration preserves processor, region, ANode, source, and nested-control UUIDs; later invalid-chain and full requalification cases remain. | PARTIAL |
+| N14 | Stable identity and state | R01, R03, R05 | Structural migration preserves processor, region, ANode, source, and nested-control UUIDs; R03 recovery retains the incompatible filter's UUID while adding a compatible source. R05 owns full requalification. | PARTIAL |
 | N15 | Persistence/migration | R01, R02, R05 | Sparse hierarchy migration preserves direct manager UUIDs; command migration preserves output UUID/order/presentation and external ownership, round-trips typed bindings, and retains ambiguous data with warnings. R05 owns the full matrix. | PARTIAL |
 | N16 | Custom Formula conversion | R05 | Commands, bindings, resources, graph semantics, and editor behavior survive. | NOT_RUN |
 | N17 | Compression default and scope | R07 | Expanded default; explicit compression removes actual workflow nodes. | NOT_RUN |
@@ -118,6 +118,10 @@
 | 2026-09-15T18:52+02:00 | R02 | R02 implementation worktree before `e4950d72` | `cargo test-fast -p chataigne_alchemist`; `cargo test-fast -p chataigne_processor`; `cargo test-fast -p chataigne_state_machine`; `cargo test-fast -p Chataigne2 --quiet` | Windows x64, Rust 1.97.0 | PASSED | 179 Alchemist, 123 processor, and 18 state-machine tests pass. The final app run reports 578 passed and eight opt-in performance tests ignored, plus one desktop audio-host integration test. No performance benchmark was run in this non-performance phase. |
 | 2026-09-15T18:55+02:00 | R02 | R02 implementation worktree before `e4950d72` | `.\tools\asio.ps1 -- cargo check --workspace`; `.\tools\asio.ps1 -- cargo clippy -p Chataigne2 --all-targets -- -D warnings`; `cargo metadata --no-deps --format-version 1`; `npm test`; `npm run check`; `npm run lint`; `npm run build` | Windows x64, pinned ASIO SDK, Rust 1.97.0, Node 26.5.0 | PASSED | Full workspace check, strict app all-target Clippy, and metadata pass. All 98 Chataigne UI tests pass, Svelte reports zero errors/warnings, and Prettier plus the production static build pass. |
 | 2026-09-15T18:57:35+02:00 | R02 | `e4950d72` shared-command checkpoint | Root and Golden Core `cargo fmt --all`/`--check`; `git diff --cached --check`; `git push origin codex/builtin-mapping`; exact `git ls-remote --heads origin codex/builtin-mapping` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and staged whitespace pass. Remote OID exactly matches `e4950d72fdac60f6c1fb1c8690a66ef562ddcbeb`. The unrelated user-edited implementation plan remained unstaged. |
+| 2026-09-16T10:34+02:00 | R03 | R03 implementation worktree before `e2115a79` | `cargo test-fast -p Chataigne2 filter_creation --quiet`; registry catalog and managed-stage focused tests | Windows x64, Rust 1.97.0 | PASSED | Four authoring scenarios prove every registered application creates with zero inputs and after an invalid stage, sparse reload and undo retain the authored contract, production-runtime duplication accepts an unresolved filter, and a two-input Pack Vec3 warning blocks dispatch before the same UUID recovers with X/Y/Z. Automatic Sum specializes to three tuple operands and returns 6.0. |
+| 2026-09-16T10:37+02:00 | R03 | R03 implementation worktree before `e2115a79` | `cargo test-fast -p chataigne_alchemist -p chataigne_processor -p chataigne_state_machine -p Chataigne2 --quiet` | Windows x64, Rust 1.97.0 | PASSED | 179 Alchemist, 124 processor, and 18 state-machine tests pass. The app reports 583 passed and eight opt-in performance tests ignored, plus one desktop audio-host integration test. No performance benchmark was run for this non-performance phase. |
+| 2026-09-16T10:40+02:00 | R03 | R03 implementation worktree before `e2115a79` | `.\tools\asio.ps1 -- cargo check --workspace`; `.\tools\asio.ps1 -- cargo clippy --workspace --all-targets -- -D warnings`; `cargo metadata --no-deps --format-version 1`; `npm test`; `npm run check`; `npm run lint`; `npm run build` | Windows x64, pinned ASIO SDK, Rust 1.97.0, Node 26.5.0 | PASSED | Full workspace check, strict workspace all-target Clippy, and metadata pass. All 98 Chataigne UI tests pass, Svelte reports zero errors/warnings, and Prettier plus the production static build pass. |
+| 2026-09-16T10:41+02:00 | R03 | `e2115a79` registry-filter checkpoint | Root and Golden Core `cargo fmt --all`/`--check`; `git diff --cached --check`; `git push`; exact `git ls-remote origin refs/heads/codex/builtin-mapping` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and staged whitespace pass. Remote OID exactly matches `e2115a79e5d38338c8467ad525940c7107113bd2`. The unrelated user-edited implementation plan remained unstaged. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo metadata --no-deps --format-version 1` | Windows x64, Rust 1.97.0 | PASSED | Workspace/package identities resolved. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo fmt --all --check` | Windows x64, Rust 1.97.0 | PASSED | No formatting diff. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo test --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_condition -p chataigne_state_machine` | Windows x64, Rust 1.97.0 | PASSED | All four package test suites and doc tests passed. |
@@ -281,6 +285,17 @@
 - Implementation commit: `e4950d72fdac60f6c1fb1c8690a66ef562ddcbeb`.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `e4950d72fdac60f6c1fb1c8690a66ef562ddcbeb`, 2026-09-15T18:57:35+02:00 (`git ls-remote`).
 - Remaining R02 work: none. R03 owns input-independent filter creation, invalid-chain authoring, node-local diagnostics, and recovery.
+
+### R03 (complete)
+
+- Changes and boundaries: the Filters region now exposes one registry-derived catalog containing every declared managed filter application. Stable creation identifiers encode only the ANode type and application variant. Current sources, tuple width, neighboring stages, and compile success no longer alter catalog membership or container acceptance.
+- Multiple-input contract: standard Mapping continues to pass all sources as one ordered heterogeneous tuple. Aggregate applications with an automatic input-count control specialize to the current tuple width at compile time without mutating the authored control or identity; an explicit count stays explicit. Fixed-arity packing and extraction validate against the whole tuple.
+- Validation and recovery: an incomplete filter remains an ordinary serializable node. Backend reconciliation attributes the first blocking problem to that filter, adds one aggregate manager warning, and clears both after compatible source or configuration edits. Runtime compilation still rejects the bad chain, so wrong values never reach a command. The same filter UUID executes after X/Y becomes X/Y/Z.
+- Shared authoring contract: role-based acceptance and the ordinary ANode factory serve public creation and production-runtime duplication. Focused coverage creates every registered application with no inputs and behind an invalid stage, then verifies sparse reload, undo, and unresolved duplication.
+- Validation: four focused filter-authoring tests, registry coverage, automatic three-value Sum, 179 Alchemist tests, 124 processor tests, 18 state-machine tests, 583 app tests plus one desktop audio integration test, workspace check, strict workspace Clippy, metadata, all 98 Chataigne UI tests, Svelte check, lint, build, both formatter scopes, and staged whitespace checks pass. `cargo test-fast` was used for non-performance tests; no benchmark was run for R03.
+- Implementation commit: `e2115a79e5d38338c8467ad525940c7107113bd2`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `e2115a79e5d38338c8467ad525940c7107113bd2`, 2026-09-16T10:41+02:00 (`git ls-remote`).
+- Remaining R03 work: none. R04 owns the ordinary-control audit, warning presentation, bounded optional preview supplements, and removal of obsolete Mapping-specific editor state.
 
 ## Historical phase reports
 
