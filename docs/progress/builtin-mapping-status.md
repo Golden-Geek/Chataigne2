@@ -5,15 +5,15 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active corrective phase: R04 complete; R05 — requalify persistence, conversion, and expanded-node product behavior — is next.
+- Active corrective phase: R05 complete; R06 — prepare representation-independent command execution and frozen source — is next.
 - Corrective-plan anchor: `a94b9a7e20c9c240c7f29ab1674c90d304289987`; the revised plan supersedes the prior authoring/output/inspector contract while preserving useful runtime work.
-- Last validated corrective implementation commit: `b76bef7d5170ef7af19315fda6a2aed0931aa35b` (R04 ordinary controls, inspector composition, and optional preview boundary).
-- Last verified remote corrective implementation commit: `b76bef7d5170ef7af19315fda6a2aed0931aa35b`.
+- Last validated corrective implementation commit: `c3f020ec215cf16a3477aec01cc7406199567499` (R05 persistence, concrete-command conversion, cross-context copy, and expanded product behavior).
+- Last verified remote corrective implementation commit: `c3f020ec215cf16a3477aec01cc7406199567499`.
 - Last validated historical implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (old Phase 11 M20 inspector state and benchmark workflow checkpoint).
-- Current corrective blockers: none. Interactive desktop and headless/watch product gates remain future R05/R08 qualification work, not an R04 blocker.
-- Corrected product checks: N02–N11 pass except N12, whose full product requalification belongs to R05. R04 closes the ordinary-control, warning, headless-authoring, typed-binding, and inspector portions; N13 remains `PARTIAL` until R05 product qualification. Prior M01–M20 results remain historical runtime evidence.
-- Next concrete action: start R05 by requalifying sparse persistence, Mapping-to-Formula conversion, expanded-node product behavior, command fan-out/timing, identity, and normal-control access across UI, script, and headless callers.
-- Last updated: 2026-09-16T11:22:34+02:00
+- Current corrective blockers: none. Interactive desktop, watch, supported launch, and packaging product gates remain explicit R08 qualification work.
+- Corrected product checks: N02–N16 pass. N01 remains partial until the default-Off compression contract lands in R07, and N23 remains partial until R08 completes interactive and launch-workflow qualification. Prior M01–M20 results remain historical runtime evidence.
+- Next concrete action: start R06 by defining immutable frozen source, representation-independent command preparation, dependency preflight, and live/frozen equivalence without exposing compression yet.
+- Last updated: 2026-09-16T12:06:52+02:00
 
 ## Corrective phase ledger
 
@@ -24,7 +24,7 @@
 | R02 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `e4950d72` is verified at `origin/codex/builtin-mapping`; Action and Mapping share concrete command catalogs/factories, ordinary typed bindings, queued invocation, and lossless adapter migration. |
 | R03 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `e2115a79` is verified at `origin/codex/builtin-mapping`; every registered filter application is independently creatable, invalid chains warn and block dispatch, and compatible edits recover in place. |
 | R04 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `b76bef7d` is verified at `origin/codex/builtin-mapping`; ordinary controls and `NodeInspector` own authoring, preview DTOs contain metadata only, and warning refresh is dependency-scoped. |
-| R05 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Requalify persistence, conversion, and expanded-node product behavior. |
+| R05 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `c3f020ec` is verified at `origin/codex/builtin-mapping`; concrete command conversion, full/sparse persistence, cross-context copy with history, live fan-out edits, ordinary inspection, and broad Rust/UI regressions pass. |
 | R06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Add representation-independent command lowering and immutable frozen source. |
 | R07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Add explicit default-Off compression and atomic reversible transitions. |
 | R08 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Final N01–N24, performance, product, CI, and cleanup qualification. |
@@ -44,18 +44,18 @@
 | N09 | Shared command catalog | R02 | The shared generic/module registries and factories create the same concrete Set Parameter type under Action and Mapping; Mapping adds only its binding subtree. | PASSED |
 | N10 | Real module command | R02 | Mapping exposes owned module command catalog entries with initialized module targets and lowers the concrete command itself through the existing queued execute boundary. | PASSED |
 | N11 | Shared typed argument binding | R02, R04 | Whole tuple, stable element, component, typed constant, send-policy, and per-argument bindings are ordinary addressable parameters and produce invocation overrides without mutating authored command values. | PASSED |
-| N12 | Fan-out, groups, timing | R02, R05 | Concrete commands and output groups retain shared scheduling, repeated occurrences, accepted-send caching, and queued effects; R05 owns full product requalification. | PARTIAL |
-| N13 | Controllable from everywhere | R04, R05 | State, Mapping, script, UI, and headless callers reach the same ordinary node controls; R05 owns the combined product requalification. | PARTIAL |
-| N14 | Stable identity and state | R01, R03, R05 | Structural migration preserves processor, region, ANode, source, and nested-control UUIDs; R03 recovery retains the incompatible filter's UUID while adding a compatible source. R05 owns full requalification. | PARTIAL |
-| N15 | Persistence/migration | R01, R02, R05 | Sparse hierarchy migration preserves direct manager UUIDs; command migration preserves output UUID/order/presentation and external ownership, round-trips typed bindings, and retains ambiguous data with warnings. R05 owns the full matrix. | PARTIAL |
-| N16 | Custom Formula conversion | R05 | Commands, bindings, resources, graph semantics, and editor behavior survive. | NOT_RUN |
+| N12 | Fan-out, groups, timing | R02, R05 | Live fan-out add/remove preserves exact effects and unrelated state; shared group delay/stagger/cancel, repeated occurrence, accepted-send caching, and queued-effect suites pass. | PASSED |
+| N13 | Controllable from everywhere | R04, R05 | State activation, Mapping feedback, script controls, production-runtime UI intents, and headless ordinary parameter edits reach the same nodes and runtime behavior. | PASSED |
+| N14 | Stable identity and state | R01, R03, R05 | Conversion preserves processor, managed item, concrete command, resource, key, and nested-value UUIDs; compatible edits retain state while conversion deliberately starts temporal filters fresh. | PASSED |
+| N15 | Persistence/migration | R01, R02, R05 | Full and sparse reload preserve converted formulas, concrete commands, bindings, graph operations, and nested resources; cross-context copy retains external ownership and supports one-step undo/redo. | PASSED |
+| N16 | Custom Formula conversion | R05 | Configured concrete commands, bindings, Curve Remap resources, nested identities, graph operations, temporal reset, repeated triggers, sparse/full reload, continued edits, and ordinary inspector/editor paths pass. | PASSED |
 | N17 | Compression default and scope | R07 | Expanded default; explicit compression removes actual workflow nodes. | NOT_RUN |
 | N18 | Dependency preflight | R06, R07 | Exact blockers preserve editable data and references. | NOT_RUN |
 | N19 | Compressed equivalence | R06, R07, R08 | Expanded/frozen values, commands, contexts, suppression, and triggers agree. | NOT_RUN |
 | N20 | Compressed lock and feedback | R07 | Frozen edits fail consistently; feedback remains useful; preview creates no nodes. | NOT_RUN |
 | N21 | Atomic transition and failure | R07 | Rollback, stale revision, state continuity, and no replay/double-run. | NOT_RUN |
 | N22 | Restore and duplicate compressed data | R07 | Reload/expand/undo/duplicate/import identity maps and effects pass. | NOT_RUN |
-| N23 | Product regression | R05, R08 | Action, modules, Formula editor, ordinary UI, context, and launch workflows. | NOT_RUN |
+| N23 | Product regression | R05, R08 | Action command ownership, modules, Formula conversion/editor data, ordinary inspector composition, scripts, contexts, Rust workspace, and UI suites pass. Interactive desktop/watch, supported launch, and packaging qualification remain R08 work. | PARTIAL |
 | N24 | Separate performance qualification | R08 | Expanded/compressed counts and costs; no mandatory debug/JSON/tree creation. | NOT_RUN |
 
 ## Historical phase ledger (superseded contract)
@@ -312,6 +312,17 @@
 - Implementation commit: `b76bef7d5170ef7af19315fda6a2aed0931aa35b`.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `b76bef7d5170ef7af19315fda6a2aed0931aa35b`, 2026-09-16T11:22:34+02:00 (`git ls-remote`).
 - Remaining R04 work: none. R05 owns persistence, conversion, expanded-node product behavior, and combined UI/script/headless requalification.
+
+### R05 (complete)
+
+- Changes and boundaries: configured Mapping conversion now qualifies the concrete Mapping-owned command path instead of the retired OutputTarget adapter shape. Converted project Formulas retain their processor reference, managed items, concrete commands, ordinary binding controls, nested Curve Remap resources, and authored graph operations. The normal processor inspector and Formula editor remain the only UI paths.
+- Cross-context copy: copying a concrete command from Action into Mapping through `ProductionRuntime` keeps the source command and target in place, assigns the copy a fresh UUID, and lets the Mapping output region add its local binding controls through ordinary structural lifecycle callbacks. The managed region now dispatches its child callbacks before scoped filter-warning reconciliation and requests a tree snapshot only for output structure events that need it. One undo removes the copy without touching the source; redo restores the copied UUID and binding subtree.
+- Product and persistence evidence: a configured conversion preserves command, filter resource, curve key, nested value, binding, processor, and Formula identities through full and sparse project codecs. Existing conversion coverage verifies one-step undo/redo, context-equivalent values, deliberate fresh temporal state, repeated-trigger multiplicity, sparse reload, continued binding edits, and custom graph edits. Live fan-out add/remove keeps retained and new sinks current, stops removed output delivery, and leaves unrelated module state unchanged. Existing scheduling, group, delay, stagger, cancel, accepted-send, state-control, script-control, migration, and external-reference suites pass.
+- Validation: `cargo test-fast` passes 588 app tests plus one desktop audio integration test, 179 Alchemist tests, 123 processor tests, and 15 state-machine tests; eight opt-in tests remain ignored. Workspace check, strict all-target Clippy, metadata, both formatter scopes, and whitespace checks pass. The ordinary-inspector product test passes; all JavaScript suites pass 136 tests, and Svelte check, generated-contract check, lint, and production build pass. No protocol declaration changed and no performance benchmark was run for R05.
+- Interactive gates: repository rules prohibit synthesized desktop interaction, so desktop/watch and supported launch interaction were not claimed. Packaging and final supported-host qualification remain explicit R08 work; they do not block the normal editable Mapping product checkpoint delivered here.
+- Implementation commit: `c3f020ec215cf16a3477aec01cc7406199567499`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `c3f020ec215cf16a3477aec01cc7406199567499`, 2026-09-16T12:06:52+02:00 (`git ls-remote`).
+- Remaining R05 work: none. R06 owns representation-independent command preparation, immutable frozen source, dependency preflight, and live/frozen equivalence without exposing compression.
 
 ## Historical phase reports
 
