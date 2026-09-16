@@ -1,68 +1,12 @@
-use chataigne_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, ChannelDescriptor, ChannelLayout, ContextKey, ExecNodeId, FormulaId,
-    FormulaSurface, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId,
-    ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, SocketId,
-    StableRef, SurfaceItemKind, ValueLaneKey, ValueTypeId, ValueTypeRegistry,
-};
+use chataigne_alchemist::{ANodeId, ContextKey, ExecNodeId, FormulaId, OutputPreviewStatus, SocketId, ValueTypeId};
 use golden_values::Value as RuntimeValue;
 
 use crate::{
-    ANodeOutputPreviewSample, MappingValueComponentDto, ProcessorFormulaUiState, ProcessorId, ProcessorUiModel,
+    ANodeOutputPreviewSample, ProcessorFormulaUiState, ProcessorId, ProcessorUiModel,
     protocol::{
-        ANodeOutputPreviewSampleDto, ContextKeyDto, ManagedRegionDefinitionDto, ManagedRegionInstanceDto,
-        ManagedRegionKindDto, MappingShapeKindDto, MappingValueShapeDto, ProcessorFormulaSourceKindDto, ProcessorUiDto,
-        RuntimeValueDto,
+        ANodeOutputPreviewSampleDto, ContextKeyDto, ProcessorFormulaSourceKindDto, ProcessorUiDto, RuntimeValueDto,
     },
 };
-
-#[test]
-fn mapping_shape_dto_keeps_ordered_tuple_ids_and_compound_components() {
-    let values = ValueTypeRegistry::with_primitives();
-    let descriptor = |id: &str, value_type: &str| {
-        ChannelDescriptor::input(
-            ValueLaneKey::new(id).unwrap(),
-            id.to_uppercase(),
-            StableRef::new(ValueTypeId::new("source"), id),
-            Some(ValueTypeId::new(value_type)),
-        )
-    };
-    let tuple = ChannelLayout::new(vec![
-        descriptor("x", "float"),
-        descriptor("y", "bool"),
-        descriptor("z", "string"),
-    ])
-    .unwrap();
-    let shape = MappingValueShapeDto::from_layout(&tuple, &values);
-    assert!(matches!(shape.kind, MappingShapeKindDto::Tuple));
-    assert_eq!(
-        shape
-            .elements
-            .iter()
-            .map(|element| element.id.as_str())
-            .collect::<Vec<_>>(),
-        ["x", "y", "z"]
-    );
-    assert_eq!(
-        shape
-            .elements
-            .iter()
-            .map(|element| element.value_type.as_deref())
-            .collect::<Vec<_>>(),
-        [Some("float"), Some("bool"), Some("string")]
-    );
-
-    let packed = ChannelLayout::new(vec![descriptor("position", "vec3")]).unwrap();
-    let shape = MappingValueShapeDto::from_layout(&packed, &values);
-    assert!(matches!(shape.kind, MappingShapeKindDto::Compound));
-    assert_eq!(
-        shape.elements[0].components,
-        [
-            MappingValueComponentDto::X,
-            MappingValueComponentDto::Y,
-            MappingValueComponentDto::Z,
-        ]
-    );
-}
 
 #[test]
 fn context_key_dto_preserves_stable_axis_and_item_ids() {
@@ -137,12 +81,6 @@ fn processor_ui_dto_preserves_read_only_external_formula_source_state() {
         formula_id: "11111111-2222-4333-8444-000000000001".into(),
         formula_label: "Formula".into(),
         formula_source_key: Some("state_processor:project:11111111-2222-4333-8444-000000000001".into()),
-        surface: FormulaSurface {
-            sections: Vec::new(),
-            managed_regions: Vec::new(),
-        },
-        managed_region_instances: ManagedRegionInstances::default(),
-        diagnostics: Vec::new(),
         formula_source: ProcessorFormulaUiState::builtin(true, false),
     };
 
@@ -158,57 +96,15 @@ fn processor_ui_dto_preserves_read_only_external_formula_source_state() {
     );
     assert!(dto.formula_open_readonly_from_processor);
     assert!(!dto.formula_can_duplicate_to_library);
-}
-
-#[test]
-fn managed_region_definition_dto_preserves_role_and_socket_contract() {
-    let boundary = ANodeId::new();
-    let definition = ManagedRegionDefinition {
-        id: ManagedRegionId::new("filters"),
-        kind: ManagedRegionKind::FilterPipeline,
-        label: "Filters".into(),
-        input_socket: Some(ManagedSocketRef::new(boundary, "value")),
-        output_socket: Some(ManagedSocketRef::new(boundary, "result")),
-        accepted_roles: vec![SurfaceItemKind::Filter, SurfaceItemKind::Condition],
-        filter_value_mode: Default::default(),
-    };
-
-    let dto = ManagedRegionDefinitionDto::from(&definition);
-
-    assert_eq!(dto.id, "filters");
-    assert!(matches!(dto.kind, ManagedRegionKindDto::FilterPipeline));
-    assert_eq!(dto.label, "Filters");
-    assert_eq!(dto.input_socket.as_ref().unwrap().node_id, boundary.to_string());
-    assert_eq!(dto.input_socket.as_ref().unwrap().socket_id, "value");
-    assert_eq!(dto.output_socket.as_ref().unwrap().socket_id, "result");
-    assert_eq!(dto.accepted_roles.len(), 2);
-}
-
-#[test]
-fn managed_region_instance_dto_preserves_item_identity_and_ui_state() {
-    let mut anode = ANodeInstance::new(ANodeTypeId::new("remap"), "Remap");
-    anode.enabled = false;
-    let anode_id = anode.id;
-    let item_id = ManagedItemId::new();
-    let instance = ManagedRegionInstance {
-        region_id: ManagedRegionId::new("filters"),
-        items: vec![ManagedItemInstance {
-            id: item_id,
-            anode,
-            enabled: true,
-            ui_state: ManagedItemUiState { collapsed: true },
-        }],
-    };
-
-    let dto = ManagedRegionInstanceDto::from(&instance);
-
-    assert_eq!(dto.region_id, "filters");
-    assert_eq!(dto.items.len(), 1);
-    assert_eq!(dto.items[0].id, item_id.to_string());
-    assert_eq!(dto.items[0].anode_id, anode_id.to_string());
-    assert_eq!(dto.items[0].anode_type_id, "remap");
-    assert_eq!(dto.items[0].label, "Remap");
-    assert!(dto.items[0].enabled);
-    assert!(!dto.items[0].anode_enabled);
-    assert!(dto.items[0].ui_state.collapsed);
+    let json = serde_json::to_value(dto).expect("processor UI metadata should serialize");
+    for removed_inventory_field in [
+        "surface",
+        "managed_regions",
+        "managed_region_instances",
+        "mapping_pipeline",
+        "mapping_outputs",
+        "mapping_diagnostics",
+    ] {
+        assert!(json.get(removed_inventory_field).is_none());
+    }
 }

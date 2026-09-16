@@ -1140,6 +1140,7 @@ dependencies = [
  "golden_values",
  "indexmap 2.14.0",
  "serde",
+ "serde_json",
  "ts-rs",
 ]
 

@@ -3,7 +3,8 @@ use golden_core::{
     color::Color,
     edit::{Edit, EditOrigin},
     node::{
-        DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference,
+        DeclId, Folder, GRADIENT_NODE_TYPE, Node, NodeId, NodeMetaPatch,
+        NodeReference, PARAMETER_ANIMATION_CURVE_NODE_TYPE,
     },
     parameter::{ParamValue, Parameter, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
@@ -258,7 +259,7 @@ fn formula_exposes_anode_catalog_as_real_user_items() {
 }
 
 #[test]
-fn anode_catalog_materializes_and_roundtrips_every_registered_type() {
+fn anode_catalog_materializes_addressable_controls_and_roundtrips_every_registered_type() {
     let registry = chataigne_state_machine::alchemist::node_registry();
     let declarations = registry
         .iter()
@@ -308,6 +309,41 @@ fn anode_catalog_materializes_and_roundtrips_every_registered_type() {
         let declaration = registry
             .get(&instance.type_id)
             .unwrap_or_else(|| panic!("{type_id} should remain registered"));
+        let fields = declaration.config_fields_for(&instance);
+        if !fields.is_empty() {
+            let config = snapshot
+                .find_child_by_decl_id(*node, "config")
+                .unwrap_or_else(|| panic!("{type_id} should expose an ordinary config folder"));
+            for field in &fields {
+                let authored = snapshot
+                    .find_child_by_decl_id(config, &format!("config/{}", field.id))
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "{type_id} config field {} should be an addressable child node",
+                            field.id
+                        )
+                    });
+                let expected_resource_type = match field.editor.as_deref() {
+                    Some("curve") => Some(PARAMETER_ANIMATION_CURVE_NODE_TYPE),
+                    Some("gradient") => Some(GRADIENT_NODE_TYPE),
+                    _ => None,
+                };
+                if let Some(expected) = expected_resource_type {
+                    assert_eq!(
+                        snapshot.node(authored).unwrap().node_type,
+                        expected,
+                        "{type_id} resource {} should use the shared Golden editor node",
+                        field.id
+                    );
+                } else {
+                    assert!(
+                        snapshot.node(authored).unwrap().is_parameter(),
+                        "{type_id} config field {} should use an ordinary parameter",
+                        field.id
+                    );
+                }
+            }
+        }
         let signature = declaration.signature(
             &signature_ctx,
             &instance,
@@ -318,7 +354,7 @@ fn anode_catalog_materializes_and_roundtrips_every_registered_type() {
             "label": label,
             "category": category,
             "execution_kind": execution_kind,
-            "config_fields": declaration.config_fields_for(&instance).len(),
+            "config_fields": fields.len(),
             "inputs": signature.inputs.len(),
             "outputs": signature.outputs.len(),
         }));

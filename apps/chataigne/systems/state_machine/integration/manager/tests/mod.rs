@@ -35,7 +35,7 @@ use golden_values::Value as RuntimeValue;
 use super::{
     collect_processor_lane_parameter_inspection, compile_processor_runtime_for_cache_rebuild,
     condition_manager_edge_previous, condition_manager_value, dispatch_command_intent,
-    formula_default_output_preview_samples, intern_runtime_command_invocation, is_standard_mapping_tags, latest_param_value,
+    formula_default_output_preview_samples, intern_runtime_command_invocation, latest_param_value,
     merge_output_preview_snapshot, output_preview_signature, processor_formula_from_snapshot,
     processor_formula_source_ref, processor_override_value, processor_overview_publish_due, processor_overview_shard,
     processor_overview_topic, processor_lane_catalog_entries, processor_preview_needs_hydration, processor_preview_plan,
@@ -60,13 +60,6 @@ mod output_arguments;
 mod processor_candidates;
 mod snapshot_gate;
 mod source_schema;
-
-#[test]
-fn standard_mapping_inspector_does_not_replace_custom_formula_or_action_surfaces() {
-    assert!(is_standard_mapping_tags(&["chataigne.formula.external.builtin:chataigne.mapping@1".into()]));
-    assert!(!is_standard_mapping_tags(&["chataigne.formula.external.builtin:chataigne.action@1".into()]));
-    assert!(!is_standard_mapping_tags(&["chataigne.formula.external.read_only".into()]));
-}
 
 fn context_axis(axis: ContextAxisId, name: &str, items: Vec<ContextItemId>) -> ProcessorContextAxisRuntime {
     let default_item = items.first().cloned().expect("test context axes need an item");

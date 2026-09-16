@@ -200,15 +200,14 @@ impl Processor {
     }
 
     #[must_use]
-    pub fn ui_model(&self, formula: &AlchemistFormula, diagnostics: Vec<Diagnostic>) -> ProcessorUiModel {
-        self.ui_model_with_formula_source(formula, diagnostics, ProcessorFormulaUiState::default(), None)
+    pub fn ui_model(&self, formula: &AlchemistFormula) -> ProcessorUiModel {
+        self.ui_model_with_formula_source(formula, ProcessorFormulaUiState::default(), None)
     }
 
     #[must_use]
     pub fn ui_model_with_formula_source(
         &self,
         formula: &AlchemistFormula,
-        diagnostics: Vec<Diagnostic>,
         formula_source: ProcessorFormulaUiState,
         formula_source_key: Option<String>,
     ) -> ProcessorUiModel {
@@ -219,9 +218,6 @@ impl Processor {
             formula_id: formula.id.to_string(),
             formula_label: formula.label.clone(),
             formula_source_key,
-            surface: formula.surface.clone(),
-            managed_region_instances: self.formula_instance.managed_regions.clone(),
-            diagnostics,
             formula_source,
         }
     }

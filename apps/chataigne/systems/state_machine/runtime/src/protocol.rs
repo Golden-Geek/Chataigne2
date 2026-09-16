@@ -3,18 +3,10 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
-use chataigne_alchemist::{
-    ChannelLayout, ContextKey, Diagnostic, DiagnosticOrigin, DiagnosticSeverity, ManagedFilterValueMode,
-    ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionInstance, ManagedRegionKind,
-    ManagedSocketRef, OutputPreviewStatus, SurfaceItemKind, ValueComponent, ValueTypeRegistry, ValueTypeSpec,
-    component_value_type,
-};
-use golden_values::{Value as RuntimeValue, ValueStorageKind};
+use chataigne_alchemist::{ContextKey, OutputPreviewStatus};
+use golden_values::Value as RuntimeValue;
 
-use crate::{
-    ANodeOutputPreviewSample, ManagedPipelineShape, MappingOutputBindingsDto, MappingValueComponentDto,
-    ProcessorFormulaSourceKind, ProcessorUiModel,
-};
+use crate::{ANodeOutputPreviewSample, ProcessorFormulaSourceKind, ProcessorUiModel};
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct StateUiLayoutDto {
@@ -49,187 +41,6 @@ pub enum StatechartDeltaDto {
     ActiveChanged { state_id: String, active: bool },
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum FormulaSurfaceItemKindDto {
-    Parameter,
-    Condition,
-    Consequence,
-    Input,
-    Filter,
-    Output,
-    Command,
-}
-
-impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
-    fn from(value: SurfaceItemKind) -> Self {
-        match value {
-            SurfaceItemKind::Parameter => Self::Parameter,
-            SurfaceItemKind::Condition => Self::Condition,
-            SurfaceItemKind::Consequence => Self::Consequence,
-            SurfaceItemKind::Input => Self::Input,
-            SurfaceItemKind::Filter => Self::Filter,
-            SurfaceItemKind::Output => Self::Output,
-            SurfaceItemKind::Command => Self::Command,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct FormulaSurfaceItemDto {
-    pub id: String,
-    pub label: String,
-    pub path: Vec<String>,
-    pub kind: FormulaSurfaceItemKindDto,
-    pub value_type: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct FormulaSurfaceSectionDto {
-    pub id: String,
-    pub label: String,
-    pub items: Vec<FormulaSurfaceItemDto>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum ManagedRegionKindDto {
-    InputSet,
-    FilterPipeline,
-    OutputSet,
-    TriggerInput,
-    CommandSet,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum ManagedFilterValueModeDto {
-    Routed,
-    Tuple,
-}
-
-impl From<ManagedFilterValueMode> for ManagedFilterValueModeDto {
-    fn from(value: ManagedFilterValueMode) -> Self {
-        match value {
-            ManagedFilterValueMode::Routed => Self::Routed,
-            ManagedFilterValueMode::Tuple => Self::Tuple,
-        }
-    }
-}
-
-impl From<ManagedRegionKind> for ManagedRegionKindDto {
-    fn from(value: ManagedRegionKind) -> Self {
-        match value {
-            ManagedRegionKind::InputSet => Self::InputSet,
-            ManagedRegionKind::FilterPipeline => Self::FilterPipeline,
-            ManagedRegionKind::OutputSet => Self::OutputSet,
-            ManagedRegionKind::TriggerInput => Self::TriggerInput,
-            ManagedRegionKind::CommandSet => Self::CommandSet,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ManagedSocketRefDto {
-    pub node_id: String,
-    pub socket_id: String,
-}
-
-impl From<&ManagedSocketRef> for ManagedSocketRefDto {
-    fn from(value: &ManagedSocketRef) -> Self {
-        Self {
-            node_id: value.node.to_string(),
-            socket_id: value.socket.to_string(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ManagedRegionDefinitionDto {
-    pub id: String,
-    pub kind: ManagedRegionKindDto,
-    pub label: String,
-    pub input_socket: Option<ManagedSocketRefDto>,
-    pub output_socket: Option<ManagedSocketRefDto>,
-    pub accepted_roles: Vec<FormulaSurfaceItemKindDto>,
-    pub filter_value_mode: ManagedFilterValueModeDto,
-}
-
-impl From<&ManagedRegionDefinition> for ManagedRegionDefinitionDto {
-    fn from(value: &ManagedRegionDefinition) -> Self {
-        Self {
-            id: value.id.to_string(),
-            kind: value.kind.into(),
-            label: value.label.clone(),
-            input_socket: value.input_socket.as_ref().map(ManagedSocketRefDto::from),
-            output_socket: value.output_socket.as_ref().map(ManagedSocketRefDto::from),
-            accepted_roles: value
-                .accepted_roles
-                .iter()
-                .copied()
-                .map(FormulaSurfaceItemKindDto::from)
-                .collect(),
-            filter_value_mode: value.filter_value_mode.into(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ManagedItemUiStateDto {
-    pub collapsed: bool,
-}
-
-impl From<&ManagedItemUiState> for ManagedItemUiStateDto {
-    fn from(value: &ManagedItemUiState) -> Self {
-        Self {
-            collapsed: value.collapsed,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ManagedItemDto {
-    pub id: String,
-    pub anode_id: String,
-    pub anode_type_id: String,
-    pub label: String,
-    pub enabled: bool,
-    pub anode_enabled: bool,
-    pub ui_state: ManagedItemUiStateDto,
-}
-
-impl From<&ManagedItemInstance> for ManagedItemDto {
-    fn from(value: &ManagedItemInstance) -> Self {
-        Self {
-            id: value.id.to_string(),
-            anode_id: value.anode.id.to_string(),
-            anode_type_id: value.anode.type_id.to_string(),
-            label: value.anode.label.clone(),
-            enabled: value.enabled,
-            anode_enabled: value.anode.enabled,
-            ui_state: ManagedItemUiStateDto::from(&value.ui_state),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ManagedRegionInstanceDto {
-    pub region_id: String,
-    pub items: Vec<ManagedItemDto>,
-}
-
-impl From<&ManagedRegionInstance> for ManagedRegionInstanceDto {
-    fn from(value: &ManagedRegionInstance) -> Self {
-        Self {
-            region_id: value.region_id.to_string(),
-            items: value.items.iter().map(ManagedItemDto::from).collect(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -256,175 +67,8 @@ pub struct ProcessorUiDto {
     pub formula_label: String,
     pub formula_source_key: Option<String>,
     pub formula_source_kind: ProcessorFormulaSourceKindDto,
-    pub standard_mapping: bool,
     pub formula_open_readonly_from_processor: bool,
     pub formula_can_duplicate_to_library: bool,
-    pub surface: Vec<FormulaSurfaceSectionDto>,
-    pub managed_regions: Vec<ManagedRegionDefinitionDto>,
-    pub managed_region_instances: Vec<ManagedRegionInstanceDto>,
-    pub diagnostic_ids: Vec<String>,
-    pub mapping_pipeline: Option<MappingPipelineShapeDto>,
-    pub mapping_diagnostics: Vec<MappingDiagnosticDto>,
-    pub mapping_outputs: Vec<MappingOutputTargetDto>,
-    pub runtime_state: ProcessorRuntimeStateDto,
-    pub multiplex_lane_count: usize,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum ProcessorRuntimeStateDto {
-    Active,
-    Disabled,
-    Invalid,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum MappingShapeKindDto {
-    Incomplete,
-    Scalar,
-    Compound,
-    Tuple,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct MappingShapeElementDto {
-    pub id: String,
-    pub label: String,
-    pub value_type: Option<String>,
-    pub minimum: Option<f64>,
-    pub maximum: Option<f64>,
-    pub unit: Option<String>,
-    pub components: Vec<MappingValueComponentDto>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct MappingValueShapeDto {
-    pub kind: MappingShapeKindDto,
-    pub elements: Vec<MappingShapeElementDto>,
-}
-
-impl MappingValueShapeDto {
-    pub fn from_layout(layout: &ChannelLayout, value_types: &ValueTypeRegistry) -> Self {
-        let elements = layout
-            .channels()
-            .iter()
-            .map(|channel| MappingShapeElementDto {
-                id: channel.id.as_str().to_owned(),
-                label: channel.label.clone(),
-                value_type: channel.value_type.as_ref().map(ToString::to_string),
-                minimum: channel.metadata.minimum,
-                maximum: channel.metadata.maximum,
-                unit: channel.metadata.unit.clone(),
-                components: channel.value_type.as_ref().map_or_else(Vec::new, |value_type| {
-                    [
-                        ValueComponent::X,
-                        ValueComponent::Y,
-                        ValueComponent::Z,
-                        ValueComponent::R,
-                        ValueComponent::G,
-                        ValueComponent::B,
-                        ValueComponent::A,
-                    ]
-                    .into_iter()
-                    .filter(|component| component_value_type(value_type, *component).is_some())
-                    .map(MappingValueComponentDto::from)
-                    .collect()
-                }),
-            })
-            .collect();
-        let kind = match layout.channels() {
-            [] => MappingShapeKindDto::Incomplete,
-            [channel] => match channel.value_type.as_ref().and_then(|id| value_types.get(id)) {
-                None => MappingShapeKindDto::Incomplete,
-                Some(descriptor) => match descriptor.storage {
-                    ValueStorageKind::InlineVec2
-                    | ValueStorageKind::InlineVec3
-                    | ValueStorageKind::InlineColor
-                    | ValueStorageKind::Array => MappingShapeKindDto::Compound,
-                    _ => MappingShapeKindDto::Scalar,
-                },
-            },
-            _ => MappingShapeKindDto::Tuple,
-        };
-        Self { kind, elements }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct MappingStageShapeDto {
-    pub item_id: String,
-    pub before: MappingValueShapeDto,
-    pub after: MappingValueShapeDto,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct MappingPipelineShapeDto {
-    pub input: MappingValueShapeDto,
-    pub stages: Vec<MappingStageShapeDto>,
-    pub output: MappingValueShapeDto,
-}
-
-impl MappingPipelineShapeDto {
-    pub fn from_pipeline(shape: &ManagedPipelineShape, value_types: &ValueTypeRegistry) -> Self {
-        Self {
-            input: MappingValueShapeDto::from_layout(&shape.input, value_types),
-            stages: shape
-                .stages
-                .iter()
-                .map(|stage| MappingStageShapeDto {
-                    item_id: stage.item_id.to_string(),
-                    before: MappingValueShapeDto::from_layout(&stage.before, value_types),
-                    after: MappingValueShapeDto::from_layout(&stage.after, value_types),
-                })
-                .collect(),
-            output: MappingValueShapeDto::from_layout(&shape.output, value_types),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct MappingDiagnosticDto {
-    pub code: String,
-    pub message: String,
-    pub severity: DiagnosticSeverityDto,
-    pub item_id: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct MappingArgumentCandidateDto {
-    pub id: String,
-    pub label: String,
-    pub value_type: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct MappingOutputTargetDto {
-    pub item_id: String,
-    pub target_label: Option<String>,
-    pub arguments: Vec<MappingArgumentCandidateDto>,
-    pub truncated: bool,
-}
-
-impl From<&Diagnostic> for MappingDiagnosticDto {
-    fn from(value: &Diagnostic) -> Self {
-        let item_id = match &value.origin {
-            DiagnosticOrigin::Node(node) | DiagnosticOrigin::Socket { node, .. } => Some(node.to_string()),
-            _ => None,
-        };
-        Self {
-            code: value.code.clone(),
-            message: value.message.clone(),
-            severity: match value.severity {
-                DiagnosticSeverity::Info => DiagnosticSeverityDto::Info,
-                DiagnosticSeverity::Warning => DiagnosticSeverityDto::Warning,
-                DiagnosticSeverity::Error => DiagnosticSeverityDto::Error,
-            },
-            item_id,
-        }
-    }
 }
 
 impl From<&ProcessorUiModel> for ProcessorUiDto {
@@ -437,63 +81,9 @@ impl From<&ProcessorUiModel> for ProcessorUiDto {
             formula_label: value.formula_label.clone(),
             formula_source_key: value.formula_source_key.clone(),
             formula_source_kind: value.formula_source.source_kind.into(),
-            standard_mapping: false,
             formula_open_readonly_from_processor: value.formula_source.open_readonly_from_processor,
             formula_can_duplicate_to_library: value.formula_source.can_duplicate_to_library,
-            surface: value
-                .surface
-                .sections
-                .iter()
-                .map(|section| FormulaSurfaceSectionDto {
-                    id: section.id.to_string(),
-                    label: section.label.clone(),
-                    items: section
-                        .items
-                        .iter()
-                        .map(|item| FormulaSurfaceItemDto {
-                            id: item.id.to_string(),
-                            label: item.label.clone(),
-                            path: item.path.clone(),
-                            kind: item.kind.into(),
-                            value_type: item.value_type.as_ref().map(value_type_spec_label),
-                        })
-                        .collect(),
-                })
-                .collect(),
-            managed_regions: value
-                .surface
-                .managed_regions
-                .iter()
-                .map(ManagedRegionDefinitionDto::from)
-                .collect(),
-            managed_region_instances: value
-                .managed_region_instances
-                .regions
-                .values()
-                .map(ManagedRegionInstanceDto::from)
-                .collect(),
-            diagnostic_ids: value
-                .diagnostics
-                .iter()
-                .map(|diagnostic| diagnostic.code.to_string())
-                .collect(),
-            mapping_pipeline: None,
-            mapping_diagnostics: value.diagnostics.iter().map(MappingDiagnosticDto::from).collect(),
-            mapping_outputs: Vec::new(),
-            runtime_state: if value.active {
-                ProcessorRuntimeStateDto::Active
-            } else {
-                ProcessorRuntimeStateDto::Disabled
-            },
-            multiplex_lane_count: 0,
         }
-    }
-}
-
-fn value_type_spec_label(value: &ValueTypeSpec) -> String {
-    match value {
-        ValueTypeSpec::Exact(id) => id.to_string(),
-        ValueTypeSpec::Facet(id) => id.to_string(),
     }
 }
 
@@ -833,33 +423,7 @@ export type { DiagnosticDto } from './DiagnosticDto';\n\
 export type { DiagnosticSeverityDto } from './DiagnosticSeverityDto';\n\
 export type { FormulaPreviewDemandDto } from './FormulaPreviewDemandDto';\n\
 export type { FormulaPreviewModeDto } from './FormulaPreviewModeDto';\n\
-export type { FormulaSurfaceItemDto } from './FormulaSurfaceItemDto';\n\
-export type { FormulaSurfaceItemKindDto } from './FormulaSurfaceItemKindDto';\n\
-export type { FormulaSurfaceSectionDto } from './FormulaSurfaceSectionDto';\n\
-export type { ManagedItemDto } from './ManagedItemDto';\n\
-export type { ManagedFilterValueModeDto } from './ManagedFilterValueModeDto';\n\
-export type { ManagedItemUiStateDto } from './ManagedItemUiStateDto';\n\
-export type { ManagedRegionDefinitionDto } from './ManagedRegionDefinitionDto';\n\
-export type { ManagedRegionInstanceDto } from './ManagedRegionInstanceDto';\n\
-export type { ManagedRegionKindDto } from './ManagedRegionKindDto';\n\
-export type { ManagedSocketRefDto } from './ManagedSocketRefDto';\n\
-export type { MappingDiagnosticDto } from './MappingDiagnosticDto';\n\
-export type { MappingArgumentCandidateDto } from './MappingArgumentCandidateDto';\n\
-export type { MappingConstantDto } from './MappingConstantDto';\n\
-export type { MappingOutputArgumentDto } from './MappingOutputArgumentDto';\n\
-export type { MappingOutputBindingsDto } from './MappingOutputBindingsDto';\n\
-export type { MappingOutputTargetDto } from './MappingOutputTargetDto';\n\
-export type { MappingOutputSendPolicyDto } from './MappingOutputSendPolicyDto';\n\
-export type { MappingOutputSourceDto } from './MappingOutputSourceDto';\n\
-export type { MappingPipelineShapeDto } from './MappingPipelineShapeDto';\n\
-export type { MappingShapeElementDto } from './MappingShapeElementDto';\n\
-export type { MappingShapeKindDto } from './MappingShapeKindDto';\n\
-export type { MappingStageShapeDto } from './MappingStageShapeDto';\n\
-export type { MappingTargetParameterDto } from './MappingTargetParameterDto';\n\
-export type { MappingValueShapeDto } from './MappingValueShapeDto';\n\
-export type { MappingValueComponentDto } from './MappingValueComponentDto';\n\
 export type { OutputPreviewStatusDto } from './OutputPreviewStatusDto';\n\
-export type { ProcessorRuntimeStateDto } from './ProcessorRuntimeStateDto';\n\
 export type { ProcessorOverviewDemandDto } from './ProcessorOverviewDemandDto';\n\
 export type { ProcessorOverviewLaneSelectionDto } from './ProcessorOverviewLaneSelectionDto';\n\
 export type { ProcessorLaneCatalogEntryDto } from './ProcessorLaneCatalogEntryDto';\n\
@@ -880,7 +444,6 @@ export type { StateUiNodeDto } from './StateUiNodeDto';\n";
     let output_dir = output_dir.as_ref();
     let config = Config::new().with_out_dir(output_dir.to_path_buf());
     StateMachinePreviewCatalogDto::export_all(&config)?;
-    MappingOutputBindingsDto::export_all(&config)?;
     StateMachineProcessorOverviewDto::export_all(&config)?;
     StateMachineRuntimePreviewDto::export_all(&config)?;
     ProcessorOverviewDemandDto::export_all(&config)?;

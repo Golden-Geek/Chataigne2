@@ -26,7 +26,7 @@
 	import {
 		ContextMenu,
 		ManagerListPanel,
-		NodeAddButton,
+		NodeInspector,
 		buildCreatableItemMenu,
 		canDragOutlinerNode
 	} from 'golden_ui';
@@ -59,9 +59,6 @@
 	import type {
 		FormulaPreviewDemandDto,
 		FormulaPreviewModeDto,
-		ManagedItemDto,
-		ManagedRegionDefinitionDto,
-		ManagedRegionInstanceDto,
 		ProcessorLaneCatalogEntryDto,
 		ProcessorUiDto,
 		RuntimeValueDto,
@@ -96,8 +93,6 @@
 	import FormulaPreviewModeSelector from './FormulaPreviewModeSelector.svelte';
 	import GraphToolbarActions from './GraphToolbarActions.svelte';
 	import ProcessorLaneSelector from './ProcessorLaneSelector.svelte';
-	import MappingInspector from './MappingInspector.svelte';
-	import { isTupleMappingSurface } from '../mappingInspectorModel';
 
 	interface ClipboardReferenceLookup {
 		bySourceId: Map<NodeId, UiNodeDto>;
@@ -158,12 +153,9 @@
 		output: `${ANODE_CREATE_PREFIX}chataigne.outputs_manager`
 	};
 	const PROCESSOR_ITEM_KIND = 'state_processor';
-	const PROCESSOR_MANAGED_REGIONS_DECL_ID = 'managed_regions';
-	const PROCESSOR_MANAGED_REGION_DECL_PREFIX = 'managed_region/';
 	const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
 	const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX = 'chataigne.formula.external.builtin:';
 	const FORMULA_COPY_SOURCE_DECL_ID = 'formula_copy_source';
-	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
 	const PREVIEW_ACTIVITY_HOLD_MS = 160;
 	const PREVIEW_DEMAND_HEARTBEAT_MS = 2000;
 	const STATE_MACHINE_MANAGER_NODE_TYPE = 'state_machine_manager';
@@ -558,25 +550,6 @@
 			null
 		);
 	});
-	let processorRegionInstances = $derived.by((): Map<string, ManagedRegionInstanceDto> => {
-		return new Map(
-			processorUi?.managed_region_instances.map((instance) => [instance.region_id, instance]) ?? []
-		);
-	});
-	let processorManagedRegionsRoot = $derived.by((): UiNodeDto | null => {
-		if (!processorNode || !graphState) return null;
-		return directChild(processorNode, graphState.nodesById, PROCESSOR_MANAGED_REGIONS_DECL_ID);
-	});
-	let processorManagedRegionNodes = $derived.by((): Map<string, UiNodeDto> => {
-		const nodes = new Map<string, UiNodeDto>();
-		if (!processorManagedRegionsRoot || !graphState) return nodes;
-		for (const childId of processorManagedRegionsRoot.children) {
-			const child = graphState.nodesById.get(childId);
-			if (!child?.decl_id.startsWith(PROCESSOR_MANAGED_REGION_DECL_PREFIX)) continue;
-			nodes.set(child.decl_id.slice(PROCESSOR_MANAGED_REGION_DECL_PREFIX.length), child);
-		}
-		return nodes;
-	});
 	let processorLaneCatalog = $derived(runtimeProcessorLaneCatalog);
 	let previewSessionModel = $derived(
 		formulaPreviewSessionStore.model(formula, processorNode, processorLaneCatalog)
@@ -680,22 +653,6 @@
 	let formulaStatusTitle = $derived(
 		formulaValid ? 'Formula valid' : (primaryDiagnostic?.message ?? 'Formula invalid')
 	);
-	const managedRegionKindLabel = (region: ManagedRegionDefinitionDto): string => {
-		switch (region.kind) {
-			case 'input_set':
-				return 'Inputs';
-			case 'filter_pipeline':
-				return 'Filters';
-			case 'output_set':
-				return 'Outputs';
-			case 'trigger_input':
-				return 'Trigger';
-			case 'command_set':
-				return 'Commands';
-		}
-	};
-	const managedRegionItemState = (item: ManagedItemDto): string =>
-		item.enabled && item.anode_enabled ? item.anode_type_id : `${item.anode_type_id} off`;
 	let anodeItems = $derived(
 		formulaReadOnly
 			? []
@@ -921,34 +878,6 @@
 			}
 		});
 	};
-
-	const createManagedRegionItem = (regionNode: UiNodeDto, item: UiCreatableUserItem): void => {
-		void runMutation(async () => {
-			const result = await sendCreateUserItemByTypeIntent(
-				regionNode.node_id,
-				item.node_type,
-				item.label,
-				{
-					select_when_created: true,
-					created_node_type: ANODE_NODE_TYPE,
-					initial_params: item.initial_params
-				}
-			);
-			if (!result.success) throw new Error(`failed to create ${item.label}`);
-			if (result.createdNodeId !== null) {
-				session?.selectNode(result.createdNodeId, 'REPLACE');
-			}
-		});
-	};
-
-	const managedRegionItems = (regionNode: UiNodeDto | null | undefined): UiCreatableUserItem[] =>
-		regionNode?.creatable_user_items ?? [];
-
-	const managedRegionConditionGate = (
-		regionNode: UiNodeDto | null | undefined
-	): UiCreatableUserItem | null =>
-		managedRegionItems(regionNode).find((item) => item.node_type === CONDITION_GATE_CREATE_TYPE) ??
-		null;
 
 	const createPropertyGetter = (property: UiNodeDto, position: GraphNodePosition): void => {
 		if (!formula || formulaReadOnly || !graphState || property.node_type !== PROPERTY_NODE_TYPE) {
@@ -1959,7 +1888,7 @@
 
 <section bind:this={panelRoot} class="alchemist-editor-panel" aria-label={panelState.title}>
 	<div class="editor-content">
-		{#if graphState && (formula || processorUi)}
+		{#if graphState && (formula || processorNode)}
 			<!-- Slide-in properties panel -->
 			<aside
 				class="properties-panel"
@@ -1974,82 +1903,14 @@
 						title="Hide properties"
 						onclick={() => (propertiesVisible = false)}>
 						<span class="properties-toggle-chevron">‹</span>
-						<span class="properties-toggle-label">{processorUi ? 'Processor' : 'Properties'}</span>
+						<span class="properties-toggle-label"
+							>{processorNode ? 'Processor' : 'Properties'}</span>
 					</button>
 				</div>
 				<div class="properties-body">
-					{#if processorUi && processorNode && isTupleMappingSurface(processorUi)}
-						<MappingInspector node={processorNode} />
-					{:else if processorUi && processorUi.managed_regions.length > 0}
-						<div class="processor-surface" aria-label="Processor regions">
-							<header class="processor-surface-header">
-								<div class="processor-surface-title">
-									<strong>{processorUi.label}</strong>
-									{#if processorUi.formula_source_kind === 'builtin'}
-										<span class="processor-source-pill">Built-in</span>
-									{/if}
-								</div>
-								<div class="processor-surface-actions">
-									<span class:off={!processorUi.active}
-										>{processorUi.active ? 'Active' : 'Off'}</span>
-									{#if processorUi.formula_source_kind === 'builtin' && processorUi.formula_open_readonly_from_processor}
-										<span>Read-only</span>
-									{/if}
-									{#if processorUi.formula_source_kind === 'builtin' && processorUi.formula_can_duplicate_to_library}
-										<button
-											type="button"
-											class="processor-formula-control-btn"
-											disabled={!formulaLibrary}
-											title="Create editable formula copy"
-											onclick={createEditableBuiltInFormulaCopy}>
-											Create Copy
-										</button>
-									{/if}
-								</div>
-							</header>
-							{#each processorUi.managed_regions as region (region.id)}
-								{@const instance = processorRegionInstances.get(region.id)}
-								{@const regionNode = processorManagedRegionNodes.get(region.id) ?? null}
-								{@const regionItems = managedRegionItems(regionNode)}
-								{@const conditionGate = managedRegionConditionGate(regionNode)}
-								<section class="processor-region">
-									<header class="processor-region-header">
-										<div class="processor-region-title">
-											<strong>{region.label || managedRegionKindLabel(region)}</strong>
-											<span>{managedRegionKindLabel(region)}</span>
-										</div>
-										<div class="processor-region-actions">
-											{#if regionNode && conditionGate}
-												<button
-													type="button"
-													class="processor-region-condition-btn"
-													title="Add ConditionGate"
-													onclick={() => createManagedRegionItem(regionNode, conditionGate)}>
-													Condition
-												</button>
-											{/if}
-											{#if regionNode && regionItems.length > 0}
-												<NodeAddButton
-													node={regionNode}
-													items={regionItems}
-													onCreateItem={(item) => createManagedRegionItem(regionNode, item)} />
-											{/if}
-										</div>
-									</header>
-									{#if instance && instance.items.length > 0}
-										<ol class="processor-region-items">
-											{#each instance.items as item (item.id)}
-												<li class:off={!item.enabled || !item.anode_enabled}>
-													<span>{item.label}</span>
-													<small>{managedRegionItemState(item)}</small>
-												</li>
-											{/each}
-										</ol>
-									{:else}
-										<p class="processor-region-empty">Empty</p>
-									{/if}
-								</section>
-							{/each}
+					{#if processorNode}
+						<div class="processor-node-inspector" aria-label="Processor node inspector">
+							<NodeInspector nodes={[processorNode]} level={0} />
 						</div>
 					{/if}
 					{#if formula}
@@ -2188,14 +2049,17 @@
 						</aside>
 					{/if}
 				</div>
-			{:else if processorUi && processorUi.formula_source_kind === 'builtin'}
+			{:else if processorNode}
 				<div
 					class="builtin-formula-view"
 					style:padding-left={propertiesVisible ? `${propertiesWidth}px` : '0'}>
 					<div class="builtin-formula-panel">
-						<strong>{processorUi.formula_label}</strong>
-						<span>Built-in, read-only</span>
-						{#if processorUi.formula_can_duplicate_to_library}
+						<strong>{processorUi?.formula_label ?? processorNode.meta.label}</strong>
+						<span
+							>{processorUi?.formula_source_kind === 'builtin'
+								? 'Built-in, read-only'
+								: 'Formula source unavailable'}</span>
+						{#if processorUi?.formula_can_duplicate_to_library}
 							<button
 								type="button"
 								class="processor-formula-control-btn"
@@ -2370,9 +2234,7 @@
 		overflow: hidden;
 	}
 
-	.processor-surface {
-		display: grid;
-		gap: 0.35rem;
+	.processor-node-inspector {
 		max-block-size: 42vh;
 		padding: 0.45rem;
 		overflow: auto;
@@ -2380,37 +2242,6 @@
 		background: color-mix(in srgb, var(--gc-color-background) 72%, transparent);
 	}
 
-	.processor-surface-header,
-	.processor-region-header,
-	.processor-region-items li {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		min-inline-size: 0;
-	}
-
-	.processor-surface-header {
-		font-size: 0.72rem;
-	}
-
-	.processor-surface-title,
-	.processor-surface-actions {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		min-inline-size: 0;
-	}
-
-	.processor-surface-title {
-		flex: 1 1 auto;
-	}
-
-	.processor-surface-actions {
-		flex: 0 0 auto;
-	}
-
-	.processor-source-pill,
 	.formula-source-pill {
 		padding: 0.08rem 0.28rem;
 		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 75%, transparent);
@@ -2428,71 +2259,6 @@
 		font-size: 0.62rem;
 		line-height: 1;
 		white-space: nowrap;
-	}
-
-	.processor-surface-header strong,
-	.processor-region-header strong,
-	.processor-region-items span {
-		min-inline-size: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.processor-surface-header span,
-	.processor-region-header span,
-	.processor-region-items small {
-		flex: 0 0 auto;
-		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
-		font-size: 0.62rem;
-	}
-
-	.processor-surface-header span.off,
-	.processor-region-items li.off {
-		color: color-mix(in srgb, var(--gc-color-text) 42%, transparent);
-	}
-
-	.processor-region {
-		display: grid;
-		gap: 0.25rem;
-		padding: 0.4rem;
-		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 70%, transparent);
-		border-radius: 0.35rem;
-		background: color-mix(in srgb, var(--gc-color-background-soft, #1a1a1a) 68%, transparent);
-	}
-
-	.processor-region-header {
-		font-size: 0.68rem;
-	}
-
-	.processor-region-title {
-		display: grid;
-		min-inline-size: 0;
-	}
-
-	.processor-region-actions {
-		display: flex;
-		flex: 0 0 auto;
-		align-items: center;
-		gap: 0.28rem;
-	}
-
-	.processor-region-condition-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-block-size: 1.45rem;
-		max-inline-size: 7.5rem;
-		padding: 0 0.45rem;
-		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 78%, transparent);
-		border-radius: 0.25rem;
-		background: color-mix(in srgb, var(--gc-color-background) 82%, transparent);
-		color: var(--gc-color-text);
-		font: inherit;
-		font-size: 0.62rem;
-		line-height: 1;
-		white-space: nowrap;
-		cursor: pointer;
 	}
 
 	.processor-formula-control-btn {
@@ -2513,8 +2279,6 @@
 		cursor: pointer;
 	}
 
-	.processor-region-condition-btn:hover,
-	.processor-region-condition-btn:focus-visible,
 	.processor-formula-control-btn:hover,
 	.processor-formula-control-btn:focus-visible {
 		background: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 20%, var(--gc-color-background));
@@ -2525,25 +2289,6 @@
 	.processor-formula-control-btn:disabled {
 		opacity: 0.45;
 		cursor: default;
-	}
-
-	.processor-region-items {
-		display: grid;
-		gap: 0.18rem;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.processor-region-items li {
-		padding: 0.18rem 0;
-		font-size: 0.66rem;
-	}
-
-	.processor-region-empty {
-		margin: 0;
-		color: color-mix(in srgb, var(--gc-color-text) 48%, transparent);
-		font-size: 0.64rem;
 	}
 
 	.graph-drop-zone {

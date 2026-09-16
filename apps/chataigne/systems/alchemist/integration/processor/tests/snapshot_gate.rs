@@ -10,7 +10,10 @@ use golden_core::{
 
 use crate::app::AppNode;
 
-use super::super::{StateProcessor, StateProcessorFolder, StateProcessorManager};
+use super::super::{
+    StateProcessor, StateProcessorFolder, StateProcessorManagedRegion,
+    StateProcessorManager,
+};
 
 #[test]
 fn condition_valid_cache_finds_the_real_processor_child() {
@@ -76,6 +79,51 @@ fn condition_valid_updates_skip_surface_snapshot_but_other_edits_do_not() {
             decl_id: DeclId("surface".to_owned()),
         },
     })])));
+}
+
+#[test]
+fn filter_validation_requests_snapshots_only_for_watched_dependencies() {
+    let mut region = StateProcessorManagedRegion::new();
+    let relevant = NodeId(42);
+    let unrelated = NodeId(43);
+    region.filter_validation_dependencies.insert(relevant);
+    let time = EngineTime {
+        tick: 1,
+        micro: 0,
+        seq: 0,
+    };
+    let changed = |param| {
+        EventFrame::from_shared(vec![Arc::new(Event {
+            time,
+            kind: EventKind::ParamChanged {
+                param,
+                old_value: ParamValue::Float(1.0),
+                new_value: ParamValue::Float(2.0),
+            },
+        })])
+    };
+
+    assert!(!region.inbox_requires_tree_snapshot(&changed(unrelated)));
+    assert!(region.inbox_requires_tree_snapshot(&changed(relevant)));
+    assert!(region.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(
+        Event {
+            time,
+            kind: EventKind::MetaChanged {
+                node: relevant,
+                patch: Default::default(),
+            },
+        },
+    )])));
+    assert!(region.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(
+        Event {
+            time,
+            kind: EventKind::ChildAdded {
+                parent: relevant,
+                child: NodeId(44),
+                decl_id: DeclId("config".to_owned()),
+            },
+        },
+    )])));
 }
 
 #[test]

@@ -188,6 +188,39 @@ input counts remain explicit. Fixed-arity filters such as Vec3 packing and
 extraction validate against the tuple they receive, so X/Y/Z can be packed and
 delivered to one typed command while invalid partial input never dispatches.
 
+## R04 resulting inspector and preview boundary
+
+Mapping authoring now uses the same `NodeInspector` hierarchy as every other
+processor. The retired Mapping inspector, region list, item editor, constant
+editor, value-source editor, output-binding editor, and their parallel
+selection/undo model no longer exist. Inputs, Filters, concrete commands,
+argument bindings, parameters, warning badges, context menus, ordering, and
+history are all supplied by the ordinary Golden node contracts. Formula
+preview controls remain a small optional supplement to that hierarchy.
+
+The Rust-generated preview catalog now carries processor and Formula identity
+metadata only. It does not serialize Formula surface sections, managed-region
+or item inventories, Mapping pipeline shapes, output-target walks, warning
+copies, or runtime-state summaries. The authoring tree therefore renders and
+edits correctly when preview is disabled or absent. Runtime samples and the
+bounded lane overview stay in their dedicated demand-driven feeds; the editor
+uses one leased subscription identity, replaces its mode when context changes,
+and releases it when the panel closes.
+
+Every registered ANode configuration field is materialized as an addressable
+child parameter or a shared Golden curve/gradient resource node. Mapping
+command delivery and argument bindings likewise expose individual typed child
+parameters and accept normal `SetParam` intents through `ProductionRuntime`.
+The only retained document field is a read-only, typed-migration fallback for
+legacy bindings that cannot be represented by those controls.
+
+Filter-chain warning reconciliation is event driven. Each Filters region
+watches its own authored subtree, the corresponding Inputs subtree, its Formula
+source, and referenced source parameters. Unrelated processor parameter edits
+do not request a tree snapshot or recompile the chain. Relevant source schema,
+resource, enabled-state, Formula, binding, and structural changes still update
+durable backend warnings even when no preview or inspector client is present.
+
 ## Identity and persistence inventory
 
 The migration must preserve processor UUIDs, managed region role IDs, authored

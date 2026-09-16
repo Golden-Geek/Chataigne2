@@ -21,3 +21,4 @@ ts-rs.workspace = true
 [dev-dependencies]
 golden_graph.workspace = true
 chataigne_processor = { workspace = true, features = ["testkit"] }
+serde_json.workspace = true

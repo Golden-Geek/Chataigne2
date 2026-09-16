@@ -780,6 +780,12 @@ impl Node for StateProcessorManagedRegions {
 pub struct StateProcessorManagedRegion {
     #[state(default = Vec::new())]
     filter_items: Vec<UserCreatableItem>,
+    #[state(default = HashSet::new())]
+    filter_validation_dependencies: HashSet<NodeId>,
+    #[state(default = HashSet::new())]
+    filter_validation_external_sources: HashSet<NodeId>,
+    #[state(default = None)]
+    filter_validation_formula_root: Option<NodeId>,
 }
 
 #[node("state_processor_managed_region", from_struct)]
@@ -927,17 +933,23 @@ impl Node for StateProcessorManagedRegion {
         if let Some(processor) = processor {
             ctx.add_event_listener_subtree(self.id(), processor, u32::MAX);
         }
-        filter_validation::reconcile_filter_warnings(ctx, self.id());
+        self.reconcile_filter_validation(ctx);
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
-        if filter_validation_events_require_refresh(&ctx.events) {
-            filter_validation::reconcile_filter_warnings(ctx, self.id());
+        if filter_validation_events_require_refresh(
+            &ctx.events,
+            &self.filter_validation_dependencies,
+        ) {
+            self.reconcile_filter_validation(ctx);
         }
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        filter_validation_events_require_refresh(events)
+        filter_validation_events_require_refresh(
+            events,
+            &self.filter_validation_dependencies,
+        )
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -1253,24 +1265,73 @@ fn processor_palette_inbox_requires_tree_snapshot(
     })
 }
 
-fn filter_validation_events_require_refresh(events: &EventFrame) -> bool {
-    events.iter().any(|event| {
-        matches!(
-            event.kind,
-            EventKind::ParamChanged { .. }
-                | EventKind::ParamControlChanged { .. }
-                | EventKind::NodeCreated { .. }
-                | EventKind::NodeDeleted { .. }
-                | EventKind::ChildAdded { .. }
-                | EventKind::ChildRemoved { .. }
-                | EventKind::ChildReordered { .. }
-                | EventKind::ChildReplaced { .. }
-                | EventKind::ChildMoved { .. }
-        )
+fn filter_validation_events_require_refresh(
+    events: &EventFrame,
+    dependencies: &HashSet<NodeId>,
+) -> bool {
+    events.iter().any(|event| match &event.kind {
+        EventKind::ParamChanged { param, .. }
+        | EventKind::ParamControlChanged { param, .. }
+        | EventKind::ParamConstraintsChanged { param, .. } => {
+            dependencies.contains(param)
+        }
+        EventKind::ChildAdded { parent, child, .. }
+        | EventKind::ChildRemoved { parent, child }
+        | EventKind::ChildReordered { parent, child } => {
+            dependencies.contains(parent) || dependencies.contains(child)
+        }
+        EventKind::ChildReplaced {
+            parent, old, new, ..
+        } => {
+            dependencies.contains(parent)
+                || dependencies.contains(old)
+                || dependencies.contains(new)
+        }
+        EventKind::ChildMoved {
+            child,
+            old_parent,
+            new_parent,
+        } => {
+            dependencies.contains(child)
+                || dependencies.contains(old_parent)
+                || dependencies.contains(new_parent)
+        }
+        EventKind::NodeDeleted { node } | EventKind::MetaChanged { node, .. } => {
+            dependencies.contains(node)
+        }
+        EventKind::GraphTransaction { .. } => true,
+        EventKind::NodeCreated { .. } | EventKind::Custom(_) => false,
     })
 }
 
 impl StateProcessorManagedRegion {
+    fn reconcile_filter_validation(&mut self, ctx: &mut ProcessCtx) {
+        let watch = filter_validation::reconcile_filter_warnings(ctx, self.id());
+        if self.filter_validation_formula_root != watch.formula_root {
+            if let Some(previous) = self.filter_validation_formula_root {
+                ctx.remove_event_listener_subtree(self.id(), previous, u32::MAX);
+            }
+            if let Some(next) = watch.formula_root {
+                ctx.add_event_listener_subtree(self.id(), next, u32::MAX);
+            }
+        }
+        for removed in self
+            .filter_validation_external_sources
+            .difference(&watch.external_sources)
+        {
+            ctx.remove_event_listener(self.id(), *removed);
+        }
+        for added in watch
+            .external_sources
+            .difference(&self.filter_validation_external_sources)
+        {
+            ctx.add_event_listener(self.id(), *added);
+        }
+        self.filter_validation_dependencies = watch.dependencies;
+        self.filter_validation_external_sources = watch.external_sources;
+        self.filter_validation_formula_root = watch.formula_root;
+    }
+
     fn ensure_output_bindings_for_descendant(
         &self,
         ctx: &mut ProcessCtx,

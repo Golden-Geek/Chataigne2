@@ -5,8 +5,7 @@ use std::{sync::Arc, time::Duration};
 use chataigne_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AxisSet, CompileCtx, ContextAxisId, ContextKey, ContextValuePath,
     EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId, FormulaPropertySchema,
-    FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition,
-    ManagedRegionId, ManagedRegionKind, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput,
+    FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput,
     RuntimeRegistries, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId,
     SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
@@ -1183,7 +1182,7 @@ fn processor_preview_capture_off_when_editor_not_visible() {
 }
 
 #[test]
-fn formula_surface_is_present_in_ui_model() {
+fn ui_model_contains_processor_and_formula_identity_only() {
     let mut formula = formula();
     formula.surface.sections.push(SurfaceSection {
         id: SurfaceSectionId::new("commands"),
@@ -1202,55 +1201,17 @@ fn formula_surface_is_present_in_ui_model() {
     });
 
     let processor = Processor::from_formula("Processor", &formula);
-    let ui = processor.ui_model(&formula, Vec::new());
+    let ui = processor.ui_model_with_formula_source(
+        &formula,
+        crate::ProcessorFormulaUiState::builtin(true, true),
+        Some("chataigne.mapping@1".to_owned()),
+    );
+    assert_eq!(ui.id, processor.id);
+    assert_eq!(ui.label, "Processor");
+    assert!(ui.active);
     assert_eq!(ui.formula_id, "test");
     assert_eq!(ui.formula_label, "Test");
-    assert_eq!(ui.surface.sections[0].items.len(), 1);
-}
-
-#[test]
-fn managed_regions_are_present_in_ui_model() {
-    let mut formula = formula();
-    formula.surface.managed_regions.push(ManagedRegionDefinition {
-        id: ManagedRegionId::new("filters"),
-        kind: ManagedRegionKind::FilterPipeline,
-        label: "Filters".into(),
-        input_socket: None,
-        output_socket: None,
-        accepted_roles: vec![SurfaceItemKind::Filter],
-        filter_value_mode: Default::default(),
-    });
-
-    let mut processor = Processor::from_formula("Processor", &formula);
-    let mut remap = ANodeInstance::new(ANodeTypeId::new("remap"), "Remap");
-    remap.enabled = false;
-    processor
-        .formula_instance
-        .managed_regions
-        .regions
-        .get_mut(&ManagedRegionId::new("filters"))
-        .unwrap()
-        .items
-        .push(ManagedItemInstance {
-            id: ManagedItemId::new(),
-            anode: remap,
-            enabled: true,
-            ui_state: ManagedItemUiState { collapsed: true },
-        });
-
-    let ui = processor.ui_model(&formula, Vec::new());
-
-    assert!(ui.active);
-    assert_eq!(ui.surface.managed_regions.len(), 1);
-    assert_eq!(ui.surface.managed_regions[0].label, "Filters");
-    let region = ui
-        .managed_region_instances
-        .regions
-        .get(&ManagedRegionId::new("filters"))
-        .unwrap();
-    assert_eq!(region.items.len(), 1);
-    assert_eq!(region.items[0].anode.label, "Remap");
-    assert!(!region.items[0].anode.enabled);
-    assert!(region.items[0].enabled);
-    assert!(region.items[0].ui_state.collapsed);
+    assert_eq!(ui.formula_source_key.as_deref(), Some("chataigne.mapping@1"));
+    assert!(ui.formula_source.open_readonly_from_processor);
+    assert!(ui.formula_source.can_duplicate_to_library);
 }

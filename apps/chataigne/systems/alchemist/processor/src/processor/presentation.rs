@@ -1,6 +1,5 @@
 use chataigne_alchemist::{
-    ANodeId, ContextKey, DebugCaptureMode, DebugValueSample, Diagnostic, FormulaId, FormulaSurface,
-    ManagedRegionInstances, OutputPreviewStatus, SocketId, ValueTypeId,
+    ANodeId, ContextKey, DebugCaptureMode, DebugValueSample, FormulaId, OutputPreviewStatus, SocketId, ValueTypeId,
 };
 use golden_values::Value as RuntimeValue;
 use indexmap::IndexSet;
@@ -169,9 +168,6 @@ pub struct ProcessorUiModel {
     pub formula_id: String,
     pub formula_label: String,
     pub formula_source_key: Option<String>,
-    pub surface: FormulaSurface,
-    pub managed_region_instances: ManagedRegionInstances,
-    pub diagnostics: Vec<Diagnostic>,
     pub formula_source: ProcessorFormulaUiState,
 }
 

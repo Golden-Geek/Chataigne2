@@ -436,6 +436,109 @@ fn action_and_mapping_catalogs_create_the_same_concrete_command() {
 }
 
 #[test]
+fn mapping_command_bindings_are_ordinary_addressable_controls() {
+    let (mut engine, _, processor) = mapping_engine();
+    let outputs = region(&engine, processor, "outputs");
+    let command = create_item(
+        &mut engine,
+        outputs,
+        GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE,
+    );
+    let snapshot = engine.process_tree_snapshot();
+    let bindings = snapshot
+        .find_child_by_decl_id(command, "mapping_bindings")
+        .expect("Mapping command should expose its binding folder");
+    let binding_fields = [
+        "value_source",
+        "value_element",
+        "value_component",
+        "value_constant_type",
+        "value_constant_bool",
+        "value_constant_int",
+        "value_constant_float",
+        "value_constant_string",
+        "value_constant_vec2",
+        "value_constant_vec3",
+        "value_constant_color",
+        "send_policy",
+        "unresolved_legacy_bindings",
+    ];
+    for field in binding_fields {
+        let node = snapshot
+            .find_child_by_decl_id(bindings, field)
+            .unwrap_or_else(|| panic!("Mapping binding should expose {field}"));
+        assert!(
+            snapshot.node(node).unwrap().is_parameter(),
+            "Mapping binding {field} should be an ordinary parameter"
+        );
+    }
+    drop(snapshot);
+
+    let argument = create_item(
+        &mut engine,
+        bindings,
+        "mapping_command_argument_binding",
+    );
+    let snapshot = engine.process_tree_snapshot();
+    for field in [
+        "parameter",
+        "value_source",
+        "value_element",
+        "value_component",
+        "value_constant_type",
+        "value_constant_bool",
+        "value_constant_int",
+        "value_constant_float",
+        "value_constant_string",
+        "value_constant_vec2",
+        "value_constant_vec3",
+        "value_constant_color",
+    ] {
+        let node = snapshot
+            .find_child_by_decl_id(argument, field)
+            .unwrap_or_else(|| panic!("Argument binding should expose {field}"));
+        assert!(snapshot.node(node).unwrap().is_parameter());
+    }
+    let value_source = snapshot
+        .find_child_by_decl_id(bindings, "value_source")
+        .unwrap();
+    drop(snapshot);
+
+    let runtime = ProductionRuntime::new(
+        engine,
+        UiProjectFileSpec::from_project_file_spec(
+            ProjectFileSpec::new("Mapping", "mapping"),
+            None,
+        ),
+    );
+    let result = runtime.apply_ui_transaction(
+        UiEditIntent::SetParam {
+            node: value_source,
+            value: ParamValue::Enum("constant".to_owned()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        },
+        Some("mapping-binding-control-audit"),
+    );
+    assert!(
+        result.acknowledgement.success,
+        "ordinary binding edit should apply through ProductionRuntime: {:?}",
+        result.acknowledgement
+    );
+    let snapshot = runtime
+        .read_model()
+        .snapshot_for_scope(UiSubscriptionScope::WholeGraph);
+    let edited = snapshot
+        .nodes
+        .iter()
+        .find(|node| node.node_id == value_source)
+        .unwrap();
+    let UiNodeDataDto::Parameter { param } = &edited.data else {
+        panic!("binding control should remain a normal parameter");
+    };
+    assert_eq!(param.value, ParamValue::Enum("constant".to_owned()));
+}
+
+#[test]
 fn legacy_mapping_output_migrates_to_explicit_invoke_without_moving_target() {
     let (mut engine, _, processor) = mapping_engine();
     let outputs = region(&engine, processor, "outputs");

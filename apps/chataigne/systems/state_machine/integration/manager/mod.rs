@@ -7,8 +7,7 @@ use std::{
 use chataigne_alchemist::{
     compile_graph, formula_input_value_ref, ANodeId, AlchemistFormula, AlchemistGraphDomain, AxisSet,
     CompiledAlchemistFormula, ContextAxisId, ContextItemId, ContextKey, ContextKeyPart, ContextValuePath,
-    DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef, ManagedFilterValueMode,
-    ManagedItemId, ManagedRegionKind,
+    DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef, ManagedItemId,
     OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent,
     RuntimeRegistries, SignatureCtx, SocketId, StableRef, SurfaceItemId, TriggerValue, ValueTypeId,
 };
@@ -23,8 +22,7 @@ use chataigne_state_machine::{
     ProcessorCommandPolicy, ProcessorFormulaUiState, ProcessorId, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
     ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorOverviewDemandDto, ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
-    ProcessorUiDto, ProcessorRuntimeStateDto, MappingPipelineShapeDto, MappingDiagnosticDto,
-    MappingArgumentCandidateDto, MappingOutputTargetDto,
+    ProcessorUiDto,
     StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto,
     RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry, ManagedStageSpecializationCache,
 };
@@ -63,7 +61,7 @@ use crate::app::systems_alchemist_formula::{
     formula_from_snapshot_cached, local_signature_bindings,
     param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param,
     same_type_numeric_changes_for_param, ANodeMaterializationCache, ANODE_NODE_TYPE,
-    FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_EXTERNAL_READ_ONLY_TAG,
+    FORMULA_EXTERNAL_READ_ONLY_TAG,
 };
 use crate::app::systems_alchemist_processor::{
     managed_regions_from_snapshot, processor_formula_source_ref, FormulaCatalog, FormulaSourceRef,
@@ -3330,8 +3328,6 @@ impl StateMachineManager {
             let selected_processor_ids = preview_selection.processor_ids();
             let processors = processor_ui_dtos(
                 &self.runtime_cache.processors,
-                snapshot,
-                provider.as_ref(),
                 Some(&selected_processor_ids),
             );
             let mut processor_lanes = processor_lane_catalog_entries(
@@ -4549,8 +4545,6 @@ fn sync_runtime_processor_warning(
 
 fn processor_ui_dtos(
     processors: &HashMap<NodeId, RuntimeProcessor>,
-    snapshot: &ProcessTreeSnapshot,
-    context_provider: &SnapshotProcessorContextProvider,
     selected_processor_ids: Option<&HashSet<ProcessorId>>,
 ) -> Vec<ProcessorUiDto> {
     let mut dtos: Vec<_> = processors
@@ -4559,52 +4553,11 @@ fn processor_ui_dtos(
             selected_processor_ids.is_none_or(|selected| selected.contains(&runtime_processor.processor.id))
         })
         .map(|runtime_processor| {
-            let mut dto = ProcessorUiDto::from(&runtime_processor.processor.ui_model_with_formula_source(
+            ProcessorUiDto::from(&runtime_processor.processor.ui_model_with_formula_source(
                 &runtime_processor.formula,
-                runtime_processor.runtime.diagnostics.clone(),
                 runtime_processor.formula_ui,
                 Some(runtime_processor.formula_source_key.clone()),
-            ));
-            dto.standard_mapping = runtime_processor.formula_node
-                .and_then(|node_id| snapshot.node(node_id))
-                .is_some_and(|node| is_standard_mapping_tags(&node.tags));
-            if has_tuple_managed_regions(&runtime_processor.formula) {
-                dto.mapping_pipeline = runtime_processor
-                    .runtime
-                    .managed_formula
-                    .as_ref()
-                    .and_then(|managed| managed.mapping_pipeline_shape())
-                    .map(|shape| MappingPipelineShapeDto::from_pipeline(&shape, shared_value_type_registry()));
-                dto.mapping_outputs = mapping_output_targets(snapshot, runtime_processor);
-            }
-            dto.runtime_state = if runtime_processor.compile_warning.is_some()
-                || runtime_processor.runtime.plan.is_none()
-            {
-                ProcessorRuntimeStateDto::Invalid
-            } else if !runtime_processor.processor.enabled {
-                ProcessorRuntimeStateDto::Disabled
-            } else {
-                ProcessorRuntimeStateDto::Active
-            };
-            if dto.mapping_diagnostics.is_empty() {
-                if let Some(message) = &runtime_processor.compile_warning {
-                    dto.mapping_diagnostics.push(MappingDiagnosticDto {
-                        code: "processor_compile".to_owned(),
-                        message: message.clone(),
-                        severity: chataigne_state_machine::protocol::DiagnosticSeverityDto::Error,
-                        item_id: None,
-                    });
-                }
-            }
-            dto.multiplex_lane_count = runtime_processor
-                .runtime
-                .plan
-                .as_ref()
-                .map(|plan| {
-                    context_provider.lane_count_for_axes(runtime_processor.processor.id, &plan.required_eval_axes)
-                })
-                .unwrap_or(0);
-            dto
+            ))
         })
         .collect();
     dtos.sort_by(|left, right| left.label.cmp(&right.label).then_with(|| left.id.cmp(&right.id)));
@@ -4647,87 +4600,6 @@ fn processor_lane_catalog_entries(
         }
     }
     lanes
-}
-
-fn is_standard_mapping_tags(tags: &[String]) -> bool {
-    tags.iter().any(|tag| {
-        tag.strip_prefix(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX) == Some("chataigne.mapping@1")
-    })
-}
-
-fn has_tuple_managed_regions(formula: &AlchemistFormula) -> bool {
-    let regions = &formula.surface.managed_regions;
-    regions.iter().any(|region| region.kind == ManagedRegionKind::InputSet)
-        && regions.iter().any(|region| {
-            region.kind == ManagedRegionKind::FilterPipeline
-                && region.filter_value_mode == ManagedFilterValueMode::Tuple
-        })
-        && regions.iter().any(|region| region.kind == ManagedRegionKind::OutputSet)
-}
-
-fn mapping_output_targets(snapshot: &ProcessTreeSnapshot, processor: &RuntimeProcessor) -> Vec<MappingOutputTargetDto> {
-    let mut outputs = Vec::new();
-    let mut argument_cache: HashMap<NodeId, (Vec<MappingArgumentCandidateDto>, bool)> = HashMap::new();
-    for region in processor.processor.formula_instance.managed_regions.regions.values() {
-        for item in &region.items {
-            if item.anode.type_id.as_str() != chataigne_state_machine::alchemist::OUTPUT_TARGET_TYPE {
-                continue;
-            }
-            let target = item
-                .anode
-                .config
-                .get(chataigne_state_machine::OUTPUT_TARGET_FIELD)
-                .and_then(|value| match value {
-                    RuntimeValue::Ref(reference) => reference.stable_id.parse::<uuid::Uuid>().ok(),
-                    _ => None,
-                })
-                .and_then(|uuid| snapshot.node_id_by_uuid(NodeUuid(uuid)));
-            let (arguments, truncated) = target
-                .map(|id| argument_cache.entry(id).or_insert_with(|| mapping_argument_candidates(snapshot, id)).clone())
-                .unwrap_or_default();
-            outputs.push(MappingOutputTargetDto {
-                item_id: item.id.to_string(),
-                target_label: target.and_then(|id| snapshot.node(id).map(|node| node.label.clone())),
-                arguments,
-                truncated,
-            });
-        }
-    }
-    outputs
-}
-
-fn mapping_argument_candidates(snapshot: &ProcessTreeSnapshot, target: NodeId) -> (Vec<MappingArgumentCandidateDto>, bool) {
-    const MAX_ARGUMENTS: usize = 256;
-    const MAX_VISITED_NODES: usize = 4096;
-
-    let mut arguments = Vec::new();
-    let mut truncated = false;
-    let mut stack = snapshot.child_ids(target);
-    let mut visited = 0usize;
-    while let Some(node_id) = stack.pop() {
-        visited += 1;
-        if visited > MAX_VISITED_NODES {
-            truncated = true;
-            break;
-        }
-        let Some(node) = snapshot.node(node_id) else {
-            continue;
-        };
-        if let Some(value_type) = node.param_value.as_ref().and_then(param_to_runtime_value) {
-            if arguments.len() == MAX_ARGUMENTS {
-                truncated = true;
-                break;
-            }
-            arguments.push(MappingArgumentCandidateDto {
-                id: node.uuid.0.to_string(),
-                label: node.label.clone(),
-                value_type: value_type.value_type().to_string(),
-            });
-        }
-        stack.extend(snapshot.child_ids(node_id));
-    }
-    arguments.sort_by(|left, right| left.label.cmp(&right.label).then_with(|| left.id.cmp(&right.id)));
-    (arguments, truncated)
 }
 
 fn processor_overview_lane(

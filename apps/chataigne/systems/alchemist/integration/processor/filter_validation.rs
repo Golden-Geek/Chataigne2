@@ -1,13 +1,17 @@
 //! Backend-owned validation warnings for editable Mapping filter chains.
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use chataigne_alchemist::{CompileCtx, ManagedFilterValueMode, ManagedItemId, ManagedRegionKind};
 use chataigne_state_machine::{
     InputSetRuntime, ManagedStageRuntime,
     alchemist::{shared_node_registry, shared_value_type_registry},
 };
-use golden_core::{node::NodeId, process_ctx::ProcessCtx};
+use golden_core::{
+    node::NodeId,
+    parameter::ParamValue,
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+};
 
 use crate::app::systems_alchemist_formula::{
     ANODE_NODE_TYPE, formula_from_snapshot, node_has_warning, node_warning_matches,
@@ -15,7 +19,8 @@ use crate::app::systems_alchemist_formula::{
 
 use super::{
     FormulaSourceRef, managed_regions_from_snapshot, managed_source_schema,
-    processor_formula_source_ref, processor_managed_region_decl_id,
+    managed_region_roles_from_tags, processor_formula_source_ref,
+    processor_managed_region_decl_id,
 };
 
 const FILTER_WARNING_ID: &str = "mapping_filter_validation";
@@ -32,10 +37,21 @@ struct ValidationResult {
     issue: Option<ValidationIssue>,
 }
 
-pub(super) fn reconcile_filter_warnings(ctx: &mut ProcessCtx, region_node: NodeId) {
+#[derive(Default)]
+pub(super) struct FilterValidationWatch {
+    pub(super) dependencies: HashSet<NodeId>,
+    pub(super) formula_root: Option<NodeId>,
+    pub(super) external_sources: HashSet<NodeId>,
+}
+
+pub(super) fn reconcile_filter_warnings(
+    ctx: &mut ProcessCtx,
+    region_node: NodeId,
+) -> FilterValidationWatch {
     let Some(snapshot) = ctx.tree_snapshot_arc() else {
-        return;
+        return FilterValidationWatch::default();
     };
+    let watch = filter_validation_watch(snapshot.as_ref(), region_node);
     let result = validate_filter_chain(snapshot.as_ref(), region_node);
 
     for filter in &result.filter_nodes {
@@ -87,6 +103,70 @@ pub(super) fn reconcile_filter_warnings(ctx: &mut ProcessCtx, region_node: NodeI
                 ctx.clear_node_warning(region_node, Some(CHAIN_WARNING_ID));
             }
         }
+    }
+    watch
+}
+
+fn filter_validation_watch(
+    snapshot: &ProcessTreeSnapshot,
+    region_node: NodeId,
+) -> FilterValidationWatch {
+    let mut watch = FilterValidationWatch::default();
+    let Some(processor) = snapshot.node(region_node).and_then(|region| region.parent) else {
+        return watch;
+    };
+    watch.dependencies.insert(processor);
+    if let Some(formula_source) = snapshot.find_child_by_decl_id(
+        processor,
+        super::PROCESSOR_FORMULA_SOURCE_DECL_ID,
+    ) {
+        watch.dependencies.insert(formula_source);
+    }
+    for sibling in snapshot.child_ids_slice(processor).iter().copied() {
+        let is_relevant_region = sibling == region_node
+            || snapshot.node(sibling).is_some_and(|node| {
+                managed_region_roles_from_tags(&node.tags)
+                    .contains(&chataigne_alchemist::SurfaceItemKind::Input)
+            });
+        if is_relevant_region {
+            extend_subtree(snapshot, sibling, &mut watch.dependencies);
+        }
+    }
+    if let Some(FormulaSourceRef::ProjectNode(reference)) =
+        processor_formula_source_ref(snapshot, processor)
+    {
+        if let Some(formula_root) = snapshot.node_id_by_uuid(reference.uuid()) {
+            watch.formula_root = Some(formula_root);
+            extend_subtree(snapshot, formula_root, &mut watch.dependencies);
+        }
+    }
+    for node_id in watch.dependencies.iter().copied().collect::<Vec<_>>() {
+        let Some(ParamValue::Reference(reference)) =
+            snapshot.node(node_id).and_then(|node| node.param_value.as_ref())
+        else {
+            continue;
+        };
+        if let Some(target) = reference
+            .cached_id()
+            .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))
+        {
+            watch.external_sources.insert(target);
+            watch.dependencies.insert(target);
+        }
+    }
+    watch
+}
+
+fn extend_subtree(
+    snapshot: &ProcessTreeSnapshot,
+    root: NodeId,
+    nodes: &mut HashSet<NodeId>,
+) {
+    if !nodes.insert(root) {
+        return;
+    }
+    for child in snapshot.child_ids_slice(root) {
+        extend_subtree(snapshot, *child, nodes);
     }
 }
 
