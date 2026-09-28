@@ -5,15 +5,15 @@
 - Overall: IN_PROGRESS
 - Baseline commit: `b6ac86eb702d703560593c108b599f95545a417c` (local `main` was one commit ahead of `origin/main` at task start)
 - Working branch and approved remote: `codex/builtin-mapping`; `origin` = `git@github.com:Golden-Geek/Chataigne2.git`
-- Active corrective phase: R05 complete; R06 — prepare representation-independent command execution and frozen source — is next.
+- Active corrective phase: R06 complete; R07 — add the explicit persisted compression switch and atomic reversible transitions — is next.
 - Corrective-plan anchor: `a94b9a7e20c9c240c7f29ab1674c90d304289987`; the revised plan supersedes the prior authoring/output/inspector contract while preserving useful runtime work.
-- Last validated corrective implementation commit: `c3f020ec215cf16a3477aec01cc7406199567499` (R05 persistence, concrete-command conversion, cross-context copy, and expanded product behavior).
-- Last verified remote corrective implementation commit: `c3f020ec215cf16a3477aec01cc7406199567499`.
+- Last validated corrective implementation commit: `7e0f0497803c2c0d9634b00f59bec97312745862` (R06 immutable frozen source, generic subtree capture/restore, prepared generic-command execution, and dependency preflight).
+- Last verified remote corrective implementation commit: `7e0f0497803c2c0d9634b00f59bec97312745862`.
 - Last validated historical implementation commit: `1702780d286c7f8f726647bd1e4054425d8189b5` (old Phase 11 M20 inspector state and benchmark workflow checkpoint).
 - Current corrective blockers: none. Interactive desktop, watch, supported launch, and packaging product gates remain explicit R08 qualification work.
-- Corrected product checks: N02–N16 pass. N01 remains partial until the default-Off compression contract lands in R07, and N23 remains partial until R08 completes interactive and launch-workflow qualification. Prior M01–M20 results remain historical runtime evidence.
-- Next concrete action: start R06 by defining immutable frozen source, representation-independent command preparation, dependency preflight, and live/frozen equivalence without exposing compression yet.
-- Last updated: 2026-09-16T12:06:52+02:00
+- Corrected product checks: N02–N16 pass. N18 and N19 are partial after the internal R06 preflight and equivalence boundary; the product transition remains R07 work. N01 remains partial until the default-Off compression contract lands in R07, and N23 remains partial until R08 completes interactive and launch-workflow qualification. Prior M01–M20 results remain historical runtime evidence.
+- Next concrete action: implement R07's persisted default-Off compression state and one atomic transition that preflights, freezes, removes/restores workflow nodes, swaps runtime dispatch, and preserves undo/redo and project reload behavior.
+- Last updated: 2026-09-28T12:39:31+02:00
 
 ## Corrective phase ledger
 
@@ -25,7 +25,7 @@
 | R03 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `e2115a79` is verified at `origin/codex/builtin-mapping`; every registered filter application is independently creatable, invalid chains warn and block dispatch, and compatible edits recover in place. |
 | R04 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `b76bef7d` is verified at `origin/codex/builtin-mapping`; ordinary controls and `NodeInspector` own authoring, preview DTOs contain metadata only, and warning refresh is dependency-scoped. |
 | R05 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `c3f020ec` is verified at `origin/codex/builtin-mapping`; concrete command conversion, full/sparse persistence, cross-context copy with history, live fan-out edits, ordinary inspection, and broad Rust/UI regressions pass. |
-| R06 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Add representation-independent command lowering and immutable frozen source. |
+| R06 | COMPLETE | IMPLEMENTED | PASSED | PUSH_VERIFIED | `7e0f0497` is verified at `origin/codex/builtin-mapping`; immutable versioned frozen source, UUID-only prepared Set/Trigger commands, typed Golden subtree capture/restore, dependency blockers, and live/frozen equivalence pass. |
 | R07 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Add explicit default-Off compression and atomic reversible transitions. |
 | R08 | NOT_STARTED | NOT_STARTED | NOT_RUN | NOT_DELIVERED | Final N01–N24, performance, product, CI, and cleanup qualification. |
 
@@ -50,8 +50,8 @@
 | N15 | Persistence/migration | R01, R02, R05 | Full and sparse reload preserve converted formulas, concrete commands, bindings, graph operations, and nested resources; cross-context copy retains external ownership and supports one-step undo/redo. | PASSED |
 | N16 | Custom Formula conversion | R05 | Configured concrete commands, bindings, Curve Remap resources, nested identities, graph operations, temporal reset, repeated triggers, sparse/full reload, continued edits, and ordinary inspector/editor paths pass. | PASSED |
 | N17 | Compression default and scope | R07 | Expanded default; explicit compression removes actual workflow nodes. | NOT_RUN |
-| N18 | Dependency preflight | R06, R07 | Exact blockers preserve editable data and references. | NOT_RUN |
-| N19 | Compressed equivalence | R06, R07, R08 | Expanded/frozen values, commands, contexts, suppression, and triggers agree. | NOT_RUN |
+| N18 | Dependency preflight | R06, R07 | R06 returns typed blockers for known external inbound references, unsupported/live-node-dependent commands, non-manual command controls, invalid regions, and frozen compile failures without mutating editable data. R07 must enforce them at the product transition. | PARTIAL |
+| N19 | Compressed equivalence | R06, R07, R08 | R06 proves the frozen source compiles through the same managed Formula runtime and prepared Set Parameter/Trigger Parameter commands produce the same effects without workflow `NodeId`s. R07 must wire the frozen representation into product dispatch and R08 must qualify the complete matrix. | PARTIAL |
 | N20 | Compressed lock and feedback | R07 | Frozen edits fail consistently; feedback remains useful; preview creates no nodes. | NOT_RUN |
 | N21 | Atomic transition and failure | R07 | Rollback, stale revision, state continuity, and no replay/double-run. | NOT_RUN |
 | N22 | Restore and duplicate compressed data | R07 | Reload/expand/undo/duplicate/import identity maps and effects pass. | NOT_RUN |
@@ -127,6 +127,10 @@
 | 2026-09-16T11:20+02:00 | R04 | R04 implementation worktree before `b76bef7d` | `.\tools\asio.ps1 -- cargo check --target-dir target\r04-validation --workspace`; `.\tools\asio.ps1 -- cargo clippy --target-dir target\r04-validation --workspace --all-targets -- -D warnings`; `cargo metadata --no-deps --format-version 1` | Windows x64, pinned ASIO SDK, Rust 1.97.0 | PASSED | Full workspace check, strict workspace all-target Clippy, and metadata pass. Filter warnings remain event driven and the processor preview catalog no longer compiles Mapping plans or walks authored item trees. |
 | 2026-09-16T11:21+02:00 | R04 | R04 implementation worktree before `b76bef7d` | `npm run codegen:state-machine-protocol`; `npm test -- --run`; `npm run check`; `npm run lint`; `npm run build` | Windows x64, Node 26.5.0 | PASSED | Rust-generated TypeScript reproduces the metadata-only protocol and removes obsolete inventory declarations. All 92 Chataigne UI tests pass, Svelte reports zero errors/warnings, and Prettier plus the production static build pass. |
 | 2026-09-16T11:22:34+02:00 | R04 | `b76bef7d` ordinary-control checkpoint | Root and Golden Core `cargo fmt --all`/`--check`; `git diff --cached --check`; `git push origin codex/builtin-mapping`; exact `git ls-remote origin refs/heads/codex/builtin-mapping` | Windows x64, Rust 1.97.0 | PASSED | Both formatter scopes and staged whitespace pass. Remote OID exactly matches `b76bef7d5170ef7af19315fda6a2aed0931aa35b`. The unrelated user-edited implementation plan remained unstaged. |
+| 2026-09-28T12:33+02:00 | R06 | R06 implementation worktree before `7e0f0497` | Focused frozen-source, shared prepared-command, Golden archived-subtree identity/collision, and dependency-preflight tests | Windows x64, Rust 1.97.0 | PASSED | Live and frozen evaluators agree; versioned serialization preserves authored source and UUID-keyed prepared commands without cached process-local node IDs. Prepared Set Parameter and Trigger Parameter execute through the shared generic-command boundary, known inbound references and unsupported commands report exact blockers, and archived subtree restore preserves UUIDs while rejecting live collisions before mutation. |
+| 2026-09-28T12:34+02:00 | R06 | R06 implementation worktree before `7e0f0497` | `cargo test -p chataigne_alchemist -p chataigne_processor -p chataigne_condition -p chataigne_state_machine`; `cargo test -p golden_engine`; focused app processor and generic-command suites | Windows x64, Rust 1.97.0 | PASSED | 179 Alchemist, 123 processor, 6 condition, 18 state-machine, and 451 Golden engine tests pass; three existing Golden tests remain ignored. The app's 77 processor tests pass with three ignored, and all 9 generic-command tests pass. |
+| 2026-09-28T12:36+02:00 | R06 | R06 implementation worktree before `7e0f0497` | `cargo check --workspace`; strict `cargo clippy -p golden_engine -p Chataigne2 --bin Chataigne2 --all-targets -- -D warnings`; root and Golden Core `cargo fmt --all`/`--check`; `git diff --check` | Windows x64, Rust 1.97.0 | PASSED | Workspace type-check, affected strict lint, both required formatter scopes, and whitespace validation pass. No protocol or UI declaration changed, and no performance benchmark was run for this preparation-only phase. |
+| 2026-09-28T12:38+02:00 | R06 | `7e0f0497` frozen-source checkpoint | `git push origin codex/builtin-mapping`; exact `git ls-remote origin refs/heads/codex/builtin-mapping` | Windows x64 | PASSED | Remote OID exactly matches `7e0f0497803c2c0d9634b00f59bec97312745862`. The unrelated user-edited implementation plan remained unstaged. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo metadata --no-deps --format-version 1` | Windows x64, Rust 1.97.0 | PASSED | Workspace/package identities resolved. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo fmt --all --check` | Windows x64, Rust 1.97.0 | PASSED | No formatting diff. |
 | 2026-09-13T09:30+02:00 | 00 | `b6ac86eb` | `cargo test --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_condition -p chataigne_state_machine` | Windows x64, Rust 1.97.0 | PASSED | All four package test suites and doc tests passed. |
@@ -323,6 +327,18 @@
 - Implementation commit: `c3f020ec215cf16a3477aec01cc7406199567499`.
 - Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `c3f020ec215cf16a3477aec01cc7406199567499`, 2026-09-16T12:06:52+02:00 (`git ls-remote`).
 - Remaining R05 work: none. R06 owns representation-independent command preparation, immutable frozen source, dependency preflight, and live/frozen equivalence without exposing compression.
+
+### R06 (complete)
+
+- Frozen boundary: Mapping can now capture a versioned, immutable `FrozenMappingSource` containing the Formula identity and source, the same managed Formula model used by expanded execution, typed archived Inputs/Filters/Outputs regions, and UUID-keyed prepared commands. Frozen data contains no live workflow `NodeId`, cached process-local node reference, or native handle.
+- Golden persistence boundary: `golden_core` exposes typed sparse-subtree capture and an atomic UUID-preserving restore operation. Restore validates the project version and destination, reserves every archived identity before mutation, rejects duplicate or live UUID collisions, inserts through the normal engine boundary, replays project-load lifecycle, and records UI/history effects.
+- Command boundary: live and frozen generic Set Parameter and Trigger Parameter commands share one prepared-command executor. Stable Mapping bindings lower to frozen parameter UUIDs, perform the same runtime value conversion/coercion, and retain trigger occurrence semantics. This avoids a second command implementation and does not retain workflow node IDs.
+- Explicit support policy: compression preparation supports Set Parameter and Trigger Parameter. Module commands, generic Log and Invoke Existing Command, command groups, and command parameters with non-manual control modes return typed blockers because their current execution depends on live authored nodes. Those Mappings remain fully editable and executable in expanded mode; R06 does not silently degrade them.
+- Dependency preflight: known external inbound references to workflow descendants, invalid managed regions, unsupported/live-node-dependent commands, non-manual command controls, and frozen compile failures produce attributed typed blockers without changing the source tree. Dynamic script behavior cannot be proven statically and remains an explicit limitation for the R07 product transition.
+- Validation: focused frozen/live equivalence, serialization, Set/Trigger effects, blocker, and Golden identity/collision tests pass. Broad suites pass 179 Alchemist, 123 processor, 6 condition, 18 state-machine, and 451 Golden engine tests, plus 77 focused app processor tests and 9 app generic-command tests. Workspace check, strict affected Clippy, both required formatter scopes, and whitespace checks pass. No UI/protocol declaration changed and no benchmark was run for this preparation-only phase.
+- Implementation commit: `7e0f0497803c2c0d9634b00f59bec97312745862`.
+- Verified remote ref, observed OID, and timestamp: `refs/heads/codex/builtin-mapping` on `origin`, `7e0f0497803c2c0d9634b00f59bec97312745862`, 2026-09-28T12:38+02:00 (`git ls-remote`).
+- Remaining R06 work: none. R07 owns the persisted default-Off switch, atomic preflight/freeze/remove and restore transitions, frozen runtime dispatch, stale-revision and rollback behavior, undo/redo, reload, duplication/import, and useful locked-state feedback.
 
 ## Historical phase reports
 
