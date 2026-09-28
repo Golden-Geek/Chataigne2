@@ -199,6 +199,18 @@ fn frozen_preflight_reports_unsupported_commands_and_known_inbound_references() 
         "unexpected blockers: {blockers:?}"
     );
 
+    let (mut scheduled, _, scheduled_processor) = mapping_engine();
+    let outputs = region(&scheduled, scheduled_processor, "outputs");
+    create_item(&mut scheduled, outputs, "sm_output_group");
+    let blockers = prepare_frozen_mapping_source(&scheduled, scheduled_processor)
+        .expect_err("node-bound group scheduling should block a representation transition");
+    assert!(
+        blockers
+            .iter()
+            .any(|blocker| blocker.code == "unsupported_command"),
+        "unexpected scheduling blockers: {blockers:?}"
+    );
+
     let (mut referenced, _, referenced_processor) = mapping_engine();
     let sink_uuid = source_param(&mut referenced, "Referenced sink", 0.0);
     let outputs = region(&referenced, referenced_processor, "outputs");

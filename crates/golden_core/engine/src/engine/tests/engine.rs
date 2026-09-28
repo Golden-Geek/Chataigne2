@@ -7430,6 +7430,36 @@ fn ui_parameter_mutation_rejects_read_only_parameters() {
 }
 
 #[test]
+fn script_property_mutation_rejects_read_only_parameters() {
+    let mut root = Parameter::new("root_param", ParamValue::Int(1), ParameterChangeCheck::None);
+    root.read_only = true;
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetNodeScriptProperty {
+        node: engine.root,
+        property: "value".to_string(),
+        value: ParamValue::Int(7),
+    });
+    let error = engine
+        .apply_edits()
+        .expect_err("script writes must respect the public read-only contract");
+
+    assert!(matches!(
+        error,
+        EngineEditError::ScriptPropertyRejected { message, .. }
+            if message == "parameter is read-only"
+    ));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .expect("root parameter should exist")
+            .value,
+        ParamValue::Int(1),
+    );
+}
+
+#[test]
 fn cancel_active_ui_edit_session_only_cancels_matching_client_owner() {
     let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);

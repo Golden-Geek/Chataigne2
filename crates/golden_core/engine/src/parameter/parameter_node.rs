@@ -693,6 +693,9 @@ impl Node for Parameter {
     ) -> Result<bool, String> {
         match property {
             "value" => {
+                if self.read_only {
+                    return Err("parameter is read-only".to_string());
+                }
                 let normalized = self.constraints.normalize(value)?;
                 ctx.set_param_with_behaviour(self.id(), normalized, ParameterEventBehaviour::Coalesce);
                 Ok(true)

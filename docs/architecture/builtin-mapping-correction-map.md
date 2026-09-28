@@ -14,7 +14,8 @@ surface roles. `integration/processor/surface.rs` materializes those roles as
 ordinary `InputsManager`, `FilterChainManager`, `ConditionManager`, or
 `OutputsManager` children of each `StateProcessor`.
 
-Mapping currently has a second hierarchy under the same processor:
+At the corrective baseline, Mapping had a second hierarchy under the same
+processor:
 
 ```text
 StateProcessor
@@ -252,8 +253,9 @@ ordinary processor inspector and Formula editor paths.
 The shipped `Mapping.json` and `Action.json` assets, sparse project fixtures,
 old OutputTarget binding documents, converted custom Formula fixtures, copied
 commands, and external references are the persisted inputs that require
-requalification. Missing representation metadata will default to expanded,
-editable nodes when compression is introduced.
+requalification. Missing representation metadata defaults to expanded,
+editable nodes. The explicit compression control delivered in R07 is Off for
+fresh processors and for persisted data without compression metadata.
 
 ## Test ownership
 
@@ -266,12 +268,13 @@ editable nodes when compression is introduced.
   `chataigne_processor` test directories.
 - Ordinary inspector composition and bounded preview supplements:
   `apps/chataigne/ui/src/lib/systems/alchemist/tests` plus Golden UI tests.
-- Compression state machine, frozen source, dependency preflight, and
-  equivalence: app-owned processor/runtime tests introduced in R06–R07.
+- Compression state machine, frozen source, dependency preflight,
+  equivalence, public locks, and expanded/compressed measurements: app-owned
+  processor/runtime tests introduced in R06–R08.
 - Product, persistence, scale, package, and CI evidence: R05 and R08 status
   rows in `docs/progress/builtin-mapping-status.md`.
 
-R00 adds backend characterization for the current hidden-versus-visible
+R00 added backend characterization for the baseline hidden-versus-visible
 boundary and a preview-independent tuple Sum delivered through the queued
 engine path. Existing M01–M20 results remain historical evidence for runtime
-behavior only; N01–N24 start unqualified under the corrected contract.
+behavior only; the N01–N24 qualification is recorded in the progress ledger.

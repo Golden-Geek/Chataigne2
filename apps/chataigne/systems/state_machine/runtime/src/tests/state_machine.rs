@@ -20,7 +20,8 @@ use chataigne_state_machine_model::Statechart;
 use golden_values::Value as RuntimeValue;
 
 use crate::{
-    ChataigneStateMachine, ChataigneStateMachineRuntime, Processor, ProcessorContextProvider, ProcessorId,
+    ChataigneStateMachine, ChataigneStateMachineRuntime, Processor, ProcessorCommandPolicy, ProcessorContextProvider,
+    ProcessorId,
     alchemist::{register_nodes, register_value_types},
 };
 
@@ -608,6 +609,56 @@ fn processor_lane_command_intents_include_context_key() {
         processor_id,
         Some(ContextKey::single("device", "device-1")),
     )));
+}
+
+#[test]
+fn suppressed_processor_keeps_lane_outputs_but_emits_no_commands() {
+    let mut chart = Statechart::new();
+    let state = chart.add_leaf(chart.root_region(), "Only").unwrap();
+    chart.set_initial(chart.root_region(), state).unwrap();
+    let mut machine = ChataigneStateMachine::new(chart);
+    let formula = command_formula();
+    let mut processor = Processor::from_formula("Suppressed Command Processor", &formula);
+    processor.command_policy = ProcessorCommandPolicy::Suppress;
+    machine.add_formula(formula);
+    machine.add_processor(state, processor).unwrap();
+
+    let mut value_types = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut value_types).unwrap();
+    let mut nodes = primitive_node_registry();
+    register_nodes(&mut nodes).unwrap();
+    nodes.register(CommandEmitterDeclaration).unwrap();
+    let mut runtime = ChataigneStateMachineRuntime::compile(
+        &machine,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: None,
+        },
+    )
+    .unwrap();
+    runtime.initialize(&mut machine).unwrap();
+    let inputs = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+
+    let output = runtime
+        .tick_with_context_provider(
+            &mut machine,
+            &EvaluationCtx {
+                logical_tick: 1,
+                delta_time: Duration::ZERO,
+                events: &[],
+                inputs: &inputs,
+                registries: &registries,
+            },
+            &TestContextProvider::with_device_count(2),
+        )
+        .unwrap();
+
+    assert_eq!(output.intents.len(), 2);
+    assert!(output.command_intents.is_empty());
 }
 
 #[test]
