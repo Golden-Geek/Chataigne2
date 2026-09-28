@@ -301,6 +301,7 @@ fn context_provider_rebuild_refreshes_and_clears_the_lane_limit_warning() {
         formula_node: None,
         formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
         formula_source_key: "test".to_owned(),
+        frozen_source: None,
         command_dispatch_plans: Default::default(),
         output_send_cache: Default::default(),
         send_context_revision: 0,

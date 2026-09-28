@@ -86,12 +86,28 @@ of the later product transition.
 
 Golden exposes typed sparse-subtree capture for the archive boundary. Exact
 decompression uses collision-checked restoration that reserves every archived
-UUID before mutation. Ordinary import/duplication continues to use Golden's
-fresh-UUID subtree insertion; the compressed duplication workflow must rebuild
-its semantic source from those remapped nodes before removing them again. R06
-tests live/frozen evaluation and supported command execution internally. R07
-owns persistence of this source, atomic subtree removal/restoration, runtime
-state transfer, and the user-visible default-Off switch.
+UUID in the whole restored forest before mutation. The Mapping transition
+service publishes compression and expansion inside one history transaction,
+rejects stale preparation, and leaves an exact failure on the Mapping instead
+of changing representation after a failed preflight. The persisted status and
+archive are ordinary read-only parameters; Golden rejects public parameter
+mutation intents while still allowing backend-owned status updates.
+
+The visible `Compression` status defaults Off. `Compress` and `Expand` are
+explicit triggers. Successful compression removes the actual Inputs, Filters,
+and Outputs subtrees; opening or inspecting the Mapping never rematerializes
+them. Expansion restores their exact UUIDs. A duplicated or imported compressed
+Mapping receives one coherent fresh identity map for every archived node and
+internal UUID reference before either copy can expand.
+
+The state-machine runtime compiles editable and frozen sources through the same
+managed Formula runtime and command implementation. Representation changes
+carry compatible formula memory and UUID-keyed output send caches, so an
+unchanged `OnChange` output is not replayed. Live external sources and contexts
+remain live. Commands, parameter control modes, schedules, and known inbound
+references that still require authored nodes block compression. Dynamic script
+paths cannot be proven absent; compressed descendants deliberately cease to be
+addressable until expansion.
 
 ## Baseline and completed migration
 

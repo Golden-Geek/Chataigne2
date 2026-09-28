@@ -468,8 +468,17 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
 
                     let before_event_time = state.engine.ui_event_log().last().map(|event| event.time);
                     let apply_started = Instant::now();
-                    let acknowledgement =
+                    let mut acknowledgement =
                         apply_ui_intent_to_engine(&mut state.engine, intent, ui_client_instance_id.as_deref());
+                    if acknowledgement.success
+                        && let Err(error) = T::settle_pending_operations(&mut state.engine)
+                    {
+                        acknowledgement = rejected_ack(
+                            &state.engine,
+                            "app_operation_failed",
+                            error,
+                        );
+                    }
                     let apply = apply_started.elapsed();
                     let event_collect_started = Instant::now();
                     let capture = read_model.collect_event_batch(&state.engine, before_event_time);
@@ -603,6 +612,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 let before = state.engine.ui_event_log().last().map(|event| event.time);
                 state.run_tick(elapsed)?;
                 let engine = &mut state.engine;
+                T::settle_pending_operations(engine).map_err(|message| EngineRuntimeError::AppOperation { message })?;
                 let capture = read_model.collect_event_batch(engine, before);
                 apply_preferences_runtime_limits(engine);
                 let next_interval = engine.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));

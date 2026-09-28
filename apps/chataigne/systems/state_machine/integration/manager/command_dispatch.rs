@@ -25,13 +25,13 @@ pub(super) struct RuntimeCommandDispatchPlan {
 struct OutputSendKey {
     context_key: ContextKey,
     source_node: Option<ANodeId>,
-    target: NodeId,
+    target: NodeUuid,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 struct AcceptedOutput {
     value: RuntimeValue,
-    param_overrides: crate::app::module_command::ModuleCommandParamOverrides,
+    param_overrides: Vec<(NodeUuid, ParamValue)>,
 }
 
 impl AcceptedOutput {
@@ -47,7 +47,7 @@ impl AcceptedOutput {
             || self
                 .param_overrides
                 .iter()
-                .any(|argument| matches!(argument.value, ParamValue::Trigger()))
+                .any(|(_, value)| matches!(value, ParamValue::Trigger()))
     }
 }
 
@@ -370,6 +370,14 @@ pub(super) struct RuntimeCommandDispatch<'a> {
     pub(super) send_cache: &'a mut OutputSendCache,
 }
 
+pub(super) struct FrozenRuntimeCommandDispatch<'a> {
+    pub(super) context_key: Option<&'a ContextKey>,
+    pub(super) source: &'a FrozenMappingSource,
+    pub(super) intent: &'a RuntimeIntent,
+    pub(super) pending_batch: &'a mut PendingRuntimeCommandBatch,
+    pub(super) send_cache: &'a mut OutputSendCache,
+}
+
 pub(super) fn dispatch_command_intent(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
@@ -431,21 +439,37 @@ pub(super) fn dispatch_command_intent(
                         param_overrides.push(binding);
                     }
                 }
-                let send_key = OutputSendKey {
-                    context_key: context_key.cloned().unwrap_or_default(),
-                    source_node: intent.source_node,
-                    target: *node,
-                };
-                let accepted = AcceptedOutput {
-                    value: payload.clone(),
-                    param_overrides: param_overrides.clone(),
-                };
-                if send_policy == chataigne_state_machine::OutputSendPolicy::OnChange
-                    && !accepted.has_trigger()
-                    && !send_cache.should_send(&send_key, &accepted)
+                let cached_output = if send_policy
+                    == chataigne_state_machine::OutputSendPolicy::OnChange
                 {
-                    continue;
-                }
+                    let Some(target_uuid) = snapshot.node(*node).map(|node| node.uuid)
+                    else {
+                        pending_batch.reject_execution(
+                            "command target disappeared during dispatch".to_owned(),
+                        );
+                        continue;
+                    };
+                    let send_key = OutputSendKey {
+                        context_key: context_key.cloned().unwrap_or_default(),
+                        source_node: intent.source_node,
+                        target: target_uuid,
+                    };
+                    let accepted = AcceptedOutput {
+                        value: payload.clone(),
+                        param_overrides: stable_param_overrides(
+                            snapshot,
+                            &param_overrides,
+                        ),
+                    };
+                    if !accepted.has_trigger()
+                        && !send_cache.should_send(&send_key, &accepted)
+                    {
+                        continue;
+                    }
+                    Some((send_key, accepted))
+                } else {
+                    None
+                };
                 if !budget.admit_action() {
                     continue;
                 }
@@ -470,7 +494,7 @@ pub(super) fn dispatch_command_intent(
                         crate::app::module_command::ModuleCommandDeliveryPolicy::Standard,
                     ) {
                         Ok(()) => {
-                            if send_policy == chataigne_state_machine::OutputSendPolicy::OnChange {
+                            if let Some((send_key, accepted)) = cached_output {
                                 send_cache.accept(send_key, accepted);
                             }
                         }
@@ -517,6 +541,120 @@ pub(super) fn dispatch_command_intent(
             intent.target.as_ref().map_or("", |target| target.stable_id.as_ref())
         ));
     }
+}
+
+pub(super) fn dispatch_frozen_command_intent(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    dispatch: FrozenRuntimeCommandDispatch<'_>,
+    budget: &mut RuntimeCommandTickBudget,
+) {
+    let FrozenRuntimeCommandDispatch {
+        context_key,
+        source,
+        intent,
+        pending_batch,
+        send_cache,
+    } = dispatch;
+    pending_batch.flush(ctx);
+    let command = match source.command_for_intent(intent) {
+        Ok(command) => command,
+        Err(error) => {
+            budget.reject_unresolved_intent();
+            pending_batch.reject_execution(error);
+            return;
+        }
+    };
+    let bound = match chataigne_state_machine::CommandArgumentValues::from_runtime_value(
+        &intent.payload,
+    ) {
+        Ok(bound) => bound,
+        Err(error) => {
+            pending_batch.reject_execution(format!(
+                "invalid frozen command argument payload: {error}"
+            ));
+            return;
+        }
+    };
+    let payload = bound
+        .as_ref()
+        .map_or(&intent.payload, |bound| &bound.value);
+    let send_policy = bound.as_ref().map_or(
+        chataigne_state_machine::OutputSendPolicy::EveryDelivery,
+        |bound| bound.send_policy,
+    );
+    let accepted = match stable_frozen_arguments(bound.as_ref()) {
+        Ok(param_overrides) => AcceptedOutput {
+            value: payload.clone(),
+            param_overrides,
+        },
+        Err(error) => {
+            pending_batch.reject_execution(error);
+            return;
+        }
+    };
+    let send_key = OutputSendKey {
+        context_key: context_key.cloned().unwrap_or_default(),
+        source_node: intent.source_node,
+        target: command.uuid,
+    };
+    if send_policy == chataigne_state_machine::OutputSendPolicy::OnChange
+        && !accepted.has_trigger()
+        && !send_cache.should_send(&send_key, &accepted)
+    {
+        return;
+    }
+    if !budget.admit_action() {
+        return;
+    }
+    match command.execute_intent(ctx, snapshot, intent) {
+        Ok(()) => {
+            if send_policy == chataigne_state_machine::OutputSendPolicy::OnChange {
+                send_cache.accept(send_key, accepted);
+            }
+        }
+        Err(error) => pending_batch.reject_execution(format!(
+            "compressed Mapping command {} failed: {error}",
+            command.uuid.0
+        )),
+    }
+}
+
+fn stable_param_overrides(
+    snapshot: &ProcessTreeSnapshot,
+    overrides: &crate::app::module_command::ModuleCommandParamOverrides,
+) -> Vec<(NodeUuid, ParamValue)> {
+    overrides
+        .iter()
+        .filter_map(|override_value| {
+            snapshot
+                .node(override_value.param_id)
+                .map(|node| (node.uuid, override_value.value.clone()))
+        })
+        .collect()
+}
+
+fn stable_frozen_arguments(
+    bound: Option<&chataigne_state_machine::CommandArgumentValues>,
+) -> Result<Vec<(NodeUuid, ParamValue)>, String> {
+    bound
+        .into_iter()
+        .flat_map(|bound| bound.arguments.iter())
+        .map(|argument| {
+            let uuid = argument
+                .parameter
+                .stable_id
+                .parse::<uuid::Uuid>()
+                .map(NodeUuid)
+                .map_err(|_| {
+                    format!(
+                        "frozen command argument '{}' is not a UUID",
+                        argument.parameter.stable_id
+                    )
+                })?;
+            Ok((uuid, runtime_value_to_param(&argument.value)?))
+        })
+        .collect()
 }
 
 fn bound_argument_overrides(

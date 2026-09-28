@@ -181,6 +181,7 @@ fn managed_socket_value_edit_identifies_authored_item_and_invalidates_when_runti
         formula_node: None,
         formula_ui: ProcessorFormulaUiState::project(),
         formula_source_key: "test".to_owned(),
+        frozen_source: None,
         command_dispatch_plans: Default::default(),
         output_send_cache: Default::default(),
         send_context_revision: 0,

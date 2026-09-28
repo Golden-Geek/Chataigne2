@@ -595,13 +595,14 @@ fn authored_graph_keeps_managed_region_metadata() {
         .find_child_by_decl_id(formula, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
         .expect("Formula should expose managed regions");
     let raw = r#"[{"id":"inputs","kind":"input_set","label":"Inputs","input_socket":null,"output_socket":null,"accepted_roles":["Input"]}]"#;
-    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+    engine.edits.push(Edit::SetParam {
         node: metadata,
         value: ParamValue::Str(raw.to_owned()),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
-    assert!(ack.success, "metadata edit should succeed: {ack:?}");
-    engine.apply_edits().unwrap();
+    engine
+        .apply_edits()
+        .expect("backend-authored metadata edit should succeed");
     create_anode(&mut engine, formula, "constant", 0.0, 0.0);
     let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula).unwrap();
     assert_eq!(materialized.surface.managed_regions.len(), 1);

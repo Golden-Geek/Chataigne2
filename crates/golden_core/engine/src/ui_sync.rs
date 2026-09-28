@@ -76,6 +76,19 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
+    fn read_only_ui_param_error(&self, node: NodeId) -> Option<crate::engine::EngineEditError> {
+        let target = self.nodes.get(node)?;
+        target
+            .engine_param_snapshot()
+            .is_some_and(|snapshot| snapshot.read_only)
+            .then(|| crate::engine::EngineEditError::ParamConstraintViolation {
+                edit_index: 0,
+                node,
+                node_type: target.get_type().to_owned(),
+                message: "parameter is read-only".to_owned(),
+            })
+    }
+
     /// Applies one UI edit intent and returns an acknowledgement payload.
     pub fn apply_ui_intent(&mut self, intent: UiEditIntent) -> UiAck {
         self.apply_ui_intent_from_client(intent, None)
@@ -103,11 +116,18 @@ impl<T: Node> Engine<T> {
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetParam { node, value, behaviour } => {
+                if let Some(error) = self.read_only_ui_param_error(node) {
+                    let result = Err(error);
+                    return self.finish_ui_apply_now(before_event_time, result);
+                }
                 self.edits.push(Edit::SetParam { node, value, behaviour });
                 let result = self.apply_ui_stabilization_to_fixed_point(16);
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetTextParamSmart { node, value, behaviour } => {
+                if let Some(error) = self.read_only_ui_param_error(node) {
+                    return self.finish_ui_apply_now(before_event_time, Err(error));
+                }
                 let result = self.apply_implicit_ui_edit_session(
                     "Set text parameter",
                     "__ui-set-text-param-smart",
@@ -117,6 +137,9 @@ impl<T: Node> Engine<T> {
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetParamControlState { node, state } => {
+                if let Some(error) = self.read_only_ui_param_error(node) {
+                    return self.finish_ui_apply_now(before_event_time, Err(error));
+                }
                 match self.apply_set_param_control_state(0, node, state.into()) {
                     Ok(Some(effect)) => {
                         self.record_set_param_control_state_history(effect);
@@ -127,6 +150,9 @@ impl<T: Node> Engine<T> {
                 }
             }
             UiEditIntent::SetParamConstraints { node, constraints } => {
+                if let Some(error) = self.read_only_ui_param_error(node) {
+                    return self.finish_ui_apply_now(before_event_time, Err(error));
+                }
                 match self.apply_set_param_constraints(0, node, constraints) {
                     Ok(Some(effect)) => {
                         self.record_set_param_constraints_history(effect);

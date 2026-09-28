@@ -356,6 +356,122 @@ impl<T: Node> Engine<T> {
         Ok(restored_root)
     }
 
+    /// Restores several archived sibling subtrees as one all-or-nothing batch.
+    ///
+    /// Every document is validated and decoded, and every UUID is reserved,
+    /// before the first live node is inserted. Lifecycle replay and UI
+    /// publication observe the complete forest; any failure rolls the whole
+    /// batch back to its pre-commit checkpoint.
+    pub fn restore_project_subtrees_with<Decode>(
+        &mut self,
+        projects: Vec<ProjectFile>,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        mut decode_node: Decode,
+    ) -> Result<Vec<NodeId>, ProjectPersistenceError>
+    where
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        self.validate_persisted_subtree_destination(parent, prev_sibling, "RestoreProjectSubtrees")?;
+        let mut archived = HashSet::new();
+        for project in &projects {
+            golden_persistence::validate_project_document_version(project)?;
+            collect_record_uuids(&project.root, &mut archived)?;
+        }
+        if let Some(uuid) = archived.iter().find(|uuid| self.uuid_index.contains_key(uuid)).copied() {
+            return Err(ProjectPersistenceError::Codec {
+                node_type: projects
+                    .first()
+                    .map(|project| project.root.node_type.clone())
+                    .unwrap_or_default(),
+                message: format!(
+                    "cannot restore archived subtrees because UUID {} is already live",
+                    uuid.0
+                ),
+            });
+        }
+        let decoded = {
+            let parent_node = self
+                .nodes
+                .get(parent)
+                .ok_or(ProjectPersistenceError::MissingNode(parent))?;
+            projects
+                .iter()
+                .map(|project| {
+                    Self::decode_project_record_tree_with(parent_node, &project.root, &HashMap::new(), &mut decode_node)
+                })
+                .collect::<Result<Vec<_>, _>>()?
+        };
+
+        let checkpoint = self.project_subtree_commit_checkpoint();
+        let mut roots = Vec::with_capacity(decoded.len());
+        let mut previous = prev_sibling;
+        for tree in decoded {
+            match self.insert_decoded_project_tree(parent, previous, tree, "RestoreProjectSubtrees") {
+                Ok(root) => {
+                    roots.push(root);
+                    previous = Some(root);
+                }
+                Err(error) => {
+                    self.rollback_committed_project_subtrees(roots.iter().copied(), checkpoint);
+                    return Err(error);
+                }
+            }
+        }
+        if let Err(error) =
+            self.replay_loaded_subtrees_lifecycle(&roots, NodeCreationContext::ProjectLoad, LoadedReadyMode::Immediate)
+        {
+            self.rollback_committed_project_subtrees(roots.iter().copied(), checkpoint);
+            return Err(error);
+        }
+
+        let mut loaded_by_root = Vec::with_capacity(roots.len());
+        let mut all_loaded = Vec::new();
+        for root in &roots {
+            match self.collect_loaded_subtree_node_ids(*root) {
+                Ok(nodes) => {
+                    all_loaded.extend(nodes.iter().copied());
+                    loaded_by_root.push(nodes);
+                }
+                Err(error) => {
+                    self.rollback_committed_project_subtrees(roots.iter().copied(), checkpoint);
+                    return Err(error);
+                }
+            }
+        }
+        self.sync_missing_reference_warnings_for_nodes_silent(all_loaded.as_slice());
+        self.rebuild_user_context_registry_from_nodes();
+        self.mark_user_context_graph_changed();
+
+        let catalog_snapshot = all_loaded
+            .iter()
+            .any(|node| self.catalog_creatable_items_require_tree_snapshot(*node))
+            .then(|| self.build_process_tree_snapshot());
+        let mut ops = Vec::new();
+        for nodes in &loaded_by_root {
+            match self.loaded_subtree_ui_ops(nodes, catalog_snapshot.as_deref()) {
+                Ok(mut subtree_ops) => ops.append(&mut subtree_ops),
+                Err(error) => {
+                    self.rollback_committed_project_subtrees(roots.iter().copied(), checkpoint);
+                    return Err(error);
+                }
+            }
+        }
+        self.push_ui_graph_transaction(ops);
+        for root in &roots {
+            self.record_single_history_step(
+                AddNodeEffect {
+                    node: *root,
+                    parent,
+                    prev_sibling: self.nodes.get(*root).and_then(|node| node.node_data().prev_sibling),
+                    next_sibling: self.nodes.get(*root).and_then(|node| node.node_data().next_sibling),
+                }
+                .into(),
+            );
+        }
+        Ok(roots)
+    }
+
     fn push_loaded_subtree_ui_events(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
         let catalog_snapshot = node_ids
             .iter()

@@ -7401,6 +7401,35 @@ fn ui_set_param_ack_applies_immediately() {
 }
 
 #[test]
+fn ui_parameter_mutation_rejects_read_only_parameters() {
+    let mut root = Parameter::new("root_param", ParamValue::Int(1), ParameterChangeCheck::None);
+    root.read_only = true;
+    let mut engine = Engine::new(root);
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(7),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    assert_eq!(ack.status, UiAckStatus::Rejected);
+    assert_eq!(ack.error_code.as_deref(), Some("param_constraint_violation"));
+    assert!(
+        ack.error_message
+            .as_deref()
+            .is_some_and(|message| message.ends_with("parameter is read-only"))
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .expect("root parameter should exist")
+            .value,
+        ParamValue::Int(1),
+    );
+}
+
+#[test]
 fn cancel_active_ui_edit_session_only_cancels_matching_client_owner() {
     let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);

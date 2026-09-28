@@ -785,6 +785,7 @@ fn external_target_value_event_updates_overlay_without_invalidating_plan() {
             formula_node: None,
             formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
             formula_source_key: "test".to_owned(),
+            frozen_source: None,
             command_dispatch_plans: plans,
             output_send_cache: OutputSendCache::default(),
             send_context_revision: 0,

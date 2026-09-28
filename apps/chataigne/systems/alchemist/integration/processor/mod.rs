@@ -36,21 +36,26 @@ mod catalog;
 mod conversion;
 mod factory;
 mod filter_validation;
-// R06 deliberately keeps this preparation boundary internal until R07 wires
-// the atomic representation transition.
-#[allow(dead_code)]
 mod frozen;
 mod managed_regions;
 mod output_migration;
 mod palette;
 mod source_schema;
 mod surface;
+mod transition;
 
 pub(crate) use managed_regions::managed_regions_from_snapshot;
+pub(crate) use frozen::FrozenMappingSource;
 pub(crate) use output_migration::{
     migrate_mapping_output_adapters, MAPPING_CONCRETE_OUTPUTS_V1_TAG,
 };
 pub(crate) use source_schema::{managed_source_node, managed_source_schema};
+pub(crate) use transition::settle_pending_mapping_transitions;
+#[cfg(test)]
+pub(crate) use transition::{
+    commit_mapping_compression, prepare_mapping_compression,
+    set_mapping_compression, MappingCompressionError,
+};
 
 use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
 use self::factory::ProcessorTreeTemplates;
@@ -240,6 +245,11 @@ const PROCESSOR_SURFACE_DECL_PREFIX: &str = "surface/";
 const PROCESSOR_SURFACE_IDENTITY_TAG_PREFIX: &str = "chataigne.processor.surface.identity:";
 const PROCESSOR_FORMULA_WARNING_ID: &str = "state_processor_formula";
 pub(crate) const PROCESSOR_FORMULA_SOURCE_DECL_ID: &str = "formula_source_key";
+pub(crate) const PROCESSOR_COMPRESSION_ENABLED_DECL_ID: &str =
+    "compression_enabled";
+pub(crate) const PROCESSOR_COMPRESSION_ERROR_DECL_ID: &str =
+    "compression_error";
+pub(crate) const PROCESSOR_FROZEN_SOURCE_DECL_ID: &str = "frozen_source";
 pub(crate) const PROCESSOR_MANAGED_REGIONS_DECL_ID: &str = "managed_regions";
 pub(crate) const PROCESSOR_MANAGED_REGION_DECL_PREFIX: &str = "managed_region/";
 const PROCESSOR_MANAGED_REGION_ROLE_TAG_PREFIX: &str =
@@ -269,6 +279,42 @@ pub(crate) fn processor_formula_source_ref(
             _ => None,
         })
         .map(FormulaSourceRef::project_uuid)
+}
+
+pub(crate) fn processor_compression_enabled(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+) -> bool {
+    snapshot
+        .find_child_by_decl_id(
+            processor_node,
+            PROCESSOR_COMPRESSION_ENABLED_DECL_ID,
+        )
+        .and_then(|node| snapshot.node(node))
+        .and_then(|node| node.param_value.as_ref())
+        .is_some_and(|value| matches!(value, ParamValue::Bool(true)))
+}
+
+pub(crate) fn processor_frozen_source(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+) -> Result<Option<FrozenMappingSource>, String> {
+    if !processor_compression_enabled(snapshot, processor_node) {
+        return Ok(None);
+    }
+    let encoded = snapshot
+        .find_child_by_decl_id(processor_node, PROCESSOR_FROZEN_SOURCE_DECL_ID)
+        .and_then(|node| snapshot.node(node))
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(|value| match value {
+            ParamValue::Str(value) => Some(value.as_str()),
+            _ => None,
+        })
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "compressed Mapping has no frozen source".to_owned())?;
+    serde_json::from_str(encoded)
+        .map(Some)
+        .map_err(|error| format!("compressed Mapping source is invalid: {error}"))
 }
 
 fn processor_container_rules() -> UserContainerRules {
@@ -1253,6 +1299,33 @@ impl StateProcessorFolder {
         label = "Convert to Formula",
         show_in_inspector_content = false
     );
+    compression_enabled: bool = false (
+        label = "Compression",
+        description = "True only after the Mapping workflow was frozen and removed successfully.",
+        read_only = true,
+        persist_read_only_value = true
+    );
+    compress: ParamValue = ParamValue::Trigger() (
+        label = "Compress",
+        description = "Freeze this Mapping and remove its editable workflow nodes after dependency preflight succeeds."
+    );
+    expand: ParamValue = ParamValue::Trigger() (
+        label = "Expand to Edit",
+        description = "Restore the archived workflow nodes with their original identities."
+    );
+    compression_error: String = String::new() (
+        label = "Compression Error",
+        description = "The exact reason the last representation transition was rejected.",
+        read_only = true,
+        persist_read_only_value = true
+    );
+    frozen_source: String = String::new() (
+        label = "Frozen Mapping Source",
+        description = "Versioned authored archive used only while compression is enabled.",
+        read_only = true,
+        persist_read_only_value = true,
+        show_in_inspector_content = false
+    );
 )]
 pub struct StateProcessor {
     #[state(default = ProcessorFormulaSourceState::default(), persist)]
@@ -1261,6 +1334,8 @@ pub struct StateProcessor {
     subscribed_formula: Option<NodeId>,
     #[state(default = HashSet::new())]
     condition_valid_params: HashSet<NodeId>,
+    #[state(default = None)]
+    compression_request: Option<bool>,
 }
 
 fn processor_palette_inbox_requires_tree_snapshot(
@@ -1418,10 +1493,32 @@ impl Node for StateProcessor {
         &mut self,
         ctx: &mut ProcessCtx,
         param: NodeId,
-        _old_value: ParamValue,
+        old_value: ParamValue,
     ) {
+        if self.compression_enabled.get()
+            && (param == self.formula.id()
+                || param == self.convert_to_formula.id())
+        {
+            ctx.set_param(param, old_value);
+            ctx.set_param(
+                self.compression_error.id(),
+                ParamValue::Str(
+                    "Mapping workflow is compressed; expand it before editing the Formula"
+                        .to_owned(),
+                ),
+            );
+            return;
+        }
         if param == self.convert_to_formula.id() {
             self.convert_mapping_to_formula(ctx);
+            return;
+        }
+        if param == self.compress.id() {
+            self.compression_request = Some(true);
+            return;
+        }
+        if param == self.expand.id() {
+            self.compression_request = Some(false);
             return;
         }
         if self.condition_valid_params.contains(&param) {
@@ -1707,6 +1804,9 @@ impl StateProcessor {
     }
 
     fn reconcile_formula_managed_regions(&self, ctx: &mut ProcessCtx) {
+        if self.compression_enabled.get() {
+            return;
+        }
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };

@@ -134,6 +134,19 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
         Ok(())
     }
 
+    /// Settles app-owned backend operations requested by ordinary node edits.
+    ///
+    /// The default runtime invokes this on its authoritative control thread
+    /// after UI/headless transactions and runtime ticks. Implementations may
+    /// perform atomic, app-specific structural operations that require access
+    /// to persistence codecs and therefore cannot run inside a node callback.
+    fn settle_pending_operations(_engine: &mut Engine<Self>) -> Result<(), String>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
+
     /// Performs app-owned, detached candidate validation before live resource handoff.
     ///
     /// Implementations may inspect or mutate only `engine`. They must not acquire output devices,

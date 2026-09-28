@@ -931,6 +931,7 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
             formula_node: None,
             formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
             formula_source_key: "test".to_owned(),
+            frozen_source: None,
             command_dispatch_plans: Default::default(),
             output_send_cache: Default::default(),
             send_context_revision: 0,

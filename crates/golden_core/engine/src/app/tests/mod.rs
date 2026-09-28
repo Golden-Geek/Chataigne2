@@ -140,6 +140,67 @@ fn archived_subtree_restore_preserves_identities_and_rejects_live_collisions() {
 }
 
 #[test]
+fn archived_subtree_batch_reserves_all_identities_before_mutation() {
+    let root: PreferencesTestNode = Folder::new("root").into();
+    let mut engine = Engine::new(root);
+    for label in ["first archive", "second archive"] {
+        let mut tree = NodeTree::new(Folder::new(label));
+        tree.push_child(NodeTree::new(crate::parameter::Parameter::new(
+            "value",
+            ParamValue::Int(7),
+            crate::parameter::ParameterChangeCheck::None,
+        )));
+        engine.edits.push(Edit::AddNodeTree {
+            tree,
+            parent: engine.root,
+            prev_sibling: None,
+        });
+    }
+    engine.apply_edits().expect("archive fixtures should attach");
+    let find = |engine: &Engine<PreferencesTestNode>, label: &str| {
+        engine
+            .nodes
+            .iter()
+            .find_map(|(id, node)| (node.node_data().meta.label == label).then_some(id))
+            .unwrap()
+    };
+    let first = find(&engine, "first archive");
+    let second = find(&engine, "second archive");
+    let first_uuid = engine.nodes.get(first).unwrap().node_data().meta.uuid;
+    let second_uuid = engine.nodes.get(second).unwrap().node_data().meta.uuid;
+    let first_document = capture_sparse_subtree_file(&engine, first).unwrap();
+    let second_document = capture_sparse_subtree_file(&engine, second).unwrap();
+
+    engine.edits.push(Edit::RemoveNode { node: first });
+    engine.apply_edits().unwrap();
+    let collision = engine.restore_project_subtrees_with(
+        vec![first_document.clone(), second_document.clone()],
+        engine.root,
+        None,
+        <PreferencesTestNode as crate::app::ProjectNode>::project_decode_node,
+    );
+    assert!(collision.is_err());
+    assert!(
+        engine.node_id_by_uuid(first_uuid).is_none(),
+        "batch preflight must not restore earlier documents before a later collision"
+    );
+
+    engine.edits.push(Edit::RemoveNode { node: second });
+    engine.apply_edits().unwrap();
+    let restored = engine
+        .restore_project_subtrees_with(
+            vec![first_document, second_document],
+            engine.root,
+            None,
+            <PreferencesTestNode as crate::app::ProjectNode>::project_decode_node,
+        )
+        .expect("collision-free archive forest should restore atomically");
+    assert_eq!(restored.len(), 2);
+    assert!(engine.node_id_by_uuid(first_uuid).is_some());
+    assert!(engine.node_id_by_uuid(second_uuid).is_some());
+}
+
+#[test]
 #[ignore = "manual immutable project capture/materialization measurement"]
 fn measure_immutable_project_capture_at_scale() {
     use std::time::Instant;

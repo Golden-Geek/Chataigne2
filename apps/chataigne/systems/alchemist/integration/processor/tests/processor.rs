@@ -1428,15 +1428,14 @@ fn seed_formula_managed_regions(engine: &mut AppEngine, formula: NodeId, regions
         .process_tree_snapshot()
         .find_child_by_decl_id(formula, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
         .expect("formula should expose managed region metadata");
-    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+    engine.edits.push(Edit::SetParam {
         node: param,
         value: ParamValue::Str(regions_json.to_owned()),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
-    assert!(ack.success, "managed region metadata should be set: {ack:?}");
     engine
         .apply_edits()
-        .expect("managed region metadata should apply");
+        .expect("backend-authored managed region metadata should apply");
 }
 
 fn value_pipeline_regions_json() -> &'static str {

@@ -45,6 +45,11 @@ impl golden_core::app::ProjectLifecycle for AppNode {
         super::systems_alchemist_formula::migrate_legacy_gate_semantics(engine)?;
         super::systems_alchemist_formula::migrate_output_binding_documents(engine)?;
         super::systems_alchemist_processor::migrate_mapping_output_adapters(engine)?;
-        super::systems_alchemist_processor::sync_external_formulas(engine)
+        super::systems_alchemist_processor::sync_external_formulas(engine)?;
+        super::systems_alchemist_processor::settle_pending_mapping_transitions(engine)
+    }
+
+    fn settle_pending_operations(engine: &mut AppEngine) -> Result<(), String> {
+        super::systems_alchemist_processor::settle_pending_mapping_transitions(engine)
     }
 }

@@ -8,6 +8,11 @@ pub enum EngineRuntimeError {
         /// Actionable activation or publication error that caused the pause.
         message: String,
     },
+    /// An app-owned operation requested through the project lifecycle failed.
+    AppOperation {
+        /// Actionable error returned by the app operation.
+        message: String,
+    },
     /// Wrapper for edit-application failures.
     Edit(EngineEditError),
     /// A node declared a dependency on a missing node id.
@@ -51,6 +56,9 @@ impl fmt::Display for EngineRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ProjectPaused { message } => write!(f, "project runtime is paused: {message}"),
+            Self::AppOperation { message } => {
+                write!(f, "app-owned runtime operation failed: {message}")
+            }
             Self::Edit(err) => write!(f, "{err}"),
             Self::MissingDependency { node, dependency } => {
                 write!(f, "node {:?} depends on missing node {:?}", node, dependency)
