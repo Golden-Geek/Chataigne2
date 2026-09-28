@@ -38,6 +38,36 @@ pub(crate) const MAX_LOG_INVOCATIONS: usize = 32_768;
 const MAX_LOG_EMISSIONS_PER_TICK: usize = 1;
 pub(crate) const MAX_LOG_PRUNE_STEPS_PER_EVENT: usize = 8;
 
+/// Node-independent invocation for the generic commands that can execute from
+/// either an authored command node or an immutable Mapping definition.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PreparedGenericCommandInvocation {
+    SetParameter {
+        target: ParamValue,
+        value: ParamValue,
+    },
+    TriggerParameter {
+        target: ParamValue,
+    },
+}
+
+/// Executes the shared generic-command behavior after either representation
+/// has prepared and validated its authored parameters.
+pub(crate) fn execute_prepared_generic_command(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    invocation: PreparedGenericCommandInvocation,
+) -> Result<(), String> {
+    match invocation {
+        PreparedGenericCommandInvocation::SetParameter { target, value } => {
+            set_parameter_value(ctx, snapshot, &target, value)
+        }
+        PreparedGenericCommandInvocation::TriggerParameter { target } => {
+            trigger_parameter(ctx, snapshot, &target)
+        }
+    }
+}
+
 #[node("generic_command_base", label = "Command")]
 #[children(
     trigger: ParamValue = ParamValue::Trigger() (
@@ -103,7 +133,11 @@ impl GenericSetParameterCommand {
             .ok_or_else(|| "Set Parameter requires a target parameter".to_string())?;
         let value = command_parameter_value(snapshot, self.value.id(), overrides)
             .ok_or_else(|| "Set Parameter requires a value".to_string())?;
-        set_parameter_value(ctx, snapshot, &target, value)
+        execute_prepared_generic_command(
+            ctx,
+            snapshot,
+            PreparedGenericCommandInvocation::SetParameter { target, value },
+        )
     }
 
     fn run_current(&mut self, ctx: &mut ProcessCtx) {
@@ -236,7 +270,11 @@ impl GenericTriggerParameterCommand {
     ) -> Result<(), String> {
         let target = command_parameter_value(snapshot, self.target.id(), overrides)
             .ok_or_else(|| "Trigger Parameter requires a target parameter".to_string())?;
-        trigger_parameter(ctx, snapshot, &target)
+        execute_prepared_generic_command(
+            ctx,
+            snapshot,
+            PreparedGenericCommandInvocation::TriggerParameter { target },
+        )
     }
 
     fn execute_with_referenced_param(

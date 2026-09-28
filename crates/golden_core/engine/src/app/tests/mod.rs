@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use crate::app::{
     CapturedProjectNode, DEFAULT_ENGINE_LOW_FREQUENCY_HZ, DEFAULT_ENGINE_MAX_FREQUENCY_HZ, PREFERENCES_DECL_ID,
     PREFERENCES_ENGINE_DECL_ID, PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID, ProjectGraphCapture, ProjectLifecycle,
-    apply_preferences_runtime_limits, capture_sparse_project_file_with_ui_state, ensure_preferences_tree,
-    from_sparse_project_json_with_ui_state, insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
-    load_sparse_project_file_with_ui_state_recovering, preferences_data_folder, preferences_engine_low_frequency_hz,
-    preferences_engine_max_frequency_hz, sparse_project_file_from_capture, to_sparse_preferences_json_pretty,
-    to_sparse_project_json_pretty, to_sparse_project_json_pretty_with_ui_state,
+    apply_preferences_runtime_limits, capture_sparse_project_file_with_ui_state, capture_sparse_subtree_file,
+    ensure_preferences_tree, from_sparse_project_json_with_ui_state, insert_sparse_preferences_json,
+    load_sparse_project_file_with_ui_state, load_sparse_project_file_with_ui_state_recovering, preferences_data_folder,
+    preferences_engine_low_frequency_hz, preferences_engine_max_frequency_hz, sparse_project_file_from_capture,
+    to_sparse_preferences_json_pretty, to_sparse_project_json_pretty, to_sparse_project_json_pretty_with_ui_state,
 };
 use crate::define_node_enum;
 use crate::edit::{Edit, NodeTree};
@@ -83,6 +83,60 @@ fn updating_one_captured_node_copies_only_its_shard() {
         original.shared_shards_with(&updated),
         ProjectGraphCapture::shard_count() - 1
     );
+}
+
+#[test]
+fn archived_subtree_restore_preserves_identities_and_rejects_live_collisions() {
+    let root: PreferencesTestNode = Folder::new("root").into();
+    let mut engine = Engine::new(root);
+    let mut tree = NodeTree::new(Folder::new("archived"));
+    tree.push_child(NodeTree::new(crate::parameter::Parameter::new(
+        "value",
+        ParamValue::Int(42),
+        crate::parameter::ParameterChangeCheck::None,
+    )));
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    engine.apply_edits().expect("archived subtree should attach");
+    let archived = engine
+        .nodes
+        .iter()
+        .find_map(|(id, node)| (node.node_data().meta.label == "archived").then_some(id))
+        .expect("archived root");
+    let archived_uuid = engine.nodes.get(archived).unwrap().node_data().meta.uuid;
+    let child_uuid = engine
+        .nodes
+        .get(archived)
+        .and_then(|node| node.node_data().first_child)
+        .and_then(|child| engine.nodes.get(child))
+        .map(|node| node.node_data().meta.uuid)
+        .expect("archived child");
+    let document = capture_sparse_subtree_file(&engine, archived).expect("typed subtree capture");
+
+    let collision = engine.restore_project_subtree_with(
+        document.clone(),
+        engine.root,
+        None,
+        <PreferencesTestNode as crate::app::ProjectNode>::project_decode_node,
+    );
+    assert!(collision.is_err(), "live archived identities must be reserved");
+
+    engine.edits.push(Edit::RemoveNode { node: archived });
+    engine.apply_edits().expect("archived subtree should detach");
+    assert!(engine.node_id_by_uuid(archived_uuid).is_none());
+    let restored = engine
+        .restore_project_subtree_with(
+            document,
+            engine.root,
+            None,
+            <PreferencesTestNode as crate::app::ProjectNode>::project_decode_node,
+        )
+        .expect("archived subtree should restore with reserved identities");
+    assert_eq!(engine.nodes.get(restored).unwrap().node_data().meta.uuid, archived_uuid);
+    assert!(engine.node_id_by_uuid(child_uuid).is_some());
 }
 
 #[test]

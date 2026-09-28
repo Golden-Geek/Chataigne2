@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -273,6 +273,87 @@ impl<T: Node> Engine<T> {
         );
 
         Ok(imported_root)
+    }
+
+    /// Restores one persisted node hierarchy with its archived UUIDs intact.
+    ///
+    /// Unlike [`Self::insert_project_subtree_with`], this operation is for a
+    /// subtree that previously belonged to the same project and was removed
+    /// before restoration. Every archived UUID is reserved up front and the
+    /// operation fails before mutation when any identity is already live.
+    pub fn restore_project_subtree_with<Decode>(
+        &mut self,
+        project: ProjectFile,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        mut decode_node: Decode,
+    ) -> Result<NodeId, ProjectPersistenceError>
+    where
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        golden_persistence::validate_project_document_version(&project)?;
+        self.validate_persisted_subtree_destination(parent, prev_sibling, "RestoreProjectSubtree")?;
+
+        let mut archived = HashSet::new();
+        collect_record_uuids(&project.root, &mut archived)?;
+        if let Some(uuid) = archived.iter().find(|uuid| self.uuid_index.contains_key(uuid)).copied() {
+            return Err(ProjectPersistenceError::Codec {
+                node_type: project.root.node_type.clone(),
+                message: format!(
+                    "cannot restore archived subtree because UUID {} is already live",
+                    uuid.0
+                ),
+            });
+        }
+
+        let decoded_tree = {
+            let parent_node = self
+                .nodes
+                .get(parent)
+                .ok_or(ProjectPersistenceError::MissingNode(parent))?;
+            Self::decode_project_record_tree_with(parent_node, &project.root, &HashMap::new(), &mut decode_node)?
+        };
+        let commit_checkpoint = self.project_subtree_commit_checkpoint();
+        let restored_root =
+            self.insert_decoded_project_tree(parent, prev_sibling, decoded_tree, "RestoreProjectSubtree")?;
+        if let Err(error) = self.replay_loaded_subtree_lifecycle(
+            restored_root,
+            NodeCreationContext::ProjectLoad,
+            LoadedReadyMode::Immediate,
+        ) {
+            self.rollback_committed_project_subtrees([restored_root], commit_checkpoint);
+            return Err(error);
+        }
+        let restored_node_ids = match self.collect_loaded_subtree_node_ids(restored_root) {
+            Ok(node_ids) => node_ids,
+            Err(error) => {
+                self.rollback_committed_project_subtrees([restored_root], commit_checkpoint);
+                return Err(error);
+            }
+        };
+        self.sync_missing_reference_warnings_for_nodes_silent(restored_node_ids.as_slice());
+        self.rebuild_user_context_registry_from_nodes();
+        self.mark_user_context_graph_changed();
+        if let Err(error) = self.push_loaded_subtree_ui_events(restored_node_ids.as_slice()) {
+            self.rollback_committed_project_subtrees([restored_root], commit_checkpoint);
+            return Err(error);
+        }
+        self.record_single_history_step(
+            AddNodeEffect {
+                node: restored_root,
+                parent,
+                prev_sibling: self
+                    .nodes
+                    .get(restored_root)
+                    .and_then(|node| node.node_data().prev_sibling),
+                next_sibling: self
+                    .nodes
+                    .get(restored_root)
+                    .and_then(|node| node.node_data().next_sibling),
+            }
+            .into(),
+        );
+        Ok(restored_root)
     }
 
     fn push_loaded_subtree_ui_events(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
@@ -919,6 +1000,22 @@ pub(crate) fn remap_record_uuids(record: &mut ProjectNodeRecord, uuid_map: &mut 
     for child in &mut record.children {
         remap_record_uuids(child, uuid_map);
     }
+}
+
+fn collect_record_uuids(
+    record: &ProjectNodeRecord,
+    uuids: &mut HashSet<NodeUuid>,
+) -> Result<(), ProjectPersistenceError> {
+    if !uuids.insert(record.uuid) {
+        return Err(ProjectPersistenceError::Codec {
+            node_type: record.node_type.clone(),
+            message: format!("archived subtree contains duplicate UUID {}", record.uuid.0),
+        });
+    }
+    for child in &record.children {
+        collect_record_uuids(child, uuids)?;
+    }
+    Ok(())
 }
 
 fn remap_node_references<T: Node>(node: &mut T, uuid_map: &HashMap<NodeUuid, NodeUuid>) {

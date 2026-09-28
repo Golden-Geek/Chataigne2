@@ -13,7 +13,8 @@ use golden_core::{
 use super::{
     GENERIC_COMMAND_ITEM_KIND, GENERIC_SET_PARAMETER_COMMAND_NODE_TYPE, GENERIC_TRIGGER_PARAMETER_COMMAND_NODE_TYPE,
     GenericLogCommand, GenericLogRuntimeCache, GenericTriggerParameterCommand, LOG_INVOCATION_KEEPALIVE_TICKS, LOG_INVOCATION_STALE_TICKS,
-    command_string_param_override, set_parameter_value, trigger_parameter,
+    PreparedGenericCommandInvocation, command_string_param_override,
+    execute_prepared_generic_command,
 };
 use crate::app::module_command::{
     MODULE_COMMAND_EXECUTE_BATCH_TOPIC, MODULE_COMMAND_EXECUTE_TOPIC, ModuleCommandDeliveryPolicy,
@@ -92,17 +93,21 @@ fn parameter_commands_queue_core_parameter_edits() {
     );
     ctx.set_tree_snapshot(snapshot.clone());
 
-    set_parameter_value(
+    execute_prepared_generic_command(
         &mut ctx,
         snapshot.as_ref(),
-        &ParamValue::Reference(NodeReference::new(value_target.1)),
-        ParamValue::Float(0.75),
+        PreparedGenericCommandInvocation::SetParameter {
+            target: ParamValue::Reference(NodeReference::new(value_target.1)),
+            value: ParamValue::Float(0.75),
+        },
     )
     .expect("set command should resolve a stable parameter reference");
-    trigger_parameter(
+    execute_prepared_generic_command(
         &mut ctx,
         snapshot.as_ref(),
-        &ParamValue::Reference(NodeReference::new(trigger_target.1)),
+        PreparedGenericCommandInvocation::TriggerParameter {
+            target: ParamValue::Reference(NodeReference::new(trigger_target.1)),
+        },
     )
     .expect("trigger command should resolve a stable trigger reference");
 

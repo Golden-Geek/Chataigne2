@@ -36,6 +36,10 @@ mod catalog;
 mod conversion;
 mod factory;
 mod filter_validation;
+// R06 deliberately keeps this preparation boundary internal until R07 wires
+// the atomic representation transition.
+#[allow(dead_code)]
+mod frozen;
 mod managed_regions;
 mod output_migration;
 mod palette;

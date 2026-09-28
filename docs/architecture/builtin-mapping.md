@@ -65,6 +65,34 @@ Validate all local targets and required
 arguments before accepting the dispatch batch. Update per-output change caches
 only after local acceptance; external IO and retry remain with module runtimes.
 
+## Frozen preparation boundary
+
+Explicit compression is prepared from a versioned immutable source owned by the
+app Alchemist integration. The source contains the exact Formula version and
+managed instance, typed command definitions, and typed sparse Golden documents
+for the ordinary Inputs, Filters, and Outputs managers. It contains persistent
+UUIDs but no process-local `NodeId`, prepared device handle, or compiled runtime
+object. Compilation therefore uses the same `ManagedFormulaRuntime` contract as
+the editable hierarchy.
+
+Generic Set Parameter and Trigger Parameter commands lower to UUID-keyed
+definitions and then use the same target resolution, validation, and edit
+implementation as their live command nodes. Commands, parameter control modes,
+or scheduler behavior that still require a live node produce a structured
+preflight blocker; they are not silently retained as hidden nodes. Known
+references from outside the archived manager subtrees also block preparation.
+Dynamic script paths cannot be proven absent and remain an explicit limitation
+of the later product transition.
+
+Golden exposes typed sparse-subtree capture for the archive boundary. Exact
+decompression uses collision-checked restoration that reserves every archived
+UUID before mutation. Ordinary import/duplication continues to use Golden's
+fresh-UUID subtree insertion; the compressed duplication workflow must rebuild
+its semantic source from those remapped nodes before removing them again. R06
+tests live/frozen evaluation and supported command execution internally. R07
+owns persistence of this source, atomic subtree removal/restoration, runtime
+state transfer, and the user-visible default-Off switch.
+
 ## Baseline and completed migration
 
 At `b6ac86eb702d703560593c108b599f95545a417c`, the managed ValueSet runner

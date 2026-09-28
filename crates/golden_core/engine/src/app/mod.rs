@@ -726,8 +726,20 @@ pub fn to_sparse_subtree_json_pretty<T>(engine: &Engine<T>, root: NodeId) -> Res
 where
     T: ProjectNode + From<Folder>,
 {
-    let project = to_sparse_subtree_file(engine, root)?;
+    let project = capture_sparse_subtree_file(engine, root)?;
     Ok(golden_persistence::encode_project_document(&project)?)
+}
+
+/// Captures one node subtree as a typed sparse project document.
+///
+/// This is the non-string boundary for archival features that need to retain a
+/// restorable authored hierarchy without keeping live nodes or process-local
+/// identifiers alive.
+pub fn capture_sparse_subtree_file<T>(engine: &Engine<T>, root: NodeId) -> Result<ProjectFile, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    to_sparse_subtree_file(engine, root)
 }
 
 /// Loads one sparse project JSON document by first expanding declared deltas

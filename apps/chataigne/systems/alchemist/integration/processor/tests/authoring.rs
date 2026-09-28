@@ -52,6 +52,7 @@ mod factory;
 mod filter_creation;
 mod corrective_baseline;
 mod r05_product;
+mod r06_frozen;
 
 fn mapping_engine() -> (AppEngine, NodeUuid, NodeId) {
     let root: AppNode = Folder::new("Mapping authoring").into();
