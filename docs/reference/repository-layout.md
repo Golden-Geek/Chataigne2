@@ -88,5 +88,8 @@ for the exact convention.
 - `docs/guides/`: contributor workflows.
 - `docs/operations/`: performance, release, troubleshooting, and hygiene runbooks.
 - `docs/reference/`: exact maps and policies.
+- `docs/plan/`: one active implementation plan, named in root `AGENTS.md`.
+- `docs/progress/`: one current implementation-status ledger.
+- `docs/archive/`: non-operative historical plans and qualification evidence.
 - `tools/`: bootstrap, checks, qualification, product gates, and release tooling.
 - `xtask/`: root watch orchestration.

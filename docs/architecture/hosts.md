@@ -53,21 +53,21 @@ The default built-in browser/headless path also starts from `golden_core`.
 The reusable I/O layer owns admission mechanics; each adapter supplies limits that match its
 payloads. Ordered commands are never coalesced or silently discarded.
 
-| Boundary | Item limit | Retained-weight limit | Overflow policy | Service turn |
-| --- | ---: | ---: | --- | ---: |
-| Generic pending events | 4,096 | 4 MiB caller weight | Return `Full` with ownership; count rejection | Consumer supplied |
-| Generic worker commands | 256 | Fixed-size commands | Return `TrySendError::Full` | Worker supplied |
-| Authoritative control actor | 1,024 | One typed operation per item | Return `ControlErrorKind::Overloaded` | One operation, then recheck shutdown |
-| Generation compiler | 1 pending + 1 in flight | One immutable snapshot per generation | Replace pending; mark stale in flight; bounded completion queue | One generation |
-| Lifecycle retirement | Caller configured | One owned resource per active task | Reject before relinquishing ownership; return the resource | One dedicated cleanup thread per admitted slot |
-| UI TCP/HTTP connections | 16 total | 16 MiB request including 32 KiB headers | Return HTTP 503 above connection capacity; reject oversized requests | One request; 3 s read/write timeout |
-| WebSocket hub commands | 64 | 1 MiB inbound frame; 256 intents per batch | Return a request-correlated overload error | 32 commands, then publish |
-| WebSocket subscriptions | 16 clients; 32 subscriptions each | Scope and interest per subscription | Close excess clients; reject excess subscription ids | Included in each publish turn |
-| UI snapshot encoding | 1 active + 8 queued | One immutable capture each; 64 MiB encoded result | Return a request-correlated HTTP/WS overload error | One capture; same-version whole-graph results reuse one cached payload |
-| WebSocket client output | 64 per client | 4 MiB ordinary serialized weight plus one 64 MiB snapshot | Coalesce latest-value planes; disconnect on reliable overflow | Drained by the client socket loop |
-| OSC output commands | 256 | One UDP message per item | Reject synchronously with an overload error | 256 commands |
-| OSC input events | 2,048 | 2 MiB decoded datagram weight | Reject new datagram event; count rejection | 256 datagrams / 1,024 events |
-| Serial input events | 2,048 | 2 MiB received bytes | Reject new read event; count rejection | 1,024 events |
+| Boundary                    |                        Item limit |                                     Retained-weight limit | Overflow policy                                                                                                              |                                                           Service turn |
+| --------------------------- | --------------------------------: | --------------------------------------------------------: | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------: |
+| Generic pending events      |                             4,096 |                                       4 MiB caller weight | Return `Full` with ownership; count rejection                                                                                |                                                      Consumer supplied |
+| Generic worker commands     |                               256 |                                       Fixed-size commands | Return `TrySendError::Full`                                                                                                  |                                                        Worker supplied |
+| Authoritative control actor |                             1,024 |                              One typed operation per item | Return `ControlErrorKind::Overloaded`                                                                                        |                                   One operation, then recheck shutdown |
+| Generation compiler         |           1 pending + 1 in flight |                     One immutable snapshot per generation | Replace pending; mark stale in flight; bounded completion queue                                                              |                                                         One generation |
+| Lifecycle retirement        |                 Caller configured |                        One owned resource per active task | Reject before relinquishing ownership; return the resource                                                                   |                         One dedicated cleanup thread per admitted slot |
+| UI TCP/HTTP connections     |                          16 total |                   16 MiB request including 32 KiB headers | Return HTTP 503 above connection capacity; reject oversized requests                                                         |                                    One request; 3 s read/write timeout |
+| WebSocket hub commands      |                                64 |                1 MiB inbound frame; 256 intents per batch | Return a request-correlated overload error                                                                                   |                                              32 commands, then publish |
+| WebSocket subscriptions     | 16 clients; 32 subscriptions each |                       Scope and interest per subscription | Close excess clients; reject excess subscription ids                                                                         |                                          Included in each publish turn |
+| UI snapshot encoding        |               1 active + 8 queued |         One immutable capture each; 64 MiB encoded result | Return a request-correlated HTTP/WS overload error                                                                           | One capture; same-version whole-graph results reuse one cached payload |
+| WebSocket client output     |                     64 per client | 4 MiB ordinary serialized weight plus one 64 MiB snapshot | Coalesce latest-value planes; replace overloaded subscription deltas with resync; disconnect if reliable recovery cannot fit |                                      Drained by the client socket loop |
+| OSC output commands         |                               256 |                                  One UDP message per item | Reject synchronously with an overload error                                                                                  |                                                           256 commands |
+| OSC input events            |                             2,048 |                             2 MiB decoded datagram weight | Reject new datagram event; count rejection                                                                                   |                                           256 datagrams / 1,024 events |
+| Serial input events         |                             2,048 |                                      2 MiB received bytes | Reject new read event; count rejection                                                                                       |                                                           1,024 events |
 
 Readiness is set only after successful admission and remains armed after a partial drain. Dynamic
 payload adapters must call the weighted send API; fixed-size status events may use unit weight.
@@ -81,8 +81,11 @@ request retains that one materialized layout for constant-time reuse during gene
 The transport host admits TCP connections before spawning request workers, so reconnect storms have
 a fixed task ceiling. Its WebSocket hub never drains an unbounded producer backlog before
 publication, and a `Received` control phase is emitted only after the corresponding command has
-entered the hub mailbox. Reliable outbound overflow disconnects the lagging client so reconnect and
-snapshot/resync can restore a coherent view; only explicitly latest-wins planes may be superseded.
+entered the hub mailbox. When a subscription delta overflows outbound capacity, the hub first
+replaces that subscription's queued deltas with an explicit resync marker and pauses it until
+recovery. Other subscriptions and control messages remain reliable. If that replacement cannot
+fit, or reliable non-delta/snapshot delivery exhausts its capacity, the client is disconnected so
+reconnect/snapshot can restore a coherent view. Only explicitly latest-wins values may be coalesced.
 Snapshot requests clone only the fixed projection roots on the caller. One reusable transport
 worker performs DTO materialization and JSON encoding, while the WebSocket hub continues accepting
 control and replay work. Its queue and encoded size are explicit, and only the newest completed
@@ -101,3 +104,17 @@ that synchronous work. It is not a claim that large-project startup or the first
 callback meets a real-time deadline.
 An edit before the first scheduled callback rejects the prepared snapshot and can still make that
 first tick expensive; large-project edit and retirement behavior remains a separate qualification.
+
+## Current qualification boundaries
+
+The table describes reusable primitives and the named migrated adapters, not every app module.
+The October audit found remaining blocking module stop/join paths, unbounded/unit-weight payload
+admission, unrestricted engine external-edit drains, and lifecycle expansion loops. The single
+[implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md) owns those P02/P03 repairs;
+do not infer that all module I/O is already bounded from the generic channel API.
+
+The HTTP/WebSocket UI host also lacks session/origin admission for privileged project/script
+operations at the audited revision. Loopback defaults and Tauri capabilities are separate from
+request trust. P05 defines a password-free LAN-compatible repair; the
+[security reference](../reference/tauri-security.md) and [current status](../progress/implementation-status.md)
+record the boundary and evidence.

@@ -1,0 +1,74 @@
+# Source-size inventory
+
+This maintained reference records source size, not execution status. The
+[implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md) owns P12 decomposition;
+the [one current ledger](../progress/implementation-status.md) records progress. Historical
+extraction notes and September counts are [archived](../archive/2026-10-18/progress/source-size-inventory.md).
+
+## Scan and policy
+
+Refreshed 2026-10-18 against source `49d65b0fe71f66b73d338ebe026a572a53c7dcf6` during a
+documentation-only consolidation. Scanned **1324 source files**; **46 exceed
+1,000 lines**. No new size exceptions are established by this inventory.
+
+Discover files with `rg --files apps crates packages tools` using normal ignore rules.
+Count UTF-8 text lines in `.rs`, `.ts`, `.svelte`, `.js`, `.mjs`, `.py`, `.ps1`, and `.sh`.
+Exclude any path component named `generated`, `gen`, `build`, `node_modules`, `target`,
+`.svelte-kit`, or `vendor`. Include tests. Generated outputs, lockfiles, and long-form docs
+are outside the source limit.
+
+Split cohesive ownership as features are touched; line count alone does not define a good
+extraction. Keep runtime and tests separate under the owning `tests/` directory. Intentional
+centralized registries may have a specific documented exception explaining the review cost
+and alternatives; a blanket exception does not close P12. Refresh counts after relevant splits.
+
+## Files above the limit
+
+|  Lines | Source                                                                               | Kind           |
+| -----: | ------------------------------------------------------------------------------------ | -------------- |
+| 13,423 | `crates/golden_core/engine/src/engine/tests/engine.rs`                               | Test suite     |
+|  6,423 | `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte`              | Implementation |
+|  6,098 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs`                    | Implementation |
+|  5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte`               | Implementation |
+|  5,070 | `crates/golden_core/support/macros/src/lib.rs`                                       | Implementation |
+|  3,152 | `apps/chataigne/src/module/modules/protocol/midi/midi_module/mod.rs`                 | Implementation |
+|  3,110 | `packages/golden-graph-ui/components/GraphCanvas.svelte`                             | Implementation |
+|  2,680 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs`                  | Test suite     |
+|  2,596 | `apps/chataigne/src/module/modules/generators/spatializer/mod.rs`                    | Implementation |
+|  2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte`             | Implementation |
+|  2,422 | `apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte` | Implementation |
+|  2,395 | `crates/golden_core/hosts/transport/src/ui_server/mod.rs`                            | Implementation |
+|  2,334 | `crates/golden_core/engine/src/engine/controls.rs`                                   | Implementation |
+|  2,075 | `crates/golden_core/engine/src/app/mod.rs`                                           | Implementation |
+|  1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte`                   | Implementation |
+|  1,923 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs`                      | Implementation |
+|  1,850 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs`              | Test suite     |
+|  1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs`                          | Test suite     |
+|  1,737 | `apps/chataigne/systems/alchemist/integration/processor/catalog.rs`                  | Implementation |
+|  1,673 | `packages/golden-ui/transport/http.ts`                                               | Implementation |
+|  1,665 | `crates/golden_core/engine/src/node_macros.rs`                                       | Implementation |
+|  1,601 | `apps/chataigne/systems/alchemist/integration/processor/tests/processor.rs`          | Test suite     |
+|  1,594 | `apps/chataigne/src/module/modules/controllers/joycon/mod.rs`                        | Implementation |
+|  1,480 | `packages/golden-ui/components/common/NodeContextMenu.svelte`                        | Implementation |
+|  1,474 | `apps/chataigne/systems/alchemist/src/tests/runtime.rs`                              | Test suite     |
+|  1,447 | `apps/chataigne/src/module/modules/protocol/osc/generic_osc_module/tests/mod.rs`     | Test suite     |
+|  1,433 | `apps/chataigne/systems/alchemist/integration/processor/tests/authoring.rs`          | Test suite     |
+|  1,359 | `apps/chataigne/ui/scripts/ui-browser-tools.mjs`                                     | Implementation |
+|  1,331 | `crates/golden_core/engine/src/node/curve/model.rs`                                  | Implementation |
+|  1,294 | `crates/golden_core/engine/src/node/core/behavior.rs`                                | Implementation |
+|  1,275 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mouse_runtime.rs`         | Implementation |
+|  1,231 | `packages/golden-ui/components/panels/inspector/ParameterInspector.svelte`           | Implementation |
+|  1,230 | `apps/chataigne/src/module/modules/controllers/gamepad/gamepad/mod.rs`               | Implementation |
+|  1,217 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs`                  | Test suite     |
+|  1,174 | `crates/golden_core/engine/src/engine/persistence/mod.rs`                            | Implementation |
+|  1,166 | `apps/chataigne/src/module/modules/protocol/midi/commands/mod.rs`                    | Implementation |
+|  1,148 | `apps/chataigne/systems/alchemist/processor/src/tests/managed_formula.rs`            | Test suite     |
+|  1,139 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mod.rs`                   | Implementation |
+|  1,095 | `apps/chataigne/src/module/modules/generators/signals/mod.rs`                        | Implementation |
+|  1,086 | `apps/chataigne/src/module/modules/protocol/mqtt/mod.rs`                             | Implementation |
+|  1,084 | `apps/chataigne/systems/state_machine/integration/manager/tests/command_dispatch.rs` | Test suite     |
+|  1,054 | `apps/chataigne/systems/alchemist/integration/processor/tests/catalog.rs`            | Test suite     |
+|  1,054 | `crates/golden_core/engine/src/node/curve/node.rs`                                   | Implementation |
+|  1,052 | `apps/chataigne/src/module/modules/controllers/keyboard/keyboard/mod.rs`             | Implementation |
+|  1,014 | `apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs`                  | Implementation |
+|  1,006 | `apps/chataigne/src/module/modules/audio/sound_card/integration.rs`                  | Implementation |

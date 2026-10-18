@@ -3,6 +3,12 @@
 Chataigne2 is split by ownership: reusable Golden foundations live under `crates/` and
 `packages/`; product behavior lives under `apps/chataigne/`.
 
+The product direction combines control, lighting, video/projection, and audio in one application.
+Current implementation and qualification limits are in the single
+[implementation plan](docs/plan/Chataigne2_Codex_Implementation_Plan.md) and
+[status ledger](docs/progress/implementation-status.md); architecture references do not carry
+independent task lists.
+
 ## Repository layers
 
 ### Golden Core
@@ -71,6 +77,14 @@ Desktop startup, browser/headless serving, native dialogs, transports, and persi
 provided by Golden Core.
 
 ## Where to continue
+
+The intended media boundary keeps authored state, validation, history, and coordination in the
+control engine. Audio rendering, future video/GPU execution, and lighting output use specialized
+runtimes with shared time, resource identity, and generation contracts. App-owned show transport,
+fixture/cue policy, projection models, and creative workflows belong under Chataigne systems/UI.
+Generic processing facilities belong in reusable packages once exercised contracts justify them.
+Production show-time coordination and project asset preparation remain readiness work; this
+description does not claim a video compositor or projection editor already exists.
 
 Use [the documentation index](docs/README.md) to choose a focused architecture page, guide,
 operations runbook, or reference map. The exact filesystem map is in

@@ -1,6 +1,11 @@
 # T18 formula/lane profiling
 
-## Current evidence
+> Historical source-pinned profiling evidence. This is not a current execution plan
+> or a current-head capacity claim. Use the
+> [current plan](../../../plan/Chataigne2_Codex_Implementation_Plan.md) and
+> [current status](../../../progress/implementation-status.md).
+
+## Recorded evidence
 
 On Windows x64 at committed source `8c3e5548`, four serial optimized-test runs of
 `multiplex_sample_active_runtime_stays_realtime` used the real

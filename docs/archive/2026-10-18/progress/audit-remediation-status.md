@@ -1,5 +1,10 @@
 # Audit remediation status
 
+> Historical evidence archived on 2026-10-18. Instructions, pauses, task status, and
+> branch delivery requirements below are non-operative. Use the
+> [current implementation plan](../../../plan/Chataigne2_Codex_Implementation_Plan.md)
+> and [current status](../../../progress/implementation-status.md) for active work.
+
 Audit baseline: `5392728f51f9584c529b6e1e75f72e3d5ede7c85`
 
 Working branch / starting SHA: `main` / `5392728f51f9584c529b6e1e75f72e3d5ede7c85`

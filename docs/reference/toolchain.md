@@ -1,23 +1,23 @@
 # Supported Toolchain Policy
 
-The canonical toolchain manifest is [`tools/bootstrap/toolchain.json`](../tools/bootstrap/toolchain.json).
+The canonical toolchain manifest is [`tools/bootstrap/toolchain.json`](../../tools/bootstrap/toolchain.json).
 Bootstrap scripts, generated version consumers, local product gates, and CI must resolve versions
 from that contract instead of maintaining independent pins.
 
 ## Supported versions
 
-| Tool | Selected version | Decision |
-| --- | --- | --- |
-| Rust and Cargo | `1.97.0` | Supported Rust/native toolchain |
-| Node.js | `26.5.0` | Supported JavaScript/UI runtime |
-| npm | `11.17.0` | Version bundled by the selected Node.js release |
-| Python | `3.14.x` | Compatible system interpreter range; patch/security updates do not require parallel installs |
-| CPAL | `0.18.1` | Private `golden_audio` host adapter for WASAPI, CoreAudio, ALSA, ASIO, JACK, and native PipeWire |
-| audio_thread_priority | `0.35.1` | Cross-platform audio callback and managed-render scheduling |
-| asio-sys | `0.3.0` | CPAL's Windows ASIO SDK build integration |
-| cargo-deny | `0.20.2` | Pinned release advisory, license, source, and bans qualification |
-| cargo-machete | `0.9.2` | Pinned release unused-dependency qualification |
-| Windows Rust host | `x86_64-pc-windows-msvc` | Primary local development and iteration target |
+| Tool                  | Selected version         | Decision                                                                                         |
+| --------------------- | ------------------------ | ------------------------------------------------------------------------------------------------ |
+| Rust and Cargo        | `1.97.0`                 | Supported Rust/native toolchain                                                                  |
+| Node.js               | `26.5.0`                 | Supported JavaScript/UI runtime                                                                  |
+| npm                   | `11.17.0`                | Version bundled by the selected Node.js release                                                  |
+| Python                | `3.14.x`                 | Compatible system interpreter range; patch/security updates do not require parallel installs     |
+| CPAL                  | `0.18.1`                 | Private `golden_audio` host adapter for WASAPI, CoreAudio, ALSA, ASIO, JACK, and native PipeWire |
+| audio_thread_priority | `0.35.1`                 | Cross-platform audio callback and managed-render scheduling                                      |
+| asio-sys              | `0.3.0`                  | CPAL's Windows ASIO SDK build integration                                                        |
+| cargo-deny            | `0.20.2`                 | Pinned release advisory, license, source, and bans qualification                                 |
+| cargo-machete         | `0.9.2`                  | Pinned release unused-dependency qualification                                                   |
+| Windows Rust host     | `x86_64-pc-windows-msvc` | Primary local development and iteration target                                                   |
 
 The Rust selection is based on the official
 [Rust 1.97.0 release](https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/). The Node/npm selection is
@@ -53,12 +53,12 @@ playback continues at normal priority. Native PipeWire remains an explicit Linux
 optional host. Native dependencies remain private to `golden_audio`; applications do not select
 CPAL features directly.
 
-| Ordinary artifact | Architectures | Compiled audio hosts | Build prerequisites | Missing runtime service |
-| --- | --- | --- | --- | --- |
-| Windows desktop | x86-64, ARM64 | WASAPI, ASIO, JACK | MSVC, LLVM/libclang, pinned ASIO SDK | ASIO reports `MissingDriver`; JACK reports `MissingServer` |
-| macOS desktop | x86-64, Apple silicon | CoreAudio, JACK | Xcode Command Line Tools | JACK reports `MissingServer` |
-| Linux desktop | x86-64, ARM64 | ALSA, JACK | ALSA and JACK development packages plus desktop toolchain | JACK reports `MissingServer` |
-| Linux ARMv7 | ARMv7 | headless/core only | cross compiler | Desktop audio artifact is unsupported |
+| Ordinary artifact | Architectures         | Compiled audio hosts | Build prerequisites                                       | Missing runtime service                                    |
+| ----------------- | --------------------- | -------------------- | --------------------------------------------------------- | ---------------------------------------------------------- |
+| Windows desktop   | x86-64, ARM64         | WASAPI, ASIO, JACK   | MSVC, LLVM/libclang, pinned ASIO SDK                      | ASIO reports `MissingDriver`; JACK reports `MissingServer` |
+| macOS desktop     | x86-64, Apple silicon | CoreAudio, JACK      | Xcode Command Line Tools                                  | JACK reports `MissingServer`                               |
+| Linux desktop     | x86-64, ARM64         | ALSA, JACK           | ALSA and JACK development packages plus desktop toolchain | JACK reports `MissingServer`                               |
+| Linux ARMv7       | ARMv7                 | headless/core only   | cross compiler                                            | Desktop audio artifact is unsupported                      |
 
 The matrix above is canonicalized in `tools/bootstrap/toolchain.json` and checked by both bootstrap
 verifiers. CI compiles ordinary Chataigne artifacts for each listed desktop architecture; release

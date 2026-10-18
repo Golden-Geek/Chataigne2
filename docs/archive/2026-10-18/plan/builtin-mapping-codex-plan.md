@@ -1,5 +1,10 @@
 # Chataigne2 — Built-in Mapping corrective implementation plan for Codex
 
+> Historical evidence archived on 2026-10-18. Instructions, pauses, task status, and
+> branch delivery requirements below are non-operative. Use the
+> [current implementation plan](../../../plan/Chataigne2_Codex_Implementation_Plan.md)
+> and [current status](../../../progress/implementation-status.md) for active work.
+
 **Revision:** 2026-09-15 — node-first authoring, shared commands, ordinary inspectors, explicit compression
 **Inspected branch:** `codex/builtin-mapping`
 **Inspected commit:** `a94b9a7e20c9c240c7f29ab1674c90d304289987`

@@ -3,6 +3,10 @@
 This section explains ownership and dependency direction. Start with the
 [top-level architecture](../../ARCHITECTURE.md), then open only the subsystem you are changing.
 
+For execution order use the single [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md)
+and [current status](../progress/implementation-status.md). Historical implementation narratives
+and superseded plans are [archived](../archive/2026-10-18/README.md).
+
 ## Foundation
 
 - [Application contracts](application-contracts.md): reusable application and host seams.

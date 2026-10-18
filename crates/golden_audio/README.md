@@ -86,10 +86,12 @@ callback is consuming. Finished and stopped voice ownership is returned to the c
 destruction in both modes. Decoder completions carry command generations, so stopping or replacing
 a playback ID cannot start a stale decode.
 
-Managed output queues are sized from the negotiated callback buffer. Startup and recovery prefill
-three callback periods on the engine clock before the stream starts, then switch to callback-driven
-refill after the first callback. This bounds startup latency while avoiding artificial render
-bursts, callback starvation, and writes into retired bridges.
+Managed output queues hold three negotiated callback periods rounded to internal blocks, with a
+minimum of eight blocks. Startup/recovery prefill is engine-paced; the first consuming callback
+switches refill to queue demand. At the default 128-frame/48 kHz configuration the minimum is
+21.3 ms of queue capacity, not a measured end-to-end latency guarantee. Shared presentation-time
+coordination and scheduled activation remain readiness work described in the
+[current architecture](../../docs/architecture/golden-audio.md#signal-and-clock-model).
 
 The supported extension list has one Rust source and is included in the generated TypeScript
 contract. Raw AAC and WMA are intentionally not advertised.

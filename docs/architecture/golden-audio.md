@@ -86,15 +86,12 @@ decoded/resampled voices -> playback routing -----------------------------+
                                         output rate/format conversion -> physical output
 ```
 
-The configured engine sample rate defines timeline time. The ready output callback is the render
-clock; a software null clock takes over while output is disabled, missing, or switching. Exactly one
-clock is authoritative. Input and output are separate clock domains unless a backend proves
-otherwise. Input monitoring crosses a bounded ring through adaptive asynchronous resampling with
-observable fill, drift, underflow, overflow, and latency.
-
-Clock switching is two phase: prepare and prime the replacement, switch at an engine block boundary,
-then retire the old stream away from the callback. Playback advances on the null clock, so output
-loss and recovery never retrigger a voice.
+The configured engine sample rate defines engine-frame units. In the production managed runtime,
+one render worker fills output queues; native output callbacks drain those queues and wake it.
+Without a consuming output callback the worker uses an `Instant`-paced null path. Input and output
+are separate clock domains unless a backend proves otherwise. Input monitoring crosses a bounded
+ring through adaptive asynchronous resampling with observable fill, drift, underflow, overflow,
+and latency. Queue-driven refill is not a shared show-presentation clock.
 
 The implemented input bridge owns a bounded SPSC sample ring, an asynchronous Rubato resampler with
 preallocated input/output storage, and a bounded PI drift controller. The input callback only
@@ -103,21 +100,28 @@ ratio from ring fill, emits silence on starvation, and publishes coalesced fill,
 underflow, overflow, timestamp-loss, and discontinuity observations. A device-rate change rebuilds
 the resampler and flushes the old clock domain on the control thread; it never changes engine time.
 
-`RenderClockCoordinator` is the single authority gate. Non-authoritative callbacks cannot advance
-the timeline. A ready replacement fades the old output down, becomes authoritative on a block
-boundary, fades up, and makes the old generation eligible for control-thread retirement. If the old
-stream fails during handoff, a primed replacement is promoted immediately; otherwise the
-deadline-driven null clock takes authority without resetting the sample counter.
+`RenderClockCoordinator` implements a separately tested authority/handoff primitive, but the
+2026-10-18 source audit found no production managed-runtime caller. Its tested fades, block-boundary
+promotion, and null fallback must not be read as a production integration claim. A single
+production authority, explicit epoch/presentation-time conversion, and prepared scheduled
+activation are readiness work in P14 of the
+[implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md).
+
+The intended contract is prepare/prime, switch at an engine block boundary, and retire old stream
+ownership away from realtime work without resetting the sample counter or replaying effects.
+Current implementation/qualification gaps are recorded in the
+[one status ledger](../progress/implementation-status.md).
 
 ## Playback boundary
 
 File playback is a three-stage ownership pipeline:
 
-1. The control worker orders play, stop, stop-all, gain, and configuration commands and assigns a
-   monotonic sequence to each request.
+1. The control worker receives play, stop, stop-all, gain, and configuration commands and assigns
+   monotonic sequences. The current separate gain/plan delivery paths do not yet preserve one
+   render-side order across configuration changes; P04 owns that repair.
 2. A fixed decoder-worker pool privately uses Symphonia to probe and decode, resamples to the engine
    rate, maintains the bounded resident cache, and primes bounded stream rings.
-3. The render callback activates prebuilt fixed-slot voices, reads planar resident assets or
+3. The render stage activates prebuilt fixed-slot voices, reads planar resident assets or
    streaming rings, applies bounded start/stop ramps and explicit routes, and returns completed
    ownership for control-thread destruction.
 
@@ -132,8 +136,11 @@ rather than a new thread or unbounded allocation.
 Resident assets are immutable `Arc`-owned planar buffers keyed by canonical path metadata, track,
 and engine sample rate. Cache lookup, insertion, invalidation, and eviction happen only on decoder
 or control threads. Large files use bounded read-ahead and emit silence on starvation without
-blocking the callback. Both source forms advance against the same engine sample timeline, including
-while the null clock owns output, so reconnect never restarts a voice.
+blocking the render stage. The current streamed voice advances its source playhead only through
+available decoded frames, so starvation inserts delay before resumption. That behavior protects
+render progress but does not retain synchronization with independent media. P14 separates
+standalone resume behavior from explicit show-locked timestamp/catch-up policy. Decoder arrival
+currently determines activation; a source-file offset is not a requested target start frame.
 
 Play requests carry a typed non-negative start offset. Resident assets keep their full-file cache
 identity and begin at the corresponding engine-rate frame. Streamed sources perform an accurate
@@ -322,8 +329,11 @@ callbacks write through the bounded adaptive clock bridge, while native output c
 bounded prefilled queue and wake the worker. An absent output callback selects the paced null-clock
 path, so playback and enabled analysis continue without moving host timing into Chataigne.
 
-The output queue derives its capacity from the negotiated device buffer and holds three callback
-periods, rounded to whole internal render blocks. Initial and recovery prefill follows the engine
+The output queue derives its capacity from the negotiated device buffer as
+`max(ceil(3 * callback_frames / internal_block_frames), 8)` internal blocks. Eight default
+128-frame blocks have 21.3 ms capacity at 48 kHz; the default 2,048-frame input bridge target is
+42.7 ms. These are configured capacities/targets, not measured end-to-end latency. Initial and
+recovery prefill follows the engine
 clock until the first native callback; a full priming queue pauses the timeline instead of
 rendering unconsumed blocks. Once callbacks begin, queue occupancy drives refill. Retiring or
 abandoning a bridge is a lifecycle transition rather than an XRun, while underflow or overflow on

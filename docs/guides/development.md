@@ -1,7 +1,7 @@
 # Development Workflows
 
 The repository root owns developer orchestration. Tool versions come from
-[`tools/bootstrap/toolchain.json`](../tools/bootstrap/toolchain.json); app and package directories
+[`tools/bootstrap/toolchain.json`](../../tools/bootstrap/toolchain.json); app and package directories
 must not introduce competing bootstrap paths.
 
 ## First Setup
@@ -67,7 +67,7 @@ build can opt out with `cargo run --no-default-features`.
 | Bundled desktop application                      | `cargo run`                                                  |
 | Live frontend and supervised backend             | `cargo xtask watch`                                          |
 | Application connected to an existing Vite server | `cargo run -- --dev`                                         |
-| Optimized debug run for large graphs              | `cargo run --profile dev-perf`                               |
+| Optimized debug run for large graphs             | `cargo run --profile dev-perf`                               |
 | Headless host                                    | `cargo run -- --headless`                                    |
 | Fast focused feature test                        | `cargo test-fast -p golden_engine TEST_NAME`                 |
 | Optimized Rust workspace tests                   | `cargo test --workspace`                                     |

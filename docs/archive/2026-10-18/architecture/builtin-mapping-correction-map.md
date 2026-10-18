@@ -1,5 +1,10 @@
 # Built-in Mapping correction map
 
+> Historical evidence archived on 2026-10-18. Instructions, pauses, task status, and
+> branch delivery requirements below are non-operative. Use the
+> [current implementation plan](../../../plan/Chataigne2_Codex_Implementation_Plan.md)
+> and [current status](../../../progress/implementation-status.md) for active work.
+
 This map records the implementation at corrective baseline `a94b9a7e` and the
 boundary changes completed by later corrective phases. The baseline is the
 starting point for phases R00–R08 in

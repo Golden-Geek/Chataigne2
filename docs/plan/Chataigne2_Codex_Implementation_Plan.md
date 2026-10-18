@@ -1,565 +1,561 @@
-# Chataigne2 implementation plan for Codex in VS Code
+# Chataigne2 implementation plan
 
-Prepared 2026-09-05 from the full audit of **`5392728f51f9584c529b6e1e75f72e3d5ede7c85`**. Both the available checkout and a fresh connected-GitHub lookup of `main` returned that SHA while preparing this plan.
+This is the single active implementation plan. **“Implement the plan” means this file.**
+Execution state lives only in [implementation status](../progress/implementation-status.md).
+Architecture pages explain maintained contracts; [archived documents](../archive/2026-10-18/README.md)
+preserve evidence and never supply active task, pause, branch, or delivery instructions.
 
-Repository: [Golden-Geek/Chataigne2](https://github.com/Golden-Geek/Chataigne2). Baseline: [5392728](https://github.com/Golden-Geek/Chataigne2/commit/5392728f51f9584c529b6e1e75f72e3d5ede7c85). This document specifies future implementation; it does not claim the fixes or acceptance checks have run.
+Reconciled on 2026-10-18 against `49d65b0fe71f66b73d338ebe026a572a53c7dcf6` and the
+user's uncommitted additions to the previous plan. This plan specifies future source work;
+the documentation consolidation does not implement its tasks.
 
-## 1. Start here
+## Start or resume
 
-Place this file at `docs/plans/audit-remediation.md` in your local checkout, open the repository root in VS Code, and give Codex this instruction:
+Give Codex this instruction:
 
 ```text
-Read AGENTS.md and docs/plans/audit-remediation.md. Implement this plan in
-dependency order, beginning with T00 and then the earliest unfinished task.
-
-The plan covers the audit of 5392728f51f9584c529b6e1e75f72e3d5ede7c85.
-Reconcile it with the current checkout before changing code. Inspect source
-and relevant evidence; do not assume a commit message closes a finding.
-
-Preserve the complete Chataigne UX, modules, formulas, state machines,
-contexts, multiplex behavior, normal cargo run/watch/dev workflows,
-app-agnostic Golden ownership, ASIO/JACK support, and password-free LAN use.
-
-Work in small, coherent implementation batches. Follow the repository's
-editing and test-placement rules. Add regression tests for the actual failure
-contracts and use the current pinned toolchain. Keep a progress ledger at
-docs/progress/audit-remediation-status.md with findings, changed files,
-commands, outcomes, limitations, and the next dependency-ready task.
-
-Continue through safe local work without asking for approval at each task.
-Preserve unrelated changes. Do not publish, push, merge, create remote issues
-or PRs, or interact with real devices unless separately authorized. Do not
-weaken required features or tests to obtain a pass. If one platform or device
-check is unavailable, record it and continue independent work; do not mark
-that gate passed.
-
-Before ending a work session, leave the current batch reviewable, update the
-ledger, and report completed work, test results, remaining risks, and the next
-task. A fix is complete only when its stated acceptance criteria have evidence.
+Implement docs/plan/Chataigne2_Codex_Implementation_Plan.md.
+Read AGENTS.md and the current status ledger linked from the plan. Reconcile
+the checkout, diff, and existing evidence, then continue the earliest
+dependency-ready unfinished task. Preserve completed work and unrelated edits.
+Work in coherent, reviewable batches, maintain the ledger, and continue safe
+independent local work when an external qualification is unavailable. Follow
+the plan's scope, acceptance criteria, and device/remote-action limits.
 ```
 
-The task is intentionally larger than one context window. Resume with: **“Read the plan and progress ledger, verify the current diff, and continue the next unfinished task.”** Do not restart completed work or treat a new session as permission to overwrite it.
-
-## 2. Product and engineering contracts
-
-These requirements govern every task. They are more important than a smaller diff or a better isolated benchmark.
-
-- Preserve panels, layouts, outliner, inspector, dashboards, modules, command nodes, script functions/callbacks/templates, Formula and state editors, previews, undo/redo, and connected-client workflows. Add diagnostics through the existing UI conventions.
-- Preserve Action/Mapping formula assets, managed Inputs/Filters/Outputs, ConditionGate behavior, formula sharing, stateful lane isolation, stable context identities through lane reorder, deterministic triggers/output ordering, and one authoritative state-machine state. A transition's global context must not silently become a multiplex lane context.
-- Keep `apps/chataigne` as composition and product ownership. Alchemist and Chataigne module policy stay there. Golden engine, host, protocol, persistence, graph, audio, and UI facilities remain reusable through public contracts.
-- Follow `AGENTS.md`: use the standard editing tool; Svelte 5 runes; generated protocol types; tests under the owning `tests/` directory; cohesive implementation files below 1,000 lines or a documented legitimate exception; no private path imports. Format root and Golden Core Rust workspaces at the end of a Rust batch.
-- Internal API changes are allowed when they improve ownership. Update consumers, code generation, tests, and architecture docs together. Preserve user workflows and project meaning; a persisted-format change needs an explicit version/migration policy and fixtures. Do not introduce broad compatibility shims.
-- Preserve `cargo run`, `cargo xtask watch`, `cargo run -- --dev`, headless startup, and ordinary packaging. Keep the convenient default Golden host and a documented lightweight consumer path.
-- Keep ordinary supported artifacts capable of ASIO/JACK on their applicable hosts. Driver absence is recoverable. Preserve reconnect/device recovery and realtime ownership constraints.
-- Preserve accessible, password-free LAN access. Bound requests, connections, queues, and resource use without introducing mandatory accounts, passwords, or a cloud service.
-
-## 3. Execution order and closure rules
-
-| Wave                                | Tasks   | Required result                                                                                                                     |
-| ----------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 0 — establish evidence              | T00     | Current source, local changes, toolchain, test baseline, and finding ledger recorded                                                |
-| 1 — repair release evidence         | T01–T03 | Platform failures diagnosed, narrow dependency repairs, truthful benchmark gate                                                     |
-| 2 — contain failure                 | T04–T10 | Reliable notifications, bounded scripts, restored caches, deterministic order, coherent project switches/saves, honest edit results |
-| 3 — remove scale bottlenecks        | T11–T14 | Bounded service, versioned snapshots, delta-based UI publication, useful sparse scheduling                                          |
-| 4 — finish reusable ownership       | T15–T17 | Real package boundaries, ordinary audio artifact support, coherent source/docs cleanup                                              |
-| 5 — qualify computation and product | T18–T19 | Measured real-kernel parallelism where justified, complete product evidence and remaining limitations                               |
-
-Work sequentially by default. Dependencies below allow independent work to proceed when, for example, a macOS check is unavailable. T17's small gitlink/documentation cleanup can happen early; it must not delay P1 repairs. Split a task into several reviewable changes when ownership or size warrants it.
-
-Track implementation separately from qualification. Finding statuses are **open**, **partially fixed**, **fixed**, or **unverified**. Check outcomes are **passed**, **failed**, **pending**, **skipped**, or **unavailable**. A skipped application build is not a passing build. An implementation can be ready locally while cross-platform qualification remains open.
-
-For each finished task retain: starting SHA, patch/ending SHA when committed, dirty-tree state or patch fingerprint, owning files, invariant/decision, exact commands, platform/features/toolchain, results, and remaining checks. Performance evidence additionally needs fixture hashes, raw samples, hardware/OS, build profile, and measurement boundaries. Never attribute results from an uncommitted patch to the unmodified base SHA.
-
-## 4. Implementation tasks
-
-### Progress checkpoint — 2026-09-08
-
-| Task    | Progress                                                                                           |
-| ------- | -------------------------------------------------------------------------------------------------- |
-| T00     | Complete                                                                                           |
-| T01     | Implementation and Windows checks complete; Linux x64/ARM64 and macOS native qualification pending |
-| T02     | Complete                                                                                           |
-| T03     | Comparator/workflow complete locally; matching hosted reference baseline pending                   |
-| T04     | Complete                                                                                           |
-| T05     | Complete                                                                                           |
-| T06     | Complete                                                                                           |
-| T07     | Complete                                                                                           |
-| T08     | Complete                                                                                           |
-| T09     | Complete                                                                                           |
-| T10     | Complete                                                                                           |
-| T11     | Complete                                                                                           |
-| T12     | Complete                                                                                           |
-| T13     | Complete                                                                                           |
-| T14     | Complete                                                                                           |
-| T15–T19 | Not started                                                                                        |
-
-T13 is complete. Persistent graph indexes, proportional atomic transaction projection, wall-clock
-frame limits, bounded retained versions, and downstream mounted-panel indexes now share one
-production-qualified path. The full workbench passes twenty 600-node inserts at both 10k and 100k
-existing nodes with zero action-window Long Tasks. T14 removes identity-only worker dispatch and
-selects sparse dirty work proportionally below its measured dense crossover. Continue with T15.
-Exact commands, evidence, and remaining qualification gaps are recorded in
-`docs/progress/audit-remediation-status.md`.
-
-### T00 — Reconcile the baseline and establish a resumable ledger
-
-**Dependencies:** none. **Owner:** repository tooling and progress documentation.
-
-1. Read root and applicable nested contributor instructions, `ARCHITECTURE.md`, `docs/guides/development.md`, and the relevant subsystem design docs. Record `git status --short`, HEAD, and the branch. Inspect the connected repository/ref or fetch remote refs when available; do not reset, clean, or overwrite local work.
-2. Compare current source with the audit SHA. Populate every F01–F16 row in the ledger; identify already-fixed, moved, still-open, and unverified portions. Where source is newer, adapt paths and tests before implementing. Do not repeat an already proven fix.
-3. Verify `tools/bootstrap/toolchain.json` and installed tools. At this baseline it pins Rust 1.97.0, Node 26.5.0, npm 11.17.0, and Python 3.14. Use the current manifest if changed; label unsupported local toolchains honestly.
-4. Capture relevant existing test failures before editing. Retrieve CI jobs/logs for the exact starting SHA if accessible. Keep the historical CI links below as baseline evidence, not as proof of the current branch.
-5. Inventory preservation scenarios and available platforms/devices. Use synthetic/mock endpoints for automated tests. A missing platform is a qualification gap, not a reason to delete its coverage.
-
-**Acceptance:** one ledger includes all findings, task dependencies, exact starting state, commands available on the developer's OS, and known baseline failures. Begin T01 without asking the user to choose routine implementation details.
-
-### T01 — Restore observable platform and UI build gates
-
-**Finding:** F01. **Depends on:** T00. **Owners:** Golden Audio, app UI, CI.
-
-**Start at:** `crates/golden_audio/src/realtime/priority.rs`; `crates/golden_audio/tests/playback_ordering.rs`; `crates/golden_audio/tests/playback_ordering_cases/mod.rs`; `apps/chataigne/ui/src/lib/components/modules/ModuleIndicators.svelte`; `.github/workflows/ci.yml` and `product-gate.yml`.
-
-- Replace the derived `Debug` implementation for `AudioThreadPriorityGuard` with a portable diagnostic representation that does not require the foreign handle to implement `Debug`. Keep realtime promotion/demotion and feature coverage.
-- Apply the configured formatter to the affected Svelte file. Do not add a test that merely verifies formatting.
-- Diagnose `managed_streaming_continues_while_the_host_thread_is_stalled` and `force_restart_false_ignores_pending_and_active_duplicate_ids_without_replacement`. Trace command admission, worker delivery, render consumption, and observation publication. Introduce test barriers/acknowledgements at the relevant boundaries; continue render progress while waiting where required. Preserve the real host-stall scenario. Fix product behavior if the controlled reproduction still fails.
-- Ensure platform compilation remains observable when UI lint fails, while retaining UI lint as a required release gate. Preserve actual bundled-UI build dependencies; do not manufacture a passing package from a stale bundle. Add appropriate pull-request coverage alongside existing push/manual checks, without privileged execution of untrusted PR code.
-
-**Acceptance:** Linux x64/ARM64 realtime compilation succeeds; both named audio tests pass under controlled scheduling on macOS; pinned-toolchain UI lint/check/build pass; application matrix jobs actually execute. Keep unavailable native results open. No ignored tests, feature removal, arbitrary sleeps, or relaxed assertions as a substitute for diagnosis.
-
-### T02 — Repair the dependency qualification failures narrowly
-
-**Finding:** F12. **Depends on:** T00. **Owners:** workspace dependencies, Golden Audio.
-
-**Start at:** root `Cargo.toml`, `Cargo.lock`, Golden Audio dependency usage, dependency-gate configuration.
-
-- Verify current advisory data and dependency paths. The rechecked advisory targets are `h2 >=0.4.16` and `rtrb 0.3.5` on the 0.3 line. Prefer the narrow repair; `rtrb 0.4` changes `is_abandoned` behavior and requires a separate semantic review.
-- Update constraints only as required and deliberately update the affected lockfile entries. Review unexpected transitive churn and duplicate-version policy changes.
-- Rerun dependency qualification and affected stream ownership, abandonment, queue ordering, and reclamation tests. Retain the qualification that no reachable Chataigne exploit was established by the audit.
-
-**Acceptance:** the locked graph satisfies current policy with no advisory suppression; ownership/ordering regressions are absent in the relevant tests. Record the advisory DB revision/date and exact dependency graph tested. Sources: [h2 advisory](https://github.com/rustsec/advisory-db/blob/main/crates/h2/RUSTSEC-2026-0258.md), [rtrb advisory](https://github.com/rustsec/advisory-db/blob/main/crates/rtrb/RUSTSEC-2026-0274.md).
-
-### T03 — Make benchmark validation reject missing evidence
-
-**Finding:** F13, gate portion. **Depends on:** T00. **Owner:** performance tooling.
-
-**Start at:** `tools/core/bench_compare.py`; `crates/golden_core/engine/benches/baseline.json`; `.github/workflows/benchmarks.yml`; `tools/qualification/tests/`.
-
-- Validate an explicit expected scenario set, schema, units, unique names, sample presence, and finite valid measurements. Empty/missing files, truncated runs, missing cases, duplicates, malformed values, and unaccounted-for case changes must produce a nonzero result.
-- Treat nonmatching host/toolchain/profile/feature fingerprints as incomparable, with a clear qualification outcome. Do not compare the existing Windows baseline to Ubuntu as an equivalent performance gate.
-- Preserve upstream benchmark command failures through output capture; retain stderr and raw results. Align documented warning/failure thresholds with executable policy.
-- Keep a quick functional gate and a performance gate using matching reference hardware. Refresh baselines only from complete, explained measurements; never auto-bless a slowdown or a missing case.
-
-**Acceptance:** negative fixtures fail for each invalid class; a valid matching dataset passes; a real regression fails; host mismatch cannot report “no regressions.” Existing qualification tests remain green. Product-wide evidence remains open until T19.
-
-### T04 — Repair pending-work publication and drain/re-arm semantics
-
-**Finding:** F02. **Depends on:** T00. **Owners:** `golden_io`, OSC integration.
-
-**Start at:** `crates/golden_core/runtime/io/src/pending.rs`, its `src/tests/`, and `apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs`.
-
-- Define the producer/consumer invariant in the channel API. Publish readiness after a successful enqueue, with a correct clear-before-drain/re-arm contract. A completed accepted send must not leave an undrained event unobservable until another event arrives. A producer paused before completing publication must eventually publish when resumed.
-- Prefer a receiver-owned bounded-drain operation over requiring every consumer to manually coordinate flag clearing. When a turn exhausts its budget, conservatively re-arm readiness; a harmless extra poll is preferable to stranded work.
-- Distinguish empty, disconnected, and rejected/full sends. Verify all consumers of the primitive, including OSC, follow the contract. T11 later adds full capacity policy; do not reintroduce the race during that migration.
-
-**Acceptance:** deterministic barrier-driven regression reproduces the old store-before-enqueue interleaving and passes after the fix. Also cover concurrent producers, enqueue during drain, partial drain without a subsequent producer, final-item races, and disconnection. Prove OSC processes the pending event without an unrelated wakeup. Avoid tests whose correctness depends on thread sleeps or joining the producer before observing readiness.
-
-### T05 — Interrupt scripts and define failure effects
-
-**Finding:** F03. **Depends on:** T00. **Owner:** engine scripting initially; reusable pieces move in T15.
-
-**Start at:** `crates/golden_core/engine/src/script/mod.rs` and its tests. Resolve the exact interrupt API from the locked `rquickjs` version before coding.
-
-- Install an interrupt handler on every QuickJS runtime. Use monotonic deadlines and cancellation state, established before every JavaScript entry: initial evaluation, reload, exports, callbacks, jobs if supported, and any scripted teardown. Clear/restore the deadline on all exits; nested entries must not extend the outer deadline.
-- Keep the handler cheap and nonblocking. Retain memory, recursion/stack, and host-call limits. Introduce explicit live-callback and load budgets compatible with the runtime's tick budget; distinguish a configurable allowance from a hard realtime guarantee.
-- Audit host calls. A VM interrupt cannot preempt a blocking native host function. Move potentially blocking work behind bounded asynchronous contracts with cancellation, and validate/cap host-call inputs.
-- Use an invocation effect journal: collect host mutations/commands; validate them; commit only after successful evaluation. Discard queued effects on exception, timeout, or budget failure. Use transactional engine edits where supported and deterministic external-command admission. Do not claim physical I/O can be rolled back after dispatch.
-- On failure, expose a recoverable diagnostic and disable/reinitialize the affected script according to an explicit policy. Discarding host effects does not roll back JavaScript heap changes; do not blindly reuse a partially mutated failing context. Unrelated engine/control work must continue.
-
-**Acceptance:** subprocess tests with an external watchdog cover infinite loops at top level and in callbacks, excessive finite work, memory exhaustion, recursion, failed callbacks with queued effects, nested invocations, and reload/teardown. Verify no failed invocation's staged effects escape, successful effect ordering remains intact, and later ticks/edits/saves progress. A failure must not hang the test runner. Moving an uninterruptible VM into an orphan thread is not completion.
-
-### T06 — Restore the parameter cache on every recoverable exit
-
-**Finding:** F05. **Depends on:** T00. **Owner:** engine tick and dispatch.
-
-**Start at:** `crates/golden_core/engine/src/engine/runtime/scheduled_updates.rs` and `crates/golden_core/engine/src/engine/dispatch.rs`.
-
-- Replace early returns around `mem::take` with an ownership-safe scoped-result boundary: extract once, run fallible work, restore once, then propagate the result. Prefer eliminating the extraction if borrowing can express the same contract cleanly; do not add unsafe pointers or clone the entire cache each tick.
-- Ensure callback budgets are checked before admitting excess work. Specify which already-accepted tick edits remain after failure and maintain cache/graph consistency with that policy.
-- Review adjacent temporary-state extraction for the same failure pattern. Limit additional fixes to actual affected ownership paths.
-
-**Acceptance:** inject callback-budget and edit-absorption failures in scheduled updates and inbox dispatch. On the following tick, resolve unchanged and changed parameter bindings and verify values, node membership, cache contents, and continued useful work. Do not assume the whole failed tick rolled back. Panics/process abort are a separate policy; any claimed unwind recovery requires its own restoration evidence.
-
-### T07 — Make topology and effect ordering deterministic
-
-**Finding:** F07. **Depends on:** T00. **Owner:** engine schedule compilation.
-
-**Start at:** `crates/golden_core/engine/src/engine/runtime/tick.rs` and schedule-generation tests.
-
-- Define a canonical ready-node key from stable authored identity/order. Use a globally ordered ready set or equivalent stable compile ordinals for every newly ready tie. Do not rely on `HashMap` iteration or only sort the initial frontier.
-- Preserve dependency constraints, cycle handling, and deterministic same-target write/trigger behavior. Document the chosen tie-breaker as an execution contract.
-- Measure compile-time cost; do not add sorting to every live tick when order can be compiled once.
-
-**Acceptance:** logically equivalent graphs with identical stable identities and varied insertion/hash iteration order yield identical schedules and ordered effects. Cover diamonds, several initially/newly ready nodes, disconnected components, cycles, and conflicting output targets. Reuse these fixtures for T14/T18 across worker counts.
-
-### T08 — Make project replacement an explicit prepare/commit/retire operation
-
-**Finding:** F04. **Depends on:** T05, T06. **Owners:** application runtime, lifecycle, read-model publication.
-
-**Start at:** `crates/golden_core/engine/src/application.rs`, `src/app/mod.rs`, `src/runtime_center.rs`, and `src/engine/persistence/duplicate.rs` under the engine crate.
-
-- Introduce a candidate preparation path for decode/configuration, detached validation, script preparation, and generation compilation. Keep the current project authoritative while this fallible work runs. Preparation must not activate live output/device ownership as a hidden side effect.
-- Use a monotonic project-generation token distinct from document revision and compile generation. Define the commit point at which engine, read model, history/current-project metadata, and published generation switch consistently.
-- Model exclusive-device handoff explicitly. Never run two owners simultaneously. If activation needs old-device release and then fails, restore old ownership when possible; otherwise retain the old authored project in a coherent paused/recoverable state with an error. Do not promise uninterrupted playback during an impossible handoff.
-- Retire old resources outside the live actor/tick path where possible, using bounded cancellation/lifecycle work completed in T11. Discard stale compilation or preparation results using their generation tokens.
-- Audit duplication lifecycle failures using the same ownership rules. Grouped UI publication alone is not rollback of module/device side effects.
-
-**Acceptance:** fault injection at decode, preparation, script evaluation, compilation, device activation, publication preparation, and retirement shows an unambiguous active project and coherent UI/history. Test replacement during edits and with stale compiler results. Failure preserves a usable or explicitly paused old project; success changes generation once; no orphan device owner or candidate leaks remain.
-
-**Implementation result (2026-09-08):** complete. Project replacement now prepares and compiles a
-detached candidate, performs an exclusive resource handoff, atomically commits the engine/runtime
-generation/read model, and retires the previous engine outside the control actor. Project generations
-fence stale compilation and input producers. Pre-handoff failures retain the active project;
-post-handoff failures retain its authored state as explicitly paused. Lifecycle-failing single and
-grouped duplications tear down inserted nodes and restore graph, parameter, history, and UI-event
-state. Fault-injection, malformed-decode, script-evaluation, stale-candidate, replacement/edit, and
-resource-owner tests pass; the exact local evidence is recorded in the remediation ledger.
-
-### T09 — Serialize saves across the complete persistence transaction
-
-**Finding:** F11. **Depends on:** T08. **Owners:** persistence service and project-host adapter.
-
-**Start at:** `crates/golden_core/hosts/transport/src/project_host/mod.rs`, `hosts/transport/src/ui_server/mod.rs`, `services/persistence/src/file_store.rs`, and engine save APIs.
-
-- Add a persistence coordinator in the persistence/service boundary. Assign a save ticket at acceptance containing project generation, document revision, monotonically ordered request ID, and destination identity before independent encoding can reorder requests.
-- Define normalized destination identity for existing/nonexistent targets and applicable platform path semantics. Alias paths must not bypass coordination. Serialize backup, journal, temp-file, target replacement, and recovery cleanup for each destination as one logical operation.
-- Default to ordered commits of accepted saves for the same destination. If coalescing supersedes an unstarted save, return an explicit superseded result. Different destinations may use bounded concurrency.
-- Coordinate project replacement with an in-flight save lease/fence. Pending old-generation jobs must not commit after the new generation wins. Define how an already-committing operation completes before the switch; a generation check made long before a rename is insufficient. Keep disk work outside the actor and avoid actor/coordinator lock inversion.
-- Update current path and saved/dirty revision only for the current generation and applicable winning request. A save of revision R must not mark later edits clean. Treat Save As races explicitly.
-
-**Acceptance:** barrier-driven tests force an older encode/write to finish after a newer one, simultaneous same-path saves, path aliases, Save As races, replacement during save, and edits after snapshot capture. Latest accepted successful state and metadata are correct. Inject failure/crash boundaries across journal/backup/temp/rename/recovery on supported OSes; recover a valid committed revision, preserve actionable errors, and allow subsequent saves. Atomic rename alone does not close this task.
-
-**Implementation result (2026-09-08):** the persistence service now assigns generation-,
-revision-, request-, and normalized-destination-aware tickets before encoding, orders complete
-transactions per destination, and permits bounded concurrency across destinations. A replacement
-fence waits through durable write and metadata publication, then invalidates unstarted saves from
-the old generation. The production runtime owns save capture, encoding, durable commit, current
-path, and saved/dirty publication; the transport host no longer carries a parallel file session.
-Barrier and injected transaction-stage tests cover reversed completion, aliases, Save As, later
-edits, replacement races, every write boundary, restore retry, and subsequent-save recovery.
-
-### T10 — Return real graph-edit failures through the public API
-
-**Finding:** F14, acknowledgement portion. **Depends on:** T00. **Owner:** engine graph adapter and consumers.
-
-**Start at:** `GraphEditing for ProductionRuntime<T>` in `crates/golden_core/engine/src/application.rs` and its UI/headless consumers.
-
-- Replace the unconditional `Infallible` success contract with a typed error/result derived from the transaction acknowledgement. Return history/revision data only when that operation succeeded.
-- Propagate rejection details consistently to UI, script, transport, undo/redo, and external consumers. Update generated contracts only if the wire contract changes. Do not duplicate wire declarations by hand.
-
-**Acceptance:** rejected add/edit/undo/redo operations produce a real failure and leave history/UI aligned with engine state; accepted edits report the correct acknowledgement and revision. A small non-UI consumer test proves the public API observes failure.
-
-**Implementation result (2026-09-08):** `ProductionRuntime` now derives both
-`GraphEditing` and `ProjectTransactions` results from the acknowledgement captured in the mutation's
-actor turn. Successful graph edits return that exact history revision; rejected edits return a
-typed `GraphEditError` retaining the shared error code, message, acknowledgement, and aligned
-history state. Empty undo/redo are explicit `undo_unavailable` / `redo_unavailable` rejections for
-UI, transport, and headless callers. A crate-external consumer fixture proves the dependency-facing
-trait cannot observe rejected edits as success; the existing generated wire DTO is unchanged.
-
-### T11 — Bound admission, service turns, compilation, and retirement
-
-**Finding:** F06. **Depends on:** T04, T08, T09, T10. **Owners:** shared I/O, control runtime, transport host, module adapters.
-
-**Start at:** `runtime/io/src/pending.rs`; `runtime/control/src/control.rs`, `compiler.rs`; `hosts/transport/src/ui_server/mod.rs` under Golden Core; the OSC adapter from T04; lifecycle callers.
-
-Produce one small capacity/overflow table in the owning docs, then implement each boundary as a separate reviewable slice:
-
-| Boundary                    | Required policy                                                                                                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared I/O and OSC          | Item/byte bounds, bounded drain turns, retained readiness; explicit rejection for ordered events                                                                                        |
-| Continuous values           | Coalesce by key only where intermediate samples are semantically replaceable; never silently apply this to triggers or commands                                                         |
-| WebSocket hub/client output | Bound commands, retained bytes, per-client and aggregate work; yield dispatch turns; disconnect/resync lagging clients by explicit policy                                               |
-| HTTP/control admission      | Bound total connections/tasks and request bytes/weight; reject overload promptly while keeping password-free LAN use                                                                    |
-| Actor                       | Bounded request admission and service budgets; preserve progress for control, cancellation, replies, and feedback without starvation                                                    |
-| Compiler                    | Keep at most the in-flight job plus the latest pending replaceable generation; replace superseded requests before building large snapshots; cancel/check staleness at useful boundaries |
-| Lifecycle retirement        | Cooperative cancellation, interruptible I/O, bounded retirement capacity, and joins outside the live tick/actor                                                                         |
-
-- Audit synchronous/blocking send paths for deadlocks after adding capacity. Audio/render callbacks must not wait on channels, allocate unbounded work, or destroy resources that require blocking cleanup.
-- Bound both queue count and retained payload weight; bound total clients/workers as well as each queue. Expose depth/bytes, oldest age, rejection/coalescing counts, and recovery state.
-- Do not create unlimited replacement threads when an old worker is stuck. Retain ownership safely, cap stuck/retiring slots, and report a recoverable resource failure. Moving `join()` to an unbounded cleanup queue is insufficient.
-
-**Acceptance:** sustained producer rates above capacity reach a memory plateau; ticks, command replies, publication, and shutdown/cancellation continue; ordered events are accepted in order or explicitly rejected; continuous data converges to the latest accepted value. Test slow clients, reconnect storms, OSC bursts, superseded compilation, blocked worker shutdown, and partial drains. After load stops, backlog and feedback recover within the configured bounds.
-
-**Implementation progress (2026-09-10, shared I/O slice):** the reusable pending channel now has
-explicit item and caller-supplied retained-weight bounds, nonblocking overload/disconnect results,
-bounded receiver turns, retained readiness, and depth/weight/oldest-age/rejection telemetry. Generic
-I/O worker command admission is bounded and nonblocking. OSC applies bounded command service turns,
-bounded socket turns, explicit output overload rejection, and a dual-bounded inbound event channel;
-serial inbound events use the same byte-aware contract. Control/compiler, transport-host admission,
-and bounded lifecycle retirement remain in T11.
-
-**Implementation progress (2026-09-10, control/compiler slice):** control actors now use configurable
-bounded, nonblocking admission with a typed overload category and shutdown signaling that cannot be
-stranded behind a full queue. The compiler retains only one in-flight generation and the latest
-replaceable pending request, reports both replaced and stale tickets, bounds completion retention,
-and exposes cooperative staleness checks plus pending/supersession telemetry. The engine drops
-superseded snapshot bookkeeping immediately and checks staleness between compilation stages.
-
-**Implementation progress (2026-09-10, transport-host slice):** the reusable UI host now admits at
-most 16 concurrent TCP/HTTP/WebSocket connections, applies a three-second HTTP I/O deadline, bounds
-requests to 16 MiB with 32 KiB headers, and caps intent batches at 256 operations. The WebSocket hub
-has a 64-command mailbox and handles at most 32 commands before returning to publication; each of
-the at most 16 clients may retain 32 subscriptions and 64 outbound messages / 4 MiB. Latest-value
-planes still coalesce, while reliable overflow disconnects the slow client and command overload is
-reported before any `Received` control phase. Bounded lifecycle retirement remains in T11.
-
-**Implementation progress (2026-09-10, lifecycle-retirement slice):**
-`golden_io::RetirementPool` admits cleanup before ownership moves, caps active cleanup threads,
-returns the original resource on overload or thread-start failure, and exposes active/peak/rejected
-state. Production project replacement reserves one of two retirement slots before generation
-allocation, keeping detached engine destruction outside the actor while rejecting a third stalled
-replacement without changing live state. Sound Card lifecycle workers reserve one of eight cleanup
-slots for their entire lifetime; lifecycle commands/results, detached runtime shutdown (four), and
-delayed retry wakes (64) are bounded. Rejected audio retirement is retained by the module and blocks
-new replacement work until recovery. Joy-Con shutdown likewise uses four lifetime-reserved cleanup
-slots instead of spawning unlimited join threads. T11 is complete locally.
-
-### T12 — Separate immutable snapshots and encoding from actor progress
-
-**Finding:** F10. **Depends on:** T08, T09, T11. **Owners:** read model, persistence document capture, compiler capture.
-
-**Start at:** `crates/golden_core/engine/src/ui_read_model.rs`, project encoding in `application.rs`, capture in `runtime_center.rs`, and persistence service APIs.
-
-- Publish versioned immutable/chunked state. Capture a coherent root/revision using a short lock or atomic root load; materialize DTOs and encode JSON outside locks needed by event publication and outside the control actor.
-- Do not merely move the final JSON call: an O(N) clone under the actor/publication lock preserves the original bottleneck. Introduce structural sharing or bounded revision-consistent capture where necessary.
-- Bind event cursor, project generation, and snapshot revision to the same captured state. Reuse completed immutable payloads where scope permits; keep client authorization/capability scope intact. Bound retained versions and caches, and avoid dropping huge old structures on latency-sensitive threads.
-- Apply the same capture review to compiler requests. Keep persistence sequencing from T09 when encoding becomes concurrent.
-
-**Acceptance:** snapshots racing edits are internally consistent and support correct delta resumption; publication does not wait behind whole-graph materialization/encoding. Three clients saving/resyncing while edits and I/O continue produce bounded retention and acceptable tick tails. Measure actor capture time separately from background materialization/encoding; verify actual scaling at 1k/10k/100k nodes.
-
-### T13 — Make large UI transactions proportional to changed data
-
-**Finding:** F08. **Depends on:** T03, T10. **Owner:** `golden_ui` projection and scheduler, app integration tests.
-
-**Start at:** `packages/golden-ui/store/graph-event-projection.ts`, `packages/golden-ui/transport/staged-frame-batches.ts`, and existing workbench/graph/WebSocket tests under `apps/chataigne/ui/src/lib/tests/`.
-
-- Introduce a versioned graph-index abstraction with structural sharing and atomic root publication. Prefer persistent/chunked indexes that copy touched paths/pages. Preserve node/parent/child/parameter lookup and iteration semantics for existing consumers. Select a library only after checking its fit with the locked toolchain and actual access patterns.
-- Stage transaction deltas without cloning all pre-existing maps. Capture the exact base generation/cursor; commit all indexes and cursor once. A stale/cancelled transaction must release staged memory and enter the existing resync path when necessary.
-- Support insertion, deletion, mixed structural edits, reparenting, undo/redo, and parameter-index changes. Retain the low-overhead small-transaction path with the same atomicity guarantees.
-- Add a measured time budget alongside operation limits. Account for actual work, including changed descendants and index updates. Budget any compaction; prevent overlay chains, tombstones, old versions, or a post-commit flatten from reintroducing growing pauses.
-- Check downstream Svelte stores/adapters: `new Map`, spreads, full arrays, derived indexes, or synchronous cleanup must not hide the same full-graph copy at publication.
-
-**Acceptance:** preserve the real default-scheduler regression harness: insert 600 nodes into 1k/10k/100k existing nodes, including a separate parameter-heavy case. Assert atomic visibility, complete indexes, cursor order, and bounded cancellation. At fixed delta, count work to prove it is not linear in existing graph size. Proposed initial gate for the original parameter-empty chain fixture: at most 20 frame callbacks at each size with the default 512 work budget. This is a new target, not an observed result.
-
-Also test large deletes/mixed edits, repeated transactions/compaction, resync during staging, stale generations, selection/focus, outliner/inspector agreement, and undo/redo. Run full-workbench action-to-paint measurements; scheduler frame counts alone do not qualify browser responsiveness. Keep the original 12/65/592-frame baseline separately labeled as synthetic staging evidence.
-
-### T14 — Remove identity-only worker overhead and implement real sparse selection
-
-**Finding:** F09, immediate portion. **Depends on:** T03, T07, T11. **Owners:** engine runtime center and reusable scheduler.
-
-**Start at:** `crates/golden_core/engine/src/runtime_center.rs`; `crates/golden_core/runtime/control/src/scheduler.rs`; engine scheduled updates.
-
-- Benchmark direct deterministic selection against `InputIdentityExecutor` round trips on matching fixtures. Replace worker dispatch that only returns IDs with direct ordered selection when the measurements support it; simplify dead paths without removing working Alchemist compilation.
-- Build direct dirty-ID/ordinal or dirty-word indexes for sparse execution. Visit dirty work and necessary dependencies/due entries; avoid an unconditional walk over every schedule unit in sparse mode.
-- Keep a dense traversal for workloads above a measured crossover point. Preserve deterministic ordering from T07, due-time semantics, duplicate dirty marking, removals, and generation changes. Define work selection separately from executing callbacks.
-
-**Acceptance:** sparse/dense/direct paths produce identical selected work, values, and effects. Instrument visited units at 0%, 0.1%, 1%, 10%, and 100% dirty density; sparse visits must follow dirty work rather than total schedule length. Record p50/p95/p99/max, allocations, and workload crossover. Real node callbacks remain serial until T18; label that honestly.
-
-### T15 — Move reusable contracts into their owning crates
-
-**Finding:** F14, ownership portion; supports F10. **Depends on:** T05, T09, T10, T12. **Owners:** protocol, script, persistence, engine adapters, codegen.
-
-**Start at:** `crates/golden_core/services/protocol/`, `runtime/script/`, `services/persistence/`, engine `ui_sync`/script/persistence modules, `support/codegen/`, and the default `golden_core` facade.
-
-- Make neutral protocol DTOs depend on foundation types, not the engine. Keep intent application, engine read-model behavior, and concrete engine adapters in the engine layer. Update the generator, generated TypeScript, and consumers together.
-- Move reusable VM/deadline/budget/effect primitives into `golden_script` with explicit host traits. Keep node/application bindings in an engine adapter and app-specific snippets/templates under the app. Do not move the same engine-dependent re-export behind another facade.
-- Move project document/schema/version/codec responsibilities into persistence; let engine extraction/application use those contracts. Keep native dialogs and host save workflow in host adapters. Preserve the coordinator and failure tests.
-- Preserve a ready-to-launch default host, plus explicit documented engine-only/protocol-only/audio-only surfaces. Verify dependency direction with external consumer fixtures, not only workspace builds.
-
-**Acceptance:** a protocol/codegen consumer does not pull in engine/QuickJS/desktop; script primitives compile with a tiny fake host; persistence codecs round-trip fixtures without a desktop dependency. A Golden-only headless consumer and default full-host consumer compile using public APIs. App behavior/codegen checks remain green; no app-owned Alchemist dependency enters Golden crates.
-
-### T16 — Qualify ASIO/JACK in ordinary application artifacts
-
-**Finding:** F15. **Depends on:** T01, T02. **Owners:** Golden Audio features, app wiring, bootstrap and release tooling.
-
-**Start at:** root/app/Golden Audio Cargo manifests; `package.json`; `tools/bootstrap/toolchain.json`; CI/release workflows; `vendor/cpal-0.18.1/CHATAIGNE_PATCH.md`.
-
-- Define one supported-host/architecture matrix and connect it to ordinary app features, bootstrap requirements, packaging, and documentation. Preserve Windows WASAPI/ASIO and add JACK to ordinary supported desktop artifacts through appropriate feature forwarding. Keep native platform hosts and explicitly optional PipeWire behavior.
-- Verify backend compilation, runtime library/driver discovery, stream opening, and physical continuity as separate capabilities. Missing JACK/ASIO installations must not prevent normal startup; only selected backends initialize, and reconnect remains recoverable. Explicitly document any unsupported host/architecture rather than silently dropping it.
-- Verify the vendored CPAL ASIO patch and its upstream/removal condition. Choose a reproducible dependency distribution for external Golden Audio consumers; a root-only `[patch]` is not automatically inherited by downstream crates. Retain required licensing/provenance records without expanding this repair into a general license-policy rewrite.
-- Test an external consumer outside the monorepo so successful resolution does not accidentally rely on this workspace's path patches.
-
-**Acceptance:** feature inspection and actual built ordinary artifacts match the documented matrix; clean setup, default startup, missing-driver behavior, and backend selection pass on available platforms. Native stream/hotplug/continuity evidence is recorded only when executed on named devices/drivers. A standalone consumer resolves the intended CPAL implementation. CI backend probes alone cannot close hardware qualification.
-
-### T17 — Remove obsolete repository entries and split cohesive responsibilities
-
-**Finding:** F16. **Depends on:** T00 for hygiene; relevant behavior fixes before structural extraction. **Owners:** repository maintenance and touched subsystems.
-
-- Confirm the four baseline gitlinks are unused by current builds/docs: `src-ui/src/lib/golden_alchemist_ui`, `src-ui/src/lib/golden_ui`, `submodules/golden_alchemist_core`, and `submodules/golden_core`. Remove only obsolete index entries, preserving any unrelated local contents. Do not add a fictitious `.gitmodules` to retain dead structure.
-- Reconcile contradictory progress notes. Distinguish historical/incomplete attempts, measured final results, and qualification still pending; do not erase useful history.
-- Refresh the size inventory. Split oversized modules by ownership while working nearby: script VM/host/effect handling, protocol DTOs versus application, projection versus canvas interaction, formula/state integration, dashboard/curve editor responsibilities. Avoid a huge mechanical rearrangement mixed into a race or persistence fix.
-- Put tests under the appropriate `tests/` directories and document legitimate large-file exceptions. Do not solve a line limit by dense formatting or arbitrary helper fragments.
-
-**Acceptance:** fresh monorepo setup does not need submodule initialization; submodule tooling no longer errors on orphan entries; touched ownership boundaries are documented; the inventory and exceptions are current; behavior-focused tests still cover extracted responsibilities. The baseline count of 44 oversized files is historical until recounted.
-
-### T18 — Parallelize actual independent formula/lane computation where justified
-
-**Finding:** F09, computation portion. **Depends on:** T07, T11, T14, T15; T13/T12 measurements inform the decision. **Owners:** app-owned Alchemist execution and reusable runtime contracts.
-
-- Profile representative product workloads after removing identity overhead. First record whether pure formula/lane computation is still a significant bottleneck and where batching amortizes dispatch costs.
-- If supported by evidence, expose real pure compute batches over immutable inputs and generation-bound compiled artifacts. Use lane-private state/scratch and stage state/effects until the defined commit boundary. Preserve formula sharing, stable context keys, global state-machine truth, and managed output limits.
-- Commit results/effects in deterministic compiled order. Reject stale-generation results; define failure/cancellation without partial lane-state commits. Keep arbitrary mutable engine callbacks and native/device calls out of parallel kernels.
-- Retain a sequential implementation and a measured crossover threshold. Avoid a second authoritative state-machine/formula runtime or Alchemist imports in Golden infrastructure.
-
-**Acceptance:** one/two/four/eight workers, where available, produce equivalent values, lane state, state transitions, and ordered effects on actual product formulas. Include stateful operators, shared formulas, conflicts, triggering, lane reorder, cancellation, and generation replacement. Record end-to-end tick/latency/CPU/memory changes. If no useful improvement is demonstrated, retain the simpler serial production path, document the result, and describe parallel compute as deferred rather than completed.
-
-### T19 — Qualify the complete product and record remaining limits
-
-**Findings:** F13 product evidence; final acceptance of F01–F16. **Depends on:** relevant implementation tasks above; hardware-only checks may remain explicitly unavailable.
-
-- Extend existing qualification tooling rather than inventing a second reporting system. Use the exact source/artifact/features under review. Every required scenario must produce a result or an explicit missing-evidence failure.
-- Preserve the scheduler/kernel benchmarks but add real product fixtures: Formula compilation/evaluation, processors, state transitions, contexts, modules, outputs, transport, full workbench, and persisted reload. Use both 1k×100 and 10k×10 lane partitions, plus stateful variants; do not imply that 100k values, 100k authored nodes, and one 100k-key Cartesian expansion are equivalent capacities.
-- Exercise 1k/10k/100k authored-node stress scenarios as supported by fixture construction, sparse/dense changes, create/duplicate/delete/undo/redo, multi-client reconnect/resync, edits during saves, script failure, queue overload, project replacement, and reload/recovery. Keep unsupported capacity explicit and user-visible.
-- Run normal `cargo run`, watch, dev-server, headless, and package workflows. Test native webview/dialog/menu/focus/DPI/lifecycle separately from a packaged binary's headless smoke. Do not drive the user's desktop with synthetic input; use isolated permitted harnesses and documented manual native cases.
-- Qualify named physical audio devices for stream continuity, underruns, callback/render timing, reconnect/hotplug, routing identities, latency/drift, and driver selection. Keep physical tests separate from no-device probes and simulated render tests.
-- Define persistence version ownership and round-trip fixtures. Implement narrow migrations only when a schema change requires them; retain clear errors for unsupported future versions.
-
-**Evidence to retain:** tick p50/p95/p99/max and deadline misses; allocations and retained memory; queue items/bytes/age/rejections; action-to-paint p50/p95/p99; browser long tasks and preview freshness; capture/encode/publication costs; audio continuity/recovery; exact source, fixture, platform, build, and feature fingerprints.
-
-**Proposed initial budgets, to record on one reference machine before optimizing:**
-
-| Scenario                              | Acceptance target and qualification boundary                                                                                                                                            |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Existing multiplex reference workload | Preserve the documented 10 ms tick target on the specified fixture/host; retain tail/max and missed-deadline counts, not just averages                                                  |
-| UI projection                         | T13's ≤20 captured frame callbacks for the original 600-node synthetic insert at each graph size; separately measure render/transport                                                   |
-| Full-workbench 600-node insertion     | Provisional p95 action-to-paint ≤250 ms at 10k nodes and ≤500 ms at 100k on the reference machine; stress targets, not a current support claim                                          |
-| Staging service                       | Target approximately 4 ms of budgetable projection work per frame turn; record overruns and long tasks rather than claiming a hard OS scheduling guarantee                              |
-| Overload/recovery                     | Document finite queue/memory limits, service budgets, and maximum intended recovery delay per boundary; demonstrate no sustained memory growth or starvation                            |
-| Endurance                             | Keep quick smoke; add a measured multi-client endurance run and a longer release-candidate/device run chosen for the failure modes; duration alone is not proof of indefinite stability |
-
-If a proposed budget is not achieved, identify the measured bottleneck and leave the gate open. Changing a target requires a documented capacity/product rationale, not a quieter benchmark or hidden omission. Optional canvas-index/startup optimizations follow profiling and must include visual edge/viewport and editor-loading regressions.
-
-**Acceptance:** a final table covers F01–F16 with implementation and evidence separately, reports important regressions and unavailable checks, and identifies any release blockers still open. No release-ready or hardware-validated claim without the corresponding exact-artifact results.
-
-## 5. Commands and verification workflow
-
-These are commands present in the inspected repository or derived from its actual workspace/package names. Recheck the current manifests and platform prerequisites in T00. Run focused tests for a task, then the required affected gates; reserve the complete cross-platform/product suite for wave/release boundaries.
-
-Use the existing VS Code tasks or `tools/bootstrap/bootstrap.sh` / `bootstrap.ps1` to enforce the repository toolchain. First-time setup can install prerequisites; follow the host's permissions and existing setup instructions.
-
-```sh
-# Read-only checkout baseline, from the repository root.
-git status --short
-git rev-parse HEAD
-
-# Focused runtime correctness suites.
-cargo test --locked -p golden_io
-cargo test --locked -p golden_runtime
-cargo test --locked -p golden_engine -- --test-threads=1
-cargo test --locked -p golden_transport_server
-cargo test --locked -p golden_persistence
-
-# Portable audio core; native backend suites require their platform dependencies.
-cargo test --locked -p golden_audio --no-default-features
-cargo test --locked -p golden_audio --features realtime
-
-# UI and qualification-tool gates.
+Do not restart old T/R phases, execute archived instructions, or treat this document as
+permission to overwrite unrelated work. Resume through the ledger after context changes.
+
+## Reasoning effort during implementation
+
+Default to **High** (`high`). Use **XHigh** (`xhigh`) only for the focused subtask that meets an
+escalation trigger. Routine UI components, layout/style changes, boilerplate, basic routing,
+documentation, and mechanical refactors stay at High unless their actual behavior meets a risk
+trigger below. Touching several files or working for a long time is not a trigger by itself.
+
+Escalate when either condition applies:
+
+1. **Two consecutive meaningful High fix attempts fail** for the same unresolved implementation
+   issue. Each attempt must inspect diagnostics, apply a justified correction, and rerun the
+   relevant compile/test check. A known failing baseline, unchanged rerun, dependency download,
+   missing SDK/device, external service failure, or unrelated flaky test does not count. Diagnose
+   those separately. Reset the counter after a relevant pass or a change to an unrelated subtask.
+2. **The subtask has high-risk invariants**, before attempting its difficult design or repair:
+   critical database/project-schema migrations or identity-preserving data transformations;
+   coupled state across stores, layers, or transactions with rollback/undo/generation requirements;
+   asynchronous races, cancellation, ordering, resource handoff, or realtime ownership; or a
+   security trust-boundary change. Ordinary multi-file composition alone does not qualify.
+
+Before beginning an escalated subtask, place this inline comment immediately below its P-task
+heading in this plan, replacing `[Reason]` with the concrete subtask and triggering evidence:
+
+```html
+<!-- Mode: Escalating to XHigh for [Reason] -->
+```
+
+Use the client's supported effort control automatically when it is exposed and the selected model
+supports XHigh. Keep the model unchanged. A model/client setting change may apply only at the next
+supported turn boundary; do not claim the in-flight turn changed effort.
+
+If no supported control is available, make one concise switch request, record **XHigh requested;
+actual effort unchanged** in the ledger, and continue useful work at the available setting. If
+the actual setting is not observable, record it as unknown. Do not repeatedly interrupt the goal,
+edit global configuration, start a nested agent/session, or equate a plan comment with a real
+switch. The rule routes effort where supported; it does not manufacture a missing client capability.
+
+Return to High after the escalated design/fix and its focused verification are complete, before
+routine integration or the next independent subtask. Record the return in the ledger; optionally
+mark it beside the task with `<!-- Mode: Returning to High after [Task/result] -->`. Keep actual,
+requested, and unavailable effort distinct. A completed difficult task never makes XHigh the
+default for the rest of the goal. An explicit user instruction to pin effort overrides automatic
+routing.
+
+## Outcome and boundaries
+
+Chataigne2 will ultimately host lighting creation, video manipulation, projection mapping,
+and audio. **This implementation goal delivers foundation and readiness**, including the
+existing product, the open audit repairs, and exercised time/resource boundaries needed
+by those future domains.
+
+The goal includes current audio and DMX runtime correctness, graph/UI scalability, backend
+editing intents, asset preparation, and synchronized scheduling exercised with deterministic
+consumers. Full lighting fixture/cue authoring, a production video decoder/compositor,
+projection calibration/output editors, new creative workspaces, and plugin hosting remain
+a later product roadmap. Do not build unused framework abstractions to imitate those features.
+
+The control engine owns authored state, transactions, validation, history, and coordination.
+Audio rendering, future GPU/video execution, and lighting output have specialized runtimes;
+they share explicit time, resource, and generation contracts. Browser frame rate, decoding,
+network retries, or device cleanup must not determine show output timing.
+
+Follow [AGENTS.md](../../AGENTS.md), [architecture](../../ARCHITECTURE.md), and the focused
+[architecture index](../architecture/README.md). Preserve these product contracts:
+
+- Keep the thin app shell, public Golden boundaries, generated wire protocol, and supported
+  engine-only, audio-only, protocol-only, headless, and full-host consumers.
+- Preserve modules, command nodes, script functions/callbacks/templates, Formula/state editors,
+  contexts, dashboards, panels/layouts, previews, undo/redo, and connected-client workflows.
+- Preserve deterministic triggers/effects, keyed temporal state through context/lane reorder,
+  and one authoritative state-machine state. Transition-global context never silently becomes
+  a multiplex lane context.
+- Keep the completed [Mapping contract](../architecture/builtin-mapping.md): ordinary owned
+  nodes/commands and controls, one typed value/tuple chain, backend warnings, shared execution,
+  and explicit reversible compression defaulting Off. Compilation never implies compression.
+- Preserve `cargo run`, `cargo run -- --dev`, `cargo xtask watch`, headless serving, bundled UI,
+  packaging, ASIO/JACK support, recoverable driver absence, and device reconnection.
+- Preserve password-free LAN use without mandatory accounts, passwords, or cloud services.
+  Session capabilities and browser-origin checks must coexist with this product requirement.
+- Internal API breaks are allowed to improve ownership. Persisted meaning must survive through
+  narrow, typed migrations and fixtures when a format changes; no general compatibility layer.
+
+### Scale, feedback, and evidence
+
+Normal projects target **20k–50k authored nodes**. Keep 1k/10k baseline fixtures; treat 100k
+authored nodes as a separate stress tier. One million nodes is unqualified. Authored nodes,
+runtime values, active lanes, visible nodes, voices/channels, pixels/streams, and DMX universes
+are different workload dimensions and must be reported separately.
+
+For ordinary 20k/50k selection, parameter edits, navigation, and canvas actions, provisionally
+target p95 first visible feedback within 200 ms on the recorded reference machine. Measure
+frame pacing and continued interactivity separately. Bulk operations need truthful prompt
+feedback and workload-specific completion ceilings fixed before qualification; a progress
+indicator does not excuse a blocked engine. Inspect the existing queued/received/processing/
+finishing header before adding another progress mechanism.
+
+Retain old 10k/100k 250/500 ms bulk failures as historical failures. A revised product gate
+must record its rationale, fixture, hardware, surface, and measurement boundaries before a run.
+The workbench-root/two-frame harness did not mount the graph canvas. Its results cannot qualify
+dragging, routing, meter animation, or native webview behavior. See
+[performance contracts](../operations/performance.md).
+
+### Execution permissions
+
+Proceed through authorized local implementation and checks without per-task approval. This
+instruction does not authorize pushing, publishing, remote issues/PRs, or desktop automation.
+Do not operate the user's keyboard, mouse, ASIO panel, or native desktop through automation.
+
+The existing named **ASIO4ALL → VB-Audio loopback** authorization remains valid only when the
+exact driver and underlying route can be selected and verified. Focusrite drivers are also
+installed: never use system-default ASIO selection as a substitute. Stage discovery, a brief
+silent loopback output open/close, continuity, and verified loopback input. Record device,
+direction, channels, sample rate, buffer size, driver, and artifact. This does not authorize
+physical speakers/microphone, audible output, vendor-native ASIO, or manual unplug/replug.
+If exact route verification is unavailable, leave that check unavailable and continue other work.
+
+## Reconciled baseline
+
+The October audit found a useful foundation, not a reason to recreate completed subsystems.
+Keep atomic persistence, indexed dispatch, immutable read-model capture, bounded transport
+recovery, script interruption, explicit audio ownership, and completed Mapping behavior.
+
+| Previous work                  | Reconciled disposition                                                     | New owner of remaining work                       |
+| ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------- |
+| T00–T14                        | Historical repairs retained; later findings do not erase old evidence      | P01–P13 and qualification below                   |
+| T01 native gates               | Windows repairs recorded; exact patched Linux/macOS evidence remains open  | P17, P18                                          |
+| T03 benchmark gate             | Comparator implemented; comparable hosted reference remains open           | P16                                               |
+| T15 package boundaries         | Completed and externally exercised                                         | Preserve in P12, P17                              |
+| T16 ordinary audio artifacts   | Implemented and locally qualified on Windows; external gates open          | P17, P18                                          |
+| T17 source/docs cleanup        | Partial; documentation consolidation completed separately                  | P12                                               |
+| T18 actual computation         | Profiling and test-only worker evidence; production parallel path deferred | P13, P16                                          |
+| T19 product qualification      | Open; historical load/idle/projection passes are scoped                    | P16–P18                                           |
+| Mapping R00–R08 / N01–N24      | Complete at recorded corrective baseline `ae49424e`                        | Regression preservation; new findings get P tasks |
+| Mapping old Phase 11 / M01–M20 | Superseded contract and historical runtime evidence                        | No active task                                    |
+| July multiplex recovery        | Completed historical slice                                                 | Preserve behavior; qualify current product in P16 |
+
+The [archive index](../archive/2026-10-18/README.md) links original F01–F16/T00–T19, Mapping
+acceptance matrices, commands, source fingerprints, profiles, and delivery observations.
+Neither old task completion nor a commit message substitutes for current acceptance evidence.
+
+### Historical finding coverage
+
+| Finding                         | Carry-forward disposition                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| F01 Release failures            | Preserve repaired source; remaining exact-artifact/native checks in P17/P18                   |
+| F02 Pending readiness           | Preserve receiver-owned drain/re-arm repair; remaining adapters in P03                        |
+| F03 Script interruption/effects | Preserve watchdog/effect safety and public script boundary; regressions in P12/P16/P17        |
+| F04 Project replacement         | Preserve prepare/commit/retire and generation fencing; lifecycle/recovery in P03/P16          |
+| F05 Cache restoration           | Preserve recoverable-exit tests; edit/schedule changes requalify in P01/P02/P16               |
+| F06 Unbounded work/lifecycle    | Preserve migrated primitives; new app/engine gaps remain open in P02/P03                      |
+| F07 Topology ties               | Preserve canonical tie-breaking; generation-order defect in P02, execution equivalence in P13 |
+| F08 UI index copying            | Preserve persistent projection; canvas/document/collection work in P09/P10/P11/P16            |
+| F09 Identity work/full scans    | Preserve sparse selection; actual Formula work in P13/P16                                     |
+| F10 Snapshot/encoding           | Preserve off-actor immutable capture; full-workbench contention in P16                        |
+| F11 Concurrent saves            | Preserve coordinator/fencing; edit/save/replacement stress in P01/P16                         |
+| F12 Dependency gate             | Earlier repairs retained; October Rustls failures are new open work in P06                    |
+| F13 Benchmark/product proof     | Comparator retained; matching reference and complete product evidence in P16/P17/P18          |
+| F14 Facades/acknowledgement     | Public boundaries retained; failure propagation/intents in P01/P02/P08/P12/P17                |
+| F15 Ordinary audio/CPAL         | Preserve features and provenance; P06/P17/P18 qualify the current artifact                    |
+| F16 Gitlinks/docs/source size   | Obsolete gitlinks already removed; docs consolidated; remaining decomposition in P12          |
+
+## Task order and completion rules
+
+P00 reconciles the current checkout once per resumed implementation session. Then choose the
+earliest numbered unfinished task whose dependencies are satisfied. Independent work may proceed
+when a platform/device check is unavailable. Split tasks into coherent batches; extract oversized
+responsibilities as they are touched rather than mixing a broad mechanical move into a bug fix.
+
+| Task | Owner / result                                        | Dependencies               |
+| ---- | ----------------------------------------------------- | -------------------------- |
+| P00  | Current baseline and evidence reconciliation          | None                       |
+| P01  | Coherent edit failure and history                     | P00                        |
+| P02  | Schedule generations and typed actor failures         | P00                        |
+| P03  | Bounded module service and lifecycle                  | P01, P02                   |
+| P04  | Ordered audio controls and validated types            | P00                        |
+| P05  | Password-free transport trust boundary                | P00                        |
+| P06  | Current dependency qualification                      | P00                        |
+| P07  | Correct DMX stream runtime                            | P03                        |
+| P08  | Backend-owned Formula editing                         | P01                        |
+| P09  | Proportional graph-document editing                   | P01                        |
+| P10  | Incremental canvas presentation                       | P09                        |
+| P11  | Bounded and keyboard-usable workspaces                | P08, P10                   |
+| P12  | Package boundaries, readability, and complete gates   | P00; maintained throughout |
+| P13  | Actual Formula work selection and execution ownership | P02, P08                   |
+| P14  | Production time and scheduled activation              | P03, P04, P07              |
+| P15  | Asset identity and preparation                        | P01, P04                   |
+| P16  | Current product scale and endurance                   | P08–P15                    |
+| P17  | Launch, package, platform, and external consumers     | P05, P06, P12              |
+| P18  | Named device/route qualification                      | P04, P14, P17              |
+
+Each ledger row separates implementation, local validation, and external qualification. Record
+starting SHA and dirty-tree scope, owning files, invariant, exact commands, environment/features,
+results, evidence location, and remaining checks. Performance also needs raw samples, fixture
+hashes, measurement boundaries, allocations/memory, and deadline misses. Do not attribute an
+uncommitted patch's results to its base SHA.
+
+### P00 — Reconcile before implementation
+
+Record HEAD/branch/diff and the pinned toolchain; inspect changed owning source before using any
+line citation. Preserve unrelated edits. Confirm which prior fixes and checks still apply.
+Capture failures relevant to the next task; do not rerun every expensive qualification after
+every small edit. Treat the October audit observations in the ledger as a baseline, not new runs.
+
+**Acceptance:** the ledger identifies the exact tree, current blockers, and next ready task.
+
+### P01 — Make failed edits coherent
+
+**Evidence:** reproduced valid `AddNode` followed by invalid `SetParam(Folder)` leaves one added
+node with `undo_len=0`. `engine/src/engine/apply.rs` drains requests and several `?` exits bypass
+common history/reference/context finalization.
+
+Preserve the low-level engine's explicit applied-prefix failure semantics: every accepted edit
+must retain its history, index/dirty finalization, and precise failure result. Centralize cleanup
+so all recoverable exits follow it. Compound user operations must prevalidate and commit atomically;
+their rejection leaves authored graph, history, project dirty state, and publication coherent.
+Never claim external device effects can be rolled back after dispatch.
+
+**Acceptance:** valid-first/invalid-middle/invalid-last, lifecycle failure, redo preservation,
+references/context caches, and the next edit/tick/save are tested. The original probe retains
+undo for the applied prefix; atomic user intents leave no partial mutation.
+
+### P02 — Unify schedule revisions and propagate actor failures
+
+**Evidence:** `ReevaluateGraph` can resolve a new engine order without production recompilation;
+`runtime_center.rs` can reuse the old generation and append newly scheduled nodes. Existing
+membership checks do not establish dependency order. Public application paths also turn typed
+actor overload into `.expect(...)` panics.
+
+Use one authoritative schedule revision for dependency changes, reevaluation, compilation, and
+generation installation. Preserve current valid dependency order until a matching generation is
+ready; never append a prerequisite after its dependent. Reject stale results. Carry typed overload,
+disconnection, and cancellation through application/transport APIs without a panic or false ack.
+
+**Acceptance:** production-runtime tests change dependencies with identical node membership, add
+prerequisites during compilation, replace projects, and saturate admission. Verify deterministic
+effects, generation fencing, coherent errors, and continued progress.
+
+### P03 — Finish bounded I/O and lifecycle ownership
+
+**Evidence:** HTTP stop performs blocking send/join behind requests/retries from module callbacks;
+UDP outbound commands and some other module channels remain unbounded; variable-size pending
+payloads use unit weight; HTTP body collection lacks a size cap. External engine edits drain until
+empty and lifecycle materialization can stabilize without a pass budget. Signal/metronome command
+handling resets elapsed-time baselines and can discard elapsed time.
+
+Audit every app module against the public `golden_io` admission/retirement primitives. Put parsing,
+timestamping, endpoint setup, retries, blocking native work, and cleanup at the worker/runtime
+boundary. Bound items, retained bytes, service turns, response sizes, lifecycle expansion, and
+cancellation. Preserve ownership when retirement is full. Distinguish overload from disconnection;
+apply reconnect/backoff without producer-driven thread growth. Coalesce latest values only;
+ordered triggers/commands retain multiplicity or receive an explicit admission rejection.
+Account for elapsed generator time across ordinary commands; only explicit reset changes phase.
+
+**Acceptance:** controlled slow HTTP/retry, full queues, large responses, continuous producers,
+worker failure, repeated reconnect/reconfigure, lifecycle expansion, and generator commands cannot
+monopolize the actor, grow memory without bounds, strand work, or lose accepted occurrences.
+
+### P04 — Order audio control and retain type invariants
+
+**Evidence:** gain commands and plan exchanges have independent ordering. A later configuration
+can be overwritten by an older gain; a removed channel can trigger UUID lookup/error allocation
+inside `RealtimeScope`. Transparent deserialization bypasses validated sample-rate/frame constructors.
+
+Use a production sequence/generation barrier shared by plan and control delivery. Pre-resolve
+control targets to dense locations for the appropriate generation; stale controls have explicit
+outcomes. Perform no formatted error creation, logging, allocation/final destruction, or linear
+UUID resolution on realtime paths. Use checked deserialization at validated-type boundaries,
+including gain invariants, rather than patching division sites.
+
+**Acceptance:** deterministic gain/configuration/remove/re-add interleavings preserve command
+order and generation identity; allocation/deallocation guards cover plan/control transitions as
+well as warmed rendering. Invalid serialized rates, frame counts, and gains fail before construction.
+
+### P05 — Establish transport trust while keeping LAN convenient
+
+**Evidence:** privileged HTTP/WS project/script operations have no session/origin admission and
+return wildcard CORS. Default loopback narrows network exposure but does not establish caller trust.
+The audit did not demonstrate arbitrary-code execution or a browser exploit.
+
+Introduce host-owned session capabilities and explicit browser-origin/Host checks on HTTP and
+WebSocket admission. Same-origin served desktop/LAN UI establishes its session without passwords;
+the configured development origin remains supported. Bind cross-origin mutation to an admitted
+session rather than accepting arbitrary origins. Preserve existing password-free LAN functionality
+and document its trusted-network boundary; do not imply protection from a hostile peer already
+authorized by that policy. Revoke sessions on host restart, bound their resources, and scope
+project/script/path operations as privileged capabilities. Reuse established HTTP/WS primitives.
+Review the currently null Tauri CSP against the supported bundled/dev assets and transport;
+preserve browser-safe operation and explicit native command permissions.
+
+**Acceptance:** served desktop, configured dev frontend, LAN browser, and headless clients work;
+unapproved origins, mismatched hosts, missing/stale capabilities, and unauthorized privileged
+requests fail before mutation or file access. Test HTTP and WS independently.
+
+### P06 — Restore the dependency gate narrowly
+
+**Evidence:** the October audit's advisory gate failed on locked Rustls 0.23.42 with
+RUSTSEC-2026-0285/0346/0348/0349; their then-current repair floor was 0.23.46. Default application
+features did not enable the Brotli feature required by 0348. No Chataigne exploit was established.
+
+Refresh authoritative advisory data and dependency paths, apply the narrow supported repair, and
+review lockfile churn. Do not suppress new advisories or upgrade unrelated major APIs for convenience.
+Retain licensing/provenance and the reviewed CPAL patch/removal condition.
+
+**Acceptance:** current locked dependency checks pass; feature reachability and advisory DB
+revision/date are recorded; affected network/audio ownership tests remain green.
+
+### P07 — Make DMX a dependable streaming boundary
+
+**Evidence:** current DMX transport sends only on commands, reads one datagram before a 5 ms
+park, and Art-Net does not filter the configured universe. sACN source-loss and termination
+semantics require more than single-packet round trips.
+
+Own last-frame buffers, periodic refresh, universe filtering, protocol sequencing, synchronization,
+source identity/priority, stream termination, and bounded receive/send service in the lighting
+worker. Use established Art-Net/sACN crates and verify their versioned behavior. Preserve explicit
+send/blackout commands, script functions/callbacks/templates, diagnostics, and recovery. Batch
+channel changes per universe; do not persist/reparse 512-channel JSON on every internal sample.
+Fixture/cue authoring remains deferred.
+
+**Acceptance:** fake-time/loopback tests cover static-look refresh beyond receiver loss timeout,
+wrong-universe traffic, bursts, sequence/source/priority handling, synchronized frames, blackout,
+shutdown/termination, overload, and reconnect without delaying engine ticks.
+
+### P08 — Move Formula mutation semantics to backend intents
+
+**Evidence:** Alchemist paste polls for the first unseen child for 750 ms and restores data in
+later edits; UI also owns label allocation, identity remapping, and connection replacement policy.
+
+Provide typed app-owned paste/connect operations through public Golden extension contracts.
+Paste accepts the complete fragment and placement hints, validates once, restores/remaps identities
+in one detached batch, and returns the exact source-to-created identity map. Connect validates
+compatibility and replacement policy in the backend. UI, script, transport, and headless callers
+share the implementation. Remove polling, inferred identities, UI label policy, and repair writes.
+Update Rust DTO/codegen/generated TS and consumers together.
+
+**Acceptance:** concurrent creates, slow projection, invalid fragments/connections, external
+references, compressed content, duplicate identities, undo/redo, and project replacement produce
+exact results or atomic rejection. No timing-based identity detection remains.
+
+### P09 — Make graph-document edits proportional
+
+**Evidence:** ordered-map `shift_remove`/reinsertion occurs during position updates; repeated
+node/edge removals shift storage and scan groups. Source-derived costs can be linear per update
+and quadratic across a large deletion.
+
+Separate stable authored order from hot identity/presentation storage where needed. Update
+existing presentation entries in place; batch removals, adjacency updates, group membership,
+history, and revision publication. Preserve generic Golden Graph ownership and transaction rollback.
+
+**Acceptance:** stable ordering, rollback, undo/redo, groups, incident edges, and multi-selection
+drag/delete remain correct. Operation counters or representative measurements establish proportional
+work for a fixed delta at 1k/10k/50k/100k document sizes.
+
+### P10 — Keep canvas interaction incremental
+
+**Evidence:** one dragged node rebuilds all effective nodes, ID map, spatial index, and routing
+geometry/cache. Activity can advance topology/payload/presentation together. Local projection-only
+samples at 100k were 26–51 ms; these exclude DOM/routing/paint and are not an FPS qualification.
+Edges crossing the viewport disappear when both endpoints are offscreen.
+
+Use independent topology, geometry, payload, activity, and preview revisions; retained spatial
+indexes; transient drag overlays; and incident/obstacle-scoped route invalidation. Cull edges by
+their path/bounds as well as endpoint visibility. Bound route work and preserve interactive
+previews. Retain DOM/SVG until measurements justify another renderer.
+
+**Acceptance:** mounted-canvas drag, pan/zoom, frame selection, live activity, crossing wires,
+loops, and changing obstacles pass correctness tests and action/frame measurements at normal and
+stress tiers. A workbench node-count attribute or two animation frames is insufficient evidence.
+
+### P11 — Bound workspaces and complete keyboard interaction
+
+Window flattened manager/catalog lists and historical logs; make free-layout dashboard rendering
+viewport-aware. Retain stable focus/selection across virtualized changes. Provide keyboard tree
+expansion/navigation, graph movement and connection creation, following the existing keyboard
+audio routing pattern. Measure discovery/selection/editing workflows across composed panels.
+
+**Acceptance:** large collections mount bounded views, filtering/scrolling retains identity and
+focus, keyboard-only core operations work, and UI feedback remains usable during large batches.
+Native usability remains a distinct qualification from Svelte warnings or browser tests.
+
+### P12 — Complete package boundaries, readability, and gates
+
+Move Stream Deck editor/product registration into app UI using the existing module-editor registry.
+Split oversized canvas, dashboard, curve, state-manager, transport, macro, and test responsibilities
+cohesively; use the [maintained inventory](../reference/source-size-inventory.md). Cover every UI
+workspace in test/format/type gates and make generator failures visible. Preserve normalized
+frontend view models while replacing unchecked wire casts/fallbacks with exhaustive conversion
+and meaningful decoder tests. Do not hand-maintain a second wire protocol.
+
+**Acceptance:** app policy stays outside Golden, public consumers compile, generator freshness
+is enforced, all UI package suites execute from root, and touched runtime/tests meet the repository
+layout/size rules. Remaining oversized files need a completed split or a specific defensible
+documented exception; a generic exception list is not closure.
+
+### P13 — Optimize actual Formula work and resolve execution ownership
+
+Profile real Formula/Mapping/state-machine workloads separately from ID scheduling. Evaluated
+formulas still scan topology; retained materialization and sparse subgraph work need explicit
+invalidation. Inspect the exported state-machine arbiter's unused production path and incomplete
+Blend/LastWriterWins/duration semantics: retain only an honest shared contract used by the real
+dispatch path, with typed time units. Do not wire a second competing arbiter merely to use dead code.
+
+The current compiled production generation primarily orders mutable node callbacks; named kernels
+and zero-width layouts do not establish a unified compiled media/DSP graph. Script interruption
+budgets (including the current 50 ms callback allowance) are safety limits, not show deadlines.
+Keep scripts and ordinary control formulas outside hard realtime audio/GPU execution.
+
+Apply serial proportional-work improvements first. Introduce real-kernel workers only when the
+same production workload shows a full-tick benefit, including capture, scheduling, commit,
+cancellation, state migration, and effects. Compile immutable plans; keep instance/lane state owned
+and keyed. A rejected/stale generation must not partially publish state or effects.
+
+**Acceptance:** sparse/dense/unchanged requested evaluation, distinct lane state and reorder,
+conflicting outputs, transitions, cancellation, and generation replacement agree deterministically
+across supported worker counts. Record a measured decision to retain serial execution if parallel
+benefit is insufficient; the task does not mandate parallelism.
+
+### P14 — Exercise a production time boundary
+
+Define typed monotonic time, engine sample position, show position, and discontinuity epoch with
+explicit conversions. App-owned transport supplies show play/pause/seek/loop/rate policy; reusable
+audio owns sample/render scheduling. Distinguish rendered from presented output and propagate
+latency/clock observations. Use one integrated authority/handoff path rather than unused helpers.
+
+Extend existing playback with prepare/arm/scheduled activation at a target engine frame; source
+offset remains a separate value. Ready sources start together; unready/late admission reports a
+typed outcome. Preserve standalone starvation behavior as an explicit policy and add show-locked
+timestamp/catch-up behavior. Express audio buffering as validated latency profiles with observable
+capacity/target and measured latency; selecting ASIO alone is not a low-latency guarantee.
+DMX and a synthetic video consumer use the same epoch/time conversion contract without introducing
+a production video stack or forcing control callbacks into the audio render path.
+
+**Acceptance:** two independently prepared sources and a lighting event align to requested time
+under a fake clock; decode stall, seek, loop, output loss, authority replacement, drift, late work,
+and stale results follow explicit policies. Test no duplicate advancement/effects, bounded queues,
+and sample/epoch monotonicity. Measure native synchronization separately when available.
+
+### P15 — Establish asset identity and preparation
+
+Provide persistent project asset IDs and source locators separate from decoded buffers, backend
+handles, and cache fingerprints. Keep authored catalog/policy in the app; generic resolution,
+preparation, codec/persistence, and execution contracts stay in their reusable owners. Reuse
+current audio decode/cache workers. Support project-relative sources, relinking/missing status,
+bounded prepared resources, cancellation, and generation fencing. Do not hash or read media on
+the control actor. Derived caches are disposable and never project truth.
+
+Migrate existing audio source paths narrowly so project meaning and headless/script calls remain
+valid. Exercise collect/relink and scheduled playback with audio plus synthetic media descriptors;
+do not build an unused general-purpose media library or new media-pool UI in this goal.
+
+**Acceptance:** project relocation, duplicate references, missing/replaced files, stale preparation,
+memory limits, cancellation, sparse/full save/reload, undo, and independent public consumers retain
+asset identity and never expose native handles in persistence/protocol.
+
+### P16 — Qualify the complete current product
+
+Extend the existing qualification/reporting tools. Record matching reference fingerprints and
+reject missing, malformed, incomparable, or incomplete evidence. Retain 1k/10k and add 20k/50k
+normal authored-project tiers; 100k stays separate. Include both 1k×100 and 10k×10 runtime-lane
+partitions, stateful/distinct keys, and actual Formula/output work without conflating capacities.
+
+Measure mounted workbench and canvas first feedback, interactivity, and completion through parameter
+edits, structural batches, undo/redo, multi-client resync, concurrent saves, script failure, queue
+overload, project replacement, and persisted reload. Include preparation, publication, and cleanup
+costs rather than reporting idle ticks alone. Preserve the documented multiplex 10 ms target on
+its exact workload/host. Keep timing/allocation assertions tied to representative profiles.
+
+**Acceptance:** reports retain p50/p95/p99/max, missed deadlines, action/frame/Long Task evidence,
+CPU/retained memory, queue bytes/count/age/rejections, preview freshness, and source/fixture hashes.
+Run the existing multi-client soak plus a longer case chosen for actual failure modes. Unmet
+budgets remain failed/open and visible; do not bless new baselines automatically.
+
+### P17 — Qualify supported artifacts and launch contracts
+
+Use pinned toolchains and ordinary default features. Verify root/dev/watch/headless launches,
+fresh bundled UI, generated contracts, native unsigned packages, and standalone public Golden
+consumers. Preserve the supported host/architecture matrix and CPAL provenance. Separate native
+webview/dialog/focus/DPI/lifecycle evidence from packaged headless/browser smoke.
+
+**Acceptance:** available Windows checks pass on the exact artifact; Linux x64/ARM64 realtime,
+macOS regression tests, supported artifact/catalog matrix, and native package checks receive
+exact outcomes. Missing platforms stay explicitly unavailable/pending, never inferred from a
+different platform or stale assets. Signing/public distribution is outside this goal.
+
+### P18 — Qualify only the authorized named device route
+
+Implement/use explicit driver and endpoint selection before opening the authorized ASIO4ALL /
+VB-Audio route. Stage discovery, silent open/close, continuity, underruns, callback timing,
+and verified loopback input where supported. Never fall back to the default driver/device.
+
+**Acceptance:** exact route/artifact/settings and continuity results are recorded. Discovery,
+simulated rendering, silent stream smoke, measured loopback, physical latency, native vendor
+drivers, JACK, other platforms, and manual hotplug remain distinct evidence classes. Unavailable
+or unauthorized physical checks remain outside local completion.
+
+## Validation and final handoff
+
+Use the repository's pinned commands and owning tests; test sources belong under `tests/`.
+After a Rust implementation batch run `cargo fmt --all` from root and from `crates/golden_core`.
+Run focused regressions first, then affected package/workspace checks appropriate to the change.
+Do not repeatedly run broad checks once they pass without a new reason.
+
+The October audit baseline commands/outcomes are in the current ledger. Useful final gates include:
+
+```text
+cargo test --locked -p golden_engine -p golden_runtime -p golden_graph -p golden_transport_server -p golden_persistence -p golden_script
+cargo test --locked -p golden_audio --no-default-features --features analysis,playback
+cargo test --locked -p chataigne_alchemist -p chataigne_processor -p chataigne_state_machine
+python -m unittest discover -s tools/qualification/tests
+cargo deny --locked check advisories
 npm test
 npm run check
 npm run lint
 npm run build
-python -m unittest discover -s tools/qualification/tests -v
-
-# Required Rust formatting after a Rust implementation batch.
-cargo fmt --all
-cargo fmt --manifest-path crates/golden_core/Cargo.toml --all
-git diff --check
 ```
 
-Feature-specific suites must match the actual host matrix; do not blindly use `--all-features` across unsupported platforms. Run native/macOS playback suites with T01's exact test filters during diagnosis. Use `cargo metadata` / `cargo tree -e features` and the repository's Clippy/build policy to inspect public dependency and artifact features.
+P12 must repair root gate coverage; until then also invoke the Golden Graph UI suite directly.
+Run workspace check/strict Clippy, affected generators and freshness checks, full app tests, and
+default audio feature checks through the supported ASIO setup when reaching their owning gates.
+A skipped UI build is not a normal bundled-app build. See [development](../guides/development.md)
+and [release readiness](../operations/release-readiness.md) for exact supported workflows.
 
-For codegen changes, explicitly run the affected generator scripts from `apps/chataigne/ui/package.json` and the audio package, then compare generated output. The baseline `prepare` script can swallow generator failure; a successful `npm ci` alone is not proof of fresh contracts. Make codegen failures visible in the relevant gate and avoid hand editing generated files.
+The foundation goal is locally complete only when P01–P15 are implemented/verified (including an
+evidenced serial/parallel decision), all available required P16/P17 checks pass, and the final
+ledger records current limits and reproducible remaining external qualification. P18 and unavailable
+native/platform checks may remain externally open with exact reasons and instructions. Report
+**local foundation complete / external qualification open** when that is the actual result;
+never call the application release-ready or hardware-qualified on that basis.
 
-For the complete product/dependency gate, use the repository's documented PowerShell/bootstrap entry point; on hosts with `pwsh`, the existing script supports:
-
-```powershell
-pwsh -NoProfile -File ./tools/product-gate/product-gate.ps1 -DependencyAudit
-```
-
-Match feature/platform options to the current script and CI configuration. Missing PowerShell/native prerequisites should be recorded, not hidden by a nominally successful subset.
-
-Smoke these launch contracts using safe fixtures when reaching the relevant integration gate:
-
-```sh
-cargo run
-cargo xtask watch
-cargo run -- --dev
-cargo run -- --headless
-npm run package:check
-```
-
-The `--dev` path uses an existing Vite server (`npm run dev`); watch supervises its development flow. Do not start all these long-running processes simultaneously or leave them running. Packaging/native startup requires the local platform prerequisites and separate hardware authorization for real-device scenarios.
-
-## 6. Finding coverage and baseline source map
-
-All links below pin the audited source. At implementation time use the current checkout and record any moved ownership.
-
-| Finding                                   | Implementation tasks | Baseline starting evidence                                                                                                                                                                                                                                                                                                             |
-| ----------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F01 — release failures                    | T01, T19             | [priority guard](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_audio/src/realtime/priority.rs), [CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/33959407568)                                                                                                       |
-| F02 — pending readiness                   | T04, T11             | [pending channel](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/runtime/io/src/pending.rs)                                                                                                                                                                                |
-| F03 — uninterruptible scripts/effects     | T05, T15             | [script runtime](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/engine/src/script/mod.rs)                                                                                                                                                                                  |
-| F04 — destructive replacement             | T08, T11             | [application lifecycle](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/engine/src/application.rs)                                                                                                                                                                          |
-| F05 — cache restoration                   | T06                  | [scheduled updates](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/engine/src/engine/runtime/scheduled_updates.rs), [dispatch](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/engine/src/engine/dispatch.rs)   |
-| F06 — unbounded work/lifecycle            | T11, T12             | [control admission](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/runtime/control/src/control.rs), [compiler](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/runtime/control/src/compiler.rs)                 |
-| F07 — topology ties                       | T07, T14, T18        | [topological ordering](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/engine/src/engine/runtime/tick.rs)                                                                                                                                                                   |
-| F08 — UI index copying                    | T13, T19             | [projector](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/packages/golden-ui/store/graph-event-projection.ts), [scheduler](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/packages/golden-ui/transport/staged-frame-batches.ts)                     |
-| F09 — identity work/full scans            | T14, T18             | [production integration](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/engine/src/runtime_center.rs), [selection](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/runtime/control/src/scheduler.rs)            |
-| F10 — snapshots/encoding                  | T12, T15             | [read model](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/engine/src/ui_read_model.rs)                                                                                                                                                                                   |
-| F11 — concurrent saves                    | T09, T12             | [save host](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/hosts/transport/src/project_host/mod.rs), [file transaction](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/services/persistence/src/file_store.rs) |
-| F12 — dependency gate                     | T02, T19             | [qualification run](https://github.com/Golden-Geek/Chataigne2/actions/runs/33959407565), advisory links in T02                                                                                                                                                                                                                         |
-| F13 — incomplete benchmarks/product proof | T03, T13, T14, T19   | [comparator](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/tools/core/bench_compare.py), [recorded multiplex results](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/docs/progress/multiplex-performance-stability-plan.md)                         |
-| F14 — facades/edit acknowledgement        | T10, T15             | [protocol facade](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/services/protocol/src/lib.rs), [script facade](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/crates/golden_core/runtime/script/src/lib.rs)                      |
-| F15 — ordinary audio/CPAL portability     | T16, T19             | [app features](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/apps/chataigne/Cargo.toml), [CPAL patch](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/vendor/cpal-0.18.1/CHATAIGNE_PATCH.md)                                                         |
-| F16 — gitlinks/docs/source size           | T17                  | [repository instructions](https://github.com/Golden-Geek/Chataigne2/blob/5392728f51f9584c529b6e1e75f72e3d5ede7c85/AGENTS.md), tracked gitlink and source-size inventory from the baseline audit                                                                                                                                        |
-
-## 7. Progress ledger template
-
-Create `docs/progress/audit-remediation-status.md` during T00. Keep it short and link to deeper evidence artifacts when needed.
-
-```markdown
-# Audit remediation status
-
-Audit baseline: 5392728f51f9584c529b6e1e75f72e3d5ede7c85
-Working branch / starting SHA:
-Current SHA and uncommitted patch state:
-Toolchain / OS / features:
-
-## Current batch
-
-Task:
-Owning layer and files:
-Invariant / implementation decision:
-Progress and remaining work:
-
-## Finding status
-
-| Finding | Status | Implementation evidence | Verification / gaps |
-| ------- | ------ | ----------------------- | ------------------- |
-| F01     | open   |                         |                     |
-
-<!-- Include every finding through F16; retain separate subparts. -->
-
-## Commands and results
-
-| Command or CI job | SHA/patch | Environment | Outcome | Evidence |
-| ----------------- | --------- | ----------- | ------- | -------- |
-
-## Next task
-
-Next dependency-ready task:
-Known blockers and independent work that can continue:
-Required native/hardware evidence still missing:
-```
-
-Finish each implementation session with the reviewable diff, updated ledger, and a short explanation of what changed, what was tested, and what remains. Completion of this plan means the evidence supports its claims; it does not automatically authorize publishing or release.
+Before stopping a session, leave the diff reviewable, update the one ledger with evidence and the
+next ready task, and report failures/limitations candidly. The deferred product roadmap is lighting
+fixture/cue workflows, video decode/GPU composition, projection calibration/outputs, and dedicated
+creative/operator workspaces built on the exercised foundations above.

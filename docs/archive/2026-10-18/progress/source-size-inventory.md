@@ -1,5 +1,9 @@
 # Source size inventory
 
+> Historical September inventory and extraction history, archived on 2026-10-18.
+> Use the [maintained inventory](../../../reference/source-size-inventory.md).
+> Counts and remaining-work descriptions below apply to their recorded revisions.
+
 ## Ownership and scope
 
 The owning feature keeps each source file readable and reviewable; generated outputs, lockfiles,

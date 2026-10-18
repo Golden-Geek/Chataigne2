@@ -1,5 +1,10 @@
 # Built-in Mapping implementation status
 
+> Historical evidence archived on 2026-10-18. Instructions, pauses, task status, and
+> branch delivery requirements below are non-operative. Use the
+> [current implementation plan](../../../plan/Chataigne2_Codex_Implementation_Plan.md)
+> and [current status](../../../progress/implementation-status.md) for active work.
+
 ## Summary
 
 - Overall: COMPLETE

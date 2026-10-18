@@ -1,5 +1,13 @@
 # Chataigne2
 
+Chataigne2 is growing into one application for control, lighting creation, video/projection,
+and audio. The current implementation goal is foundation and readiness for that product.
+
+**To resume development, say “implement the plan”.** The single
+[implementation plan](docs/plan/Chataigne2_Codex_Implementation_Plan.md) defines scope and order;
+[implementation status](docs/progress/implementation-status.md) records the current handoff.
+Superseded plans and dated qualification evidence live in the [archive](docs/archive/2026-10-18/README.md).
+
 Chataigne2 is the desktop shell and product composition layer for the Golden engine and UI stack.
 The repository is one self-contained Cargo/npm monorepo with these ownership boundaries:
 

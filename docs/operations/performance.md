@@ -1,8 +1,22 @@
 # Performance Contracts
 
-Performance is an architecture boundary, not a late UI optimization. The engine must remain usable
-with 100,000 runtime values and the mounted workbench must remain responsive with 10,000 graph
-nodes.
+Performance is an architecture boundary, not a late UI optimization. The current product target
+is smooth normal use at **20k–50k authored nodes**, with 1k/10k baseline fixtures and a separate
+100k authored-node stress tier. Runtime values/lanes, authored nodes, visible nodes, audio voices,
+and media streams are different capacities. One million nodes is unqualified.
+
+The single [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md) defines current
+acceptance; the [status ledger](../progress/implementation-status.md) records actual outcomes.
+The mechanisms below include implemented components and required contracts, not a claim that all
+current product paths meet the targets. Historical measurements retain their source/fixture scope
+in the [archive](../archive/2026-10-18/README.md).
+
+Measure first visible feedback, continued interactivity/frame pacing, and final completion
+separately. The provisional ordinary-action target is p95 feedback within 200 ms at 20k/50k on a
+named reference machine. Bulk work needs truthful prompt progress and a workload-specific
+completion ceiling recorded before a run. Inspect the existing action-phase header first.
+100k stress batches may take longer while remaining responsive and coherent; a spinner does not
+excuse blocked processing. Revised targets never retroactively pass old failed gates.
 
 ## Runtime
 
@@ -116,12 +130,16 @@ npm run measure:graph-paint --workspace chataigne-ui -- \
   --report artifacts/graph-action-to-paint.browser-report.json
 ```
 
-The harness loads the real workbench through its WebSocket transport, waits for a 10k or 100k-node
-snapshot, then measures twenty 600-node transaction inserts through Svelte publication and two
-animation frames. Snapshot startup is excluded from the action window. The gate requires p95 at or
-below 250 ms for 10k and 500 ms for 100k, no browser errors, and no browser Long Tasks during the
-measured actions. On Windows x64 with Node 26, the T13 completion run measured p95 44.9 ms and
-40.9 ms respectively, with zero Long Tasks.
+The historical harness loads the workbench through its WebSocket transport, waits for a 10k or
+100k-node snapshot, then measures twenty 600-node inserts through a graph-count publication and
+two animation frames. Snapshot startup is excluded. Its 250/500 ms p95 gates and recorded T13
+44.9/40.9 ms results belong to that synthetic scenario. The graph canvas was not mounted; this
+cannot qualify dragging, wire routing, live meters, or complete product action-to-paint.
+
+Later real-product workbench/outliner qualification remained open (latest archived run: 288 ms
+p95 at 10k and 2,109 ms at 100k, with one Long Task). Keep that evidence distinct. P10/P16 add
+mounted-canvas interaction and the 20k/50k feedback/interactivity/completion gates. Whole-document
+canvas rebuilds, graph ordered-map edits, and Formula refresh costs remain identified bottlenecks.
 
 The Golden UI read model publishes fixed-shard copy-on-write projection roots. Snapshot requests
 capture a coherent event revision and project generation under a short projection read, then walk

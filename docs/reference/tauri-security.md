@@ -18,9 +18,16 @@
 - Browser-safe code paths must keep working without a desktop host.
 - Add each new desktop command to the explicit app permission only when the main window needs it.
 
-## Follow-Up Hardening
+## Remaining boundaries
 
-The remaining hardening step is a CSP that permits the loopback UI server, websocket transport, and
-static assets needed by the current UI without restoring broad global Tauri access. Treat direct
-Tauri imports outside `golden_ui/host/desktop.ts` and unreviewed additions to the desktop permission
-as regressions.
+Tauri capabilities do not authenticate the separate HTTP/WebSocket UI server. The October audit
+found privileged project/script endpoints without session/origin admission and wildcard CORS.
+Default loopback binding limits network reach but is not a request trust boundary. No browser
+exploit or arbitrary-code-execution path was demonstrated by that audit.
+
+The [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md#p05--establish-transport-trust-while-keeping-lan-convenient)
+owns the transport repair, preserving password-free LAN and development use. CSP also remains
+open: it must permit the configured UI assets and transport without restoring broad global Tauri
+access. Treat direct Tauri imports outside `golden_ui/host/desktop.ts` and unreviewed permission
+additions as regressions. Current qualification is recorded only in the
+[status ledger](../progress/implementation-status.md).
