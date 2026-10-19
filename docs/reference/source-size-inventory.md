@@ -7,8 +7,8 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-19 against delivered `95c64618376b6835841d8800ff1cbbaba0c72f1e` plus P03
-subtree revisions and cached UDP destinations on `main`. Scanned **1412 source files**; **42 exceed
+Refreshed 2026-10-19 against delivered `a617d313cb3e70191d53033b1ea13921e5f47201` plus P03
+native UDP preparation and shared snapshot leases on `main`. Scanned **1416 source files**; **42 exceed
 1,000 lines**. Persistence lifecycle and node behavior extractions brought
 `engine/persistence/mod.rs` and `node/core/behavior.rs` below the limit. No new size exceptions
 are established by this inventory. Standard formatting of the touched Sound Card modules also
@@ -20,7 +20,8 @@ Stream admission, JSON preparation, and the focused preparation regression file 
 Golden IO notification/deadline/payload modules and app UDP preparation/delivery adapters remain
 below 1000 lines. Golden Engine's shared change classifier, revision bookkeeping, and focused
 tests add three sources. UDP's output-plan cache and two focused test files add three more.
-All six remain below 1000 lines; no new size exception is introduced.
+All six remain below 1000 lines. Snapshot allocation accounting/lifetime modules and two focused
+UDP fixture/preparation files add four sources, all below 1000 lines; no new exception is introduced.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its

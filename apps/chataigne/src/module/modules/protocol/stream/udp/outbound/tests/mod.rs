@@ -17,7 +17,8 @@ fn large_destination_plan_retains_one_datagram_and_accounts_for_allocated_capaci
     let command = UdpOutboundSend::new(bytes, plan.clone(), false).unwrap();
     assert_eq!(command.len(), 10_000);
     assert_eq!(command.bytes().as_ptr(), address);
-    let expected = size_of::<UdpOutboundSend>()
+    let expected = TICKET_HEAP_BYTES
+        + size_of::<UdpOutboundSend>()
         + command.bytes.capacity()
         + size_of::<DestinationPlan>()
         + plan.0.targets.capacity() * size_of::<UdpOutputTarget>()
@@ -30,7 +31,10 @@ fn large_destination_plan_retains_one_datagram_and_accounts_for_allocated_capaci
     assert_eq!(command.weight(), expected);
     assert!(expected < UDP_COMMAND_BYTES);
     let another = UdpOutboundSend::new(vec![1], plan.clone(), false).unwrap();
-    assert!(std::ptr::eq(&*command.plan.0, &*another.plan.0));
+    assert!(std::ptr::eq(
+        &*command.plan.as_ref().unwrap().0,
+        &*another.plan.as_ref().unwrap().0
+    ));
 }
 
 #[test]

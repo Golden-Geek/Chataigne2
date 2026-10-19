@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `95c64618` plus the owned P03 batch 12 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `a617d313` plus the owned P03 batch 13 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,27 +13,26 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 12 subtree revision fencing, cached UDP destinations, and native
-  admission preflight verified locally. Reconcile its milestone commit and `origin/main` before resuming.
-  Batch 11 was delivered in `95c64618`; batch 10 was delivered in `e59ad7d5`. Separately committed
+- Current batch: P03 batch 13 native cold UDP preparation, budgeted snapshot leases, and atomic
+  shared-Arc final-owner handoff verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 12 was delivered in `a617d313`; batch 11 in `95c64618`; batch 10 in `e59ad7d5`. Separately committed
   footer UI parent `3b4bdc7b` and build-cache ancestor `5b81c44e` are preserved.
 - Delivery: `f02205af3baa1c2ebf49527104364980c3a7b920` committed the verified P01/P02/P03-through-batch-7
   milestone and milestone delivery policy. `codex/builtin-mapping` was fast-forwarded into `main`
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `95c64618`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `a617d313`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: finish the cold UDP output-plan preparation and failed-builder
-  cleanup boundary. Warm sends now reuse revision-fenced targets; cold traversal is iterative
-  without output-ID accumulation and checks borrowed hostnames before copying. Preserve whole-command mailbox admission,
-  the native destination cursor, and the now-passive incoming worker, configuration,
-  callback, disposal, retry, and shared stream cursor/receipt regressions. Continue TCP/WebSocket/serial
+- Next implementation action: continue the native reply-backpressure fairness audit and TCP/WebSocket/serial
   worker ownership and the full module/channel audit (including Sound Card
   stop/join, event-drain, admission/recovery, and configuration bounds) and generator time accounting.
+  Cold UDP preparation now runs in bounded native slices with reserved snapshot storage; preserve
+  revision-fenced pending/ready tickets, whole-command admission, FIFO fanout/retirement,
+  passive input, configuration, callback, disposal, retry, and shared stream cursor/receipt regressions.
   Preserve the lifecycle/replacement, bounded wake, and HTTP graph/callback failure regressions.
   Preserve the accumulated P01 repair and its regressions.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
@@ -55,7 +54,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-12 | Revision-fenced UDP reuse/admission verified; cold preparation and remaining module/generator bounds open                 |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-13 | Native cold UDP preparation and snapshot leases verified; broader module/channel/generator audit remains open             |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -1619,6 +1618,7 @@ Final batch 11 validation (Windows/default features, current source plus separat
 
 Focused whole-command admission/cursor/retirement verification is complete. **Return to High
 requested; actual effort unchanged/unobservable** because no supported control is exposed.
+
 Commit and push this verified milestone on `main`. Keep P03 **IN_PROGRESS** and resume the
 actor-side output-tree preparation/cleanup audit before the remaining module and generator work.
 
@@ -1717,3 +1717,107 @@ Focused revision/cache/admission ownership verification is complete. **Return to
 actual effort unchanged/unobservable** because no supported control is exposed. Commit and push
 the verified batch on `main`. P03 remains **IN_PROGRESS** for cold preparation, failed-builder
 cleanup, and the wider module/channel/generator audit. P04-P18 retain their implementation states.
+
+P03 batch 13 resumed at clean delivered `a617d313cb3e70191d53033b1ea13921e5f47201` on `main`,
+matching `origin/main`. Previous goal turn: **progress**, with batch 12 verified and delivered.
+No owned jobs remain live at resume. Cold worker preparation needs a byte-budgeted snapshot
+lease whose final owner stays off the actor, including ordinary engine-held Arc clones. Golden
+Engine owns allocation accounting and a canonical snapshot lease pool; Golden IO owns reusable
+shared-Arc lifetime mechanics. UDP preparation and target policy remain app-owned. **XHigh
+requested; actual effort unchanged/unobservable** because no supported control is exposed.
+
+### P03 batch 13: native cold UDP preparation and shared snapshot lifetime
+
+- Golden IO can retain an existing immutable Arc, deduplicating its reservation without wrapping
+  away ordinary raw owners. Its disposer alone checks external releases every 100 ms, keeps item
+  and byte capacity through final cleanup, and survives the last pool handle. New regressions
+  verify deduplication, original-Arc rejection, ordinary-owner capacity retention, and off-consumer
+  final destruction. A final ownership review also replaced the collector's strong-count-only
+  destruction with an atomic unwrap claim: a concurrent weak-reference upgrade returns the pool
+  owner for retry instead of moving final destruction onto a consumer. A direct regression covers
+  both a rejected claim and weak invalidation after success. This generic correction postdates the
+  first app pass; final validation must use the corrected IO implementation.
+- Golden Engine owns cached conservative allocation accounting for snapshot records, dynamic
+  parameter/control/constraint/presentation/script/dashboard data, spare capacities, aliases, and
+  revision indexes. Snapshot clones share overlays as well as base storage. The canonical
+  384-allocation / 1 GiB snapshot lease reserves the outer view and each shared allocation, so
+  ordinary clones cannot move final shared-data cleanup back onto the actor. No protocol or
+  persistence format changed; these reservations do not claim whole-process RSS qualification.
+- UDP submits preparation and send as one bounded native envelope. The first admitted command
+  owns a frozen snapshot lease and constant-space traversal cursor; matching revisions share its
+  pending or completed ticket. Preparation yields after 64 traversal steps, checks cancellation
+  per step, validates borrowed hosts before copying, and seals the entire plan before sending.
+  Builder failure and cancellation cleanup run on the worker. Async errors truthfully report no
+  output sent; native setup failure resolves every admitted ticket. Transient failures may retry.
+  Cache installation follows successful native admission, preventing stranded pending tickets.
+- Pending envelopes reserve a conservative plan bound (at most the command budget less payload
+  headroom); prepared envelopes charge actual retained capacity. Snapshot storage has its separate
+  canonical reservation. The existing 256-item / 1 MiB command mailbox, single extra native
+  cursor, FIFO fanout, graceful retirement, passive wake/recovery, and reply limits remain.
+  Default output creation now checks only whether its manager is empty, preserving user folders
+  without an actor-side search.
+- New controlled tests cover a 20k-deep tree, bounded native traversal, cancellation, pending-ticket
+  reuse, invalid preparation after blocked setup, and accepted old-configuration ownership while
+  a replacement envelope is rejected. Engine tests cover dynamic spare capacity, COW overlays,
+  every variable-sized DTO group, and a lease of a 50k-record immutable view. This is deterministic
+  boundary evidence, not full-product scale or native interaction qualification.
+- Intermediate compile failures were corrected: an accounting match initially assumed a widget
+  enum was Copy; fixture migration left stale helper calls; a request destructure omitted
+  `frame_kind`. Missing public error-field docs were also fixed. The subsequent combined
+  engine/app test compilation passed. These diagnostics do not establish the separate final gates.
+- PASSED `cargo test-fast --locked -p Chataigne2 --bin Chataigne2
+module_modules_protocol_stream_udp`: **34/34**. Final app preservation filters on that exact
+  binary passed concrete streams **55** (including UDP), shared streams **44**, HTTP **36**,
+  Sound Card/null **36**, OSC/OSCQuery **25**, and initial Formula cache **1**: **197 distinct app
+  tests**. Controlled failures and an occupied default TCP fixture port were diagnostics in passing
+  suites. No physical device or GUI automation was used.
+- Source inventory: **1416 files / 42 oversized**, no new exception. Runtime source is frozen for
+  final full engine/IO, strict Clippy, workspace/test, and native build checks; those commands are
+  pending/running and are not yet acceptance evidence. The user's Cargo watcher was left running;
+  validation waited for its native compiler to release the shared build lock.
+
+The optimized `cargo test --locked -p golden_engine -p golden_io` completed successfully:
+engine **530 unit + 8 integration + 7 doctests**, with **3 ignored**, and IO **35 tests**. This
+binary predates the atomic ownership-claim addition; the fresh dev-profile engine/IO and app
+runs below must qualify that final change. `cargo check --locked --workspace --tests` passed.
+The first strict Clippy run rejected the new disposer callback's complex function type; named
+erased-payload/callback types replace it. That lint rerun and the native/default build remain live.
+
+The first native/default build passed without cache cleaning; a second UDP run also passed 34/34.
+The final ownership review tightened atomic claims further: claim/reinsertion happens under the
+registry lock, with destruction deferred outside it. This prevents weak revival plus concurrent
+registration from creating a duplicate pool owner while a claim is in flight. The direct regression
+also asserts that claiming alone never invokes a destructor. This last synchronization change
+requires the fresh core/IO, app, lint, and native checks below; earlier passes are preserved evidence.
+
+Final synchronization source passed `cargo test-fast --locked -p golden_io -p golden_engine`:
+engine **530 unit + 8 integration + 7 doctests** and IO **36 tests**, with the same **3 ignored**
+engine measurements. Focused shared-snapshot/Arc ownership verification is complete. **Return
+to High requested; actual effort unchanged/unobservable** because no supported control is exposed.
+The next Clippy pass found an engine revision-lease result type needing an alias and a test's
+default-then-field initializer; both were mechanically corrected without behavior changes.
+Routine final app/native/lint closeout remains. No further runtime design changes are planned.
+
+The final `cargo test-fast --locked -p Chataigne2 --bin Chataigne2
+module_modules_protocol_stream_udp` passed **34/34**. All six preservation filters were rerun
+against that rebuilt binary and passed the same **197 distinct app tests**. Together with
+engine **545** and IO **36**, this milestone records **778 passing tests**, plus **3 ignored**
+manual engine measurements; overlapping profiles/UDP subsets are not added again. The full
+engine/IO pass preceded only the revision result-type alias and equivalent test initializer
+cleanup; final Clippy recompiles those sources. The final native build and lint remain live.
+
+Final `cargo clippy --locked -p golden_engine -p golden_io -p Chataigne2 --all-targets -- -D
+warnings` and `cargo build --locked -p Chataigne2 --bin Chataigne2` **PASSED**. No native-link
+cache clean or runtime workaround was needed in this batch; the prior recurring artifact issue
+remains open under P12. Workspace/test compilation passed before the mechanical alias/initializer
+cleanup; final strict lint and native compilation cover those sources. All owned jobs are terminal.
+Windows/default features were used. Controlled loopback, missing serial endpoints, and null audio
+fixtures do not qualify physical devices, other platforms, ignored measurements, or full-product scale.
+
+Commit and push this verified milestone on `main`. P03 remains **IN_PROGRESS** for the native
+reply-backpressure fairness and broader module/channel/generator audits. P04-P18 retain their
+implementation states. Preserve the user's running watcher and all earlier delivered work.
+
+Closeout formatting evidence: root and Golden Core `cargo fmt --all` / `--check`, maintained-doc
+Prettier, and `git diff --check` passed. Source inventory remains **1416 / 42 oversized**. No new
+size exception, generated protocol drift, dependency change, or unrelated source edit is included.

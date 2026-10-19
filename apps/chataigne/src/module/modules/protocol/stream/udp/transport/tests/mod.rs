@@ -1,6 +1,7 @@
 use super::super::outbound::OutputPlanBuilder;
 use super::*;
 mod fanout;
+mod preparation;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,

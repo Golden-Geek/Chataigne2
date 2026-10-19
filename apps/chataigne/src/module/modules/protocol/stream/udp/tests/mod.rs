@@ -11,6 +11,7 @@ use super::UdpModule;
 
 mod input_delivery;
 mod output_preparation;
+pub(super) mod snapshot;
 
 #[test]
 fn udp_idle_runtime_is_passive_and_does_not_schedule_periodic_node_work() {

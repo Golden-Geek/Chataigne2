@@ -92,6 +92,13 @@ realtime-safe queues.
 final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node
 polling clock. A `PayloadPool` can retain prepared data through consumer ownership and perform
 its final destruction on a background disposer; graph/event-owned copies keep their own lifetimes.
+`ProcessTreeSnapshot::retained_bytes` exposes a cached conservative allocation weight, computed
+when the view is built; cloning the view and reading that weight are constant-time. A background
+consumer can acquire `try_lease` without copying node records. Golden Engine's canonical
+384-allocation / 1 GiB pool reserves the outer view and its deduplicated shared storage, including
+data still held by ordinary clones or overlays. Its disposer owns final destruction. Exhaustion
+returns a typed rejection before handing a snapshot to a new consumer; it never creates an
+unbudgeted cleanup worker. App-specific preparation and destination policy remain in the app.
 
 Unprocessed wakes and callback-absorption failures return to their reserved slots. Deferred-edit
 receipts retain readiness until application settles; failure re-arms the node's level notification,

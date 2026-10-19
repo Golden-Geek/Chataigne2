@@ -11,6 +11,7 @@ fn immediate_endpoint_edit_invalidates_the_cache_without_reinterpreting_an_accep
     let outputs = child_by_decl(&engine, connection, "outputs");
     let output = engine.nodes.get(outputs).unwrap().node_data().first_child.unwrap();
     let port = child_by_decl(&engine, output, "remote_port");
+    let mut bytes = [0; 16];
     for (socket, text) in [(&old, "old"), (&new, "new")] {
         set_param(
             &mut engine,
@@ -23,12 +24,9 @@ fn immediate_endpoint_edit_invalidates_the_cache_without_reinterpreting_an_accep
             args: vec![ParamValue::Str(text.into())],
         });
         engine.apply_edits().unwrap();
+        assert_eq!(socket.recv(&mut bytes).unwrap(), 3);
+        assert_eq!(&bytes[..3], text.as_bytes());
     }
-    let mut bytes = [0; 16];
-    assert_eq!(old.recv(&mut bytes).unwrap(), 3);
-    assert_eq!(&bytes[..3], b"old");
-    assert_eq!(new.recv(&mut bytes).unwrap(), 3);
-    assert_eq!(&bytes[..3], b"new");
     old.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
     assert!(old.recv(&mut bytes).is_err());
 }

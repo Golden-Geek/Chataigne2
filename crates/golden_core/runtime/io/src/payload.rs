@@ -8,9 +8,28 @@ use std::{
     time::{Duration, Instant},
 };
 
+type ErasedPayload = Arc<dyn Any + Send + Sync>;
+type ClaimedPayload = Box<dyn Any + Send + Sync>;
+type Claim = fn(ErasedPayload) -> Result<ClaimedPayload, ErasedPayload>;
+
 struct Entry {
-    value: Arc<dyn Any + Send + Sync>,
+    value: ErasedPayload,
+    claim: Claim,
     weight: usize,
+    external: bool,
+}
+
+// A strong-count observation is only a scheduling hint: Weak::upgrade can race it.
+// Claim under the registry lock so concurrent registration cannot miss an entry
+// being claimed. The returned value is destroyed only after releasing that lock.
+fn claim<T: Send + Sync + 'static>(value: ErasedPayload) -> Result<ClaimedPayload, ErasedPayload> {
+    let Ok(value) = value.downcast::<T>() else {
+        unreachable!("payload disposer type matches its entry");
+    };
+    match Arc::try_unwrap(value) {
+        Ok(value) => Ok(Box::new(value)),
+        Err(value) => Err(value),
+    }
 }
 
 struct State {
@@ -18,6 +37,7 @@ struct State {
     owners: usize,
     active: usize,
     retained_bytes: usize,
+    external: usize,
 }
 
 struct Shared {
@@ -50,6 +70,7 @@ impl PayloadPool {
                 owners: 1,
                 active: 0,
                 retained_bytes: 0,
+                external: 0,
             }),
             changed: Condvar::new(),
             maximum_items,
@@ -80,11 +101,59 @@ impl PayloadPool {
         let value = Arc::new(value);
         state.entries.push(Entry {
             value: value.clone(),
+            claim: claim::<T>,
             weight,
+            external: false,
         });
         state.active += 1;
         state.retained_bytes += weight;
         self.0.changed.notify_all();
+        Ok(RetainedPayload {
+            value: Some(value),
+            shared: self.0.clone(),
+        })
+    }
+
+    /// Retains an existing immutable Arc, including clones held outside this API.
+    /// Use one canonical pool for a given Arc; independent final owners in separate pools
+    /// would keep each other alive. Repeated registration in this pool shares one reservation.
+    /// External Arc releases have no notification, so the disposer checks these entries at
+    /// most once per 100ms while idle. No polling or final destruction runs on consumers.
+    pub fn try_retain_arc<T: Send + Sync + 'static>(
+        &self,
+        value: Arc<T>,
+        weight: usize,
+    ) -> Result<RetainedPayload<T>, PayloadCapacityError<Arc<T>>> {
+        let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
+        let pointer = Arc::as_ptr(&value).cast::<()>();
+        if let Some(entry) = state
+            .entries
+            .iter()
+            .find(|entry| Arc::as_ptr(&entry.value).cast::<()>() == pointer)
+        {
+            if !entry.external || weight > entry.weight {
+                return Err(PayloadCapacityError(value));
+            }
+        } else {
+            if state.active == self.0.maximum_items
+                || state
+                    .retained_bytes
+                    .checked_add(weight)
+                    .is_none_or(|bytes| bytes > self.0.maximum_bytes)
+            {
+                return Err(PayloadCapacityError(value));
+            }
+            state.entries.push(Entry {
+                value: value.clone(),
+                claim: claim::<T>,
+                weight,
+                external: true,
+            });
+            state.active += 1;
+            state.external += 1;
+            state.retained_bytes += weight;
+            self.0.changed.notify_all();
+        }
         Ok(RetainedPayload {
             value: Some(value),
             shared: self.0.clone(),
@@ -135,17 +204,32 @@ impl Shared {
                 .position(|entry| Arc::strong_count(&entry.value) == 1)
             {
                 let entry = state.entries.swap_remove(index);
+                let value = match (entry.claim)(entry.value) {
+                    Ok(value) => value,
+                    Err(value) => {
+                        state.entries.push(Entry { value, ..entry });
+                        continue;
+                    }
+                };
                 drop(state);
                 // No payload destructor or arbitrary native cleanup runs under the state lock.
-                let _ = catch_unwind(AssertUnwindSafe(|| drop(entry.value)));
+                let _ = catch_unwind(AssertUnwindSafe(|| drop(value)));
                 state = self.state.lock().unwrap_or_else(|p| p.into_inner());
                 state.active -= 1;
+                state.external -= usize::from(entry.external);
                 state.retained_bytes -= entry.weight;
                 self.changed.notify_all();
             } else if state.owners == 0 && state.active == 0 {
                 return;
             } else {
-                state = self.changed.wait(state).unwrap_or_else(|p| p.into_inner());
+                state = if state.external > 0 {
+                    self.changed
+                        .wait_timeout(state, Duration::from_millis(100))
+                        .unwrap_or_else(|p| p.into_inner())
+                        .0
+                } else {
+                    self.changed.wait(state).unwrap_or_else(|p| p.into_inner())
+                };
             }
         }
     }

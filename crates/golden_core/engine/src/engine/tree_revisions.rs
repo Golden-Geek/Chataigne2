@@ -27,7 +27,18 @@ impl Default for RevisionSnapshot {
     }
 }
 
+type RevisionLease = Result<
+    golden_io::RetainedPayload<HashMap<NodeId, u64>>,
+    golden_io::PayloadCapacityError<Arc<HashMap<NodeId, u64>>>,
+>;
+
 impl RevisionSnapshot {
+    pub(crate) fn try_lease(&self, pool: &golden_io::PayloadPool, weight: usize) -> RevisionLease {
+        pool.try_retain_arc(self.by_node.clone(), weight)
+    }
+    pub(crate) fn retained_heap_bytes(&self) -> usize {
+        crate::process_ctx::memory::arc_map(&self.by_node)
+    }
     pub(crate) fn fold_subtrees(&mut self, nodes: &HashMap<NodeId, crate::process_ctx::ProcessTreeNodeSnapshot>) {
         let mut children: HashMap<_, usize> = nodes.keys().map(|id| (*id, 0)).collect();
         for node in nodes.values() {

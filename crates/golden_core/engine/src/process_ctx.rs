@@ -18,6 +18,10 @@ use crate::parameter::{
 };
 use serde::Serialize;
 
+mod lease;
+pub(crate) mod memory;
+pub use lease::SnapshotLeaseError;
+
 /// Parameter fields needed by a process-tree callback snapshot.
 ///
 /// The full parameter DTO also carries editor defaults and UI hints; cloning those
@@ -172,14 +176,31 @@ struct ProcessTreeChildIndexes {
 }
 
 /// Shared read-only tree snapshot for one processing pass.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ProcessTreeSnapshot {
+    weights: memory::AllocationWeights,
+    storage_leases: std::sync::OnceLock<lease::StorageLeases>,
     revisions: RevisionSnapshot,
     root: NodeId,
     nodes: Arc<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
-    node_overrides: HashMap<NodeId, ProcessTreeNodeSnapshot>,
+    node_overrides: Arc<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
     node_ids_by_uuid: Arc<HashMap<NodeUuid, NodeId>>,
     child_indexes: Arc<ProcessTreeChildIndexes>,
+}
+
+impl Clone for ProcessTreeSnapshot {
+    fn clone(&self) -> Self {
+        Self {
+            weights: self.weights,
+            storage_leases: std::sync::OnceLock::new(),
+            revisions: self.revisions.clone(),
+            root: self.root,
+            nodes: self.nodes.clone(),
+            node_overrides: self.node_overrides.clone(),
+            node_ids_by_uuid: self.node_ids_by_uuid.clone(),
+            child_indexes: self.child_indexes.clone(),
+        }
+    }
 }
 
 impl ProcessTreeSnapshot {
@@ -190,14 +211,18 @@ impl ProcessTreeSnapshot {
             node_ids_by_uuid.entry(node.uuid).or_insert(*node_id);
         }
         let child_indexes = Self::build_child_indexes(&nodes);
-        Self {
+        let mut snapshot = Self {
+            weights: memory::AllocationWeights::default(),
+            storage_leases: std::sync::OnceLock::new(),
             revisions: RevisionSnapshot::default(),
             root,
             nodes: Arc::new(nodes),
-            node_overrides: HashMap::new(),
+            node_overrides: Arc::new(HashMap::new()),
             node_ids_by_uuid: Arc::new(node_ids_by_uuid),
             child_indexes,
-        }
+        };
+        snapshot.weights = memory::weights(&snapshot);
+        snapshot
     }
 
     pub(crate) fn from_indexed_nodes(
@@ -208,14 +233,18 @@ impl ProcessTreeSnapshot {
     ) -> Self {
         let child_indexes = Self::build_child_indexes(&nodes);
         revisions.fold_subtrees(&nodes);
-        Self {
+        let mut snapshot = Self {
+            weights: memory::AllocationWeights::default(),
+            storage_leases: std::sync::OnceLock::new(),
             revisions,
             root,
             nodes: Arc::new(nodes),
-            node_overrides: HashMap::new(),
+            node_overrides: Arc::new(HashMap::new()),
             node_ids_by_uuid: Arc::new(node_ids_by_uuid),
             child_indexes,
-        }
+        };
+        snapshot.weights = memory::weights(&snapshot);
+        snapshot
     }
 
     fn build_child_indexes(nodes: &HashMap<NodeId, ProcessTreeNodeSnapshot>) -> Arc<ProcessTreeChildIndexes> {
@@ -303,6 +332,15 @@ impl ProcessTreeSnapshot {
         self.nodes.len()
     }
 
+    /// Cached conservative allocation reservation, including shared indexes and spare
+    /// container capacity. Shared storage is charged in full; this is not RSS telemetry.
+    /// Overlay accounting revisits only overridden records, never the shared node graph.
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            .saturating_add(2 * std::mem::size_of::<usize>())
+            .saturating_add(self.weights.total())
+    }
+
     /// Constant-time authored subtree identity for prepared read models. Includes descendant
     /// parameter, metadata, and topology writes before callbacks run. Ancestor metadata and
     /// inherited enabled state are outside this subtree; check its root's `enabled` separately.
@@ -326,7 +364,7 @@ impl ProcessTreeSnapshot {
             {
                 let mut replacement = node.clone();
                 replacement.param_value = Some(value);
-                snapshot.node_overrides.insert(node_id, replacement);
+                Arc::make_mut(&mut snapshot.node_overrides).insert(node_id, replacement);
                 changed = true;
             }
         }
@@ -334,6 +372,8 @@ impl ProcessTreeSnapshot {
             // Overlays have no engine mutation clock; invalidate their read models
             // conservatively while keeping clones of an unchanged snapshot comparable.
             snapshot.revisions = RevisionSnapshot::default();
+            snapshot.weights.overlays = memory::overlays(&snapshot.node_overrides);
+            snapshot.weights.revisions = snapshot.revisions.retained_heap_bytes();
         }
         snapshot
     }

@@ -29,8 +29,7 @@ use crate::app::{
 };
 
 use self::lifecycle::{UdpTransportEvent, UdpTransports};
-use self::outbound::UdpOutboundSend;
-use self::output_plan::{OutputNodes, OutputPlanCache};
+use self::output_plan::OutputPlanCache;
 use self::transport::UdpStreamingTransportConfig;
 
 const UDP_INPUT_WARNING_ID: &str = "udp_input_transport";
@@ -316,7 +315,7 @@ impl UdpModule {
             return;
         };
 
-        if OutputNodes::new(snapshot, outputs_id).next().is_some() {
+        if snapshot.node(outputs_id).is_none_or(|node| node.first_child.is_some()) {
             return;
         }
 
@@ -326,7 +325,7 @@ impl UdpModule {
     fn queue_send_request(
         &mut self,
         ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
         request: StreamingSendRequest,
     ) -> Result<String, String> {
         if !self.transports.accepts_commands() {
@@ -339,16 +338,32 @@ impl UdpModule {
         let root = self
             .outputs_node_id(snapshot)
             .ok_or("UDP output folder is unavailable")?;
-        let plan = output_plan::cached_plan(&mut self.output_plan, snapshot, root)?;
-        let command = UdpOutboundSend::new(request.bytes, plan, self.stream.log_outgoing_enabled())?;
-        let count = command.len();
+        let StreamingSendRequest {
+            bytes,
+            description,
+            frame_kind: _,
+        } = request;
+        let (command, candidate) = output_plan::command(
+            &mut self.output_plan,
+            snapshot,
+            root,
+            bytes,
+            self.stream.log_outgoing_enabled(),
+        )?;
+        let count = command.prepared_count();
         let outcome = self.transports.send(command);
         if !self.transports.accepts_commands() {
             self.output_plan = None;
         }
         outcome?;
+        if self.transports.accepts_commands() {
+            self.output_plan = Some(candidate);
+        }
         self.stream.emit_outgoing_traffic(ctx);
-        Ok(format!("Queued UDP {} for {count} output(s)", request.description))
+        Ok(match count {
+            Some(count) => format!("Queued UDP {description} for {count} output(s)"),
+            None => format!("Queued UDP {description} for native output preparation and send"),
+        })
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -362,11 +377,9 @@ impl UdpModule {
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let snapshot = snapshot_arc.as_ref();
-
         if let Err(error) = serde_json::from_value::<StreamingSendRequest>(request.payload)
             .map_err(|error| format!("invalid UDP command payload: {error}"))
-            .and_then(|payload| self.queue_send_request(ctx, snapshot, payload))
+            .and_then(|payload| self.queue_send_request(ctx, &snapshot_arc, payload))
         {
             logerror!(format!(
                 "Failed to handle UDP command {:?}: {error}",
@@ -549,7 +562,7 @@ impl Node for UdpModule {
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, snapshot_arc.as_ref(), request)?;
+            self.queue_send_request(ctx, &snapshot_arc, request)?;
             return Ok(true);
         }
 

@@ -1,4 +1,75 @@
 use super::*;
+
+#[test]
+fn atomic_disposal_claim_rejects_a_new_strong_owner_and_invalidates_weak_revival() {
+    let (tx, rx) = mpsc::channel();
+    let value = Arc::new(Payload(tx));
+    let weak = Arc::downgrade(&value);
+    let other = weak.upgrade().unwrap();
+    let returned = claim::<Payload>(value).expect_err("a second strong owner prevents disposal");
+    assert!(rx.try_recv().is_err());
+    drop(other);
+    let claimed = claim::<Payload>(returned).unwrap();
+    assert!(
+        rx.try_recv().is_err(),
+        "claiming must not run a destructor under the registry lock"
+    );
+    assert!(
+        weak.upgrade().is_none(),
+        "a successful claim prevents weak resurrection"
+    );
+    drop(claimed);
+    rx.recv_timeout(Duration::from_secs(2)).unwrap();
+}
+
+#[test]
+fn external_arc_leases_share_one_reservation_and_poll_final_raw_release_off_consumer() {
+    struct Probe(std::sync::mpsc::Sender<std::thread::ThreadId>);
+    impl Drop for Probe {
+        fn drop(&mut self) {
+            self.0.send(std::thread::current().id()).unwrap();
+        }
+    }
+    let (dropped_tx, dropped_rx) = std::sync::mpsc::channel();
+    let raw = Arc::new(Probe(dropped_tx));
+    let pool = PayloadPool::new("external-arc-test", 1, 64).unwrap();
+    let first = pool.try_retain_arc(raw.clone(), 64).unwrap();
+    let second = pool.try_retain_arc(raw.clone(), 64).unwrap();
+    let rejected = pool.try_retain_arc(raw.clone(), 65).unwrap_err().into_value();
+    assert!(Arc::ptr_eq(&raw, &rejected));
+    drop(rejected);
+    drop(first);
+    drop(second);
+    assert!(
+        pool.try_retain(1u32, 1).is_err(),
+        "ordinary engine owners still retain capacity"
+    );
+    assert!(!pool.wait_for_idle(Duration::from_millis(150)));
+    let consumer = std::thread::current().id();
+    drop(raw); // No RetainedPayload notification accompanies this final external release.
+    assert_ne!(dropped_rx.recv_timeout(Duration::from_secs(2)).unwrap(), consumer);
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+    assert!(pool.try_retain(7u32, 64).is_ok());
+}
+
+#[test]
+fn an_external_arc_can_outlive_the_pool_handle_without_losing_its_background_final_owner() {
+    struct Probe(std::sync::mpsc::Sender<std::thread::ThreadId>);
+    impl Drop for Probe {
+        fn drop(&mut self) {
+            self.0.send(std::thread::current().id()).unwrap();
+        }
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    let raw = Arc::new(Probe(tx));
+    let pool = PayloadPool::new("external-arc-shutdown", 1, 64).unwrap();
+    drop(pool.try_retain_arc(raw.clone(), 64).unwrap());
+    drop(pool);
+    assert!(rx.recv_timeout(Duration::from_millis(150)).is_err());
+    let consumer = std::thread::current().id();
+    drop(raw);
+    assert_ne!(rx.recv_timeout(Duration::from_secs(2)).unwrap(), consumer);
+}
 use std::sync::mpsc;
 
 struct Payload(mpsc::Sender<String>);

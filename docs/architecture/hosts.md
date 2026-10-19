@@ -122,6 +122,11 @@ a prepared value. Its retained handle gives consumers read-only access while the
 final strong owner. Destruction happens outside the pool lock, capacity stays reserved through
 blocked cleanup, and dropping the host handle does not join. Destructor panic is contained so
 later cleanup can continue. Consumers must not grow interior storage beyond the declared weight.
+`try_retain_arc` also protects existing immutable Arcs and deduplicates their reservation within
+one canonical pool. Ordinary Arc releases cannot notify it; while such entries exist, only the
+disposer checks final ownership every 100 ms. An atomic unwrap claims final ownership so a
+concurrent weak-reference upgrade cannot move destruction onto a consumer. Capacity stays
+reserved through failed claims and cleanup.
 App stream data uses one shared pool capped at 256 payloads / 256 MiB. Message vectors and strings
 are therefore finally disposed outside node callbacks, including after producer failure or node
 removal. Graph-owned value copies and engine-owned event/replay payloads have separate lifetimes;
@@ -130,17 +135,22 @@ these admission bounds are not a whole-process RSS or event-history budget.
 The app-owned UDP adapter owns socket generations in `stream/udp/lifecycle.rs`, using one active
 or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup, packet
 sends, parsing, script-argument preparation, and bounded log formatting stay on the worker.
-Command admission is bounded by 256 items / 1 MiB; each item owns one payload and a frozen,
-ordered destination plan shared with the module's revision cache. Admission accepts or rejects the whole command before any send;
-an invalid or oversized later destination cannot admit its valid prefix. Allocated payload,
-destination slots, and hostname capacity all contribute to the cached weight. One native cursor
+Command admission is bounded by 256 items / 1 MiB; each item owns one payload and a frozen
+destination-plan ticket shared with the module's revision cache. A cold command also carries
+a budgeted snapshot lease and native preparation cursor in that same envelope. Admission accepts
+or rejects the whole command before preparation or send; an invalid or oversized later
+destination cannot send its valid prefix. Allocated payload, destination slots, ticket storage,
+and hostname capacity contribute to the weight. Pending plans reserve a snapshot-derived upper
+bound capped below the command limit; ready plans charge their actual retained allocation.
+One native cursor
 retains at most one additional command outside the mailbox, bounded by another 1 MiB. Graceful
 retirement completes that cursor and every queued command in FIFO order. Cancellation abandons
 the destination; network failure is reported per destination without replaying prior sends.
 Reply admission uses 64 items / 32 MiB, charging prepared values and callback allocations.
-Each native turn services at most 16 destinations (across command boundaries)
-and 16 incoming packets, and an owner drain extracts at most four events. Oversized UDP payloads
-and host names fail admission synchronously. These bounds cover retained transport allocations;
+Each native turn services at most 16 destinations (across command boundaries), or yields cold
+preparation after 64 traversal steps, then services at most 16 incoming packets. An owner drain
+extracts at most four events. Oversized UDP payloads fail synchronously; cold plan validation
+errors arrive asynchronously before any output is sent. These bounds cover retained transport allocations;
 shared stream preparation and graph application use the separate bounds below. A maximum raw
 datagram and its callbacks fit the reply budget. A node drains one batch of at most four events
 and publishes one prepared callback at a time with its own completion receipt. Failed publication
@@ -156,10 +166,16 @@ admission hints observe native closure independently of reply draining and queue
 actual send remains authoritative because closure can race with preparation. UDP releases its
 cache on closure/disconnection while retaining it under ordinary queue pressure.
 Cold preparation uses constant-space folder links and validates borrowed hostnames before copying;
-it no longer recurses or allocates an intermediate output-ID list. Only successful plans are cached,
-so temporary payload-pool saturation can recover on a later call. Cold scanning and failed-builder
-cleanup remain synchronous and need a bounded preparation boundary. Avoid a whole-tree snapshot
-rebuild per cursor turn or an unbudgeted snapshot per queued command when finishing that repair.
+it never recurses or allocates an intermediate output-ID list. Native preparation, cancellation,
+and failed-builder cleanup stay on the worker. Pending and successful tickets can be reused only
+after their owning command was admitted; rejected admission never installs an ownerless ticket.
+Transient preparation failures permit a later retry; invalid configurations remain rejected until
+their subtree revision changes. The applied view is captured once, with no per-turn snapshot rebuild.
+Golden Engine caches conservative snapshot allocation weights and leases actual shared storage
+through one canonical 384-allocation / 1 GiB pool. Ordinary snapshot clones and overlays retain
+the reservation until they release the shared data; final destruction stays off the actor.
+These are allocation reservations, not a whole-process RSS bound. Default output creation only
+adds an output when its manager is empty; existing user folder structure is preserved without a scan.
 
 UDP nodes are passive. Reply/exit notifications and shared retry deadlines drive service without
 scheduled updates or an idle compiled kernel. Settings are copied on the worker input boundary;

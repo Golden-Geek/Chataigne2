@@ -1,76 +1,67 @@
+use super::super::tests::snapshot::nested_snapshot;
 use super::*;
-use golden_core::{
-    node::{DashboardWidgetTargetDescriptor, NodeUuid, PresentationHint},
-    process_ctx::ProcessTreeNodeSnapshot,
-};
-use std::collections::HashMap;
 
-fn node(id: u64, parent: Option<u64>, kind: &str) -> ProcessTreeNodeSnapshot {
-    ProcessTreeNodeSnapshot {
-        id: NodeId(id),
-        uuid: NodeUuid(uuid::Uuid::from_u128(u128::from(id))),
-        parent: parent.map(NodeId),
-        first_child: None,
-        next_sibling: None,
-        node_type: kind.into(),
-        decl_id: String::new(),
-        short_name: String::new(),
-        label: String::new(),
-        tags: Vec::new(),
-        presentation: PresentationHint::default(),
-        enabled: true,
-        can_be_disabled: true,
-        child_count: 0,
-        param_value: None,
-        param_constraints: None,
-        param_control: None,
-        dashboard_widget_target: DashboardWidgetTargetDescriptor::inspector_only(),
-        script_properties: HashMap::new(),
-        script_methods: Vec::new(),
-    }
-}
-
-fn nested_snapshot(depth: u64, host: &str) -> ProcessTreeSnapshot {
-    let mut nodes = HashMap::new();
-    for id in 1..=depth + 1 {
-        let mut folder = node(id, (id > 1).then_some(id - 1), "folder");
-        folder.first_child = Some(NodeId(id + 1));
-        nodes.insert(NodeId(id), folder);
-    }
-    let output = depth + 2;
-    let mut target = node(output, Some(output - 1), UDP_OUTPUT_NODE_TYPE);
-    target.first_child = Some(NodeId(output + 1));
-    nodes.insert(NodeId(output), target);
-    let mut host_param = node(output + 1, Some(output), "parameter");
-    host_param.decl_id = "remote_host".into();
-    host_param.param_value = Some(ParamValue::Str(host.into()));
-    host_param.next_sibling = Some(NodeId(output + 2));
-    nodes.insert(NodeId(output + 1), host_param);
-    let mut port = node(output + 2, Some(output), "parameter");
-    port.decl_id = "remote_port".into();
-    port.param_value = Some(ParamValue::Int(9000));
-    nodes.insert(NodeId(output + 2), port);
-    ProcessTreeSnapshot::new(NodeId(1), nodes)
+#[test]
+fn native_preparation_yields_after_a_bounded_number_of_edges() {
+    let snapshot = Arc::new(nested_snapshot(20_000, "127.0.0.1", 9000));
+    let (mut send, _) = command(&mut None, &snapshot, NodeId(1), vec![1], false).unwrap();
+    let visits = std::cell::Cell::new(0);
+    assert!(!send.prepare_turn(|| { visits.set(visits.get() + 1); false }).unwrap());
+    assert_eq!(visits.get(), PREPARATION_EDGES_PER_TURN);
+    assert!(send.prepared_count().is_none());
+    send.prepare(|| false).unwrap();
+    assert_eq!(send.len(), 1);
 }
 
 #[test]
 fn deep_folder_preparation_uses_no_recursive_stack_or_output_id_accumulation() {
-    let snapshot = nested_snapshot(20_000, "127.0.0.1");
-    let plan = prepare(&snapshot, NodeId(1)).unwrap();
+    let snapshot = nested_snapshot(20_000, "127.0.0.1", 9000);
+    let plan = prepare(&snapshot, NodeId(1), UDP_PLAN_BYTES, || false).unwrap();
     assert_eq!(plan.len(), 1);
     assert_eq!(plan.target(0).remote_host, "127.0.0.1");
 }
 
 #[test]
-fn unchanged_snapshot_reuses_plan_storage_and_invalid_hosts_reject_before_admission() {
-    let snapshot = nested_snapshot(2, "127.0.0.1");
+fn pending_native_owner_is_reused_and_invalid_hosts_fail_without_publishing_a_prefix() {
+    let snapshot = Arc::new(nested_snapshot(2, "127.0.0.1", 9000));
     let mut cache = None;
-    let first = cached_plan(&mut cache, &snapshot, NodeId(1)).unwrap();
-    let second = cached_plan(&mut cache, &snapshot, NodeId(1)).unwrap();
+    let (mut first, candidate) = command(&mut cache, &snapshot, NodeId(1), vec![1], false).unwrap();
+    assert!(first.prepared_count().is_none());
+    cache = Some(candidate);
+    let (mut second, _) = command(&mut cache, &snapshot, NodeId(1), vec![2], false).unwrap();
+    first.prepare(|| false).unwrap();
+    second.prepare(|| false).unwrap();
     assert!(std::ptr::eq(first.target(0), second.target(0)));
-    let invalid = nested_snapshot(2, &"x".repeat(1025));
-    assert!(cached_plan(&mut cache, &invalid, NodeId(1)).is_err());
-    // Failed preparation cannot poison a later retry or retain a stale cached plan.
-    let recovered = cached_plan(&mut cache, &snapshot, NodeId(1)).unwrap();
+    let invalid = Arc::new(nested_snapshot(2, &"x".repeat(1025), 9000));
+    let (mut rejected, candidate) = command(&mut cache, &invalid, NodeId(1), vec![3], false).unwrap();
+    assert!(rejected.prepare(|| false).is_err());
+    cache = Some(candidate);
+    assert!(command(&mut cache, &invalid, NodeId(1), vec![4], false).is_err());
+    let (mut recovered, _) = command(&mut cache, &snapshot, NodeId(1), vec![5], false).unwrap();
+    recovered.prepare(|| false).unwrap();
     assert_eq!(recovered.target(0).remote_host, "127.0.0.1");
+}
+
+#[test]
+fn cancellation_interrupts_a_deep_folder_walk_and_transient_preparation_can_retry() {
+    let snapshot = Arc::new(nested_snapshot(20_000, "127.0.0.1", 9000));
+    let visits = std::cell::Cell::new(0);
+    let result = prepare(&snapshot, NodeId(1), UDP_PLAN_BYTES, || {
+        let count = visits.get() + 1;
+        visits.set(count);
+        count == 64
+    });
+    assert!(result.is_err());
+    assert_eq!(visits.get(), 64);
+    let ticket = PlanTicket::pending(UDP_PLAN_BYTES);
+    ticket.fail("temporary pool pressure".into());
+    let mut cache = Some(OutputPlanCache {
+        root: NodeId(1),
+        revision: snapshot.subtree_revision(NodeId(1)).unwrap(),
+        ticket,
+    });
+    let (mut retry, _) = command(&mut cache, &snapshot, NodeId(1), vec![7], false).unwrap();
+    assert!(retry.prepared_count().is_none());
+    retry.prepare(|| false).unwrap();
+    assert_eq!(retry.len(), 1);
 }

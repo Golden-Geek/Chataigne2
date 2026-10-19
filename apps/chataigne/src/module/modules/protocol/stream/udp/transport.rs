@@ -211,11 +211,9 @@ fn worker_loop(
             let mut commands = Vec::new();
             loop {
                 let turn = context.drain_commands(&mut commands, UDP_COMMAND_TURN);
-                for command in commands.drain(..) {
-                    let message = format!(
-                        "UDP command for {} output(s) failed before send: {error}",
-                        command.len()
-                    );
+                for mut command in commands.drain(..) {
+                    command.fail_preparation(error.clone());
+                    let message = format!("UDP command failed before send: {error}");
                     if !publish(&context, StreamingWorkerEvent::Error(message)) {
                         return;
                     }
@@ -245,11 +243,27 @@ fn worker_loop(
                 let mut next = Vec::with_capacity(1);
                 let turn = context.drain_commands(&mut next, NonZeroUsize::MIN);
                 commands_closed = turn.state == PendingDrainState::Disconnected;
-                current = next.pop().map(|command| (command, 0));
+                if let Some(command) = next.pop() {
+                    current = Some((command, 0));
+                }
             }
             let Some((command, index)) = current.as_mut() else {
                 break;
             };
+            match command.prepare_turn(|| context.cancellation().is_cancelled()) {
+                Ok(false) => break,
+                Err(error) => {
+                    if !publish(
+                        &context,
+                        StreamingWorkerEvent::Error(format!("UDP output preparation failed before send: {error}")),
+                    ) {
+                        return;
+                    }
+                    current = None;
+                    continue;
+                }
+                Ok(true) => {}
+            }
             if context.cancellation().is_cancelled() || !send_target(&socket, &context, command, *index) {
                 return;
             }

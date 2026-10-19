@@ -109,6 +109,129 @@ fn deep_subtree_revisions_fold_iteratively_and_do_not_rewrite_a_retained_view() 
 }
 
 #[test]
+fn snapshot_reservations_include_spare_dynamic_capacity_and_owned_overlays() {
+    let id = NodeId(1);
+    let plain = snapshot_node(id, NodeUuid(Uuid::from_u128(1)), Some(ParamValue::Int(0)));
+    let base = ProcessTreeSnapshot::new(id, HashMap::from([(id, plain.clone())]));
+    let mut large = plain;
+    let mut text = String::with_capacity(1024 * 1024);
+    text.push('x');
+    large.param_value = Some(ParamValue::Str(text));
+    large.presentation.icon = Some(String::with_capacity(32 * 1024));
+    large.script_methods = Vec::with_capacity(1000);
+    let snapshot = ProcessTreeSnapshot::new(id, HashMap::from([(id, large)]));
+    assert!(snapshot.retained_bytes() >= base.retained_bytes() + 1024 * 1024 + 32 * 1024);
+    let bytes = snapshot.retained_bytes();
+    let overlay = snapshot.with_param_values([(id, ParamValue::Str("z".repeat(512 * 1024)))]);
+    assert!(overlay.retained_bytes() >= bytes + 512 * 1024);
+    assert_eq!(snapshot.retained_bytes(), bytes);
+    assert_eq!(
+        snapshot.clone().retained_bytes(),
+        bytes,
+        "shared storage is charged without cloning its nodes"
+    );
+    let cloned_overlay = overlay.clone();
+    assert!(cloned_overlay.retained_bytes() >= bytes + 512 * 1024);
+    assert!(
+        std::ptr::eq(overlay.node(id).unwrap(), cloned_overlay.node(id).unwrap()),
+        "cloned views share immutable overlay records"
+    );
+}
+
+#[test]
+fn snapshot_leases_share_identity_and_large_views_have_an_explicit_byte_budget() {
+    let mut nodes = HashMap::new();
+    for value in 1..=50_000 {
+        let id = NodeId(value);
+        nodes.insert(
+            id,
+            snapshot_node(id, NodeUuid(Uuid::from_u128(u128::from(value))), None),
+        );
+    }
+    let snapshot = Arc::new(ProcessTreeSnapshot::new(NodeId(1), nodes));
+    assert!(
+        snapshot.retained_bytes() < 1024 * 1024 * 1024,
+        "a 50k-record view should fit the canonical lease budget"
+    );
+    let first = snapshot.try_lease().unwrap();
+    let second = snapshot.try_lease().unwrap();
+    assert!(std::ptr::eq(&*first, &*second));
+    assert!(std::ptr::eq(&*first, &*snapshot));
+    assert_eq!(first.node_count(), 50_000);
+}
+
+#[test]
+fn snapshot_reservations_cover_constraints_controls_references_and_presentation_allocations() {
+    use crate::parameter::{
+        ParameterConstraints, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec,
+        ParameterControlState, ParameterEnumOption, RangeConstraint, ReferenceRoot,
+    };
+    const CAPACITY: usize = 64 * 1024;
+    let text = || {
+        let mut value = String::with_capacity(CAPACITY);
+        value.push('x');
+        value
+    };
+    let id = NodeId(1);
+    let plain = snapshot_node(id, NodeUuid(Uuid::from_u128(1)), None);
+    let baseline = ProcessTreeSnapshot::new(id, HashMap::from([(id, plain.clone())]));
+    let mut node = plain;
+    node.node_type = text();
+    node.decl_id = text();
+    node.short_name = text();
+    node.label = text();
+    node.tags = vec![text()];
+    node.presentation.icon = Some(text());
+    node.presentation.warnings = vec![crate::node::NodeWarning {
+        id: text(),
+        message: text(),
+        detail: Some(text()),
+    }];
+    node.dashboard_widget_target.default_widget_type_id = text();
+    node.dashboard_widget_target.widget_types[0].id = text();
+    node.dashboard_widget_target.widget_types[0].label = text();
+    node.script_properties.insert(text(), ParamValue::Str(text()));
+    node.script_methods = vec![text()];
+    let mut reference = NodeReference::new(NodeUuid::nil());
+    reference.cached_name = Some(text());
+    reference.relative_path_from_root = vec![text()];
+    let mut constraints = ParameterConstraints {
+        enum_options: vec![ParameterEnumOption {
+            variant_id: text(),
+            value: ParamValue::Reference(reference),
+            label: text(),
+            tags: vec![text()],
+            ordering: None,
+        }],
+        ..ParameterConstraints::default()
+    };
+    constraints.reference.root = ReferenceRoot::RelativeToOwner { path: vec![text()] };
+    constraints.reference.allowed_node_types = vec![text()];
+    constraints.reference.allowed_parameter_types = vec![text()];
+    constraints.reference.custom_filter_key = Some(text());
+    constraints.reference.default_search_filter = Some(text());
+    constraints.file.allowed_extensions = vec![text()];
+    constraints.range = Some(RangeConstraint::Components {
+        min: Some(Vec::with_capacity(CAPACITY / std::mem::size_of::<f64>())),
+        max: Some(Vec::with_capacity(CAPACITY / std::mem::size_of::<f64>())),
+    });
+    node.param_constraints = Some(constraints);
+    node.param_control = Some(ParameterControlState {
+        mode: ParameterControlMode::TemplateText,
+        spec: ParameterControlSpec::TemplateText { template: text() },
+        diagnostics: vec![ParameterControlDiagnostic {
+            code: text(),
+            message: text(),
+            detail: Some(text()),
+        }],
+    });
+    let snapshot = ProcessTreeSnapshot::new(id, HashMap::from([(id, node)]));
+    // 30 strings and two spare f64 buffers. Container/header slack cannot hide a missed
+    // allocation of this size; subtract only the tiny baseline label/type allocations.
+    assert!(snapshot.retained_bytes() >= baseline.retained_bytes() + 32 * CAPACITY - 128);
+}
+
+#[test]
 fn snapshot_indexes_children_in_sibling_order_and_preserves_first_decl_match() {
     let root = NodeId(1);
     let first = NodeId(2);
