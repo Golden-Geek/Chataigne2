@@ -147,15 +147,6 @@ pub(crate) fn streaming_command_type_supported(command_type: &str) -> bool {
     STREAMING_COMMAND_NODE_TYPES.contains(&command_type)
 }
 
-pub(crate) fn child_string_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<String> {
-    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str)
-    })
-}
-
 pub(crate) fn child_int_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<i32> {
     snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
         snapshot

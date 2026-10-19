@@ -131,7 +131,7 @@ The app-owned UDP adapter owns socket generations in `stream/udp/lifecycle.rs`, 
 or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup, packet
 sends, parsing, script-argument preparation, and bounded log formatting stay on the worker.
 Command admission is bounded by 256 items / 1 MiB; each item owns one payload and a frozen,
-ordered destination plan. Admission accepts or rejects the whole command before any send;
+ordered destination plan shared with the module's revision cache. Admission accepts or rejects the whole command before any send;
 an invalid or oversized later destination cannot admit its valid prefix. Allocated payload,
 destination slots, and hostname capacity all contribute to the cached weight. One native cursor
 retains at most one additional command outside the mailbox, bounded by another 1 MiB. Graceful
@@ -146,8 +146,20 @@ datagram and its callbacks fit the reply budget. A node drains one batch of at m
 and publishes one prepared callback at a time with its own completion receipt. Failed publication
 retries only an unpublished event, preserving FIFO and multiplicity; it never rebuilds byte arrays.
 Outgoing log prefixes are prepared on the native worker after successful sends and use the same
-bounded event drain. Actor-side output-tree collection still needs its own resumable or prepared
-read-path boundary; these transport limits do not qualify that traversal.
+bounded event drain. The app checks Golden Engine's subtree revision at each script/custom-event
+send, including calls immediately after an edit before callbacks run. Unchanged destinations share
+one immutable prepared plan; commands retain its original interpretation across later configuration
+changes. Cached-plan replacement and mailbox rejection release only a retained handle; the shared
+payload disposer owns final target-string cleanup. Disable/destroy releases the module cache.
+Closed or retiring transport admission rejects before plan preparation. Generic sender/worker
+admission hints observe native closure independently of reply draining and queue capacity; the
+actual send remains authoritative because closure can race with preparation. UDP releases its
+cache on closure/disconnection while retaining it under ordinary queue pressure.
+Cold preparation uses constant-space folder links and validates borrowed hostnames before copying;
+it no longer recurses or allocates an intermediate output-ID list. Only successful plans are cached,
+so temporary payload-pool saturation can recover on a later call. Cold scanning and failed-builder
+cleanup remain synchronous and need a bounded preparation boundary. Avoid a whole-tree snapshot
+rebuild per cursor turn or an unbudgeted snapshot per queued command when finishing that repair.
 
 UDP nodes are passive. Reply/exit notifications and shared retry deadlines drive service without
 scheduled updates or an idle compiled kernel. Settings are copied on the worker input boundary;

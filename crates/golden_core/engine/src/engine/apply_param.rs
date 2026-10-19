@@ -288,6 +288,7 @@ impl<T: Node> Engine<T> {
                 message,
             })?;
 
+        self.mark_tree_changed(node);
         if force_reload {
             self.mark_schedule_dirty();
             self.push_ui_custom_event(

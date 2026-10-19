@@ -40,6 +40,7 @@ fn bounded_command_turns_preserve_fifo_through_graceful_close() {
     worker.send_weighted(1, 1).unwrap();
     worker.send_weighted(2, 1).unwrap();
     worker.finish_admission();
+    assert!(!worker.is_accepting_commands());
     resume_tx.send(()).unwrap();
     done_rx.recv_timeout(Duration::from_secs(2)).unwrap();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
@@ -65,6 +66,7 @@ fn explicit_cancellation_ends_nonblocking_command_service() {
     entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
     worker.send_weighted(1, 1).unwrap();
     worker.cancel();
+    assert!(!worker.is_accepting_commands());
     resume_tx.send(()).unwrap();
     done_rx.recv_timeout(Duration::from_secs(2)).unwrap();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
@@ -163,12 +165,17 @@ fn command_admission_rejects_items_and_weight_with_original_ownership() {
         worker.send_weighted("too many".into(), 0),
         Err(PendingSendError::Full("too many".into()))
     );
+    assert!(
+        worker.is_accepting_commands(),
+        "capacity pressure must remain distinct from closure"
+    );
     release_tx.send(()).unwrap();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
     assert_eq!(
         worker.send_weighted("disconnected".into(), 1),
         Err(PendingSendError::Disconnected("disconnected".into()))
     );
+    assert!(!worker.is_accepting_commands());
 }
 
 #[test]
@@ -319,6 +326,10 @@ fn worker_can_close_failed_admission_and_resolve_every_previously_accepted_comma
     worker.send_weighted(2, 1).unwrap();
     release_tx.send(()).unwrap();
     closed_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(
+        !worker.is_accepting_commands(),
+        "native closure must be observable before draining replies"
+    );
     assert_eq!(worker.send_weighted(3, 1), Err(PendingSendError::Disconnected(3)));
     let deadline = std::time::Instant::now() + Duration::from_secs(2);
     let mut replies = Vec::new();

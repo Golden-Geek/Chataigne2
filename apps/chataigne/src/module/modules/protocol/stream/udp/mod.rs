@@ -2,6 +2,7 @@ mod delivery;
 mod input;
 mod lifecycle;
 mod outbound;
+mod output_plan;
 mod transport;
 mod wakeup;
 
@@ -21,14 +22,15 @@ use golden_core::{
 use crate::app::{
     module::common::streaming::{
         commands::{streaming_script_send_request, StreamingSendRequest},
-        module_helpers::{child_int_param, child_string_param, streaming_command_type_supported},
+        module_helpers::streaming_command_type_supported,
         script as streaming_script,
     },
     StreamingModuleBase,
 };
 
 use self::lifecycle::{UdpTransportEvent, UdpTransports};
-use self::outbound::{UdpOutboundSend, UdpOutputTarget};
+use self::outbound::UdpOutboundSend;
+use self::output_plan::{OutputNodes, OutputPlanCache};
 use self::transport::UdpStreamingTransportConfig;
 
 const UDP_INPUT_WARNING_ID: &str = "udp_input_transport";
@@ -118,6 +120,7 @@ pub struct UdpModule {
     transport_dirty: bool,
     pending_inputs: VecDeque<InputDelivery>,
     input_target: Option<NodeId>,
+    output_plan: Option<OutputPlanCache>,
 }
 
 impl UdpModule {
@@ -128,6 +131,7 @@ impl UdpModule {
             UdpTransports::default(),
             true,
             VecDeque::new(),
+            None,
             None,
         )
     }
@@ -302,6 +306,7 @@ impl UdpModule {
             }
         }
         if poll.disconnected {
+            self.output_plan = None;
             self.transport_dirty = true;
         }
     }
@@ -311,55 +316,37 @@ impl UdpModule {
             return;
         };
 
-        let mut output_ids = Vec::new();
-        collect_outputs_recursive(snapshot, outputs_id, &mut output_ids);
-        if !output_ids.is_empty() {
+        if OutputNodes::new(snapshot, outputs_id).next().is_some() {
             return;
         }
 
         ctx.add_user_item_boxed(outputs_id, Box::new(UdpOutput::new()), None);
     }
 
-    fn output_target(&self, snapshot: &ProcessTreeSnapshot, output_id: NodeId) -> Option<UdpOutputTarget> {
-        if !snapshot.node(output_id)?.enabled {
-            return None;
-        }
-
-        let remote_host = child_string_param(snapshot, output_id, "remote_host")?;
-        if remote_host.trim().is_empty() {
-            return None;
-        }
-
-        let remote_port =
-            child_int_param(snapshot, output_id, "remote_port").and_then(|value| u16::try_from(value).ok())?;
-
-        Some(UdpOutputTarget {
-            remote_host,
-            remote_port,
-        })
-    }
-
     fn queue_send_request(
-        &self,
+        &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         request: StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.transports.accepts_commands() {
+            self.output_plan = None;
+            return Err("UDP configuration is pending or disabled; command was not admitted".into());
+        }
         if !self.outputs_enabled(snapshot).unwrap_or(false) {
             return Err("UDP outputs are disabled; command was not admitted".into());
         }
-        let mut command = UdpOutboundSend::new(request.bytes, self.stream.log_outgoing_enabled())?;
-        if let Some(outputs_id) = self.outputs.current_id() {
-            let mut output_ids = Vec::new();
-            collect_outputs_recursive(snapshot, outputs_id, &mut output_ids);
-            for output_id in output_ids {
-                if let Some(target) = self.output_target(snapshot, output_id) {
-                    command.push_target(target)?;
-                }
-            }
-        }
+        let root = self
+            .outputs_node_id(snapshot)
+            .ok_or("UDP output folder is unavailable")?;
+        let plan = output_plan::cached_plan(&mut self.output_plan, snapshot, root)?;
+        let command = UdpOutboundSend::new(request.bytes, plan, self.stream.log_outgoing_enabled())?;
         let count = command.len();
-        self.transports.send(command)?;
+        let outcome = self.transports.send(command);
+        if !self.transports.accepts_commands() {
+            self.output_plan = None;
+        }
+        outcome?;
         self.stream.emit_outgoing_traffic(ctx);
         Ok(format!("Queued UDP {} for {count} output(s)", request.description))
     }
@@ -477,6 +464,7 @@ impl Node for UdpModule {
             self.wake = None;
             self.stop_transport();
             self.pending_inputs.clear();
+            self.output_plan = None;
             self.stream.discard_pending_input();
             match UdpWake::new(source) {
                 Ok(wake) => self.wake = Some(wake),
@@ -527,6 +515,7 @@ impl Node for UdpModule {
         self.pending_inputs.clear();
         self.stream.discard_pending_input();
         self.input_target = None;
+        self.output_plan = None;
     }
 
     fn needs_update(&self) -> bool {
@@ -595,6 +584,7 @@ impl Node for UdpModule {
             self.request_service();
         } else {
             self.transports.pause_admission();
+            self.output_plan = None;
             if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
                 self.clear_input_warning(ctx, snapshot_arc.as_ref());
             }
@@ -609,20 +599,6 @@ impl Node for UdpModule {
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
-    }
-}
-
-fn collect_outputs_recursive(snapshot: &ProcessTreeSnapshot, parent: NodeId, output: &mut Vec<NodeId>) {
-    for child_id in snapshot.child_ids(parent) {
-        let Some(child_snapshot) = snapshot.node(child_id) else {
-            continue;
-        };
-
-        if child_snapshot.node_type == UDP_OUTPUT_NODE_TYPE {
-            output.push(child_id);
-        } else if child_snapshot.node_type == "folder" {
-            collect_outputs_recursive(snapshot, child_id, output);
-        }
     }
 }
 

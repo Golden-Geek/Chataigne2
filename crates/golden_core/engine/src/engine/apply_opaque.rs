@@ -301,6 +301,11 @@ impl<T: Node> Engine<T> {
         let publication = if effect.is_some() {
             self.publish_authored_node_change(node, old_param)
         } else {
+            if !capture {
+                // Uncaptured native callbacks can write state without semantic events.
+                // Conservatively invalidate their subtree before the next reader runs.
+                self.mark_tree_changed(node);
+            }
             Ok(())
         };
         // Capture self changes before absorbing nested requests. A completion error
@@ -381,6 +386,7 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         old: Option<ParameterSnapshot>,
     ) -> Result<(), EngineEditError> {
+        self.mark_tree_changed(node);
         self.populate_param_cache_entry(node);
         self.clear_tick_tree_snapshot();
         self.mark_schedule_dirty();

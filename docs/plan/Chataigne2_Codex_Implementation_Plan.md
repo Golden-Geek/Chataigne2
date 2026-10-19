@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for authoritative subtree revision fencing of prepared output read models before callback delivery, topology/history changes, and background plan lifetimes. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 768 core/IO/app tests, strict engine/IO/app Clippy, workspace/test compilation, and a fresh native app build passed revision fencing, plan reuse, and admission ownership checks. Cold preparation and failed-builder cleanup remain P03 work. Actual effort remains unchanged/unobservable. -->
+
 <!-- Mode: Escalating to XHigh for whole-command UDP fanout admission, native destination cursors, and accepted-send ownership across queue pressure, failures, and graceful retirement. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 91 owning/preservation tests, strict IO/app Clippy, workspace/test compilation, and a fresh native app build passed whole-command admission, native fanout ordering, retirement, and destination-failure regressions. Actor-side output-tree preparation/cleanup and remaining module/generator work stay open. Actual effort remains unchanged/unobservable. -->
 

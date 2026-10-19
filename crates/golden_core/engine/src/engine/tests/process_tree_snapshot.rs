@@ -83,6 +83,32 @@ fn cloned_snapshot_with_param_values_preserves_uuid_index() {
 }
 
 #[test]
+fn deep_subtree_revisions_fold_iteratively_and_do_not_rewrite_a_retained_view() {
+    let mut clock = super::super::tree_revisions::TreeRevisions::default();
+    let mut nodes = HashMap::new();
+    for value in 1..=20_000 {
+        let id = NodeId(value);
+        let mut node = snapshot_node(id, NodeUuid(Uuid::from_u128(u128::from(value))), None);
+        node.parent = (value > 1).then_some(NodeId(value - 1));
+        node.first_child = (value < 20_000).then_some(NodeId(value + 1));
+        nodes.insert(id, node);
+    }
+    let before = ProcessTreeSnapshot::from_indexed_nodes(NodeId(1), nodes.clone(), HashMap::new(), clock.snapshot());
+    let change = clock.next_change();
+    clock.mark(NodeId(20_000), change);
+    let after = ProcessTreeSnapshot::from_indexed_nodes(NodeId(1), nodes, HashMap::new(), clock.snapshot());
+    assert_ne!(before.subtree_revision(NodeId(1)), after.subtree_revision(NodeId(1)));
+    assert_eq!(
+        after.subtree_revision(NodeId(1)),
+        after.subtree_revision(NodeId(20_000))
+    );
+    assert_ne!(
+        before.subtree_revision(NodeId(20_000)),
+        after.subtree_revision(NodeId(20_000))
+    );
+}
+
+#[test]
 fn snapshot_indexes_children_in_sibling_order_and_preserves_first_decl_match() {
     let root = NodeId(1);
     let first = NodeId(2);

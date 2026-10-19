@@ -1,3 +1,4 @@
+use super::super::outbound::OutputPlanBuilder;
 use super::*;
 mod fanout;
 use std::sync::{
@@ -41,7 +42,8 @@ fn starting_a_transport_does_not_wait_for_endpoint_setup() {
 
 #[test]
 fn impossible_datagram_is_rejected_before_transport_admission() {
-    assert!(UdpOutboundSend::new(vec![0; 65_536], false).is_err());
+    let plan = OutputPlanBuilder::default().finish().unwrap();
+    assert!(UdpOutboundSend::new(vec![0; 65_536], plan, false).is_err());
 }
 
 #[test]
@@ -271,14 +273,13 @@ fn input_is_prepared_on_its_worker_and_cannot_be_reinterpreted_after_reconfigura
 }
 
 fn packet_to(bytes: Vec<u8>, remote_host: String, remote_port: u16) -> UdpOutboundSend {
-    let mut command = UdpOutboundSend::new(bytes, false).unwrap();
-    command
-        .push_target(UdpOutputTarget {
-            remote_host,
-            remote_port,
-        })
-        .unwrap();
-    command
+    let mut plan = OutputPlanBuilder::default();
+    plan.push_target(UdpOutputTarget {
+        remote_host,
+        remote_port,
+    })
+    .unwrap();
+    UdpOutboundSend::new(bytes, plan.finish().unwrap(), false).unwrap()
 }
 
 #[test]

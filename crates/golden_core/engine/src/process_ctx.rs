@@ -5,6 +5,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
+pub use crate::engine::SubtreeRevision;
+use crate::engine::tree_revisions::RevisionSnapshot;
 use crate::engine::{EngineTime, NodeWakeError, NodeWakeSource, NodeWaker};
 use crate::events::{CustomEvent, EventFrame};
 use crate::node::{
@@ -172,6 +174,7 @@ struct ProcessTreeChildIndexes {
 /// Shared read-only tree snapshot for one processing pass.
 #[derive(Clone, Debug)]
 pub struct ProcessTreeSnapshot {
+    revisions: RevisionSnapshot,
     root: NodeId,
     nodes: Arc<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
     node_overrides: HashMap<NodeId, ProcessTreeNodeSnapshot>,
@@ -188,6 +191,7 @@ impl ProcessTreeSnapshot {
         }
         let child_indexes = Self::build_child_indexes(&nodes);
         Self {
+            revisions: RevisionSnapshot::default(),
             root,
             nodes: Arc::new(nodes),
             node_overrides: HashMap::new(),
@@ -200,9 +204,12 @@ impl ProcessTreeSnapshot {
         root: NodeId,
         nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>,
         node_ids_by_uuid: HashMap<NodeUuid, NodeId>,
+        mut revisions: RevisionSnapshot,
     ) -> Self {
         let child_indexes = Self::build_child_indexes(&nodes);
+        revisions.fold_subtrees(&nodes);
         Self {
+            revisions,
             root,
             nodes: Arc::new(nodes),
             node_overrides: HashMap::new(),
@@ -291,8 +298,17 @@ impl ProcessTreeSnapshot {
         self.root
     }
 
-    pub(crate) fn retained_node_count(&self) -> usize {
+    /// Number of nodes retained by this immutable tree view.
+    pub fn node_count(&self) -> usize {
         self.nodes.len()
+    }
+
+    /// Constant-time authored subtree identity for prepared read models. Includes descendant
+    /// parameter, metadata, and topology writes before callbacks run. Ancestor metadata and
+    /// inherited enabled state are outside this subtree; check its root's `enabled` separately.
+    /// Custom events and writes in disjoint subtrees do not invalidate this revision.
+    pub fn subtree_revision(&self, node: NodeId) -> Option<SubtreeRevision> {
+        self.node(node).map(|_| self.revisions.revision(node))
     }
 
     /// Returns one node snapshot by id.
@@ -303,6 +319,7 @@ impl ProcessTreeSnapshot {
     /// Returns a cloned snapshot with selected parameter values replaced.
     pub fn with_param_values(&self, values: impl IntoIterator<Item = (NodeId, ParamValue)>) -> Self {
         let mut snapshot = self.clone();
+        let mut changed = false;
         for (node_id, value) in values {
             if let Some(node) = snapshot.node(node_id)
                 && node.param_value.is_some()
@@ -310,7 +327,13 @@ impl ProcessTreeSnapshot {
                 let mut replacement = node.clone();
                 replacement.param_value = Some(value);
                 snapshot.node_overrides.insert(node_id, replacement);
+                changed = true;
             }
+        }
+        if changed {
+            // Overlays have no engine mutation clock; invalidate their read models
+            // conservatively while keeping clones of an unchanged snapshot comparable.
+            snapshot.revisions = RevisionSnapshot::default();
         }
         snapshot
     }

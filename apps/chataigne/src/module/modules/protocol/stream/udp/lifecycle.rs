@@ -115,6 +115,10 @@ impl UdpTransports {
         }
     }
 
+    pub(super) fn accepts_commands(&self) -> bool {
+        matches!(&self.state, State::Active { handle, .. } if handle.accepts_commands())
+    }
+
     pub(super) fn retry_in(&self) -> Option<Duration> {
         self.retry_at.map(|at| at.saturating_duration_since(Instant::now()))
     }

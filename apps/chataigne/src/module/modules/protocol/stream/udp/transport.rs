@@ -119,11 +119,15 @@ impl UdpStreamingTransportHandle {
     }
 
     pub(super) fn send(&self, command: UdpOutboundSend) -> Result<(), String> {
-        let weight = command.admission_weight()?;
+        let weight = command.weight();
         self.worker.send_weighted(command, weight).map_err(|error| match error {
             PendingSendError::Full(_) => "UDP command capacity exhausted; whole command was not admitted".into(),
             PendingSendError::Disconnected(_) => "UDP worker is not accepting commands".into(),
         })
+    }
+
+    pub(super) fn accepts_commands(&self) -> bool {
+        self.worker.is_accepting_commands()
     }
 
     pub(crate) fn drain_events(&self, events: &mut Vec<StreamingWorkerEvent>) -> PendingDrain {

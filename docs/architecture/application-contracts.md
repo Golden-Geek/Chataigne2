@@ -156,6 +156,20 @@ small or shared snapshots use ordinary release. Saturation or worker-start failu
 synchronous release, and `process_snapshot_retirement_metrics` exposes occupancy and rejection.
 The pool starts no worker until a large snapshot is actually retired.
 
+`ProcessTreeSnapshot::subtree_revision` identifies engine-published changes within an authored
+subtree before callback delivery. Parameter, metadata, topology, script configuration, and opaque
+authored edits advance that subtree and its ancestors. A shared change-target classifier also
+feeds project dirty tracking; neither feature depends on UI replay publication. Revision namespaces
+belong to one engine lifetime. Undo/rollback may advance a revision even when values return to an
+earlier state; consumers compare identity rather than interpreting the counter. Immutable snapshots
+retain their old identity; parameter overlays invalidate conservatively in a fresh namespace.
+Disjoint subtree edits and custom traffic events preserve a prepared read model's identity.
+Ancestor metadata is outside this subtree identity, so consumers must check inherited root enabled
+state separately. Direct mutation of attached authored state must use engine edit APIs.
+Mutation bookkeeping marks only changed nodes and explicit topology parents in constant time per
+target. Snapshot creation copies that index and folds descendants iteratively in linear time
+alongside its existing whole-tree projection; revision lookups are constant time and retain no engine.
+
 `RecordingModuleIo` captures versioned inputs and authoritative outputs using an injected clock.
 Deterministic clocks keep protocol and hardware fixtures repeatable without putting polling or
 device work on the engine loop.

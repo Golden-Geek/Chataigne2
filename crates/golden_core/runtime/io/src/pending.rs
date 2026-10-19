@@ -136,6 +136,12 @@ fn make_pending_channel<T>(
 }
 
 impl<T> PendingSender<T> {
+    /// Point-in-time admission status, independent of capacity. A later send still
+    /// performs the authoritative check under the mailbox lock.
+    pub fn is_disconnected(&self) -> bool {
+        !self.state.receiver_connected.load(Ordering::Acquire)
+    }
+
     /// Attempts to admit one fixed-weight event without blocking the producer.
     pub fn send(&self, value: T) -> Result<(), PendingSendError<T>> {
         self.send_weighted_before_publish(value, 1, || {})

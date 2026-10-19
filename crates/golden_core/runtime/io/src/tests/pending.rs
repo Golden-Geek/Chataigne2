@@ -245,7 +245,9 @@ fn admission_is_bounded_by_items_and_retained_weight() {
 #[test]
 fn producer_gets_its_event_back_after_receiver_disconnects() {
     let (sender, receiver) = bounded_pending_channel(1, 1);
+    assert!(!sender.is_disconnected());
     drop(receiver);
+    assert!(sender.is_disconnected());
 
     assert_eq!(sender.send(7), Err(PendingSendError::Disconnected(7)));
 }

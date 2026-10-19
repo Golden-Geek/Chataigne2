@@ -23,6 +23,9 @@ mod apply_opaque;
 mod apply_param;
 /// Tree mutation, attachment, and topology validation helpers.
 mod apply_tree;
+mod change_targets;
+pub(crate) mod tree_revisions;
+pub use tree_revisions::SubtreeRevision;
 /// Unified node-type catalog and blueprint-backed dynamic type helpers.
 mod blueprints;
 /// UserContext and DynamicContext integration helpers.
@@ -204,6 +207,7 @@ pub struct Engine<T: Node> {
     param_change_counter: u64,
     /// Last change counter observed for each parameter node.
     param_last_change_counter: HashMap<NodeId, u64>,
+    tree_revisions: tree_revisions::TreeRevisions,
     /// Runtime state for expression-controlled parameters.
     expression_runtime: HashMap<NodeId, ExpressionControlRuntime>,
     /// Node-ready callbacks deferred by persistence until a host starts the loaded graph.
@@ -336,6 +340,7 @@ impl<T: Node> Engine<T> {
             last_update_elapsed_by_node,
             param_change_counter: 0,
             param_last_change_counter: HashMap::new(),
+            tree_revisions: tree_revisions::TreeRevisions::default(),
             expression_runtime: HashMap::new(),
             pending_node_ready: Vec::new(),
             stabilization_scope_depth: 0,
@@ -578,7 +583,7 @@ impl<T: Node> Engine<T> {
 
     pub(crate) fn retire_process_tree_snapshot(&self, snapshot: Arc<ProcessTreeSnapshot>) {
         const RETIRE_NODE_THRESHOLD: usize = 10_000;
-        if snapshot.retained_node_count() < RETIRE_NODE_THRESHOLD || Arc::strong_count(&snapshot) != 1 {
+        if snapshot.node_count() < RETIRE_NODE_THRESHOLD || Arc::strong_count(&snapshot) != 1 {
             return;
         }
         if let Err(error) = self
@@ -674,6 +679,7 @@ impl<T: Node> Engine<T> {
             self.root,
             nodes,
             node_ids_by_uuid,
+            self.tree_revisions.snapshot(),
         ));
         if let (Some(started), Some(cloned), Some(counted)) = (started, cloned, counted) {
             eprintln!(

@@ -1,3 +1,4 @@
+use super::super::outbound::OutputPlanBuilder;
 use super::super::outbound::UdpOutputTarget;
 use super::*;
 use golden_io::RetirementPool;
@@ -155,12 +156,11 @@ fn input_config() -> crate::app::module_modules_protocol_stream_udp::input::UdpI
 }
 
 fn packet_to(bytes: Vec<u8>, remote_host: String, remote_port: u16) -> UdpOutboundSend {
-    let mut command = UdpOutboundSend::new(bytes, false).unwrap();
-    command
-        .push_target(UdpOutputTarget {
-            remote_host,
-            remote_port,
-        })
-        .unwrap();
-    command
+    let mut plan = OutputPlanBuilder::default();
+    plan.push_target(UdpOutputTarget {
+        remote_host,
+        remote_port,
+    })
+    .unwrap();
+    UdpOutboundSend::new(bytes, plan.finish().unwrap(), false).unwrap()
 }

@@ -200,6 +200,16 @@ impl<C: Send + 'static, E: Send + 'static> BoundedWorker<C, E> {
         Ok(())
     }
 
+    /// Cheap preparation preflight. True does not reserve capacity or guarantee a
+    /// later send; cancellation and receiver closure may race with the caller.
+    pub fn is_accepting_commands(&self) -> bool {
+        !self.cancellation.is_cancelled()
+            && self
+                .commands
+                .as_ref()
+                .is_some_and(|commands| !commands.is_disconnected())
+    }
+
     /// Closes admission while preserving every admitted command and its pending replies.
     /// Keep the handle and drain replies until disconnection; dropping it still cancels work.
     pub fn finish_admission(&mut self) {
