@@ -8,13 +8,13 @@ use crate::app::module::common::streaming::{
     commands::StreamingSendFrameKind,
     input::{InputPlan, PreparedStreamInput, StreamInputConfig},
     native_replies::NativeReply,
+    websocket::socket::WireSocket,
 };
 use golden_io::{
     BoundedWorker, PendingDrain, PendingSendError, RetainedPayload, RetirementPool, WorkerCancellation, WorkerLimits,
     WorkerNotifier,
 };
 use outbound::Outbound;
-use socket::WireSocket;
 use std::{
     net::SocketAddr,
     num::NonZeroUsize,

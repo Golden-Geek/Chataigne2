@@ -3,7 +3,10 @@ mod transport;
 #[cfg(test)]
 mod tests;
 
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 use golden_core::{
     edit::Edit,
@@ -26,9 +29,7 @@ use crate::app::{
     StreamingModuleBase,
 };
 
-use self::transport::{
-    WebSocketServerTransportConfig, WebSocketServerTransportHandle, WebSocketServerWorkerEvent,
-};
+use self::transport::{WebSocketServerTransportConfig, WebSocketServerTransportHandle, WebSocketServerWorkerEvent};
 
 const WEBSOCKET_SERVER_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const WEBSOCKET_SERVER_PORT_WARNING_ID: &str = "websocket_server_port_transport";
@@ -61,6 +62,7 @@ pub struct WebSocketServerModule {
     transport: Option<WebSocketServerTransportHandle>,
     last_transport_config: Option<WebSocketServerTransportConfig>,
     transport_dirty: bool,
+    retry_at: Option<Instant>,
     client_infos: BTreeMap<String, String>,
     client_list_dirty: bool,
 }
@@ -72,6 +74,7 @@ impl WebSocketServerModule {
             None,
             None,
             true,
+            None,
             BTreeMap::new(),
             true,
         )
@@ -83,6 +86,7 @@ impl WebSocketServerModule {
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.transport_dirty = false;
+        self.retry_at = None;
 
         if !self.module_enabled(snapshot) {
             self.stop_transport();
@@ -93,7 +97,7 @@ impl WebSocketServerModule {
             return;
         }
 
-        let config = match self.transport_config() {
+        let config = match self.transport_config(snapshot) {
             Ok(config) => config,
             Err(error) => {
                 logerror!("Invalid WebSocket server configuration: {}", error);
@@ -107,8 +111,6 @@ impl WebSocketServerModule {
         };
 
         if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            self.clear_port_warning(ctx);
-            self.stream.set_connected(ctx, true);
             return;
         }
 
@@ -120,7 +122,7 @@ impl WebSocketServerModule {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
                 self.clear_port_warning(ctx);
-                self.stream.set_connected(ctx, true);
+                self.stream.set_connected(ctx, false);
             }
             Err(error) => {
                 logerror!("Failed to start WebSocket server transport: {}", error);
@@ -128,16 +130,49 @@ impl WebSocketServerModule {
                 self.last_transport_config = None;
                 self.set_port_warning(ctx, error.as_str());
                 self.stream.set_connected(ctx, false);
+                self.transport_dirty = true;
+                self.retry_at = Some(Instant::now() + Duration::from_millis(250));
             }
         }
     }
 
-    fn transport_config(&self) -> Result<WebSocketServerTransportConfig, String> {
-        let bind_port = u16::try_from(self.port.get()).map_err(|_| {
-            "WebSocket server port 'connection/port' must be between 0 and 65535".to_string()
-        })?;
+    fn transport_refresh_due(&self) -> bool {
+        self.transport_dirty && self.retry_at.is_none_or(|deadline| Instant::now() >= deadline)
+    }
 
-        let path = self.path.get_ref().trim();
+    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<WebSocketServerTransportConfig, String> {
+        let port = snapshot
+            .node(self.port.id())
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(|value| {
+                if let ParamValue::Int(port) = value {
+                    Some(*port)
+                } else {
+                    None
+                }
+            })
+            .ok_or("WebSocket server port is unavailable")?;
+        let bind_port = u16::try_from(port)
+            .map_err(|_| "WebSocket server port 'connection/port' must be between 0 and 65535".to_string())?;
+
+        let path = snapshot
+            .node(self.path.id())
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(|value| {
+                if let ParamValue::Str(path) = value {
+                    Some(path.as_str())
+                } else {
+                    None
+                }
+            })
+            .ok_or("WebSocket server path is unavailable")?;
+        if path.len() > 8192 {
+            return Err("WebSocket server path must fit 8192 bytes".into());
+        }
+        let path = path.trim();
+        if !path.starts_with('/') && path.len() == 8192 {
+            return Err("WebSocket server path must fit 8192 bytes including its leading slash".into());
+        }
         let path = if path.is_empty() {
             String::new()
         } else {
@@ -159,13 +194,20 @@ impl WebSocketServerModule {
             return;
         };
 
-        let worker_disconnected =
-            transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
+        let worker_disconnected = transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
 
         let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
+                WebSocketServerWorkerEvent::Listening(_) => {
+                    self.clear_port_warning(ctx);
+                    self.stream.set_connected(ctx, true);
+                }
+                WebSocketServerWorkerEvent::Recovering(error) => {
+                    self.set_port_warning(ctx, &error);
+                    self.stream.set_connected(ctx, false);
+                }
                 WebSocketServerWorkerEvent::ClientConnected { client_id, info } => {
                     streaming_script::emit_client_connected(ctx, self.id(), client_id.as_str(), info.clone());
                     if self.stream.log_incoming_enabled() {
@@ -243,10 +285,6 @@ impl WebSocketServerModule {
                 WebSocketServerWorkerEvent::Error(error) => {
                     logerror!("WebSocket server transport error: {}", error);
                 }
-                WebSocketServerWorkerEvent::Stopped(error) => {
-                    logerror!("WebSocket server transport stopped: {}", error);
-                    self.transport_dirty = true;
-                }
             }
         }
 
@@ -267,9 +305,18 @@ impl WebSocketServerModule {
     fn queue_send_request(
         &self,
         ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
+        snapshot: &ProcessTreeSnapshot,
         request: &StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.module_enabled(snapshot)
+            || self.transport_dirty
+            || !self
+                .last_transport_config
+                .as_ref()
+                .is_some_and(|last| self.transport_config(snapshot).is_ok_and(|applied| &applied == last))
+        {
+            return Err("WebSocket server configuration is pending or disabled; command was not admitted".into());
+        }
         let connected_clients = self.client_infos.len();
         if connected_clients == 0 {
             return Err("no WebSocket clients are connected".to_string());
@@ -279,7 +326,7 @@ impl WebSocketServerModule {
             .transport
             .as_ref()
             .ok_or_else(|| "WebSocket server transport is not available".to_string())?;
-        transport.send(request.frame_kind, request.bytes.clone())?;
+        transport.send(request.frame_kind, &request.bytes)?;
         self.stream.emit_outgoing_traffic(ctx);
 
         if self.stream.log_outgoing_enabled() {
@@ -295,8 +342,7 @@ impl WebSocketServerModule {
 
         Ok(format!(
             "Queued WebSocket {} for {} client(s)",
-            request.description,
-            connected_clients
+            request.description, connected_clients
         ))
     }
 
@@ -325,10 +371,9 @@ impl WebSocketServerModule {
     }
 
     fn on_param_change_inner(&mut self, param: NodeId) {
-        if (self.port.is_bound() && self.port.id() == param)
-            || (self.path.is_bound() && self.path.id() == param)
-        {
+        if (self.port.is_bound() && self.port.id() == param) || (self.path.is_bound() && self.path.id() == param) {
             self.transport_dirty = true;
+            self.retry_at = None;
         }
     }
 
@@ -442,7 +487,7 @@ impl Node for WebSocketServerModule {
         self.drain_transport_events(ctx);
 
         let needs_snapshot =
-            self.transport_dirty || self.stream.has_pending_messages() || self.client_list_dirty;
+            self.transport_refresh_due() || self.stream.has_pending_messages() || self.client_list_dirty;
         if !needs_snapshot {
             return;
         }
@@ -456,7 +501,7 @@ impl Node for WebSocketServerModule {
         self.stream.refresh_config_cache(snapshot);
         self.refresh_data_capabilities(ctx, snapshot);
 
-        if self.transport_dirty {
+        if self.transport_refresh_due() {
             self.refresh_transport(ctx, snapshot);
         }
 
@@ -469,17 +514,18 @@ impl Node for WebSocketServerModule {
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
+        self.retry_at = None;
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty
+        self.transport_refresh_due()
             || self.stream.has_pending_messages()
             || self.client_list_dirty
             || self.transport.as_ref().is_some_and(|t| t.has_pending())
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty || self.stream.has_pending_messages() || self.client_list_dirty
+        self.transport_refresh_due() || self.stream.has_pending_messages() || self.client_list_dirty
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -532,6 +578,7 @@ impl Node for WebSocketServerModule {
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.retry_at = None;
         if enabled {
             self.transport_dirty = true;
         } else {
@@ -557,7 +604,11 @@ impl Node for WebSocketServerModule {
 }
 
 fn create_client_info_param(client_id: &str, info: &str) -> Parameter {
-    let mut parameter = Parameter::new(client_id, ParamValue::Str(info.to_string()), ParameterChangeCheck::ValueChange);
+    let mut parameter = Parameter::new(
+        client_id,
+        ParamValue::Str(info.to_string()),
+        ParameterChangeCheck::ValueChange,
+    );
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
     parameter.node_data_mut().meta.user_permissions = golden_core::node::NodeUserPermissions::none();
     parameter

@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::module::common::streaming::websocket::socket::BudgetSocket;
 use std::{
     io::{self, Read},
     net::{TcpListener, TcpStream},
@@ -51,7 +52,7 @@ fn pair() -> (WireSocket, WebSocket<TcpStream>) {
         .write_buffer_size(0)
         .max_write_buffer_size(2 * 1024 * 1024 + 1024);
     (
-        WebSocket::from_raw_socket(socket::BudgetSocket::new(client), Role::Client, Some(limits)),
+        WebSocket::from_raw_socket(BudgetSocket::new(client), Role::Client, Some(limits)),
         WebSocket::from_raw_socket(peer, Role::Server, None),
     )
 }

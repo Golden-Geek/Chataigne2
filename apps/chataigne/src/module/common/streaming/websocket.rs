@@ -1,6 +1,6 @@
-use tokio_tungstenite::tungstenite::protocol::{Message, WebSocketConfig};
+pub(crate) mod socket;
 
-use super::commands::StreamingSendFrameKind;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 
 pub(crate) const WEBSOCKET_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 
@@ -28,17 +28,9 @@ pub(crate) fn websocket_client_url(remote_host: &str, remote_port: u16, path: &s
 
 pub(crate) fn websocket_config() -> WebSocketConfig {
     WebSocketConfig::default()
+        .read_buffer_size(8192)
+        .write_buffer_size(0)
+        .max_write_buffer_size(2 * WEBSOCKET_MAX_PAYLOAD_BYTES + 1024)
         .max_message_size(Some(WEBSOCKET_MAX_PAYLOAD_BYTES))
         .max_frame_size(Some(WEBSOCKET_MAX_PAYLOAD_BYTES))
-}
-
-pub(crate) fn websocket_message(frame_kind: StreamingSendFrameKind, bytes: &[u8]) -> Result<Message, String> {
-    match frame_kind {
-        StreamingSendFrameKind::Text => {
-            let text = std::str::from_utf8(bytes)
-                .map_err(|error| format!("text WebSocket frame requires valid UTF-8 payload: {error}"))?;
-            Ok(Message::text(text.to_string()))
-        }
-        StreamingSendFrameKind::Binary => Ok(Message::binary(bytes.to_vec())),
-    }
 }

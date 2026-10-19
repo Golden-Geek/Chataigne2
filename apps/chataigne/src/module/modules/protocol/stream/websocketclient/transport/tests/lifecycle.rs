@@ -90,7 +90,7 @@ fn protocol_socket_enforces_per_turn_io_byte_and_call_limits() {
     client.set_nonblocking(true).unwrap();
     let mut peer = listener.accept().unwrap().0;
     peer.write_all(&vec![7; 100_000]).unwrap();
-    let mut budget = socket::BudgetSocket::new(client);
+    let mut budget = BudgetSocket::new(client);
     let mut read = 0;
     for _ in 0..5 {
         match budget.read(&mut [0; 100_000]) {

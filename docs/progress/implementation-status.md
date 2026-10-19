@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `5a2cb368` plus the verified P03 batch 23 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `e9230f86` plus the verified P03 batch 24 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 23 WebSocket client native/passive ownership verified locally.
+- Current batch: P03 batch 24 WebSocket server native ownership verified locally.
   Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 23 WebSocket client native/passive ownership delivered in `e9230f86`.
   Batch 22 TCP server passive integration delivered in `5a2cb368`.
   Batch 21 native transport ownership delivered in `01158b6d`.
   Batch 20 HTTP applied-configuration admission/bounds delivered in `36e69aeb`.
@@ -30,12 +31,17 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `5a2cb368`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `e9230f86`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: continue WebSocket server/serial worker ownership and the broader
+- Next implementation action: WebSocket server per-peer prepared input, passive receipt delivery
+  and accepted-prefix retirement across ordinary disable/reconfiguration. Its bounded native
+  lifetimes, concurrent handshake/peer limits, original-peer frame cursors, independent reply
+  pressure, applied port/path/disable admission and bind/capacity recovery are verified.
+  Requested return to High after focused proof; actual effort unchanged/unobservable.
+  Continue serial worker ownership and the broader
   module/channel audit. WebSocket client native framing/flush ownership, bounded I/O, passive
   prepared input, callback receipts, disabled/reconfigured prefix drain, and undo source fencing
   are verified. Preserve its protocol/complexity rejection, parser-gap, reconnect, handshake-stop,
@@ -85,7 +91,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-23 | WebSocket client native/passive ownership verified; server/serial and broader module/generator audit open                 |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-24 | WebSocket server native ownership verified; passive server/serial and broader module/generator audit open                 |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2512,3 +2518,76 @@ audio. They do not qualify external endpoints/hardware, other platforms, native 
 product-scale timing. Commit and push this milestone on `main`, then continue WebSocket server,
 serial, shared producer argument admission/disposal, Sound Card/channel and generator audits.
 P03 remains **IN_PROGRESS**; P04-P18 retain their states.
+
+### P03 batch 24: WebSocket server bounded native ownership
+
+Resumed clean delivered `e9230f86f75fe1a15493192f56563f46f8f18757` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live. Reconfirmed that the mapping branch
+is already merged and the plan requires each verified milestone to commit/push to `origin/main`.
+The next owning layer was app WebSocket server transport: actor-side resolution/bind, unbounded
+commands/replies, sequential three-second handshakes, unbounded async send/flush and join-on-stop.
+Requested **XHigh; actual effort unchanged/unobservable**, with no supported control exposed.
+
+The app now uses the locked Tungstenite 0.29 public nonblocking server handshake/framing API.
+Shared app WebSocket code owns the finite codec configuration and socket byte/syscall budget;
+client connection setup stays client-owned. The obsolete copying message helper/private client
+socket aliases are removed. The server reserves at most 16 live/retiring native workers, with
+256 commands / 8 MiB, a 1 MiB retained command bound before copying, 64 replies / 32 MiB and one
+retained continuation per input/output/status producer. At most 128 active peers and pending
+handshakes share capacity. Each native turn advances at most four accepts, interrupted handshakes,
+output recipients and input messages; each socket direction has 64 KiB/four-syscall limits.
+Handshake deadline is three seconds; idle HTTP peers cannot block valid upgrades or output.
+Exact and wildcard paths retain existing semantics with bounded authored/request path storage.
+
+Broadcasts capture native peer identities when each command begins and share message storage.
+Each recipient keeps independent submit/flush state and a five-second deadline, rotating fairly;
+WouldBlock never resubmits the encoded frame. Failures reject the original suffix explicitly
+without moving it to replacements, including an identical public label. Invalid UTF-8 fails one
+broadcast without reconnecting. Input and output reply pressure have independent continuations.
+Ping/close remain serviced with application receive disabled. Successful server close flush is
+normal disconnection, following the library's documented ConnectionClosed result.
+
+Native cancellation/drop never joins the engine. Blocked setup keeps its reserved lifetime;
+bind retries back off 250ms–5s. Native Listening/Recovering events own connection feedback.
+Applied port/path/enabled values fence script/command admission before callbacks. Temporary native
+capacity exhaustion retries after a 250ms owner deadline and defers snapshots until due. The owner
+still uses periodic actor-side callback/parsing with a shared parser and explicitly cancels on
+ordinary disable/reconfigure. Passive receipts, per-peer prepared input and accepted-prefix
+retirement are the next batch; this milestone does not claim those gaps fixed.
+
+The initial compile found overlapping mutable borrows in native handshake setup; staged the
+library call before advancing state. The initial focused run passed **17/17** in **0.57s** after
+**2m14s** compilation; expanded ownership/admission coverage passed **21/21** in **0.60s** after
+**1m23s** compilation. The next run passed **22/23** after **1m40s** compilation: the occupied-port
+app fixture bound loopback while the module binds wildcard, permitting a different bind outcome
+on Windows. It now binds the same wildcard address and waits for the explicit warning before
+asserting disconnected state. Strict Clippy rejected the large native handshake outcome enum;
+boxed the established socket during native handoff. The corrected run passed **23/23** in
+**0.42s** after **1m49s** compilation. Added explicit normal-close handling and strengthened that
+test; the settled source passed **23/23** in **0.42s** after **1m39s** compilation. Overlapping runs
+are not summed. Requested return to **High** after focused proof; actual effort unchanged/unobservable.
+
+Disjoint compiled-name preservation suites passed script API **8**, concrete streams **147**
+(including those 23), common streaming **45**, HTTP **59**, Sound Card **35**, OSC **25**,
+initial Formula **1**, and null-device Sound Card evidence **1**: **321 distinct app tests**.
+These run the built `target/debug/deps/Chataigne2-c47f0ddae7812c83.exe` with the recorded owning
+filters and `--test-threads=4`; null-device evidence uses its exact name and one thread.
+`cargo test-fast --locked -p golden_io` passed **38/38** in **0.20s** (0.14s preparation):
+**359 distinct app/IO tests** total.
+
+Final `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed in
+**1m45s** including lock wait. `cargo check --locked --workspace --tests` passed in **1m48s**
+including lock wait. Native `cargo build --locked -p Chataigne2 --bin Chataigne2` passed in
+**1m29s** including lock wait, without linker repair or cache deletion. Root/Core Cargo formatting,
+explicit changed-feature rustfmt, maintained-doc Prettier and whitespace checks pass.
+Inventory: **1649 source files / 42 oversized**; all new runtime/test files remain below 1000 lines.
+All owned jobs are terminal.
+
+Evidence is the checked-in native transport/cursor/peer/pressure and owner admission regressions,
+plus terminal commands recorded here. Checks use Windows/default features, controlled local
+WebSocket/TCP/UDP/HTTP/OSC loopbacks, injected setup/queue/receipt failures, missing-serial recovery
+and null-device audio. They do not qualify external endpoints/hardware, other platforms,
+native UI interaction or product-scale memory/timing. Commit and push this milestone on `main`,
+then continue server passive/per-peer input/retirement, serial, shared producer argument
+admission/disposal, Sound Card/channel and generator audits. P03 remains **IN_PROGRESS**;
+P04-P18 retain their states.

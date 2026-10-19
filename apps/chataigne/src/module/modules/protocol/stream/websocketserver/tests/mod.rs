@@ -1,12 +1,16 @@
-use std::{net::TcpListener, thread, time::{Duration, Instant}};
+use std::{
+    net::TcpListener,
+    thread,
+    time::{Duration, Instant},
+};
 
+use golden_io::PendingDrainState;
 use tokio::runtime::Builder;
 use tokio_tungstenite::connect_async;
-use golden_io::PendingDrainState;
 
-use super::transport::{
-    WebSocketServerTransportConfig, WebSocketServerTransportHandle, WebSocketServerWorkerEvent,
-};
+use super::transport::{WebSocketServerTransportConfig, WebSocketServerTransportHandle, WebSocketServerWorkerEvent};
+
+mod admission;
 
 #[test]
 fn websocket_transport_server_accepts_websocket_connection() {
@@ -22,6 +26,20 @@ fn websocket_transport_server_accepts_websocket_connection() {
         send_enabled: true,
     })
     .expect("spawn websocket server transport");
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let mut events = Vec::new();
+        handle.drain_events(&mut events);
+        if events
+            .iter()
+            .any(|event| matches!(event, WebSocketServerWorkerEvent::Listening(_)))
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "server did not bind");
+        thread::sleep(Duration::from_millis(1));
+    }
 
     let runtime = Builder::new_current_thread()
         .enable_all()
@@ -42,7 +60,7 @@ fn websocket_transport_server_accepts_websocket_connection() {
                     handle.stop();
                     return;
                 }
-                WebSocketServerWorkerEvent::Stopped(error) => {
+                WebSocketServerWorkerEvent::Recovering(error) => {
                     panic!("websocket server transport stopped unexpectedly: {error}");
                 }
                 _ => {}
@@ -60,5 +78,4 @@ fn websocket_transport_server_accepts_websocket_connection() {
 
         thread::sleep(Duration::from_millis(10));
     }
-
 }

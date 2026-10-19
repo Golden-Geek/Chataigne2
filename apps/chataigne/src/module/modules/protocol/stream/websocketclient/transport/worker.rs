@@ -1,6 +1,6 @@
 use super::{
-    outbound::Outbound, socket::WireSocket, ReplySource, StreamingWorkerEvent as Event,
-    WebSocketClientConnectionStatus as Status, WebSocketClientTransportConfig,
+    outbound::Outbound, ReplySource, StreamingWorkerEvent as Event, WebSocketClientConnectionStatus as Status,
+    WebSocketClientTransportConfig, WireSocket,
 };
 use crate::app::module::common::streaming::{
     input::{self, InputPlan},

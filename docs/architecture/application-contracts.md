@@ -194,7 +194,34 @@ keeps binary callbacks distinct from text callbacks. Shared stream envelope reje
 oversize feedback invalidate partial input rather than joining later bytes across a dropped batch.
 An owner retains its accepted frame/input/callback prefix across reconfigure and disable, then
 starts the replacement. Destroy alone cancels producers and drops runtime deliveries; undo uses
-a fresh wake source. WebSocket server, serial and broader producer admission/disposal remain P03 work.
+a fresh wake source.
+
+WebSocket server now uses bounded native ownership for resolution, bind/retry, concurrent upgrades,
+frame I/O and cleanup. It shares the client's finite codec configuration and per-direction
+64 KiB/four-syscall socket budget. The server reserves at most 16 native lifetimes; each has
+256 commands / 8 MiB, a 1 MiB retained command limit checked before copying, 64 replies / 32 MiB,
+and one retained continuation per input/output/status producer. The combined active-peer and
+pending-handshake limit is 128. Pending handshakes rotate through at most four advances per native
+turn, with a three-second deadline; an idle HTTP client cannot block an unrelated upgrade or output.
+Paths are exact (empty accepts any); authored and received paths are bounded before retaining copies.
+
+Each broadcast captures the current native peer identities when its command begins. Recipients
+share the message payload but retain independent submit/flush state, five-second deadlines and
+round-robin progress. A vanished peer's suffix fails explicitly and cannot target a replacement
+with the same public address. WouldBlock flushes the existing encoded frame without resubmission.
+Receive-disabled peers still service protocol ping/close messages. Cancellation/drop never joins
+on the engine; a blocked native setup retains its lifetime slot until cleanup. Bind failures retry
+with 250ms–5s backoff; native Listening/Recovering events own connection feedback.
+Temporary native lifetime exhaustion retries after a coarse owner deadline, without rebuilding
+snapshots while that deadline is pending.
+
+Applied port/path/enabled values fence command/script admission before configuration callbacks.
+The server owner still polls and prepares callbacks/parsing on the actor with shared parser state;
+per-peer prepared input, passive receipt delivery and accepted-prefix retirement across ordinary
+disable/reconfiguration are the next P03 batch. Native graceful admission closure is tested, but
+the current owner still explicitly cancels its transport on those transitions. Per-peer codec
+buffers are finite under the 128-peer/16-lifetime limits; this is not a product-scale memory qualification.
+Serial and broader producer admission/disposal audits also remain P03 work.
 
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured
 for the active generation, so a configuration edit followed immediately by a command or script
