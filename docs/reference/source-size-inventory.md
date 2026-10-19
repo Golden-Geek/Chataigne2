@@ -7,14 +7,15 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-19 against `2e1f392551ee6d4b9a5859bc3c62945e18811fe4` plus the uncommitted
-P01/P02 engine and transport repairs plus P03 bounded-worker/HTTP/node-wake/lifecycle/UDP work. Scanned **1383 source files**; **42 exceed
+Refreshed 2026-10-19 against delivered `f02205af3baa1c2ebf49527104364980c3a7b920` plus P03
+shared received-value/stream admission and cursor work on `main`. Scanned **1386 source files**; **42 exceed
 1,000 lines**. Persistence lifecycle and node behavior extractions brought
 `engine/persistence/mod.rs` and `node/core/behavior.rs` below the limit. No new size exceptions
 are established by this inventory. Standard formatting of the touched Sound Card modules also
 brings its integration coordinator below 1000 lines; the bounded wake modules add no exception.
 The lifecycle budget module and public lifecycle regression suite also remain below the limit.
 UDP's worker, generation owner, and focused test modules introduce no new size exception.
+Shared received-value accounting/service modules and stream regressions remain below the limit.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its

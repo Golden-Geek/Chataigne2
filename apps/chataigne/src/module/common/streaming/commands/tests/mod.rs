@@ -35,8 +35,7 @@ fn values_request_uses_binary_frames() {
 
 #[test]
 fn values_json_request_uses_text_frames() {
-    let request = values_json_request(&serde_json::json!({ "answer": 42 }))
-        .expect("json values request should encode");
+    let request = values_json_request(&serde_json::json!({ "answer": 42 })).expect("json values request should encode");
 
     assert_eq!(request.bytes, br#"{"answer":42}"#);
     assert_eq!(request.frame_kind, StreamingSendFrameKind::Text);

@@ -14,7 +14,7 @@ use golden_core::{
     events::{CustomEvent, Event},
     logerror, node,
     node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor},
-    parameter::{Enum, ParamValue, ParameterEventBehaviour},
+    parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -25,14 +25,14 @@ use crate::app::module::common::{
         HttpMethod, HttpRequestBody, HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
         HTTP_TEXT_CONTENT_TYPE,
     },
-    received_values::{apply_received_value_batch, ReceivedValueBatchMessage, ReceivedValueBatchOptions},
+    received_values::service::{ReceivedValueCursor, ReceivedValueProgress},
 };
 
 use self::transport::{
     HttpFailure, HttpQueuedRequest, HttpRequestOrigin, HttpResponse, HttpTransportConfig, HttpWorkerEvent,
 };
 use lifecycle::HttpTransports;
-use response_service::{PendingHttpEvent, ResponseCursor, ResponseProgress};
+use response_service::PendingHttpEvent;
 
 const HTTP_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const HTTP_BASE_WARNING_ID: &str = "http_base_address";
@@ -316,16 +316,16 @@ impl HttpModule {
             "bounded HTTP response batch"
         );
         self.pending_events
-            .push_back(PendingHttpEvent::Response(response, ResponseCursor::default()));
+            .push_back(PendingHttpEvent::Response(response, ReceivedValueCursor::default()));
     }
 
     fn service_pending_events(&mut self, ctx: &mut ProcessCtx, snapshot: Option<&ProcessTreeSnapshot>) {
         let values_id = self.base.values_id();
         let progress = match self.pending_events.front_mut() {
             Some(PendingHttpEvent::Response(response, cursor)) => {
-                cursor.service(response, ctx, snapshot, values_id, self.auto_add.get())
+                cursor.service(response.messages(), ctx, snapshot, values_id, self.auto_add.get(), true)
             }
-            Some(PendingHttpEvent::Failure(_)) => ResponseProgress::Complete,
+            Some(PendingHttpEvent::Failure(_)) => ReceivedValueProgress::Complete,
             Some(PendingHttpEvent::Callback(delivery)) => {
                 if delivery.service(ctx) {
                     self.pending_events.pop_front();
@@ -334,9 +334,9 @@ impl HttpModule {
             }
             None => return,
         };
-        if progress != ResponseProgress::Pending {
+        if progress != ReceivedValueProgress::Pending {
             let event = match self.pending_events.pop_front().expect("completed HTTP event") {
-                PendingHttpEvent::Response(response, _) if progress == ResponseProgress::Failed => {
+                PendingHttpEvent::Response(response, _) if progress == ReceivedValueProgress::Failed => {
                     let failure = callbacks::response_application_failure(response);
                     logerror!("HTTP response application failed: {}", failure.error);
                     self.request_failed_callback(failure)
@@ -560,7 +560,7 @@ impl Node for HttpModule {
     fn update_requires_tree_snapshot(&self) -> bool {
         self.transport_refresh_due()
             || match self.pending_events.front() {
-                Some(PendingHttpEvent::Response(response, cursor)) => cursor.requires_snapshot(response),
+                Some(PendingHttpEvent::Response(response, cursor)) => cursor.requires_snapshot(response.messages()),
                 Some(PendingHttpEvent::Failure(_) | PendingHttpEvent::Callback(_)) => false,
                 None => self.transports.has_pending(),
             }

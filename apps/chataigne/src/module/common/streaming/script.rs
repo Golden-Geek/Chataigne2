@@ -33,10 +33,7 @@ pub(crate) fn emit_stream_bytes_callbacks(
     let source_arg = source
         .map(|source| JsonValue::String(source.to_string()))
         .unwrap_or(JsonValue::Null);
-    let data_args = vec![
-        crate::app::module::script_api::bytes_arg(bytes),
-        source_arg.clone(),
-    ];
+    let data_args = vec![crate::app::module::script_api::bytes_arg(bytes), source_arg.clone()];
     crate::app::module::script_api::emit_script_callback(
         ctx,
         module_id,
@@ -66,12 +63,7 @@ pub(crate) fn emit_client_connected(ctx: &mut ProcessCtx, module_id: NodeId, cli
     );
 }
 
-pub(crate) fn emit_client_disconnected(
-    ctx: &mut ProcessCtx,
-    module_id: NodeId,
-    client_id: &str,
-    reason: Option<&str>,
-) {
+pub(crate) fn emit_client_disconnected(ctx: &mut ProcessCtx, module_id: NodeId, client_id: &str, reason: Option<&str>) {
     crate::app::module::script_api::emit_script_callback(
         ctx,
         module_id,

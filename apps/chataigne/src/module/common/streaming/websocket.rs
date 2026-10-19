@@ -17,19 +17,13 @@ pub(crate) fn normalize_websocket_path(path: &str) -> String {
 
 pub(crate) fn websocket_client_url(remote_host: &str, remote_port: u16, path: &str) -> String {
     let remote_host = remote_host.trim();
-    let authority_host = if remote_host.contains(':')
-        && !remote_host.starts_with('[')
-        && !remote_host.ends_with(']')
-    {
+    let authority_host = if remote_host.contains(':') && !remote_host.starts_with('[') && !remote_host.ends_with(']') {
         format!("[{remote_host}]")
     } else {
         remote_host.to_string()
     };
 
-    format!(
-        "ws://{authority_host}:{remote_port}{}",
-        normalize_websocket_path(path)
-    )
+    format!("ws://{authority_host}:{remote_port}{}", normalize_websocket_path(path))
 }
 
 pub(crate) fn websocket_config() -> WebSocketConfig {
@@ -38,10 +32,7 @@ pub(crate) fn websocket_config() -> WebSocketConfig {
         .max_frame_size(Some(WEBSOCKET_MAX_PAYLOAD_BYTES))
 }
 
-pub(crate) fn websocket_message(
-    frame_kind: StreamingSendFrameKind,
-    bytes: &[u8],
-) -> Result<Message, String> {
+pub(crate) fn websocket_message(frame_kind: StreamingSendFrameKind, bytes: &[u8]) -> Result<Message, String> {
     match frame_kind {
         StreamingSendFrameKind::Text => {
             let text = std::str::from_utf8(bytes)

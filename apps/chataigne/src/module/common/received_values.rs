@@ -9,6 +9,10 @@ use golden_core::{
 use smallvec::SmallVec;
 
 mod incremental;
+mod message;
+pub(crate) mod service;
+
+pub(crate) use message::ReceivedValueMessage;
 
 use incremental::*;
 
@@ -128,6 +132,8 @@ struct ReceivedValueBatchPlanner<'a, 'ctx> {
     snapshot: &'a ProcessTreeSnapshot,
     options: ReceivedValueBatchOptions,
     planned_children_by_existing_parent: HashMap<NodeId, PlannedReceivedChildren<'a>>,
+    // Compare later values against the ordered prefix rather than the old snapshot.
+    planned_existing_values: HashMap<NodeId, ParamValue>,
     result: ReceivedValueBatchResult,
 }
 
@@ -158,6 +164,7 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
             snapshot,
             options,
             planned_children_by_existing_parent: HashMap::new(),
+            planned_existing_values: HashMap::new(),
             result: ReceivedValueBatchResult::default(),
         }
     }
@@ -433,10 +440,12 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
 
                 if let Some(existing_value) = existing_snapshot.param_value.as_ref() {
                     if param_types_match(existing_value, value) {
-                        if param_update_needed(existing_value, value) {
+                        let current = self.planned_existing_values.get(&existing_id).unwrap_or(existing_value);
+                        if param_update_needed(current, value) {
                             self.ctx
                                 .set_param_with_behaviour(existing_id, value.clone(), self.options.event_behaviour);
                             self.result.updated_params.push(existing_id);
+                            self.planned_existing_values.insert(existing_id, value.clone());
                         }
                         return true;
                     }

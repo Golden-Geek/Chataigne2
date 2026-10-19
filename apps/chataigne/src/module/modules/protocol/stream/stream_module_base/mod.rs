@@ -1,3 +1,4 @@
+use crate::app::module::common::received_values::ReceivedValueMessage;
 use golden_core::{
     node,
     node::{Node, NodeId},
@@ -8,12 +9,13 @@ use golden_core::{
 use crate::app::module::{
     common::streaming::{
         module_helpers::{streaming_parse_config, StreamingIncomingQueue},
-        parser::{StreamingIncomingMessage, StreamingParseConfig, StreamingParser},
+        parser::{StreamingParseConfig, StreamingParser},
     },
     ModuleDataCapabilities,
 };
 
 const STREAM_BACKPRESSURE_WARNING_ID: &str = "stream_backpressure";
+const STREAM_APPLICATION_WARNING_ID: &str = "stream_application";
 
 #[node("streaming_module_base", label = "Streaming Module")]
 #[children(
@@ -76,7 +78,11 @@ impl StreamingModuleBase {
         self.base.connection_id()
     }
 
-    pub(crate) fn parameter_child_node_id(&self, snapshot: &ProcessTreeSnapshot, child_decl_id: &str) -> Option<NodeId> {
+    pub(crate) fn parameter_child_node_id(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        child_decl_id: &str,
+    ) -> Option<NodeId> {
         let parameters_id = self.parameters_id()?;
         snapshot.find_child_by_decl_id(parameters_id, child_decl_id)
     }
@@ -86,7 +92,11 @@ impl StreamingModuleBase {
         snapshot.node(child_id).map(|node| node.enabled)
     }
 
-    pub(crate) fn connection_child_node_id(&self, snapshot: &ProcessTreeSnapshot, child_decl_id: &str) -> Option<NodeId> {
+    pub(crate) fn connection_child_node_id(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        child_decl_id: &str,
+    ) -> Option<NodeId> {
         let connection_id = self.connection_id()?;
         snapshot.find_child_by_decl_id(connection_id, child_decl_id)
     }
@@ -117,15 +127,18 @@ impl StreamingModuleBase {
         self.incoming.has_pending_messages()
     }
 
-    pub(crate) fn take_ignored_param_change(&mut self, param: NodeId) -> bool {
-        self.incoming.take_ignored_param_change(param)
+    pub(crate) fn parse_bytes_cached(&mut self, bytes: &[u8]) -> Result<Vec<ReceivedValueMessage>, String> {
+        let result = self.parser.push_bytes(bytes, &self.cached_parse_config);
+        let rejected = self.parser.take_rejected_line_count();
+        if rejected > 0 {
+            golden_core::logerror!(
+                "Rejected {rejected} incoming stream lines: retained input exceeded 1 MiB or parsing configuration changed before the frame completed."
+            );
+        }
+        result
     }
 
-    pub(crate) fn parse_bytes_cached(&mut self, bytes: &[u8]) -> Result<Vec<StreamingIncomingMessage>, String> {
-        self.parser.push_bytes(bytes, &self.cached_parse_config)
-    }
-
-    pub(crate) fn push_messages(&mut self, messages: Vec<StreamingIncomingMessage>) {
+    pub(crate) fn push_messages(&mut self, messages: Vec<ReceivedValueMessage>) {
         self.incoming.push_messages(messages);
     }
 
@@ -135,14 +148,25 @@ impl StreamingModuleBase {
             ctx.set_node_warning_with(
                 self.id(),
                 Some(STREAM_BACKPRESSURE_WARNING_ID),
-                format!("Dropped {dropped} incoming stream messages because the bounded queue was full."),
+                format!("Rejected {dropped} incoming stream messages: batch capacity, retained-byte, or path-depth limit exceeded."),
                 None,
             );
         } else {
             ctx.clear_node_warning(self.id(), Some(STREAM_BACKPRESSURE_WARNING_ID));
         }
-        self.incoming
-            .process_pending(ctx, snapshot, self.base.values_id(), self.auto_add.get())
+        let pending = self
+            .incoming
+            .process_pending(ctx, snapshot, self.base.values_id(), self.auto_add.get());
+        let failed = self.incoming.take_failed_batch_count();
+        if failed > 0 {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(STREAM_APPLICATION_WARNING_ID),
+                format!("{failed} incoming stream batches failed graph application; remaining values were abandoned without replaying the applied prefix."),
+                None,
+            );
+        }
+        pending
     }
 
     pub(crate) fn log_incoming_enabled(&self) -> bool {
@@ -176,8 +200,7 @@ impl StreamingModuleBase {
         param: NodeId,
         old_value: &golden_core::parameter::ParamValue,
     ) {
-        self.base
-            .emit_script_param_callback(ctx, snapshot, param, old_value);
+        self.base.emit_script_param_callback(ctx, snapshot, param, old_value);
     }
 
     fn current_parse_config(&self, snapshot: &ProcessTreeSnapshot) -> StreamingParseConfig {
@@ -218,8 +241,10 @@ impl StreamingModuleBase {
 impl Node for StreamingModuleBase {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
-        self.base
-            .configure_command_tester(ctx, crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES);
+        self.base.configure_command_tester(
+            ctx,
+            crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+        );
         crate::app::module::enable_module_authoring(self.node_data_mut());
     }
 }

@@ -1,7 +1,7 @@
 use golden_core::parameter::{ParamValue, ParameterEnumOption};
 use serde::{Deserialize, Serialize};
 
-use crate::app::module::common::received_values::ReceivedValuePayload;
+use crate::app::module::common::received_values::{ReceivedValueMessage, ReceivedValuePayload};
 
 pub(crate) const HTTP_REQUEST_COMMAND_NODE_TYPE: &str = "http_request_command";
 pub(crate) const HTTP_UPLOAD_FILE_COMMAND_NODE_TYPE: &str = "http_upload_file_command";
@@ -164,37 +164,6 @@ pub(crate) struct HttpRequestPayload {
     pub description: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct HttpReceivedValue {
-    pub path_segments: Vec<String>,
-    pub payload: ReceivedValuePayload,
-    pub source_description: String,
-}
-
-impl HttpReceivedValue {
-    pub(crate) fn retained_weight(&self) -> usize {
-        self.path_segments.capacity() * std::mem::size_of::<String>()
-            + self.path_segments.iter().map(String::capacity).sum::<usize>()
-            + self.source_description.capacity()
-            + received_payload_weight(&self.payload)
-    }
-}
-
-fn received_payload_weight(payload: &ReceivedValuePayload) -> usize {
-    fn dynamic(value: &ParamValue) -> usize {
-        match value {
-            ParamValue::Str(value) | ParamValue::Enum(value) | ParamValue::File(value) => value.capacity(),
-            _ => 0,
-        }
-    }
-    match payload {
-        ReceivedValuePayload::Single(value) => std::mem::size_of::<ParamValue>() + dynamic(value),
-        ReceivedValuePayload::Multi(values) => {
-            values.capacity() * std::mem::size_of::<ParamValue>() + values.iter().map(dynamic).sum::<usize>()
-        }
-    }
-}
-
 pub(crate) fn http_method_enum_options() -> Vec<ParameterEnumOption> {
     enum_options(&[
         (HTTP_METHOD_GET, "GET"),
@@ -267,7 +236,7 @@ pub(crate) fn response_json_received_values(
     content_type: Option<&str>,
     request_path: &str,
     value_path: &str,
-) -> Result<Option<Vec<HttpReceivedValue>>, String> {
+) -> Result<Option<Vec<ReceivedValueMessage>>, String> {
     if !response_should_parse_json(body, content_type) {
         return Ok(None);
     }
@@ -345,7 +314,7 @@ fn collect_json_received_values(
     value: &serde_json::Value,
     path_segments: &mut Vec<String>,
     source_description: &str,
-    messages: &mut Vec<HttpReceivedValue>,
+    messages: &mut Vec<ReceivedValueMessage>,
     retained_bytes: &mut usize,
 ) -> Result<(), String> {
     if path_segments.len() > 64 || messages.len() >= 4096 {
@@ -360,12 +329,13 @@ fn collect_json_received_values(
         let weight = path_segments.len() * std::mem::size_of::<String>()
             + path_segments.iter().map(String::len).sum::<usize>()
             + source_description.len()
-            + received_payload_weight(&payload);
+            + std::mem::size_of::<ReceivedValuePayload>()
+            + payload.retained_weight();
         *retained_bytes = retained_bytes.saturating_add(weight);
         if *retained_bytes > 8 * 1024 * 1024 {
             return Err("HTTP JSON value expansion exceeds 8 MiB of retained payload".into());
         }
-        messages.push(HttpReceivedValue {
+        messages.push(ReceivedValueMessage {
             path_segments: path_segments.clone(),
             payload,
             source_description: source_description.to_string(),

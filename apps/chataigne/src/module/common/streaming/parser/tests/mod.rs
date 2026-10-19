@@ -3,6 +3,74 @@ use golden_core::parameter::ParamValue;
 use super::*;
 
 #[test]
+fn oversized_line_rejection_preserves_surrounding_frames_and_split_crlf() {
+    let mut parser = StreamingParser::default();
+    let config = StreamingParseConfig::default();
+    let mut bytes = b"before 1\n".to_vec();
+    bytes.extend(std::iter::repeat_n(b'x', MAX_PENDING_LINE_BYTES + 1));
+    let first = parser.push_bytes(&bytes, &config).unwrap();
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].path_segments, ["before"]);
+    assert_eq!(parser.take_rejected_line_count(), 1);
+    assert!(parser.push_bytes(b"discarded suffix\r", &config).unwrap().is_empty());
+    assert!(parser.push_bytes(b"", &config).unwrap().is_empty());
+    let after = parser.push_bytes(b"\nafter 2\n", &config).unwrap();
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].path_segments, ["after"]);
+    assert_eq!(parser.take_rejected_line_count(), 0, "reject each overlong frame once");
+}
+
+#[test]
+fn parser_configuration_change_rejects_partial_old_grammar() {
+    let mut parser = StreamingParser::default();
+    let config = StreamingParseConfig::default();
+    assert!(parser.push_bytes(b"old partial", &config).unwrap().is_empty());
+    let changed = StreamingParseConfig {
+        name_separator: Some(StreamingSeparator::Colon),
+        ..config
+    };
+    let messages = parser.push_bytes(b"new:42\n", &changed).unwrap();
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].path_segments, ["new"]);
+    assert_eq!(messages[0].payload, ReceivedValuePayload::Single(ParamValue::Int(42)));
+    assert_eq!(parser.take_rejected_line_count(), 1);
+}
+
+#[test]
+fn parser_accepts_a_line_at_the_exact_retained_limit() {
+    let mut parser = StreamingParser::default();
+    let config = StreamingParseConfig {
+        name_separator: None,
+        value_separator: None,
+        ..Default::default()
+    };
+    for _ in 0..1024 {
+        assert!(parser.push_bytes(&[b'x'; 1024], &config).unwrap().is_empty());
+    }
+    let messages = parser.push_bytes(b"\n", &config).unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        matches!(&messages[0].payload, ReceivedValuePayload::Single(ParamValue::Str(value)) if value.len() == MAX_PENDING_LINE_BYTES)
+    );
+    assert_eq!(parser.pending_line_bytes.capacity(), MAX_PENDING_LINE_BYTES);
+    assert_eq!(parser.take_rejected_line_count(), 0);
+}
+
+#[test]
+fn stream_parser_bounds_an_unterminated_line_across_input_chunks() {
+    let mut parser = StreamingParser::default();
+    let config = StreamingParseConfig::default();
+    let chunk = vec![b'x'; 65_536];
+    for _ in 0..32 {
+        let _ = parser.push_bytes(&chunk, &config);
+    }
+    assert!(
+        parser.pending_line_bytes.capacity() <= 1024 * 1024,
+        "unterminated input must have a retained-byte bound"
+    );
+}
+
+#[test]
 fn line_parser_splits_named_hierarchy() {
     let config = StreamingParseConfig::default();
     let message = parse_line(b"my.received.value 42\n", &config).expect("line should parse");

@@ -1,88 +1,116 @@
-use std::collections::HashSet;
+use std::collections::VecDeque;
 
 use golden_core::{
     node::NodeId,
-    parameter::{ParamValue, ParameterEventBehaviour},
+    parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
-};
-use golden_io::BoundedQueue;
-
-use crate::app::module::common::received_values::{
-    apply_received_value_payload, ReceivedValueApplyOptions, ReceivedValueApplyResult,
 };
 
 use super::{
     commands::STREAMING_COMMAND_NODE_TYPES,
-    parser::{StreamingIncomingMessage, StreamingParseConfig, StreamingSeparator},
+    parser::{StreamingParseConfig, StreamingSeparator},
+};
+use crate::app::module::common::received_values::{
+    service::{ReceivedValueCursor, ReceivedValueProgress},
+    ReceivedValueMessage,
 };
 
-pub(crate) struct StreamingIncomingQueue {
-    ignored_param_changes: HashSet<NodeId>,
-    pending_messages: BoundedQueue<StreamingIncomingMessage>,
-    dropped_messages: u64,
+struct PendingStreamBatch {
+    messages: Vec<ReceivedValueMessage>,
+    cursor: ReceivedValueCursor,
+    weight: usize,
 }
 
-const MAX_PENDING_STREAM_MESSAGES: usize = 16_384;
-const MAX_PENDING_STREAM_WEIGHT: usize = 65_536;
+pub(crate) struct StreamingIncomingQueue {
+    batches: VecDeque<PendingStreamBatch>,
+    retained_items: usize,
+    retained_weight: usize,
+    maximum_items: usize,
+    maximum_weight: usize,
+    dropped_messages: u64,
+    failed_batches: u64,
+}
+
+// One maximum IPv4 UDP datagram in raw mode fits without dropping its ordered suffix.
+const MAX_PENDING_STREAM_MESSAGES: usize = 65_536;
+const MAX_PENDING_STREAM_BYTES: usize = 16 * 1024 * 1024;
+const MAX_STREAM_PATH_DEPTH: usize = 64;
 
 impl StreamingIncomingQueue {
     pub(crate) fn new() -> Self {
+        Self::with_capacity(MAX_PENDING_STREAM_MESSAGES, MAX_PENDING_STREAM_BYTES)
+    }
+
+    fn with_capacity(maximum_items: usize, maximum_weight: usize) -> Self {
         Self {
-            ignored_param_changes: HashSet::new(),
-            pending_messages: BoundedQueue::new(
-                MAX_PENDING_STREAM_MESSAGES,
-                MAX_PENDING_STREAM_WEIGHT,
-            ),
+            batches: VecDeque::new(),
+            retained_items: 0,
+            retained_weight: 0,
+            maximum_items,
+            maximum_weight,
             dropped_messages: 0,
+            failed_batches: 0,
         }
     }
 
     #[cfg(test)]
     pub(super) fn with_limits(maximum_items: usize, maximum_weight: usize) -> Self {
-        Self {
-            ignored_param_changes: HashSet::new(),
-            pending_messages: BoundedQueue::new(maximum_items, maximum_weight),
-            dropped_messages: 0,
+        Self::with_capacity(maximum_items, maximum_weight)
+    }
+
+    /// Admit a whole parse batch or explicitly reject it; never keep a silent partial suffix.
+    pub(crate) fn push_messages(&mut self, messages: Vec<ReceivedValueMessage>) {
+        if messages.is_empty() {
+            return;
         }
-    }
-
-    pub(crate) fn ignore_next_param_change(&mut self, param: NodeId) {
-        self.ignored_param_changes.insert(param);
-    }
-
-    pub(crate) fn take_ignored_param_change(&mut self, param: NodeId) -> bool {
-        self.ignored_param_changes.remove(&param)
-    }
-
-    pub(crate) fn push_messages(&mut self, messages: Vec<StreamingIncomingMessage>) {
-        self.queue_messages(messages);
-    }
-
-    fn queue_messages(&mut self, messages: impl IntoIterator<Item = StreamingIncomingMessage>) {
-        for message in messages {
-            let weight = streaming_message_weight(&message);
-            if self.pending_messages.try_push(message, weight).is_err() {
-                self.dropped_messages = self.dropped_messages.saturating_add(1);
-            }
+        let weight = std::mem::size_of::<PendingStreamBatch>()
+            + messages.capacity() * std::mem::size_of::<ReceivedValueMessage>()
+            + messages
+                .iter()
+                .map(ReceivedValueMessage::retained_weight)
+                .sum::<usize>();
+        let next_items = self.retained_items.checked_add(messages.len());
+        let next_weight = self.retained_weight.checked_add(weight);
+        if next_items.is_none_or(|items| items > self.maximum_items)
+            || next_weight.is_none_or(|bytes| bytes > self.maximum_weight)
+            || messages
+                .iter()
+                .any(|message| message.path_segments.len() > MAX_STREAM_PATH_DEPTH)
+        {
+            self.dropped_messages = self.dropped_messages.saturating_add(messages.len() as u64);
+            return;
         }
+        self.retained_items = next_items.expect("checked admission");
+        self.retained_weight = next_weight.expect("checked admission");
+        self.batches.push_back(PendingStreamBatch {
+            messages,
+            cursor: ReceivedValueCursor::default(),
+            weight,
+        });
     }
 
     pub(crate) fn take_dropped_message_count(&mut self) -> u64 {
         std::mem::take(&mut self.dropped_messages)
     }
 
-    #[cfg(test)]
-    pub(super) fn pending_message_count(&self) -> usize {
-        self.pending_messages.len()
+    pub(crate) fn take_failed_batch_count(&mut self) -> u64 {
+        std::mem::take(&mut self.failed_batches)
     }
 
     #[cfg(test)]
-    pub(super) fn take_pending_messages_for_test(&mut self) -> Vec<StreamingIncomingMessage> {
-        self.pending_messages.take_all()
+    pub(super) fn pending_message_count(&self) -> usize {
+        self.retained_items
+    }
+
+    #[cfg(test)]
+    pub(super) fn take_pending_messages_for_test(&mut self) -> Vec<ReceivedValueMessage> {
+        self.retained_items = 0;
+        self.retained_weight = 0;
+        self.batches.drain(..).flat_map(|batch| batch.messages).collect()
     }
 
     pub(crate) fn has_pending_messages(&self) -> bool {
-        !self.pending_messages.is_empty()
+        !self.batches.is_empty() || self.dropped_messages > 0 || self.failed_batches > 0
     }
 
     pub(crate) fn process_pending(
@@ -92,65 +120,23 @@ impl StreamingIncomingQueue {
         values_id: Option<NodeId>,
         auto_add: bool,
     ) -> bool {
-        let Some(values_id) = values_id else {
-            self.pending_messages.clear();
+        let Some(batch) = self.batches.front_mut() else {
             return false;
         };
-        if self.pending_messages.is_empty() {
-            return false;
-        }
-
-        let mut remaining = Vec::new();
-        let mut messages = self.pending_messages.take_all().into_iter();
-
-        while let Some(message) = messages.next() {
-            let result = apply_received_value_payload(
-                ctx,
-                snapshot,
-                values_id,
-                message.path_segments.as_slice(),
-                &message.payload,
-                ReceivedValueApplyOptions {
-                    auto_add,
-                    //source_description: message.source_description.as_str(),
-                    event_behaviour: ParameterEventBehaviour::Append,
-                },
-            );
-
-            match result {
-                ReceivedValueApplyResult::Applied {
-                    needs_snapshot_refresh,
-                } => {
-                    for param in changed_parameter_targets(snapshot, values_id, message.path_segments.as_slice()) {
-                        self.ignore_next_param_change(param);
-                    }
-                    if needs_snapshot_refresh {
-                        remaining.extend(messages);
-                        self.queue_messages(remaining);
-                        return true;
-                    }
-                }
-                ReceivedValueApplyResult::Ignored => {}
-                ReceivedValueApplyResult::Retry => {
-                    remaining.push(message);
-                    remaining.extend(messages);
-                    self.queue_messages(remaining);
-                    return true;
-                }
+        let progress = batch
+            .cursor
+            .service(&batch.messages, ctx, Some(snapshot), values_id, auto_add, false);
+        if progress != ReceivedValueProgress::Pending {
+            let batch = self.batches.pop_front().expect("serviced batch");
+            self.retained_items -= batch.messages.len();
+            self.retained_weight -= batch.weight;
+            if progress == ReceivedValueProgress::Failed {
+                // A failed receipt may include an applied prefix. Abandon the suffix, never replay it.
+                self.failed_batches = self.failed_batches.saturating_add(1);
             }
         }
-
-        self.queue_messages(remaining);
-        false
+        self.has_pending_messages()
     }
-}
-
-fn streaming_message_weight(message: &StreamingIncomingMessage) -> usize {
-    let payload_values = match &message.payload {
-        crate::app::module::common::received_values::ReceivedValuePayload::Single(_) => 1,
-        crate::app::module::common::received_values::ReceivedValuePayload::Multi(values) => values.len().max(1),
-    };
-    message.path_segments.len().saturating_add(payload_values).max(1)
 }
 
 pub(crate) fn streaming_parse_config(
@@ -202,35 +188,4 @@ pub(crate) fn format_bytes_for_log(bytes: &[u8]) -> String {
             .collect::<Vec<_>>()
             .join(" "),
     }
-}
-
-fn changed_parameter_targets(
-    snapshot: &ProcessTreeSnapshot,
-    values_id: NodeId,
-    path_segments: &[String],
-) -> Vec<NodeId> {
-    let mut current = values_id;
-    for segment in path_segments {
-        let Some(child_id) = snapshot.find_child(current, segment.as_str()) else {
-            return Vec::new();
-        };
-        current = child_id;
-    }
-
-    let Some(target) = snapshot.node(current) else {
-        return Vec::new();
-    };
-    if target.param_value.is_some() {
-        return vec![current];
-    }
-
-    snapshot
-        .child_ids(current)
-        .into_iter()
-        .filter(|child_id| {
-            snapshot
-                .node(*child_id)
-                .is_some_and(|child| child.param_value.is_some())
-        })
-        .collect()
 }

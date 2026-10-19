@@ -118,6 +118,25 @@ and 16 incoming packets, and an owner drain extracts at most four events. Oversi
 and host names fail admission synchronously. These bounds cover retained transport allocations;
 shared stream parsing and graph application have separate limits and qualification work.
 
+The app's `common/received_values` owns the shared HTTP/stream message model, retained-weight
+accounting, and graph-application cursor. Stream admission retains complete parse batches in FIFO
+order, bounded by 65,536 messages / 16 MiB and 64 path levels. It charges vector/string capacity
+and active batches waiting for engine receipts; rejected batches produce backend diagnostics.
+One maximum IPv4 UDP datagram in raw mode fits this admission budget. Each service turn uses the
+same 256 path/value/sibling work-unit and roughly 64 KiB copy targets as HTTP, with one admitted
+larger scalar allowed a whole turn. Compatible existing values compare against the planned ordered
+prefix, preserving sequences such as `0 → 1 → 0`; conflicting structural changes need a fresh
+snapshot. Failed or discarded graph application abandons the batch suffix and reports failure
+without replaying applied values or triggers. Later admitted batches can continue.
+
+Stream line parsing retains at most 1 MiB, scans incoming chunks without shifting their remaining
+suffix, and rejects each oversized line once while discarding through its delimiter. Valid
+surrounding frames survive. A changed grammar rejects a partial old line before interpreting new
+input. Line rejection is logged at the app-owned stream boundary. Stream parsing and callback
+preparation still run in node callbacks, JSON/raw expansion needs its own preparation admission,
+and UDP interface discovery and periodic polling remain open P03 work; these queue/cursor bounds
+do not qualify that remaining actor work.
+
 Reconfiguration and disable close send admission while retaining accepted work and results.
 The next generation waits for the old socket's release, including when rebinding the same port.
 Only destination destruction cancels pending work. Bind failures explicitly fail already-admitted
@@ -136,8 +155,8 @@ One in-flight request/result may additionally be retained, and parsing/preparing
 exceed the reply queue's retained-weight budget before rejection. Client creation, JSON parsing,
 success/failure script-argument preparation, retry waits, requests, and client destruction stay on the worker.
 
-HTTP module turns drain at most four events and retain at most that one FIFO batch. A response
-cursor services at most 256 path/value/sibling work units and about 64 KiB of value/path/provenance
+HTTP module turns drain at most four events and retain at most that one FIFO batch. The shared
+received-value cursor services at most 256 path/value/sibling work units and about 64 KiB of value/path/provenance
 copies per turn. One larger scalar may consume a whole turn rather than being truncated or stranded;
 it was already bounded at the worker boundary. Large arrays use the same continuation, not a smaller
 input limit. Known missing paths become detached subtree batches; list tails are pruned with stable
@@ -148,7 +167,7 @@ Success and failure callbacks stay in FIFO order, with at most one completion pe
 waits for engine completion receipts before advancing to the next graph-planning turn. Rejection,
 discard, or rollback reports `requestFailed` with the original request identity and attempt count;
 an applied prefix may remain. It never reissues the endpoint request or replays earlier pulses.
-Snapshot freshness alone cannot acknowledge a queued edit. Repeated triggers and
+Snapshot freshness alone cannot acknowledge a queued edit. Missing repeated trigger addresses and
 ancestor/descendant replacements yield between conflicting units instead of collapsing into one
 planned leaf. Creating a trigger address retains the first pulse until a fresh snapshot can
 submit it as an Append value edit; existing trigger addresses may receive multiple appended

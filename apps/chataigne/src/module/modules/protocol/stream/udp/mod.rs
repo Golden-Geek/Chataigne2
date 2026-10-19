@@ -409,10 +409,6 @@ impl UdpModule {
     }
 
     fn on_param_change_inner(&mut self, param: NodeId) {
-        if self.stream.take_ignored_param_change(param) {
-            return;
-        }
-
         if self.param_affects_transport(param) {
             self.transport_dirty = true;
         }

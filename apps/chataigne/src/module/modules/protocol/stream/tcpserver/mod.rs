@@ -298,10 +298,6 @@ impl TcpServerModule {
     }
 
     fn on_param_change_inner(&mut self, param: NodeId) {
-        if self.stream.take_ignored_param_change(param) {
-            return;
-        }
-
         if self.port.is_bound() && self.port.id() == param {
             self.transport_dirty = true;
         }

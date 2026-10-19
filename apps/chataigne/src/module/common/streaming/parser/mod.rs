@@ -1,6 +1,6 @@
 use golden_core::parameter::ParamValue;
 
-use crate::app::module::common::received_values::ReceivedValuePayload;
+use crate::app::module::common::received_values::{ReceivedValueMessage, ReceivedValuePayload};
 
 pub(crate) const STREAMING_INPUT_MODE_RAW: &str = "raw";
 pub(crate) const STREAMING_INPUT_MODE_LINE: &str = "line";
@@ -13,6 +13,7 @@ pub(crate) const STREAMING_SEPARATOR_DOT: &str = "dot";
 pub(crate) const STREAMING_SEPARATOR_TAB: &str = "tab";
 pub(crate) const DEFAULT_RAW_VALUE_NAME: &str = "byte";
 pub(crate) const DEFAULT_LINE_VALUE_NAME: &str = "received";
+const MAX_PENDING_LINE_BYTES: usize = 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum StreamingSeparator {
@@ -68,17 +69,13 @@ impl Default for StreamingParseConfig {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct StreamingIncomingMessage {
-    pub path_segments: Vec<String>,
-    pub payload: ReceivedValuePayload,
-    pub source_description: String,
-}
-
 #[derive(Clone, Debug, Default)]
 pub(crate) struct StreamingParser {
     pending_line_bytes: Vec<u8>,
     skip_lf_after_cr: bool,
+    discarding_line: bool,
+    active_config: Option<StreamingParseConfig>,
+    rejected_lines: u64,
 }
 
 impl StreamingParser {
@@ -86,13 +83,22 @@ impl StreamingParser {
         &mut self,
         bytes: &[u8],
         config: &StreamingParseConfig,
-    ) -> Result<Vec<StreamingIncomingMessage>, String> {
+    ) -> Result<Vec<ReceivedValueMessage>, String> {
+        if self.active_config.as_ref() != Some(config) {
+            if !self.pending_line_bytes.is_empty() {
+                self.rejected_lines = self.rejected_lines.saturating_add(1);
+            }
+            self.pending_line_bytes.clear();
+            self.skip_lf_after_cr = false;
+            self.discarding_line = false;
+            self.active_config = Some(config.clone());
+        }
         if config.mode == STREAMING_INPUT_MODE_RAW {
             self.pending_line_bytes.clear();
             self.skip_lf_after_cr = false;
             return Ok(bytes
                 .iter()
-                .map(|byte| StreamingIncomingMessage {
+                .map(|byte| ReceivedValueMessage {
                     path_segments: vec![DEFAULT_RAW_VALUE_NAME.to_string()],
                     payload: ReceivedValuePayload::Single(ParamValue::Int(i32::from(*byte))),
                     source_description: format!("raw byte 0x{byte:02X}"),
@@ -100,46 +106,64 @@ impl StreamingParser {
                 .collect());
         }
 
-            if config.mode == STREAMING_INPUT_MODE_JSON {
-                self.pending_line_bytes.clear();
-                self.skip_lf_after_cr = false;
-                return parse_json_bytes(bytes);
-            }
-
-        let bytes = self.trim_paired_lf_after_split_cr(bytes);
-
-        self.pending_line_bytes.extend_from_slice(bytes);
+        if config.mode == STREAMING_INPUT_MODE_JSON {
+            self.pending_line_bytes.clear();
+            self.skip_lf_after_cr = false;
+            return parse_json_bytes(bytes);
+        }
 
         let mut messages = Vec::new();
-        while let Some((delimiter_index, delimiter_len, skip_lf_after_cr)) =
-            find_line_break(self.pending_line_bytes.as_slice())
-        {
-            let line_bytes = self.pending_line_bytes[..delimiter_index].to_vec();
-            self.pending_line_bytes.drain(..delimiter_index + delimiter_len);
-            self.skip_lf_after_cr = skip_lf_after_cr;
-            if let Some(message) = parse_line(line_bytes.as_slice(), config) {
-                messages.push(message);
+        for part in bytes.split_inclusive(|byte| matches!(byte, b'\r' | b'\n')) {
+            if self.skip_lf_after_cr {
+                self.skip_lf_after_cr = false;
+                if part == b"\n" {
+                    continue;
+                }
+            }
+            let delimiter = part.last().copied().filter(|byte| matches!(byte, b'\r' | b'\n'));
+            let content = &part[..part.len() - usize::from(delimiter.is_some())];
+            if !self.discarding_line {
+                if content.len() <= MAX_PENDING_LINE_BYTES - self.pending_line_bytes.len() {
+                    let needed = self.pending_line_bytes.len() + content.len();
+                    if needed > self.pending_line_bytes.capacity() {
+                        // Geometric growth within the cap also bounds copies across tiny chunks.
+                        let capacity = self
+                            .pending_line_bytes
+                            .capacity()
+                            .saturating_mul(2)
+                            .max(needed)
+                            .clamp(1024, MAX_PENDING_LINE_BYTES);
+                        self.pending_line_bytes
+                            .reserve_exact(capacity - self.pending_line_bytes.len());
+                    }
+                    self.pending_line_bytes.extend_from_slice(content);
+                } else {
+                    self.pending_line_bytes = Vec::new();
+                    self.discarding_line = true;
+                    self.rejected_lines = self.rejected_lines.saturating_add(1);
+                }
+            }
+            if let Some(delimiter) = delimiter {
+                if !self.discarding_line {
+                    if let Some(message) = parse_line(&self.pending_line_bytes, config) {
+                        messages.push(message);
+                    }
+                }
+                self.pending_line_bytes.clear();
+                self.discarding_line = false;
+                self.skip_lf_after_cr = delimiter == b'\r';
             }
         }
 
         Ok(messages)
     }
 
-    fn trim_paired_lf_after_split_cr<'a>(&mut self, bytes: &'a [u8]) -> &'a [u8] {
-        if !self.skip_lf_after_cr {
-            return bytes;
-        }
-
-        self.skip_lf_after_cr = false;
-        if bytes.first() == Some(&b'\n') {
-            &bytes[1..]
-        } else {
-            bytes
-        }
+    pub(crate) fn take_rejected_line_count(&mut self) -> u64 {
+        std::mem::take(&mut self.rejected_lines)
     }
 }
 
-fn parse_json_bytes(bytes: &[u8]) -> Result<Vec<StreamingIncomingMessage>, String> {
+fn parse_json_bytes(bytes: &[u8]) -> Result<Vec<ReceivedValueMessage>, String> {
     if bytes.iter().all(|byte| byte.is_ascii_whitespace()) {
         return Ok(Vec::new());
     }
@@ -156,10 +180,10 @@ fn parse_json_bytes(bytes: &[u8]) -> Result<Vec<StreamingIncomingMessage>, Strin
 fn collect_json_messages(
     value: &serde_json::Value,
     path_segments: &mut Vec<String>,
-    messages: &mut Vec<StreamingIncomingMessage>,
+    messages: &mut Vec<ReceivedValueMessage>,
 ) -> Result<(), String> {
     if let Some(payload) = decode_json_payload(value)? {
-        messages.push(StreamingIncomingMessage {
+        messages.push(ReceivedValueMessage {
             path_segments: json_message_path_segments(path_segments.as_slice()),
             payload,
             source_description: json_source_description(path_segments.as_slice()),
@@ -238,7 +262,7 @@ fn json_source_description(path_segments: &[String]) -> String {
     }
 }
 
-pub(crate) fn parse_line(line_bytes: &[u8], config: &StreamingParseConfig) -> Option<StreamingIncomingMessage> {
+pub(crate) fn parse_line(line_bytes: &[u8], config: &StreamingParseConfig) -> Option<ReceivedValueMessage> {
     let line = String::from_utf8_lossy(line_bytes);
     let line = line.trim_matches(|character| character == '\r' || character == '\n');
     let line = line.trim();
@@ -257,7 +281,7 @@ pub(crate) fn parse_line(line_bytes: &[u8], config: &StreamingParseConfig) -> Op
         return None;
     }
 
-    Some(StreamingIncomingMessage {
+    Some(ReceivedValueMessage {
         source_description: format!("streaming line '{line}'"),
         path_segments,
         payload: decode_value_fields(values.as_slice()),
@@ -479,23 +503,6 @@ fn parse_quoted_string(input: &str) -> Option<String> {
 fn is_integer_text(input: &str) -> bool {
     let trimmed = input.trim();
     parse_hex_int(trimmed).is_some() || trimmed.parse::<i32>().is_ok()
-}
-
-fn find_line_break(bytes: &[u8]) -> Option<(usize, usize, bool)> {
-    for (index, byte) in bytes.iter().enumerate() {
-        match *byte {
-            b'\n' => return Some((index, 1, false)),
-            b'\r' => {
-                if bytes.get(index + 1) == Some(&b'\n') {
-                    return Some((index, 2, false));
-                }
-                return Some((index, 1, index + 1 == bytes.len()));
-            }
-            _ => {}
-        }
-    }
-
-    None
 }
 
 #[cfg(test)]

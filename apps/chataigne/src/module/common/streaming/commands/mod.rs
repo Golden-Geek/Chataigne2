@@ -87,8 +87,8 @@ pub(crate) fn values_request(
 }
 
 pub(crate) fn values_json_request(value: &serde_json::Value) -> Result<StreamingSendRequest, String> {
-    let text = serde_json::to_string(value)
-        .map_err(|error| format!("failed to encode values JSON payload: {error}"))?;
+    let text =
+        serde_json::to_string(value).map_err(|error| format!("failed to encode values JSON payload: {error}"))?;
 
     Ok(StreamingSendRequest {
         bytes: text.into_bytes(),

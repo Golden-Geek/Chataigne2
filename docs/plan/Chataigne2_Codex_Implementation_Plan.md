@@ -132,9 +132,9 @@ dragging, routing, meter animation, or native webview behavior. See
 ### Execution permissions
 
 Proceed through authorized implementation, checks, milestone commits, and pushes without
-per-task approval. Continue on `main` after merging `codex/builtin-mapping`, as requested by
-the user on 2026-10-19. This instruction does not authorize releases, deployments, remote
-issues/PRs, or desktop automation.
+per-task approval. Work on `main`; `codex/builtin-mapping` was merged and pushed there at
+`f02205af`, as requested by the user on 2026-10-19. This instruction does not authorize releases,
+deployments, remote issues/PRs, or desktop automation.
 Do not operate the user's keyboard, mouse, ASIO panel, or native desktop through automation.
 
 ### Milestone delivery
@@ -301,6 +301,9 @@ prerequisites during compilation, replace projects, and saturate admission. Veri
 effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
+
+<!-- Mode: Escalating to XHigh for shared stream retained-byte admission, resumable graph cursors, receipt ownership, and ordered repeated values against a shared snapshot. -->
+<!-- Mode: Returning to High after shared stream admission, ordering, receipt failure/recovery, line bounds, and maximum raw datagram regressions passed, with HTTP/stream/Sound Card/OSC preservation, strict Clippy, workspace/test compilation, and native app build. Worker preparation/notifications remain a separate P03 batch. -->
 
 <!-- Mode: Escalating to XHigh for UDP command/result admission, cancellation, and socket ownership across failed bind, disable/reconfigure, and worker retirement. -->
 <!-- Mode: Returning to High after 24 IO tests, 10 UDP tests, HTTP/Sound Card preservation, strict Clippy, and workspace/test compilation passed native queue admission, generation handoff, cancellation, and recovery. Stream parsing, node scheduling, and cursor bounds remain P03 work. -->

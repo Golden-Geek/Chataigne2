@@ -27,7 +27,7 @@ pub(super) fn event_weight(event: &HttpWorkerEvent) -> Result<usize, String> {
                 + headers_weight(&response.headers)
                 + response.content_type.as_ref().map_or(0, String::capacity);
             if let Ok(Some(values)) = &response.received_values {
-                weight += values.capacity() * size_of::<HttpReceivedValue>();
+                weight += values.capacity() * size_of::<ReceivedValueMessage>();
                 for value in values {
                     weight = weight.saturating_add(value.retained_weight());
                 }

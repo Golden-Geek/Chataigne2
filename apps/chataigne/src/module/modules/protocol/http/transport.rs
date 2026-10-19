@@ -1,3 +1,4 @@
+use crate::app::module::common::received_values::ReceivedValueMessage;
 use std::{
     io::Read,
     num::NonZeroUsize,
@@ -31,8 +32,8 @@ use reqwest::{
 };
 
 use crate::app::module::common::http::{
-    response_json_received_values, HttpAuthConfig, HttpAuthMode, HttpHeader, HttpReceivedValue, HttpRequestBody,
-    HttpRequestPayload, HTTP_AUTH_BASIC, HTTP_AUTH_BEARER, HTTP_AUTH_HEADER,
+    response_json_received_values, HttpAuthConfig, HttpAuthMode, HttpHeader, HttpRequestBody, HttpRequestPayload,
+    HTTP_AUTH_BASIC, HTTP_AUTH_BEARER, HTTP_AUTH_HEADER,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,10 +73,20 @@ pub(crate) struct HttpResponse {
     pub headers: Vec<HttpHeader>,
     pub content_type: Option<String>,
     pub body: Vec<u8>,
-    pub received_values: Result<Option<Vec<HttpReceivedValue>>, String>,
+    pub received_values: Result<Option<Vec<ReceivedValueMessage>>, String>,
     pub elapsed_ms: u128,
     pub attempts: u32,
     pub callback_args: Vec<serde_json::Value>,
+}
+
+impl HttpResponse {
+    pub(super) fn messages(&self) -> &[ReceivedValueMessage] {
+        self.received_values
+            .as_ref()
+            .ok()
+            .and_then(Option::as_ref)
+            .map_or(&[], Vec::as_slice)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
