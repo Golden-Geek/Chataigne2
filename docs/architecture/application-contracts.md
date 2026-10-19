@@ -140,6 +140,23 @@ admission recovery. Destroy/replacement cancels its producers, clears pending ru
 deadlines, and starts a fresh wake source when restored. Script argument parsing lives beside the
 HTTP coordinator in `scripts.rs`; HTTP selects no periodic/compiled node kernel.
 
+TCP server native ownership uses `golden_io::BoundedWorker`: resolve/bind/retry and socket cleanup
+run off the actor, with at most 16 live or retiring native tasks. Broadcast admission checks a 1 MiB
+payload/storage bound before copying; its queue allows 256 items / 8 MiB. Replies allow 64 items /
+1 MiB, each native continuation at most 16 KiB. A native turn performs at most four operations per
+input/output/status producer. Input reply saturation leaves outgoing work runnable. The server
+owns at most 128 clients and closes overflow connections; disconnect releases capacity.
+
+Each broadcast captures the currently live native client cohort when it starts, preserving the
+existing broadcast delivery boundary. It shares one payload across round-robin client cursors,
+writes at most 64 KiB per attempt, and has a five-second absolute deadline. Partial write failures
+close the original connection with its written-byte count; neither a suffix nor a completed prefix
+is replayed on another connection. Whole broadcasts remain FIFO. Bind failure retries with bounded
+backoff, and native Listening/Recovering events own module connection feedback. Applied port and
+enabled state fence new script/command admission before callback dispatch. TCP server passive
+receipt delivery, worker-prepared per-client parsing/callbacks, and module-level accepted-prefix
+handoff on disable/reconfigure remain P03 work; native cursor tests do not qualify those layers.
+
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured
 for the active generation, so a configuration edit followed immediately by a command or script
 call cannot send to the previous endpoint or with previous credentials. This comparison borrows

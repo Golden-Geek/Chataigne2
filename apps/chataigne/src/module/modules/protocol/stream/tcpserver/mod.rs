@@ -1,6 +1,9 @@
 mod transport;
 
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 use golden_core::{
     edit::Edit,
@@ -53,6 +56,7 @@ pub struct TcpServerModule {
     transport_dirty: bool,
     client_infos: BTreeMap<String, String>,
     client_list_dirty: bool,
+    retry_at: Option<Instant>,
 }
 
 impl TcpServerModule {
@@ -64,6 +68,7 @@ impl TcpServerModule {
             true,
             BTreeMap::new(),
             true,
+            None,
         )
     }
 
@@ -73,6 +78,7 @@ impl TcpServerModule {
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.transport_dirty = false;
+        self.retry_at = None;
 
         if !self.module_enabled(snapshot) {
             self.stop_transport();
@@ -83,7 +89,7 @@ impl TcpServerModule {
             return;
         }
 
-        let config = match self.transport_config() {
+        let config = match self.transport_config(snapshot) {
             Ok(config) => config,
             Err(error) => {
                 logerror!("Invalid TCP server module configuration: {}", error);
@@ -97,8 +103,6 @@ impl TcpServerModule {
         };
 
         if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            self.clear_port_warning(ctx);
-            self.stream.set_connected(ctx, true);
             return;
         }
 
@@ -109,8 +113,7 @@ impl TcpServerModule {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
-                self.clear_port_warning(ctx);
-                self.stream.set_connected(ctx, true);
+                self.stream.set_connected(ctx, false);
             }
             Err(error) => {
                 logerror!("Failed to start TCP server transport: {}", error);
@@ -118,12 +121,26 @@ impl TcpServerModule {
                 self.last_transport_config = None;
                 self.set_port_warning(ctx, error.as_str());
                 self.stream.set_connected(ctx, false);
+                self.transport_dirty = true;
+                self.retry_at = Some(Instant::now() + Duration::from_millis(250));
             }
         }
     }
 
-    fn transport_config(&self) -> Result<TcpServerTransportConfig, String> {
-        let bind_port = u16::try_from(self.port.get())
+    fn transport_refresh_due(&self) -> bool {
+        self.transport_dirty && self.retry_at.is_none_or(|at| Instant::now() >= at)
+    }
+
+    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<TcpServerTransportConfig, String> {
+        let port = snapshot
+            .node(self.port.id())
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(|value| match value {
+                ParamValue::Int(port) => Some(*port),
+                _ => None,
+            })
+            .ok_or("TCP server port is unavailable")?;
+        let bind_port = u16::try_from(port)
             .map_err(|_| "TCP server port 'connection/port' must be between 0 and 65535".to_string())?;
 
         Ok(TcpServerTransportConfig {
@@ -140,13 +157,20 @@ impl TcpServerModule {
             return;
         };
 
-        let worker_disconnected =
-            transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
+        let worker_disconnected = transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
 
         let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
+                TcpServerWorkerEvent::Listening(_) => {
+                    self.clear_port_warning(ctx);
+                    self.stream.set_connected(ctx, true);
+                }
+                TcpServerWorkerEvent::Recovering(error) => {
+                    self.set_port_warning(ctx, &error);
+                    self.stream.set_connected(ctx, false);
+                }
                 TcpServerWorkerEvent::ClientConnected { client_id, info } => {
                     streaming_script::emit_client_connected(ctx, self.id(), client_id.as_str(), info.clone());
                     if self.stream.log_incoming_enabled() {
@@ -216,10 +240,6 @@ impl TcpServerModule {
                 TcpServerWorkerEvent::Error(error) => {
                     logerror!("TCP server transport error: {}", error);
                 }
-                TcpServerWorkerEvent::Stopped(error) => {
-                    logerror!("TCP server transport stopped: {}", error);
-                    self.transport_dirty = true;
-                }
             }
         }
 
@@ -240,9 +260,15 @@ impl TcpServerModule {
     fn queue_send_request(
         &self,
         ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
+        snapshot: &ProcessTreeSnapshot,
         request: &StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.module_enabled(snapshot)
+            || self.transport_dirty
+            || self.last_transport_config.as_ref() != Some(&self.transport_config(snapshot)?)
+        {
+            return Err("TCP server configuration is pending or disabled; command was not admitted".into());
+        }
         let connected_clients = self.client_infos.len();
         if connected_clients == 0 {
             return Err("no TCP clients are connected".to_string());
@@ -252,15 +278,16 @@ impl TcpServerModule {
             .transport
             .as_ref()
             .ok_or_else(|| "TCP server transport is not available".to_string())?;
-        transport.send(request.bytes.clone())?;
+        transport.send(&request.bytes)?;
         self.stream.emit_outgoing_traffic(ctx);
 
         if self.stream.log_outgoing_enabled() {
             golden_core::log!(
                 origin = self.id();
                 format!(
-                    "Sent TCP {} to {} client(s)",
-                    format_bytes_for_log(request.bytes.as_slice()),
+                    "Queued TCP {} ({} bytes) for {} client(s)",
+                    format_bytes_for_log(&request.bytes[..request.bytes.len().min(1024)]),
+                    request.bytes.len(),
                     connected_clients
                 )
             );
@@ -268,8 +295,7 @@ impl TcpServerModule {
 
         Ok(format!(
             "Queued TCP {} for {} client(s)",
-            request.description,
-            connected_clients
+            request.description, connected_clients
         ))
     }
 
@@ -300,6 +326,7 @@ impl TcpServerModule {
     fn on_param_change_inner(&mut self, param: NodeId) {
         if self.port.is_bound() && self.port.id() == param {
             self.transport_dirty = true;
+            self.retry_at = None;
         }
     }
 
@@ -413,7 +440,7 @@ impl Node for TcpServerModule {
         self.drain_transport_events(ctx);
 
         let needs_snapshot =
-            self.transport_dirty || self.stream.has_pending_messages() || self.client_list_dirty;
+            self.transport_refresh_due() || self.stream.has_pending_messages() || self.client_list_dirty;
         if !needs_snapshot {
             return;
         }
@@ -427,7 +454,7 @@ impl Node for TcpServerModule {
         self.stream.refresh_config_cache(snapshot);
         self.refresh_data_capabilities(ctx, snapshot);
 
-        if self.transport_dirty {
+        if self.transport_refresh_due() {
             self.refresh_transport(ctx, snapshot);
         }
 
@@ -443,22 +470,21 @@ impl Node for TcpServerModule {
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty
+        self.transport_refresh_due()
             || self.stream.has_pending_messages()
             || self.client_list_dirty
             || self.transport.as_ref().is_some_and(|t| t.has_pending())
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty
+        self.transport_refresh_due()
             || self.stream.has_pending_messages()
             || self.client_list_dirty
             || self.transport.as_ref().is_some_and(|t| t.has_pending())
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(TCP_SERVER_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.tcp")
+        NodeExecutionRule::periodic(TCP_SERVER_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.tcp")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -501,11 +527,13 @@ impl Node for TcpServerModule {
                 let _ = ctx;
                 let _ = enabled;
                 self.transport_dirty = true;
+                self.retry_at = None;
             }
         }
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.retry_at = None;
         if enabled {
             self.transport_dirty = true;
         } else {
@@ -531,7 +559,11 @@ impl Node for TcpServerModule {
 }
 
 fn create_client_info_param(label: &str, info: &str) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Str(info.to_string()), ParameterChangeCheck::ValueChange);
+    let mut parameter = Parameter::new(
+        label,
+        ParamValue::Str(info.to_string()),
+        ParameterChangeCheck::ValueChange,
+    );
     parameter.read_only = true;
     parameter.node_data_mut().meta.description = Some("Connected TCP client information.".to_string());
     crate::app::module::enable_module_authoring(parameter.node_data_mut());

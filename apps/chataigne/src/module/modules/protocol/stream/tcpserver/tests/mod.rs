@@ -18,6 +18,8 @@ use super::{
     TcpServerModule,
 };
 
+mod admission;
+
 #[test]
 fn tcp_server_script_template_scaffolds_server_stream_callbacks() {
     let config = crate::app::module::script_api::module_script_config(TcpServerModule::NODE_TYPE);
@@ -83,14 +85,18 @@ fn tcp_server_module_tracks_live_clients_in_runtime_folder() {
     set_param(&mut engine, port_id, ParamValue::Int(i32::from(port)));
     settle_transport_state(&mut engine);
 
-    let client = TcpStream::connect(("127.0.0.1", port)).expect("TCP client should connect to test server");
+    let client = connect_when_ready(port);
     wait_for_connected_clients(&mut engine, module_id, 1);
 
     assert_eq!(connected_clients_value(&engine, module_id), Some(1));
 
     let clients_id = clients_folder_id(&engine, module_id).expect("TCP server clients folder should exist");
     let client_ids = direct_children(&engine, clients_id);
-    assert_eq!(client_ids.len(), 1, "TCP server clients folder should contain one connected client");
+    assert_eq!(
+        client_ids.len(),
+        1,
+        "TCP server clients folder should contain one connected client"
+    );
 
     let client_param = parameter_node(&engine, client_ids[0]);
     assert!(
@@ -99,15 +105,13 @@ fn tcp_server_module_tracks_live_clients_in_runtime_folder() {
     );
     let expected_info = format!(
         "Remote address: {}",
-        client
-            .local_addr()
-            .expect("client should know its local address")
+        client.local_addr().expect("client should know its local address")
     );
-    assert_eq!(
-        client_param.get().as_str(),
-        Some(expected_info)
+    assert_eq!(client_param.get().as_str(), Some(expected_info));
+    assert!(
+        client_param.read_only,
+        "TCP server client info parameter should be read-only"
     );
-    assert!(client_param.read_only, "TCP server client info parameter should be read-only");
 
     drop(client);
     wait_for_connected_clients(&mut engine, module_id, 0);
@@ -131,7 +135,7 @@ fn tcp_server_transport_closes_client_connections_when_stopped() {
     })
     .expect("TCP server transport should bind for the shutdown test");
 
-    let mut client = TcpStream::connect(("127.0.0.1", port)).expect("TCP client should connect to transport test server");
+    let mut client = connect_when_ready(port);
     client
         .set_read_timeout(Some(Duration::from_secs(1)))
         .expect("TCP shutdown test client should accept a read timeout");
@@ -183,10 +187,8 @@ fn create_tcp_server_module() -> (crate::app::AppEngine, NodeId, u16) {
 }
 
 fn tcp_server_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &TcpServerModule {
-    let crate::app::AppNode::TcpServerModule(module) = engine
-        .nodes
-        .get(module_id)
-        .expect("TCP server module should exist")
+    let crate::app::AppNode::TcpServerModule(module) =
+        engine.nodes.get(module_id).expect("TCP server module should exist")
     else {
         panic!("expected TcpServerModule node");
     };
@@ -220,11 +222,23 @@ fn wait_for_transport_io() {
     thread::sleep(Duration::from_millis(25));
 }
 
-fn wait_for_connected_clients(
-    engine: &mut crate::app::AppEngine,
-    module_id: NodeId,
-    expected: i32,
-) {
+fn connect_when_ready(port: u16) -> TcpStream {
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        match TcpStream::connect(("127.0.0.1", port)) {
+            Ok(stream) => return stream,
+            Err(error) => {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "TCP listener did not start: {error}"
+                );
+                thread::sleep(Duration::from_millis(1));
+            }
+        }
+    }
+}
+
+fn wait_for_connected_clients(engine: &mut crate::app::AppEngine, module_id: NodeId, expected: i32) {
     for _ in 0..40 {
         settle_transport_state(engine);
         if connected_clients_value(engine, module_id) == Some(expected) {
@@ -300,10 +314,7 @@ fn connected_clients_value(engine: &crate::app::AppEngine, module_id: NodeId) ->
 }
 
 fn parameter_node(engine: &crate::app::AppEngine, node_id: NodeId) -> &golden_core::parameter::Parameter {
-    let crate::app::AppNode::Parameter(parameter) = engine
-        .nodes
-        .get(node_id)
-        .expect("parameter node should exist")
+    let crate::app::AppNode::Parameter(parameter) = engine.nodes.get(node_id).expect("parameter node should exist")
     else {
         panic!("expected Parameter node");
     };

@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `0edb6f48` plus the verified P03 batch 20 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `36e69aeb` plus the verified P03 batch 21 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 20 HTTP applied-configuration admission and input bounds verified locally.
+- Current batch: P03 batch 21 TCP server native transport ownership verified locally.
   Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 20 HTTP applied-configuration admission/bounds delivered in `36e69aeb`.
   Batch 19 passive HTTP service delivered in `0edb6f48`.
   Batch 18 retained HTTP ownership delivered in `7836d1bf`.
   Batch 17 callback lifetime admission delivered in `8c2c5ff8`.
@@ -27,12 +28,16 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `0edb6f48`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `36e69aeb`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: continue TCP server/WebSocket/serial worker ownership and the broader
+- Next implementation action: finish TCP server passive owner/receipt delivery, worker-prepared
+  per-client parsing/callbacks, and module-level accepted-prefix handoff across disable/reconfigure.
+  Native TCP server admission, bind/retry, client bounds and broadcast cursors are verified; preserve
+  its occupied-bind, full reply queue, original-client cursor, applied-port/disable, and lifetime
+  recovery regressions. Then continue WebSocket/serial worker ownership and the broader
   module/channel audit. HTTP applied-configuration admission and configuration bounds are verified;
   preserve its endpoint/auth-before-callback and inactive-auth metadata regressions. HTTP request
   argument conversion/disposal still needs the broader producer-boundary audit. HTTP owner service
@@ -71,7 +76,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-20 | HTTP passive service and applied-config admission/bounds verified; broader module/generator audit open                    |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-21 | TCP server native bounds/recovery/cursors verified; owner integration and broader module/generator audit open             |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2326,3 +2331,56 @@ executors, existing stream/OSC loopbacks, missing-serial recovery, and null-devi
 they do not qualify live endpoints, hardware, other platforms, native UI, or product-scale timing.
 Commit and push this verified milestone on `main`, then continue TCP server/WebSocket/serial and
 the broader module/channel/generator audit. P03 remains **IN_PROGRESS**; P04-P18 retain their states.
+
+### P03 batch 21: TCP server native ownership
+
+Resumed clean delivered `36e69aeb6d267f08760902eebf13c6dc8ad58bde` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live. The app-owned TCP server transport
+still performed actor-side resolve/bind, unbounded command admission, join-on-stop, nonblocking
+`write_all`, and unbounded client/receive service. This batch moves setup/recovery and socket
+cleanup to a bounded native owner, limits commands/replies/clients/service, and gives broadcasts
+fixed-cohort per-client cursors without suffix replay. Requested **XHigh; actual effort
+unchanged/unobservable**, no supported control exposed.
+
+Source ownership remains under `protocol/stream/tcpserver`: transport admission and event weights
+in `transport.rs`, native setup/duplex service in `transport/worker.rs`, broadcast cursors in
+`transport/outbound.rs`, and tests under their owning `tests/` directories. The existing shared
+`NativeReplies` continuation mechanism handles input/output/status independently. Module admission
+also checks applied port/enabled state before using a previous transport, and background
+Listening/Recovering events own connected status. The first compile caught an associated-source
+visibility mismatch; corrected it to match the crate-visible event contract. Focused tests pending.
+
+The first focused `cargo test-fast --locked -p Chataigne2 --bin Chataigne2
+module_modules_protocol_stream_tcpserver -- --test-threads=4` passed **15/15** in **0.95s** after
+**2m11s** compilation. Added applied port/disable-before-callback routing regressions, and an owning
+capacity-retry deadline check: failed worker admission schedules a 250ms retry instead of stranding
+the module or requesting full snapshots every periodic turn. Expanded verification pending.
+
+Expanded owning run passed **17/17** in **1.49s** after **1m54s** compilation. Disjoint compiled-name
+preservation suites passed script API **8**, concrete streams **90** (including those 17), common
+streaming **45**, HTTP **59**, Sound Card **35**, OSC **25**, initial Formula **1**, and null-device
+Sound Card evidence **1**: **264 distinct app tests**, not an added sum of overlapping focused runs.
+`cargo test-fast --locked -p golden_io` passed **38/38** in **0.20s** (3.13s including lock wait),
+so **302 distinct app/IO tests** passed. Strict
+`cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed in **2m03s**
+including build-lock wait. Focused verification complete; requested return to **High**, actual effort
+unchanged/unobservable.
+
+`cargo check --locked --workspace --tests` passed in **20.57s**. Native
+`cargo build --locked -p Chataigne2 --bin Chataigne2` passed in **2m08s** including build-lock wait;
+no linker repair or cache deletion was needed. Root/Core `cargo fmt --all`, explicit TCP server
+rustfmt, maintained-doc Prettier and whitespace checks pass. Inventory: **1627 source files /
+42 oversized**. TCP server module/transport/native worker/outbound cursor are **574/141/279/85**
+lines. Tests are separate beside each feature. All owned jobs are terminal.
+
+Evidence is the checked-in native/module admission regressions and terminal commands recorded here.
+These Windows/default-feature checks use controlled TCP/HTTP/stream/OSC loopbacks, injected native
+setup/cursor failures, missing-serial recovery, and null-device audio fixtures. They do not qualify
+external devices/endpoints, other platforms, native UI, or product-scale timing. Commit and push
+this milestone on `main`, then continue TCP server owner integration. P03 remains **IN_PROGRESS**;
+P04-P18 retain their states.
+
+This native milestone does not complete TCP server integration: passive owner wake/receipt delivery,
+worker-prepared per-client grammar/callbacks, and accepted-prefix generation handoff across app
+reconfigure/disable remain next. Existing module script functions/callbacks/templates/client folders
+remain preservation contracts. Broader WebSocket/serial, module/channel and generator work remains.

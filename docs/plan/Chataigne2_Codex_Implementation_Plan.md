@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for TCP server bounded native ownership, cancellation and bind recovery, per-client partial-write cursors, and independent reply backpressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 17 TCP server tests and 264 distinct app tests plus strict IO/app Clippy passed native admission, retained setup ownership, bind recovery, per-client cursors, reply-pressure independence, and applied-port/disable admission. Workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for HTTP applied-snapshot admission fencing, active authored input identity, configuration byte bounds before cloning, and generation handoff across rejected configuration/script edits. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 59 HTTP tests passed applied endpoint/auth admission, inactive auth metadata, input/capacity bounds, and generation recovery. Strict lint/integration/native validation and milestone delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 
