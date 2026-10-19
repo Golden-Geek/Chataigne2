@@ -117,7 +117,12 @@ pub(super) fn run<P: Read + Write>(
             let Some(command) = current.as_mut() else { break };
             let failure = if command.generation != connection.generation || connection.port.is_none() {
                 Some(command.failure("its original connection is unavailable"))
+            } else if let Err(error) = command.prepare() {
+                Some(command.failure(&error))
             } else {
+                if context.cancellation().is_cancelled() {
+                    return;
+                }
                 match command.write_turn(connection.port.as_mut().expect("connected serial cursor")) {
                     Ok(true) => {
                         if let Some(event) = current.take().expect("completed serial cursor").completion() {

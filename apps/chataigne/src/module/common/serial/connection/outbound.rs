@@ -1,4 +1,5 @@
 use super::{Event, COMMAND_BYTES};
+use crate::app::module::common::streaming::commands::{OutgoingBytes, SendInput};
 use std::{
     io::{self, Write},
     mem::size_of,
@@ -10,26 +11,28 @@ const WRITE_DEADLINE: Duration = Duration::from_secs(5);
 
 pub(super) struct Outbound {
     pub generation: u64,
-    bytes: Vec<u8>,
+    bytes: OutgoingBytes,
     offset: usize,
     started: Option<Instant>,
     log: bool,
 }
 impl Outbound {
-    pub fn new(bytes: &[u8], generation: u64, log: bool) -> Result<Self, String> {
-        if size_of::<Self>().saturating_add(bytes.len()) > COMMAND_BYTES {
-            return Err("Serial command exceeds the 256 KiB retained-byte limit; command was not admitted".into());
-        }
+    pub fn new<'a>(bytes: impl Into<SendInput<'a>>, generation: u64, log: bool) -> Result<Self, String> {
+        let bytes = OutgoingBytes::new(bytes, COMMAND_BYTES - size_of::<Self>())
+            .map_err(|error| format!("Serial (256 KiB command limit): {error}"))?;
         Ok(Self {
             generation,
-            bytes: bytes.to_vec(),
+            bytes,
             offset: 0,
             started: None,
             log,
         })
     }
+    pub fn prepare(&mut self) -> Result<(), String> {
+        self.bytes.prepare()
+    }
     pub fn weight(&self) -> usize {
-        size_of::<Self>() + self.bytes.capacity()
+        size_of::<Self>() + self.bytes.weight()
     }
     pub fn write_turn(&mut self, port: &mut impl Write) -> Result<bool, String> {
         let started = *self.started.get_or_insert_with(Instant::now);
@@ -53,6 +56,9 @@ impl Outbound {
         }
     }
     pub fn failure(&self, reason: &str) -> Event {
+        if self.bytes.encoded_len().is_none() {
+            return Event::Warning(format!("Serial script command failed before encoding completed; it was not sent and will not be replayed: {reason}"));
+        }
         Event::Warning(format!("Serial {}-byte command was not confirmed ({} bytes confirmed); a partial native effect may remain and it will not be replayed: {reason}", self.bytes.len(), self.offset))
     }
     pub fn completion(self) -> Option<Event> {

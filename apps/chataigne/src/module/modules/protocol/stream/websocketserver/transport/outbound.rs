@@ -1,4 +1,5 @@
 use super::{StreamingSendFrameKind, COMMAND_BYTES};
+use crate::app::module::common::streaming::commands::{OutgoingBytes, SendInput};
 use std::{
     io::{Read, Write},
     mem::size_of,
@@ -8,22 +9,17 @@ use tokio_tungstenite::tungstenite::{Error, Message, WebSocket};
 
 pub(super) struct Command {
     kind: StreamingSendFrameKind,
-    bytes: Vec<u8>,
+    bytes: OutgoingBytes,
     log: bool,
 }
 impl Command {
-    pub fn new(kind: StreamingSendFrameKind, bytes: &[u8], log: bool) -> Result<Self, String> {
-        if size_of::<Self>().saturating_add(bytes.len()) > COMMAND_BYTES {
-            return Err("WebSocket server command exceeds 1 MiB; command was not admitted".into());
-        }
-        Ok(Self {
-            kind,
-            bytes: bytes.to_vec(),
-            log,
-        })
+    pub fn new<'a>(kind: StreamingSendFrameKind, bytes: impl Into<SendInput<'a>>, log: bool) -> Result<Self, String> {
+        let bytes = OutgoingBytes::new(bytes, COMMAND_BYTES - size_of::<Self>())
+            .map_err(|error| format!("WebSocket server (1 MiB command limit): {error}"))?;
+        Ok(Self { kind, bytes, log })
     }
     pub fn weight(&self) -> usize {
-        size_of::<Self>() + self.bytes.capacity()
+        size_of::<Self>() + self.bytes.weight()
     }
 }
 
@@ -50,10 +46,11 @@ pub(super) struct Broadcast {
 }
 impl Broadcast {
     pub fn new(command: Command, ids: impl Iterator<Item = u64>) -> Result<Self, String> {
+        let bytes = command.bytes.into_vec()?;
         let message = match command.kind {
-            StreamingSendFrameKind::Binary => Message::Binary(command.bytes.into()),
+            StreamingSendFrameKind::Binary => Message::Binary(bytes.into()),
             StreamingSendFrameKind::Text => Message::Text(
-                String::from_utf8(command.bytes)
+                String::from_utf8(bytes)
                     .map_err(|_| "WebSocket text payload is not valid UTF-8; frame was not sent")?
                     .into(),
             ),

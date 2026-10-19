@@ -1,3 +1,4 @@
+use crate::app::module::common::streaming::commands::SendInput;
 mod outbound;
 #[cfg(test)]
 mod tests;
@@ -166,7 +167,7 @@ impl TcpServerTransportHandle {
             input,
         })
     }
-    pub(crate) fn send(&self, bytes: &[u8], log: bool) -> Result<(), String> {
+    pub(crate) fn send<'a>(&self, bytes: impl Into<SendInput<'a>>, log: bool) -> Result<(), String> {
         if !self.worker.is_accepting_commands() {
             return Err("TCP server worker is not accepting commands".into());
         }

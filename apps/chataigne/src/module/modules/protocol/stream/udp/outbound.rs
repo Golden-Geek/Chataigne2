@@ -1,5 +1,6 @@
 use super::output_plan::{OutputPreparation, PlanTicket, TICKET_HEAP_BYTES};
 use crate::app::module::common::streaming::admission::retain_payload;
+use crate::app::module::common::streaming::commands::{OutgoingBytes, SendInput};
 use golden_core::{node::NodeId, process_ctx::ProcessTreeSnapshot};
 use golden_io::RetainedPayload;
 use std::mem::size_of;
@@ -119,7 +120,7 @@ impl PreparedOutputPlan {
 /// accepts the whole command before any destination can observe a datagram.
 #[derive(Debug)]
 pub(super) struct UdpOutboundSend {
-    bytes: Vec<u8>,
+    bytes: OutgoingBytes,
     ticket: PlanTicket,
     plan: Option<PreparedOutputPlan>,
     cold: Option<OutputPreparation>,
@@ -133,15 +134,13 @@ impl UdpOutboundSend {
         Self::with_ticket(bytes, PlanTicket::ready(plan), None, log_outgoing)
     }
 
-    pub(super) fn with_ticket(
-        bytes: Vec<u8>,
+    pub(super) fn with_ticket<'a>(
+        bytes: impl Into<SendInput<'a>>,
         ticket: PlanTicket,
         snapshot: Option<(&Arc<ProcessTreeSnapshot>, NodeId)>,
         log_outgoing: bool,
     ) -> Result<Self, String> {
-        if bytes.len() > UDP_MAX_PAYLOAD {
-            return Err("UDP datagram exceeds the 65507-byte payload limit; command was not admitted".into());
-        }
+        let bytes = OutgoingBytes::new(bytes, UDP_MAX_PAYLOAD)?;
         let plan = ticket
             .result()
             .map(|result| result.as_ref().cloned().map_err(|error| error.message.clone()))
@@ -150,7 +149,7 @@ impl UdpOutboundSend {
             return Err("no enabled UDP outputs are configured; command was not admitted".into());
         }
         let weight = size_of::<Self>()
-            .saturating_add(bytes.capacity())
+            .saturating_add(bytes.weight())
             .saturating_add(TICKET_HEAP_BYTES)
             .saturating_add(plan.as_ref().map_or(ticket.limit(), PreparedOutputPlan::weight));
         if weight > UDP_COMMAND_BYTES {
@@ -195,6 +194,9 @@ impl UdpOutboundSend {
         if self.len() == 0 {
             return Err("no enabled UDP outputs are configured; no output was sent".into());
         }
+        // Seal the shared destination ticket independently of this invocation's
+        // bytes. A malformed script must not poison later commands using the plan.
+        self.bytes.prepare()?;
         Ok(true)
     }
 

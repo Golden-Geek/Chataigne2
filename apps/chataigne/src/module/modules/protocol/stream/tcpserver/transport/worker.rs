@@ -221,12 +221,24 @@ pub(super) fn run(
                         }
                         continue;
                     }
+                    let bytes = match command.bytes.into_vec() {
+                        Ok(bytes) => bytes,
+                        Err(error) => {
+                            if !replies.offer(&context, ReplySource::Output, Event::Error(error)) {
+                                return;
+                            }
+                            continue;
+                        }
+                    };
                     current = Some(Broadcast::new(
-                        command.bytes,
+                        bytes,
                         clients.entries.iter().map(|client| client.id),
                         command.log,
                     ));
                 }
+            }
+            if context.cancellation().is_cancelled() {
+                return;
             }
             let Some(command) = current.as_mut() else { break };
             let Some(recipient) = command.next_recipient() else {

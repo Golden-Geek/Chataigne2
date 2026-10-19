@@ -191,13 +191,17 @@ impl<T: Node> Engine<T> {
             capture,
             true,
             move |target, ctx| {
-                target
+                let args = std::sync::Arc::new(args);
+                ctx.set_script_args(Some(args.clone()));
+                let result = target
                     .engine_call_script_method(ctx, &method, &args)
                     .and_then(|handled| {
                         handled
                             .then_some(())
                             .ok_or_else(|| format!("method '{method}' is not exposed by target node"))
-                    })
+                    });
+                ctx.set_script_args(None);
+                result
             },
             |message, node_type| EngineEditError::ScriptMethodRejected {
                 edit_index,

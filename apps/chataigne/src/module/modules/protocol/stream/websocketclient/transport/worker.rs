@@ -170,6 +170,9 @@ pub(super) fn run(
                     current = Some(command);
                 }
             }
+            if context.cancellation().is_cancelled() {
+                return;
+            }
             let Some(command) = current.as_mut() else {
                 break;
             };

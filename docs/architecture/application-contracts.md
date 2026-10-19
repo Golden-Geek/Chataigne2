@@ -205,8 +205,7 @@ states. Submission, partial effects and failed recipients never claim full succe
 confirmation waits for flush. Full feedback mailboxes retain that single output continuation and
 pause further output while independent input remains serviceable. Ordinary retirement drains the
 confirmed results even while disabled; explicit destroy may cancel them. These messages describe
-native send completion, not application-level acknowledgement by a peer. Stream script argument
-materialization/disposal remains a separate P03 boundary to finish.
+native send completion, not application-level acknowledgement by a peer.
 
 The five stream command node types capture immutable snapshot leases and their fixed parameter IDs
 before native preparation. One shared app worker admits 64 queued jobs and 256 total live tickets,
@@ -229,8 +228,31 @@ active and queued tickets explicitly, and later admissions can restart the bound
 cancellation and target lifetime guards reject stale work across destroy/undo. Linked target and
 per-invocation values are captured before admission, while transport eligibility is checked when
 the module receives the request. Preparation admission does not claim a successful native send.
-Shared script helpers have source/output preflight bounds but still need native script conversion;
-generic rejected-ingress disposal and broader module admission audits remain P03 work.
+Generic rejected-ingress disposal and broader module admission audits remain P03 work.
+
+Stream script methods capture the original engine-owned argument vector through
+`ProcessCtx::capture_script_args`. Capturing an unrelated slice or a standalone callback is rejected;
+the public Golden contract exposes shared arguments without app-specific conversion policy. App
+common retains at most 64 canonical input allocations / 16 MiB, with 4096 values and 4 MiB retained
+storage per invocation, including spare vector/string capacity. Taking a lease does not clone strings.
+
+All six stream modules enqueue that input directly into their existing native send queues, alongside
+prepared command-node payloads. Current enabled/configuration/connection checks still run before
+native admission. Queue weight reserves a conservative output bound derived from argument shape,
+capped by each transport's retained-byte limit. String/reference lengths and fixed scalar expansion
+bounds are inspected without conversion. Small calls share queue capacity; native encoding cannot
+retain output beyond its reservation. Temporary encoding work is bounded by the shared codec's
+4 MiB input / 1 MiB output limits, and scratch capacity is trimmed before a send cursor owns it.
+
+Argument conversion, escape decoding, byte/hex parsing and final input disposal occur off the actor.
+Scripts retain the transport's original connection generation or frozen UDP destination plan and
+share its FIFO, cancellation, native completion and ordinary retirement behavior. Disable/reconfigure
+does not discard queued script inputs; explicit destroy may cancel them. Conversion failure produces
+native error feedback without sending a prefix, replaying, reconnecting an otherwise healthy endpoint
+or blocking later commands. Script invocation success means native queue admission; content/output
+conversion failures are asynchronous feedback. Argument-shape, lifetime-capacity and endpoint
+admission failures remain synchronous. Inputs rejected before a lease can be reserved still require
+the broader generic ingress/disposal audit in P03; this does not qualify engine bound-handle costs.
 
 WebSocket client uses the same passive wake, retained input and callback-receipt contracts. Its
 native owner uses the locked Tungstenite public nonblocking handshake/framing/control API, with

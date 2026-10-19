@@ -94,7 +94,7 @@ fn recipient_identity_and_deadline_do_not_restart_or_retarget_a_partial_frame() 
 
 #[test]
 fn invalid_utf8_and_retained_command_size_are_rejected_before_protocol_writes() {
-    assert!(Command::new(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES], false).is_err());
+    assert!(Command::new(StreamingSendFrameKind::Binary, vec![0; COMMAND_BYTES], false).is_err());
     assert!(Broadcast::new(
         Command::new(StreamingSendFrameKind::Text, &[255], false).unwrap(),
         [1].into_iter()

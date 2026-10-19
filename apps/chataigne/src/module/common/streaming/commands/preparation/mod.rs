@@ -231,7 +231,7 @@ impl CommandPreparation {
         };
         match result {
             Err(error) => {
-                golden_core::logerror!("Stream command preparation failed: {}", error);
+                golden_core::logerror!(format!("Stream command preparation failed: {}", error));
                 self.pending.pop_front();
             }
             Ok(command) => {

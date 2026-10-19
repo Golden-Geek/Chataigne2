@@ -512,6 +512,7 @@ pub struct ProcessCtx {
     referenced_params: HashMap<NodeUuid, (NodeId, ParamValue)>,
     /// Scoped registration source supplied to engine-owned ready callbacks.
     node_wake_source: Option<(NodeWakeSource, NodeId)>,
+    script_args: Option<Arc<Vec<ParamValue>>>,
 }
 
 impl ProcessCtx {
@@ -527,12 +528,28 @@ impl ProcessCtx {
             tree_snapshot: None,
             referenced_params: HashMap::new(),
             node_wake_source: None,
+            script_args: None,
         }
     }
 
     /// Attaches a wake reservation source scoped to the current ready callback's node.
     pub(crate) fn set_node_wake_source(&mut self, source: NodeWakeSource, node: NodeId) {
         self.node_wake_source = Some((source, node));
+    }
+
+    pub(crate) fn set_script_args(&mut self, args: Option<Arc<Vec<ParamValue>>>) {
+        self.script_args = args;
+    }
+
+    /// Captures the current script invocation without cloning its values. The caller
+    /// must reserve retained storage and final-disposal ownership before asynchronous use.
+    /// Forwarding a different argument slice cannot capture the original invocation.
+    pub fn capture_script_args(&self, args: &[ParamValue]) -> Result<Arc<Vec<ParamValue>>, &'static str> {
+        self.script_args
+            .as_ref()
+            .filter(|shared| shared.len() == args.len() && shared.as_ptr() == args.as_ptr())
+            .cloned()
+            .ok_or("argument capture requires the current engine-owned script invocation")
     }
 
     /// Reserves a coalesced wake handle before starting this node's workers.

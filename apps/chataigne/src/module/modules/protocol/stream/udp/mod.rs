@@ -18,7 +18,7 @@ use golden_core::{
 
 use crate::app::{
     module::common::streaming::{
-        commands::{streaming_script_send_request, StreamingSendRequest},
+        commands::{ScriptSend, StreamSend},
         script as streaming_script,
     },
     StreamingModuleBase,
@@ -182,7 +182,7 @@ impl UdpModule {
         let binding = match self.transport_binding(snapshot) {
             Ok(binding) => binding,
             Err(error) => {
-                logerror!("Invalid UDP module configuration: {}", error);
+                logerror!(format!("Invalid UDP module configuration: {}", error));
                 self.transports.pause_admission();
                 self.set_input_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
@@ -221,7 +221,7 @@ impl UdpModule {
                 self.stream.set_connected(ctx, self.transports.connected());
             }
             Err(error) => {
-                logerror!("Failed to start UDP transport: {}", error);
+                logerror!(format!("Failed to start UDP transport: {}", error));
                 self.transport_dirty = true;
                 self.set_input_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
@@ -269,7 +269,7 @@ impl UdpModule {
                         golden_core::log!(origin = self.id(); message.as_str());
                     }
                     if let Err(error) = &input.values {
-                        logerror!("Failed to parse UDP input: {}", error);
+                        logerror!(format!("Failed to parse UDP input: {}", error));
                     }
                     if input.rejected_lines > 0 {
                         logerror!(
@@ -284,7 +284,7 @@ impl UdpModule {
                     golden_core::log!(origin = self.id(); message.as_str());
                 }
                 UdpTransportEvent::Error(error) => {
-                    logerror!("UDP transport error: {}", error);
+                    logerror!(format!("UDP transport error: {}", error));
                 }
             }
         }
@@ -295,7 +295,7 @@ impl UdpModule {
 
         self.stream.set_connected(ctx, self.transports.connected());
         if let Some(error) = poll.failure {
-            logerror!("UDP transport failed: {}", error);
+            logerror!(format!("UDP transport failed: {}", error));
             if let Some(input) = self.input_target {
                 NodeHandle::new(input).set_warning_with(ctx, Some(UDP_INPUT_WARNING_ID), error, None);
             }
@@ -322,7 +322,7 @@ impl UdpModule {
         &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
-        request: &StreamingSendRequest,
+        request: StreamSend<'_>,
     ) -> Result<String, String> {
         if !self.node_data().effective_enabled {
             return Err("Stream module is disabled; command was not admitted".into());
@@ -338,11 +338,8 @@ impl UdpModule {
         let root = self
             .outputs_node_id(snapshot)
             .ok_or("UDP output folder is unavailable")?;
-        if request.bytes.len() > outbound::UDP_MAX_PAYLOAD {
-            return Err("UDP command exceeds 65507 bytes; command was not admitted".into());
-        }
-        let bytes = request.bytes.clone();
-        let description = &request.description;
+        let bytes = request.input();
+        let description = request.description();
         let (command, candidate) = output_plan::command(
             &mut self.output_plan,
             snapshot,
@@ -379,8 +376,8 @@ impl UdpModule {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        if let Err(error) = self.queue_send_request(ctx, &snapshot, &command.request) {
-            logerror!("Prepared stream command was not admitted: {}", error);
+        if let Err(error) = self.queue_send_request(ctx, &snapshot, (&command.request).into()) {
+            logerror!(format!("Prepared stream command was not admitted: {}", error));
         }
     }
 
@@ -465,7 +462,7 @@ impl Node for UdpModule {
         let source = match ctx.node_waker() {
             Ok(source) => source,
             Err(error) => {
-                logerror!("Failed to register UDP worker wake: {}", error);
+                logerror!(format!("Failed to register UDP worker wake: {}", error));
                 return;
             }
         };
@@ -478,7 +475,7 @@ impl Node for UdpModule {
             match ModuleWake::new(source) {
                 Ok(wake) => self.wake = Some(wake),
                 Err(error) => {
-                    logerror!("Failed to register UDP retry deadline: {}", error);
+                    logerror!(format!("Failed to register UDP retry deadline: {}", error));
                     return;
                 }
             }
@@ -559,12 +556,12 @@ impl Node for UdpModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(request) = streaming_script_send_request(method, args) {
+        if let Some(request) = ScriptSend::capture(ctx, method, args) {
             let request = request?;
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, &snapshot_arc, &request)?;
+            self.queue_send_request(ctx, &snapshot_arc, (&request).into())?;
             return Ok(true);
         }
 

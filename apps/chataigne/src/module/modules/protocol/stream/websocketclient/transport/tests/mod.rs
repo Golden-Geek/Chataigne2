@@ -141,7 +141,7 @@ fn admission_checks_host_path_items_and_payload_bytes_before_native_expansion() 
             .unwrap_err()
             .contains("capacity exhausted"));
         assert!(handle
-            .send(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES], false)
+            .send(StreamingSendFrameKind::Binary, vec![0; COMMAND_BYTES], false)
             .unwrap_err()
             .contains("1 MiB"));
         handle.stop();

@@ -78,6 +78,9 @@ pub(super) fn run(
                     }
                 }
             }
+            if context.cancellation().is_cancelled() {
+                return;
+            }
             let Some(command) = current.as_mut() else { break };
             let Some(recipient) = command.next_recipient() else {
                 if let Some(event) = current.take().expect("completed WebSocket broadcast").completion() {

@@ -25,7 +25,7 @@ use golden_io::PendingDrainState;
 
 use crate::app::{
     module::common::streaming::{
-        commands::{streaming_script_send_request, StreamingSendRequest},
+        commands::{ScriptSend, StreamSend},
         script as streaming_script,
     },
     StreamingModuleBase,
@@ -118,7 +118,7 @@ impl TcpServerModule {
         let config = match self.transport_config(snapshot) {
             Ok(config) => config,
             Err(error) => {
-                logerror!("Invalid TCP server module configuration: {}", error);
+                logerror!(format!("Invalid TCP server module configuration: {}", error));
                 self.retire_transport();
                 self.last_transport_config = None;
                 self.set_port_warning(error.as_str());
@@ -162,7 +162,7 @@ impl TcpServerModule {
                 self.set_connected(false);
             }
             Err(error) => {
-                logerror!("Failed to start TCP server transport: {}", error);
+                logerror!(format!("Failed to start TCP server transport: {}", error));
                 self.transport = None;
                 self.last_transport_config = None;
                 self.set_port_warning(error.as_str());
@@ -265,7 +265,7 @@ impl TcpServerModule {
                         golden_core::log!(origin = self.id(); message.as_str());
                     }
                     if let Err(error) = &input.values {
-                        logerror!("Failed to parse TCP server input: {}", error);
+                        logerror!(format!("Failed to parse TCP server input: {}", error));
                     }
                     Self::report_rejected_input(input.rejected_lines);
                     self.pending_deliveries
@@ -275,7 +275,7 @@ impl TcpServerModule {
                     golden_core::log!(origin = self.id(); message.as_str());
                 }
                 TcpServerWorkerEvent::Error(error) => {
-                    logerror!("TCP server transport error: {}", error);
+                    logerror!(format!("TCP server transport error: {}", error));
                 }
             }
         }
@@ -306,7 +306,7 @@ impl TcpServerModule {
         &self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
-        request: &StreamingSendRequest,
+        request: StreamSend<'_>,
     ) -> Result<String, String> {
         if !self.node_data().effective_enabled {
             return Err("Stream module is disabled; command was not admitted".into());
@@ -330,12 +330,13 @@ impl TcpServerModule {
             .transport
             .as_ref()
             .ok_or_else(|| "TCP server transport is not available".to_string())?;
-        transport.send(&request.bytes, self.stream.log_outgoing_enabled())?;
+        transport.send(request.input(), self.stream.log_outgoing_enabled())?;
         self.stream.emit_outgoing_traffic(ctx);
 
         Ok(format!(
             "Queued TCP {} for {} client(s)",
-            request.description, connected_clients
+            request.description(),
+            connected_clients
         ))
     }
 
@@ -352,8 +353,8 @@ impl TcpServerModule {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        if let Err(error) = self.queue_send_request(ctx, snapshot.as_ref(), &command.request) {
-            logerror!("Prepared stream command was not admitted: {}", error);
+        if let Err(error) = self.queue_send_request(ctx, snapshot.as_ref(), (&command.request).into()) {
+            logerror!(format!("Prepared stream command was not admitted: {}", error));
         }
     }
 
@@ -434,7 +435,7 @@ impl TcpServerModule {
                     callback.event(self.id()),
                 ))),
             Err(error) => {
-                logerror!("TCP server callback was not admitted: {}", error);
+                logerror!(format!("TCP server callback was not admitted: {}", error));
             }
         }
     }
@@ -466,7 +467,7 @@ impl Node for TcpServerModule {
         let source = match ctx.node_waker() {
             Ok(source) => source,
             Err(error) => {
-                logerror!("Failed to register TCP server worker wake: {}", error);
+                logerror!(format!("Failed to register TCP server worker wake: {}", error));
                 return;
             }
         };
@@ -482,7 +483,7 @@ impl Node for TcpServerModule {
             self.wake = match ModuleWake::new(source) {
                 Ok(wake) => Some(wake),
                 Err(error) => {
-                    logerror!("Failed to register TCP server retry deadline: {}", error);
+                    logerror!(format!("Failed to register TCP server retry deadline: {}", error));
                     return;
                 }
             };
@@ -573,12 +574,12 @@ impl Node for TcpServerModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(request) = streaming_script_send_request(method, args) {
+        if let Some(request) = ScriptSend::capture(ctx, method, args) {
             let request = request?;
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, snapshot_arc.as_ref(), &request)?;
+            self.queue_send_request(ctx, snapshot_arc.as_ref(), (&request).into())?;
             return Ok(true);
         }
 

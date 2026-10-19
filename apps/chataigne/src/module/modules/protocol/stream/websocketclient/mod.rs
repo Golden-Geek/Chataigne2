@@ -17,7 +17,7 @@ use std::collections::VecDeque;
 
 use crate::app::{
     module::common::streaming::{
-        commands::{streaming_script_send_request, StreamingSendRequest},
+        commands::{ScriptSend, StreamSend},
         script as streaming_script,
     },
     StreamingModuleBase,
@@ -120,7 +120,7 @@ impl WebSocketClientModule {
         let config = match self.transport_config(snapshot) {
             Ok(config) => config,
             Err(error) => {
-                logerror!("Invalid WebSocket module configuration: {}", error);
+                logerror!(format!("Invalid WebSocket module configuration: {}", error));
                 self.retire_transport();
                 self.last_transport_config = None;
                 self.set_target_warning(ctx, error.as_str());
@@ -162,7 +162,7 @@ impl WebSocketClientModule {
                 self.stream.set_connected(ctx, false);
             }
             Err(error) => {
-                logerror!("Failed to start WebSocket transport: {}", error);
+                logerror!(format!("Failed to start WebSocket transport: {}", error));
                 self.transport = None;
                 self.last_transport_config = None;
                 self.transport_dirty = true;
@@ -247,14 +247,14 @@ impl WebSocketClientModule {
                         golden_core::log!(origin = self.id(); message.as_str());
                     }
                     if let Err(error) = &input.values {
-                        logerror!("Failed to parse WebSocket input: {}", error);
+                        logerror!(format!("Failed to parse WebSocket input: {}", error));
                     }
                     Self::report_rejected_input(input.rejected_lines);
                     self.pending_inputs.push_back(InputDelivery::new(input));
                 }
                 StreamingWorkerEvent::RejectedInput(count) => Self::report_rejected_input(count),
                 StreamingWorkerEvent::Error(error) => {
-                    logerror!("WebSocket transport error: {}", error);
+                    logerror!(format!("WebSocket transport error: {}", error));
                 }
                 StreamingWorkerEvent::OutgoingLog(message) => {
                     golden_core::log!(origin = self.id(); message.as_str());
@@ -270,7 +270,7 @@ impl WebSocketClientModule {
                         self.clear_target_warning(ctx);
                     }
                     WebSocketClientConnectionStatus::Recovering { message, .. } => {
-                        logerror!("WebSocket transport recovering: {}", message);
+                        logerror!(format!("WebSocket transport recovering: {}", message));
                         self.stream.set_connected(ctx, false);
                         self.set_target_warning(ctx, &message);
                     }
@@ -314,7 +314,7 @@ impl WebSocketClientModule {
         &self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
-        request: &StreamingSendRequest,
+        request: StreamSend<'_>,
     ) -> Result<String, String> {
         if !self.node_data().effective_enabled {
             return Err("Stream module is disabled; command was not admitted".into());
@@ -335,10 +335,14 @@ impl WebSocketClientModule {
             .transport
             .as_ref()
             .ok_or_else(|| "WebSocket transport is not available".to_string())?;
-        transport.send(request.frame_kind, &request.bytes, self.stream.log_outgoing_enabled())?;
+        transport.send(
+            request.frame_kind(),
+            request.input(),
+            self.stream.log_outgoing_enabled(),
+        )?;
         self.stream.emit_outgoing_traffic(ctx);
 
-        Ok(format!("Queued WebSocket {}", request.description))
+        Ok(format!("Queued WebSocket {}", request.description()))
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -354,8 +358,8 @@ impl WebSocketClientModule {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        if let Err(error) = self.queue_send_request(ctx, snapshot.as_ref(), &command.request) {
-            logerror!("Prepared stream command was not admitted: {}", error);
+        if let Err(error) = self.queue_send_request(ctx, snapshot.as_ref(), (&command.request).into()) {
+            logerror!(format!("Prepared stream command was not admitted: {}", error));
         }
     }
 
@@ -426,7 +430,7 @@ impl Node for WebSocketClientModule {
         let source = match ctx.node_waker() {
             Ok(source) => source,
             Err(error) => {
-                logerror!("Failed to register WebSocket worker wake: {}", error);
+                logerror!(format!("Failed to register WebSocket worker wake: {}", error));
                 return;
             }
         };
@@ -437,7 +441,7 @@ impl Node for WebSocketClientModule {
             self.wake = match ModuleWake::new(source) {
                 Ok(wake) => Some(wake),
                 Err(error) => {
-                    logerror!("Failed to register WebSocket retry deadline: {}", error);
+                    logerror!(format!("Failed to register WebSocket retry deadline: {}", error));
                     return;
                 }
             };
@@ -528,12 +532,12 @@ impl Node for WebSocketClientModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(request) = streaming_script_send_request(method, args) {
+        if let Some(request) = ScriptSend::capture(ctx, method, args) {
             let request = request?;
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, snapshot_arc.as_ref(), &request)?;
+            self.queue_send_request(ctx, snapshot_arc.as_ref(), (&request).into())?;
             return Ok(true);
         }
 

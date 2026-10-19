@@ -1,4 +1,5 @@
 use super::{StreamingWorkerEvent, COMMAND_BYTES};
+use crate::app::module::common::streaming::commands::{OutgoingBytes, SendInput};
 use std::{
     io::{self, Write},
     mem::size_of,
@@ -16,7 +17,7 @@ pub(super) enum WriteTurn {
 
 #[derive(Debug)]
 pub(super) struct Outbound {
-    bytes: Vec<u8>,
+    bytes: OutgoingBytes,
     pub generation: u64,
     offset: usize,
     started: Option<Instant>,
@@ -27,10 +28,9 @@ pub(super) struct Outbound {
 mod tests;
 
 impl Outbound {
-    pub(super) fn new(bytes: Vec<u8>, generation: u64, log: bool) -> Result<Self, String> {
-        if size_of::<Self>().saturating_add(bytes.capacity()) > COMMAND_BYTES {
-            return Err("TCP command exceeds the 1 MiB retained-byte limit; command was not admitted".into());
-        }
+    pub(super) fn new<'a>(bytes: impl Into<SendInput<'a>>, generation: u64, log: bool) -> Result<Self, String> {
+        let bytes = OutgoingBytes::new(bytes, COMMAND_BYTES - size_of::<Self>())
+            .map_err(|error| format!("TCP (1 MiB command limit): {error}"))?;
         Ok(Self {
             bytes,
             generation,
@@ -39,8 +39,11 @@ impl Outbound {
             log,
         })
     }
+    pub fn prepare(&mut self) -> Result<(), String> {
+        self.bytes.prepare()
+    }
     pub(super) fn weight(&self) -> usize {
-        size_of::<Self>() + self.bytes.capacity()
+        size_of::<Self>() + self.bytes.weight()
     }
     pub(super) fn write_turn(&mut self, writer: &mut impl Write) -> io::Result<WriteTurn> {
         let started = *self.started.get_or_insert_with(Instant::now);
@@ -69,6 +72,9 @@ impl Outbound {
         }
     }
     pub(super) fn failure(&self, reason: &str) -> StreamingWorkerEvent {
+        if self.bytes.encoded_len().is_none() {
+            return StreamingWorkerEvent::Error(format!("TCP script command failed before encoding completed; it was not sent and will not be replayed: {reason}"));
+        }
         StreamingWorkerEvent::Error(format!(
             "TCP command failed after {}/{} bytes; it will not be replayed: {reason}",
             self.offset,

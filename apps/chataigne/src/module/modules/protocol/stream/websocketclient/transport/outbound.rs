@@ -1,4 +1,5 @@
 use super::{StreamingSendFrameKind, StreamingWorkerEvent, COMMAND_BYTES};
+use crate::app::module::common::streaming::commands::{OutgoingBytes, SendInput};
 use std::{
     io::{Read, Write},
     mem::size_of,
@@ -11,7 +12,7 @@ const WRITE_DEADLINE: Duration = Duration::from_secs(5);
 pub(super) struct Outbound {
     pub generation: u64,
     kind: StreamingSendFrameKind,
-    bytes: Option<Vec<u8>>,
+    bytes: Option<OutgoingBytes>,
     message: Option<Message>,
     size: usize,
     log: bool,
@@ -20,16 +21,21 @@ pub(super) struct Outbound {
     started: Option<Instant>,
 }
 impl Outbound {
-    pub fn new(kind: StreamingSendFrameKind, bytes: &[u8], generation: u64, log: bool) -> Result<Self, String> {
-        if size_of::<Self>().saturating_add(bytes.len()) > COMMAND_BYTES {
-            return Err("WebSocket command exceeds the 1 MiB retained-byte limit; command was not admitted".into());
-        }
+    pub fn new<'a>(
+        kind: StreamingSendFrameKind,
+        bytes: impl Into<SendInput<'a>>,
+        generation: u64,
+        log: bool,
+    ) -> Result<Self, String> {
+        let bytes = OutgoingBytes::new(bytes, COMMAND_BYTES - size_of::<Self>())
+            .map_err(|error| format!("WebSocket (1 MiB command limit): {error}"))?;
+        let size = bytes.len();
         Ok(Self {
             generation,
             kind,
-            bytes: Some(bytes.to_vec()),
+            bytes: Some(bytes),
             message: None,
-            size: bytes.len(),
+            size,
             log,
             log_message: None,
             submitted: false,
@@ -37,10 +43,11 @@ impl Outbound {
         })
     }
     pub fn weight(&self) -> usize {
-        size_of::<Self>() + self.bytes.as_ref().map_or(0, Vec::capacity)
+        size_of::<Self>() + self.bytes.as_ref().map_or(0, OutgoingBytes::weight)
     }
     pub fn prepare(&mut self) -> Result<(), String> {
-        let bytes = self.bytes.take().expect("one native frame preparation");
+        let bytes = self.bytes.take().expect("one native frame preparation").into_vec()?;
+        self.size = bytes.len();
         if self.log {
             self.log_message = Some(format!(
                 "Sent WebSocket {} ({} bytes)",
@@ -82,6 +89,9 @@ impl Outbound {
         }
     }
     pub fn failure(&self, reason: &str) -> StreamingWorkerEvent {
+        if self.bytes.as_ref().is_some_and(|bytes| bytes.encoded_len().is_none()) {
+            return StreamingWorkerEvent::Error(format!("WebSocket script command failed before encoding completed; it was not sent and will not be replayed: {reason}"));
+        }
         StreamingWorkerEvent::Error(format!("WebSocket {}-byte frame was not confirmed; a partial native effect may remain and it will not be replayed: {reason}", self.size))
     }
     pub fn completion(self) -> Option<StreamingWorkerEvent> {

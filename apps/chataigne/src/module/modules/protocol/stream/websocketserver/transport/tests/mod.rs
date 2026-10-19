@@ -92,7 +92,7 @@ fn broadcasts_preserve_frame_kinds_and_fifo_for_multiple_peers() {
     let mut first = connect(&handle, address, "/one");
     let mut second = connect(&handle, address, "/two");
     assert!(handle
-        .send(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES], false)
+        .send(StreamingSendFrameKind::Binary, vec![0; COMMAND_BYTES], false)
         .is_err());
     let payload = vec![7; 200_000];
     handle.send(StreamingSendFrameKind::Binary, &payload, false).unwrap();

@@ -121,7 +121,7 @@ fn whole_broadcasts_are_fifo_for_multiple_clients_and_oversize_admission_is_expl
     let mut first = connect(&handle, address);
     let mut second = connect(&handle, address);
     assert!(handle
-        .send(&vec![0; COMMAND_BYTES], false)
+        .send(vec![0; COMMAND_BYTES], false)
         .unwrap_err()
         .contains("1 MiB"));
     let payload: Vec<_> = (0..200_000).map(|index| index as u8).collect();

@@ -1,3 +1,4 @@
+use crate::app::module::common::streaming::commands::{OutgoingBytes, SendInput};
 use std::{
     io::{self, Write},
     time::{Duration, Instant},
@@ -7,21 +8,17 @@ const WRITE_BYTES: usize = 64 * 1024;
 const WRITE_DEADLINE: Duration = Duration::from_secs(5);
 
 pub(super) struct Command {
-    pub bytes: Vec<u8>,
+    pub bytes: OutgoingBytes,
     pub log: bool,
 }
 impl Command {
-    pub fn new(bytes: &[u8], log: bool) -> Result<Self, String> {
-        if std::mem::size_of::<Self>().saturating_add(bytes.len()) > super::COMMAND_BYTES {
-            return Err("TCP server command exceeds 1 MiB; command was not admitted".into());
-        }
-        Ok(Self {
-            bytes: bytes.to_vec(),
-            log,
-        })
+    pub fn new<'a>(bytes: impl Into<SendInput<'a>>, log: bool) -> Result<Self, String> {
+        let bytes = OutgoingBytes::new(bytes, super::COMMAND_BYTES - std::mem::size_of::<Self>())
+            .map_err(|error| format!("TCP server (1 MiB command limit): {error}"))?;
+        Ok(Self { bytes, log })
     }
     pub fn weight(&self) -> usize {
-        std::mem::size_of::<Self>() + self.bytes.capacity()
+        std::mem::size_of::<Self>() + self.bytes.weight()
     }
 }
 

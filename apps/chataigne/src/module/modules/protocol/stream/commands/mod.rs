@@ -51,7 +51,7 @@ macro_rules! command_node_impl {
                 .capture()
                 .and_then(|capture| self.preparation.enqueue(ctx, &snapshot, self.id(), capture, None))
             {
-                golden_core::logerror!("Failed to trigger {}: {}", $context, error);
+                golden_core::logerror!(format!("Failed to trigger {}: {}", $context, error));
             }
         }
         fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
@@ -75,7 +75,7 @@ macro_rules! command_node_impl {
                 self.preparation
                     .enqueue(ctx, &snapshot, self.id(), capture, Some(event.payload))
             }) {
-                golden_core::logerror!("Failed to execute {}: {}", $context, error);
+                golden_core::logerror!(format!("Failed to execute {}: {}", $context, error));
             }
         }
         fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {

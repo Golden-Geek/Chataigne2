@@ -19,7 +19,7 @@ fn large_destination_plan_retains_one_datagram_and_accounts_for_allocated_capaci
     assert_eq!(command.bytes().as_ptr(), address);
     let expected = TICKET_HEAP_BYTES
         + size_of::<UdpOutboundSend>()
-        + command.bytes.capacity()
+        + command.bytes.weight()
         + size_of::<DestinationPlan>()
         + plan.0.targets.capacity() * size_of::<UdpOutputTarget>()
         + plan
@@ -67,7 +67,7 @@ fn oversized_or_invalid_destination_plan_cannot_admit_its_valid_prefix() {
     let error =
         UdpOutboundSend::new(Vec::with_capacity(UDP_COMMAND_BYTES), valid.finish().unwrap(), false).unwrap_err();
     assert!(
-        error.contains("1 MiB"),
+        error.contains("retained-byte limit"),
         "allocated datagram capacity must contribute even when its length is zero"
     );
 }

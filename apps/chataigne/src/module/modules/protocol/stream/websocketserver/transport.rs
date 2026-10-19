@@ -1,3 +1,4 @@
+use crate::app::module::common::streaming::commands::SendInput;
 mod handshake;
 mod outbound;
 mod peers;
@@ -167,7 +168,12 @@ impl WebSocketServerTransportHandle {
             input,
         })
     }
-    pub(crate) fn send(&self, kind: StreamingSendFrameKind, bytes: &[u8], log: bool) -> Result<(), String> {
+    pub(crate) fn send<'a>(
+        &self,
+        kind: StreamingSendFrameKind,
+        bytes: impl Into<SendInput<'a>>,
+        log: bool,
+    ) -> Result<(), String> {
         if !self.worker.is_accepting_commands() {
             return Err("WebSocket server worker is not accepting commands".into());
         }

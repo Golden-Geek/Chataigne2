@@ -117,7 +117,12 @@ pub(super) fn run(
             let Some(command) = current.as_mut() else { break };
             let outcome = if command.generation != connection.generation || connection.stream.is_none() {
                 Some(command.failure("its original connection is unavailable"))
+            } else if let Err(error) = command.prepare() {
+                Some(command.failure(&error))
             } else {
+                if context.cancellation().is_cancelled() {
+                    return;
+                }
                 match command.write_turn(connection.stream.as_mut().expect("connected write cursor")) {
                     Ok(WriteTurn::Complete) => {
                         let command = current.take().expect("completed write cursor");

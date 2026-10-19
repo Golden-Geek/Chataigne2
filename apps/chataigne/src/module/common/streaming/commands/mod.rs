@@ -1,5 +1,9 @@
 mod bounds;
 mod capture;
+mod outgoing;
+mod script_input;
+pub(crate) use outgoing::{OutgoingBytes, SendInput, StreamSend};
+pub(crate) use script_input::ScriptSend;
 pub(crate) mod preparation;
 use bounds::{source, Output};
 pub(crate) use bounds::{validate_values, value_weight, MAX_COMMAND_BYTES, MAX_COMMAND_VALUES};

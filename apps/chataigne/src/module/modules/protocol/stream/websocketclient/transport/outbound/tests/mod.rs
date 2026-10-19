@@ -67,7 +67,7 @@ fn encoded_frame_is_submitted_once_and_only_its_remaining_wire_bytes_are_flushed
 
 #[test]
 fn invalid_text_and_oversized_payloads_are_rejected_before_any_protocol_write() {
-    assert!(Outbound::new(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES], 1, false).is_err());
+    assert!(Outbound::new(StreamingSendFrameKind::Binary, vec![0; COMMAND_BYTES], 1, false).is_err());
     let mut command = Outbound::new(StreamingSendFrameKind::Text, &[255], 1, false).unwrap();
     assert!(command.prepare().unwrap_err().contains("UTF-8"));
 }

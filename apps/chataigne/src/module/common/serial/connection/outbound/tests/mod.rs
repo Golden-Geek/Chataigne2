@@ -74,7 +74,7 @@ fn absolute_deadline_and_zero_progress_do_not_resubmit_bytes() {
 
 #[test]
 fn oversized_admission_is_rejected_before_a_driver_can_observe_it() {
-    assert!(Outbound::new(&vec![0; COMMAND_BYTES], 1, false)
+    assert!(Outbound::new(vec![0; COMMAND_BYTES], 1, false)
         .err()
         .unwrap()
         .contains("256 KiB"));

@@ -4,12 +4,16 @@ use golden_io::RetirementPool;
 use std::{
     io::{self, Read, Write},
     num::NonZeroUsize,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc, Arc, Mutex,
+    },
     thread,
     time::Instant,
 };
 
-struct Wire(Arc<Mutex<Vec<u8>>>);
+type Gate = Arc<Mutex<Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>>>;
+struct Wire(Arc<Mutex<Vec<u8>>>, Gate);
 impl Read for Wire {
     fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
         Err(io::ErrorKind::WouldBlock.into())
@@ -17,6 +21,11 @@ impl Read for Wire {
 }
 impl Write for Wire {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let gate = self.1.lock().unwrap().take();
+        if let Some((started, release)) = gate {
+            started.send(()).unwrap();
+            release.recv_timeout(Duration::from_secs(5)).unwrap();
+        }
         self.0.lock().unwrap().extend_from_slice(bytes);
         Ok(bytes.len())
     }
@@ -43,6 +52,8 @@ struct Fixture {
     id: NodeId,
     pool: RetirementPool,
     output: Arc<Mutex<Vec<u8>>>,
+    gate: Gate,
+    opens: Arc<AtomicUsize>,
 }
 fn configured() -> Fixture {
     let (mut engine, id) = create_serial_module();
@@ -66,11 +77,18 @@ fn configured() -> Fixture {
     let pool = RetirementPool::new(NonZeroUsize::MIN);
     let output = Arc::new(Mutex::new(Vec::new()));
     let native_output = output.clone();
+    let gate = Gate::default();
+    let native_gate = gate.clone();
+    let opens = Arc::new(AtomicUsize::new(0));
+    let native_opens = opens.clone();
     let notifier = serial_module(&engine, id).wake.as_ref().unwrap().notifier.clone();
     let handle = spawn_for_test(
         config.clone(),
         &pool,
-        move |_| Ok(Wire(native_output.clone())),
+        move |_| {
+            native_opens.fetch_add(1, Ordering::Relaxed);
+            Ok(Wire(native_output.clone(), native_gate.clone()))
+        },
         notifier,
     )
     .unwrap();
@@ -97,6 +115,8 @@ fn configured() -> Fixture {
         id,
         pool,
         output,
+        gate,
+        opens,
     }
 }
 
@@ -108,6 +128,7 @@ fn applied_port_baud_control_lines_and_disable_fence_script_sends_before_callbac
             id,
             pool,
             output,
+            ..
         } = configured();
         send(&mut engine, id, "valid");
         engine.apply_edits().unwrap();
@@ -140,6 +161,63 @@ fn applied_port_baud_control_lines_and_disable_fence_script_sends_before_callbac
         drop(engine);
         assert!(pool.wait_for_idle(Duration::from_secs(2)));
     }
+}
+
+#[test]
+fn queued_script_arguments_survive_disable_and_finish_the_original_native_prefix() {
+    let Fixture {
+        mut engine,
+        id,
+        pool,
+        output,
+        gate,
+        ..
+    } = configured();
+    let (started, observed) = mpsc::channel();
+    let (release, wait_for_release) = mpsc::channel();
+    *gate.lock().unwrap() = Some((started, wait_for_release));
+    send(&mut engine, id, "first");
+    engine.apply_edits().unwrap();
+    observed.recv_timeout(Duration::from_secs(2)).unwrap();
+    for text in ["second", "third"] {
+        send(&mut engine, id, text);
+    }
+    set_node_enabled(&mut engine, id, false);
+    engine.apply_edits().unwrap();
+    send(&mut engine, id, "late");
+    assert!(engine.apply_edits().is_err());
+    release.send(()).unwrap();
+    wait(|| output.lock().unwrap().as_slice() == b"firstsecondthird");
+    assert!(!engine.nodes.get(id).unwrap().node_data().effective_enabled);
+    drop(engine);
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
+fn native_script_conversion_error_does_not_disconnect_or_block_a_later_valid_command() {
+    let Fixture {
+        mut engine,
+        id,
+        pool,
+        output,
+        opens,
+        ..
+    } = configured();
+    engine.edits.push(Edit::CallNodeScriptMethod {
+        node: id,
+        method: "sendHex".into(),
+        args: vec![ParamValue::Str("zz".into())],
+    });
+    send(&mut engine, id, "valid");
+    engine.apply_edits().unwrap();
+    wait(|| output.lock().unwrap().as_slice() == b"valid");
+    assert_eq!(
+        opens.load(Ordering::Relaxed),
+        1,
+        "conversion failure does not reopen the port"
+    );
+    drop(engine);
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
 }
 
 #[test]

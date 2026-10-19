@@ -1,3 +1,4 @@
+use crate::app::module::common::streaming::commands::SendInput;
 use golden_core::{
     node::NodeId,
     parameter::ParamValue,
@@ -80,11 +81,11 @@ pub(super) struct OutputPlanCache {
 
 /// Build a candidate only. The module publishes it to its cache after the single native
 /// send admission succeeds, so a rejected command cannot strand a pending plan ticket.
-pub(super) fn command(
+pub(super) fn command<'a>(
     cache: &mut Option<OutputPlanCache>,
     snapshot: &Arc<ProcessTreeSnapshot>,
     root: NodeId,
-    bytes: Vec<u8>,
+    bytes: impl Into<SendInput<'a>>,
     log: bool,
 ) -> Result<(UdpOutboundSend, OutputPlanCache), String> {
     let revision = snapshot

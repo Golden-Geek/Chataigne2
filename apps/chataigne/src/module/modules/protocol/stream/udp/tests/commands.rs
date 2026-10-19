@@ -195,3 +195,17 @@ fn manual_trigger_captures_the_snapshot_before_later_authored_edits() {
     engine.apply_edits().unwrap();
     assert_eq!(receive(&mut engine, &socket, 1), [b"captured".to_vec()]);
 }
+
+#[test]
+fn native_script_conversion_failure_does_not_poison_the_shared_destination_ticket() {
+    let (mut engine, module, socket) = configured();
+    for (method, text) in [("sendHex", "zz"), ("sendText", "valid")] {
+        engine.edits.push(Edit::CallNodeScriptMethod {
+            node: module,
+            method: method.into(),
+            args: vec![ParamValue::Str(text.into())],
+        });
+    }
+    engine.apply_edits().unwrap();
+    assert_eq!(receive(&mut engine, &socket, 1), [b"valid".to_vec()]);
+}

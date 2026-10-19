@@ -19,5 +19,6 @@ mod parameter_value_store;
 mod prepared_runtime_snapshot;
 mod process_tree_snapshot;
 mod schedule_ordering;
+mod script_arguments;
 mod tree_revisions;
 mod ui_event_ordering;

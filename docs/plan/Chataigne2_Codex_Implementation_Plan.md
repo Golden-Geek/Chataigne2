@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for native stream script argument leases, conservative output admission, shared transport queues, original-connection generations and accepted-prefix retirement across all six stream modules. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 20 focused command tests, five serial admission/retirement tests, the UDP conversion-isolation regression and the full Golden Engine suite passed shared input identity, native conversion, output admission, failure recovery and accepted-prefix ownership. Routine lint/integration/native validation and logging call-site cleanup remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for bounded native stream command preparation, captured snapshot/override ownership, typed engine-local delivery, FIFO receipt recovery, and destroy/undo generation fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 15 focused command tests and the full Golden Engine suite passed bounded admission, producer recovery, receipt retry, local delivery, and stale-snapshot/destroy/undo fencing. Routine integration and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

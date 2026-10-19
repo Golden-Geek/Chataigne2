@@ -27,8 +27,8 @@ pub(crate) fn value_weight(value: &ParamValue) -> usize {
                 if path.len() > MAX_COMMAND_VALUES {
                     return usize::MAX;
                 }
-                reference.cached_name().map_or(0, str::len)
-                    + std::mem::size_of_val(path)
+                reference.cached_name.as_ref().map_or(0, String::capacity)
+                    + reference.relative_path_from_root.capacity() * std::mem::size_of::<String>()
                     + path.iter().map(String::capacity).sum::<usize>()
             }
             _ => 0,
