@@ -36,6 +36,7 @@ pub(super) fn idle(engine: &crate::app::AppEngine, module: NodeId) -> bool {
     let node = tcp_server_module(engine, module);
     !node.transport_dirty
         && !node.client_list_dirty
+        && !node.feedback.is_pending()
         && node.retiring_transport.is_none()
         && node.pending_deliveries.is_empty()
         && !node.stream.has_pending_messages()

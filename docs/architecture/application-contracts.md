@@ -173,6 +173,16 @@ client list. A replacement starts after the old producer resolves; destroy alone
 and discards runtime deliveries. Undo reserves a fresh wake source. The server has no periodic or
 compiled node kernel. Serial and broader producer admission/disposal audits remain P03 work.
 
+TCP and WebSocket Server share app-owned `common/streaming/server_feedback.rs` for connection,
+warning, client-count and client-node projection ownership. Protocol adapters supply target IDs,
+warning IDs and client-parameter factories, retaining their existing metadata. The component owns
+one in-flight projection receipt; newer desired state stays dirty until that receipt settles.
+A discarded or partly applied projection reconciles against a fresh snapshot, preserving committed
+client identities and avoiding optimistic parameter-handle caches. Callback/graph/native frame
+delivery remains independent, so projection recovery never replays those effects. Staging a
+projection explicitly wakes its owner, including disabled completion service; destroy/undo resets
+the component with the owner's wake generation.
+
 WebSocket client uses the same passive wake, retained input and callback-receipt contracts. Its
 native owner uses the locked Tungstenite public nonblocking handshake/framing/control API, with
 at most 16 live or retiring workers. Commands allow 256 items / 8 MiB, with a 1 MiB retained frame
@@ -233,9 +243,7 @@ prefix; retiring statuses cannot restore the live client projection. Replacement
 producer disconnection. Destroy cancels native producers, clears runtime deliveries and releases
 the wake source; undo reserves a fresh source. Per-peer codec/parser buffers are finite under the
 128-peer/16-lifetime limits; this is not a product-scale memory qualification.
-Connection/warning/client projections keep their own completion receipt. A discarded or partly
-applied projection reconciles desired state against a fresh snapshot, preserving committed client
-identities rather than replaying structural edits or trusting optimistic parameter caches.
+Connection/warning/client projections use the shared server-feedback contract above.
 Serial and broader producer admission/disposal audits also remain P03 work.
 
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured

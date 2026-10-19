@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for TCP server connection/client projection receipt recovery, stable identities across partial edit prefixes, and factoring the verified WebSocket reconciliation contract into shared app stream ownership. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 32 TCP Server and 39 WebSocket Server tests plus strict Clippy passed discarded/partial projection recovery, stable client identities, warning set/clear recovery and retention of newer desired state during an in-flight projection. Routine preservation, workspace/native validation, documentation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for WebSocket server per-peer grammar generations, retained worker-prepared lifecycle/input callbacks, passive receipt delivery, connection/client projection reconciliation after discarded or partly applied edits, accepted-prefix retirement across disable/reconfigure, and destroy/undo wake-source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 38 WebSocket server tests and strict Clippy passed per-peer prepared input, passive callback receipts, disabled/reconfigured accepted-prefix ownership, source-fenced undo, and discarded/partial projection recovery with stable client IDs. Routine preservation, workspace/native validation, documentation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

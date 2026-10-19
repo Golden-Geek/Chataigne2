@@ -1,6 +1,5 @@
 mod feedback;
 mod transport;
-use feedback::ServerFeedback;
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -9,7 +8,7 @@ use std::{
 
 use crate::app::module::{
     common::{
-        streaming::{delivery::InputDelivery, input::StreamInputConfig},
+        streaming::{delivery::InputDelivery, input::StreamInputConfig, server_feedback::ServerFeedback},
         worker_wake::ModuleWake,
     },
     script_api::{CallbackDelivery, NativeCallbackPayload},

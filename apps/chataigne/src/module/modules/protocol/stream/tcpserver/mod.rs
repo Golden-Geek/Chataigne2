@@ -1,3 +1,4 @@
+mod feedback;
 mod transport;
 
 use std::{
@@ -7,17 +8,16 @@ use std::{
 
 use crate::app::module::{
     common::{
-        streaming::{delivery::InputDelivery, input::StreamInputConfig},
+        streaming::{delivery::InputDelivery, input::StreamInputConfig, server_feedback::ServerFeedback},
         worker_wake::ModuleWake,
     },
     script_api::{CallbackDelivery, NativeCallbackPayload},
 };
 use golden_core::{
-    edit::Edit,
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor},
+    node::{Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -66,6 +66,7 @@ pub struct TcpServerModule {
     retiring_transport: Option<TcpServerTransportHandle>,
     wake: Option<ModuleWake>,
     pending_deliveries: VecDeque<ServerDelivery>,
+    feedback: ServerFeedback,
 }
 
 enum ServerDelivery {
@@ -94,6 +95,7 @@ impl TcpServerModule {
             None,
             None,
             VecDeque::new(),
+            ServerFeedback::default(),
         )
     }
 
@@ -108,9 +110,9 @@ impl TcpServerModule {
         if !self.module_enabled(snapshot) {
             self.retire_transport();
             self.last_transport_config = None;
-            self.clear_port_warning(ctx);
+            self.clear_port_warning();
+            self.set_connected(false);
             self.clear_client_state(ctx, snapshot);
-            self.stream.set_connected(ctx, false);
             return;
         }
 
@@ -120,9 +122,9 @@ impl TcpServerModule {
                 logerror!("Invalid TCP server module configuration: {}", error);
                 self.retire_transport();
                 self.last_transport_config = None;
-                self.set_port_warning(ctx, error.as_str());
+                self.set_port_warning(error.as_str());
+                self.set_connected(false);
                 self.clear_client_state(ctx, snapshot);
-                self.stream.set_connected(ctx, false);
                 return;
             }
         };
@@ -134,9 +136,9 @@ impl TcpServerModule {
         }) {
             if let Err(error) = transport.update_input(config.input.clone()) {
                 self.retire_transport();
-                self.set_port_warning(ctx, &error);
+                self.set_port_warning(&error);
+                self.set_connected(false);
                 self.clear_client_state(ctx, snapshot);
-                self.stream.set_connected(ctx, false);
                 return;
             }
             self.last_transport_config = Some(config);
@@ -144,31 +146,33 @@ impl TcpServerModule {
         }
 
         self.retire_transport();
-        self.stream.set_connected(ctx, false);
+        self.set_connected(false);
         self.clear_client_state(ctx, snapshot);
         if self.retiring_transport.is_some() {
             self.transport_dirty = true;
             return;
         }
-        let Some(wake) = &self.wake else {
+        let Some(notifier) = self.wake.as_ref().map(|wake| wake.notifier.clone()) else {
             return;
         };
 
-        match TcpServerTransportHandle::spawn(config.clone(), wake.notifier.clone()) {
+        match TcpServerTransportHandle::spawn(config.clone(), notifier) {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
-                self.stream.set_connected(ctx, false);
+                self.set_connected(false);
             }
             Err(error) => {
                 logerror!("Failed to start TCP server transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
-                self.set_port_warning(ctx, error.as_str());
-                self.stream.set_connected(ctx, false);
+                self.set_port_warning(error.as_str());
+                self.set_connected(false);
                 self.transport_dirty = true;
                 self.retry_at = Some(Instant::now() + Duration::from_millis(250));
-                wake.later(Duration::from_millis(250));
+                if let Some(wake) = &self.wake {
+                    wake.later(Duration::from_millis(250));
+                }
             }
         }
     }
@@ -221,13 +225,13 @@ impl TcpServerModule {
                 TcpServerWorkerEvent::Listening(_) if retiring => {}
                 TcpServerWorkerEvent::Listening(address) => {
                     golden_core::logsuccess!(origin = self.id(); format!("TCP server listening on {address}."));
-                    self.clear_port_warning(ctx);
-                    self.stream.set_connected(ctx, true);
+                    self.clear_port_warning();
+                    self.set_connected(true);
                 }
                 TcpServerWorkerEvent::Recovering(_) if retiring => {}
                 TcpServerWorkerEvent::Recovering(error) => {
-                    self.set_port_warning(ctx, &error);
-                    self.stream.set_connected(ctx, false);
+                    self.set_port_warning(&error);
+                    self.set_connected(false);
                 }
                 TcpServerWorkerEvent::ClientConnected {
                     client_id,
@@ -282,7 +286,7 @@ impl TcpServerModule {
                 self.retry_at = Some(Instant::now() + Duration::from_millis(250));
             }
             self.last_transport_config = None;
-            self.stream.set_connected(ctx, false);
+            self.set_connected(false);
             self.transport_dirty = true;
         }
     }
@@ -377,49 +381,6 @@ impl TcpServerModule {
         snapshot.find_child_by_decl_id(connection_id, "clients")
     }
 
-    fn sync_client_nodes(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        self.client_list_dirty = false;
-        let connected_clients = i32::try_from(self.client_infos.len()).unwrap_or(i32::MAX);
-        self.connected_clients.set(ctx, connected_clients);
-
-        let Some(clients_id) = self.clients_node_id(snapshot) else {
-            return;
-        };
-
-        for (client_id, info) in &self.client_infos {
-            match snapshot.find_child(clients_id, client_id.as_str()) {
-                Some(existing_id) => {
-                    let Some(existing_snapshot) = snapshot.node(existing_id) else {
-                        continue;
-                    };
-
-                    match existing_snapshot.param_value.as_ref() {
-                        Some(ParamValue::Str(existing_info)) if existing_info == info => {}
-                        Some(ParamValue::Str(_)) => {
-                            ctx.set_param(existing_id, ParamValue::Str(info.clone()));
-                        }
-                        _ => {
-                            ctx.replace_node_boxed(existing_id, Box::new(create_client_info_param(client_id, info)));
-                        }
-                    }
-                }
-                None => {
-                    ctx.add_child_boxed(clients_id, Box::new(create_client_info_param(client_id, info)), None);
-                }
-            }
-        }
-
-        for child_id in snapshot.child_ids(clients_id) {
-            let Some(child_snapshot) = snapshot.node(child_id) else {
-                continue;
-            };
-
-            if !self.client_infos.contains_key(child_snapshot.label.as_str()) {
-                ctx.edits.push(Edit::RemoveNode { node: child_id });
-            }
-        }
-    }
-
     fn clear_client_state(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.client_infos.clear();
         self.client_list_dirty = true;
@@ -429,14 +390,6 @@ impl TcpServerModule {
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, _snapshot: &ProcessTreeSnapshot) {
         self.stream
             .set_data_capabilities(ctx, crate::app::module::ModuleDataCapabilities::new(true, true));
-    }
-
-    fn set_port_warning(&self, ctx: &mut ProcessCtx, message: &str) {
-        NodeHandle::new(self.port.id()).set_warning_with(ctx, Some(TCP_SERVER_PORT_WARNING_ID), message, None);
-    }
-
-    fn clear_port_warning(&self, ctx: &mut ProcessCtx) {
-        NodeHandle::new(self.port.id()).clear_warning(ctx, Some(TCP_SERVER_PORT_WARNING_ID));
     }
 
     fn stop_transport(&mut self) {
@@ -468,6 +421,7 @@ impl TcpServerModule {
         if !self.pending_deliveries.is_empty()
             || self.stream.has_pending_messages()
             || self.client_list_dirty
+            || self.feedback.is_pending()
             || self.transport.as_ref().is_some_and(|transport| transport.has_pending())
             || self
                 .retiring_transport
@@ -530,6 +484,7 @@ impl Node for TcpServerModule {
         };
         if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
             self.stop_transport();
+            self.feedback = ServerFeedback::default();
             self.stream.discard_pending_input();
             self.pending_deliveries.clear();
             self.client_infos.clear();
@@ -557,6 +512,7 @@ impl Node for TcpServerModule {
     }
 
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.settle_feedback();
         if let Some(wake) = &self.wake {
             wake.cancel_deadline();
         }
@@ -585,6 +541,7 @@ impl Node for TcpServerModule {
         self.wake = None;
         self.retry_at = None;
         self.pending_deliveries.clear();
+        self.feedback = ServerFeedback::default();
         self.stream.discard_pending_input();
         self.client_infos.clear();
         self.client_list_dirty = false;
@@ -595,13 +552,17 @@ impl Node for TcpServerModule {
     }
 
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        self.transport_refresh_due() || self.stream.has_pending_messages() || self.client_list_dirty
+        self.transport_refresh_due()
+            || self.stream.has_pending_messages()
+            || self.client_list_dirty
+            || self.feedback.failed()
     }
 
     fn worker_wake_when_disabled(&self) -> bool {
         self.retiring_transport.is_some()
             || self.transport_dirty
             || self.client_list_dirty
+            || self.feedback.is_pending()
             || !self.pending_deliveries.is_empty()
             || self.stream.has_pending_messages()
     }
@@ -666,12 +627,12 @@ impl Node for TcpServerModule {
         } else {
             self.retire_transport();
             self.last_transport_config = None;
+            self.set_connected(false);
             if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
                 let snapshot = snapshot_arc.as_ref();
-                self.clear_port_warning(ctx);
+                self.clear_port_warning();
                 self.clear_client_state(ctx, snapshot);
             }
-            self.stream.set_connected(ctx, false);
             self.transport_dirty = false;
         }
         self.request_service();

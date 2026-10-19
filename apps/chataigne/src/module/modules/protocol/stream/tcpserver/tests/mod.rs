@@ -19,6 +19,7 @@ use super::{
 };
 
 mod admission;
+mod feedback;
 mod input_delivery;
 mod lifecycle;
 
