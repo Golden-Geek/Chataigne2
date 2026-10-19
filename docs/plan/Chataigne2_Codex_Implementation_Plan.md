@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for TCP server per-client grammar isolation, retained worker-prepared lifecycle/input callbacks, passive receipt delivery, disabled accepted-prefix drain, and destroy/undo wake-source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 27 TCP server tests and 312 distinct app/IO tests passed per-client input isolation, passive receipt retry, disabled/reconfigured accepted-prefix ownership, and fresh undo wake sources. Strict lint/native/workspace validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for TCP server bounded native ownership, cancellation and bind recovery, per-client partial-write cursors, and independent reply backpressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 17 TCP server tests and 264 distinct app tests plus strict IO/app Clippy passed native admission, retained setup ownership, bind recovery, per-client cursors, reply-pressure independence, and applied-port/disable admission. Workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

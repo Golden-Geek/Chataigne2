@@ -104,7 +104,7 @@ fn callback_only_service_needs_no_snapshot_and_destroy_undo_discards_pending_inp
             log_incoming: false,
         },
     };
-    let packet = input::prepare(&mut StreamingParser::default(), &snapshot, b"stale 9\n", "TCP").unwrap();
+    let packet = input::prepare(&mut StreamingParser::default(), &snapshot, b"stale 9\n", "TCP", None).unwrap();
     let crate::app::AppNode::TcpClientModule(node) = engine.nodes.get_mut(module).unwrap() else {
         panic!("TCP")
     };

@@ -143,7 +143,8 @@ HTTP coordinator in `scripts.rs`; HTTP selects no periodic/compiled node kernel.
 TCP server native ownership uses `golden_io::BoundedWorker`: resolve/bind/retry and socket cleanup
 run off the actor, with at most 16 live or retiring native tasks. Broadcast admission checks a 1 MiB
 payload/storage bound before copying; its queue allows 256 items / 8 MiB. Replies allow 64 items /
-1 MiB, each native continuation at most 16 KiB. A native turn performs at most four operations per
+32 MiB. Input continuations share that byte limit; output/status continuations are at most 64 KiB.
+A native turn performs at most four operations per
 input/output/status producer. Input reply saturation leaves outgoing work runnable. The server
 owns at most 128 clients and closes overflow connections; disconnect releases capacity.
 
@@ -153,9 +154,24 @@ writes at most 64 KiB per attempt, and has a five-second absolute deadline. Part
 close the original connection with its written-byte count; neither a suffix nor a completed prefix
 is replayed on another connection. Whole broadcasts remain FIFO. Bind failure retries with bounded
 backoff, and native Listening/Recovering events own module connection feedback. Applied port and
-enabled state fence new script/command admission before callback dispatch. TCP server passive
-receipt delivery, worker-prepared per-client parsing/callbacks, and module-level accepted-prefix
-handoff on disable/reconfigure remain P03 work; native cursor tests do not qualify those layers.
+enabled state fence new script/command admission before callback dispatch.
+
+TCP server owner service is passive and reserves its wake before starting native work. Each client
+has a separate parser, bounded to a 1 MiB partial frame (128 MiB maximum across 128 clients).
+Native input generations discard partial frames on grammar/processing changes; logging changes
+preserve them. The shared stream input envelope prepares source-tagged callbacks, graph values,
+and bounded logs on the worker. Connection/disconnection callbacks also use the canonical native
+callback pool. The owner retains one bounded native drain through callback publication receipts;
+discarded publication retries only that event. Snapshot-free callback service precedes bounded
+graph application. Parameter/metadata edits, replies, producer exit, and retry deadlines wake service.
+
+Ordinary reconfigure/disable closes native admission and retains one retiring owner through its
+accepted native command prefix and result publication. Already-drained callbacks and graph batches
+keep their separate delivery owners until their receipts settle. Disabled service
+explicitly opts in for that accepted prefix, and retired client status cannot restore the live
+client list. A replacement starts after the old producer resolves; destroy alone cancels producers
+and discards runtime deliveries. Undo reserves a fresh wake source. The server has no periodic or
+compiled node kernel. WebSocket/serial and broader producer admission/disposal audits remain P03 work.
 
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured
 for the active generation, so a configuration edit followed immediately by a command or script

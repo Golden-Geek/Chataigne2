@@ -63,6 +63,7 @@ pub(crate) fn prepare(
     snapshot: &InputSnapshot,
     bytes: &[u8],
     transport: &str,
+    peer: Option<&str>,
 ) -> Result<RetainedPayload<PreparedStreamInput>, String> {
     let config = &snapshot.config;
     let values = if config.processing_enabled {
@@ -70,7 +71,7 @@ pub(crate) fn prepare(
     } else {
         Ok(PreparedMessages::default())
     };
-    let callbacks = prepare_stream_bytes_callbacks(bytes, None, true)?;
+    let callbacks = prepare_stream_bytes_callbacks(bytes, peer, true)?;
     let rejected_lines = parser.take_rejected_line_count();
     let log_message = config.log_incoming.then(|| {
         let prefix = &bytes[..bytes.len().min(1024)];
@@ -80,7 +81,8 @@ pub(crate) fn prepare(
             String::new()
         };
         format!(
-            "Received {transport} {}{}{}",
+            "Received {transport}{} {}{}{}",
+            peer.map_or_else(String::new, |peer| format!(" from {peer}")),
             format_bytes_for_log(prefix),
             suffix,
             if config.processing_enabled {

@@ -3,8 +3,16 @@ mod outbound;
 mod tests;
 mod worker;
 
-use crate::app::module::common::streaming::native_replies::NativeReply;
-use golden_io::{BoundedWorker, PendingDrain, PendingSendError, RetirementPool, WorkerLimits};
+use crate::app::module::{
+    common::streaming::{
+        input::{InputPlan, PreparedStreamInput, StreamInputConfig},
+        native_replies::NativeReply,
+    },
+    script_api::NativeCallbackPayload,
+};
+use golden_io::{
+    BoundedWorker, PendingDrain, PendingSendError, RetainedPayload, RetirementPool, WorkerLimits, WorkerNotifier,
+};
 use std::{
     mem::size_of,
     net::{SocketAddr, TcpListener},
@@ -17,25 +25,50 @@ use std::{
 
 const COMMAND_BYTES: usize = 1024 * 1024;
 const QUEUED_COMMAND_BYTES: usize = 8 * COMMAND_BYTES;
-const EVENT_BYTES: usize = 1024 * 1024;
+const EVENT_BYTES: usize = 32 * 1024 * 1024;
 const EVENT_TURN: NonZeroUsize = NonZeroUsize::new(4).unwrap();
 const MAX_CLIENTS: usize = 128;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct TcpServerTransportConfig {
     pub bind_host: String,
     pub bind_port: u16,
     pub receive_enabled: bool,
     pub send_enabled: bool,
+    pub input: StreamInputConfig,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+impl TcpServerTransportConfig {
+    pub(super) fn validate(&self) -> Result<(), String> {
+        if self.bind_host.trim().is_empty() || self.bind_host.capacity() > 1024 {
+            return Err("TCP server bind host must contain 1–1024 retained bytes; endpoint was not admitted".into());
+        }
+        validate_input(&self.input)
+    }
+    pub(super) fn same_endpoint(&self, other: &Self) -> bool {
+        self.bind_host == other.bind_host
+            && self.bind_port == other.bind_port
+            && self.receive_enabled == other.receive_enabled
+            && self.send_enabled == other.send_enabled
+    }
+}
+
+#[derive(Clone, Debug)]
 pub(crate) enum TcpServerWorkerEvent {
     Listening(SocketAddr),
     Recovering(String),
-    ClientConnected { client_id: String, info: String },
-    ClientDisconnected { client_id: String, reason: Option<String> },
-    Bytes { client_id: String, bytes: Vec<u8> },
+    ClientConnected {
+        client_id: String,
+        info: String,
+        callback: Result<NativeCallbackPayload, String>,
+    },
+    ClientDisconnected {
+        client_id: String,
+        reason: Option<String>,
+        rejected_lines: u64,
+        callback: Result<NativeCallbackPayload, String>,
+    },
+    Input(RetainedPayload<PreparedStreamInput>),
     Error(String),
 }
 
@@ -54,18 +87,32 @@ impl NativeReply for TcpServerWorkerEvent {
             + match self {
                 Self::Listening(_) => 0,
                 Self::Recovering(message) | Self::Error(message) => message.capacity(),
-                Self::ClientConnected { client_id, info } => client_id.capacity() + info.capacity(),
-                Self::ClientDisconnected { client_id, reason } => {
-                    client_id.capacity() + reason.as_ref().map_or(0, String::capacity)
-                }
-                Self::Bytes { client_id, bytes } => client_id.capacity() + bytes.capacity(),
+                Self::ClientConnected {
+                    client_id,
+                    info,
+                    callback,
+                } => client_id.capacity() + info.capacity() + callback_weight(callback),
+                Self::ClientDisconnected {
+                    client_id,
+                    reason,
+                    callback,
+                    ..
+                } => client_id.capacity() + reason.as_ref().map_or(0, String::capacity) + callback_weight(callback),
+                Self::Input(input) => input.weight,
             }
     }
-    fn limit(_: ReplySource) -> usize {
-        16 * 1024
+    fn limit(source: ReplySource) -> usize {
+        if source == ReplySource::Input {
+            EVENT_BYTES
+        } else {
+            64 * 1024
+        }
     }
     fn oversized(_: ReplySource) -> Self {
-        Self::Error("TCP server native result exceeds 16 KiB; details rejected, native work is not replayed".into())
+        Self::Error(
+            "TCP server native result exceeds its retained-byte limit; details rejected, native work is not replayed"
+                .into(),
+        )
     }
 }
 
@@ -73,6 +120,7 @@ pub(crate) struct TcpServerTransportHandle {
     worker: BoundedWorker<Vec<u8>, TcpServerWorkerEvent>,
     clients: Arc<AtomicUsize>,
     send_enabled: bool,
+    input: InputPlan,
 }
 
 fn lifetimes() -> &'static RetirementPool {
@@ -81,21 +129,22 @@ fn lifetimes() -> &'static RetirementPool {
 }
 
 impl TcpServerTransportHandle {
-    pub(crate) fn spawn(config: TcpServerTransportConfig) -> Result<Self, String> {
-        Self::spawn_using(config, lifetimes(), worker::bind)
+    pub(crate) fn spawn(config: TcpServerTransportConfig, notifier: WorkerNotifier) -> Result<Self, String> {
+        Self::spawn_using(config, lifetimes(), worker::bind, notifier)
     }
     fn spawn_using(
         config: TcpServerTransportConfig,
         pool: &RetirementPool,
         binder: impl FnMut(&TcpServerTransportConfig) -> Result<TcpListener, String> + Send + 'static,
+        notifier: WorkerNotifier,
     ) -> Result<Self, String> {
-        if config.bind_host.trim().is_empty() || config.bind_host.capacity() > 1024 {
-            return Err("TCP server bind host must contain 1–1024 retained bytes; endpoint was not admitted".into());
-        }
+        config.validate()?;
         let clients = Arc::new(AtomicUsize::new(0));
         let native_clients = clients.clone();
         let send_enabled = config.send_enabled;
-        let worker = BoundedWorker::spawn(
+        let input = InputPlan::new(config.input.clone());
+        let native_input = input.clone();
+        let worker = BoundedWorker::spawn_notified(
             "streaming-tcp-server",
             pool,
             WorkerLimits {
@@ -104,13 +153,15 @@ impl TcpServerTransportHandle {
                 event_items: 64,
                 event_weight: EVENT_BYTES,
             },
-            move |context| worker::run(context, config, native_clients, binder),
+            notifier,
+            move |context| worker::run(context, config, native_clients, native_input, binder),
         )
         .map_err(|error| format!("TCP server worker could not start: {error}"))?;
         Ok(Self {
             worker,
             clients,
             send_enabled,
+            input,
         })
     }
     pub(crate) fn send(&self, bytes: &[u8]) -> Result<(), String> {
@@ -134,8 +185,30 @@ impl TcpServerTransportHandle {
     pub(crate) fn has_pending(&self) -> bool {
         self.worker.has_pending()
     }
+    pub(crate) fn finish_admission(&mut self) {
+        self.worker.finish_admission();
+    }
+    pub(crate) fn update_input(&self, config: StreamInputConfig) -> Result<(), String> {
+        validate_input(&config)?;
+        self.input.update(config);
+        Ok(())
+    }
     pub(crate) fn stop(&mut self) {
         self.clients.store(0, Ordering::Release);
         self.worker.cancel();
+    }
+}
+
+fn validate_input(config: &StreamInputConfig) -> Result<(), String> {
+    if config.parse.mode.capacity() > 16 || !matches!(config.parse.mode.as_str(), "raw" | "line" | "json") {
+        return Err("TCP server input mode exceeds its supported configuration bound".into());
+    }
+    Ok(())
+}
+
+fn callback_weight(callback: &Result<NativeCallbackPayload, String>) -> usize {
+    match callback {
+        Ok(callback) => callback.retained_bytes(),
+        Err(error) => error.capacity(),
     }
 }

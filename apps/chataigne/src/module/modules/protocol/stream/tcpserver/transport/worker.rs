@@ -1,5 +1,12 @@
 use super::{outbound::Broadcast, ReplySource, TcpServerTransportConfig, TcpServerWorkerEvent as Event, MAX_CLIENTS};
-use crate::app::module::common::streaming::native_replies::NativeReplies;
+use crate::app::module::{
+    common::streaming::{
+        input::{self, InputPlan},
+        native_replies::NativeReplies,
+        parser::StreamingParser,
+    },
+    script_api::NativeCallbackPayload,
+};
 use golden_io::{PendingDrainState, ReconnectBackoff, WorkerContext};
 use std::{
     io::Read,
@@ -20,6 +27,8 @@ struct Client {
     id: u64,
     label: String,
     stream: TcpStream,
+    parser: StreamingParser,
+    input_generation: Option<u64>,
 }
 struct Clients {
     entries: Vec<Client>,
@@ -32,12 +41,20 @@ impl Clients {
         self.count.store(self.entries.len(), Ordering::Release);
     }
     fn remove(&mut self, index: usize, reason: Option<String>) -> Event {
-        let client = self.entries.remove(index);
+        let mut client = self.entries.remove(index);
         let _ = client.stream.shutdown(Shutdown::Both);
+        client.parser.discard_partial_input();
+        let rejected_lines = client.parser.take_rejected_line_count();
+        let callback = NativeCallbackPayload::prepare(
+            "clientDisconnected",
+            vec![serde_json::json!(client.label), serde_json::json!(reason)],
+        );
         self.publish_count();
         Event::ClientDisconnected {
             client_id: client.label,
             reason,
+            rejected_lines,
+            callback,
         }
     }
     fn accept(&mut self, stream: TcpStream, address: std::net::SocketAddr) -> Option<Event> {
@@ -55,15 +72,25 @@ impl Clients {
         self.next_id = id;
         let client_id = address.to_string();
         let info = format!("Remote address: {address}");
+        let callback = NativeCallbackPayload::prepare(
+            "clientConnected",
+            vec![serde_json::json!(client_id), serde_json::json!(info)],
+        );
         self.entries.push(Client {
             id,
             label: client_id.clone(),
             stream,
+            parser: StreamingParser::default(),
+            input_generation: None,
         });
         self.publish_count();
-        Some(Event::ClientConnected { client_id, info })
+        Some(Event::ClientConnected {
+            client_id,
+            info,
+            callback,
+        })
     }
-    fn receive(&mut self) -> Option<Event> {
+    fn receive(&mut self, input: &InputPlan) -> Option<Event> {
         if self.entries.is_empty() {
             return None;
         }
@@ -72,10 +99,26 @@ impl Clients {
         let mut buffer = [0; 8192];
         match self.entries[index].stream.read(&mut buffer) {
             Ok(0) => Some(self.remove(index, None)),
-            Ok(length) => Some(Event::Bytes {
-                client_id: self.entries[index].label.clone(),
-                bytes: buffer[..length].to_vec(),
-            }),
+            Ok(length) => {
+                let client = &mut self.entries[index];
+                let snapshot = input.snapshot();
+                if client.input_generation != Some(snapshot.generation) {
+                    client.parser.discard_partial_input();
+                    client.input_generation = Some(snapshot.generation);
+                }
+                Some(
+                    match input::prepare(
+                        &mut client.parser,
+                        &snapshot,
+                        &buffer[..length],
+                        "TCP server",
+                        Some(&client.label),
+                    ) {
+                        Ok(input) => Event::Input(input),
+                        Err(error) => Event::Error(format!("TCP server input was not admitted: {error}")),
+                    },
+                )
+            }
             Err(error)
                 if matches!(
                     error.kind(),
@@ -134,6 +177,7 @@ pub(super) fn run(
     context: Context,
     config: TcpServerTransportConfig,
     count: Arc<AtomicUsize>,
+    input: InputPlan,
     mut binder: impl FnMut(&TcpServerTransportConfig) -> Result<TcpListener, String>,
 ) {
     let mut clients = Clients {
@@ -151,6 +195,9 @@ pub(super) fn run(
     loop {
         if context.cancellation().is_cancelled() || !replies.flush(&context) {
             return;
+        }
+        if context.command_admission_closed() {
+            listener = None;
         }
         // Reply congestion pauses only the producer whose previous result is retained.
         for _ in 0..IO_TURN {
@@ -185,8 +232,19 @@ pub(super) fn run(
             }
         }
         if closed && current.is_none() {
-            replies.finish(&context);
-            return;
+            for _ in 0..IO_TURN {
+                if clients.entries.is_empty() || !replies.permits(ReplySource::Status) {
+                    break;
+                }
+                let event = clients.remove(0, None);
+                if !replies.offer(&context, ReplySource::Status, event) {
+                    return;
+                }
+            }
+            if clients.entries.is_empty() {
+                replies.finish(&context);
+                return;
+            }
         }
         if !context.command_admission_closed() {
             if listener.is_none() && Instant::now() >= retry_at && replies.permits(ReplySource::Status) {
@@ -258,7 +316,7 @@ pub(super) fn run(
                     if !replies.permits(ReplySource::Input) {
                         break;
                     }
-                    if let Some(event) = clients.receive() {
+                    if let Some(event) = clients.receive(&input) {
                         if !replies.offer(&context, ReplySource::Input, event) {
                             return;
                         }

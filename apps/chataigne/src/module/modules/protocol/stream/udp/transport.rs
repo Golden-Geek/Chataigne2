@@ -339,7 +339,7 @@ fn worker_loop(
                             parser.discard_partial_input();
                         }
                         input_generation = Some(snapshot.generation);
-                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..length], "UDP") {
+                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..length], "UDP", None) {
                             Ok(input) => StreamingWorkerEvent::Input(input),
                             Err(error) => StreamingWorkerEvent::Error(format!("UDP input was not admitted: {error}")),
                         };

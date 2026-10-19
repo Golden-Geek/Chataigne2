@@ -227,7 +227,7 @@ pub(super) fn run(
                             parser.discard_partial_input();
                             input_generation = Some(generation);
                         }
-                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..count], "TCP") {
+                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..count], "TCP", None) {
                             Ok(input) => StreamingWorkerEvent::Input(input),
                             Err(error) => StreamingWorkerEvent::Error(format!("TCP input was not admitted: {error}")),
                         };

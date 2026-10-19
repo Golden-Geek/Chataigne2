@@ -54,16 +54,16 @@ fn applied_port_and_disable_edits_fence_script_admission_before_callbacks_dispat
 }
 
 #[test]
-fn failed_worker_start_defers_snapshot_work_until_the_capacity_retry_is_due() {
+fn capacity_retry_wait_requests_no_periodic_work_and_defers_snapshots_until_due() {
     let mut module = TcpServerModule::create();
     module.transport_dirty = true;
     module.client_list_dirty = false;
     module.retry_at = Some(std::time::Instant::now() + Duration::from_secs(1));
     assert!(!module.transport_refresh_due());
     assert!(!module.needs_update());
-    assert!(!module.update_requires_tree_snapshot());
+    assert!(!module.worker_wake_requires_tree_snapshot());
     module.retry_at = Some(std::time::Instant::now() - Duration::from_millis(1));
     assert!(module.transport_refresh_due());
-    assert!(module.needs_update());
-    assert!(module.update_requires_tree_snapshot());
+    assert!(!module.needs_update());
+    assert!(module.worker_wake_requires_tree_snapshot());
 }

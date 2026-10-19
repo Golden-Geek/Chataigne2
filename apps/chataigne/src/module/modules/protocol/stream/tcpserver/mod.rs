@@ -1,10 +1,17 @@
 mod transport;
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     time::{Duration, Instant},
 };
 
+use crate::app::module::{
+    common::{
+        streaming::{delivery::InputDelivery, input::StreamInputConfig},
+        worker_wake::ModuleWake,
+    },
+    script_api::{CallbackDelivery, NativeCallbackPayload},
+};
 use golden_core::{
     edit::Edit,
     engine::NodeExecutionRule,
@@ -27,7 +34,6 @@ use crate::app::{
 
 use self::transport::{TcpServerTransportConfig, TcpServerTransportHandle, TcpServerWorkerEvent};
 
-const TCP_SERVER_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const TCP_SERVER_PORT_WARNING_ID: &str = "tcp_server_port_transport";
 const TCP_SERVER_BIND_HOST: &str = "0.0.0.0";
 
@@ -57,6 +63,22 @@ pub struct TcpServerModule {
     client_infos: BTreeMap<String, String>,
     client_list_dirty: bool,
     retry_at: Option<Instant>,
+    retiring_transport: Option<TcpServerTransportHandle>,
+    wake: Option<ModuleWake>,
+    pending_deliveries: VecDeque<ServerDelivery>,
+}
+
+enum ServerDelivery {
+    Input(InputDelivery),
+    Callback(CallbackDelivery),
+}
+impl ServerDelivery {
+    fn service(&mut self, ctx: &mut ProcessCtx, stream: &mut StreamingModuleBase) -> bool {
+        match self {
+            Self::Input(input) => input.service(ctx, stream),
+            Self::Callback(callback) => callback.service(ctx),
+        }
+    }
 }
 
 impl TcpServerModule {
@@ -69,6 +91,9 @@ impl TcpServerModule {
             BTreeMap::new(),
             true,
             None,
+            None,
+            None,
+            VecDeque::new(),
         )
     }
 
@@ -81,7 +106,7 @@ impl TcpServerModule {
         self.retry_at = None;
 
         if !self.module_enabled(snapshot) {
-            self.stop_transport();
+            self.retire_transport();
             self.last_transport_config = None;
             self.clear_port_warning(ctx);
             self.clear_client_state(ctx, snapshot);
@@ -93,7 +118,7 @@ impl TcpServerModule {
             Ok(config) => config,
             Err(error) => {
                 logerror!("Invalid TCP server module configuration: {}", error);
-                self.stop_transport();
+                self.retire_transport();
                 self.last_transport_config = None;
                 self.set_port_warning(ctx, error.as_str());
                 self.clear_client_state(ctx, snapshot);
@@ -102,14 +127,34 @@ impl TcpServerModule {
             }
         };
 
-        if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
+        if let Some(transport) = self.transport.as_ref().filter(|_| {
+            self.last_transport_config
+                .as_ref()
+                .is_some_and(|last| last.same_endpoint(&config))
+        }) {
+            if let Err(error) = transport.update_input(config.input.clone()) {
+                self.retire_transport();
+                self.set_port_warning(ctx, &error);
+                self.clear_client_state(ctx, snapshot);
+                self.stream.set_connected(ctx, false);
+                return;
+            }
+            self.last_transport_config = Some(config);
             return;
         }
 
-        self.stop_transport();
+        self.retire_transport();
+        self.stream.set_connected(ctx, false);
         self.clear_client_state(ctx, snapshot);
+        if self.retiring_transport.is_some() {
+            self.transport_dirty = true;
+            return;
+        }
+        let Some(wake) = &self.wake else {
+            return;
+        };
 
-        match TcpServerTransportHandle::spawn(config.clone()) {
+        match TcpServerTransportHandle::spawn(config.clone(), wake.notifier.clone()) {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
@@ -123,12 +168,13 @@ impl TcpServerModule {
                 self.stream.set_connected(ctx, false);
                 self.transport_dirty = true;
                 self.retry_at = Some(Instant::now() + Duration::from_millis(250));
+                wake.later(Duration::from_millis(250));
             }
         }
     }
 
     fn transport_refresh_due(&self) -> bool {
-        self.transport_dirty && self.retry_at.is_none_or(|at| Instant::now() >= at)
+        self.transport_dirty && self.retiring_transport.is_none() && self.retry_at.is_none_or(|at| Instant::now() >= at)
     }
 
     fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<TcpServerTransportConfig, String> {
@@ -143,117 +189,110 @@ impl TcpServerModule {
         let bind_port = u16::try_from(port)
             .map_err(|_| "TCP server port 'connection/port' must be between 0 and 65535".to_string())?;
 
-        Ok(TcpServerTransportConfig {
+        let config = TcpServerTransportConfig {
             bind_host: TCP_SERVER_BIND_HOST.to_string(),
             bind_port,
             receive_enabled: true,
             send_enabled: true,
-        })
+            input: StreamInputConfig {
+                module: self.id(),
+                parse: self.stream.parse_config_cached(),
+                processing_enabled: self.stream.processing_enabled_cached(),
+                log_incoming: self.stream.log_incoming_enabled(),
+            },
+        };
+        config.validate()?;
+        Ok(config)
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
-        let mut worker_events = Vec::new();
-        let Some(transport) = &self.transport else {
+        // One bounded native drain is retained until its callback receipts complete.
+        if !self.pending_deliveries.is_empty() {
+            return;
+        }
+        let retiring = self.retiring_transport.is_some();
+        let Some(transport) = self.retiring_transport.as_ref().or(self.transport.as_ref()) else {
             return;
         };
-
-        let worker_disconnected = transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
-
-        let processing_enabled = self.stream.processing_enabled_cached();
-        let mut received_bytes = false;
-        for event in worker_events {
+        let mut events = Vec::new();
+        let disconnected = transport.drain_events(&mut events).state == PendingDrainState::Disconnected;
+        for event in events {
             match event {
-                TcpServerWorkerEvent::Listening(_) => {
+                TcpServerWorkerEvent::Listening(_) if retiring => {}
+                TcpServerWorkerEvent::Listening(address) => {
+                    golden_core::logsuccess!(origin = self.id(); format!("TCP server listening on {address}."));
                     self.clear_port_warning(ctx);
                     self.stream.set_connected(ctx, true);
                 }
+                TcpServerWorkerEvent::Recovering(_) if retiring => {}
                 TcpServerWorkerEvent::Recovering(error) => {
                     self.set_port_warning(ctx, &error);
                     self.stream.set_connected(ctx, false);
                 }
-                TcpServerWorkerEvent::ClientConnected { client_id, info } => {
-                    streaming_script::emit_client_connected(ctx, self.id(), client_id.as_str(), info.clone());
-                    if self.stream.log_incoming_enabled() {
-                        golden_core::log!(
-                            origin = self.id();
-                            format!("Accepted TCP client {client_id} ({info})")
-                        );
+                TcpServerWorkerEvent::ClientConnected {
+                    client_id,
+                    info,
+                    callback,
+                } => {
+                    self.retain_callback(callback);
+                    if !retiring {
+                        self.client_infos.insert(client_id, info);
+                        self.client_list_dirty = true;
                     }
-                    self.client_infos.insert(client_id, info);
-                    self.client_list_dirty = true;
                 }
-                TcpServerWorkerEvent::ClientDisconnected { client_id, reason } => {
-                    streaming_script::emit_client_disconnected(ctx, self.id(), client_id.as_str(), reason.as_deref());
+                TcpServerWorkerEvent::ClientDisconnected {
+                    client_id,
+                    reason,
+                    rejected_lines,
+                    callback,
+                } => {
+                    self.retain_callback(callback);
                     if let Some(reason) = reason {
                         logerror!(format!("TCP client {client_id} disconnected: {reason}"));
                     }
-                    self.client_infos.remove(client_id.as_str());
-                    self.client_list_dirty = true;
-                }
-                TcpServerWorkerEvent::Bytes { client_id, bytes } if !processing_enabled => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        Some(client_id.as_str()),
-                        true,
-                    );
-                    if self.stream.log_incoming_enabled() {
-                        golden_core::log!(
-                            origin = self.id();
-                            format!(
-                                "Received TCP from {} {} (processing disabled)",
-                                client_id,
-                                format_bytes_for_log(bytes.as_slice())
-                            )
-                        );
+                    Self::report_rejected_input(rejected_lines);
+                    if !retiring {
+                        self.client_infos.remove(&client_id);
+                        self.client_list_dirty = true;
                     }
                 }
-                TcpServerWorkerEvent::Bytes { client_id, bytes } => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        Some(client_id.as_str()),
-                        true,
-                    );
-                    match self.stream.parse_bytes_cached(bytes.as_slice()) {
-                        Ok(messages) => {
-                            received_bytes = true;
-                            if self.stream.log_incoming_enabled() {
-                                golden_core::log!(
-                                    origin = self.id();
-                                    format!(
-                                        "Received TCP from {} {}",
-                                        client_id,
-                                        format_bytes_for_log(bytes.as_slice())
-                                    )
-                                );
-                            }
-                            self.stream.push_messages(messages);
-                        }
-                        Err(error) => {
-                            logerror!("Failed to parse TCP input from {client_id}: {}", error);
-                        }
+                TcpServerWorkerEvent::Input(input) => {
+                    self.stream.emit_incoming_traffic(ctx);
+                    if let Some(message) = &input.log_message {
+                        golden_core::log!(origin = self.id(); message.as_str());
                     }
+                    if let Err(error) = &input.values {
+                        logerror!("Failed to parse TCP server input: {}", error);
+                    }
+                    Self::report_rejected_input(input.rejected_lines);
+                    self.pending_deliveries
+                        .push_back(ServerDelivery::Input(InputDelivery::new(input)));
                 }
                 TcpServerWorkerEvent::Error(error) => {
                     logerror!("TCP server transport error: {}", error);
                 }
             }
         }
-
-        // client_list_dirty sync is deferred to update() where snapshot is available.
-
-        if received_bytes {
-            self.stream.emit_incoming_traffic(ctx);
-        }
-
-        if worker_disconnected {
-            logerror!("TCP server transport worker disconnected");
-            self.stop_transport();
+        if disconnected {
+            if retiring {
+                self.retiring_transport = None;
+            } else {
+                logerror!("TCP server worker stopped; outstanding native outcomes are unknown and are not replayed.");
+                self.transport = None;
+                self.retry_at = Some(Instant::now() + Duration::from_millis(250));
+            }
             self.last_transport_config = None;
+            self.stream.set_connected(ctx, false);
             self.transport_dirty = true;
+        }
+    }
+
+    fn report_rejected_input(count: u64) {
+        if count > 0 {
+            logerror!(
+                "Rejected {} TCP server lines at an input/configuration/connection boundary",
+                count
+            );
         }
     }
 
@@ -265,7 +304,10 @@ impl TcpServerModule {
     ) -> Result<String, String> {
         if !self.module_enabled(snapshot)
             || self.transport_dirty
-            || self.last_transport_config.as_ref() != Some(&self.transport_config(snapshot)?)
+            || !self.last_transport_config.as_ref().is_some_and(|last| {
+                self.transport_config(snapshot)
+                    .is_ok_and(|applied| last.same_endpoint(&applied))
+            })
         {
             return Err("TCP server configuration is pending or disabled; command was not admitted".into());
         }
@@ -324,7 +366,7 @@ impl TcpServerModule {
     }
 
     fn on_param_change_inner(&mut self, param: NodeId) {
-        if self.port.is_bound() && self.port.id() == param {
+        if (self.port.is_bound() && self.port.id() == param) || self.stream.affects_input_configuration(param) {
             self.transport_dirty = true;
             self.retry_at = None;
         }
@@ -401,6 +443,58 @@ impl TcpServerModule {
         if let Some(mut transport) = self.transport.take() {
             transport.stop();
         }
+        if let Some(mut transport) = self.retiring_transport.take() {
+            transport.stop();
+        }
+        self.last_transport_config = None;
+    }
+
+    fn retire_transport(&mut self) {
+        if let Some(mut transport) = self.transport.take() {
+            assert!(self.retiring_transport.is_none(), "one TCP server retirement owner");
+            transport.finish_admission();
+            self.retiring_transport = Some(transport);
+        }
+        self.last_transport_config = None;
+    }
+
+    fn request_service(&self) {
+        if let Some(wake) = &self.wake {
+            wake.notifier.notify();
+        }
+    }
+
+    fn arm_service(&self) {
+        if !self.pending_deliveries.is_empty()
+            || self.stream.has_pending_messages()
+            || self.client_list_dirty
+            || self.transport.as_ref().is_some_and(|transport| transport.has_pending())
+            || self
+                .retiring_transport
+                .as_ref()
+                .is_some_and(|transport| transport.has_pending())
+        {
+            self.request_service();
+        } else if self.transport_dirty && self.retiring_transport.is_none() {
+            if let Some(wake) = &self.wake {
+                wake.later(self.retry_at.map_or(Duration::from_millis(1), |at| {
+                    at.saturating_duration_since(Instant::now())
+                }));
+            }
+        }
+    }
+
+    fn retain_callback(&mut self, callback: Result<NativeCallbackPayload, String>) {
+        match callback {
+            Ok(callback) => self
+                .pending_deliveries
+                .push_back(ServerDelivery::Callback(CallbackDelivery::new(
+                    callback.event(self.id()),
+                ))),
+            Err(error) => {
+                logerror!("TCP server callback was not admitted: {}", error);
+            }
+        }
     }
 }
 
@@ -427,64 +521,93 @@ impl Node for TcpServerModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
+        let source = match ctx.node_waker() {
+            Ok(source) => source,
+            Err(error) => {
+                logerror!("Failed to register TCP server worker wake: {}", error);
+                return;
+            }
         };
-        let snapshot = snapshot_arc.as_ref();
-        self.refresh_transport(ctx, snapshot);
-        self.sync_client_nodes(ctx, snapshot);
+        if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
+            self.stop_transport();
+            self.stream.discard_pending_input();
+            self.pending_deliveries.clear();
+            self.client_infos.clear();
+            self.client_list_dirty = true;
+            self.retry_at = None;
+            self.transport_dirty = true;
+            self.wake = match ModuleWake::new(source) {
+                Ok(wake) => Some(wake),
+                Err(error) => {
+                    logerror!("Failed to register TCP server retry deadline: {}", error);
+                    return;
+                }
+            };
+        }
+        if let Some(snapshot) = ctx.tree_snapshot_arc() {
+            self.stream.refresh_config_cache(&snapshot);
+            if self.transport_refresh_due() {
+                self.refresh_transport(ctx, &snapshot);
+            }
+            if self.client_list_dirty {
+                self.sync_client_nodes(ctx, &snapshot);
+            }
+        }
+        self.arm_service();
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        // Drain transport bytes using only cached config — no snapshot needed.
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(wake) = &self.wake {
+            wake.cancel_deadline();
+        }
         self.drain_transport_events(ctx);
-
-        let needs_snapshot =
-            self.transport_refresh_due() || self.stream.has_pending_messages() || self.client_list_dirty;
-        if !needs_snapshot {
-            return;
+        if let Some(delivery) = self.pending_deliveries.front_mut() {
+            if delivery.service(ctx, &mut self.stream) {
+                self.pending_deliveries.pop_front();
+            }
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        // Refresh cached config while we have the snapshot so the next drain is accurate.
-        self.stream.refresh_config_cache(snapshot);
-        self.refresh_data_capabilities(ctx, snapshot);
-
-        if self.transport_refresh_due() {
-            self.refresh_transport(ctx, snapshot);
+        if let Some(snapshot) = ctx.tree_snapshot_arc() {
+            self.stream.refresh_config_cache(&snapshot);
+            self.refresh_data_capabilities(ctx, &snapshot);
+            if self.transport_refresh_due() {
+                self.refresh_transport(ctx, &snapshot);
+            }
+            if self.client_list_dirty {
+                self.sync_client_nodes(ctx, &snapshot);
+            }
+            self.stream.process_pending(ctx, &snapshot);
         }
-
-        if self.client_list_dirty {
-            self.sync_client_nodes(ctx, snapshot);
-        }
-
-        self.stream.process_pending(ctx, snapshot);
+        self.arm_service();
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
+        self.wake = None;
+        self.retry_at = None;
+        self.pending_deliveries.clear();
+        self.stream.discard_pending_input();
+        self.client_infos.clear();
+        self.client_list_dirty = false;
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_refresh_due()
-            || self.stream.has_pending_messages()
-            || self.client_list_dirty
-            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+        false
     }
 
-    fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_refresh_due()
-            || self.stream.has_pending_messages()
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.transport_refresh_due() || self.stream.has_pending_messages() || self.client_list_dirty
+    }
+
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.retiring_transport.is_some()
+            || self.transport_dirty
             || self.client_list_dirty
-            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+            || !self.pending_deliveries.is_empty()
+            || self.stream.has_pending_messages()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(TCP_SERVER_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.tcp")
+        NodeExecutionRule::passive()
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -519,6 +642,9 @@ impl Node for TcpServerModule {
                 .emit_script_param_callback(ctx, snapshot_arc.as_ref(), param, &old_value);
         }
         self.on_param_change_inner(param);
+        if self.transport_dirty {
+            self.request_service();
+        }
     }
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
@@ -528,6 +654,7 @@ impl Node for TcpServerModule {
                 let _ = enabled;
                 self.transport_dirty = true;
                 self.retry_at = None;
+                self.request_service();
             }
         }
     }
@@ -537,7 +664,7 @@ impl Node for TcpServerModule {
         if enabled {
             self.transport_dirty = true;
         } else {
-            self.stop_transport();
+            self.retire_transport();
             self.last_transport_config = None;
             if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
                 let snapshot = snapshot_arc.as_ref();
@@ -547,6 +674,7 @@ impl Node for TcpServerModule {
             self.stream.set_connected(ctx, false);
             self.transport_dirty = false;
         }
+        self.request_service();
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {

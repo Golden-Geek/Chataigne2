@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `36e69aeb` plus the verified P03 batch 21 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `01158b6d` plus the verified P03 batch 22 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 21 TCP server native transport ownership verified locally.
+- Current batch: P03 batch 22 TCP server passive input/callback/lifecycle integration verified locally.
   Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 21 native transport ownership delivered in `01158b6d`.
   Batch 20 HTTP applied-configuration admission/bounds delivered in `36e69aeb`.
   Batch 19 passive HTTP service delivered in `0edb6f48`.
   Batch 18 retained HTTP ownership delivered in `7836d1bf`.
@@ -28,16 +29,18 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `36e69aeb`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `01158b6d`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: finish TCP server passive owner/receipt delivery, worker-prepared
-  per-client parsing/callbacks, and module-level accepted-prefix handoff across disable/reconfigure.
-  Native TCP server admission, bind/retry, client bounds and broadcast cursors are verified; preserve
-  its occupied-bind, full reply queue, original-client cursor, applied-port/disable, and lifetime
-  recovery regressions. Then continue WebSocket/serial worker ownership and the broader
+- Next implementation action: continue WebSocket/serial worker ownership and the broader
+  module/channel audit. TCP server passive owner/receipt delivery, worker-prepared per-client
+  parsing/callbacks, and accepted-prefix handoff across disable/reconfigure are verified. Preserve
+  its occupied-bind, reply pressure, original-client cursor, applied-port/disable, native input
+  update bounds, discarded receipt recovery, per-client grammar, and destroy/undo wake regressions.
+  Shared stream script/command argument materialization/logging/disposal still needs its producer
+  admission audit before claiming the module audit complete. Continue the broader
   module/channel audit. HTTP applied-configuration admission and configuration bounds are verified;
   preserve its endpoint/auth-before-callback and inactive-auth metadata regressions. HTTP request
   argument conversion/disposal still needs the broader producer-boundary audit. HTTP owner service
@@ -76,7 +79,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-21 | TCP server native bounds/recovery/cursors verified; owner integration and broader module/generator audit open             |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-22 | TCP server passive input/lifecycle integration verified; broader module/generator audit open                              |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2384,3 +2387,58 @@ This native milestone does not complete TCP server integration: passive owner wa
 worker-prepared per-client grammar/callbacks, and accepted-prefix generation handoff across app
 reconfigure/disable remain next. Existing module script functions/callbacks/templates/client folders
 remain preservation contracts. Broader WebSocket/serial, module/channel and generator work remains.
+
+### P03 batch 22: TCP server passive input and lifecycle integration
+
+Resumed clean delivered `01158b6dc1c6a1971dc079a97a126543322d8f64` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live. Server input previously used one
+actor parser across all clients, immediate callback JSON construction/publication, and cancellation
+on ordinary reconfiguration/disable. This batch gives each native client a parser and generation,
+prepares source-tagged values/callbacks/logs on the worker, retains lifecycle callbacks through their
+publication receipts, and uses passive module wakes/deadlines. One retiring owner drains accepted
+commands/results before a replacement starts; disabled service explicitly opts in for that prefix.
+Destroy/restore must discard old runtime deliveries and fence the previous wake source. Requested
+**XHigh; actual effort unchanged/unobservable**, no supported control exposed.
+
+Initial compile caught one missed shared-input call site and two log-macro arms needing terminating
+semicolons; corrected all three. Initial focused run passed **17/20** after **2m09s** compilation:
+native per-client input/grammar/source isolation passed, while three old module fixtures assumed a
+single tick completed port replacement. Those fixtures now service authoritative wakes until
+configuration/retirement settles. Added passive idle, source-tagged graph input, processing changes,
+discarded callback receipt recovery, destroy/undo source fencing, accepted-output reconfiguration,
+and disabled input/output drain regressions. Expanded run passed **26/26** in **3.25s** after **1m38s**
+compilation. Review then corrected connected status while waiting for a retiring generation,
+treated intentional native closure as a clean disconnect, and strengthened exact lifecycle/input
+callback counts plus disabled-processing/log-only grammar coverage. Final focused run passed
+**27/27** in **3.25s** after **1m37s** compilation. Disjoint preservation suites passed script API
+**8**, concrete streams **100** (including those 27), common streaming **45**, HTTP **59**, Sound Card
+**35**, OSC **25**, initial Formula **1**, and null-device Sound Card evidence **1**: **274 distinct
+app tests**. `cargo test-fast --locked -p golden_io` passed **38/38** in **0.20s** (0.17s preparation),
+for **312 distinct app/IO tests**. Initial strict Clippy identified a Listening address used only
+in test builds after removal of derived equality; the module now reports the real bound address
+in its connection-success diagnostic. Focused invariants verified; requested return to **High**,
+actual effort unchanged/unobservable. Strict Clippy subsequently passed in **21.31s**, workspace/test
+checking in **31.22s**, and native app build in **1m50s**. Final review then found same-endpoint input
+updates bypassed the startup mode-capacity guard. Native updates now reject invalid mode storage
+before changing the active plan, with a regression preserving its generation, parser and live
+connection. Its focused run passed **28/28** in **3.27s** after **1m34s** compilation. Configuration
+validation is now shared by the module and native startup, so invalid authored settings use the
+configuration-error path rather than the capacity-retry path. Native input updates use the same
+input validator. The settled owning run passed **28/28** in **3.24s** after **1m37s** compilation.
+Repeating the disjoint preservation set after this last change passed **275 distinct app tests**
+(concrete streams now **101**; other counts unchanged). With IO, **313 distinct tests** passed.
+Final strict Clippy passed in **1m40s** and workspace/test checking in **1m18s**, both including
+build-lock waits. Final native `cargo build --locked -p Chataigne2 --bin Chataigne2` passed in
+**2m22s** including build-lock wait, without linker repair or cache deletion. Earlier passes remain
+labelled above. Root/Core `cargo fmt --all`, explicit changed-feature rustfmt, maintained-doc
+Prettier and whitespace checks pass. Inventory is **1630 source files / 42 oversized**. TCP server
+module/transport/native worker are **702/214/337** lines; tests remain separate beside each feature.
+All owned jobs are terminal.
+
+Evidence is the checked-in native input, callback receipt, passive idle, lifecycle and undo
+regressions, plus terminal commands recorded here. Checks use Windows/default features, controlled
+stream/HTTP/OSC loopbacks, injected failure/receipt cases, missing-serial recovery, and null-device
+audio fixtures. They do not qualify external hardware/endpoints, other platforms, product-scale
+timing, or native UI interaction. Commit and push this milestone on `main`, then continue WebSocket/
+serial and the broader module/channel/producer/generator audit. P03 remains **IN_PROGRESS**;
+P04-P18 retain their states.

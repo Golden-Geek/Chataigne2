@@ -19,6 +19,8 @@ use super::{
 };
 
 mod admission;
+mod input_delivery;
+mod lifecycle;
 
 #[test]
 fn tcp_server_script_template_scaffolds_server_stream_callbacks() {
@@ -127,12 +129,21 @@ fn tcp_server_module_tracks_live_clients_in_runtime_folder() {
 #[test]
 fn tcp_server_transport_closes_client_connections_when_stopped() {
     let port = free_tcp_port();
-    let mut transport = TcpServerTransportHandle::spawn(TcpServerTransportConfig {
-        bind_host: "127.0.0.1".to_string(),
-        bind_port: port,
-        receive_enabled: true,
-        send_enabled: true,
-    })
+    let mut transport = TcpServerTransportHandle::spawn(
+        TcpServerTransportConfig {
+            bind_host: "127.0.0.1".to_string(),
+            bind_port: port,
+            receive_enabled: true,
+            send_enabled: true,
+            input: crate::app::module::common::streaming::input::StreamInputConfig {
+                module: NodeId(1),
+                parse: Default::default(),
+                processing_enabled: true,
+                log_incoming: false,
+            },
+        },
+        golden_io::WorkerNotifier::new(|| {}),
+    )
     .expect("TCP server transport should bind for the shutdown test");
 
     let mut client = connect_when_ready(port);
@@ -216,6 +227,17 @@ fn settle_transport_state(engine: &mut crate::app::AppEngine) {
         .run_tick(Duration::from_millis(20))
         .expect("TCP server transport tick should succeed");
     engine.apply_edits().expect("TCP server transport edits should apply");
+    let id = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(4);
+    while tcp_server_module(engine, id).transport_dirty || tcp_server_module(engine, id).retiring_transport.is_some() {
+        engine.run_tick(Duration::from_millis(10)).unwrap();
+        engine.apply_edits().unwrap();
+        assert!(
+            std::time::Instant::now() < deadline,
+            "TCP server configuration did not settle"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
 }
 
 fn wait_for_transport_io() {
