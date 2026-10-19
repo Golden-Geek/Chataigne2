@@ -7,7 +7,7 @@ fn admit_prefix(engine: &crate::app::AppEngine, module: NodeId) -> Vec<u8> {
     let mut expected = Vec::new();
     for index in 0..1000 {
         let byte = index as u8;
-        match transport.send(&[byte]) {
+        match transport.send(&[byte], false) {
             Ok(()) => expected.push(byte),
             Err(error) => {
                 assert!(error.contains("capacity exhausted"));
@@ -49,7 +49,7 @@ fn reconfiguration_drains_every_admitted_byte_before_the_new_listener_starts() {
         .transport
         .as_ref()
         .unwrap()
-        .send(b"new")
+        .send(b"new", false)
         .unwrap();
     let mut bytes = [0; 3];
     replacement.read_exact(&mut bytes).unwrap();

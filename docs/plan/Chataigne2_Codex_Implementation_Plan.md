@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for native outgoing completion logs coupled to original-recipient cursors, partial failures, bounded reply continuations and accepted-prefix retirement across Serial/TCP Server/WebSocket Server. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 119 owning Serial/TCP Server/WebSocket Server tests and 381 distinct app tests passed native completion logging, typed recipient outcomes, flush confirmation, bounded feedback pressure, independent input and accepted-prefix retirement. Routine lint/workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for bounded retained serial catalog lifetimes, subscription/producer generations and passive recovery notifications, worker-prepared input generations, receipt delivery and accepted-prefix retirement. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 41 owning serial tests passed retained catalog bounds/reuse, stale subscription fencing and producer-exit recovery, native input generations, passive callbacks/receipts, disabled accepted-prefix retirement, partial feedback recovery and destroy/undo wake fencing. Routine preservation, workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

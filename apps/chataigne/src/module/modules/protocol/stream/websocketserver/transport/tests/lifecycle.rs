@@ -30,7 +30,9 @@ fn occupied_bind_recovers_in_the_same_native_lifetime() {
     let address = occupied.local_addr().unwrap();
     let handle = spawn(config(address.port()), &pool);
     until(&handle, |event| matches!(event, Event::Recovering(_)));
-    assert!(handle.send(StreamingSendFrameKind::Text, b"not admitted").is_err());
+    assert!(handle
+        .send(StreamingSendFrameKind::Text, b"not admitted", false)
+        .is_err());
     drop(occupied);
     assert_eq!(listening(&handle), address);
     let _client = connect(&handle, address, "/");
@@ -45,7 +47,7 @@ fn stalled_http_peer_does_not_block_valid_upgrades_or_cancellation() {
     let _stalled = raw(address);
     let started = Instant::now();
     let mut valid = connect(&handle, address, "/");
-    handle.send(StreamingSendFrameKind::Text, b"live").unwrap();
+    handle.send(StreamingSendFrameKind::Text, b"live", false).unwrap();
     assert_eq!(valid.read().unwrap(), Message::text("live"));
     assert!(started.elapsed() < Duration::from_secs(1));
     handle.stop();
@@ -106,7 +108,7 @@ fn oversized_wire_frame_closes_only_its_peer_and_recovers_for_new_connections() 
     );
     assert_eq!(handle.clients.load(Ordering::Acquire), 0);
     let mut replacement = connect(&handle, address, "/");
-    handle.send(StreamingSendFrameKind::Text, b"fresh").unwrap();
+    handle.send(StreamingSendFrameKind::Text, b"fresh", false).unwrap();
     assert_eq!(replacement.read().unwrap(), Message::text("fresh"));
 }
 
@@ -118,10 +120,10 @@ fn native_graceful_admission_close_drains_frames_and_aborts_pending_handshakes()
     let mut client = connect(&handle, address, "/");
     let mut stalled = raw(address);
     let payload = vec![5; 200_000];
-    handle.send(StreamingSendFrameKind::Binary, &payload).unwrap();
-    handle.send(StreamingSendFrameKind::Text, b"tail").unwrap();
+    handle.send(StreamingSendFrameKind::Binary, &payload, false).unwrap();
+    handle.send(StreamingSendFrameKind::Text, b"tail", false).unwrap();
     handle.worker.finish_admission();
-    assert!(handle.send(StreamingSendFrameKind::Text, b"late").is_err());
+    assert!(handle.send(StreamingSendFrameKind::Text, b"late", false).is_err());
     assert_eq!(client.read().unwrap().into_data().as_ref(), payload);
     assert_eq!(client.read().unwrap(), Message::text("tail"));
     assert!(matches!(client.read().unwrap(), Message::Close(_)));

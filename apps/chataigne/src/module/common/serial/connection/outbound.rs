@@ -13,9 +13,10 @@ pub(super) struct Outbound {
     bytes: Vec<u8>,
     offset: usize,
     started: Option<Instant>,
+    log: bool,
 }
 impl Outbound {
-    pub fn new(bytes: &[u8], generation: u64) -> Result<Self, String> {
+    pub fn new(bytes: &[u8], generation: u64, log: bool) -> Result<Self, String> {
         if size_of::<Self>().saturating_add(bytes.len()) > COMMAND_BYTES {
             return Err("Serial command exceeds the 256 KiB retained-byte limit; command was not admitted".into());
         }
@@ -24,6 +25,7 @@ impl Outbound {
             bytes: bytes.to_vec(),
             offset: 0,
             started: None,
+            log,
         })
     }
     pub fn weight(&self) -> usize {
@@ -52,6 +54,15 @@ impl Outbound {
     }
     pub fn failure(&self, reason: &str) -> Event {
         Event::Warning(format!("Serial {}-byte command was not confirmed ({} bytes confirmed); a partial native effect may remain and it will not be replayed: {reason}", self.bytes.len(), self.offset))
+    }
+    pub fn completion(self) -> Option<Event> {
+        debug_assert_eq!(self.offset, self.bytes.len());
+        self.log.then(|| {
+            Event::OutgoingLog(crate::app::module::common::streaming::outgoing::sent_log(
+                "serial",
+                &self.bytes,
+            ))
+        })
     }
 }
 

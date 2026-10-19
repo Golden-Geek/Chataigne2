@@ -8,6 +8,7 @@ use std::{
 };
 
 mod input;
+mod logging;
 
 fn config(port: u16) -> TcpServerTransportConfig {
     TcpServerTransportConfig {
@@ -103,11 +104,11 @@ fn occupied_endpoint_recovers_without_another_owner_edit() {
     let address = occupied.local_addr().unwrap();
     let handle = spawn(config(address.port())).unwrap();
     until(&handle, |event| matches!(event, TcpServerWorkerEvent::Recovering(_)));
-    assert!(handle.send(b"not connected").is_err());
+    assert!(handle.send(b"not connected", false).is_err());
     drop(occupied);
     assert_eq!(listening(&handle), address);
     let mut client = connect(&handle, address);
-    handle.send(b"recovered").unwrap();
+    handle.send(b"recovered", false).unwrap();
     let mut bytes = [0; 9];
     client.read_exact(&mut bytes).unwrap();
     assert_eq!(&bytes, b"recovered");
@@ -119,10 +120,13 @@ fn whole_broadcasts_are_fifo_for_multiple_clients_and_oversize_admission_is_expl
     let address = listening(&handle);
     let mut first = connect(&handle, address);
     let mut second = connect(&handle, address);
-    assert!(handle.send(&vec![0; COMMAND_BYTES]).unwrap_err().contains("1 MiB"));
+    assert!(handle
+        .send(&vec![0; COMMAND_BYTES], false)
+        .unwrap_err()
+        .contains("1 MiB"));
     let payload: Vec<_> = (0..200_000).map(|index| index as u8).collect();
-    handle.send(&payload).unwrap();
-    handle.send(b"tail").unwrap();
+    handle.send(&payload, false).unwrap();
+    handle.send(b"tail", false).unwrap();
     let expected = [payload.as_slice(), b"tail"].concat();
     for client in [&mut first, &mut second] {
         let mut received = vec![0; expected.len()];
@@ -145,7 +149,7 @@ fn saturated_input_replies_do_not_block_outgoing_native_commands_or_shutdown() {
     wait(|| handle.worker.event_metrics().depth > 0 && handle.worker.event_metrics().rejected > 0);
     let metrics = handle.worker.event_metrics();
     assert!(metrics.retained_weight <= EVENT_BYTES);
-    handle.send(b"independent").unwrap();
+    handle.send(b"independent", false).unwrap();
     let mut client = client;
     let mut reply = [0; 11];
     client.read_exact(&mut reply).unwrap();
@@ -171,7 +175,7 @@ fn invalid_retained_host_capacity_is_rejected_before_native_lifetime_reservation
 
 #[test]
 fn command_admission_enforces_item_and_retained_byte_limits_while_native_setup_is_blocked() {
-    for (payload, accepted) in [(vec![7], 256), (vec![7; COMMAND_BYTES - size_of::<Vec<u8>>()], 8)] {
+    for (payload, accepted) in [(vec![7], 256), (vec![7; COMMAND_BYTES - size_of::<Command>()], 8)] {
         let pool = RetirementPool::new(NonZeroUsize::MIN);
         let (release_tx, release_rx) = mpsc::channel();
         let (started_tx, started_rx) = mpsc::channel();
@@ -185,11 +189,11 @@ fn command_admission_enforces_item_and_retained_byte_limits_while_native_setup_i
         // Isolate queue admission from peer discovery while the native owner is gated.
         handle.clients.store(1, Ordering::Release);
         for _ in 0..accepted {
-            handle.send(&payload).unwrap();
+            handle.send(&payload, false).unwrap();
         }
-        assert!(handle.send(&payload).unwrap_err().contains("capacity exhausted"));
+        assert!(handle.send(&payload, false).unwrap_err().contains("capacity exhausted"));
         handle.stop();
-        assert!(handle.send(&payload).is_err());
+        assert!(handle.send(&payload, false).is_err());
         release_tx.send(()).unwrap();
         drop(handle);
         wait(|| pool.metrics().active == 0);
@@ -224,10 +228,10 @@ fn graceful_native_admission_close_finishes_the_accepted_fifo_without_reacceptin
     let address = listening(&handle);
     let mut client = connect(&handle, address);
     let bytes = vec![5; 200_000];
-    handle.send(&bytes).unwrap();
-    handle.send(b"tail").unwrap();
+    handle.send(&bytes, false).unwrap();
+    handle.send(b"tail", false).unwrap();
     handle.worker.finish_admission();
-    assert!(handle.send(b"late").is_err());
+    assert!(handle.send(b"late", false).is_err());
     let mut received = vec![0; bytes.len() + 4];
     client.read_exact(&mut received).unwrap();
     assert_eq!(received, [bytes.as_slice(), b"tail"].concat());

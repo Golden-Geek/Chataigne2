@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on clean `main` at delivered `2066f735`, matching fetched `origin/main`.
+Last reconciled: 2026-10-19 on clean `main` at delivered `2c24b119`, matching fetched `origin/main`.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 28 serial retained catalog/passive ownership verified locally.
-  Milestone commit/push follows the checks recorded below; reconcile delivery from Git on resume.
+- Current batch: P03 batch 29 native outgoing completion logging verified locally.
+  Milestone commit/push follows the checks below; reconcile delivery from Git on resume.
+  Batch 28 serial retained catalog/passive ownership delivered in `2c24b119`.
   Batch 27 native connection/discovery ownership delivered in `2066f735`.
   Batch 26 shared TCP/WebSocket projection receipts delivered in `d2e8764c`.
   Batch 25 WebSocket server passive integration delivered in `86f380c8`.
@@ -35,13 +36,13 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `2066f735`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `2c24b119`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
 - Next implementation action: continue P03 admission/disposal: shared stream script/command
-  argument materialization and outgoing logging; HTTP request conversion/disposal; then Sound Card
+  argument capture/materialization and disposal; HTTP request conversion/disposal; then Sound Card
   and remaining module/channel/generator ownership. Serial now has bounded retained discovery
   catalogs/options, subscriber/producer notifications and coarse recovery, native prepared input
   generations, passive callback/feedback receipts and accepted-prefix retirement. Preserve its
@@ -59,8 +60,8 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   destroy/undo wake fencing. WebSocket server also preserves per-peer grammar. Both servers use receipt-owned
   connection/warning/client projections, including stable IDs after partial failure. Detailed
   regressions and measurements remain under their implementation batches below.
-- Focused XHigh serial ownership work passed; requested return to High for routine closeout and
-  subsequent work. Actual effort remains unchanged/unobservable; no supported control is exposed.
+- Focused native outgoing completion work passed; requested return to High for routine closeout
+  and subsequent work. Actual effort remains unchanged/unobservable, with no supported control.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
   The reproduced edit-prefix undo loss is fixed locally. Compound creation now uses prepared
   validation/commit; its reference/dashboard regressions and optimized package checks pass.
@@ -80,7 +81,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-28 | Serial native/passive/catalog/receipt ownership verified; broader admission/module/generator audit open                   |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-29 | Native stream logging/serial ownership verified; broader admission/module/generator audit open                            |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2850,3 +2851,76 @@ lifecycle/receipt regressions and terminal commands above. Commit and push this 
 on `main`, then continue shared stream/HTTP argument and disposal admission, Sound Card/module/
 channel ownership and generator elapsed-time accounting. P03 remains **IN_PROGRESS**; P04-P18
 retain their states.
+
+### P03 batch 29: Native outgoing completion logging
+
+Resumed clean delivered `2c24b1197902232505d2fe75ba6966ea39854124` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live. Source audit confirmed shared
+stream script/command helpers still clone unbounded arguments and recursively encode value trees
+before native admission. That boundary remains open. This batch removes the remaining actor-side
+outgoing byte-log formatting from Serial, TCP Server and WebSocket Server, completing native log
+preparation alongside their existing cursor ownership. No Golden/app or persistence/protocol
+boundary changes were needed.
+
+Requested **XHigh** for coupled cursor/recipient outcomes, bounded reply continuations and accepted
+retirement; actual effort unchanged/unobservable, with no supported control exposed. The three native
+send APIs now capture logging policy explicitly with each admitted command. TCP's typed command
+weight includes that policy, and a cheap closed-admission preflight rejects before copying a payload.
+Size limits, queue limits, original-recipient ownership, write deadlines and no-replay behavior survive.
+
+App common `streaming/outgoing.rs` formats at most **1024 payload bytes** on the native owner.
+Serial publishes success only after its write cursor completes. Broadcast recipients now use typed
+**Pending / Confirmed / Failed** states; one completion summary reports only confirmed members of
+the original native cohort. A failed recipient or submitted-but-unflushed WebSocket frame cannot
+count as confirmed. All-failed commands emit their existing explicit failures without a success log.
+Messages describe native send completion rather than application acknowledgement by remote peers.
+
+One output continuation retains a completed command's bounded log behind a full mailbox, pausing
+further output while independent input still progresses. Ordinary retirement drains every admitted
+completion result; explicit cancellation may abandon them. The actor only forwards the prepared
+message, including while servicing a retiring worker. It no longer inspects/formats outgoing bytes
+for these protocols. Admission/traffic feedback continues to say queued; completed output says sent.
+TCP/WebSocket Client and UDP already owned their outgoing log preparation natively and are preserved.
+
+The initial app/test check found two old test call sites missing the new explicit policy argument.
+The first completion-test compile caught a missing fixture drain-state import; corrected source then
+passed **11/11** completion-matched tests in **0.41s**, after **3m00s** preparation including a build
+lock wait behind the remaining binary job. Six are newly added owning completion tests; the seventh
+new test rejects serial timeout-as-success and runs in the common serial suite. Process handles were
+observed through terminal state; observation timeouts did not trigger process replacement.
+
+Owning suites pass common serial **27**, serial module **17**, TCP Server **34** and WebSocket
+Server **41**: **119 distinct tests**. New regressions exercise confirmed recipient subsets,
+partial/unknown effects, WebSocket flush ownership, silent logging policy, bounded payload prefixes,
+full completion mailboxes, independent input, FIFO logs and accepted-prefix retirement without replay.
+After final review added TCP's closed-admission preflight, its **34/34** owning suite passed again in
+**3.14s**, following **2m28s** preparation. Requested return to **High** after focused proof; actual
+effort remains unchanged/unobservable.
+
+Disjoint compiled-name preservation filters passed script API **8**, concrete streams **180**,
+common streaming **45**, common serial **27**, HTTP **59**, Sound Card **35**, OSC **25**, initial
+Formula **1**, and null-device Sound Card evidence **1**: **381 distinct app tests**. They run
+`target/debug/deps/Chataigne2-c47f0ddae7812c83.exe` with those filters and `--test-threads=4`,
+checking compiled-name sets for overlap before summing. Only the final TCP preflight changed after
+that pass, covered by the final owning rerun above. `cargo test-fast --locked -p golden_io` passed
+**38/38** in **0.20s**, with **2m18s** preparation/lock wait: **419 distinct app/IO tests**.
+Overlapping focused runs are not counted twice.
+
+Final strict `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed
+in **12.17s** (earlier full pass **30.02s**). Final `cargo check --locked --workspace --tests` passed
+in **7.53s** (earlier pass **22.68s**). Native `cargo build --locked -p Chataigne2 --bin Chataigne2`
+passed in **0.49s** with warm artifacts, without cache deletion or linker repair. Root/Core Cargo
+formatting, explicit affected-feature rustfmt, maintained-doc Prettier and whitespace checks pass.
+Inventory: **1680 source files / 42 oversized**. Shared outgoing helper is **18** lines; Serial/TCP
+Server/WebSocket Server owners are **585/654/691**. Their native cursor modules are **70/136/139**;
+runtime/tests stay separate. All owned jobs are terminal. Fetched `origin/main` has no divergence.
+
+Checks used deterministic injected serial ports and controlled loopback. They do not qualify physical
+device/line timing, other platforms, native UI, or product-scale latency/memory. Evidence is checked-in
+native cursor/logging/mailbox/retirement regressions and the commands above. Commit and push this
+verified milestone on `main`. Next, repair shared stream command capture/materialization/disposal
+(`common/streaming/commands` and `modules/protocol/stream/commands`), including unbounded script
+string conversions, recursive value collection/JSON creation and command-envelope ownership before
+native admission. Then continue HTTP argument conversion/disposal, Sound Card/module/channel
+ownership and generator elapsed-time accounting. P03 stays **IN_PROGRESS**; P04-P18 retain their
+states.

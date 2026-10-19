@@ -26,7 +26,7 @@ use golden_io::PendingDrainState;
 use crate::app::{
     module::common::streaming::{
         commands::{streaming_script_send_request, StreamingSendRequest},
-        module_helpers::{format_bytes_for_log, streaming_command_type_supported},
+        module_helpers::streaming_command_type_supported,
         script as streaming_script,
         websocket::normalize_websocket_path,
     },
@@ -302,6 +302,9 @@ impl WebSocketServerModule {
                     self.pending_deliveries
                         .push_back(ServerDelivery::Input(InputDelivery::new(input)));
                 }
+                WebSocketServerWorkerEvent::OutgoingLog(message) => {
+                    golden_core::log!(origin = self.id(); message.as_str());
+                }
                 WebSocketServerWorkerEvent::Error(error) => {
                     logerror!("WebSocket server transport error: {}", error);
                 }
@@ -356,20 +359,8 @@ impl WebSocketServerModule {
             .transport
             .as_ref()
             .ok_or_else(|| "WebSocket server transport is not available".to_string())?;
-        transport.send(request.frame_kind, &request.bytes)?;
+        transport.send(request.frame_kind, &request.bytes, self.stream.log_outgoing_enabled())?;
         self.stream.emit_outgoing_traffic(ctx);
-
-        if self.stream.log_outgoing_enabled() {
-            golden_core::log!(
-                origin = self.id();
-                format!(
-                    "Queued WebSocket {} ({} bytes) for {} client(s)",
-                    format_bytes_for_log(&request.bytes[..request.bytes.len().min(1024)]),
-                    request.bytes.len(),
-                    connected_clients
-                )
-            );
-        }
 
         Ok(format!(
             "Queued WebSocket {} for {} client(s)",

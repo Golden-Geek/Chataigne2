@@ -13,7 +13,7 @@ fn admit_prefix(engine: &crate::app::AppEngine, id: NodeId) -> Vec<u8> {
     let mut expected = Vec::new();
     for index in 0..1000 {
         let byte = index as u8;
-        match transport.send(StreamingSendFrameKind::Binary, &[byte]) {
+        match transport.send(StreamingSendFrameKind::Binary, &[byte], false) {
             Ok(()) => expected.push(byte),
             Err(error) => {
                 assert!(error.contains("capacity exhausted"));

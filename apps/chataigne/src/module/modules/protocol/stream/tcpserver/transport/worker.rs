@@ -1,4 +1,7 @@
-use super::{outbound::Broadcast, ReplySource, TcpServerTransportConfig, TcpServerWorkerEvent as Event, MAX_CLIENTS};
+use super::{
+    outbound::{Broadcast, Command},
+    ReplySource, TcpServerTransportConfig, TcpServerWorkerEvent as Event, MAX_CLIENTS,
+};
 use crate::app::module::{
     common::streaming::{
         input::{self, InputPlan},
@@ -21,7 +24,7 @@ use std::{
 
 const POLL: Duration = Duration::from_millis(5);
 const IO_TURN: usize = 4;
-type Context = WorkerContext<Vec<u8>, Event>;
+type Context = WorkerContext<Command, Event>;
 
 struct Client {
     id: u64,
@@ -137,7 +140,7 @@ impl Clients {
             .iter()
             .position(|client| client.id == command.id(recipient))
         else {
-            command.finish(recipient);
+            command.fail(recipient);
             return Some(Event::Error(
                 command.failure(recipient, "the original connection is unavailable"),
             ));
@@ -146,7 +149,7 @@ impl Clients {
             Ok(()) => None,
             Err(error) => {
                 let reason = command.failure(recipient, &error.to_string());
-                command.finish(recipient);
+                command.fail(recipient);
                 Some(self.remove(index, Some(reason)))
             }
         }
@@ -209,7 +212,7 @@ pub(super) fn run(
                 let mut commands = Vec::with_capacity(1);
                 let turn = context.drain_commands(&mut commands, NonZeroUsize::MIN);
                 closed = turn.state == PendingDrainState::Disconnected;
-                if let Some(bytes) = commands.pop() {
+                if let Some(command) = commands.pop() {
                     if clients.entries.is_empty() {
                         let event =
                             Event::Error("TCP server command has no remaining clients; it will not be replayed".into());
@@ -218,12 +221,20 @@ pub(super) fn run(
                         }
                         continue;
                     }
-                    current = Some(Broadcast::new(bytes, clients.entries.iter().map(|client| client.id)));
+                    current = Some(Broadcast::new(
+                        command.bytes,
+                        clients.entries.iter().map(|client| client.id),
+                        command.log,
+                    ));
                 }
             }
             let Some(command) = current.as_mut() else { break };
             let Some(recipient) = command.next_recipient() else {
-                current = None;
+                if let Some(event) = current.take().expect("completed TCP broadcast").completion() {
+                    if !replies.offer(&context, ReplySource::Output, event) {
+                        return;
+                    }
+                }
                 continue;
             };
             if let Some(event) = clients.write(command, recipient) {

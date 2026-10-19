@@ -41,7 +41,7 @@ fn wire(writes: VecDeque<io::Result<usize>>) -> WebSocket<Wire> {
 fn partial_writes_flush_once_per_original_recipient_without_reencoding_the_message() {
     let payload = vec![7; 200_000];
     let mut broadcast = Broadcast::new(
-        Command::new(StreamingSendFrameKind::Binary, &payload).unwrap(),
+        Command::new(StreamingSendFrameKind::Binary, &payload, false).unwrap(),
         [10, 20].into_iter(),
     )
     .unwrap();
@@ -77,7 +77,7 @@ fn partial_writes_flush_once_per_original_recipient_without_reencoding_the_messa
 #[test]
 fn recipient_identity_and_deadline_do_not_restart_or_retarget_a_partial_frame() {
     let mut broadcast = Broadcast::new(
-        Command::new(StreamingSendFrameKind::Text, b"message").unwrap(),
+        Command::new(StreamingSendFrameKind::Text, b"message", false).unwrap(),
         [9, 15].into_iter(),
     )
     .unwrap();
@@ -87,17 +87,57 @@ fn recipient_identity_and_deadline_do_not_restart_or_retarget_a_partial_frame() 
     broadcast.recipients[0].started = Some(Instant::now() - Duration::from_secs(5));
     assert!(broadcast.write_turn(0, &mut socket).unwrap_err().contains("no replay"));
     assert_eq!(socket.get_ref().output, prefix);
-    broadcast.finish(0);
+    broadcast.fail(0);
     assert_eq!(broadcast.next_recipient(), Some(1));
     assert_eq!(broadcast.id(1), 15);
 }
 
 #[test]
 fn invalid_utf8_and_retained_command_size_are_rejected_before_protocol_writes() {
-    assert!(Command::new(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES]).is_err());
+    assert!(Command::new(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES], false).is_err());
     assert!(Broadcast::new(
-        Command::new(StreamingSendFrameKind::Text, &[255]).unwrap(),
+        Command::new(StreamingSendFrameKind::Text, &[255], false).unwrap(),
         [1].into_iter()
     )
     .is_err());
+}
+
+#[test]
+fn completion_waits_for_flush_counts_confirmed_peers_and_keeps_a_bounded_prefix() {
+    let mut payload = vec![b'a'; 9000];
+    payload[8996..].copy_from_slice(b"TAIL");
+    let mut broadcast = Broadcast::new(
+        Command::new(StreamingSendFrameKind::Text, &payload, true).unwrap(),
+        [1, 2].into_iter(),
+    )
+    .unwrap();
+    let mut socket = wire(VecDeque::from([Ok(1), Err(io::ErrorKind::WouldBlock.into())]));
+    broadcast.write_turn(0, &mut socket).unwrap();
+    assert!(
+        broadcast.recipients[0].state == RecipientState::Pending,
+        "submitted is not flushed"
+    );
+    broadcast.write_turn(0, &mut socket).unwrap();
+    broadcast.fail(1);
+    let Some(super::super::Event::OutgoingLog(message)) = broadcast.completion() else {
+        panic!("confirmed subset")
+    };
+    assert!(message.contains("9000 bytes") && message.contains("1/2 original client(s)"));
+    assert!(!message.contains("TAIL") && message.len() < 4096);
+    for log in [false, true] {
+        let mut broadcast = Broadcast::new(
+            Command::new(StreamingSendFrameKind::Text, b"failed", log).unwrap(),
+            [1].into_iter(),
+        )
+        .unwrap();
+        broadcast.fail(0);
+        assert!(broadcast.completion().is_none());
+    }
+    let mut silent = Broadcast::new(
+        Command::new(StreamingSendFrameKind::Binary, b"silent", false).unwrap(),
+        [1].into_iter(),
+    )
+    .unwrap();
+    silent.write_turn(0, &mut wire(VecDeque::new())).unwrap();
+    assert!(silent.completion().is_none());
 }

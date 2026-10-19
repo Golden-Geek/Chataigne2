@@ -6,10 +6,36 @@ use std::{
 const WRITE_BYTES: usize = 64 * 1024;
 const WRITE_DEADLINE: Duration = Duration::from_secs(5);
 
+pub(super) struct Command {
+    pub bytes: Vec<u8>,
+    pub log: bool,
+}
+impl Command {
+    pub fn new(bytes: &[u8], log: bool) -> Result<Self, String> {
+        if std::mem::size_of::<Self>().saturating_add(bytes.len()) > super::COMMAND_BYTES {
+            return Err("TCP server command exceeds 1 MiB; command was not admitted".into());
+        }
+        Ok(Self {
+            bytes: bytes.to_vec(),
+            log,
+        })
+    }
+    pub fn weight(&self) -> usize {
+        std::mem::size_of::<Self>() + self.bytes.capacity()
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RecipientState {
+    Pending,
+    Confirmed,
+    Failed,
+}
+
 struct Recipient {
     id: u64,
     offset: usize,
-    done: bool,
+    state: RecipientState,
 }
 
 /// One immutable payload and a fixed cohort captured when the native command starts.
@@ -19,27 +45,29 @@ pub(super) struct Broadcast {
     recipients: Vec<Recipient>,
     next: usize,
     started: Instant,
+    log: bool,
 }
 impl Broadcast {
-    pub fn new(bytes: Vec<u8>, clients: impl Iterator<Item = u64>) -> Self {
+    pub fn new(bytes: Vec<u8>, clients: impl Iterator<Item = u64>, log: bool) -> Self {
         Self {
             bytes,
             recipients: clients
                 .map(|id| Recipient {
                     id,
                     offset: 0,
-                    done: false,
+                    state: RecipientState::Pending,
                 })
                 .collect(),
             next: 0,
             started: Instant::now(),
+            log,
         }
     }
     pub fn next_recipient(&mut self) -> Option<usize> {
         for _ in 0..self.recipients.len() {
             let index = self.next;
             self.next = (index + 1) % self.recipients.len();
-            if !self.recipients[index].done {
+            if self.recipients[index].state == RecipientState::Pending {
                 return Some(index);
             }
         }
@@ -48,8 +76,8 @@ impl Broadcast {
     pub fn id(&self, index: usize) -> u64 {
         self.recipients[index].id
     }
-    pub fn finish(&mut self, index: usize) {
-        self.recipients[index].done = true;
+    pub fn fail(&mut self, index: usize) {
+        self.recipients[index].state = RecipientState::Failed;
     }
     pub fn failure(&self, index: usize, reason: &str) -> String {
         format!(
@@ -64,7 +92,7 @@ impl Broadcast {
             return Err(io::ErrorKind::TimedOut.into());
         }
         if recipient.offset == self.bytes.len() {
-            recipient.done = true;
+            recipient.state = RecipientState::Confirmed;
             return Ok(());
         }
         let end = recipient.offset.saturating_add(WRITE_BYTES).min(self.bytes.len());
@@ -72,13 +100,36 @@ impl Broadcast {
             Ok(0) => Err(io::ErrorKind::WriteZero.into()),
             Ok(count) if count <= end - recipient.offset => {
                 recipient.offset += count;
-                recipient.done = recipient.offset == self.bytes.len();
+                recipient.state = if recipient.offset == self.bytes.len() {
+                    RecipientState::Confirmed
+                } else {
+                    RecipientState::Pending
+                };
                 Ok(())
             }
             Ok(_) => Err(io::ErrorKind::InvalidData.into()),
             Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted) => Ok(()),
             Err(error) => Err(error),
         }
+    }
+    pub fn completion(self) -> Option<super::TcpServerWorkerEvent> {
+        debug_assert!(self
+            .recipients
+            .iter()
+            .all(|recipient| recipient.state != RecipientState::Pending));
+        let confirmed = self
+            .recipients
+            .iter()
+            .filter(|recipient| recipient.state == RecipientState::Confirmed)
+            .count();
+        (self.log && confirmed > 0).then(|| {
+            super::TcpServerWorkerEvent::OutgoingLog(crate::app::module::common::streaming::outgoing::broadcast_log(
+                "TCP server",
+                &self.bytes,
+                confirmed,
+                self.recipients.len(),
+            ))
+        })
     }
 }
 #[cfg(test)]

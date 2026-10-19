@@ -24,7 +24,7 @@ fn original_recipient_cannot_retarget_a_replacement_with_the_same_public_label()
     let (socket, _old_peer) = pair();
     peers.add(socket, "same-label".into(), "old".into());
     let mut broadcast = Broadcast::new(
-        Command::new(StreamingSendFrameKind::Text, b"old command").unwrap(),
+        Command::new(StreamingSendFrameKind::Text, b"old command", false).unwrap(),
         peers.entries.iter().map(|peer| peer.id),
     )
     .unwrap();
@@ -36,7 +36,7 @@ fn original_recipient_cannot_retarget_a_replacement_with_the_same_public_label()
     );
     assert_eq!(broadcast.next_recipient(), None);
     let mut next = Broadcast::new(
-        Command::new(StreamingSendFrameKind::Text, b"new command").unwrap(),
+        Command::new(StreamingSendFrameKind::Text, b"new command", false).unwrap(),
         peers.entries.iter().map(|peer| peer.id),
     )
     .unwrap();

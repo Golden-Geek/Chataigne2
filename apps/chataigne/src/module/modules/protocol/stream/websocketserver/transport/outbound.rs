@@ -9,15 +9,17 @@ use tokio_tungstenite::tungstenite::{Error, Message, WebSocket};
 pub(super) struct Command {
     kind: StreamingSendFrameKind,
     bytes: Vec<u8>,
+    log: bool,
 }
 impl Command {
-    pub fn new(kind: StreamingSendFrameKind, bytes: &[u8]) -> Result<Self, String> {
+    pub fn new(kind: StreamingSendFrameKind, bytes: &[u8], log: bool) -> Result<Self, String> {
         if size_of::<Self>().saturating_add(bytes.len()) > COMMAND_BYTES {
             return Err("WebSocket server command exceeds 1 MiB; command was not admitted".into());
         }
         Ok(Self {
             kind,
             bytes: bytes.to_vec(),
+            log,
         })
     }
     pub fn weight(&self) -> usize {
@@ -27,16 +29,24 @@ impl Command {
 
 #[cfg(test)]
 mod tests;
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RecipientState {
+    Pending,
+    Confirmed,
+    Failed,
+}
+
 struct Recipient {
     id: u64,
     submitted: bool,
-    done: bool,
+    state: RecipientState,
     started: Option<Instant>,
 }
 pub(super) struct Broadcast {
     message: Message,
     recipients: Vec<Recipient>,
     next: usize,
+    log: bool,
 }
 impl Broadcast {
     pub fn new(command: Command, ids: impl Iterator<Item = u64>) -> Result<Self, String> {
@@ -54,18 +64,19 @@ impl Broadcast {
                 .map(|id| Recipient {
                     id,
                     submitted: false,
-                    done: false,
+                    state: RecipientState::Pending,
                     started: None,
                 })
                 .collect(),
             next: 0,
+            log: command.log,
         })
     }
     pub fn next_recipient(&mut self) -> Option<usize> {
         for _ in 0..self.recipients.len() {
             let index = self.next;
             self.next = (index + 1) % self.recipients.len();
-            if !self.recipients[index].done {
+            if self.recipients[index].state == RecipientState::Pending {
                 return Some(index);
             }
         }
@@ -74,8 +85,8 @@ impl Broadcast {
     pub fn id(&self, index: usize) -> u64 {
         self.recipients[index].id
     }
-    pub fn finish(&mut self, index: usize) {
-        self.recipients[index].done = true;
+    pub fn fail(&mut self, index: usize) {
+        self.recipients[index].state = RecipientState::Failed;
     }
     /// Tungstenite retains a frame on WouldBlock. Never submit that frame a second time.
     /// Message clones share Bytes/Utf8Bytes rather than duplicating a payload per peer.
@@ -92,7 +103,7 @@ impl Broadcast {
         };
         match result {
             Ok(()) => {
-                recipient.done = true;
+                recipient.state = RecipientState::Confirmed;
                 Ok(())
             }
             Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(()),
@@ -100,5 +111,29 @@ impl Broadcast {
                 "WebSocket frame was not confirmed; partial native effect may remain, no replay: {error}"
             )),
         }
+    }
+    pub fn completion(self) -> Option<super::Event> {
+        debug_assert!(self
+            .recipients
+            .iter()
+            .all(|recipient| recipient.state != RecipientState::Pending));
+        let confirmed = self
+            .recipients
+            .iter()
+            .filter(|recipient| recipient.state == RecipientState::Confirmed)
+            .count();
+        let bytes = match &self.message {
+            Message::Binary(bytes) => bytes.as_ref(),
+            Message::Text(text) => text.as_bytes(),
+            _ => unreachable!("broadcasts contain only data frames"),
+        };
+        (self.log && confirmed > 0).then(|| {
+            super::Event::OutgoingLog(crate::app::module::common::streaming::outgoing::broadcast_log(
+                "WebSocket server",
+                bytes,
+                confirmed,
+                self.recipients.len(),
+            ))
+        })
     }
 }

@@ -61,6 +61,7 @@ pub(crate) enum SerialConnectionEvent {
     Input(RetainedPayload<PreparedStreamInput>),
     RejectedInput(u64),
     Warning(String),
+    OutgoingLog(String),
     Status(SerialConnectionStatus),
 }
 use SerialConnectionEvent as Event;
@@ -78,7 +79,7 @@ impl NativeReply for Event {
             + match self {
                 Self::Input(input) => input.weight,
                 Self::RejectedInput(_) => 0,
-                Self::Warning(message) => message.capacity(),
+                Self::Warning(message) | Self::OutgoingLog(message) => message.capacity(),
                 Self::Status(SerialConnectionStatus::Connected { port_name }) => port_name.capacity(),
                 Self::Status(SerialConnectionStatus::Recovering { port_name, message }) => {
                     port_name.capacity() + message.capacity()
@@ -139,7 +140,7 @@ impl SerialConnectionHandle {
             input,
         })
     }
-    pub(crate) fn send(&self, bytes: &[u8]) -> Result<(), String> {
+    pub(crate) fn send(&self, bytes: &[u8], log: bool) -> Result<(), String> {
         if !self.worker.is_accepting_commands() {
             return Err("Serial worker is not accepting commands".into());
         }
@@ -147,7 +148,7 @@ impl SerialConnectionHandle {
         if generation == 0 {
             return Err("Serial port is not connected; command was not admitted".into());
         }
-        let command = Outbound::new(bytes, generation)?;
+        let command = Outbound::new(bytes, generation, log)?;
         let weight = command.weight();
         self.worker.send_weighted(command, weight).map_err(|error| match error {
             PendingSendError::Full(_) => "Serial command capacity exhausted; command was not admitted".into(),

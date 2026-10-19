@@ -62,10 +62,10 @@ fn partial_failure_and_old_queued_commands_never_move_to_a_replacement_connectio
     })
     .unwrap();
     wait(|| handle.connection.load(Ordering::Acquire) == 1);
-    handle.send(b"old payload").unwrap();
+    handle.send(b"old payload", false).unwrap();
     started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
     for _ in 0..3 {
-        handle.send(b"stale queued suffix").unwrap();
+        handle.send(b"stale queued suffix", false).unwrap();
     }
     release_tx.send(()).unwrap();
     let mut failures = 0;
@@ -78,7 +78,7 @@ fn partial_failure_and_old_queued_commands_never_move_to_a_replacement_connectio
             .count();
         failures == 4 && handle.connection.load(Ordering::Acquire) == 2
     });
-    handle.send(b"fresh").unwrap();
+    handle.send(b"fresh", false).unwrap();
     wait(|| new.lock().unwrap().output == b"fresh");
     assert_eq!(old.lock().unwrap().output, b"ol");
 }
@@ -88,10 +88,10 @@ fn graceful_admission_close_finishes_the_accepted_fifo_without_opening_another_p
     let pool = pool();
     let (mut handle, state) = connected(&pool);
     let payload = vec![8; 100_000];
-    handle.send(&payload).unwrap();
-    handle.send(b"tail").unwrap();
+    handle.send(&payload, false).unwrap();
+    handle.send(b"tail", false).unwrap();
     handle.worker.finish_admission();
-    assert!(handle.send(b"late").is_err());
+    assert!(handle.send(b"late", false).is_err());
     let mut events = Vec::new();
     wait(|| handle.drain_events(&mut events).state == golden_io::PendingDrainState::Disconnected);
     assert_eq!(state.lock().unwrap().output, [payload.as_slice(), b"tail"].concat());

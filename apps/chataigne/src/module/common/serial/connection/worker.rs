@@ -120,7 +120,11 @@ pub(super) fn run<P: Read + Write>(
             } else {
                 match command.write_turn(connection.port.as_mut().expect("connected serial cursor")) {
                     Ok(true) => {
-                        current = None;
+                        if let Some(event) = current.take().expect("completed serial cursor").completion() {
+                            if !replies.offer(&context, ReplySource::Output, event) {
+                                return;
+                            }
+                        }
                         continue;
                     }
                     Ok(false) => break,

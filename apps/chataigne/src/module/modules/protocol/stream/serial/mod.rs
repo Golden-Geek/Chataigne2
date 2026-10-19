@@ -28,7 +28,7 @@ use crate::app::{
         },
         streaming::{
             commands::{streaming_script_send_request, StreamingSendRequest},
-            module_helpers::{format_bytes_for_log, streaming_command_type_supported},
+            module_helpers::streaming_command_type_supported,
             script as streaming_script,
         },
     },
@@ -290,6 +290,9 @@ impl SerialModule {
                     self.pending_inputs.push_back(InputDelivery::new(input));
                 }
                 SerialConnectionEvent::RejectedInput(count) => Self::report_rejected_input(count),
+                SerialConnectionEvent::OutgoingLog(message) => {
+                    golden_core::log!(origin = self.id(); message.as_str());
+                }
                 SerialConnectionEvent::Warning(error) => {
                     logerror!("Serial transport warning: {}", error);
                     if !retiring {
@@ -355,15 +358,8 @@ impl SerialModule {
             .transport
             .as_ref()
             .ok_or_else(|| "serial transport is not available".to_string())?;
-        transport.send(&request.bytes)?;
+        transport.send(&request.bytes, self.stream.log_outgoing_enabled())?;
         self.stream.emit_outgoing_traffic(ctx);
-
-        if self.stream.log_outgoing_enabled() {
-            golden_core::log!(
-                origin = self.id();
-                format!("Queued serial {} ({} bytes)", format_bytes_for_log(&request.bytes[..request.bytes.len().min(1024)]), request.bytes.len())
-            );
-        }
 
         Ok(format!("Queued serial {}", request.description))
     }

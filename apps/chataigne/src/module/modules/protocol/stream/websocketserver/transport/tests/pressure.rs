@@ -15,14 +15,14 @@ fn bounded_command_admission_rejects_whole_payloads_before_queue_overflow() {
         started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
         handle.clients.store(1, Ordering::Release);
         for _ in 0..accepted {
-            handle.send(StreamingSendFrameKind::Binary, &payload).unwrap();
+            handle.send(StreamingSendFrameKind::Binary, &payload, false).unwrap();
         }
         assert!(handle
-            .send(StreamingSendFrameKind::Binary, &payload)
+            .send(StreamingSendFrameKind::Binary, &payload, false)
             .unwrap_err()
             .contains("capacity exhausted"));
         handle.stop();
-        assert!(handle.send(StreamingSendFrameKind::Binary, &payload).is_err());
+        assert!(handle.send(StreamingSendFrameKind::Binary, &payload, false).is_err());
         release_tx.send(()).unwrap();
         assert!(pool.wait_for_idle(Duration::from_secs(2)));
     }
@@ -40,7 +40,9 @@ fn saturated_input_replies_leave_output_and_cancellation_independent() {
     wait(|| handle.worker.event_metrics().rejected > 0);
     let metrics = handle.worker.event_metrics();
     assert!(metrics.depth <= 64 && metrics.retained_weight <= EVENT_BYTES);
-    handle.send(StreamingSendFrameKind::Text, b"independent").unwrap();
+    handle
+        .send(StreamingSendFrameKind::Text, b"independent", false)
+        .unwrap();
     assert_eq!(client.read().unwrap(), Message::text("independent"));
     let started = Instant::now();
     handle.stop();
@@ -55,7 +57,7 @@ fn saturated_output_failures_retain_input_and_resume_without_replaying_native_ef
     let address = listening(&handle);
     let mut client = connect(&handle, address, "/");
     for _ in 0..100 {
-        handle.send(StreamingSendFrameKind::Text, &[255]).unwrap();
+        handle.send(StreamingSendFrameKind::Text, &[255], false).unwrap();
     }
     wait(|| handle.worker.event_metrics().rejected > 0);
     client.send(Message::text("independent input")).unwrap();
@@ -76,7 +78,9 @@ fn saturated_output_failures_retain_input_and_resume_without_replaying_native_ef
         }
         failures == 100 && inputs == 1
     });
-    handle.send(StreamingSendFrameKind::Text, b"fresh output").unwrap();
+    handle
+        .send(StreamingSendFrameKind::Text, b"fresh output", false)
+        .unwrap();
     assert_eq!(client.read().unwrap(), Message::text("fresh output"));
 }
 

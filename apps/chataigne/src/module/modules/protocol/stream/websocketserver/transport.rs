@@ -77,6 +77,7 @@ pub(crate) enum WebSocketServerWorkerEvent {
     },
     Input(RetainedPayload<PreparedStreamInput>),
     Error(String),
+    OutgoingLog(String),
 }
 use WebSocketServerWorkerEvent as Event;
 
@@ -93,7 +94,7 @@ impl NativeReply for Event {
         size_of::<Self>()
             + match self {
                 Self::Listening(_) => 0,
-                Self::Recovering(message) | Self::Error(message) => message.capacity(),
+                Self::Recovering(message) | Self::Error(message) | Self::OutgoingLog(message) => message.capacity(),
                 Self::ClientConnected {
                     client_id,
                     info,
@@ -166,14 +167,14 @@ impl WebSocketServerTransportHandle {
             input,
         })
     }
-    pub(crate) fn send(&self, kind: StreamingSendFrameKind, bytes: &[u8]) -> Result<(), String> {
+    pub(crate) fn send(&self, kind: StreamingSendFrameKind, bytes: &[u8], log: bool) -> Result<(), String> {
         if !self.worker.is_accepting_commands() {
             return Err("WebSocket server worker is not accepting commands".into());
         }
         if !self.send_enabled || self.clients.load(Ordering::Acquire) == 0 {
             return Err("WebSocket server has no eligible clients; command was not admitted".into());
         }
-        let command = Command::new(kind, bytes)?;
+        let command = Command::new(kind, bytes, log)?;
         let weight = command.weight();
         self.worker.send_weighted(command, weight).map_err(|error| match error {
             PendingSendError::Full(_) => "WebSocket server command capacity exhausted; command was not admitted".into(),

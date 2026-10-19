@@ -80,7 +80,11 @@ pub(super) fn run(
             }
             let Some(command) = current.as_mut() else { break };
             let Some(recipient) = command.next_recipient() else {
-                current = None;
+                if let Some(event) = current.take().expect("completed WebSocket broadcast").completion() {
+                    if !replies.offer(&context, ReplySource::Output, event) {
+                        return;
+                    }
+                }
                 continue;
             };
             if let Some(event) = peers.write(command, recipient) {

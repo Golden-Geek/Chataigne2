@@ -2,6 +2,7 @@ mod outbound;
 #[cfg(test)]
 mod tests;
 mod worker;
+use outbound::Command;
 
 use crate::app::module::{
     common::streaming::{
@@ -70,6 +71,7 @@ pub(crate) enum TcpServerWorkerEvent {
     },
     Input(RetainedPayload<PreparedStreamInput>),
     Error(String),
+    OutgoingLog(String),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -86,7 +88,7 @@ impl NativeReply for TcpServerWorkerEvent {
         size_of::<Self>()
             + match self {
                 Self::Listening(_) => 0,
-                Self::Recovering(message) | Self::Error(message) => message.capacity(),
+                Self::Recovering(message) | Self::Error(message) | Self::OutgoingLog(message) => message.capacity(),
                 Self::ClientConnected {
                     client_id,
                     info,
@@ -117,7 +119,7 @@ impl NativeReply for TcpServerWorkerEvent {
 }
 
 pub(crate) struct TcpServerTransportHandle {
-    worker: BoundedWorker<Vec<u8>, TcpServerWorkerEvent>,
+    worker: BoundedWorker<Command, TcpServerWorkerEvent>,
     clients: Arc<AtomicUsize>,
     send_enabled: bool,
     input: InputPlan,
@@ -164,20 +166,19 @@ impl TcpServerTransportHandle {
             input,
         })
     }
-    pub(crate) fn send(&self, bytes: &[u8]) -> Result<(), String> {
+    pub(crate) fn send(&self, bytes: &[u8], log: bool) -> Result<(), String> {
+        if !self.worker.is_accepting_commands() {
+            return Err("TCP server worker is not accepting commands".into());
+        }
         if !self.send_enabled || self.clients.load(Ordering::Acquire) == 0 {
             return Err("TCP server has no eligible clients; command was not admitted".into());
         }
-        let weight = size_of::<Vec<u8>>().saturating_add(bytes.len());
-        if weight > COMMAND_BYTES {
-            return Err("TCP server command exceeds 1 MiB; command was not admitted".into());
-        }
-        self.worker
-            .send_weighted(bytes.to_vec(), weight)
-            .map_err(|error| match error {
-                PendingSendError::Full(_) => "TCP server command capacity exhausted; command was not admitted".into(),
-                PendingSendError::Disconnected(_) => "TCP server worker is not accepting commands".into(),
-            })
+        let command = Command::new(bytes, log)?;
+        let weight = command.weight();
+        self.worker.send_weighted(command, weight).map_err(|error| match error {
+            PendingSendError::Full(_) => "TCP server command capacity exhausted; command was not admitted".into(),
+            PendingSendError::Disconnected(_) => "TCP server worker is not accepting commands".into(),
+        })
     }
     pub(crate) fn drain_events(&self, events: &mut Vec<TcpServerWorkerEvent>) -> PendingDrain {
         self.worker.drain_events(events, EVENT_TURN)

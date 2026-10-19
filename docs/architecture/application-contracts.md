@@ -171,7 +171,7 @@ keep their separate delivery owners until their receipts settle. Disabled servic
 explicitly opts in for that accepted prefix, and retired client status cannot restore the live
 client list. A replacement starts after the old producer resolves; destroy alone cancels producers
 and discards runtime deliveries. Undo reserves a fresh wake source. The server has no periodic or
-compiled node kernel. Serial and broader producer admission/disposal audits remain P03 work.
+compiled node kernel. Broader producer admission/disposal audits remain P03 work.
 
 TCP and WebSocket Server share app-owned `common/streaming/server_feedback.rs` for connection,
 warning, client-count and client-node projection ownership. Protocol adapters supply target IDs,
@@ -182,6 +182,18 @@ client identities and avoiding optimistic parameter-handle caches. Callback/grap
 delivery remains independent, so projection recovery never replays those effects. Staging a
 projection explicitly wakes its owner, including disabled completion service; destroy/undo resets
 the component with the owner's wake generation.
+
+Serial, TCP Server and WebSocket Server also prepare outgoing completion logs on their native
+cursors through app-owned `common/streaming/outgoing.rs`. Logging policy is captured with each
+admitted command. One bounded result reports confirmed output, with at most 1024 payload bytes
+formatted; the actor forwards it without inspecting the byte buffer. Server summaries count only
+confirmed members of the original native cohort, using explicit pending/confirmed/failed recipient
+states. Submission, partial effects and failed recipients never claim full success; WebSocket
+confirmation waits for flush. Full feedback mailboxes retain that single output continuation and
+pause further output while independent input remains serviceable. Ordinary retirement drains the
+confirmed results even while disabled; explicit destroy may cancel them. These messages describe
+native send completion, not application-level acknowledgement by a peer. Shared command argument
+capture/materialization and its disposal admission remain a separate P03 boundary to finish.
 
 WebSocket client uses the same passive wake, retained input and callback-receipt contracts. Its
 native owner uses the locked Tungstenite public nonblocking handshake/framing/control API, with

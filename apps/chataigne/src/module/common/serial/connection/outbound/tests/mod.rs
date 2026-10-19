@@ -31,7 +31,7 @@ fn wire(actions: impl IntoIterator<Item = io::Result<usize>>) -> Wire {
 #[test]
 fn partial_writes_and_retryable_errors_preserve_only_the_original_suffix_in_bounded_slices() {
     let payload = vec![7; 100_000];
-    let mut command = Outbound::new(&payload, 9).unwrap();
+    let mut command = Outbound::new(&payload, 9, false).unwrap();
     let mut port = wire([
         Ok(3),
         Err(io::ErrorKind::WouldBlock.into()),
@@ -50,7 +50,7 @@ fn partial_writes_and_retryable_errors_preserve_only_the_original_suffix_in_boun
 
 #[test]
 fn a_timeout_is_an_unconfirmed_effect_and_never_restarts_the_original_frame() {
-    let mut command = Outbound::new(b"payload", 1).unwrap();
+    let mut command = Outbound::new(b"payload", 1, false).unwrap();
     let mut port = wire([Ok(2), Err(io::ErrorKind::TimedOut.into())]);
     assert!(!command.write_turn(&mut port).unwrap());
     assert!(command.write_turn(&mut port).is_err());
@@ -62,20 +62,37 @@ fn a_timeout_is_an_unconfirmed_effect_and_never_restarts_the_original_frame() {
 
 #[test]
 fn absolute_deadline_and_zero_progress_do_not_resubmit_bytes() {
-    let mut command = Outbound::new(b"payload", 1).unwrap();
+    let mut command = Outbound::new(b"payload", 1, false).unwrap();
     let mut port = wire([Ok(2)]);
     assert!(!command.write_turn(&mut port).unwrap());
     command.started = Some(Instant::now() - WRITE_DEADLINE);
     assert!(command.write_turn(&mut port).unwrap_err().contains("deadline"));
     assert_eq!(port.calls, 1);
-    let mut command = Outbound::new(b"payload", 1).unwrap();
+    let mut command = Outbound::new(b"payload", 1, false).unwrap();
     assert!(command.write_turn(&mut wire([Ok(0)])).is_err());
 }
 
 #[test]
 fn oversized_admission_is_rejected_before_a_driver_can_observe_it() {
-    assert!(Outbound::new(&vec![0; COMMAND_BYTES], 1)
+    assert!(Outbound::new(&vec![0; COMMAND_BYTES], 1, false)
         .err()
         .unwrap()
         .contains("256 KiB"));
+}
+
+#[test]
+fn completion_logs_only_confirmed_output_and_caps_the_retained_byte_prefix() {
+    let mut payload = vec![b'a'; 9000];
+    payload[8996..].copy_from_slice(b"TAIL");
+    let mut command = Outbound::new(&payload, 1, true).unwrap();
+    let mut port = wire([Ok(2), Err(io::ErrorKind::WouldBlock.into())]);
+    while !command.write_turn(&mut port).unwrap() {}
+    let Some(Event::OutgoingLog(message)) = command.completion() else {
+        panic!("native completion")
+    };
+    assert!(message.contains("9000 bytes") && !message.contains("TAIL"));
+    assert!(message.len() < 4096);
+    let mut silent = Outbound::new(b"silent", 1, false).unwrap();
+    assert!(silent.write_turn(&mut wire([])).unwrap());
+    assert!(silent.completion().is_none());
 }

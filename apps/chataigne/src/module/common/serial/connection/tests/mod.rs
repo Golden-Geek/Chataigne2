@@ -9,6 +9,7 @@ use std::{
 
 mod input;
 mod lifecycle;
+mod logging;
 mod pressure;
 
 enum Action {
@@ -150,8 +151,8 @@ fn admitted_commands_finish_fifo_after_partial_writes_without_replaying_the_pref
         Action::Count(5),
     ]);
     let payload = vec![7; 100_000];
-    handle.send(&payload).unwrap();
-    handle.send(b"tail").unwrap();
+    handle.send(&payload, false).unwrap();
+    handle.send(b"tail", false).unwrap();
     wait(|| state.lock().unwrap().output.len() == payload.len() + 4);
     assert_eq!(state.lock().unwrap().output, [payload.as_slice(), b"tail"].concat());
 }
@@ -180,10 +181,10 @@ fn failed_open_recovers_with_the_original_authored_line_configuration() {
         &handle,
         |event| matches!(event, Event::Status(SerialConnectionStatus::Recovering { message, .. }) if message.contains("DTR")),
     );
-    assert!(handle.send(b"unadmitted").is_err());
+    assert!(handle.send(b"unadmitted", false).is_err());
     until(&handle, |event| {
         matches!(event, Event::Status(SerialConnectionStatus::Connected { .. }))
     });
-    handle.send(b"recovered").unwrap();
+    handle.send(b"recovered", false).unwrap();
     wait(|| state.lock().unwrap().output == b"recovered");
 }

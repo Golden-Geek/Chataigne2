@@ -160,7 +160,7 @@ fn disabled_owner_finishes_accepted_output_and_prepared_input_without_reconnecti
         .transport
         .as_ref()
         .unwrap()
-        .send(&payload)
+        .send(&payload, false)
         .unwrap();
     set_node_enabled(&mut engine, id, false);
     engine.apply_edits().unwrap();

@@ -38,15 +38,15 @@ fn output_reply_pressure_retains_each_failure_and_independent_replacement_input(
     })
     .unwrap();
     wait(|| handle.connection.load(Ordering::Acquire) == 1);
-    handle.send(b"original").unwrap();
+    handle.send(b"original", false).unwrap();
     started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
     for _ in 0..100 {
-        handle.send(b"stale").unwrap();
+        handle.send(b"stale", false).unwrap();
     }
     release_tx.send(()).unwrap();
     wait(|| handle.worker.event_metrics().rejected > 0 && handle.connection.load(Ordering::Acquire) == 2);
     new.lock().unwrap().input.push_back(b"independent input".to_vec());
-    handle.send(b"fresh").unwrap();
+    handle.send(b"fresh", false).unwrap();
     let mut failures = 0;
     let mut input = Vec::new();
     wait(|| {
@@ -79,16 +79,16 @@ fn native_write_pressure_rejects_whole_commands_at_item_and_retained_byte_limits
             .unwrap()
             .actions
             .push_back(Action::Block(started_tx, release_rx, 1));
-        handle.send(b"first").unwrap();
+        handle.send(b"first", false).unwrap();
         started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
         for _ in 0..accepted {
-            handle.send(&payload).unwrap();
+            handle.send(&payload, false).unwrap();
         }
-        assert!(handle.send(&payload).unwrap_err().contains("capacity exhausted"));
+        assert!(handle.send(&payload, false).unwrap_err().contains("capacity exhausted"));
         let started = Instant::now();
         handle.stop();
         assert!(started.elapsed() < Duration::from_millis(100));
-        assert!(handle.send(&payload).is_err());
+        assert!(handle.send(&payload, false).is_err());
         release_tx.send(()).unwrap();
         assert!(pool.wait_for_idle(Duration::from_secs(2)));
         assert_eq!(state.lock().unwrap().output, b"f");
@@ -103,7 +103,7 @@ fn full_input_replies_retain_fifo_while_output_and_cancellation_remain_independe
     wait(|| handle.worker.event_metrics().rejected > 0);
     let metrics = handle.worker.event_metrics();
     assert!(metrics.depth <= 64 && metrics.retained_weight <= EVENT_BYTES);
-    handle.send(b"independent").unwrap();
+    handle.send(b"independent", false).unwrap();
     wait(|| state.lock().unwrap().output == b"independent");
     let mut received = Vec::new();
     wait(|| {

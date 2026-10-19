@@ -92,7 +92,7 @@ impl Peers {
     pub fn write(&mut self, command: &mut Broadcast, recipient: usize) -> Option<Event> {
         let id = command.id(recipient);
         let Some(index) = self.entries.iter().position(|peer| peer.id == id && !peer.closing) else {
-            command.finish(recipient);
+            command.fail(recipient);
             return Some(Event::Error(format!(
                 "WebSocket broadcast original peer {id} is unavailable; frame will not be replayed"
             )));
@@ -100,7 +100,7 @@ impl Peers {
         match command.write_turn(recipient, &mut self.entries[index].socket) {
             Ok(()) => None,
             Err(error) => {
-                command.finish(recipient);
+                command.fail(recipient);
                 Some(self.remove(index, Some(error)))
             }
         }

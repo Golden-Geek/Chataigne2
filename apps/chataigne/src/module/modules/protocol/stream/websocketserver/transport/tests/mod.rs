@@ -9,6 +9,7 @@ use tokio_tungstenite::tungstenite::{client::client, Message, WebSocket};
 
 mod input;
 mod lifecycle;
+mod logging;
 mod pressure;
 
 fn config(port: u16) -> WebSocketServerTransportConfig {
@@ -91,11 +92,11 @@ fn broadcasts_preserve_frame_kinds_and_fifo_for_multiple_peers() {
     let mut first = connect(&handle, address, "/one");
     let mut second = connect(&handle, address, "/two");
     assert!(handle
-        .send(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES])
+        .send(StreamingSendFrameKind::Binary, &vec![0; COMMAND_BYTES], false)
         .is_err());
     let payload = vec![7; 200_000];
-    handle.send(StreamingSendFrameKind::Binary, &payload).unwrap();
-    handle.send(StreamingSendFrameKind::Text, b"tail").unwrap();
+    handle.send(StreamingSendFrameKind::Binary, &payload, false).unwrap();
+    handle.send(StreamingSendFrameKind::Text, b"tail", false).unwrap();
     for client in [&mut first, &mut second] {
         assert_eq!(client.read().unwrap(), Message::Binary(payload.clone().into()));
         assert_eq!(client.read().unwrap(), Message::text("tail"));
@@ -110,12 +111,12 @@ fn invalid_text_fails_one_broadcast_without_disconnecting_or_replaying_it() {
     let handle = spawn(config(0), &pool);
     let address = listening(&handle);
     let mut client = connect(&handle, address, "/");
-    handle.send(StreamingSendFrameKind::Text, &[255]).unwrap();
+    handle.send(StreamingSendFrameKind::Text, &[255], false).unwrap();
     until(
         &handle,
         |event| matches!(event, Event::Error(error) if error.contains("UTF-8")),
     );
-    handle.send(StreamingSendFrameKind::Text, b"valid").unwrap();
+    handle.send(StreamingSendFrameKind::Text, b"valid", false).unwrap();
     assert_eq!(client.read().unwrap(), Message::text("valid"));
     assert_eq!(handle.clients.load(Ordering::Acquire), 1);
 }
