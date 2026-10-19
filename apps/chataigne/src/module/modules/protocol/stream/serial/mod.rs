@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
@@ -60,15 +62,30 @@ pub struct SerialModule {
     transport: Option<SerialConnectionHandle>,
     last_transport_config: Option<SerialConnectionConfig>,
     transport_dirty: bool,
+    retry_at: Option<Instant>,
+    discovery_retry_at: Option<Instant>,
 }
 
 impl SerialModule {
     pub fn create() -> Self {
-        Self::new(StreamingModuleBase::create(), None, 0, None, None, None, true)
+        Self::new(
+            StreamingModuleBase::create(),
+            None,
+            0,
+            None,
+            None,
+            None,
+            true,
+            None,
+            None,
+        )
     }
 
     fn ensure_port_discovery_registration(&mut self, ctx: &mut ProcessCtx) {
         if self.port_discovery.is_some() {
+            return;
+        }
+        if self.discovery_retry_at.is_some_and(|at| Instant::now() < at) {
             return;
         }
 
@@ -77,6 +94,7 @@ impl SerialModule {
                 self.port_discovery = Some(registration);
                 self.last_port_snapshot_version = 0;
                 self.last_port_registration_error = None;
+                self.discovery_retry_at = None;
                 self.sync_port_state_from_manager(ctx, true);
             }
             Err(error) => {
@@ -84,6 +102,7 @@ impl SerialModule {
                     logerror!(origin = self.id(); format!("Failed to start serial discovery: {}", error));
                 }
                 self.last_port_registration_error = Some(error.clone());
+                self.discovery_retry_at = Some(Instant::now() + Duration::from_secs(1));
                 self.set_port_warning(ctx, SERIAL_PORT_OPTIONS_WARNING_ID, error.as_str());
             }
         }
@@ -123,6 +142,7 @@ impl SerialModule {
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.transport_dirty = false;
+        self.retry_at = None;
 
         if !self.module_enabled(snapshot) {
             self.stop_transport();
@@ -178,24 +198,58 @@ impl SerialModule {
                 self.last_transport_config = None;
                 self.set_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID, error.as_str());
                 self.stream.set_connected(ctx, false);
+                self.transport_dirty = true;
+                self.retry_at = Some(Instant::now() + Duration::from_millis(250));
             }
         }
     }
 
-    fn transport_config(&self, _snapshot: &ProcessTreeSnapshot) -> Result<Option<SerialConnectionConfig>, String> {
-        let Some(port_name) = serial_port_name_for_variant(self.port_name.get_ref().as_str()) else {
+    fn transport_refresh_due(&self) -> bool {
+        self.transport_dirty && self.retry_at.is_none_or(|at| Instant::now() >= at)
+    }
+
+    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<Option<SerialConnectionConfig>, String> {
+        let port = snapshot
+            .node(self.port_name.id())
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(|value| match value {
+                ParamValue::Enum(port) => Some(port.as_str()),
+                _ => None,
+            })
+            .ok_or("Serial port selection is unavailable")?;
+        if port.len() > 1024 {
+            return Err("Serial port name exceeds 1024 bytes".into());
+        }
+        let Some(port_name) = serial_port_name_for_variant(port) else {
             return Ok(None);
         };
-
-        let baud_rate = u32::try_from(self.baud_rate.get())
-            .map_err(|_| "serial baud rate 'connection/port/baud_rate' must be positive".to_string())?;
-
-        Ok(Some(SerialConnectionConfig {
+        let baud = snapshot
+            .node(self.baud_rate.id())
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(|value| match value {
+                ParamValue::Int(baud) => Some(*baud),
+                _ => None,
+            })
+            .ok_or("Serial baud rate is unavailable")?;
+        let baud_rate = u32::try_from(baud).map_err(|_| "Serial baud rate must be positive")?;
+        let boolean = |id| {
+            snapshot
+                .node(id)
+                .and_then(|node| node.param_value.as_ref())
+                .and_then(|value| match value {
+                    ParamValue::Bool(value) => Some(*value),
+                    _ => None,
+                })
+                .ok_or("Serial control line configuration is unavailable")
+        };
+        let config = SerialConnectionConfig {
             port_name,
             baud_rate,
-            dtr: self.dtr.get(),
-            rts: self.rts.get(),
-        }))
+            dtr: boolean(self.dtr.id())?,
+            rts: boolean(self.rts.id())?,
+        };
+        config.validate()?;
+        Ok(Some(config))
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
@@ -216,13 +270,7 @@ impl SerialModule {
         for event in worker_events {
             match event {
                 SerialConnectionEvent::Bytes(bytes) if !processing_enabled => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        true,
-                    );
+                    streaming_script::emit_stream_bytes_callbacks(ctx, self.id(), bytes.as_slice(), None, true);
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
@@ -231,13 +279,7 @@ impl SerialModule {
                     }
                 }
                 SerialConnectionEvent::Bytes(bytes) => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        true,
-                    );
+                    streaming_script::emit_stream_bytes_callbacks(ctx, self.id(), bytes.as_slice(), None, true);
                     match self.stream.parse_bytes_cached(bytes.as_slice()) {
                         Ok(messages) => {
                             received_bytes = true;
@@ -310,20 +352,29 @@ impl SerialModule {
     fn queue_send_request(
         &self,
         ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
+        snapshot: &ProcessTreeSnapshot,
         request: &StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.module_enabled(snapshot)
+            || self.transport_dirty
+            || !self.last_transport_config.as_ref().is_some_and(|last| {
+                self.transport_config(snapshot)
+                    .is_ok_and(|applied| applied.as_ref() == Some(last))
+            })
+        {
+            return Err("Serial configuration is pending or disabled; command was not admitted".into());
+        }
         let transport = self
             .transport
             .as_ref()
             .ok_or_else(|| "serial transport is not available".to_string())?;
-        transport.send(request.bytes.clone())?;
+        transport.send(&request.bytes)?;
         self.stream.emit_outgoing_traffic(ctx);
 
         if self.stream.log_outgoing_enabled() {
             golden_core::log!(
                 origin = self.id();
-                format!("Sent serial {}", format_bytes_for_log(request.bytes.as_slice()))
+                format!("Queued serial {} ({} bytes)", format_bytes_for_log(&request.bytes[..request.bytes.len().min(1024)]), request.bytes.len())
             );
         }
 
@@ -357,6 +408,7 @@ impl SerialModule {
     fn on_param_change_inner(&mut self, param: NodeId) {
         if self.param_affects_transport(param) {
             self.transport_dirty = true;
+            self.retry_at = None;
         }
     }
 
@@ -423,7 +475,7 @@ impl Node for SerialModule {
         self.ensure_port_discovery_registration(ctx);
         self.sync_port_state_from_manager(ctx, false);
 
-        let needs_snapshot = self.transport_dirty || self.stream.has_pending_messages();
+        let needs_snapshot = self.transport_refresh_due() || self.stream.has_pending_messages();
         if !needs_snapshot {
             return;
         }
@@ -437,7 +489,7 @@ impl Node for SerialModule {
         self.stream.refresh_config_cache(snapshot);
         self.refresh_data_capabilities(ctx);
 
-        if self.transport_dirty {
+        if self.transport_refresh_due() {
             self.refresh_transport(ctx, snapshot);
         }
 
@@ -445,25 +497,26 @@ impl Node for SerialModule {
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.stop_transport();
         self.port_discovery = None;
         self.last_port_snapshot_version = 0;
         self.last_port_registration_error = None;
-        self.stop_transport();
+        self.retry_at = None;
+        self.discovery_retry_at = None;
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty
+        self.transport_refresh_due()
             || self.stream.has_pending_messages()
             || self.transport.as_ref().is_some_and(|t| t.has_pending())
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty || self.stream.has_pending_messages()
+        self.transport_refresh_due() || self.stream.has_pending_messages()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(SERIAL_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.serial")
+        NodeExecutionRule::periodic(SERIAL_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.serial")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -507,6 +560,7 @@ impl Node for SerialModule {
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.retry_at = None;
         if enabled {
             self.transport_dirty = true;
         } else {

@@ -246,6 +246,35 @@ the wake source; undo reserves a fresh source. Per-peer codec/parser buffers are
 Connection/warning/client projections use the shared server-feedback contract above.
 Serial and broader producer admission/disposal audits also remain P03 work.
 
+Serial's app-owned common layer separates connection, discovery and metadata responsibilities.
+The existing locked serialport crate owns platform APIs. Connections reserve at most 16 native
+lifetimes, including blocked open/cleanup, with 256 queued commands / 256 KiB and a 256 KiB retained
+command bound checked before copying. Replies allow 64 items / 2 MiB and one retained continuation
+per input/output/status producer. A native turn advances at most four command operations; each
+write slice and read buffer is at most 8 KiB. Driver I/O requests use a 20ms timeout; cancellation
+cannot interrupt an uncooperative driver, so that worker retains its lifetime instead of joining
+the actor or allowing unlimited replacements.
+
+Write cursors retain the confirmed prefix on the original connection and have a five-second
+active-command deadline. WouldBlock/Interrupted resume only the suffix. Other errors, including
+timeouts that may hide partial Windows WriteFile effects, report an unconfirmed effect without
+replay. Reconnect generations reject old queued commands rather than sending them on replacement
+devices; reopen backs off 250ms–5s. DTR/RTS setup errors now enter recovery before claiming connected.
+Input and output reply pressure have independent retained continuations; results are not silently
+dropped at a full mailbox. Native graceful admission closure drains its accepted output prefix.
+
+Discovery reserves one live/retiring worker. Last-unsubscribe shutdown cancels without joining;
+a blocked enumeration retains that slot, and cancelled/ownerless results cannot restore the catalog.
+Enumeration errors retain the last good catalog and recover on later scans. Applied port, baud,
+DTR, RTS and enabled values fence new script/command admission before callbacks. Temporary native
+connection/discovery capacity retries use coarse owner deadlines.
+
+The serial module still polls at 120 Hz, prepares input/callbacks on the actor and cancels on ordinary
+disable/reconfigure. Passive notifications, bounded retained catalog preparation/options/disposal,
+producer-exit recovery, per-connection input generations and receipt-owned prefix retirement remain
+the next serial batch. Discovery catalog/registration retained-size and main-thread service budgets
+are not qualified by these native lifetime checks. Physical device/line timing is also unqualified.
+
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured
 for the active generation, so a configuration edit followed immediately by a command or script
 call cannot send to the previous endpoint or with previous credentials. This comparison borrows

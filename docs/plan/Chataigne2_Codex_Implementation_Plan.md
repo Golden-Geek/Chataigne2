@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for serial connection/discovery native lifetime and cancellation ownership, stale enumeration suppression, bounded command/result admission, original-connection partial-write cursors, reconnect generation fencing and independent reply pressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after the serial-focused run passed 30 matched tests, including blocked connection/cleanup/enumeration ownership, bounded cursors and queues, reconnect no-replay, duplex reply pressure, applied port/baud/control-line/disable admission and discovery recovery. Strict Clippy passes; routine preservation, workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for TCP server connection/client projection receipt recovery, stable identities across partial edit prefixes, and factoring the verified WebSocket reconciliation contract into shared app stream ownership. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 32 TCP Server and 39 WebSocket Server tests plus strict Clippy passed discarded/partial projection recovery, stable client identities, warning set/clear recovery and retention of newer desired state during an in-flight projection. Routine preservation, workspace/native validation, documentation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

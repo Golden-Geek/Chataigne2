@@ -11,6 +11,8 @@ use golden_core::{
 use super::SerialModule;
 use crate::app::ModuleManager;
 
+mod admission;
+
 #[test]
 fn serial_parameters_keep_port_before_input_and_no_sender_folder() {
     let (engine, module_id) = create_serial_module();
@@ -221,7 +223,10 @@ fn disabling_module_manager_stops_and_restarts_child_serial_transport() {
         port_name_id,
         ParamValue::Enum("missing-test-port".to_string()),
     );
-    settle_transport_state(&mut engine, "serial transport config should settle under module manager");
+    settle_transport_state(
+        &mut engine,
+        "serial transport config should settle under module manager",
+    );
 
     let module = serial_module(&engine, module_id);
     assert!(
@@ -243,7 +248,10 @@ fn disabling_module_manager_stops_and_restarts_child_serial_transport() {
     );
 
     set_node_enabled(&mut engine, module_manager_id, true);
-    settle_transport_state(&mut engine, "module manager re-enable should restart child module transport");
+    settle_transport_state(
+        &mut engine,
+        "module manager re-enable should restart child module transport",
+    );
 
     let module = serial_module(&engine, module_id);
     assert!(
@@ -288,11 +296,17 @@ fn create_serial_module_under_manager() -> (crate::app::AppEngine, NodeId, NodeI
         .expect("module manager should be attached under root");
 
     engine.add_node(SerialModule::create().into(), Some(module_manager_id));
-    engine.apply_edits().expect("serial module should attach under module manager");
+    engine
+        .apply_edits()
+        .expect("serial module should attach under module manager");
     for _ in 0..4 {
-        engine.apply_edits().expect("serial defaults should materialize under module manager");
+        engine
+            .apply_edits()
+            .expect("serial defaults should materialize under module manager");
     }
-    engine.resolve().expect("serial runtime schedule should resolve under module manager");
+    engine
+        .resolve()
+        .expect("serial runtime schedule should resolve under module manager");
 
     let module_id = engine
         .nodes
@@ -304,8 +318,7 @@ fn create_serial_module_under_manager() -> (crate::app::AppEngine, NodeId, NodeI
 }
 
 fn serial_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &SerialModule {
-    let crate::app::AppNode::SerialModule(module) =
-        engine.nodes.get(module_id).expect("serial module should exist")
+    let crate::app::AppNode::SerialModule(module) = engine.nodes.get(module_id).expect("serial module should exist")
     else {
         panic!("expected SerialModule node");
     };
