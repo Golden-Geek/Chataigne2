@@ -74,9 +74,7 @@ pub(super) fn device_options_for_current(
     for (index, catalog_entry) in state
         .device_catalog
         .iter()
-        .filter(|device| {
-            driver.is_some_and(|driver| device.target.backend() == driver)
-        })
+        .filter(|device| driver.is_some_and(|driver| device.target.backend() == driver))
         .enumerate()
     {
         let descriptors = state
@@ -84,19 +82,12 @@ pub(super) fn device_options_for_current(
             .iter()
             .filter(|device| device.target == catalog_entry.target)
             .collect::<Vec<_>>();
-        let descriptor = descriptors
-            .iter()
-            .copied()
-            .find(|device| choice.supports(device));
+        let descriptor = descriptors.iter().copied().find(|device| choice.supports(device));
         if !descriptors.is_empty() && descriptor.is_none() {
             continue;
         }
         let selection = descriptor.map_or_else(
-            || {
-                golden_audio::AudioDeviceSelection::from_catalog_entry(
-                    catalog_entry,
-                )
-            },
+            || golden_audio::AudioDeviceSelection::from_catalog_entry(catalog_entry),
             golden_audio::AudioDeviceSelection::from_descriptor,
         );
         let variant_id = runtime::device_selection_value(&selection);
@@ -120,16 +111,11 @@ pub(super) fn device_options_for_current(
             let recovered = choice
                 .direction()
                 .and_then(|direction| {
-                    match golden_audio::match_device_selection(
-                        &authored,
-                        direction,
-                        state.devices.as_slice(),
-                    ) {
+                    match golden_audio::match_device_selection(&authored, direction, state.devices.as_slice()) {
                         golden_audio::AudioDeviceMatch::Matched(device) => {
                             Some((device.target.clone(), device.label.clone()))
                         }
-                        golden_audio::AudioDeviceMatch::Missing
-                        | golden_audio::AudioDeviceMatch::Ambiguous(_) => None,
+                        golden_audio::AudioDeviceMatch::Missing | golden_audio::AudioDeviceMatch::Ambiguous(_) => None,
                     }
                 })
                 .or_else(|| {
@@ -147,14 +133,8 @@ pub(super) fn device_options_for_current(
                         .map(|entry| (entry.target.clone(), entry.label.clone()))
                 });
             if let Some((target, label)) = recovered {
-                if let Some((variant, _)) = option_targets
-                    .iter()
-                    .find(|(_, candidate)| *candidate == target)
-                {
-                    if let Some(option) = options
-                        .iter_mut()
-                        .find(|option| option.variant_id == *variant)
-                    {
+                if let Some((variant, _)) = option_targets.iter().find(|(_, candidate)| *candidate == target) {
+                    if let Some(option) = options.iter_mut().find(|option| option.variant_id == *variant) {
                         // Keep the authored serialized identity while
                         // refreshing the user-facing live label.
                         option.variant_id = current.to_owned();
@@ -172,11 +152,7 @@ pub(super) fn device_options_for_current(
             .map(|selection| selection.last_known_label.trim())
             .filter(|label| !label.is_empty())
             .unwrap_or("Unavailable device");
-        let mut missing = enum_option(
-            current,
-            format!("Missing: {label}").as_str(),
-            i32::MAX,
-        );
+        let mut missing = enum_option(current, format!("Missing: {label}").as_str(), i32::MAX);
         missing.tags.push("missing".to_owned());
         options.push(missing);
     }

@@ -1,6 +1,13 @@
+mod callbacks;
+mod lifecycle;
+mod response_service;
 mod transport;
 
-use std::{sync::mpsc::TryRecvError, time::Duration};
+use golden_io::ReconnectBackoff;
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
 
 use golden_core::{
     engine::NodeExecutionRule,
@@ -14,20 +21,18 @@ use golden_core::{
 use crate::app::module::common::{
     http::{
         body_looks_like_json, content_type_is_json, http_auth_mode_enum_options, parse_header_lines,
-        response_script_body_arg, response_script_json_arg,
-        HttpAuthConfig, HttpAuthMode, HttpFilePart, HttpHeader, HttpMethod, HttpReceivedValue,
-        HttpRequestBody, HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
+        response_script_body_arg, response_script_json_arg, HttpAuthConfig, HttpAuthMode, HttpFilePart, HttpHeader,
+        HttpMethod, HttpRequestBody, HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
         HTTP_TEXT_CONTENT_TYPE,
     },
-    received_values::{
-        apply_received_value_batch, ReceivedValueBatchMessage, ReceivedValueBatchOptions,
-    },
+    received_values::{apply_received_value_batch, ReceivedValueBatchMessage, ReceivedValueBatchOptions},
 };
 
 use self::transport::{
-    HttpFailure, HttpQueuedRequest, HttpRequestOrigin, HttpResponse, HttpTransportConfig,
-    HttpTransportHandle, HttpWorkerEvent,
+    HttpFailure, HttpQueuedRequest, HttpRequestOrigin, HttpResponse, HttpTransportConfig, HttpWorkerEvent,
 };
+use lifecycle::HttpTransports;
+use response_service::{PendingHttpEvent, ResponseCursor, ResponseProgress};
 
 const HTTP_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const HTTP_BASE_WARNING_ID: &str = "http_base_address";
@@ -49,12 +54,6 @@ const HTTP_SCRIPT_METHODS: &[&str] = &[
     "patchJson",
     "uploadFile",
 ];
-
-#[derive(Clone, Debug, PartialEq)]
-struct PendingHttpResponse {
-    response: HttpResponse,
-    received_values: Option<Vec<HttpReceivedValue>>,
-}
 
 #[node("http_module", label = "HTTP")]
 #[children(
@@ -125,20 +124,22 @@ struct PendingHttpResponse {
 )]
 pub struct HttpModule {
     base: crate::app::ModuleBase,
-    transport: Option<HttpTransportHandle>,
-    last_transport_config: Option<HttpTransportConfig>,
+    transports: HttpTransports,
     transport_dirty: bool,
-    pending_responses: Vec<PendingHttpResponse>,
+    pending_events: VecDeque<PendingHttpEvent>,
+    reconnect_backoff: ReconnectBackoff,
+    retry_at: Option<Instant>,
 }
 
 impl HttpModule {
     pub fn create() -> Self {
         Self::new(
             crate::app::ModuleBase::new(),
-            None,
-            None,
+            HttpTransports::default(),
             true,
-            Vec::new(),
+            VecDeque::new(),
+            ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5)),
+            None,
         )
     }
 
@@ -149,13 +150,26 @@ impl HttpModule {
     }
 
     #[cfg(test)]
+    fn install_transport_for_test(&mut self, config: HttpTransportConfig) {
+        self.transports =
+            HttpTransports::with_lifetimes(golden_io::RetirementPool::new(std::num::NonZeroUsize::new(3).unwrap()));
+        self.transports.configure(config).unwrap();
+        self.transport_dirty = false;
+    }
+
+    #[cfg(test)]
+    fn send_for_test(&self, request: HttpQueuedRequest) -> Result<(), String> {
+        self.admit_request(request)
+    }
+
+    #[cfg(test)]
     pub(crate) fn enqueue_response_for_test(&mut self, response: HttpResponse) {
         self.enqueue_pending_response(response);
     }
 
     #[cfg(test)]
     pub(crate) fn has_pending_responses_for_test(&self) -> bool {
-        !self.pending_responses.is_empty()
+        !self.pending_events.is_empty()
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
@@ -166,8 +180,7 @@ impl HttpModule {
         self.transport_dirty = false;
 
         if !self.module_enabled(snapshot) {
-            self.stop_transport();
-            self.last_transport_config = None;
+            self.transports.pause_admission();
             self.clear_base_warning(ctx);
             self.base.set_connected(ctx, false);
             return;
@@ -177,33 +190,24 @@ impl HttpModule {
             Ok(config) => config,
             Err(error) => {
                 logerror!("Invalid HTTP module configuration: {}", error);
-                self.stop_transport();
-                self.last_transport_config = None;
+                self.transports.pause_admission();
                 self.set_base_warning(ctx, error.as_str());
                 self.base.set_connected(ctx, false);
                 return;
             }
         };
 
-        if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            return;
-        }
-
-        self.stop_transport();
-
-        match HttpTransportHandle::spawn(config.clone()) {
-            Ok(handle) => {
-                self.transport = Some(handle);
-                self.last_transport_config = Some(config);
+        match self.transports.configure(config) {
+            Ok(()) => {
                 self.clear_base_warning(ctx);
                 self.base.set_connected(ctx, true);
             }
             Err(error) => {
                 logerror!("Failed to start HTTP worker: {}", error);
-                self.transport = None;
-                self.last_transport_config = None;
                 self.set_base_warning(ctx, error.as_str());
                 self.base.set_connected(ctx, false);
+                self.transport_dirty = true;
+                self.retry_at = Some(self.reconnect_backoff.schedule(Instant::now()));
             }
         }
     }
@@ -211,8 +215,8 @@ impl HttpModule {
     fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<HttpTransportConfig, String> {
         let base_address = normalize_base_address(self.base_address.get_ref().as_str())?;
         let timeout = duration_ms(self.timeout_ms.get(), "HTTP timeout 'parameters/timeout_ms'")?;
-        let retry_count = u32::try_from(self.retry_count.get())
-            .map_err(|_| "HTTP retry count cannot be negative".to_string())?;
+        let retry_count =
+            u32::try_from(self.retry_count.get()).map_err(|_| "HTTP retry count cannot be negative".to_string())?;
         let retry_delay = duration_ms(
             self.retry_delay_ms.get(),
             "HTTP retry delay 'parameters/retry_delay_ms'",
@@ -268,28 +272,16 @@ impl HttpModule {
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
-        let (worker_events, worker_disconnected) = {
-            let Some(transport) = &self.transport else {
-                return;
-            };
-
-            let mut worker_events = Vec::new();
-            let mut worker_disconnected = false;
-            loop {
-                match transport.try_recv() {
-                    Ok(event) => worker_events.push(event),
-                    Err(TryRecvError::Empty) => break,
-                    Err(TryRecvError::Disconnected) => {
-                        worker_disconnected = true;
-                        break;
-                    }
-                }
-            }
-
-            (worker_events, worker_disconnected)
-        };
-
-        for event in worker_events {
+        // Preserve a bounded batch when a tree snapshot is unavailable; backpressure stays
+        // at the worker boundary instead of accumulating another main-thread response queue.
+        if !self.pending_events.is_empty() {
+            return;
+        }
+        let poll = self.transports.poll();
+        if poll.active_response {
+            self.reconnect_backoff.reset();
+        }
+        for event in poll.events {
             match event {
                 HttpWorkerEvent::Response(response) => {
                     self.log_incoming_response(&response);
@@ -297,79 +289,69 @@ impl HttpModule {
                     self.base.emit_incoming_traffic(ctx);
                 }
                 HttpWorkerEvent::Failure(failure) => {
-                    logerror!("HTTP request failed: {}", failure.error);
-                    self.emit_request_failed_callback(ctx, &failure);
+                    self.pending_events.push_back(PendingHttpEvent::Failure(failure));
                 }
             }
         }
 
-        if worker_disconnected {
+        if poll.active_failed {
             logerror!("HTTP worker stopped unexpectedly; restarting.");
-            self.stop_transport();
-            self.last_transport_config = None;
             self.set_base_warning(ctx, "HTTP worker stopped unexpectedly. Restarting.");
             self.base.set_connected(ctx, false);
             self.transport_dirty = true;
+            self.retry_at = Some(self.reconnect_backoff.schedule(Instant::now()));
         }
     }
 
     fn enqueue_pending_response(&mut self, response: HttpResponse) {
-        let received_values = match &response.received_values {
-            Ok(received_values) => received_values.clone(),
-            Err(error) => {
-                logerror!(
-                    "Failed to parse HTTP response from '{}': {}",
-                    response.url,
-                    error
-                );
-                None
-            }
-        };
-
-        self.pending_responses.push(PendingHttpResponse {
-            response,
-            received_values,
-        });
-    }
-
-    fn process_pending_responses(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-    ) -> bool {
-        if self.pending_responses.is_empty() {
-            return false;
-        }
-
-        let values_id = self.base.values_id();
-        let responses = std::mem::take(&mut self.pending_responses);
-
-        if let Some(values_id) = values_id {
-            apply_received_value_batch(
-                ctx,
-                snapshot,
-                values_id,
-                responses
-                    .iter()
-                    .filter_map(|pending| pending.received_values.as_ref())
-                    .flat_map(|received_values| received_values.iter())
-                    .map(|received| ReceivedValueBatchMessage {
-                        path_segments: received.path_segments.as_slice(),
-                        payload: &received.payload,
-                        source_description: received.source_description.as_str(),
-                    }),
-                ReceivedValueBatchOptions {
-                    auto_add: self.auto_add.get(),
-                    event_behaviour: ParameterEventBehaviour::Append,
-                },
+        if let Err(error) = &response.received_values {
+            logerror!(
+                "Failed to parse HTTP response from '{}': {}",
+                diagnostic_url(&response.url),
+                error
             );
         }
+        assert!(
+            self.pending_events.len() < transport::HTTP_RESPONSE_CAPACITY,
+            "bounded HTTP response batch"
+        );
+        self.pending_events
+            .push_back(PendingHttpEvent::Response(response, ResponseCursor::default()));
+    }
 
-        for pending in responses {
-            self.emit_response_received_callback(ctx, &pending.response);
+    fn service_pending_events(&mut self, ctx: &mut ProcessCtx, snapshot: Option<&ProcessTreeSnapshot>) {
+        let values_id = self.base.values_id();
+        let progress = match self.pending_events.front_mut() {
+            Some(PendingHttpEvent::Response(response, cursor)) => {
+                cursor.service(response, ctx, snapshot, values_id, self.auto_add.get())
+            }
+            Some(PendingHttpEvent::Failure(_)) => ResponseProgress::Complete,
+            Some(PendingHttpEvent::Callback(delivery)) => {
+                if delivery.service(ctx) {
+                    self.pending_events.pop_front();
+                }
+                return;
+            }
+            None => return,
+        };
+        if progress != ResponseProgress::Pending {
+            let event = match self.pending_events.pop_front().expect("completed HTTP event") {
+                PendingHttpEvent::Response(response, _) if progress == ResponseProgress::Failed => {
+                    let failure = callbacks::response_application_failure(response);
+                    logerror!("HTTP response application failed: {}", failure.error);
+                    self.request_failed_callback(failure)
+                }
+                PendingHttpEvent::Response(response, _) => self.response_received_callback(response),
+                PendingHttpEvent::Failure(failure) => {
+                    logerror!("HTTP request failed: {}", failure.error);
+                    self.request_failed_callback(failure)
+                }
+                PendingHttpEvent::Callback(_) => unreachable!("delivery serviced above"),
+            };
+            let mut delivery = callbacks::CallbackDelivery::new(event);
+            delivery.service(ctx);
+            self.pending_events.push_front(PendingHttpEvent::Callback(delivery));
         }
-
-        false
     }
 
     fn queue_request(
@@ -379,15 +361,7 @@ impl HttpModule {
         origin: HttpRequestOrigin,
     ) -> Result<String, String> {
         let description = format!("{} {}", payload.method.label(), payload.path.trim());
-        let transport = self
-            .transport
-            .as_ref()
-            .ok_or_else(|| "HTTP worker is not available".to_string())?;
-
-        transport.send(HttpQueuedRequest {
-            origin,
-            payload,
-        })?;
+        self.admit_request(HttpQueuedRequest { origin, payload })?;
 
         self.base.emit_outgoing_traffic(ctx);
         if self.base.log_outgoing_enabled() {
@@ -398,6 +372,13 @@ impl HttpModule {
         }
 
         Ok(format!("Queued HTTP {description}"))
+    }
+
+    fn admit_request(&self, request: HttpQueuedRequest) -> Result<(), String> {
+        if self.transport_dirty {
+            return Err("HTTP configuration is pending; request was not admitted".into());
+        }
+        self.transports.send(request)
     }
 
     fn handle_script_http_method(
@@ -450,6 +431,9 @@ impl HttpModule {
     fn on_param_change_inner(&mut self, snapshot: &ProcessTreeSnapshot, param: NodeId) {
         if self.param_affects_transport(snapshot, param) {
             self.transport_dirty = true;
+            self.transports.block_admission();
+            self.retry_at = None;
+            self.reconnect_backoff.reset();
         }
     }
 
@@ -467,9 +451,11 @@ impl HttpModule {
     fn on_effective_enabled_changed_inner(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if enabled {
             self.transport_dirty = true;
+            self.transports.block_admission();
+            self.retry_at = None;
+            self.reconnect_backoff.reset();
         } else {
-            self.stop_transport();
-            self.last_transport_config = None;
+            self.transports.pause_admission();
             self.clear_base_warning(ctx);
             self.base.set_connected(ctx, false);
             self.transport_dirty = false;
@@ -487,16 +473,13 @@ impl HttpModule {
     }
 
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx) {
-        self.base.set_data_capabilities(
-            ctx,
-            crate::app::module::ModuleDataCapabilities::new(true, true),
-        );
+        self.base
+            .set_data_capabilities(ctx, crate::app::module::ModuleDataCapabilities::new(true, true));
     }
 
     fn set_base_warning(&self, ctx: &mut ProcessCtx, message: &str) {
         if self.base_address.is_bound() {
-            NodeHandle::new(self.base_address.id())
-                .set_warning_with(ctx, Some(HTTP_BASE_WARNING_ID), message, None);
+            NodeHandle::new(self.base_address.id()).set_warning_with(ctx, Some(HTTP_BASE_WARNING_ID), message, None);
         }
     }
 
@@ -507,9 +490,11 @@ impl HttpModule {
     }
 
     fn stop_transport(&mut self) {
-        if let Some(mut transport) = self.transport.take() {
-            transport.stop();
-        }
+        self.transports.cancel_all();
+    }
+
+    fn transport_refresh_due(&self) -> bool {
+        self.transport_dirty && self.retry_at.is_none_or(|retry| Instant::now() >= retry)
     }
 
     fn log_incoming_response(&self, response: &HttpResponse) {
@@ -522,71 +507,9 @@ impl HttpModule {
             format!(
                 "Received HTTP {} from {} ({} bytes)",
                 response.status,
-                response.url,
+                diagnostic_url(&response.url),
                 response.body.len()
             )
-        );
-    }
-
-    fn emit_response_received_callback(&self, ctx: &mut ProcessCtx, response: &HttpResponse) {
-        let body_arg = response_script_body_arg(response.body.as_slice());
-        let is_json = content_type_is_json(response.content_type.as_deref())
-            || body_looks_like_json(response.body.as_slice());
-        let json_arg = if is_json {
-            response_script_json_arg(response.body.as_slice())
-        } else {
-            serde_json::Value::Null
-        };
-        let bytes_arg = if matches!(body_arg, serde_json::Value::String(_)) {
-            serde_json::Value::Null
-        } else {
-            crate::app::module::script_api::bytes_arg(response.body.as_slice())
-        };
-        let response_arg = serde_json::json!({
-            "method": response.request.method.label(),
-            "path": response.request.path.as_str(),
-            "query": response.request.query.as_str(),
-            "valuePath": response.request.value_path.as_str(),
-            "url": response.url.as_str(),
-            "status": response.status,
-            "statusText": response.status_text.as_str(),
-            "ok": (200..300).contains(&response.status),
-            "headers": headers_script_arg(response.headers.as_slice()),
-            "contentType": response.content_type.as_deref(),
-            "isJson": is_json && !json_arg.is_null(),
-            "body": body_arg.clone(),
-            "bodyBytes": response.body.len(),
-            "bytes": bytes_arg,
-            "json": json_arg,
-            "elapsedMs": response.elapsed_ms,
-            "attempts": response.attempts,
-            "source": origin_script_arg(&response.origin),
-        });
-
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
-            self.id(),
-            HTTP_RESPONSE_RECEIVED_CALLBACK,
-            vec![serde_json::json!(response.status), body_arg, response_arg],
-        );
-    }
-
-    fn emit_request_failed_callback(&self, ctx: &mut ProcessCtx, failure: &HttpFailure) {
-        let failure_arg = serde_json::json!({
-            "method": failure.request.method.label(),
-            "path": failure.request.path.as_str(),
-            "query": failure.request.query.as_str(),
-            "valuePath": failure.request.value_path.as_str(),
-            "error": failure.error.as_str(),
-            "attempts": failure.attempts,
-            "source": origin_script_arg(&failure.origin),
-        });
-
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
-            self.id(),
-            HTTP_REQUEST_FAILED_CALLBACK,
-            vec![serde_json::json!(failure.error.as_str()), failure_arg],
         );
     }
 }
@@ -618,23 +541,16 @@ impl Node for HttpModule {
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.drain_transport_events(ctx);
 
-        let needs_snapshot = self.transport_dirty || !self.pending_responses.is_empty();
-        if !needs_snapshot {
-            return;
+        let snapshot_arc = ctx.tree_snapshot_arc();
+        if let Some(snapshot) = snapshot_arc.as_deref() {
+            self.refresh_data_capabilities(ctx);
+            if self.transport_refresh_due() {
+                self.retry_at = None;
+                self.refresh_transport(ctx, snapshot);
+            }
         }
 
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        self.refresh_data_capabilities(ctx);
-
-        if self.transport_dirty {
-            self.refresh_transport(ctx, snapshot);
-        }
-
-        self.process_pending_responses(ctx, snapshot);
+        self.service_pending_events(ctx, snapshot_arc.as_deref());
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -642,12 +558,20 @@ impl Node for HttpModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty || !self.pending_responses.is_empty()
+        self.transport_refresh_due()
+            || match self.pending_events.front() {
+                Some(PendingHttpEvent::Response(response, cursor)) => cursor.requires_snapshot(response),
+                Some(PendingHttpEvent::Failure(_) | PendingHttpEvent::Callback(_)) => false,
+                None => self.transports.has_pending(),
+            }
+    }
+
+    fn needs_update(&self) -> bool {
+        self.transport_refresh_due() || !self.pending_events.is_empty() || self.transports.has_pending()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(HTTP_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.http")
+        NodeExecutionRule::periodic(HTTP_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.http")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -655,11 +579,7 @@ impl Node for HttpModule {
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            HTTP_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), HTTP_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -681,8 +601,7 @@ impl Node for HttpModule {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
-        self.base
-            .emit_script_param_callback(ctx, snapshot, param, &old_value);
+        self.base.emit_script_param_callback(ctx, snapshot, param, &old_value);
         self.on_param_change_inner(snapshot, param);
     }
 
@@ -744,10 +663,7 @@ fn duration_ms(value: i32, label: &str) -> Result<Duration, String> {
     Ok(Duration::from_millis(value))
 }
 
-fn http_request_from_script(
-    method: &str,
-    args: &[ParamValue],
-) -> Option<Result<HttpRequestPayload, String>> {
+fn http_request_from_script(method: &str, args: &[ParamValue]) -> Option<Result<HttpRequestPayload, String>> {
     match method {
         "request" => Some(script_request(args)),
         "requestJson" => Some(script_json_request(args)),
@@ -768,8 +684,7 @@ fn http_request_from_script(
 
 fn script_request(args: &[ParamValue]) -> Result<HttpRequestPayload, String> {
     let method = required_script_string(args, 0, "request method")?;
-    let method = HttpMethod::from_variant(method.as_str())
-        .ok_or_else(|| format!("invalid HTTP method '{method}'"))?;
+    let method = HttpMethod::from_variant(method.as_str()).ok_or_else(|| format!("invalid HTTP method '{method}'"))?;
     let path = required_script_string(args, 1, "request path")?;
     let body = if args.get(2).is_some() {
         HttpRequestBody::Text {
@@ -793,8 +708,7 @@ fn script_request(args: &[ParamValue]) -> Result<HttpRequestPayload, String> {
 
 fn script_json_request(args: &[ParamValue]) -> Result<HttpRequestPayload, String> {
     let method = required_script_string(args, 0, "request method")?;
-    let method = HttpMethod::from_variant(method.as_str())
-        .ok_or_else(|| format!("invalid HTTP method '{method}'"))?;
+    let method = HttpMethod::from_variant(method.as_str()).ok_or_else(|| format!("invalid HTTP method '{method}'"))?;
     let path = required_script_string(args, 1, "request path")?;
     let value = args
         .get(2)
@@ -870,8 +784,8 @@ fn script_fixed_json_request(
 
 fn script_upload_file_request(args: &[ParamValue]) -> Result<HttpRequestPayload, String> {
     let method = required_script_string(args, 0, "upload method")?;
-    let method = HttpMethod::from_variant(method.as_str())
-        .ok_or_else(|| format!("invalid HTTP upload method '{method}'"))?;
+    let method =
+        HttpMethod::from_variant(method.as_str()).ok_or_else(|| format!("invalid HTTP upload method '{method}'"))?;
     if !matches!(method, HttpMethod::Post | HttpMethod::Put | HttpMethod::Patch) {
         return Err("uploadFile only supports POST, PUT, and PATCH".to_string());
     }
@@ -930,37 +844,6 @@ fn script_content_type(value: Option<&ParamValue>) -> String {
         .unwrap_or_else(|| HTTP_TEXT_CONTENT_TYPE.to_string())
 }
 
-fn headers_script_arg(headers: &[HttpHeader]) -> serde_json::Value {
-    serde_json::Value::Array(
-        headers
-            .iter()
-            .map(|header| {
-                serde_json::json!({
-                    "name": header.name.as_str(),
-                    "value": header.value.as_str(),
-                })
-            })
-            .collect(),
-    )
-}
-
-fn origin_script_arg(origin: &HttpRequestOrigin) -> serde_json::Value {
-    match origin {
-        HttpRequestOrigin::Command {
-            command_id,
-            command_type,
-        } => serde_json::json!({
-            "kind": "command",
-            "commandId": command_id.0,
-            "commandType": command_type.as_str(),
-        }),
-        HttpRequestOrigin::Script { method } => serde_json::json!({
-            "kind": "script",
-            "method": method.as_str(),
-        }),
-    }
-}
-
 fn is_descendant_or_self(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: NodeId) -> bool {
     let mut current = Some(start);
     while let Some(node_id) = current {
@@ -970,6 +853,11 @@ fn is_descendant_or_self(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor
         current = snapshot.node(node_id).and_then(|node| node.parent);
     }
     false
+}
+
+fn diagnostic_url(url: &str) -> &str {
+    let end = url.char_indices().nth(256).map_or(url.len(), |(index, _)| index);
+    &url[..end]
 }
 
 #[cfg(test)]

@@ -13,50 +13,6 @@ fn duplicate_unique_label_base(label: &str) -> (&str, u64) {
     }
 }
 impl<T: Node> Engine<T> {
-    fn ui_resolve_created_child(
-        &self,
-        parent: NodeId,
-        known_children: &HashSet<NodeId>,
-    ) -> Result<NodeId, crate::engine::EngineEditError> {
-        const OPERATION: &str = "CreateUserItem";
-
-        let mut created_children = self
-            .ui_direct_children(parent)
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|child_id| !known_children.contains(child_id));
-
-        let Some(created_child) = created_children.next() else {
-            return Err(crate::engine::EngineEditError::NodeMutationRejected {
-                edit_index: 0,
-                operation: OPERATION,
-                node: parent,
-                node_type: self
-                    .nodes
-                    .get(parent)
-                    .map(|node| node.get_type().to_string())
-                    .unwrap_or_else(|| "unknown".to_string()),
-                message: "createUserItem did not materialize a new direct child".to_string(),
-            });
-        };
-
-        if created_children.next().is_some() {
-            return Err(crate::engine::EngineEditError::NodeMutationRejected {
-                edit_index: 0,
-                operation: OPERATION,
-                node: parent,
-                node_type: self
-                    .nodes
-                    .get(parent)
-                    .map(|node| node.get_type().to_string())
-                    .unwrap_or_else(|| "unknown".to_string()),
-                message: "createUserItem materialized multiple new direct children".to_string(),
-            });
-        }
-
-        Ok(created_child)
-    }
-
     fn ui_find_created_item_param_node(&self, created_child: NodeId, decl_id: &str) -> Option<NodeId> {
         let snapshot = self.build_process_tree_snapshot();
         if decl_id.contains('/')
@@ -126,25 +82,18 @@ impl<T: Node> Engine<T> {
                 ParameterControlMode::TemplateText,
                 ParameterControlSpec::TemplateText { template: value },
             );
-            if let Some(effect) = self.apply_set_param_control_state(0, node, state)? {
-                self.record_set_param_control_state_history(effect);
-            }
-            return Ok(());
+            self.edits.push(Edit::SetParamControlState { node, state });
+            return self.settle_edit_notifications(16);
         }
 
+        let value = self.prepare_set_param_value(0, node, ParamValue::Str(value))?;
         if snapshot.control.mode != ParameterControlMode::Manual {
             let state = ParameterControlState::new(ParameterControlMode::Manual, ParameterControlSpec::Manual);
-            if let Some(effect) = self.apply_set_param_control_state(0, node, state)? {
-                self.record_set_param_control_state_history(effect);
-            }
+            self.edits.push(Edit::SetParamControlState { node, state });
         }
 
-        self.edits.push(Edit::SetParam {
-            node,
-            value: ParamValue::Str(value),
-            behaviour,
-        });
-        self.apply_ui_stabilization_to_fixed_point(16)
+        self.edits.push(Edit::SetParam { node, value, behaviour });
+        self.settle_edit_notifications(16)
     }
 
     fn ui_dashboard_initial_param(decl_id: &str, value: ParamValue) -> UiCreateUserItemInitialParam {
@@ -432,15 +381,8 @@ impl<T: Node> Engine<T> {
                     .unwrap_or_else(|| "Container".to_string()),
             ),
             initial_params,
+            prev_sibling,
         )?;
-        if prev_sibling.is_some() {
-            self.edits.push(Edit::MoveNode {
-                node: created,
-                new_parent: parent,
-                new_prev_sibling: prev_sibling,
-            });
-            self.apply_ui_initialization_to_fixed_point(16)?;
-        }
         self.ui_dashboard_apply_widget_sizing_mode(created, parent, placement.as_ref())?;
         Ok(created)
     }
@@ -471,15 +413,8 @@ impl<T: Node> Engine<T> {
             DASHBOARD_NODE_WIDGET_NODE_TYPE.to_string(),
             Some(label),
             initial_params,
+            prev_sibling,
         )?;
-        if prev_sibling.is_some() {
-            self.edits.push(Edit::MoveNode {
-                node: created,
-                new_parent: parent,
-                new_prev_sibling: prev_sibling,
-            });
-            self.apply_ui_initialization_to_fixed_point(16)?;
-        }
         self.ui_dashboard_apply_widget_sizing_mode(created, parent, placement.as_ref())?;
         Ok(created)
     }
@@ -506,15 +441,8 @@ impl<T: Node> Engine<T> {
             DASHBOARD_GENERIC_WIDGET_NODE_TYPE.to_string(),
             Some(label),
             initial_params,
+            prev_sibling,
         )?;
-        if prev_sibling.is_some() {
-            self.edits.push(Edit::MoveNode {
-                node: created,
-                new_parent: parent,
-                new_prev_sibling: prev_sibling,
-            });
-            self.apply_ui_initialization_to_fixed_point(16)?;
-        }
         self.ui_dashboard_apply_widget_sizing_mode(created, parent, placement.as_ref())?;
         Ok(created)
     }
@@ -582,7 +510,7 @@ impl<T: Node> Engine<T> {
             new_parent: container,
             new_prev_sibling: None,
         });
-        self.apply_ui_initialization_to_fixed_point(16)
+        self.settle_edit_notifications(16)
     }
 
     pub(super) fn ui_apply_create_user_item(
@@ -592,7 +520,7 @@ impl<T: Node> Engine<T> {
         label: Option<String>,
         initial_params: Vec<UiCreateUserItemInitialParam>,
     ) -> Result<(), crate::engine::EngineEditError> {
-        self.ui_apply_create_user_item_returning_node(parent, node_type, label, initial_params)
+        self.ui_apply_create_user_item_returning_node(parent, node_type, label, initial_params, None)
             .map(|_| ())
     }
 
@@ -602,26 +530,54 @@ impl<T: Node> Engine<T> {
         node_type: String,
         label: Option<String>,
         initial_params: Vec<UiCreateUserItemInitialParam>,
+        prev_sibling: Option<NodeId>,
     ) -> Result<NodeId, crate::engine::EngineEditError> {
         const OPERATION: &str = "CreateUserItem";
 
-        let known_children: HashSet<NodeId> = self
-            .ui_direct_children(parent)
-            .unwrap_or_default()
-            .into_iter()
-            .collect();
-        self.queue_catalog_create(parent, node_type, label, None)?;
-        self.apply_ui_stabilization_to_fixed_point(16)?;
-
-        let created_child = self.ui_resolve_created_child(parent, &known_children)?;
-        if !initial_params.is_empty() {
-            self.ui_apply_initial_params_to_node(created_child, initial_params, OPERATION)?;
-        }
-        Ok(created_child)
+        let result = (|| -> Result<NodeId, ProjectPersistenceError> {
+            let prepared = self.prepare_catalog_item_subtree(
+                parent,
+                prev_sibling,
+                &node_type,
+                label,
+                Self::ui_initial_param_pairs(initial_params),
+                OPERATION,
+            )?;
+            let mut roots =
+                self.commit_prepared_project_subtree_batch(vec![(prepared, NodeCreationContext::Fresh)], OPERATION)?;
+            Ok(roots.pop().expect("one prepared root must produce one committed root"))
+        })();
+        result.map_err(|error| match error {
+            ProjectPersistenceError::Engine(error) => error,
+            error => crate::engine::EngineEditError::NodeMutationRejected {
+                edit_index: 0,
+                operation: OPERATION,
+                node: parent,
+                node_type,
+                message: error.to_string(),
+            },
+        })
     }
 
     /// Duplicates/copied roots and then creates dependent user items within the same edit session.
     pub fn ui_apply_duplicate_nodes_with_dependent_user_items<Encode, Decode>(
+        &mut self,
+        nodes: Vec<UiDuplicateNodeSpec>,
+        created_items: Vec<UiDuplicateCreateUserItemSpec>,
+        dependent_items: Vec<UiDuplicateDependentUserItem>,
+        encode_data: Encode,
+        decode_node: Decode,
+    ) -> Result<Vec<NodeId>, ProjectPersistenceError>
+    where
+        Encode: FnMut(&T) -> Result<serde_json::Value, String>,
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        self.with_atomic_ui_operation(|engine| {
+            engine.prepare_and_commit_ui_duplicates(nodes, created_items, dependent_items, encode_data, decode_node)
+        })
+    }
+
+    fn prepare_and_commit_ui_duplicates<Encode, Decode>(
         &mut self,
         nodes: Vec<UiDuplicateNodeSpec>,
         created_items: Vec<UiDuplicateCreateUserItemSpec>,
@@ -886,14 +842,15 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    /// Applies direct parameter initializers to an already-created user item root.
+    /// Applies one prevalidated parameter batch to an existing item, retaining user history.
     pub fn ui_apply_initial_params_to_node(
         &mut self,
         created_child: NodeId,
         initial_params: Vec<UiCreateUserItemInitialParam>,
         operation: &'static str,
     ) -> Result<(), crate::engine::EngineEditError> {
-        for initial_param in initial_params {
+        let mut prepared = Vec::with_capacity(initial_params.len());
+        for (edit_index, initial_param) in initial_params.into_iter().enumerate() {
             let Some(param_node) =
                 self.ui_find_created_item_param_node(created_child, initial_param.decl_id.0.as_str())
             else {
@@ -913,14 +870,17 @@ impl<T: Node> Engine<T> {
                 });
             };
 
-            self.edits.push(Edit::SetParam {
-                node: param_node,
-                value: initial_param.value,
-                behaviour: ParameterEventBehaviour::Coalesce,
-            });
-            self.apply_ui_initialization_to_fixed_point(16)?;
+            let value = self.prepare_set_param_value(edit_index, param_node, initial_param.value)?;
+            prepared.push((param_node, value));
         }
 
-        Ok(())
+        for (node, value) in prepared {
+            self.edits.push(Edit::SetParam {
+                node,
+                value,
+                behaviour: ParameterEventBehaviour::Coalesce,
+            });
+        }
+        self.settle_edit_notifications(16)
     }
 }

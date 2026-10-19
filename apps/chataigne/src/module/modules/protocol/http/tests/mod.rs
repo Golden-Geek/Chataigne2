@@ -11,13 +11,17 @@ use golden_core::{
 };
 use serde_json::json;
 
+mod generations;
+mod reconfiguration;
+mod response_service;
+mod transport;
+
 use super::{
     transport::{HttpRequestOrigin, HttpResponse},
     HttpModule,
 };
 use crate::app::module::common::http::{
-    HttpMethod, HttpRequestBody, HttpRequestPayload, HTTP_REQUEST_COMMAND_NODE_TYPE,
-    HTTP_UPLOAD_FILE_COMMAND_NODE_TYPE,
+    HttpMethod, HttpRequestBody, HttpRequestPayload, HTTP_REQUEST_COMMAND_NODE_TYPE, HTTP_UPLOAD_FILE_COMMAND_NODE_TYPE,
 };
 
 #[test]
@@ -96,16 +100,14 @@ fn json_response_auto_adds_values_under_request_path() {
     assert_eq!(
         param_value(
             &engine,
-            find_path(&engine, module_id, "values/api/state/temperature")
-                .expect("temperature value should be created"),
+            find_path(&engine, module_id, "values/api/state/temperature").expect("temperature value should be created"),
         ),
         ParamValue::Int(21)
     );
     assert_eq!(
         param_value(
             &engine,
-            find_path(&engine, module_id, "values/api/state/active")
-                .expect("active value should be created"),
+            find_path(&engine, module_id, "values/api/state/active").expect("active value should be created"),
         ),
         ParamValue::Bool(true)
     );
@@ -117,7 +119,8 @@ fn json_response_auto_adds_values_under_request_path() {
         ParamValue::Color(1.0, 0.5, 0.0, 1.0)
     );
 
-    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist") else {
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+    else {
         panic!("expected HttpModule node");
     };
     assert!(
@@ -146,7 +149,8 @@ fn non_json_response_does_not_add_values() {
         "plain text responses should not create module Values"
     );
 
-    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist") else {
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+    else {
         panic!("expected HttpModule node");
     };
     assert!(
@@ -156,7 +160,7 @@ fn non_json_response_does_not_add_values() {
 }
 
 #[test]
-fn large_json_response_auto_adds_values_in_one_runtime_tick() {
+fn large_json_response_auto_adds_values_through_bounded_runtime_turns() {
     let (mut engine, module_id) = create_http_module();
 
     let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
@@ -169,6 +173,9 @@ fn large_json_response_auto_adds_values_in_one_runtime_tick() {
     ));
 
     run_http_runtime_ticks(&mut engine, 1);
+
+    assert!(response_received_callback_payload(&engine).is_none());
+    run_http_until_drained(&mut engine, module_id, 64);
 
     assert_eq!(
         param_value(
@@ -198,23 +205,20 @@ fn large_json_response_auto_adds_values_in_one_runtime_tick() {
         &engine,
         find_path(&engine, module_id, "values").expect("values root should exist"),
     );
-    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist") else {
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+    else {
         panic!("expected HttpModule node");
     };
     assert!(
         !module.has_pending_responses_for_test(),
-        "large HTTP JSON responses should drain in one runtime tick"
+        "large HTTP JSON responses should finish through bounded runtime turns"
     );
 }
 
 #[test]
 fn repeated_large_json_responses_update_existing_values_without_duplicate_folders() {
     let (mut engine, module_id) = create_http_module();
-    let response = test_response(
-        "character",
-        Some("application/json"),
-        rick_and_morty_like_response(),
-    );
+    let response = test_response("character", Some("application/json"), rick_and_morty_like_response());
 
     let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
         panic!("expected HttpModule node");
@@ -223,7 +227,7 @@ fn repeated_large_json_responses_update_existing_values_without_duplicate_folder
         module.enqueue_response_for_test(response.clone());
     }
 
-    run_http_runtime_ticks(&mut engine, 1);
+    run_http_until_drained(&mut engine, module_id, 256);
 
     assert_no_duplicate_child_keys(
         &engine,
@@ -339,7 +343,7 @@ fn rick_and_morty_like_response() -> Vec<u8> {
 }
 
 fn test_response(path: &str, content_type: Option<&str>, body: Vec<u8>) -> HttpResponse {
-    HttpResponse {
+    let mut response = HttpResponse {
         origin: HttpRequestOrigin::Script {
             method: "get".to_string(),
         },
@@ -366,7 +370,10 @@ fn test_response(path: &str, content_type: Option<&str>, body: Vec<u8>) -> HttpR
         ),
         elapsed_ms: 1,
         attempts: 1,
-    }
+        callback_args: Vec::new(),
+    };
+    response.callback_args = super::callbacks::prepare_response_callback(&response);
+    response
 }
 
 fn run_http_runtime_ticks(engine: &mut crate::app::AppEngine, count: usize) {
@@ -387,7 +394,8 @@ fn run_http_until_drained(engine: &mut crate::app::AppEngine, module_id: NodeId,
     for _ in 0..max_ticks {
         run_http_runtime_ticks(engine, 1);
 
-        let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist") else {
+        let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+        else {
             panic!("expected HttpModule node");
         };
         if !module.has_pending_responses_for_test() {
@@ -406,12 +414,8 @@ fn response_received_callback_payload(engine: &crate::app::AppEngine) -> Option<
         if custom.topic != crate::app::module::script_api::MODULE_SCRIPT_CALLBACK_TOPIC {
             return None;
         }
-        (custom
-            .payload
-            .get("callback")
-            .and_then(serde_json::Value::as_str)
-            == Some("responseReceived"))
-        .then_some(custom.payload.as_ref())
+        (custom.payload.get("callback").and_then(serde_json::Value::as_str) == Some("responseReceived"))
+            .then_some(custom.payload.as_ref())
     })
 }
 
@@ -429,10 +433,7 @@ fn assert_no_duplicate_child_keys(engine: &crate::app::AppEngine, start: NodeId)
             child = node.node_data().next_sibling;
         }
 
-        let duplicates = counts
-            .into_iter()
-            .filter(|(_, count)| *count > 1)
-            .collect::<Vec<_>>();
+        let duplicates = counts.into_iter().filter(|(_, count)| *count > 1).collect::<Vec<_>>();
         assert!(
             duplicates.is_empty(),
             "node {:?} should not have duplicate child keys: {:?}",
@@ -447,7 +448,10 @@ fn direct_child_count(engine: &crate::app::AppEngine, parent: NodeId) -> usize {
     let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     while let Some(child_id) = child {
         count += 1;
-        child = engine.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
+        child = engine
+            .nodes
+            .get(child_id)
+            .and_then(|node| node.node_data().next_sibling);
     }
     count
 }

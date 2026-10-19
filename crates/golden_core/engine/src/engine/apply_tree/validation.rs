@@ -1,8 +1,56 @@
 use super::*;
 
 impl<T: Node> Engine<T> {
+    /// Validate placement before inserting or detaching anything from the live tree.
+    pub(crate) fn validate_previous_sibling(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        node: Option<NodeId>,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+    ) -> Result<(), EngineEditError> {
+        if !self.nodes.contains(parent) {
+            return Err(EngineEditError::ParentNotFound {
+                edit_index,
+                operation,
+                parent,
+            });
+        }
+        if let Some(sibling) = prev_sibling {
+            if node == Some(sibling) {
+                return Err(EngineEditError::InvalidSiblingReference {
+                    edit_index,
+                    operation,
+                    node: sibling,
+                    sibling,
+                });
+            }
+            let sibling_parent = self
+                .nodes
+                .get(sibling)
+                .ok_or(EngineEditError::SiblingNotFound {
+                    edit_index,
+                    operation,
+                    sibling,
+                })?
+                .node_data()
+                .parent;
+            if sibling_parent != Some(parent) {
+                return Err(EngineEditError::InvalidSiblingParent {
+                    edit_index,
+                    operation,
+                    parent,
+                    sibling,
+                    sibling_parent,
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// Returns `true` when `node` is equal to or under `ancestor` in the parent chain.
-    pub(super) fn is_descendant_of(&self, node: NodeId, ancestor: NodeId) -> bool {
+    pub(crate) fn is_descendant_of(&self, node: NodeId, ancestor: NodeId) -> bool {
         let mut cursor = Some(node);
         while let Some(current) = cursor {
             if current == ancestor {

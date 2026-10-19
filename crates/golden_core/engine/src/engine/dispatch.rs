@@ -337,11 +337,7 @@ impl<T: Node> Engine<T> {
                             }
                         }
                     }
-                    if let Some(node) = self.nodes.get_mut(node_id) {
-                        crate::logger::with_node_origin(node_id, || {
-                            node.on_inbox(&mut ctx);
-                        });
-                    }
+                    self.run_authored_callback(node_id, &mut ctx, |node, ctx| node.on_inbox(ctx))?;
                 }
                 if let (Some(node_type), Some(start), Some(trace_by_type)) =
                     (trace_node_type, node_start, trace_by_type.as_mut())

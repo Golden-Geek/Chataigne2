@@ -18,39 +18,23 @@ pub(super) struct DecodedProjectTree<T> {
     pub(super) children: Vec<DecodedProjectTree<T>>,
 }
 
-/// Request-validated detached subtree ready for live-graph insertion.
+/// Detached subtree with context-independent validation complete.
 ///
-/// Codec, destination, catalog, initializer, value-constraint, and dependent
-/// source-lookup failures are exhausted here. App-owned live lifecycle callbacks
-/// still run after insertion because their runtime resources and parent context
-/// cannot be staged safely.
+/// Codec, destination, catalog, available value constraints, and dependent source
+/// lookups are checked here. Initializers whose declarations depend on the live
+/// parent, live reference admission, and lifecycle completion remain inside the
+/// provisional insertion boundary, before ready/publication/history commit.
 pub(crate) struct PreparedProjectSubtree<T> {
     parent: NodeId,
     prev_sibling: Option<NodeId>,
     tree: DecodedProjectTree<T>,
     blueprint_meta: Option<BlueprintInstanceMeta>,
-    has_explicit_initial_params: bool,
+    initial_params: Vec<(DeclId, ParamValue)>,
 }
 
 pub(crate) struct CommittedProjectSubtree {
-    pub(crate) root: NodeId,
     pub(crate) node_ids: Vec<NodeId>,
     effect: AddNodeEffect,
-}
-
-pub(crate) struct ProjectSubtreeCommitCheckpoint {
-    inbox: crate::events::Inbox,
-    ui_event_log: Vec<crate::events::Event>,
-    ui_event_log_start: usize,
-    ui_latest_event_times: HashMap<(String, Option<NodeId>), super::super::EngineTime>,
-    ui_pending_param_event_times: HashMap<NodeId, super::super::EngineTime>,
-    ui_epoch: u64,
-    next_ui_tx_id: u64,
-    ui_graph_version: u64,
-    time: super::super::EngineTime,
-    pending_node_ready: Vec<(NodeId, NodeCreationContext)>,
-    pending_added_subtree_ui_batches: Vec<super::super::PendingAddedSubtreeUiBatch>,
-    parameter_values: Vec<(NodeId, ParamValue)>,
 }
 
 impl<T: Node> PreparedProjectSubtree<T> {
@@ -96,15 +80,9 @@ impl<T: Node> Engine<T> {
             &mut encode_data,
             &mut decode_node,
         )?;
-        let checkpoint = self.project_subtree_commit_checkpoint();
-        let committed =
-            self.commit_prepared_project_subtree(prepared, NodeCreationContext::Duplicate, true, "DuplicateNode")?;
-        let duplicated_root = committed.root;
-        if let Err(error) = self.finalize_committed_project_subtrees(vec![committed]) {
-            self.rollback_committed_project_subtrees([duplicated_root], checkpoint);
-            return Err(error);
-        }
-        Ok(duplicated_root)
+        let mut roots = self
+            .commit_prepared_project_subtree_batch(vec![(prepared, NodeCreationContext::Duplicate)], "DuplicateNode")?;
+        Ok(roots.pop().expect("one prepared root produces one committed root"))
     }
 
     pub(crate) fn duplicate_subtree_with_initial_params<Encode, Decode>(
@@ -129,15 +107,9 @@ impl<T: Node> Engine<T> {
             &mut decode_node,
         )?;
         let prepared = self.prepare_project_subtree_initial_params(prepared, initial_params, "DuplicateNode")?;
-        let checkpoint = self.project_subtree_commit_checkpoint();
-        let committed =
-            self.commit_prepared_project_subtree(prepared, NodeCreationContext::Duplicate, true, "DuplicateNode")?;
-        let duplicated_root = committed.root;
-        if let Err(error) = self.finalize_committed_project_subtrees(vec![committed]) {
-            self.rollback_committed_project_subtrees([duplicated_root], checkpoint);
-            return Err(error);
-        }
-        Ok(duplicated_root)
+        let mut roots = self
+            .commit_prepared_project_subtree_batch(vec![(prepared, NodeCreationContext::Duplicate)], "DuplicateNode")?;
+        Ok(roots.pop().expect("one prepared root produces one committed root"))
     }
 
     pub(crate) fn prepare_duplicate_subtree_with<Encode, Decode>(
@@ -190,7 +162,7 @@ impl<T: Node> Engine<T> {
             prev_sibling: new_prev_sibling,
             tree: decoded_tree,
             blueprint_meta: self.blueprints.instance_meta(source).cloned(),
-            has_explicit_initial_params: false,
+            initial_params: Vec::new(),
         })
     }
 
@@ -204,10 +176,40 @@ impl<T: Node> Engine<T> {
             return Ok(prepared);
         }
 
-        let has_explicit_initial_params = !initial_params.is_empty();
-        prepared.tree = Self::stage_tree_with_initial_params(prepared.tree, initial_params, operation)?;
-        prepared.has_explicit_initial_params = has_explicit_initial_params;
+        prepared.tree = Self::stage_tree_with_initial_params(prepared.tree, initial_params.clone(), operation)?;
+        prepared.initial_params = initial_params;
         Ok(prepared)
+    }
+
+    pub(crate) fn prepare_catalog_item_subtree(
+        &self,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        node_type: &str,
+        label: Option<String>,
+        initial_params: Vec<(DeclId, ParamValue)>,
+        operation: &'static str,
+    ) -> Result<PreparedProjectSubtree<T>, ProjectPersistenceError> {
+        self.validate_persisted_subtree_destination(parent, prev_sibling, operation)?;
+        let item = self
+            .catalog_creatable_items(parent)
+            .into_iter()
+            .find(|item| item.node_type == node_type)
+            .ok_or_else(|| EngineEditError::UserItemTypeUnavailable {
+                edit_index: 0,
+                operation,
+                parent,
+                node_type: node_type.to_string(),
+            })?;
+        let label = self.next_unique_child_label(parent, label.as_deref().unwrap_or(&item.label));
+        self.prepare_prevalidated_catalog_item_subtree(
+            parent,
+            prev_sibling,
+            node_type,
+            label,
+            initial_params,
+            operation,
+        )
     }
 
     pub(crate) fn prepare_prevalidated_catalog_item_subtree(
@@ -239,13 +241,12 @@ impl<T: Node> Engine<T> {
             }
             self.validate_prepared_user_item(parent, &node, operation)?;
             Self::prepare_detached_user_item_root(&mut node);
-            let has_explicit_initial_params = !initial_params.is_empty();
             let tree = Self::stage_tree_with_initial_params(
                 DecodedProjectTree {
                     node,
                     children: Vec::new(),
                 },
-                initial_params,
+                initial_params.clone(),
                 operation,
             )?;
             return Ok(PreparedProjectSubtree {
@@ -257,7 +258,7 @@ impl<T: Node> Engine<T> {
                     blueprint_version,
                     HashMap::new(),
                 )),
-                has_explicit_initial_params,
+                initial_params,
             });
         }
 
@@ -297,15 +298,14 @@ impl<T: Node> Engine<T> {
         tree.node.node_data_mut().meta.label = resolved_label;
         self.validate_prepared_user_item(parent, &tree.node, operation)?;
         Self::prepare_detached_user_item_root(&mut tree.node);
-        let has_explicit_initial_params = !initial_params.is_empty();
-        let tree = Self::stage_tree_with_initial_params(tree, initial_params, operation)?;
+        let tree = Self::stage_tree_with_initial_params(tree, initial_params.clone(), operation)?;
 
         Ok(PreparedProjectSubtree {
             parent,
             prev_sibling,
             tree,
             blueprint_meta: None,
-            has_explicit_initial_params,
+            initial_params,
         })
     }
 
@@ -404,50 +404,87 @@ impl<T: Node> Engine<T> {
             .map_err(ProjectPersistenceError::Engine)?;
 
         for (decl_id, value) in initial_params {
-            let param = staging
-                .find_staged_parameter(staging_root, decl_id.0.as_str())
-                .ok_or_else(|| {
-                    let node_type = staging
-                        .nodes
-                        .get(staging_root)
-                        .map(|node| node.get_type().to_string())
-                        .unwrap_or_else(|| "unknown".to_string());
-                    ProjectPersistenceError::Engine(EngineEditError::NodeMutationRejected {
+            let event_cursor = staging.inbox.events.len();
+            let Some(param) = staging.find_staged_parameter(staging_root, decl_id.0.as_str()) else {
+                // Some declared fields depend on the live parent or referenced nodes.
+                // Retain every initializer for validation in the provisional live
+                // subtree, before ready callbacks, publication, or history commit.
+                continue;
+            };
+            if let ParamValue::Reference(mut reference) = value {
+                // Runtime ids and reference roots belong to the live graph. A detached
+                // subtree can validate the value shape; admission against live reference
+                // constraints occurs inside commit before ready callbacks run.
+                reference.clear_cached_id();
+                let target = staging
+                    .nodes
+                    .get_mut(param)
+                    .ok_or(ProjectPersistenceError::MissingNode(param))?;
+                let node_type = target.get_type().to_string();
+                let value = target
+                    .engine_prepare_param_value(ParamValue::Reference(reference))
+                    .map_err(|message| EngineEditError::ParamConstraintViolation {
                         edit_index: 0,
-                        operation,
-                        node: staging_root,
-                        node_type,
-                        message: format!("parameter '{}' is unavailable on the prepared item", decl_id.0),
-                    })
-                })?;
-            staging
-                .apply_set_param(0, param, value)
-                .map_err(ProjectPersistenceError::Engine)?;
+                        node: param,
+                        node_type: node_type.clone(),
+                        message,
+                    })?;
+                let old_value =
+                    target
+                        .engine_set_param_value(value)
+                        .ok_or(EngineEditError::ParamEditTargetMismatch {
+                            edit_index: 0,
+                            node: param,
+                            node_type,
+                        })?;
+                staging.populate_param_cache_entry(param);
+                let new_value = staging
+                    .nodes
+                    .get(param)
+                    .and_then(|node| node.engine_param_snapshot())
+                    .ok_or(ProjectPersistenceError::MissingNode(param))?
+                    .value;
+                staging.emit_event(EventKind::ParamChanged {
+                    param,
+                    old_value,
+                    new_value,
+                });
+            } else {
+                staging.apply_set_param(0, param, value)?;
+            }
+            // Earlier initializer values may reveal declared conditional children
+            // needed by later initializers. Staging runs no app lifecycle callbacks.
+            staging.stabilize_added_node_structure(event_cursor, None)?;
         }
 
         staging.take_staged_tree(staging_root, operation)
     }
 
-    fn find_staged_parameter(&self, root: NodeId, decl_id: &str) -> Option<NodeId> {
+    pub(super) fn find_staged_parameter(&self, root: NodeId, decl_id: &str) -> Option<NodeId> {
         if decl_id.contains('/') {
-            let mut current = root;
-            for segment in decl_id.split('/').filter(|segment| !segment.is_empty()) {
-                let mut child = self.nodes.get(current)?.node_data().first_child;
-                let mut matched = None;
-                while let Some(child_id) = child {
-                    let child_node = self.nodes.get(child_id)?;
-                    if child_node.node_data().meta.decl_id.0 == segment {
-                        matched = Some(child_id);
-                        break;
+            let path_target = (|| {
+                let mut current = root;
+                for segment in decl_id.split('/').filter(|segment| !segment.is_empty()) {
+                    let mut child = self.nodes.get(current)?.node_data().first_child;
+                    let mut matched = None;
+                    while let Some(child_id) = child {
+                        let child_node = self.nodes.get(child_id)?;
+                        let meta = &child_node.node_data().meta;
+                        if meta.decl_id.0 == segment || meta.short_name == segment || meta.label == segment {
+                            matched = Some(child_id);
+                            break;
+                        }
+                        child = child_node.node_data().next_sibling;
                     }
-                    child = child_node.node_data().next_sibling;
+                    current = matched?;
                 }
-                current = matched?;
-            }
-            if self
-                .nodes
-                .get(current)
-                .is_some_and(|node| node.engine_param_snapshot().is_some())
+                Some(current)
+            })();
+            if let Some(current) = path_target
+                && self
+                    .nodes
+                    .get(current)
+                    .is_some_and(|node| node.engine_param_snapshot().is_some())
             {
                 return Some(current);
             }
@@ -540,121 +577,6 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    pub(crate) fn project_subtree_commit_checkpoint(&self) -> ProjectSubtreeCommitCheckpoint {
-        ProjectSubtreeCommitCheckpoint {
-            inbox: self.inbox.clone(),
-            ui_event_log: self.ui_event_log.clone(),
-            ui_event_log_start: self.ui_event_log_start,
-            ui_latest_event_times: self.ui_latest_event_times.clone(),
-            ui_pending_param_event_times: self.ui_pending_param_event_times.clone(),
-            ui_epoch: self.ui_epoch,
-            next_ui_tx_id: self.next_ui_tx_id,
-            ui_graph_version: self.ui_graph_version,
-            time: self.time,
-            pending_node_ready: self.pending_node_ready.clone(),
-            pending_added_subtree_ui_batches: self.pending_added_subtree_ui_batches.clone(),
-            parameter_values: self
-                .nodes
-                .iter()
-                .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value)))
-                .collect(),
-        }
-    }
-
-    pub(crate) fn rollback_committed_project_subtrees(
-        &mut self,
-        roots: impl IntoIterator<Item = NodeId>,
-        checkpoint: ProjectSubtreeCommitCheckpoint,
-    ) {
-        let roots = roots.into_iter().collect::<Vec<_>>();
-        for root in roots.into_iter().rev() {
-            if self.nodes.contains(root) {
-                let _ = self.apply_remove_node(0, root, Some(NodeCreationContext::ProjectLoadAugmentation));
-            }
-        }
-
-        for (node_id, value) in &checkpoint.parameter_values {
-            if let Some(node) = self.nodes.get_mut(*node_id) {
-                let _ = node.engine_set_param_value(value.clone());
-            }
-        }
-        self.parameter_values_cache = checkpoint.parameter_values.into_iter().collect();
-        let parameter_values = &self.parameter_values_cache;
-        let remaining_nodes = self.nodes.iter().map(|(node_id, _)| node_id).collect::<Vec<_>>();
-        for node_id in remaining_nodes {
-            if let Some(node) = self.nodes.get_mut(node_id) {
-                node.engine_sync_bound_param_handles(&mut |parameter| parameter_values.get(&parameter).cloned());
-            }
-        }
-        self.inbox = checkpoint.inbox;
-        self.edits.pending.clear();
-        self.ui_event_log = checkpoint.ui_event_log;
-        self.ui_event_log_start = checkpoint.ui_event_log_start;
-        self.ui_latest_event_times = checkpoint.ui_latest_event_times;
-        self.ui_pending_param_event_times = checkpoint.ui_pending_param_event_times;
-        self.ui_epoch = checkpoint.ui_epoch;
-        self.next_ui_tx_id = checkpoint.next_ui_tx_id;
-        self.ui_graph_version = checkpoint.ui_graph_version;
-        self.time = checkpoint.time;
-        self.pending_node_ready = checkpoint.pending_node_ready;
-        self.pending_added_subtree_ui_batches = checkpoint.pending_added_subtree_ui_batches;
-        self.resolve_reference_caches();
-        self.rebuild_user_context_registry_from_nodes();
-        self.mark_schedule_dirty();
-    }
-
-    pub(crate) fn commit_prepared_project_subtree(
-        &mut self,
-        prepared: PreparedProjectSubtree<T>,
-        creation_context: NodeCreationContext,
-        dispatch_structure_events: bool,
-        operation: &'static str,
-    ) -> Result<CommittedProjectSubtree, ProjectPersistenceError> {
-        let PreparedProjectSubtree {
-            parent,
-            prev_sibling,
-            tree,
-            blueprint_meta,
-            has_explicit_initial_params,
-        } = prepared;
-        let creation_context = if creation_context == NodeCreationContext::Duplicate && has_explicit_initial_params {
-            NodeCreationContext::DuplicateWithInitialParams
-        } else {
-            creation_context
-        };
-        let checkpoint = self.project_subtree_commit_checkpoint();
-        let root = self.insert_decoded_project_tree(parent, prev_sibling, tree, operation)?;
-        if let Err(error) = self.replay_loaded_subtree_lifecycle(root, creation_context, LoadedReadyMode::Immediate) {
-            self.rollback_committed_project_subtrees([root], checkpoint);
-            return Err(error);
-        }
-        let node_ids = self.collect_loaded_subtree_node_ids(root)?;
-
-        if let Some(mut blueprint_meta) = blueprint_meta {
-            blueprint_meta.decl_index = node_ids
-                .iter()
-                .filter_map(|node_id| {
-                    self.nodes
-                        .get(*node_id)
-                        .map(|node| (node.node_data().meta.decl_id.clone(), *node_id))
-                })
-                .collect();
-            self.blueprints.register_instance(root, blueprint_meta);
-        }
-        if dispatch_structure_events {
-            self.queue_loaded_subtree_structure_events(&[root])?;
-        }
-
-        let effect = AddNodeEffect {
-            node: root,
-            parent,
-            prev_sibling: self.nodes.get(root).and_then(|node| node.node_data().prev_sibling),
-            next_sibling: self.nodes.get(root).and_then(|node| node.node_data().next_sibling),
-        };
-
-        Ok(CommittedProjectSubtree { root, node_ids, effect })
-    }
-
     /// Commits one user action's independent roots with one rollback checkpoint and
     /// one lifecycle replay per creation-context run. Inserting each root through
     /// `commit_prepared_project_subtree` would rebuild whole-tree snapshots and clone
@@ -668,7 +590,7 @@ impl<T: Node> Engine<T> {
             return Ok(Vec::new());
         }
 
-        let checkpoint = self.project_subtree_commit_checkpoint();
+        let checkpoint = self.edit_checkpoint();
         let mut roots = Vec::with_capacity(prepared.len());
         let result = (|| {
             let mut inserted = Vec::with_capacity(prepared.len());
@@ -678,9 +600,9 @@ impl<T: Node> Engine<T> {
                     prev_sibling,
                     tree,
                     blueprint_meta,
-                    has_explicit_initial_params,
+                    initial_params,
                 } = subtree;
-                let context = if context == NodeCreationContext::Duplicate && has_explicit_initial_params {
+                let context = if context == NodeCreationContext::Duplicate && !initial_params.is_empty() {
                     NodeCreationContext::DuplicateWithInitialParams
                 } else {
                     context
@@ -693,7 +615,7 @@ impl<T: Node> Engine<T> {
                     next_sibling: self.nodes.get(root).and_then(|node| node.node_data().next_sibling),
                 };
                 roots.push(root);
-                inserted.push((root, context, blueprint_meta, effect));
+                inserted.push((root, context, blueprint_meta, effect, initial_params));
             }
 
             let mut start = 0;
@@ -703,12 +625,21 @@ impl<T: Node> Engine<T> {
                 while end < inserted.len() && inserted[end].1 == context {
                     end += 1;
                 }
-                self.replay_loaded_subtrees_lifecycle(&roots[start..end], context, LoadedReadyMode::Immediate)?;
+                let initial_params = inserted[start..end]
+                    .iter()
+                    .map(|(root, _, _, _, params)| (*root, params.as_slice()))
+                    .collect::<Vec<_>>();
+                self.replay_loaded_subtrees_lifecycle_with_initial_params(
+                    &roots[start..end],
+                    context,
+                    LoadedReadyMode::Immediate,
+                    &initial_params,
+                )?;
                 start = end;
             }
 
             let mut committed = Vec::with_capacity(inserted.len());
-            for (root, _, blueprint_meta, effect) in inserted {
+            for (root, _, blueprint_meta, effect, _) in inserted {
                 let node_ids = self.collect_loaded_subtree_node_ids(root)?;
                 if let Some(mut blueprint_meta) = blueprint_meta {
                     blueprint_meta.decl_index = node_ids
@@ -721,7 +652,7 @@ impl<T: Node> Engine<T> {
                         .collect();
                     self.blueprints.register_instance(root, blueprint_meta);
                 }
-                committed.push(CommittedProjectSubtree { root, node_ids, effect });
+                committed.push(CommittedProjectSubtree { node_ids, effect });
             }
             self.queue_loaded_subtree_structure_events(&roots)?;
             self.finalize_committed_project_subtrees(committed)?;
@@ -729,11 +660,11 @@ impl<T: Node> Engine<T> {
         })();
 
         match result {
-            Ok(()) => Ok(roots),
-            Err(error) => {
-                self.rollback_committed_project_subtrees(roots, checkpoint);
-                Err(error)
+            Ok(()) => {
+                self.commit_edit_checkpoint(checkpoint);
+                Ok(roots)
             }
+            Err(error) => Err(self.abort_project_subtree_commit(checkpoint, error)),
         }
     }
 
@@ -780,13 +711,13 @@ impl<T: Node> Engine<T> {
         let capture_active_session = self.has_active_edit_session();
         let mut transaction = HistoryTransaction::new();
         for subtree in committed {
-            if capture_active_session {
+            if self.edit_journal.is_some() || capture_active_session {
                 self.record_single_history_step(subtree.effect.into());
             } else {
                 transaction.push(subtree.effect.into());
             }
         }
-        if !capture_active_session {
+        if self.edit_journal.is_none() && !capture_active_session {
             self.clear_redo_history();
             self.push_undo_transaction(transaction);
         }

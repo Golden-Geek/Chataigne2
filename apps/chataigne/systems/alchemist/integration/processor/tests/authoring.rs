@@ -514,7 +514,7 @@ fn mapping_command_bindings_are_ordinary_addressable_controls() {
             ProjectFileSpec::new("Mapping", "mapping"),
             None,
         ),
-    );
+    ).unwrap();
     let result = runtime.apply_ui_transaction(
         UiEditIntent::SetParam {
             node: value_source,
@@ -522,7 +522,7 @@ fn mapping_command_bindings_are_ordinary_addressable_controls() {
             behaviour: ParameterEventBehaviour::Coalesce,
         },
         Some("mapping-binding-control-audit"),
-    );
+    ).unwrap();
     assert!(
         result.acknowledgement.success,
         "ordinary binding edit should apply through ProductionRuntime: {:?}",
@@ -1408,13 +1408,13 @@ fn mapping_input_duplicate_owns_a_distinct_authored_identity() {
     let runtime = ProductionRuntime::new(
         engine,
         UiProjectFileSpec::from_project_file_spec(ProjectFileSpec::new("Mapping", "mapping"), None),
-    );
+    ).unwrap();
     let result = runtime.apply_ui_transaction(UiEditIntent::DuplicateNode {
         source: original,
         new_parent: inputs,
         new_prev_sibling: Some(original),
         initial_params: Vec::new(),
-    }, Some("mapping-authoring-test"));
+    }, Some("mapping-authoring-test")).unwrap();
     assert!(result.acknowledgement.success, "input duplication should apply: {:?}", result.acknowledgement);
     let snapshot = runtime.read_model().snapshot_for_scope(UiSubscriptionScope::WholeGraph);
     let input_region = snapshot.nodes.iter().find(|node| node.node_id == inputs).unwrap();

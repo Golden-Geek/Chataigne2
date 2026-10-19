@@ -1,7 +1,5 @@
-use std::any::type_name;
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroUsize;
-use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -19,6 +17,8 @@ pub type ReferenceFilterFn<T> = dyn Fn(&Engine<T>, NodeId, NodeId, NodeId) -> bo
 
 /// Edit-application entry point and queue-drain transaction orchestration.
 mod apply;
+/// Complete authored-state capture around mutable callback edits.
+mod apply_opaque;
 /// Parameter and metadata edit application helpers.
 mod apply_param;
 /// Tree mutation, attachment, and topology validation helpers.
@@ -31,10 +31,16 @@ mod contexts;
 mod controls;
 /// Event bubbling and inbox dispatch orchestration.
 mod dispatch;
+/// Ordered history capture shared by applied-prefix drains and atomic operations.
+mod edit_journal;
 /// Engine edit error type definitions.
 mod error;
 /// Undo/redo history transaction and effect models.
 mod history;
+/// Typed ingress validation and transfer of deferred request ownership.
+mod ingress;
+/// Limits and accounting for callback-generated structure.
+mod lifecycle_budget;
 /// Two-way listener index for O(tree_depth) subscription routing.
 mod listener_index;
 /// Copy-on-write parameter values shared with immutable compiler captures.
@@ -49,6 +55,13 @@ mod runtime;
 mod tests;
 /// Pre-allocated scratch buffers reused across tick phases.
 mod tick_scratch;
+/// Atomic operation ownership and publication checkpoints shared by engine adapters.
+mod transaction;
+pub use lifecycle_budget::LifecycleLimits;
+/// Reserved, payload-free notifications from module workers.
+mod wake;
+pub(crate) use wake::NodeWakeSource;
+pub use wake::{NodeWakeError, NodeWaker};
 /// UI-facing event outbox helpers.
 mod ui;
 
@@ -90,11 +103,12 @@ pub use runtime::NodeExecutionRule;
 pub use runtime::NodeUpdateRate;
 /// Runtime safety and scheduling limits.
 pub use runtime::RuntimeLimits;
-pub(crate) use runtime::ScheduleCompileEntry;
 /// Converts a frequency cap in hertz to a runtime loop interval.
 pub use runtime::runtime_loop_interval_for_frequency_hz;
+pub(crate) use runtime::{ScheduleCompileEntry, ScheduleRevision};
 /// Per-tick performance counters returned by `Engine::tick_stats`.
 pub use tick_scratch::TickStats;
+pub(crate) use transaction::EditOperationError;
 
 #[derive(Clone, Default)]
 pub(crate) struct ExpressionControlRuntime {
@@ -116,6 +130,8 @@ pub(crate) struct PendingAddedSubtreeUiBatch {
 
 /// Node engine storing graph state, pending edits, and emitted events.
 pub struct Engine<T: Node> {
+    /// Close worker ingress before node fields can enter native destruction.
+    node_wakes: wake::NodeWakeQueue,
     /// Backing node store indexed by stable node ids.
     pub nodes: NodeStore<T>,
     /// Root node id.
@@ -126,10 +142,6 @@ pub struct Engine<T: Node> {
     pub inbox: Inbox,
     /// Pending edits to be applied.
     pub edits: EditQueue,
-    /// Cross-thread sender used by external producers to enqueue edits.
-    external_edits_tx: Sender<Edit>,
-    /// Cross-thread receiver drained by the engine before edit application.
-    external_edits_rx: Receiver<Edit>,
     /// Runtime listener subscriptions - two-way index for O(tree_depth) routing.
     pub(crate) event_listeners: listener_index::ListenerIndex,
     /// App-registered reference filters keyed by `ReferenceConstraints.custom_filter_key`.
@@ -173,12 +185,17 @@ pub struct Engine<T: Node> {
     next_history_state_id: u64,
     /// Currently active edit session boundary.
     active_edit_session: Option<history::ActiveEditSession<T>>,
+    edit_journal: Option<edit_journal::EditJournal<T>>,
+    rollback_replay: bool,
+    history_replay: bool,
     /// Runtime schedule built by `resolve()`.
     runtime_schedule: runtime::ScheduleMgr,
     /// Tracks whether runtime schedule requires a resolve pass.
     runtime_resolve_pending: bool,
     /// Runtime loop guardrails.
     runtime_limits: runtime::RuntimeLimits,
+    lifecycle_limits: LifecycleLimits,
+    lifecycle_budget: Option<lifecycle_budget::LifecycleBudget>,
     /// Accumulated wall-clock runtime elapsed while ticking.
     runtime_elapsed: Duration,
     /// Last runtime timestamp at which each node received an update callback.
@@ -252,7 +269,7 @@ pub struct Engine<T: Node> {
     /// inside stabilization are stashed here and applied at the start of the next `run_tick`.
     ///
     /// INVALIDATED BY: drained into `edits.pending` at the start of each `run_tick`.
-    pub(crate) deferred_structural_edits: Vec<crate::edit::Edit>,
+    pub(crate) deferred_structural_edits: Vec<EditRequest>,
     /// Last logical tick that emitted a user-visible performance warning.
     last_performance_log_tick: Option<u64>,
 }
@@ -274,7 +291,6 @@ impl<T: Node> Engine<T> {
         }
         let mut last_update_elapsed_by_node = HashMap::new();
         last_update_elapsed_by_node.insert(root, Duration::ZERO);
-        let (external_edits_tx, external_edits_rx) = mpsc::channel();
 
         let mut engine = Self {
             nodes,
@@ -286,8 +302,7 @@ impl<T: Node> Engine<T> {
             },
             inbox: Inbox::new(),
             edits: EditQueue::new(),
-            external_edits_tx,
-            external_edits_rx,
+            node_wakes: wake::NodeWakeQueue::new(),
             event_listeners: listener_index::ListenerIndex::default(),
             reference_filters: HashMap::new(),
             blueprints: crate::blueprints::BlueprintRegistry::new(),
@@ -309,9 +324,14 @@ impl<T: Node> Engine<T> {
             current_history_state_id: 0,
             next_history_state_id: 1,
             active_edit_session: None,
+            edit_journal: None,
+            rollback_replay: false,
+            history_replay: false,
             runtime_schedule: runtime::ScheduleMgr::default(),
             runtime_resolve_pending: true,
             runtime_limits: runtime::RuntimeLimits::default(),
+            lifecycle_limits: LifecycleLimits::default(),
+            lifecycle_budget: None,
             runtime_elapsed: Duration::ZERO,
             last_update_elapsed_by_node,
             param_change_counter: 0,
@@ -500,14 +520,6 @@ impl<T: Node> Engine<T> {
         self.edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
     }
 
-    /// Returns a cloneable sender for queuing edits from external threads/tasks.
-    ///
-    /// Edits sent through this channel are merged into `self.edits` during
-    /// `apply_edits()` and runtime tick stabilization passes.
-    pub fn external_edit_sender(&self) -> Sender<Edit> {
-        self.external_edits_tx.clone()
-    }
-
     /// Registers a custom reference filter callback under `key`.
     ///
     /// The callback receives `(engine, parameter_node_id, root_node_id, candidate_node_id)`.
@@ -523,218 +535,14 @@ impl<T: Node> Engine<T> {
         self.reference_filters.remove(key)
     }
 
-    /// Drains all externally queued edits into the engine edit queue.
-    ///
-    /// Returns how many external edit messages were drained.
-    pub fn absorb_external_edits(&mut self) -> Result<usize, EngineEditError> {
-        let mut queued_requests = Vec::new();
-        while let Ok(edit) = self.external_edits_rx.try_recv() {
-            queued_requests.push(EditRequest { edit });
-        }
-
-        let drained = queued_requests.len();
-        self.absorb_edit_requests(queued_requests)?;
-        Ok(drained)
-    }
-
     /// Moves edits from a processing context into the engine queue.
     ///
     /// Node-bearing edits are validated to ensure node types match `T`.
     pub fn absorb_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        if self.history_replay {
+            return self.absorb_history_callback_edits(ctx);
+        }
         self.absorb_edit_requests(ctx.edits.drain())
-    }
-
-    fn absorb_edit_requests(&mut self, requests: Vec<EditRequest>) -> Result<(), EngineEditError> {
-        let mut validated_edits = Vec::new();
-        let mut staged_presentations: HashMap<NodeId, PresentationHint> = HashMap::new();
-
-        for (edit_index, request) in requests.into_iter().enumerate() {
-            match request.edit {
-                Edit::AddNode {
-                    node,
-                    parent,
-                    prev_sibling,
-                } => {
-                    let provided_node_type = node.get_type().to_string();
-                    let Some(node) = T::from_boxed_node(node) else {
-                        return Err(EngineEditError::NodeTypeMismatch {
-                            edit_index,
-                            operation: "AddNode",
-                            provided_node_type,
-                            expected_engine_node_type: type_name::<T>(),
-                        });
-                    };
-
-                    validated_edits.push(Edit::AddNode {
-                        node: Box::new(node),
-                        parent,
-                        prev_sibling,
-                    });
-                }
-                Edit::AddNodeTree {
-                    tree,
-                    parent,
-                    prev_sibling,
-                } => {
-                    let tree = self.coerce_node_tree_for_engine(edit_index, "AddNodeTree", tree)?;
-                    validated_edits.push(Edit::AddNodeTree {
-                        tree,
-                        parent,
-                        prev_sibling,
-                    });
-                }
-                Edit::AddUserItemTree {
-                    tree,
-                    parent,
-                    prev_sibling,
-                } => {
-                    let tree = self.coerce_node_tree_for_engine(edit_index, "AddUserItemTree", tree)?;
-                    validated_edits.push(Edit::AddUserItemTree {
-                        tree,
-                        parent,
-                        prev_sibling,
-                    });
-                }
-                Edit::AddUserItemTrees { items } => {
-                    let mut validated = Vec::with_capacity(items.len());
-                    for item in items {
-                        validated.push(UserItemTreeInsertion {
-                            parent: item.parent,
-                            tree: self.coerce_node_tree_for_engine(edit_index, "AddUserItemTrees", item.tree)?,
-                        });
-                    }
-                    validated_edits.push(Edit::AddUserItemTrees { items: validated });
-                }
-                Edit::AddUserItem {
-                    node,
-                    parent,
-                    prev_sibling,
-                } => {
-                    let provided_node_type = node.get_type().to_string();
-                    let Some(node) = T::from_boxed_node(node) else {
-                        return Err(EngineEditError::NodeTypeMismatch {
-                            edit_index,
-                            operation: "AddUserItem",
-                            provided_node_type,
-                            expected_engine_node_type: type_name::<T>(),
-                        });
-                    };
-
-                    validated_edits.push(Edit::AddUserItem {
-                        node: Box::new(node),
-                        parent,
-                        prev_sibling,
-                    });
-                }
-                Edit::ReplaceNode { node, new_node } => {
-                    let provided_node_type = new_node.get_type().to_string();
-                    let Some(new_node) = T::from_boxed_node(new_node) else {
-                        return Err(EngineEditError::NodeTypeMismatch {
-                            edit_index,
-                            operation: "ReplaceNode",
-                            provided_node_type,
-                            expected_engine_node_type: type_name::<T>(),
-                        });
-                    };
-
-                    validated_edits.push(Edit::ReplaceNode {
-                        node,
-                        new_node: Box::new(new_node),
-                    });
-                }
-                Edit::SetNodeWarning { node, warning } => {
-                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| {
-                        self.nodes
-                            .get(node)
-                            .map(|entry| entry.node_data().meta.presentation.clone())
-                    }) else {
-                        validated_edits.push(Edit::SetNodeWarning { node, warning });
-                        continue;
-                    };
-
-                    let mut next_presentation = current_presentation.clone();
-                    next_presentation.set_warning(warning.clone());
-                    if next_presentation == current_presentation {
-                        continue;
-                    }
-
-                    staged_presentations.insert(node, next_presentation);
-                    validated_edits.push(Edit::SetNodeWarning { node, warning });
-                }
-                Edit::ClearNodeWarning { node, warning_id } => {
-                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| {
-                        self.nodes
-                            .get(node)
-                            .map(|entry| entry.node_data().meta.presentation.clone())
-                    }) else {
-                        validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
-                        continue;
-                    };
-
-                    let mut next_presentation = current_presentation.clone();
-                    let changed = match warning_id.as_deref() {
-                        Some(id) => next_presentation.clear_warning(Some(id)),
-                        None => next_presentation.clear_warnings(),
-                    };
-                    if !changed {
-                        continue;
-                    }
-
-                    staged_presentations.insert(node, next_presentation);
-                    validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
-                }
-                Edit::SetNodeChildWarningDepth { node, max_depth } => {
-                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| {
-                        self.nodes
-                            .get(node)
-                            .map(|entry| entry.node_data().meta.presentation.clone())
-                    }) else {
-                        validated_edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
-                        continue;
-                    };
-
-                    let mut next_presentation = current_presentation.clone();
-                    if !next_presentation.set_child_warning_depth(max_depth) {
-                        continue;
-                    }
-
-                    staged_presentations.insert(node, next_presentation);
-                    validated_edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
-                }
-                edit => validated_edits.push(edit),
-            }
-        }
-
-        for edit in validated_edits {
-            self.edits.push(edit);
-        }
-
-        Ok(())
-    }
-
-    fn coerce_node_tree_for_engine(
-        &self,
-        edit_index: usize,
-        operation: &'static str,
-        tree: NodeTree,
-    ) -> Result<NodeTree, EngineEditError> {
-        let user_role = tree.user_role;
-        let provided_node_type = tree.node.get_type().to_string();
-        let Some(node) = T::from_boxed_node(tree.node) else {
-            return Err(EngineEditError::NodeTypeMismatch {
-                edit_index,
-                operation,
-                provided_node_type,
-                expected_engine_node_type: type_name::<T>(),
-            });
-        };
-
-        let mut coerced = NodeTree::new(node);
-        coerced.user_role = user_role;
-        for child in tree.children {
-            coerced.push_child(self.coerce_node_tree_for_engine(edit_index, operation, child)?);
-        }
-        Ok(coerced)
     }
 
     /// Returns per-tick counters accumulated during the most recent `run_tick`.
@@ -946,19 +754,23 @@ impl<T: Node> Engine<T> {
             node.node_data_mut().effective_enabled = *enabled;
         }
 
+        if self.rollback_replay {
+            return Ok(());
+        }
+
         let tree_snapshot = self.build_process_tree_snapshot();
         for (node_id, enabled) in changes {
-            let Some(node) = self.nodes.get_mut(*node_id) else {
+            if !self.nodes.contains(*node_id) {
                 continue;
-            };
+            }
 
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
             ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
 
-            crate::logger::with_node_origin(*node_id, || {
-                node.on_effective_enabled_changed(&mut ctx, *enabled);
-            });
+            self.run_authored_callback(*node_id, &mut ctx, |node, ctx| {
+                node.on_effective_enabled_changed(ctx, *enabled);
+            })?;
 
             self.absorb_edits(&mut ctx)?;
         }

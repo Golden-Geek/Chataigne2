@@ -106,7 +106,6 @@ impl HttpAuthMode {
             _ => None,
         }
     }
-
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -170,6 +169,30 @@ pub(crate) struct HttpReceivedValue {
     pub path_segments: Vec<String>,
     pub payload: ReceivedValuePayload,
     pub source_description: String,
+}
+
+impl HttpReceivedValue {
+    pub(crate) fn retained_weight(&self) -> usize {
+        self.path_segments.capacity() * std::mem::size_of::<String>()
+            + self.path_segments.iter().map(String::capacity).sum::<usize>()
+            + self.source_description.capacity()
+            + received_payload_weight(&self.payload)
+    }
+}
+
+fn received_payload_weight(payload: &ReceivedValuePayload) -> usize {
+    fn dynamic(value: &ParamValue) -> usize {
+        match value {
+            ParamValue::Str(value) | ParamValue::Enum(value) | ParamValue::File(value) => value.capacity(),
+            _ => 0,
+        }
+    }
+    match payload {
+        ReceivedValuePayload::Single(value) => std::mem::size_of::<ParamValue>() + dynamic(value),
+        ReceivedValuePayload::Multi(values) => {
+            values.capacity() * std::mem::size_of::<ParamValue>() + values.iter().map(dynamic).sum::<usize>()
+        }
+    }
 }
 
 pub(crate) fn http_method_enum_options() -> Vec<ParameterEnumOption> {
@@ -253,12 +276,22 @@ pub(crate) fn response_json_received_values(
         serde_json::from_slice(body).map_err(|error| format!("invalid HTTP JSON response: {error}"))?;
     let mut messages = Vec::new();
     let mut path_segments = response_value_path_segments(request_path, value_path);
-    let source_description = format!("HTTP response '{}'", response_source_label(request_path));
+    let mut source_description = format!("HTTP response '{}'", response_source_label(request_path));
+    if source_description.len() > 4096 {
+        let mut end = 4093;
+        while !source_description.is_char_boundary(end) {
+            end -= 1;
+        }
+        source_description.truncate(end);
+        source_description.push_str("...");
+        source_description.shrink_to_fit();
+    }
     collect_json_received_values(
         &value,
         &mut path_segments,
         source_description.as_str(),
         &mut messages,
+        &mut 0,
     )?;
     Ok(Some(messages))
 }
@@ -313,8 +346,25 @@ fn collect_json_received_values(
     path_segments: &mut Vec<String>,
     source_description: &str,
     messages: &mut Vec<HttpReceivedValue>,
+    retained_bytes: &mut usize,
 ) -> Result<(), String> {
+    if path_segments.len() > 64 || messages.len() >= 4096 {
+        return Err("HTTP JSON value expansion exceeds 4096 values / 64 path levels".into());
+    }
+    if path_segments.iter().any(|segment| segment.len() > 256)
+        || path_segments.iter().map(String::len).sum::<usize>() > 4096
+    {
+        return Err("HTTP JSON value paths support 256-byte segments / 4096 total path bytes".into());
+    }
     if let Some(payload) = decode_json_payload(value)? {
+        let weight = path_segments.len() * std::mem::size_of::<String>()
+            + path_segments.iter().map(String::len).sum::<usize>()
+            + source_description.len()
+            + received_payload_weight(&payload);
+        *retained_bytes = retained_bytes.saturating_add(weight);
+        if *retained_bytes > 8 * 1024 * 1024 {
+            return Err("HTTP JSON value expansion exceeds 8 MiB of retained payload".into());
+        }
         messages.push(HttpReceivedValue {
             path_segments: path_segments.clone(),
             payload,
@@ -331,14 +381,14 @@ fn collect_json_received_values(
                     continue;
                 }
                 path_segments.push(key.to_string());
-                collect_json_received_values(child, path_segments, source_description, messages)?;
+                collect_json_received_values(child, path_segments, source_description, messages, retained_bytes)?;
                 path_segments.pop();
             }
         }
         serde_json::Value::Array(items) => {
             for (index, child) in items.iter().enumerate() {
                 path_segments.push((index + 1).to_string());
-                collect_json_received_values(child, path_segments, source_description, messages)?;
+                collect_json_received_values(child, path_segments, source_description, messages, retained_bytes)?;
                 path_segments.pop();
             }
         }
@@ -352,6 +402,9 @@ fn decode_json_payload(value: &serde_json::Value) -> Result<Option<ReceivedValue
     match value {
         serde_json::Value::Object(_) => Ok(None),
         serde_json::Value::Array(items) => {
+            if items.len() > 4096 {
+                return Err("HTTP JSON arrays support at most 4096 values".into());
+            }
             if let Ok(value) = ParamValue::from_script_json(value) {
                 return Ok(Some(ReceivedValuePayload::Single(value)));
             }
@@ -377,10 +430,7 @@ fn decode_json_payload(value: &serde_json::Value) -> Result<Option<ReceivedValue
     }
 }
 
-fn parse_optional_key_value_line(
-    index: usize,
-    line: &str,
-) -> Option<Result<(String, String), String>> {
+fn parse_optional_key_value_line(index: usize, line: &str) -> Option<Result<(String, String), String>> {
     let trimmed = line.trim();
     if trimmed.is_empty() || trimmed.starts_with('#') {
         return None;

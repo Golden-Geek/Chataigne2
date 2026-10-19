@@ -447,7 +447,7 @@ struct UserContextCacheValue {
 }
 
 /// Runtime registry for owned lexical `UserContext` scopes.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct UserContextRegistry {
     scopes_by_owner: HashMap<NodeId, UserContextScope>,
     cache: HashMap<UserContextCacheKey, UserContextCacheValue>,

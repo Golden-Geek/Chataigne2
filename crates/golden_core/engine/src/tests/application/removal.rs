@@ -103,14 +103,18 @@ fn history_remove_batch_reuses_ui_catalog_snapshot_for_ready_callbacks() {
     let acknowledgement = engine.apply_ui_intent(UiEditIntent::RemoveNodes { nodes: roots });
     assert!(acknowledgement.success, "remove should succeed: {acknowledgement:?}");
     let ready_before = HISTORY_READY_SNAPSHOT_PROBE_COUNT.load(Ordering::SeqCst);
-    let lifecycle_builds_before = engine.tick_stats().snapshot_builds;
+    let lifecycle_builds_before = engine.tick_stats().lifecycle_snapshot_builds;
+    let dispatch_builds_before = engine.tick_stats().snapshot_builds;
 
     assert!(engine.undo().expect("undo should succeed"));
     assert_eq!(
         HISTORY_READY_SNAPSHOT_PROBE_COUNT.load(Ordering::SeqCst),
         ready_before + 2
     );
-    assert_eq!(engine.tick_stats().snapshot_builds, lifecycle_builds_before);
+    assert_eq!(engine.tick_stats().lifecycle_snapshot_builds, lifecycle_builds_before);
+    // Replay now settles notifications synchronously. The whole batch shares one
+    // dispatch snapshot; ready activation still reuses its UI catalog snapshot.
+    assert_eq!(engine.tick_stats().snapshot_builds, dispatch_builds_before + 1);
 }
 
 #[test]

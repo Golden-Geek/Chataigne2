@@ -167,7 +167,7 @@ impl Parameter {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 struct ParameterProjectData {
     value: ParamValue,
     default_value: ParamValue,
@@ -448,6 +448,10 @@ impl Node for Parameter {
     // gate runs for every node on bulk paths like project load.
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
         false
+    }
+
+    fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
+        serde_json::to_value(current_parameter_project_data(self)).map_err(|error| error.to_string())
     }
 
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {

@@ -22,3 +22,4 @@ export type UiTransportFactory = (options?: UiTransportOptions) => UiClient;
 export const createDefaultUiClient: UiTransportFactory = (
 	options: UiTransportOptions = {}
 ): UiClient => createWebSocketUiClient(options);
+export { ControlRequestError } from './control-errors';

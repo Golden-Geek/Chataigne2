@@ -7,6 +7,8 @@ use golden_values::Value;
 
 use super::*;
 
+mod control_failures;
+
 fn generation(id: u64, revision: u64, bindings: Vec<(&str, usize, Value)>) -> RuntimeGeneration {
     let arenas = ArenaLayout {
         inputs: 2,

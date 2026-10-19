@@ -4,9 +4,9 @@ mod runtime;
 mod script;
 mod settings;
 mod structure;
-mod traffic_logging;
 #[cfg(test)]
 mod tests;
+mod traffic_logging;
 
 use std::{
     collections::HashSet,
@@ -28,11 +28,11 @@ pub(crate) use crate::app::module_modules_audio_sound_card_commands::SOUND_CARD_
 use crate::app::module_modules_audio_sound_card_schema::{
     SoundCardInputParameters, SoundCardInputRouting, SoundCardOutputParameters, SoundCardOutputRouting,
 };
-use settings::{NO_AUDIO_DRIVER, enum_option};
 pub(crate) use settings::{
     backend_options, buffer_size_options, default_audio_driver, device_options, input_device_options,
     output_device_options, sample_rate_options,
 };
+use settings::{enum_option, NO_AUDIO_DRIVER};
 
 pub(crate) const ASIO_AUDIO_DRIVER: &str = "asio";
 pub(crate) const NO_AUDIO_DEVICE: &str = "none";
@@ -183,8 +183,7 @@ impl SoundCardModule {
             | EventKind::MetaChanged { .. }
             | EventKind::GraphTransaction { .. } => true,
             EventKind::Custom(custom) => {
-                custom.topic == runtime::SOUND_CARD_RUNTIME_WAKE_TOPIC
-                    || custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
+                custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
                     || custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC
             }
         })
@@ -261,9 +260,22 @@ impl Node for SoundCardModule {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        self.runtime_wake = ctx
-            .external_edit_sender()
-            .map(|sender| runtime::RuntimeWakeSender::new(sender, self.id()));
+        let waker = match ctx.node_waker() {
+            Ok(waker) => waker,
+            Err(error) => {
+                self.set_runtime_error(ctx, self.id(), &error.to_string());
+                return;
+            }
+        };
+        if !self.runtime_wake.as_ref().is_some_and(|wake| wake.matches(&waker)) {
+            match runtime::RuntimeWakeSender::new(waker) {
+                Ok(wake) => self.runtime_wake = Some(wake),
+                Err(error) => {
+                    self.set_runtime_error(ctx, self.id(), &error);
+                    return;
+                }
+            }
+        }
         let fresh = context == NodeCreationContext::Fresh;
         self.input_default_routes_pending = fresh;
         self.output_default_routes_pending = fresh;
@@ -275,21 +287,22 @@ impl Node for SoundCardModule {
         self.request_runtime_start(ctx);
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
         self.drive_runtime(ctx);
         self.synchronize_runtime_projection(ctx);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_runtime();
+        self.runtime_wake = None;
     }
 
     fn needs_update(&self) -> bool {
         false
     }
 
-    fn update_requires_tree_snapshot(&self) -> bool {
-        false
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.configuration_dirty || self.runtime_request.is_some()
     }
 
     fn attached_requires_tree_snapshot(&self) -> bool {
@@ -343,12 +356,8 @@ impl Node for SoundCardModule {
             | EventKind::ChildReplaced { .. }
             | EventKind::MetaChanged { .. } => true,
             EventKind::Custom(custom) => {
-                if custom.topic == runtime::SOUND_CARD_RUNTIME_WAKE_TOPIC {
-                    self.configuration_dirty || self.runtime_request.is_some()
-                } else {
-                    custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
-                        || custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC
-                }
+                custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
+                    || custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC
             }
             _ => false,
         })
@@ -450,12 +459,6 @@ impl Node for SoundCardModule {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        if event.topic == runtime::SOUND_CARD_RUNTIME_WAKE_TOPIC {
-            if let Some(wake) = &self.runtime_wake {
-                wake.acknowledge();
-            }
-            return;
-        }
         if self.handle_sound_card_ui_control_event(ctx, &event) {
             return;
         }
@@ -514,9 +517,7 @@ fn sync_enum_options(
 pub(super) fn find_path(snapshot: &ProcessTreeSnapshot, start: NodeId, path: &str) -> Option<NodeId> {
     path.split('/')
         .filter(|segment| !segment.is_empty())
-        .try_fold(start, |parent, segment| {
-            find_child_by_key(snapshot, parent, segment)
-        })
+        .try_fold(start, |parent, segment| find_child_by_key(snapshot, parent, segment))
 }
 
 pub(super) fn find_child_by_key(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &str) -> Option<NodeId> {

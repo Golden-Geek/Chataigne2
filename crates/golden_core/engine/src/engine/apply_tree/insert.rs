@@ -32,6 +32,7 @@ impl<T: Node> Engine<T> {
             user_role,
             inserted,
         } = insertion;
+        self.validate_previous_sibling(edit_index, operation, None, parent, prev_sibling)?;
         self.prepare_node_for_insert(&mut tree.node, parent, user_role);
         let node_id = self.nodes.insert(tree.node);
         self.register_node_uuid(node_id);
@@ -73,7 +74,10 @@ impl<T: Node> Engine<T> {
         Ok(node_id)
     }
 
-    fn apply_add_node_with_role(&mut self, request: AddNodeRequest) -> Result<AddNodeEffect, EngineEditError> {
+    fn apply_add_node_with_role(
+        &mut self,
+        request: AddNodeRequest,
+    ) -> Result<AppliedEdit<AddNodeEffect>, EngineEditError> {
         let AddNodeRequest {
             edit_index,
             operation,
@@ -98,6 +102,8 @@ impl<T: Node> Engine<T> {
             self.ensure_item_kind_allowed(edit_index, operation, parent, node.get_type(), node.user_item_kind())?;
         }
 
+        self.validate_previous_sibling(edit_index, operation, None, parent, prev_sibling)?;
+        self.charge_lifecycle_work(1)?;
         self.prepare_node_for_insert(&mut node, parent, user_role);
         let child_id = self.nodes.insert(node);
         self.register_node_uuid(child_id);
@@ -145,44 +151,49 @@ impl<T: Node> Engine<T> {
             child: child_id,
             decl_id,
         });
-        // Only pay for a whole-tree snapshot when the attached node actually walks
-        // the tree in its lifecycle hooks. Leaf parameters opt out, which keeps bulk
-        // inserts (project load, subtree paste) from being O(n^2). See
-        // `Node::lifecycle_requires_tree_snapshot`.
-        let needs_tree_snapshot = self
-            .nodes
-            .get(child_id)
-            .is_some_and(|node| node.attached_requires_tree_snapshot());
-        let child_tree_snapshot = needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("attached-single", 1));
+        let completion = (|| {
+            // Only pay for a whole-tree snapshot when the attached node actually walks
+            // the tree in its lifecycle hooks. Leaf parameters opt out, which keeps bulk
+            // inserts (project load, subtree paste) from being O(n^2). See
+            // `Node::lifecycle_requires_tree_snapshot`.
+            let needs_tree_snapshot = self
+                .nodes
+                .get(child_id)
+                .is_some_and(|node| node.attached_requires_tree_snapshot());
+            let child_tree_snapshot =
+                needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("attached-single", 1));
 
-        // Allow newly attached nodes to request deterministic follow-up structure before app init.
-        let mut attach_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
-        attach_ctx.runtime_elapsed = self.runtime_elapsed;
-        if let Some(child_tree_snapshot) = &child_tree_snapshot {
-            attach_ctx.set_tree_snapshot(Arc::clone(child_tree_snapshot));
-        }
-        if let Some(node) = self.nodes.get_mut(child_id) {
-            crate::logger::with_node_origin(child_id, || {
-                node.engine_on_attached(&mut attach_ctx);
-            });
-        }
-        self.absorb_edits(&mut attach_ctx)?;
-        if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(self.inbox.events.len(), creation_context)?;
-        }
-
-        // Run app init after declared/generated children are materialized and handles are bound.
-        if let Some(context) = creation_context {
-            self.run_node_init(child_id, creation_context)?;
-            if context.is_project_load() {
-                // Loaded engines run node-ready as one deferred batch (shared tree
-                // snapshot) via `run_pending_node_ready_callbacks`; join that batch
-                // instead of paying a per-node ready pass during load.
-                self.queue_node_ready(child_id, context);
-            } else {
-                self.run_node_ready(child_id, context)?;
+            // Allow newly attached nodes to request deterministic follow-up structure before app init.
+            let mut attach_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+            attach_ctx.runtime_elapsed = self.runtime_elapsed;
+            if let Some(child_tree_snapshot) = &child_tree_snapshot {
+                attach_ctx.set_tree_snapshot(Arc::clone(child_tree_snapshot));
             }
-        }
+            if let Some(node) = self.nodes.get_mut(child_id) {
+                crate::logger::with_node_origin(child_id, || {
+                    node.engine_on_attached(&mut attach_ctx);
+                });
+            }
+            self.absorb_edits(&mut attach_ctx)?;
+            if self.stabilization_scope_depth == 0 {
+                self.stabilize_added_node_structure(self.inbox.events.len(), creation_context)?;
+            }
+
+            // Run app init after declared/generated children are materialized and handles are bound.
+            if let Some(context) = creation_context {
+                self.run_node_init(child_id, creation_context)?;
+                if context.is_project_load() {
+                    // Loaded engines run node-ready as one deferred batch (shared tree
+                    // snapshot) via `run_pending_node_ready_callbacks`; join that batch
+                    // instead of paying a per-node ready pass during load.
+                    self.queue_node_ready(child_id, context);
+                } else {
+                    self.run_node_ready(child_id, context)?;
+                }
+            }
+
+            Ok(())
+        })();
 
         // Project load discards all UI graph transactions before the engine goes live
         // (`from_project_file_with` clears the inbox and the host sends a full snapshot),
@@ -191,11 +202,14 @@ impl<T: Node> Engine<T> {
             self.queue_added_subtree_ui_events(child_id);
         }
 
-        Ok(AddNodeEffect {
-            node: child_id,
-            parent,
-            prev_sibling: attached_prev_sibling,
-            next_sibling: attached_next_sibling,
+        Ok(AppliedEdit {
+            effect: AddNodeEffect {
+                node: child_id,
+                parent,
+                prev_sibling: attached_prev_sibling,
+                next_sibling: attached_next_sibling,
+            },
+            completion,
         })
     }
 
@@ -207,7 +221,7 @@ impl<T: Node> Engine<T> {
         parent: NodeId,
         prev_sibling: Option<NodeId>,
         creation_context: Option<NodeCreationContext>,
-    ) -> Result<AddNodeEffect, EngineEditError> {
+    ) -> Result<AppliedEdit<AddNodeEffect>, EngineEditError> {
         self.apply_add_node_with_role(AddNodeRequest {
             edit_index,
             operation: "AddNode",
@@ -228,7 +242,7 @@ impl<T: Node> Engine<T> {
         parent: NodeId,
         prev_sibling: Option<NodeId>,
         creation_context: Option<NodeCreationContext>,
-    ) -> Result<AddNodeEffect, EngineEditError> {
+    ) -> Result<AppliedEdit<AddNodeEffect>, EngineEditError> {
         const OP: &str = "AddNodeTree";
 
         if !self.nodes.contains(parent) {
@@ -239,6 +253,7 @@ impl<T: Node> Engine<T> {
             });
         }
 
+        self.reserve_lifecycle_trees([&tree])?;
         let tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
         let mut inserted = Vec::new();
         let root_id = self.insert_pending_node_tree(PendingTreeInsertion {
@@ -300,27 +315,33 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
-        if let Some(context) = creation_context {
-            self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
-            if context.is_project_load() {
-                for node_id in inserted_ids.iter().copied() {
-                    self.queue_node_ready(node_id, context);
+        let completion = (|| {
+            self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
+            if let Some(context) = creation_context {
+                self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
+                if context.is_project_load() {
+                    for node_id in inserted_ids.iter().copied() {
+                        self.queue_node_ready(node_id, context);
+                    }
+                } else {
+                    self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
                 }
-            } else {
-                self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
             }
-        }
 
+            Ok(())
+        })();
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
             self.queue_added_subtree_ui_events(root_id);
         }
 
-        Ok(AddNodeEffect {
-            node: root_id,
-            parent,
-            prev_sibling: attached_prev_sibling,
-            next_sibling: attached_next_sibling,
+        Ok(AppliedEdit {
+            effect: AddNodeEffect {
+                node: root_id,
+                parent,
+                prev_sibling: attached_prev_sibling,
+                next_sibling: attached_next_sibling,
+            },
+            completion,
         })
     }
 
@@ -390,7 +411,7 @@ impl<T: Node> Engine<T> {
         parent: NodeId,
         prev_sibling: Option<NodeId>,
         creation_context: Option<NodeCreationContext>,
-    ) -> Result<AddNodeEffect, EngineEditError> {
+    ) -> Result<AppliedEdit<AddNodeEffect>, EngineEditError> {
         const OP: &str = "AddUserItemTree";
 
         if !self.nodes.contains(parent) {
@@ -401,6 +422,7 @@ impl<T: Node> Engine<T> {
             });
         }
 
+        self.reserve_lifecycle_trees([&tree])?;
         let mut tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
         self.ensure_item_kind_allowed(edit_index, OP, parent, tree.node.get_type(), tree.node.user_item_kind())?;
         let label = self.next_unique_child_label(parent, tree.node.node_data().meta.label.as_str());
@@ -447,27 +469,33 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
-        if let Some(context) = creation_context {
-            self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
-            if context.is_project_load() {
-                for node_id in inserted_ids.iter().copied() {
-                    self.queue_node_ready(node_id, context);
+        let completion = (|| {
+            self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
+            if let Some(context) = creation_context {
+                self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
+                if context.is_project_load() {
+                    for node_id in inserted_ids.iter().copied() {
+                        self.queue_node_ready(node_id, context);
+                    }
+                } else {
+                    self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
                 }
-            } else {
-                self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
             }
-        }
 
+            Ok(())
+        })();
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
             self.queue_added_subtree_ui_events(root_id);
         }
 
-        Ok(AddNodeEffect {
-            node: root_id,
-            parent,
-            prev_sibling: attached_prev_sibling,
-            next_sibling: attached_next_sibling,
+        Ok(AppliedEdit {
+            effect: AddNodeEffect {
+                node: root_id,
+                parent,
+                prev_sibling: attached_prev_sibling,
+                next_sibling: attached_next_sibling,
+            },
+            completion,
         })
     }
 
@@ -479,8 +507,9 @@ impl<T: Node> Engine<T> {
         edit_index: usize,
         items: Vec<crate::edit::UserItemTreeInsertion>,
         creation_context: Option<NodeCreationContext>,
-    ) -> Result<Vec<AddNodeEffect>, EngineEditError> {
+    ) -> Result<AppliedEdit<Vec<AddNodeEffect>>, EngineEditError> {
         const OP: &str = "AddUserItemTrees";
+        self.reserve_lifecycle_trees(items.iter().map(|item| &item.tree))?;
         let mut prepared = Vec::with_capacity(items.len());
         for item in items {
             if !self.nodes.contains(item.parent) {
@@ -555,23 +584,29 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        self.run_node_attached_for_batch(&inserted_ids, creation_context)?;
-        if let Some(context) = creation_context {
-            self.run_node_init_for_batch(&inserted_ids, creation_context)?;
-            if context.is_project_load() {
-                for node_id in &inserted_ids {
-                    self.queue_node_ready(*node_id, context);
+        let completion = (|| {
+            self.run_node_attached_for_batch(&inserted_ids, creation_context)?;
+            if let Some(context) = creation_context {
+                self.run_node_init_for_batch(&inserted_ids, creation_context)?;
+                if context.is_project_load() {
+                    for node_id in &inserted_ids {
+                        self.queue_node_ready(*node_id, context);
+                    }
+                } else {
+                    self.run_node_ready_for_batch(&inserted_ids, context)?;
                 }
-            } else {
-                self.run_node_ready_for_batch(&inserted_ids, context)?;
             }
-        }
 
+            Ok(())
+        })();
         if !creation_context.is_some_and(NodeCreationContext::is_project_load) {
             self.queue_added_subtrees_ui_events(roots.iter().map(|(root, _)| *root));
         }
 
-        Ok(effects)
+        Ok(AppliedEdit {
+            effect: effects,
+            completion,
+        })
     }
 
     /// Applies an add-user-item edit and returns history data required for undo/redo.
@@ -582,7 +617,7 @@ impl<T: Node> Engine<T> {
         parent: NodeId,
         prev_sibling: Option<NodeId>,
         creation_context: Option<NodeCreationContext>,
-    ) -> Result<AddNodeEffect, EngineEditError> {
+    ) -> Result<AppliedEdit<AddNodeEffect>, EngineEditError> {
         let label = self.next_unique_child_label(parent, node.node_data().meta.label.as_str());
         node.node_data_mut().meta.label = label;
         self.apply_add_node_with_role(AddNodeRequest {

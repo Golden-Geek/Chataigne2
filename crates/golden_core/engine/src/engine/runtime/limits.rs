@@ -128,8 +128,10 @@ impl Default for NodeExecutionRule {
 pub struct RuntimeLimits {
     /// Maximum number of stabilization rounds allowed in one tick.
     pub max_stabilization_passes_per_tick: usize,
-    /// Maximum number of update callbacks allowed in one tick.
+    /// Maximum number of scheduled update callbacks allowed in one tick.
     pub max_update_callbacks_per_tick: usize,
+    /// Maximum coalesced worker-wake callbacks serviced per tick, separately from timed work.
+    pub max_wake_callbacks_per_tick: usize,
     /// Maximum replay firings processed per replay-policy bucket in one tick.
     pub max_bucket_catch_up_per_tick: u32,
     /// Maximum raw runtime loop frequency in hertz.
@@ -153,6 +155,7 @@ impl Default for RuntimeLimits {
         Self {
             max_stabilization_passes_per_tick: 16,
             max_update_callbacks_per_tick: 100_000,
+            max_wake_callbacks_per_tick: 256,
             max_bucket_catch_up_per_tick: 4,
             max_loop_frequency_hz: DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ,
             fixed_step: None,

@@ -48,7 +48,7 @@ impl<T: Node> HistoryTransaction<T> {
             all_nodes.extend(engine.collect_subtree(0, "UndoAddNode", add.node)?);
         }
 
-        engine.run_destroy_for_subtree(&all_nodes);
+        engine.run_destroy_for_subtree(&all_nodes)?;
         for step in self.steps.iter_mut().rev() {
             let HistoryStep::AddNode(add) = step else {
                 unreachable!("batch eligibility was checked");
@@ -80,7 +80,11 @@ impl<T: Node> HistoryTransaction<T> {
         }
 
         let snapshot = push_restored_subtrees_ui_transaction(engine, &restored, "RedoAddNode")?;
-        engine.run_node_ready_for_batch_with_snapshot(&all_ready_ids, NodeCreationContext::Fresh, Some(snapshot))
+        engine.run_node_ready_for_batch_with_snapshot(
+            &all_ready_ids,
+            NodeCreationContext::HistoryRestore,
+            Some(snapshot),
+        )
     }
 
     pub(super) fn undo_remove_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
@@ -105,7 +109,11 @@ impl<T: Node> HistoryTransaction<T> {
         }
 
         let snapshot = push_restored_subtrees_ui_transaction(engine, &restored, "UndoRemoveNode")?;
-        engine.run_node_ready_for_batch_with_snapshot(&all_ready_ids, NodeCreationContext::Fresh, Some(snapshot))
+        engine.run_node_ready_for_batch_with_snapshot(
+            &all_ready_ids,
+            NodeCreationContext::HistoryRestore,
+            Some(snapshot),
+        )
     }
 
     pub(super) fn redo_remove_batch(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
@@ -124,7 +132,7 @@ impl<T: Node> HistoryTransaction<T> {
             };
             all_nodes.extend(engine.collect_subtree(0, "RedoRemoveNode", remove.node)?);
         }
-        engine.run_destroy_for_subtree(&all_nodes);
+        engine.run_destroy_for_subtree(&all_nodes)?;
         let mut removed = Vec::with_capacity(self.steps.len());
         for step in &mut self.steps {
             let HistoryStep::RemoveNode(remove) = step else {

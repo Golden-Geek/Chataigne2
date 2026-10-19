@@ -3,18 +3,11 @@ use super::*;
 #[test]
 fn explicit_output_none_survives_sparse_project_round_trip() {
     let (mut engine, module) = create_sound_card();
-    select_enum_parameter(
-        &mut engine,
-        module,
-        "connection/output_device",
-        NO_AUDIO_DEVICE,
-    );
+    select_enum_parameter(&mut engine, module, "connection/output_device", NO_AUDIO_DEVICE);
 
-    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
-        .expect("Sound Card project should serialize");
-    let mut loaded =
-        golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
-            .expect("Sound Card project should deserialize");
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("Sound Card project should serialize");
+    let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
+        .expect("Sound Card project should deserialize");
     let loaded_module = loaded
         .nodes
         .get(loaded.root)
@@ -42,8 +35,7 @@ fn explicit_output_none_survives_sparse_project_round_trip() {
 fn missing_output_selector_cannot_fall_back_to_system_default_hardware() {
     let (mut engine, module) = create_sound_card();
     let snapshot = engine.process_tree_snapshot();
-    let output =
-        find_path(&snapshot, module, "connection/output_device").expect("output selector");
+    let output = find_path(&snapshot, module, "connection/output_device").expect("output selector");
     engine.edits.push(Edit::RemoveNode { node: output });
     engine
         .apply_edits()
@@ -72,41 +64,19 @@ fn exact_input_with_authored_output_none_builds_input_only_configuration() {
         "Bluetooth Headset",
         2,
         0,
-        vec![stream(
-            AudioDirection::Input,
-            2,
-            48_000,
-            48_000,
-            64,
-            2_048,
-            480,
-        )],
+        vec![stream(AudioDirection::Input, 2, 48_000, 48_000, 64, 2_048, 480)],
     );
     let selected_input = selection_value(&input.target, input.label.as_str());
-    select_enum_parameter(
-        &mut engine,
-        module,
-        "connection/output_device",
-        NO_AUDIO_DEVICE,
-    );
-    select_enum_parameter(
-        &mut engine,
-        module,
-        "connection/input_device",
-        selected_input.as_str(),
-    );
+    select_enum_parameter(&mut engine, module, "connection/output_device", NO_AUDIO_DEVICE);
+    select_enum_parameter(&mut engine, module, "connection/input_device", selected_input.as_str());
 
     let inspector = AudioDeviceInspectorState {
         device_catalog: vec![AudioDeviceCatalogEntry::from(&input)],
         devices: vec![input.clone()],
         ..AudioDeviceInspectorState::default()
     };
-    let built = runtime::build_configuration(
-        &engine.process_tree_snapshot(),
-        module,
-        &inspector,
-    )
-    .expect("exact input and disabled output should build");
+    let built = runtime::build_configuration(&engine.process_tree_snapshot(), module, &inspector)
+        .expect("exact input and disabled output should build");
 
     assert!(built.configuration.input.enabled);
     assert_eq!(
@@ -133,14 +103,12 @@ fn stream_status_events_do_not_resubmit_the_active_configuration() {
         &golden_audio::AudioEvent::DeviceStatusChanged(status),
     ));
     assert!(!integration::runtime_event_changes_inventory(
-        &golden_audio::AudioEvent::BackendStatusChanged(
-            golden_audio::AudioBackendStatus {
-                backend: BackendId::from_static("fixture"),
-                label: "Fixture".to_owned(),
-                state: golden_audio::AudioBackendState::Available,
-                detail: None,
-            },
-        ),
+        &golden_audio::AudioEvent::BackendStatusChanged(golden_audio::AudioBackendStatus {
+            backend: BackendId::from_static("fixture"),
+            label: "Fixture".to_owned(),
+            state: golden_audio::AudioBackendState::Available,
+            detail: None,
+        },),
     ));
     assert!(integration::runtime_event_changes_inventory(
         &golden_audio::AudioEvent::DeviceInventoryChanged { revision: 2 },
@@ -169,11 +137,7 @@ fn device_connection_feedback_covers_progress_success_failure_and_warning_recove
         Some(&backend),
     ));
     assert!(
-        !connection_feedback::status_matches_selection(
-            &status,
-            NO_AUDIO_DEVICE,
-            Some(&backend),
-        ),
+        !connection_feedback::status_matches_selection(&status, NO_AUDIO_DEVICE, Some(&backend),),
         "queued output status must become stale as soon as Output Device is None",
     );
     assert!(
@@ -186,10 +150,7 @@ fn device_connection_feedback_covers_progress_success_failure_and_warning_recove
     );
 
     let connecting = connection_feedback::log_for_status(&status).expect("connecting log");
-    assert_eq!(
-        connecting.level,
-        connection_feedback::ConnectionLogLevel::Info
-    );
+    assert_eq!(connecting.level, connection_feedback::ConnectionLogLevel::Info);
     assert_eq!(
         connecting.message,
         "Connecting to output audio device [Studio Interface]..."
@@ -207,10 +168,7 @@ fn device_connection_feedback_covers_progress_success_failure_and_warning_recove
 
     status.readiness = AudioDeviceReadiness::Ready;
     let connected = connection_feedback::log_for_status(&status).expect("connected log");
-    assert_eq!(
-        connected.level,
-        connection_feedback::ConnectionLogLevel::Success
-    );
+    assert_eq!(connected.level, connection_feedback::ConnectionLogLevel::Success);
     assert_eq!(
         connection_feedback::warning_for_status(&status),
         connection_feedback::ConnectionWarning::Clear
@@ -223,10 +181,7 @@ fn device_connection_feedback_covers_progress_success_failure_and_warning_recove
         technical_detail: Some("host: test".to_owned()),
     });
     let failed = connection_feedback::log_for_status(&status).expect("failure log");
-    assert_eq!(
-        failed.level,
-        connection_feedback::ConnectionLogLevel::Error
-    );
+    assert_eq!(failed.level, connection_feedback::ConnectionLogLevel::Error);
     assert!(failed.message.contains("device is already in use"));
     assert_eq!(
         connection_feedback::warning_for_status(&status),
@@ -252,8 +207,7 @@ fn device_connection_feedback_covers_progress_success_failure_and_warning_recove
         message: "stream configuration is not supported".to_owned(),
         technical_detail: None,
     });
-    let input_log =
-        connection_feedback::log_for_status(&input_failure).expect("input failure log");
+    let input_log = connection_feedback::log_for_status(&input_failure).expect("input failure log");
     assert!(
         input_log
             .message

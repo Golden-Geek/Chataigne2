@@ -310,7 +310,7 @@ fn compressed_archive_rejects_script_and_headless_writes() {
             ProjectFileSpec::new("R08 compressed lock", "r08-compressed-lock"),
             None,
         ),
-    );
+    ).unwrap();
     let headless = runtime.apply_ui_transaction(
         UiEditIntent::SetParam {
             node: frozen,
@@ -318,7 +318,7 @@ fn compressed_archive_rejects_script_and_headless_writes() {
             behaviour: ParameterEventBehaviour::Coalesce,
         },
         Some("r08-headless-client"),
-    );
+    ).unwrap();
     assert!(!headless.acknowledgement.success);
     assert_eq!(
         headless.acknowledgement.error_code.as_deref(),

@@ -5,11 +5,16 @@ use crate::node::{Node, NodeCreationContext};
 use crate::parameter::ParamValue;
 use std::{any::type_name, collections::BTreeMap};
 
-use super::history::{HistoryStep, HistoryTransaction};
+use super::edit_journal::JournalMode;
+use super::history::HistoryStep;
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
     /// Applies all pending edits in queue order and emits resulting events.
+    ///
+    /// On failure, committed edits remain applied and undoable, including structural
+    /// edits or mutable callbacks whose completion failed. Requests rejected before
+    /// mutation and the unprocessed suffix are discarded; this is not an atomic intent.
     ///
     /// # Examples
     /// ```rust
@@ -84,13 +89,31 @@ impl<T: Node> Engine<T> {
         capture_history: bool,
         creation_context: Option<NodeCreationContext>,
     ) -> Result<(), EngineEditError> {
-        self.absorb_external_edits()?;
+        let owns_journal = capture_history && self.edit_journal.is_none();
+        if owns_journal {
+            self.begin_edit_journal(JournalMode::AppliedPrefix);
+        }
+        let result = self.apply_edits_drain(capture_history, creation_context);
+        if owns_journal {
+            // Ordinary drains keep their committed prefix, even when completion fails.
+            self.commit_edit_journal();
+        }
+        result
+    }
+
+    fn apply_edits_drain(
+        &mut self,
+        capture_history: bool,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<(), EngineEditError> {
+        if let Err(error) = self.charge_lifecycle_work(self.edits.pending.len()) {
+            self.edits.pending.clear();
+            return Err(error);
+        }
         if !self.edits.pending.is_empty() {
             self.clear_prepared_first_tick_snapshot();
         }
 
-        let mut transaction = HistoryTransaction::new();
-        let mut redo_cleared = false;
         let mut missing_reference_warning_dirty = false;
         let mut user_context_graph_dirty = false;
 
@@ -101,338 +124,402 @@ impl<T: Node> Engine<T> {
             batch_destroyed && !creation_context.is_some_and(NodeCreationContext::is_project_load);
         let mut removed_batch_ui = Vec::new();
         if let Some(node_ids) = remove_batch_nodes {
-            self.run_destroy_for_subtree(&node_ids);
+            self.run_destroy_for_subtree(&node_ids)?;
         }
 
+        let mut result = Ok(());
         for (edit_index, request) in requests.into_iter().enumerate() {
+            let journal_order = self.edit_order();
             let project_dirty_node = opaque_project_dirty_node(&request.edit);
-            let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request
-                .edit
-            {
-                Edit::BeginEditSession {
-                    origin,
-                    label,
-                    client_edit_id,
-                    ui_client_instance_id,
-                } => {
-                    if let Some(active) = &self.active_edit_session {
-                        (
-                            Err(EngineEditError::EditSessionAlreadyActive {
-                                edit_index,
-                                requested_client_edit_id: client_edit_id,
-                                active_client_edit_id: active.client_edit_id.clone(),
-                            }),
-                            false,
-                        )
-                    } else {
-                        self.active_edit_session = Some(super::history::ActiveEditSession::new(
+            let mut completion = Ok(());
+            // Keep recoverable exits inside the request boundary so the accepted
+            // prefix always reaches history, reference, context, and UI finalization.
+            let outcome = (|| -> Result<_, EngineEditError> {
+                if (self.has_atomic_journal() || (self.edit_journal.is_some() && !capture_history))
+                    && matches!(
+                        &request.edit,
+                        Edit::BeginEditSession { .. } | Edit::EndEditSession { .. }
+                    )
+                {
+                    return Err(EngineEditError::NodeMutationRejected {
+                        edit_index,
+                        operation: "CallbackEditSession",
+                        node: self.root,
+                        node_type: self
+                            .nodes
+                            .get(self.root)
+                            .map(|node| node.get_type().to_string())
+                            .unwrap_or_default(),
+                        message: "callbacks cannot change the enclosing edit session".into(),
+                    });
+                }
+                let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) =
+                    match request.edit {
+                        Edit::BeginEditSession {
                             origin,
                             label,
                             client_edit_id,
                             ui_client_instance_id,
-                        ));
-                        (Ok(None), false)
-                    }
-                }
-                Edit::EndEditSession { client_edit_id } => {
-                    if let Some(active) = self.active_edit_session.take() {
-                        if active.client_edit_id != client_edit_id {
-                            let active_client_edit_id = active.client_edit_id.clone();
-                            self.active_edit_session = Some(active);
-                            (
-                                Err(EngineEditError::EditSessionIdMismatch {
-                                    edit_index,
-                                    requested_client_edit_id: client_edit_id,
-                                    active_client_edit_id,
-                                }),
-                                false,
-                            )
-                        } else {
-                            if !active.transaction.is_empty() {
-                                self.push_undo_transaction(active.transaction);
+                        } => {
+                            if self.edit_journal.is_some() {
+                                self.flush_edit_journal();
                             }
-                            (Ok(None), false)
-                        }
-                    } else {
-                        (
-                            Err(EngineEditError::EditSessionNotActive {
-                                edit_index,
-                                requested_client_edit_id: client_edit_id,
-                            }),
-                            false,
-                        )
-                    }
-                }
-                Edit::SetParam { node, value, behaviour } => match self.apply_set_param(edit_index, node, value)? {
-                    Some(mut effect) => {
-                        if matches!(effect.old_value, ParamValue::Reference(_))
-                            || matches!(effect.new_value, ParamValue::Reference(_))
-                        {
-                            missing_reference_warning_dirty = true;
-                        }
-                        if UserContextValueType::from_param_value(&effect.old_value)
-                            != UserContextValueType::from_param_value(&effect.new_value)
-                            && self.node_within_user_context_scope(effect.node)
-                        {
-                            user_context_graph_dirty = true;
-                        }
-                        if self.queue_user_context_multiplex_resize_for_count(effect.node) {
-                            user_context_graph_dirty = true;
-                        }
-                        effect.behaviour = behaviour;
-                        effect.tick = self.time.tick;
-                        (Ok(Some(effect.into())), true)
-                    }
-                    None => (Ok(None), false),
-                },
-                Edit::SetParamConstraints { node, constraints } => {
-                    missing_reference_warning_dirty = true;
-                    let effect = self.apply_set_param_constraints(edit_index, node, constraints)?;
-                    let should_clear_redo = effect.is_some();
-                    (Ok(effect.map(Into::into)), should_clear_redo)
-                }
-                Edit::SetNodeScriptProperty { node, property, value } => {
-                    self.apply_set_node_script_property(edit_index, node, property, value)?;
-                    (Ok(None), true)
-                }
-                Edit::CallNodeScriptMethod { node, method, args } => {
-                    self.apply_call_node_script_method(edit_index, node, method, args)?;
-                    (Ok(None), true)
-                }
-                Edit::CallNodeMutation {
-                    node,
-                    callback,
-                    needs_tree_snapshot,
-                } => {
-                    self.apply_call_node_mutation(edit_index, node, callback, needs_tree_snapshot)?;
-                    (Ok(None), true)
-                }
-                Edit::AddNode {
-                    node,
-                    parent,
-                    prev_sibling,
-                } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let effect = self.apply_add_node(edit_index, node, parent, prev_sibling, creation_context)?;
-                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
-                        user_context_graph_dirty = true;
-                    }
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::AddNodeTree {
-                    tree,
-                    parent,
-                    prev_sibling,
-                } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let effect = self.apply_add_node_tree(edit_index, tree, parent, prev_sibling, creation_context)?;
-                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
-                        user_context_graph_dirty = true;
-                    }
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::AddUserItemTree {
-                    tree,
-                    parent,
-                    prev_sibling,
-                } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let effect =
-                        self.apply_add_user_item_tree(edit_index, tree, parent, prev_sibling, creation_context)?;
-                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
-                        user_context_graph_dirty = true;
-                    }
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::AddUserItemTrees { items } => {
-                    let effects = self.apply_add_user_item_trees(edit_index, items, creation_context)?;
-                    let changed = !effects.is_empty();
-                    if changed {
-                        missing_reference_warning_dirty = true;
-                        user_context_graph_dirty = true;
-                    }
-                    for effect in effects {
-                        if self.queue_user_context_multiplex_resize_for_list(effect.node) {
-                            user_context_graph_dirty = true;
-                        }
-                        if capture_history {
-                            let step = effect.into();
-                            if self.active_edit_session.is_some() {
-                                self.push_step_into_active_history_transaction(step);
+                            if let Some(active) = &self.active_edit_session {
+                                (
+                                    Err(EngineEditError::EditSessionAlreadyActive {
+                                        edit_index,
+                                        requested_client_edit_id: client_edit_id,
+                                        active_client_edit_id: active.client_edit_id.clone(),
+                                    }),
+                                    false,
+                                )
                             } else {
-                                transaction.push(step);
+                                self.active_edit_session = Some(super::history::ActiveEditSession::new(
+                                    origin,
+                                    label,
+                                    client_edit_id,
+                                    ui_client_instance_id,
+                                ));
+                                (Ok(None), false)
                             }
                         }
-                    }
-                    (Ok(None), changed)
-                }
-                Edit::AddUserItem {
-                    node,
-                    parent,
-                    prev_sibling,
-                } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling, creation_context)?;
-                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
-                        user_context_graph_dirty = true;
-                    }
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::CreateBlueprintInstance {
-                    blueprint_id,
-                    parent,
-                    prev_sibling,
-                    label,
-                } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let effect = self.apply_create_blueprint_instance(
-                        edit_index,
-                        blueprint_id,
-                        parent,
-                        prev_sibling,
-                        label,
-                        creation_context,
-                    )?;
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::ReplaceNode { node, new_node } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let effect = self.apply_replace_node(edit_index, node, new_node)?;
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::RemoveNode { node } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let result = if batch_destroyed {
-                        self.apply_remove_node_after_batch_destroy(edit_index, node, creation_context)
-                    } else {
-                        self.apply_remove_node(edit_index, node, creation_context)
-                    };
-                    match result {
-                        Ok(effect) => {
-                            if emit_remove_batch_ui {
-                                removed_batch_ui.push((
-                                    effect.node,
-                                    effect.detached_nodes.iter().rev().map(|(id, _)| *id).collect(),
-                                    effect.parent,
-                                ));
+                        Edit::EndEditSession { client_edit_id } => {
+                            if self.edit_journal.is_some() {
+                                self.flush_edit_journal();
+                            }
+                            if let Some(active) = self.active_edit_session.take() {
+                                if active.client_edit_id != client_edit_id {
+                                    let active_client_edit_id = active.client_edit_id.clone();
+                                    self.active_edit_session = Some(active);
+                                    (
+                                        Err(EngineEditError::EditSessionIdMismatch {
+                                            edit_index,
+                                            requested_client_edit_id: client_edit_id,
+                                            active_client_edit_id,
+                                        }),
+                                        false,
+                                    )
+                                } else {
+                                    if !active.transaction.is_empty() {
+                                        self.push_undo_transaction(active.transaction);
+                                    }
+                                    (Ok(None), false)
+                                }
+                            } else {
+                                (
+                                    Err(EngineEditError::EditSessionNotActive {
+                                        edit_index,
+                                        requested_client_edit_id: client_edit_id,
+                                    }),
+                                    false,
+                                )
+                            }
+                        }
+                        Edit::SetParam { node, value, behaviour } => {
+                            match self.apply_set_param(edit_index, node, value)? {
+                                Some(mut effect) => {
+                                    if matches!(effect.old_value, ParamValue::Reference(_))
+                                        || matches!(effect.new_value, ParamValue::Reference(_))
+                                    {
+                                        missing_reference_warning_dirty = true;
+                                    }
+                                    if UserContextValueType::from_param_value(&effect.old_value)
+                                        != UserContextValueType::from_param_value(&effect.new_value)
+                                        && self.node_within_user_context_scope(effect.node)
+                                    {
+                                        user_context_graph_dirty = true;
+                                    }
+                                    if self.queue_user_context_multiplex_resize_for_count(effect.node) {
+                                        user_context_graph_dirty = true;
+                                    }
+                                    effect.behaviour = behaviour;
+                                    effect.tick = self.time.tick;
+                                    (Ok(Some(effect.into())), true)
+                                }
+                                None => (Ok(None), false),
+                            }
+                        }
+                        Edit::SetParamControlState { node, state } => {
+                            let effect = self
+                                .apply_set_param_control_state(edit_index, node, state)?
+                                .capture_completion(&mut completion);
+                            let changed = effect.is_some();
+                            (Ok(effect.map(Into::into)), changed)
+                        }
+                        Edit::SetParamConstraints { node, constraints } => {
+                            missing_reference_warning_dirty = true;
+                            let effect = self.apply_set_param_constraints(edit_index, node, constraints)?;
+                            let should_clear_redo = effect.is_some();
+                            (Ok(effect.map(Into::into)), should_clear_redo)
+                        }
+                        Edit::SetNodeScriptProperty { node, property, value } => {
+                            let capture = self.capture_opaque_history(capture_history, node);
+                            let effect = self
+                                .apply_set_node_script_property(edit_index, node, property, value, capture)?
+                                .capture_completion(&mut completion);
+                            missing_reference_warning_dirty |= effect.is_some();
+                            user_context_graph_dirty |= effect.is_some();
+                            let changed = effect.is_some() || !capture;
+                            (Ok(effect.map(Into::into)), changed)
+                        }
+                        Edit::CallNodeScriptMethod { node, method, args } => {
+                            let capture = self.capture_opaque_history(capture_history, node);
+                            let effect = self
+                                .apply_call_node_script_method(edit_index, node, method, args, capture)?
+                                .capture_completion(&mut completion);
+                            missing_reference_warning_dirty |= effect.is_some();
+                            user_context_graph_dirty |= effect.is_some();
+                            let changed = effect.is_some() || !capture;
+                            (Ok(effect.map(Into::into)), changed)
+                        }
+                        Edit::CallNodeMutation {
+                            node,
+                            callback,
+                            needs_tree_snapshot,
+                        } => {
+                            let capture = self.capture_opaque_history(capture_history, node);
+                            let effect = self
+                                .apply_call_node_mutation(edit_index, node, callback, needs_tree_snapshot, capture)?
+                                .capture_completion(&mut completion);
+                            missing_reference_warning_dirty |= effect.is_some();
+                            user_context_graph_dirty |= effect.is_some();
+                            let changed = effect.is_some() || !capture;
+                            (Ok(effect.map(Into::into)), changed)
+                        }
+                        Edit::AddNode {
+                            node,
+                            parent,
+                            prev_sibling,
+                        } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let effect = self
+                                .apply_add_node(edit_index, node, parent, prev_sibling, creation_context)?
+                                .capture_completion(&mut completion);
+                            if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                                user_context_graph_dirty = true;
                             }
                             (Ok(Some(effect.into())), true)
                         }
-                        Err(err) => (Err(err), false),
-                    }
-                }
-                Edit::MoveNode {
-                    node,
-                    new_parent,
-                    new_prev_sibling,
-                } => {
-                    missing_reference_warning_dirty = true;
-                    user_context_graph_dirty = true;
-                    let effect = self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?;
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::PatchMeta { node, patch } => {
-                    missing_reference_warning_dirty = true;
-                    let effect = self.apply_patch_meta(edit_index, node, patch)?;
-                    (Ok(Some(effect.into())), true)
-                }
-                Edit::SetScriptConfig {
-                    node,
-                    config,
-                    force_reload,
-                } => {
-                    let effect = self.apply_set_script_config(edit_index, node, config, force_reload)?;
-                    let should_clear_redo = effect.is_some();
-                    (Ok(effect.map(Into::into)), should_clear_redo)
-                }
-                Edit::SetNodeWarning { node, warning } => {
-                    let effect = self.apply_set_node_warning(edit_index, node, warning)?;
-                    let should_clear_redo = effect.is_some();
-                    (Ok(effect.map(Into::into)), should_clear_redo)
-                }
-                Edit::ClearNodeWarning { node, warning_id } => {
-                    let effect = self.apply_clear_node_warning(edit_index, node, warning_id)?;
-                    let should_clear_redo = effect.is_some();
-                    (Ok(effect.map(Into::into)), should_clear_redo)
-                }
-                Edit::SetNodeChildWarningDepth { node, max_depth } => {
-                    let effect = self.apply_set_node_child_warning_depth(edit_index, node, max_depth)?;
-                    let should_clear_redo = effect.is_some();
-                    (Ok(effect.map(Into::into)), should_clear_redo)
-                }
-                Edit::EmitCustomEvent { event } => {
-                    if event.retention == CustomEventRetention::Transient {
-                        self.emit_inbox_event(EventKind::Custom(event));
-                        (Ok(None), false)
-                    } else {
-                        self.emit_event(EventKind::Custom(event));
-                        (Ok(None), true)
-                    }
-                }
-                Edit::ReevaluateGraph => {
-                    self.mark_schedule_dirty();
-                    (Ok(None), true)
-                }
-                Edit::AddEventListener {
-                    subscriber,
-                    subscription,
-                } => {
-                    self.apply_add_event_listener(edit_index, subscriber, subscription)?;
-                    (Ok(None), true)
-                }
-                Edit::RemoveEventListener {
-                    subscriber,
-                    subscription,
-                } => {
-                    self.apply_remove_event_listener(subscriber, subscription);
-                    (Ok(None), true)
-                }
-            };
+                        Edit::AddNodeTree {
+                            tree,
+                            parent,
+                            prev_sibling,
+                        } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let effect = self
+                                .apply_add_node_tree(edit_index, tree, parent, prev_sibling, creation_context)?
+                                .capture_completion(&mut completion);
+                            if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                                user_context_graph_dirty = true;
+                            }
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Edit::AddUserItemTree {
+                            tree,
+                            parent,
+                            prev_sibling,
+                        } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let effect = self
+                                .apply_add_user_item_tree(edit_index, tree, parent, prev_sibling, creation_context)?
+                                .capture_completion(&mut completion);
+                            if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                                user_context_graph_dirty = true;
+                            }
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Edit::AddUserItemTrees { items } => {
+                            let effects = self
+                                .apply_add_user_item_trees(edit_index, items, creation_context)?
+                                .capture_completion(&mut completion);
+                            let changed = !effects.is_empty();
+                            if changed {
+                                missing_reference_warning_dirty = true;
+                                user_context_graph_dirty = true;
+                            }
+                            for effect in effects {
+                                if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                                    user_context_graph_dirty = true;
+                                }
+                                if let Some(order) = journal_order {
+                                    self.capture_journal_step(order, effect.into());
+                                }
+                            }
+                            (Ok(None), changed)
+                        }
+                        Edit::AddUserItem {
+                            node,
+                            parent,
+                            prev_sibling,
+                        } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let effect = self
+                                .apply_add_user_item(edit_index, node, parent, prev_sibling, creation_context)?
+                                .capture_completion(&mut completion);
+                            if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                                user_context_graph_dirty = true;
+                            }
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Edit::CreateBlueprintInstance {
+                            blueprint_id,
+                            parent,
+                            prev_sibling,
+                            label,
+                        } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let effect = self
+                                .apply_create_blueprint_instance(
+                                    edit_index,
+                                    blueprint_id,
+                                    parent,
+                                    prev_sibling,
+                                    label,
+                                    creation_context,
+                                )?
+                                .capture_completion(&mut completion);
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Edit::ReplaceNode { node, new_node } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let effect = self
+                                .apply_replace_node(edit_index, node, new_node, creation_context)?
+                                .capture_completion(&mut completion);
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Edit::RemoveNode { node } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let result = if batch_destroyed {
+                                self.apply_remove_node_after_batch_destroy(edit_index, node, creation_context)
+                            } else {
+                                self.apply_remove_node(edit_index, node, creation_context)
+                            };
+                            match result {
+                                Ok(effect) => {
+                                    if emit_remove_batch_ui {
+                                        removed_batch_ui.push((
+                                            effect.node,
+                                            effect.detached_nodes.iter().rev().map(|(id, _)| *id).collect(),
+                                            effect.parent,
+                                        ));
+                                    }
+                                    (Ok(Some(effect.into())), true)
+                                }
+                                Err(err) => (Err(err), false),
+                            }
+                        }
+                        Edit::MoveNode {
+                            node,
+                            new_parent,
+                            new_prev_sibling,
+                        } => {
+                            missing_reference_warning_dirty = true;
+                            user_context_graph_dirty = true;
+                            let effect = self
+                                .apply_move_node(edit_index, node, new_parent, new_prev_sibling)?
+                                .capture_completion(&mut completion);
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Edit::PatchMeta { node, patch } => {
+                            missing_reference_warning_dirty = true;
+                            let effect = self
+                                .apply_patch_meta_with_completion(edit_index, node, patch)?
+                                .capture_completion(&mut completion);
+                            (Ok(Some(effect.into())), true)
+                        }
+                        Edit::SetScriptConfig {
+                            node,
+                            config,
+                            force_reload,
+                        } => {
+                            let effect = self.apply_set_script_config(edit_index, node, config, force_reload)?;
+                            let should_clear_redo = effect.is_some();
+                            (Ok(effect.map(Into::into)), should_clear_redo)
+                        }
+                        Edit::SetNodeWarning { node, warning } => {
+                            let effect = self.apply_set_node_warning(edit_index, node, warning)?;
+                            let should_clear_redo = effect.is_some();
+                            (Ok(effect.map(Into::into)), should_clear_redo)
+                        }
+                        Edit::ClearNodeWarning { node, warning_id } => {
+                            let effect = self.apply_clear_node_warning(edit_index, node, warning_id)?;
+                            let should_clear_redo = effect.is_some();
+                            (Ok(effect.map(Into::into)), should_clear_redo)
+                        }
+                        Edit::SetNodeChildWarningDepth { node, max_depth } => {
+                            let effect = self.apply_set_node_child_warning_depth(edit_index, node, max_depth)?;
+                            let should_clear_redo = effect.is_some();
+                            (Ok(effect.map(Into::into)), should_clear_redo)
+                        }
+                        Edit::EmitCustomEvent { event } => {
+                            if event.retention == CustomEventRetention::Transient {
+                                self.emit_inbox_event(EventKind::Custom(event));
+                                (Ok(None), false)
+                            } else {
+                                self.emit_event(EventKind::Custom(event));
+                                (Ok(None), true)
+                            }
+                        }
+                        Edit::ReevaluateGraph => {
+                            self.mark_schedule_dirty();
+                            (Ok(None), true)
+                        }
+                        Edit::AddEventListener {
+                            subscriber,
+                            subscription,
+                        } => {
+                            self.apply_add_event_listener(edit_index, subscriber, subscription)?;
+                            (Ok(None), true)
+                        }
+                        Edit::RemoveEventListener {
+                            subscriber,
+                            subscription,
+                        } => {
+                            self.apply_remove_event_listener(subscriber, subscription);
+                            (Ok(None), true)
+                        }
+                    };
+
+                outcome.map(|step| (step, should_clear_redo))
+            })();
 
             match outcome {
-                Ok(step) => {
+                Ok((step, should_clear_redo)) => {
                     if should_clear_redo && let Some(node) = project_dirty_node {
                         self.project_dirty_nodes.insert(node);
                     }
-                    if capture_history && should_clear_redo && !redo_cleared {
-                        self.clear_redo_history();
-                        redo_cleared = true;
-                    }
-
-                    if capture_history && let Some(step) = step {
-                        if self.active_edit_session.is_some() {
-                            self.push_step_into_active_history_transaction(step);
+                    if let Some(step) = step {
+                        if let Some(order) = journal_order {
+                            self.capture_journal_step(order, step);
                         } else {
-                            transaction.push(step);
+                            let mut step = step;
+                            step.dispose_detached(self);
                         }
                     }
                 }
                 Err(err) => {
-                    if emit_remove_batch_ui {
-                        self.push_removed_subtrees_ui_batch(std::mem::take(&mut removed_batch_ui));
-                    }
-                    if capture_history && !transaction.is_empty() {
-                        self.push_undo_transaction(transaction);
-                    }
-                    return Err(err);
+                    result = Err(err);
+                    break;
                 }
             }
+            if completion.is_err() {
+                result = completion;
+                break;
+            }
+            self.complete_edit_requests(request.completions);
         }
 
         if emit_remove_batch_ui {
             self.push_removed_subtrees_ui_batch(removed_batch_ui);
         }
 
-        if capture_history && !transaction.is_empty() {
-            self.push_undo_transaction(transaction);
-        }
         if missing_reference_warning_dirty {
             if creation_context.is_some_and(NodeCreationContext::is_project_load) {
                 self.sync_missing_reference_warnings_silent();
@@ -445,7 +532,7 @@ impl<T: Node> Engine<T> {
             self.mark_user_context_graph_changed();
         }
 
-        Ok(())
+        result
     }
 
     /// Validates and downcasts a dynamically provided node to the engine node type `T`.
@@ -475,6 +562,7 @@ impl<T: Node> Engine<T> {
                     .or_insert(self.runtime_elapsed);
             }
             EventKind::NodeDeleted { node } => {
+                self.node_wakes.source.close(*node);
                 self.purge_event_listeners_for_node(*node);
                 self.last_update_elapsed_by_node.remove(node);
                 self.param_last_change_counter.remove(node);
@@ -620,6 +708,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",
         Edit::SetParamConstraints { .. } => "SetParamConstraints",
+        Edit::SetParamControlState { .. } => "SetParamControlState",
         Edit::SetNodeScriptProperty { .. } => "SetNodeScriptProperty",
         Edit::CallNodeScriptMethod { .. } => "CallNodeScriptMethod",
         Edit::CallNodeMutation { .. } => "CallNodeMutation",

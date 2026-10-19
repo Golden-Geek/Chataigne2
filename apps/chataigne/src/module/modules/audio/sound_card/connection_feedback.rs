@@ -1,9 +1,7 @@
-use golden_audio::{
-    AudioDeviceReadiness, AudioDeviceSelection, AudioDirection, AudioStreamStatus, BackendId,
-};
+use golden_audio::{AudioDeviceReadiness, AudioDeviceSelection, AudioDirection, AudioStreamStatus, BackendId};
 use golden_core::{node::Node, process_ctx::ProcessCtx};
 
-use super::{NO_AUDIO_DEVICE, SYSTEM_DEFAULT_DEVICE, SoundCardModule};
+use super::{SoundCardModule, NO_AUDIO_DEVICE, SYSTEM_DEFAULT_DEVICE};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ConnectionLogLevel {
@@ -101,11 +99,7 @@ pub(super) fn status_matches_selection(
 }
 
 impl SoundCardModule {
-    pub(super) fn apply_device_connection_feedback(
-        &self,
-        ctx: &mut ProcessCtx,
-        status: &AudioStreamStatus,
-    ) {
+    pub(super) fn apply_device_connection_feedback(&self, ctx: &mut ProcessCtx, status: &AudioStreamStatus) {
         let driver = BackendId::new(self.audio_driver.get_ref().0.as_str()).ok();
         let (input_device, output_device) = self.selected_device_values();
         let selected_value = match status.direction {
@@ -141,15 +135,8 @@ impl SoundCardModule {
         }
     }
 
-    pub(super) fn clear_device_connection_warning(
-        &self,
-        ctx: &mut ProcessCtx,
-        direction: AudioDirection,
-    ) {
-        ctx.clear_node_warning(
-            self.device_parameter(direction),
-            Some(warning_id(direction)),
-        );
+    pub(super) fn clear_device_connection_warning(&self, ctx: &mut ProcessCtx, direction: AudioDirection) {
+        ctx.clear_node_warning(self.device_parameter(direction), Some(warning_id(direction)));
     }
 
     pub(super) fn clear_device_connection_warnings(&self, ctx: &mut ProcessCtx) {

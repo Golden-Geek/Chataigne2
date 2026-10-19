@@ -5,14 +5,14 @@ use std::{
 
 use chataigne_sound_card_protocol::{SoundCardPlaybackVoiceDto, SoundCardUiTelemetryDto};
 use golden_audio::{
-    AnalysisProcessorConfiguration, AnalysisResult, AnalysisTapConfiguration, AnalysisTapId, AnalysisTapObservation,
-    AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration, AudioDeviceDescriptor,
+    match_device_selection, AnalysisProcessorConfiguration, AnalysisResult, AnalysisTapConfiguration, AnalysisTapId,
+    AnalysisTapObservation, AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration, AudioDeviceDescriptor,
     AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId, AudioDirection,
     AudioEngine, AudioEngineBuilder, AudioEvent, AudioEventReceiver, AudioObservationReader, AudioObservationSnapshot,
     AudioRecoveryPolicy, AudioRouteId, BackendId, BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb,
     InputPatchRoute, NullBackend, OutputPatchRoute, PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackId,
     PlaybackRoute, SampleRate, SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow,
-    VirtualInputChannel, VirtualOutputChannel, match_device_selection,
+    VirtualInputChannel, VirtualOutputChannel,
 };
 use golden_core::{
     node::{NodeId, NodeReference, NodeUuid},
@@ -22,10 +22,10 @@ use golden_core::{
 use uuid::Uuid;
 
 use super::{
-    ASIO_AUDIO_DRIVER, AUTOMATIC_CONFIGURATION, INPUT_CHANNELS_PATH, INPUT_ROUTES_PATH, MAX_PLAYBACK_SOURCE_CHANNELS,
+    find_path, ASIO_AUDIO_DRIVER, AUTOMATIC_CONFIGURATION, INPUT_CHANNELS_PATH, INPUT_ROUTES_PATH,
+    LEVELS_UPDATE_RATE_DEFAULT_HZ, LEVELS_UPDATE_RATE_MAX_HZ, LEVELS_UPDATE_RATE_MIN_HZ, MAX_PLAYBACK_SOURCE_CHANNELS,
     NO_AUDIO_DEVICE, NO_AUDIO_DRIVER, OUTPUT_CHANNELS_PATH, OUTPUT_ROUTES_PATH, PITCH_VALUES_PATH,
-    SYSTEM_DEFAULT_DEVICE, LEVELS_UPDATE_RATE_DEFAULT_HZ, LEVELS_UPDATE_RATE_MAX_HZ,
-    LEVELS_UPDATE_RATE_MIN_HZ, find_path,
+    SYSTEM_DEFAULT_DEVICE,
 };
 use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, SoundCardOutputRoute};
 
@@ -38,18 +38,13 @@ mod wake;
 mod worker;
 
 pub(super) use capabilities::{
-    configuration_capabilities, device_selection_value,
-    probe_targets_are_pending, requires_disable_before_probe,
-    selected_devices_are_available, selected_physical_channels,
-    selected_probe_targets,
-    supported_buffer_sizes, supported_sample_rates, supports_system_default,
+    configuration_capabilities, device_selection_value, probe_targets_are_pending, requires_disable_before_probe,
+    selected_devices_are_available, selected_physical_channels, selected_probe_targets, supported_buffer_sizes,
+    supported_sample_rates, supports_system_default,
 };
 use observation::{collect_bindings, playback_status_updates, telemetry_from_observation, values_nearly_equal};
 #[cfg(test)]
-pub(super) fn collect_bindings_for_test(
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-) -> SoundCardValueBindings {
+pub(super) fn collect_bindings_for_test(snapshot: &ProcessTreeSnapshot, module: NodeId) -> SoundCardValueBindings {
     collect_bindings(snapshot, module)
 }
 
@@ -71,10 +66,10 @@ pub(super) fn output_channel_names_for_test(
 }
 
 use snapshot::*;
-pub(super) use wake::{RuntimeWakeSender, SOUND_CARD_RUNTIME_WAKE_TOPIC};
+pub(super) use wake::RuntimeWakeSender;
 pub(super) use worker::{
-    SoundCardRuntimeRequest, SoundCardRuntimeStarted, SoundCardRuntimeWorker, SoundCardRuntimeWorkerPoll,
-    retire_detached,
+    retire_detached, SoundCardRuntimeRequest, SoundCardRuntimeStarted, SoundCardRuntimeWorker,
+    SoundCardRuntimeWorkerPoll,
 };
 pub(super) const OBSERVATION_EPSILON: f64 = 0.000_01;
 pub(super) const OUTPUT_ACTIVITY_RMS_THRESHOLD: f32 = 0.01;
@@ -87,10 +82,7 @@ pub(super) fn levels_update_rate_hz(value: i32) -> u32 {
 }
 
 pub(super) fn bounded_levels_update_rate_hz(value: u32) -> u32 {
-    value.clamp(
-        LEVELS_UPDATE_RATE_MIN_HZ as u32,
-        LEVELS_UPDATE_RATE_MAX_HZ as u32,
-    )
+    value.clamp(LEVELS_UPDATE_RATE_MIN_HZ as u32, LEVELS_UPDATE_RATE_MAX_HZ as u32)
 }
 
 pub(super) fn levels_update_interval(rate_hz: u32) -> Duration {
@@ -98,9 +90,7 @@ pub(super) fn levels_update_interval(rate_hz: u32) -> Duration {
 }
 
 pub(super) fn has_output_activity(enabled: bool, output_global_max_rms: f32) -> bool {
-    enabled
-        && output_global_max_rms.is_finite()
-        && output_global_max_rms >= OUTPUT_ACTIVITY_RMS_THRESHOLD
+    enabled && output_global_max_rms.is_finite() && output_global_max_rms >= OUTPUT_ACTIVITY_RMS_THRESHOLD
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -231,10 +221,7 @@ impl SoundCardRuntime {
         &self.bindings
     }
 
-    pub(super) fn set_probe_interests(
-        &mut self,
-        targets: Vec<AudioDeviceTargetId>,
-    ) -> Result<(), String> {
+    pub(super) fn set_probe_interests(&mut self, targets: Vec<AudioDeviceTargetId>) -> Result<(), String> {
         if self.probe_interests == targets {
             return Ok(());
         }
@@ -331,8 +318,7 @@ impl SoundCardRuntime {
             self.observe_event(event);
         }
         let observation = self.observations.latest();
-        let outgoing_activity =
-            has_output_activity(observation.enabled, observation.output_global_max_rms);
+        let outgoing_activity = has_output_activity(observation.enabled, observation.output_global_max_rms);
         if self.outgoing_activity != Some(outgoing_activity) {
             self.outgoing_activity = Some(outgoing_activity);
             self.pending_outgoing_activity = Some(outgoing_activity);
@@ -434,17 +420,14 @@ pub(super) fn build_configuration(
     } else {
         Some(BackendId::new(driver_value).map_err(|error| configuration_error(connection, error.to_string()))?)
     };
-    let (input_value, output_value, input_parameter, output_parameter) =
-        if uses_duplex_device {
-            let (parameter, value) = required_child_enum(snapshot, connection, "device")?;
-            (value.clone(), value, parameter, parameter)
-        } else {
-            let (input_parameter, input_value) =
-                required_child_enum(snapshot, connection, "input_device")?;
-            let (output_parameter, output_value) =
-                required_child_enum(snapshot, connection, "output_device")?;
-            (input_value, output_value, input_parameter, output_parameter)
-        };
+    let (input_value, output_value, input_parameter, output_parameter) = if uses_duplex_device {
+        let (parameter, value) = required_child_enum(snapshot, connection, "device")?;
+        (value.clone(), value, parameter, parameter)
+    } else {
+        let (input_parameter, input_value) = required_child_enum(snapshot, connection, "input_device")?;
+        let (output_parameter, output_value) = required_child_enum(snapshot, connection, "output_device")?;
+        (input_value, output_value, input_parameter, output_parameter)
+    };
     let input_selection = resolve_selection(driver.as_ref(), inspector, input_value.as_str(), AudioDirection::Input)?;
     let output_selection = resolve_selection(
         driver.as_ref(),

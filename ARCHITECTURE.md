@@ -23,6 +23,54 @@ Its internal workspace crates are grouped by role:
 - `hosts/`: desktop and transport hosts.
 - `support/`: macros and code generation.
 
+The engine edit queue applies an explicit prefix on failure and always finalizes committed
+history, references, contexts, and publication. Structural mutation and fallible lifecycle
+completion are distinct: a committed insertion remains undoable if its callback fails.
+The shared ordered edit journal also retains nested lifecycle changes and complete authored
+callback effects. Callback history captures declared persisted state, including defaults, while
+preserving runtime-only resources; replay restores recorded values without invoking the callback.
+Compound user intents own their validation and atomic commit/rollback above this queue;
+grouping edits in a history session alone does not make them atomic. Prepared subtree rollback
+uses an ordered journal for structured lifecycle edits to the existing tree, together with
+candidate cleanup, captured parameters/listeners, project dirty tracking, and publication state.
+`engine/transaction.rs` owns the outer checkpoint shared by compound UI operations and nested
+prepared-subtree operations; a rejection preserves any enclosing session's accepted history.
+Device effects already dispatched by lifecycle callbacks cannot be rolled back by restoring
+authored state.
+
+Catalog creation uses the prepared-subtree boundary in `engine/src/engine/persistence/`:
+detached structure and available initializer values are validated first. Fields that depend on
+the live parent and reference targets are validated in a provisional subtree before ready,
+publication, and history commit, behind one rollback checkpoint.
+`persistence/lifecycle.rs` owns reconstruction and ready ordering; explicit initializers win over
+init defaults before ready callbacks configure resources. Detached staging never trusts cached
+runtime reference ids from the live graph.
+
+History replay lives in `engine/history/`: `atomic.rs` retains exact live scalar state and
+reversible payload transitions around the batched replay paths. Rejection restores publication
+and indexes through the shared edit checkpoint and keeps the transaction on its original stack.
+Restoration uses `NodeCreationContext::HistoryRestore` for ready activation. Runtime callbacks
+still run, but authored self-state is preserved and immediate callback edits are limited to
+subscriptions. Replay notifications settle inside this boundary; earlier pending work keeps its
+ordinary dispatch semantics.
+
+`engine/runtime/` owns the revision of each successfully resolved schedule. Production compiler
+snapshots and installed generations retain that same revision. `runtime_center/compilation.rs`
+owns admission, completion fencing, and generation installation; compiler-request sequence and
+project epochs have separate purposes. UI admission and runtime ticks request compilation from
+engine schedule changes. While compilation is pending, tick ordering uses the engine's current
+resolved dependency order. Stale generations cannot append newly scheduled prerequisites after
+their dependents, and stale completions cannot install a replaced schedule.
+
+The production facade reports actor admission/completion failures through `ApplicationError`.
+`application/transactions.rs` separates admitted batches from authoritative receipts, so transports
+can publish `Accepted` only after admission. `ControlErrorKind::Cancelled` means queued work never
+started; loss of a started operation's completion remains a disconnection. HTTP and WebSocket
+share Rust-owned control error categories in protocol 0.7.0, generated into Golden UI bindings.
+`ui_server/http.rs`, `hub.rs`, `delivery.rs`, and `websocket.rs` own the transport paths;
+`application_error.rs` maps application causes into wire errors. Clients keep those categories in
+`ControlRequestError` and receive an engine acknowledgement only when one actually exists.
+
 Applications normally depend on the facade at `crates/golden_core/`, not on those implementation
 crates directly.
 

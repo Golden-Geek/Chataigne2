@@ -1,11 +1,17 @@
 use crate::events::CustomEvent;
 use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning, UserNodeRole};
-use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour};
 use crate::process_ctx::ProcessCtx;
 use crate::script::ScriptNodeConfig;
 use serde::{Deserialize, Serialize};
 
+mod completion;
+pub(crate) use completion::CompletionToken;
+pub use completion::{EditCompletion, EditCompletionStatus};
+
 /// Deferred mutable node callback executed during edit application.
+/// Owned authored data is captured for history; identity and topology changes must
+/// be queued through `ProcessCtx` so engine indexes remain authoritative.
 pub type NodeMutation = Box<dyn FnOnce(&mut dyn Node, &mut ProcessCtx) -> Result<(), String> + Send>;
 
 /// Detached node subtree that can be inserted into the engine as one structural edit.
@@ -111,6 +117,13 @@ pub enum Edit {
         value: ParamValue,
         /// Coalescing strategy requested by the parameter/node API.
         behaviour: ParameterEventBehaviour,
+    },
+    /// Changes parameter control state and its owned control-node structure.
+    SetParamControlState {
+        /// Target parameter.
+        node: NodeId,
+        /// Requested authored control state.
+        state: ParameterControlState,
     },
     /// Replace the live constraints on an existing parameter node.
     SetParamConstraints {
@@ -290,6 +303,17 @@ pub enum Edit {
 pub struct EditRequest {
     /// Edit operation to be applied.
     pub edit: Edit,
+    pub(crate) completions: Vec<CompletionToken>,
+}
+
+impl EditRequest {
+    /// Creates an unobserved request; use [`EditQueue::completion`] to observe a queued set.
+    pub fn new(edit: Edit) -> Self {
+        Self {
+            edit,
+            completions: Vec::new(),
+        }
+    }
 }
 
 /// FIFO queue of pending edit requests.
@@ -307,11 +331,15 @@ impl EditQueue {
 
     /// Pushes a new edit at the back of the queue.
     pub fn push(&mut self, edit: Edit) {
-        match edit {
+        self.push_request(EditRequest::new(edit));
+    }
+
+    pub(crate) fn push_request(&mut self, mut request: EditRequest) {
+        match &request.edit {
             Edit::SetParam {
                 node,
-                value,
                 behaviour: ParameterEventBehaviour::Coalesce,
+                ..
             } => {
                 // Keep only the latest coalescable set for a given parameter id in this queue.
                 self.pending.retain(|request| {
@@ -321,32 +349,39 @@ impl EditQueue {
                             node: existing_node,
                             behaviour: ParameterEventBehaviour::Coalesce,
                             ..
-                        } if *existing_node == node
+                        } if existing_node == node
                     )
                 });
 
-                self.pending.push(EditRequest {
-                    edit: Edit::SetParam {
-                        node,
-                        value,
-                        behaviour: ParameterEventBehaviour::Coalesce,
-                    },
-                });
+                self.pending.push(request);
             }
             Edit::RemoveNode { node } => {
-                if !self.pending.iter().any(|request| {
+                if let Some(existing) = self.pending.iter_mut().find(|request| {
                     matches!(
                         &request.edit,
-                        Edit::RemoveNode { node: existing_node } if *existing_node == node
+                        Edit::RemoveNode { node: existing_node } if existing_node == node
                     )
                 }) {
-                    self.pending.push(EditRequest {
-                        edit: Edit::RemoveNode { node },
-                    });
+                    existing.completions.append(&mut request.completions);
+                } else {
+                    self.pending.push(request);
                 }
             }
-            edit => self.pending.push(EditRequest { edit }),
+            _ => self.pending.push(request),
         }
+    }
+
+    /// Observes the requests currently queued. Later pushes are not included.
+    ///
+    /// Coalescing an observed value fails its receipt rather than claiming the old value
+    /// applied. Duplicate removals share the retained request's completion. Empty sets
+    /// are already applied. This allocates only for the observed requests, not the graph.
+    pub fn completion(&mut self) -> EditCompletion {
+        let completion = EditCompletion::new(self.pending.len());
+        for request in &mut self.pending {
+            request.completions.push(completion.token());
+        }
+        completion
     }
 
     /// Drains all edits and leaves the queue empty.

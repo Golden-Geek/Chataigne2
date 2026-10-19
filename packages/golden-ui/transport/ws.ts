@@ -1,3 +1,4 @@
+import { requestError } from './control-errors';
 import type {
 	EventTime,
 	UiAck,
@@ -509,28 +510,28 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 					if (pending) {
 						clearControlTimer(pending);
 						pendingIntents.delete(message.request_id);
-						pending.reject(new Error(message.message));
+						pending.reject(requestError(message.message, message.code));
 						return;
 					}
 					const pendingBatch = pendingIntentBatches.get(message.request_id);
 					if (pendingBatch) {
 						clearControlTimer(pendingBatch);
 						pendingIntentBatches.delete(message.request_id);
-						pendingBatch.reject(new Error(message.message));
+						pendingBatch.reject(requestError(message.message, message.code));
 						return;
 					}
 					const pendingSnapshot = pendingSnapshots.get(message.request_id);
 					if (pendingSnapshot) {
 						clearTimeout(pendingSnapshot.timer);
 						pendingSnapshots.delete(message.request_id);
-						pendingSnapshot.reject(new Error(message.message));
+						pendingSnapshot.reject(requestError(message.message, message.code));
 						return;
 					}
 					const pendingReplay = pendingReplays.get(message.request_id);
 					if (pendingReplay) {
 						clearTimeout(pendingReplay.timer);
 						pendingReplays.delete(message.request_id);
-						pendingReplay.reject(new Error(message.message));
+						pendingReplay.reject(requestError(message.message, message.code));
 						return;
 					}
 				}

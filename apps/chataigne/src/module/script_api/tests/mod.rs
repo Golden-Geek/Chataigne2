@@ -1,7 +1,4 @@
-use golden_core::{
-    node::DeclaredUserItemNode,
-    script::ScriptSource,
-};
+use golden_core::{node::DeclaredUserItemNode, script::ScriptSource};
 
 const COMMON_FUNCTION_DOCS: &[&str] = &[
     "Module host quick reference:",
@@ -63,10 +60,7 @@ const MOUSE_FUNCTION_DOCS: &[&str] = &[
     "local.scroll(vertical, horizontal = 0)",
 ];
 
-const BUTTPLUG_CALLBACK_DOCS: &[&str] = &[
-    "buttplugDeviceAdded(device)",
-    "buttplugScanningFinished()",
-];
+const BUTTPLUG_CALLBACK_DOCS: &[&str] = &["buttplugDeviceAdded(device)", "buttplugScanningFinished()"];
 
 const MOUSE_CALLBACK_DOCS: &[&str] = &[
     "Mouse module callbacks",
@@ -148,11 +142,7 @@ fn module_script_templates_document_available_functions_for_each_module() {
             DMX_FUNCTION_DOCS,
             DMX_CALLBACK_DOCS,
         ),
-        (
-            crate::app::SacnModule::NODE_TYPE,
-            DMX_FUNCTION_DOCS,
-            DMX_CALLBACK_DOCS,
-        ),
+        (crate::app::SacnModule::NODE_TYPE, DMX_FUNCTION_DOCS, DMX_CALLBACK_DOCS),
         (
             crate::app::SignalsModule::NODE_TYPE,
             SIGNALS_FUNCTION_DOCS,
@@ -163,11 +153,7 @@ fn module_script_templates_document_available_functions_for_each_module() {
             METRONOMES_FUNCTION_DOCS,
             METRONOMES_CALLBACK_DOCS,
         ),
-        (
-            crate::app::SpatializerModule::NODE_TYPE,
-            SPATIALIZER_FUNCTION_DOCS,
-            &[],
-        ),
+        (crate::app::SpatializerModule::NODE_TYPE, SPATIALIZER_FUNCTION_DOCS, &[]),
         (
             crate::app::SoundCardModule::NODE_TYPE,
             SOUND_CARD_FUNCTION_DOCS,

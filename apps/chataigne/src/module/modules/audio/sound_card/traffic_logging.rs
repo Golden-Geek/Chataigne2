@@ -23,18 +23,14 @@ pub(super) fn outgoing_audio_log_message(event: &AudioEvent) -> Option<String> {
             failure.path.display(),
             failure.error
         )),
-        AudioEvent::PlaybackCommandIgnored(ignored) => {
-            Some(playback_command_ignored_message(ignored))
-        }
+        AudioEvent::PlaybackCommandIgnored(ignored) => Some(playback_command_ignored_message(ignored)),
         _ => None,
     }
 }
 
 fn playback_command_ignored_message(ignored: &PlaybackCommandIgnored) -> String {
     match ignored {
-        PlaybackCommandIgnored::PlayFileAlreadyActive {
-            playback_id, path, ..
-        } => format!(
+        PlaybackCommandIgnored::PlayFileAlreadyActive { playback_id, path, .. } => format!(
             "Play audio file `{}` with playback ID `{}` had no effect because \
              Force Restart is disabled and that ID is already active or loading.",
             path.display(),
@@ -46,8 +42,7 @@ fn playback_command_ignored_message(ignored: &PlaybackCommandIgnored) -> String 
             playback_id
         ),
         PlaybackCommandIgnored::StopAllFilesEmpty { .. } => {
-            "Stop all audio files had no effect because no audio files are active or loading."
-                .to_owned()
+            "Stop all audio files had no effect because no audio files are active or loading.".to_owned()
         }
     }
 }

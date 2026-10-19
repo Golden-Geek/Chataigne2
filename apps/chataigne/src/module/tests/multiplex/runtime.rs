@@ -240,7 +240,7 @@ fn multiplex_sample_production_runtime_stays_realtime() {
     let runtime = ProductionRuntime::new(
         engine,
         UiProjectFileSpec::from_project_file_spec(ProjectFileSpec::new("Noisette", "noisette"), None),
-    );
+    ).unwrap();
     let input = runtime.input_port();
 
     for index in 0..WARMUP {

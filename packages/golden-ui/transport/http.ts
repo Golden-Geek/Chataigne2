@@ -64,6 +64,7 @@ import type { UiSubscriptionScope as RustUiSubscriptionScope } from '../generate
 import type { JsonValue as RustJsonValue } from '../generated/rust_protocol/serde_json/JsonValue';
 import { isCssUnit } from '../css-value';
 import { getUiClientInstanceId } from './client-instance';
+import { formatHttpError } from './control-errors';
 
 const DEFAULT_BASE_URL = 'http://localhost:7010/api/ui';
 const DEFAULT_POST_TIMEOUT_MS = 15000;
@@ -1512,18 +1513,6 @@ export const toRustIntent = (intent: UiEditIntent): RustUiEditIntent => {
 	return intent as RustUiEditIntent;
 };
 
-const formatError = (context: string, response: Response, body: unknown): Error => {
-	const suffix = isRecord(body) && typeof body.error === 'string' ? `: ${body.error}` : '';
-	return Object.assign(
-		new Error(`${context} failed with ${response.status} ${response.statusText}${suffix}`),
-		{
-			status: response.status,
-			statusText: response.statusText,
-			body
-		}
-	);
-};
-
 export const createHttpAuxiliaryClient = (
 	options: HttpClientOptions = {}
 ): UiHttpAuxiliaryClient => {
@@ -1567,7 +1556,7 @@ export const createHttpAuxiliaryClient = (
 			}
 
 			if (!response.ok) {
-				throw formatError(`POST ${path}`, response, body);
+				throw formatHttpError(`POST ${path}`, response, body);
 			}
 
 			return body as TResponse;

@@ -30,7 +30,6 @@ impl<T: Node> Engine<T> {
         let mut apply_edits_ms_total = 0u128;
 
         loop {
-            self.absorb_external_edits()?;
             let control_started = Instant::now();
             self.run_control_pass()?;
             control_ms_total = control_ms_total.saturating_add(control_started.elapsed().as_millis());
@@ -74,7 +73,7 @@ impl<T: Node> Engine<T> {
                 if has_structural {
                     for request in pending {
                         if is_structural_edit(&request.edit) {
-                            self.deferred_structural_edits.push(request.edit);
+                            self.deferred_structural_edits.push(request);
                         } else {
                             self.edits.pending.push(request);
                         }

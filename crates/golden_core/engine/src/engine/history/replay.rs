@@ -4,6 +4,7 @@ impl<T: Node> HistoryStep<T> {
     /// Applies this step's inverse operation.
     pub(super) fn undo(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
         match self {
+            Self::AuthoredNode(step) => engine.restore_authored_node_state(step.node, &step.old)?,
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.old_value.clone())?;
             }
@@ -46,7 +47,10 @@ impl<T: Node> HistoryStep<T> {
                         &ready_ids,
                     )?;
                     emit_restored_remove_node_events(engine, step, &ready_ids)?;
-                    engine.run_node_ready_for_subtree(ready_ids.as_slice(), crate::node::NodeCreationContext::Fresh)?;
+                    engine.run_node_ready_for_subtree(
+                        ready_ids.as_slice(),
+                        crate::node::NodeCreationContext::HistoryRestore,
+                    )?;
                 }
             }
             Self::MoveNode(step) => {
@@ -56,15 +60,18 @@ impl<T: Node> HistoryStep<T> {
                     return Ok(());
                 }
 
+                validate_history_move(engine, OP, step.node, step.old_parent)?;
                 let current_parent = engine.detach_node(0, OP, step.node)?;
-                engine.attach_node_between(
-                    0,
+                attach_node_for_history(
+                    engine,
                     OP,
                     step.node,
                     step.old_parent,
                     step.old_prev_sibling,
                     step.old_next_sibling,
                 )?;
+
+                step.at_new_position = false;
 
                 if current_parent == step.old_parent {
                     engine.emit_event(EventKind::ChildReordered {
@@ -80,113 +87,9 @@ impl<T: Node> HistoryStep<T> {
                     let changes = engine.subtree_effective_enabled_changes(step.node);
                     engine.queue_effective_enabled_callbacks(&changes)?;
                 }
-
-                step.at_new_position = false;
             }
             Self::ReplaceNode(step) => {
-                const OP: &str = "UndoReplaceNode";
-
-                let Some(old_node) = step.old_node.take() else {
-                    return Ok(());
-                };
-
-                if step.old_id == step.new_id {
-                    let live_node_data = engine
-                        .nodes
-                        .get(step.new_id)
-                        .ok_or(EngineEditError::NodeNotFound {
-                            edit_index: 0,
-                            operation: OP,
-                            node: step.new_id,
-                        })?
-                        .node_data()
-                        .clone();
-
-                    let mut old_node = old_node;
-                    {
-                        let old_data = old_node.node_data_mut();
-                        old_data.id = step.old_id;
-                        old_data.parent = live_node_data.parent;
-                        old_data.first_child = live_node_data.first_child;
-                        old_data.last_child = live_node_data.last_child;
-                        old_data.prev_sibling = live_node_data.prev_sibling;
-                        old_data.next_sibling = live_node_data.next_sibling;
-                        old_data.effective_enabled = live_node_data.effective_enabled;
-                    }
-
-                    engine.unregister_node_uuid(step.new_id);
-                    let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.new_id,
-                    })?;
-                    engine.purge_param_cache_entry(step.new_id);
-                    engine.nodes.reattach(step.old_id, old_node);
-                    engine.register_node_uuid(step.old_id);
-                    engine.populate_param_cache_entry(step.old_id);
-                    engine.mark_schedule_dirty();
-                    let enabled_changes = engine.subtree_effective_enabled_changes(step.old_id);
-                    engine.queue_effective_enabled_callbacks(&enabled_changes)?;
-                    let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
-                    engine.emit_event(EventKind::ChildReplaced {
-                        parent: step.parent,
-                        old: step.new_id,
-                        new: step.old_id,
-                        decl_id,
-                    });
-
-                    step.new_node = Some(detached_new_node);
-                    return Ok(());
-                }
-
-                engine.detach_node(0, OP, step.new_id)?;
-                engine.unregister_node_uuid(step.new_id);
-                let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
-                    edit_index: 0,
-                    operation: OP,
-                    node: step.new_id,
-                })?;
-                engine.purge_param_cache_entry(step.new_id);
-
-                let mut old_node = old_node;
-                old_node.node_data_mut().effective_enabled = detached_new_node.node_data().effective_enabled;
-                engine.nodes.reattach(step.old_id, old_node);
-                engine.register_node_uuid(step.old_id);
-                engine.populate_param_cache_entry(step.old_id);
-                attach_node_for_history(
-                    engine,
-                    OP,
-                    step.old_id,
-                    step.parent,
-                    step.prev_sibling,
-                    step.next_sibling,
-                )?;
-
-                let first_child = engine
-                    .nodes
-                    .get(step.old_id)
-                    .ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.old_id,
-                    })?
-                    .node_data()
-                    .first_child;
-                engine.reparent_child_chain(0, OP, first_child, step.old_id)?;
-                let enabled_changes = engine.subtree_effective_enabled_changes(step.old_id);
-                engine.queue_effective_enabled_callbacks(&enabled_changes)?;
-
-                engine.emit_event(EventKind::NodeCreated { node: step.old_id });
-                let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
-                engine.emit_event(EventKind::ChildReplaced {
-                    parent: step.parent,
-                    old: step.new_id,
-                    new: step.old_id,
-                    decl_id,
-                });
-                engine.emit_event(EventKind::NodeDeleted { node: step.new_id });
-
-                step.new_node = Some(detached_new_node);
+                swap_replacement(engine, step, true)?;
             }
         }
 
@@ -196,6 +99,7 @@ impl<T: Node> HistoryStep<T> {
     /// Reapplies this step's forward operation.
     pub(super) fn redo(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
         match self {
+            Self::AuthoredNode(step) => engine.restore_authored_node_state(step.node, &step.new)?,
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.new_value.clone())?;
             }
@@ -229,7 +133,10 @@ impl<T: Node> HistoryStep<T> {
                 if let Some(ready_ids) = restore_add_node(engine, step)? {
                     push_history_subtree_inserted_ui_event(engine, "RedoAddNode", step.node, step.parent, &ready_ids)?;
                     emit_added_node_events(engine, step, &ready_ids)?;
-                    engine.run_node_ready_for_subtree(ready_ids.as_slice(), crate::node::NodeCreationContext::Fresh)?;
+                    engine.run_node_ready_for_subtree(
+                        ready_ids.as_slice(),
+                        crate::node::NodeCreationContext::HistoryRestore,
+                    )?;
                 }
             }
             Self::RemoveNode(step) => {
@@ -242,15 +149,18 @@ impl<T: Node> HistoryStep<T> {
                     return Ok(());
                 }
 
+                validate_history_move(engine, OP, step.node, step.new_parent)?;
                 let current_parent = engine.detach_node(0, OP, step.node)?;
-                engine.attach_node_between(
-                    0,
+                attach_node_for_history(
+                    engine,
                     OP,
                     step.node,
                     step.new_parent,
                     step.new_prev_sibling,
                     step.new_next_sibling,
                 )?;
+
+                step.at_new_position = true;
 
                 if current_parent == step.new_parent {
                     engine.emit_event(EventKind::ChildReordered {
@@ -266,113 +176,9 @@ impl<T: Node> HistoryStep<T> {
                     let changes = engine.subtree_effective_enabled_changes(step.node);
                     engine.queue_effective_enabled_callbacks(&changes)?;
                 }
-
-                step.at_new_position = true;
             }
             Self::ReplaceNode(step) => {
-                const OP: &str = "RedoReplaceNode";
-
-                let Some(new_node) = step.new_node.take() else {
-                    return Ok(());
-                };
-
-                if step.old_id == step.new_id {
-                    let live_node_data = engine
-                        .nodes
-                        .get(step.old_id)
-                        .ok_or(EngineEditError::NodeNotFound {
-                            edit_index: 0,
-                            operation: OP,
-                            node: step.old_id,
-                        })?
-                        .node_data()
-                        .clone();
-
-                    let mut new_node = new_node;
-                    {
-                        let new_data = new_node.node_data_mut();
-                        new_data.id = step.new_id;
-                        new_data.parent = live_node_data.parent;
-                        new_data.first_child = live_node_data.first_child;
-                        new_data.last_child = live_node_data.last_child;
-                        new_data.prev_sibling = live_node_data.prev_sibling;
-                        new_data.next_sibling = live_node_data.next_sibling;
-                        new_data.effective_enabled = live_node_data.effective_enabled;
-                    }
-
-                    engine.unregister_node_uuid(step.old_id);
-                    let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.old_id,
-                    })?;
-                    engine.purge_param_cache_entry(step.old_id);
-                    engine.nodes.reattach(step.new_id, new_node);
-                    engine.register_node_uuid(step.new_id);
-                    engine.populate_param_cache_entry(step.new_id);
-                    engine.mark_schedule_dirty();
-                    let enabled_changes = engine.subtree_effective_enabled_changes(step.new_id);
-                    engine.queue_effective_enabled_callbacks(&enabled_changes)?;
-                    let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
-                    engine.emit_event(EventKind::ChildReplaced {
-                        parent: step.parent,
-                        old: step.old_id,
-                        new: step.new_id,
-                        decl_id,
-                    });
-
-                    step.old_node = Some(detached_old_node);
-                    return Ok(());
-                }
-
-                engine.detach_node(0, OP, step.old_id)?;
-                engine.unregister_node_uuid(step.old_id);
-                let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
-                    edit_index: 0,
-                    operation: OP,
-                    node: step.old_id,
-                })?;
-                engine.purge_param_cache_entry(step.old_id);
-
-                let mut new_node = new_node;
-                new_node.node_data_mut().effective_enabled = detached_old_node.node_data().effective_enabled;
-                engine.nodes.reattach(step.new_id, new_node);
-                engine.register_node_uuid(step.new_id);
-                engine.populate_param_cache_entry(step.new_id);
-                attach_node_for_history(
-                    engine,
-                    OP,
-                    step.new_id,
-                    step.parent,
-                    step.prev_sibling,
-                    step.next_sibling,
-                )?;
-
-                let first_child = engine
-                    .nodes
-                    .get(step.new_id)
-                    .ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.new_id,
-                    })?
-                    .node_data()
-                    .first_child;
-                engine.reparent_child_chain(0, OP, first_child, step.new_id)?;
-                let enabled_changes = engine.subtree_effective_enabled_changes(step.new_id);
-                engine.queue_effective_enabled_callbacks(&enabled_changes)?;
-
-                engine.emit_event(EventKind::NodeCreated { node: step.new_id });
-                let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
-                engine.emit_event(EventKind::ChildReplaced {
-                    parent: step.parent,
-                    old: step.old_id,
-                    new: step.new_id,
-                    decl_id,
-                });
-                engine.emit_event(EventKind::NodeDeleted { node: step.old_id });
-
-                step.old_node = Some(detached_old_node);
+                swap_replacement(engine, step, false)?;
             }
         }
 
@@ -382,7 +188,8 @@ impl<T: Node> HistoryStep<T> {
     /// Releases detached node payloads owned by this step, if any.
     pub(super) fn dispose(&mut self, engine: &mut Engine<T>) {
         match self {
-            Self::SetParam(_)
+            Self::AuthoredNode(_)
+            | Self::SetParam(_)
             | Self::SetParamControlState(_)
             | Self::SetParamConstraints(_)
             | Self::PatchMeta(_)
@@ -404,17 +211,17 @@ impl<T: Node> HistoryStep<T> {
             }
             Self::ReplaceNode(step) => {
                 if let Some(node) = step.old_node.take() {
-                    purge_detached_node(engine, step.old_id, node);
+                    purge_detached_node(engine, step.node, node);
                 }
                 if let Some(node) = step.new_node.take() {
-                    purge_detached_node(engine, step.new_id, node);
+                    purge_detached_node(engine, step.node, node);
                 }
             }
         }
     }
 }
 
-fn attach_node_for_history<T: Node>(
+pub(super) fn attach_node_for_history<T: Node>(
     engine: &mut Engine<T>,
     operation: &'static str,
     node: NodeId,
@@ -424,6 +231,125 @@ fn attach_node_for_history<T: Node>(
 ) -> Result<(), EngineEditError> {
     let (prev_sibling, next_sibling) = historical_sibling_bounds(engine, parent, prev_sibling, next_sibling);
     engine.attach_node_between(0, operation, node, parent, prev_sibling, next_sibling)
+}
+
+fn validate_history_move<T: Node>(
+    engine: &Engine<T>,
+    operation: &'static str,
+    node: NodeId,
+    parent: NodeId,
+) -> Result<(), EngineEditError> {
+    if !engine.nodes.contains(parent) {
+        return Err(EngineEditError::ParentNotFound {
+            edit_index: 0,
+            operation,
+            parent,
+        });
+    }
+    if node == parent || engine.is_descendant_of(parent, node) {
+        return Err(EngineEditError::CycleDetected {
+            edit_index: 0,
+            operation,
+            node,
+            new_parent: parent,
+        });
+    }
+    Ok(())
+}
+
+fn validate_detached_restore<T: Node>(
+    engine: &Engine<T>,
+    operation: &'static str,
+    root: NodeId,
+    parent: NodeId,
+    nodes: &[(NodeId, T)],
+) -> Result<(), EngineEditError> {
+    if !engine.nodes.contains(parent) {
+        return Err(EngineEditError::ParentNotFound {
+            edit_index: 0,
+            operation,
+            parent,
+        });
+    }
+    if nodes.iter().any(|(id, _)| engine.nodes.contains(*id)) {
+        return Err(EngineEditError::NodeMutationRejected {
+            edit_index: 0,
+            operation,
+            node: root,
+            node_type: "history subtree".into(),
+            message: "a detached history identity is already live".into(),
+        });
+    }
+    Ok(())
+}
+
+fn swap_replacement<T: Node>(
+    engine: &mut Engine<T>,
+    step: &mut ReplaceNodeHistory<T>,
+    undo: bool,
+) -> Result<(), EngineEditError> {
+    let incoming = if undo { &mut step.old_node } else { &mut step.new_node };
+    if incoming.is_none() {
+        return Ok(());
+    }
+    const OP: &str = "HistoryReplaceNode";
+    let live = engine
+        .nodes
+        .get(step.node)
+        .ok_or(EngineEditError::NodeNotFound {
+            edit_index: 0,
+            operation: OP,
+            node: step.node,
+        })?
+        .node_data()
+        .clone();
+    engine.run_destroy_for_subtree(&[step.node])?;
+    let mut replacement = incoming.take().expect("detached replacement");
+    let data = replacement.node_data_mut();
+    data.id = step.node;
+    data.parent = live.parent;
+    data.first_child = live.first_child;
+    data.last_child = live.last_child;
+    data.prev_sibling = live.prev_sibling;
+    data.next_sibling = live.next_sibling;
+    data.effective_enabled = live.effective_enabled;
+    engine.unregister_node_uuid(step.node);
+    let detached = engine.nodes.detach(step.node).expect("validated live replacement");
+    engine.purge_param_cache_entry(step.node);
+    engine.node_wakes.source.close(step.node);
+    engine.event_listeners.remove_subscriber(step.node);
+    engine.nodes.reattach(step.node, replacement);
+    engine.register_node_uuid(step.node);
+    engine.populate_param_cache_entry(step.node);
+    swap_detached_blueprint(engine, step.node, step.node, &mut step.detached_blueprint);
+    // Retain ownership before any fallible callback or projection operation.
+    if undo {
+        step.new_node = Some(detached);
+    } else {
+        step.old_node = Some(detached);
+    }
+    engine.mark_schedule_dirty();
+    let changes = engine.subtree_effective_enabled_changes(step.node);
+    engine.queue_effective_enabled_callbacks(&changes)?;
+    engine.run_node_ready(step.node, crate::node::NodeCreationContext::HistoryRestore)?;
+    if let Some(parent) = live.parent {
+        let decl_id = child_decl_id(engine, 0, OP, step.node)?;
+        engine.emit_event(EventKind::ChildReplaced {
+            parent,
+            old: step.node,
+            new: step.node,
+            decl_id,
+        });
+    }
+    if let Some(snapshot) = engine.ui_node_dto_for_event(step.node) {
+        let index = live.parent.and_then(|parent| engine.ui_child_index(parent, step.node));
+        engine.push_ui_graph_transaction(vec![UiGraphOp::NodeCreated {
+            snapshot: Box::new(snapshot),
+            parent: live.parent,
+            index,
+        }]);
+    }
+    Ok(())
 }
 
 fn historical_sibling_bounds<T: Node>(
@@ -477,6 +403,19 @@ fn purge_detached_node<T: Node>(engine: &mut Engine<T>, id: NodeId, node: T) {
     let _ = engine.nodes.remove(id);
 }
 
+fn swap_detached_blueprint<T: Node>(
+    engine: &mut Engine<T>,
+    live: NodeId,
+    restored: NodeId,
+    detached: &mut Option<BlueprintInstanceMeta>,
+) {
+    let active = engine.blueprints.unregister_instance(live);
+    if let Some(meta) = detached.take() {
+        engine.blueprints.register_instance(restored, meta);
+    }
+    *detached = active;
+}
+
 fn child_decl_id<T: Node>(
     engine: &Engine<T>,
     edit_index: usize,
@@ -514,7 +453,7 @@ pub(super) fn undo_add_node<T: Node>(
         Err(err) => return Err(err),
     };
     if run_destroy {
-        engine.run_destroy_for_subtree(subtree.as_slice());
+        engine.run_destroy_for_subtree(subtree.as_slice())?;
     }
     let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
     engine.detach_node(0, OP, step.node)?;
@@ -529,6 +468,9 @@ pub(super) fn undo_add_node<T: Node>(
             node: removed,
         })?;
         detached_nodes.push((removed, detached));
+        if let Some(meta) = engine.blueprints.unregister_instance(removed) {
+            step.detached_blueprints.push((removed, meta));
+        }
         engine.purge_param_cache_entry(removed);
         engine.emit_inbox_event(EventKind::NodeDeleted { node: removed });
     }
@@ -551,6 +493,9 @@ pub(super) fn restore_add_node<T: Node>(
     step: &mut AddNodeHistory<T>,
 ) -> Result<Option<Vec<NodeId>>, EngineEditError> {
     const OP: &str = "RedoAddNode";
+    if let Some(nodes) = &step.detached_nodes {
+        validate_detached_restore(engine, OP, step.node, step.parent, nodes)?;
+    }
     let Some(detached_nodes) = step.detached_nodes.take() else {
         return Ok(None);
     };
@@ -562,6 +507,10 @@ pub(super) fn restore_add_node<T: Node>(
         engine.populate_param_cache_entry(id);
     }
     attach_node_for_history(engine, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
+
+    for (root, meta) in step.detached_blueprints.drain(..) {
+        engine.blueprints.register_instance(root, meta);
+    }
 
     let mut ready_ids = created_ids;
     ready_ids.reverse();
@@ -590,6 +539,9 @@ pub(super) fn restore_remove_node<T: Node>(
     step: &mut RemoveNodeHistory<T>,
 ) -> Result<Option<Vec<NodeId>>, EngineEditError> {
     const OP: &str = "UndoRemoveNode";
+    if let Some(nodes) = &step.detached_nodes {
+        validate_detached_restore(engine, OP, step.node, step.parent, nodes)?;
+    }
     let Some(detached_nodes) = step.detached_nodes.take() else {
         return Ok(None);
     };
@@ -601,6 +553,10 @@ pub(super) fn restore_remove_node<T: Node>(
         engine.populate_param_cache_entry(id);
     }
     attach_node_for_history(engine, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
+
+    for (root, meta) in step.detached_blueprints.drain(..) {
+        engine.blueprints.register_instance(root, meta);
+    }
 
     let mut ready_ids = created_ids;
     ready_ids.reverse();
@@ -636,7 +592,7 @@ pub(super) fn redo_remove_node<T: Node>(
 
     let subtree = engine.collect_subtree(0, OP, step.node)?;
     if run_destroy {
-        engine.run_destroy_for_subtree(subtree.as_slice());
+        engine.run_destroy_for_subtree(subtree.as_slice())?;
     }
     let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
     engine.detach_node(0, OP, step.node)?;
@@ -651,6 +607,9 @@ pub(super) fn redo_remove_node<T: Node>(
             node: removed,
         })?;
         detached_nodes.push((removed, detached));
+        if let Some(meta) = engine.blueprints.unregister_instance(removed) {
+            step.detached_blueprints.push((removed, meta));
+        }
         engine.purge_param_cache_entry(removed);
         engine.emit_inbox_event(EventKind::NodeDeleted { node: removed });
     }

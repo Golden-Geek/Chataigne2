@@ -95,6 +95,100 @@ limited even if native shutdown never returns, and admission failure gives the c
 resource back. Production project replacement permits two concurrent detached-engine retirements;
 a third request is rejected before allocating a generation or preparing the candidate.
 
+`golden_io::BoundedWorker` composes weighted command/reply channels with out-of-band cancellation.
+The worker reserves a lifetime slot before starting and owns it until its resources finish dropping.
+Cancelling or dropping the handle wakes command, retry, and reply-capacity waits without a join or
+another cleanup thread. Completed replies wait for capacity on the worker; oversized replies return
+ownership immediately. Worker exit remains visible to event-driven owners even without a reply.
+The supplied pool therefore bounds active and retiring workers together. This differs from reserving
+a retirement slot only after a live resource has already been removed from its owner.
+`finish_admission` closes the producer while preserving admitted commands and replies; its owner
+keeps draining until completion. A failed worker can instead close receiver admission and resolve
+every already-accepted command before exiting. Neither path needs an extra stop command or a join.
+
+`WorkerContext::drain_commands` exposes a bounded nonblocking turn for workers that also receive
+unsolicited native input. Graceful closure drains accepted commands before disconnection;
+explicit cancellation ends service without consuming the remaining queue.
+
+The app-owned UDP adapter owns socket generations in `stream/udp/lifecycle.rs`, using one active
+or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup and packet
+sends stay on the worker. Command admission is bounded by 256 items / 1 MiB; reply admission uses
+64 items / 512 KiB, charging owned buffer capacity. Each native turn services at most 16 commands
+and 16 incoming packets, and an owner drain extracts at most four events. Oversized UDP payloads
+and host names fail admission synchronously. These bounds cover retained transport allocations;
+shared stream parsing and graph application have separate limits and qualification work.
+
+Reconfiguration and disable close send admission while retaining accepted work and results.
+The next generation waits for the old socket's release, including when rebinding the same port.
+Only destination destruction cancels pending work. Bind failures explicitly fail already-admitted
+sends, and worker/native failures use capped 250 ms-to-5 s reconnect backoff. An asynchronous Ready
+event controls connected state. A disabled consumer retains its bounded completion backlog until
+re-enabled or destroyed. Cancellation never joins setup, DNS, or cleanup; an uninterruptible
+native call retains its global lifetime slot until it returns.
+
+The app-owned HTTP adapter uses that boundary with 16 global worker lifetimes, 256 commands / 8 MiB
+of retained request weight, and four replies / 32 MiB of retained event weight per worker. Bodies are
+read up to a 1 MiB limit even without a declared content length. JSON expansion has value, depth,
+and retained-weight limits; request JSON, headers, form fields, and file descriptors are bounded
+before admission. Multipart file contents stream on the worker. Weight includes owned buffers,
+parsed values, and prepared script arguments; it is an admission estimate, not a process-RSS limit.
+One in-flight request/result may additionally be retained, and parsing/preparing it can temporarily
+exceed the reply queue's retained-weight budget before rejection. Client creation, JSON parsing,
+success/failure script-argument preparation, retry waits, requests, and client destruction stay on the worker.
+
+HTTP module turns drain at most four events and retain at most that one FIFO batch. A response
+cursor services at most 256 path/value/sibling work units and about 64 KiB of value/path/provenance
+copies per turn. One larger scalar may consume a whole turn rather than being truncated or stranded;
+it was already bounded at the worker boundary. Large arrays use the same continuation, not a smaller
+input limit. Known missing paths become detached subtree batches; list tails are pruned with stable
+next-sibling markers and bounded scans. Interleaved marker removal re-arms that scan. Surviving nodes
+keep their identities and unindexed children remain untouched.
+
+Success and failure callbacks stay in FIFO order, with at most one completion per turn. A response
+waits for engine completion receipts before advancing to the next graph-planning turn. Rejection,
+discard, or rollback reports `requestFailed` with the original request identity and attempt count;
+an applied prefix may remain. It never reissues the endpoint request or replays earlier pulses.
+Snapshot freshness alone cannot acknowledge a queued edit. Repeated triggers and
+ancestor/descendant replacements yield between conflicting units instead of collapsing into one
+planned leaf. Creating a trigger address retains the first pulse until a fresh snapshot can
+submit it as an Append value edit; existing trigger addresses may receive multiple appended
+pulses in one turn. Only a bounded value prefix is cloned for planning. Indexed list elements retain
+their existing description policy rather than duplicating request provenance. HTTP value paths
+are limited to 256 bytes per segment / 4096 total bytes, and informational provenance is capped at
+4096 UTF-8-safe bytes. Actor-side URL diagnostics also use a bounded prefix. These are backend
+preparation/service contracts; no UI supplies graph mutation policy.
+
+The HTTP owner retains a prepared callback event until its own publication receipt completes.
+A discarded or rolled-back event can be resubmitted; a published event is never replayed because
+a later request or subscriber failed. Retries share the event's immutable JSON payload instead
+of copying the response body, and the app callback wrapper moves worker-prepared arguments into
+that payload without reserializing them. Receipt waits, final acknowledgements, and callback-only
+turns do not request whole-tree snapshots. Subscriber execution is a separate outcome from event
+publication. The same four-event FIFO bound includes the callback waiting for acknowledgement.
+
+Idle modules use pending/disconnected signals; failed startup/worker recovery uses capped backoff.
+HTTP configuration handoff lives in the app's `http/lifecycle.rs`. Each module retains at most
+three generations, including their bounded reply queues; all modules share the 16 native lifetime
+slots. New generations wait for earlier accepted requests to resolve before dispatching their
+own requests. Results drain from the oldest generation first, under the same four-event aggregate
+service budget. Identical prepared configurations reuse admission. Full local/global capacity
+blocks new admission and retains old owners while backoff waits for progress; no per-change cleanup
+thread is created.
+
+Request completion is distinct from native client destruction. A worker publishes completion
+before cleanup, and the consumer observes that marker before its final queue drain, avoiding a
+race with the last result. New requests/results can progress while old native cleanup retains its
+reserved slot. Dropping a waiting generation wakes its predecessor wait. Request-worker panics
+close admission and report failure for both the started request and unsent queued requests;
+attempt counts and diagnostics distinguish possible remote effects from requests never sent.
+
+Invalid settings and disabling close admission gracefully. Previously admitted commands retain
+their owners; disabling defers callback consumption until re-enable, with ordinary reply
+backpressure bounding the paused producer. Destruction cancels remaining delivery because the
+destination itself is being removed. An already-issued blocking HTTP call may complete externally
+and retain its lifetime slot until its configured timeout; cancellation does not imply remote
+effects were rolled back. Full P03 module/lifecycle qualification remains in the implementation ledger.
+
 Golden runtime activation builds the parameter-control index before the first timed tick. If an
 active scheduled node needs a process-tree snapshot, activation also prepares one immutable,
 one-use snapshot. The first tick reuses it only when no edits or inbox work changed the tree before
@@ -105,11 +199,26 @@ callback meets a real-time deadline.
 An edit before the first scheduled callback rejects the prepared snapshot and can still make that
 first tick expensive; large-project edit and retirement behavior remains a separate qualification.
 
+The engine's worker ingress uses reserved `NodeWaker` notifications; payloads and their byte
+budgets stay with module-owned mailboxes. The Sound Card module consumes that wake path through
+its passive worker-service hook, with configuration-dependent snapshot requests. It no
+longer sends private wake events through an unbounded arbitrary-edit channel. One process-wide
+host timer admits at most 1024 active/retiring Sound Card registrations. Each retains one earliest
+deadline, so repeated retry scheduling does not accumulate jobs. Dropping the source cancels its
+deadline; a full registration set rejects before worker startup. A later registration attempt can
+recover after an owner releases its slot. A paired condition-variable lock wakes the sleeping timer
+on deadline publication.
+There is no full-queue fallback that polls the node each engine tick, and no per-source timer
+thread. Startup failure does not permanently poison timer construction. This qualifies wake and
+retry scheduling only; the Sound Card worker, event-drain, and native-retirement audit remains open.
+
 ## Current qualification boundaries
 
 The table describes reusable primitives and the named migrated adapters, not every app module.
-The October audit found remaining blocking module stop/join paths, unbounded/unit-weight payload
-admission, unrestricted engine external-edit drains, and lifecycle expansion loops. The single
+The October audit found blocking module stop/join paths, unbounded/unit-weight payload admission,
+unrestricted engine external-edit drains, and lifecycle expansion loops. The arbitrary engine
+channel has since been removed in favor of bounded worker notifications; the remaining module
+and lifecycle gaps are still open. The single
 [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md) owns those P02/P03 repairs;
 do not infer that all module I/O is already bounded from the generic channel API.
 

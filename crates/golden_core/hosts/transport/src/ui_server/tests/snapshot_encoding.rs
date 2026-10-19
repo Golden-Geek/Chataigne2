@@ -230,7 +230,8 @@ fn save_resync_and_engine_ticks_progress_during_three_client_snapshot_contention
     let runtime = ProductionRuntime::new(
         engine,
         UiProjectFileSpec::from_project_file_spec(SnapshotQualificationNode::project_file_spec(), None),
-    );
+    )
+    .unwrap();
     let read_model = runtime.read_model();
     let old_revision = read_model.current_revision();
     let first = service
@@ -241,16 +242,18 @@ fn save_resync_and_engine_ticks_progress_during_three_client_snapshot_contention
         .expect("encoder should enter deterministic test gate");
 
     let edit_started = Instant::now();
-    let edit = runtime.apply_ui_transaction(
-        UiEditIntent::PatchMeta {
-            node: root,
-            patch: NodeMetaPatch {
-                label: Some("Root after edit".to_string()),
-                ..Default::default()
+    let edit = runtime
+        .apply_ui_transaction(
+            UiEditIntent::PatchMeta {
+                node: root,
+                patch: NodeMetaPatch {
+                    label: Some("Root after edit".to_string()),
+                    ..Default::default()
+                },
             },
-        },
-        None,
-    );
+            None,
+        )
+        .unwrap();
     assert!(edit.acknowledgement.success);
     let edit_elapsed = edit_started.elapsed();
     assert!(edit_elapsed < Duration::from_secs(1));

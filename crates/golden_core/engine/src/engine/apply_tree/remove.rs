@@ -123,11 +123,12 @@ impl<T: Node> Engine<T> {
         let subtree = self.collect_subtree(edit_index, OP, node)?;
         let removed_ids = subtree.clone();
         if run_destroy {
-            self.run_destroy_for_subtree(subtree.as_slice());
+            self.run_destroy_for_subtree(subtree.as_slice())?;
         }
         self.detach_node(edit_index, OP, node)?;
 
         let mut detached_nodes = Vec::with_capacity(subtree.len());
+        let mut detached_blueprints = Vec::new();
         for removed in subtree.into_iter().rev() {
             self.unregister_node_uuid(removed);
             let detached_node = self.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
@@ -137,7 +138,9 @@ impl<T: Node> Engine<T> {
             })?;
             detached_nodes.push((removed, detached_node));
             self.purge_param_cache_entry(removed);
-            self.blueprints.unregister_instance(removed);
+            if let Some(meta) = self.blueprints.unregister_instance(removed) {
+                detached_blueprints.push((removed, meta));
+            }
             self.emit_inbox_event(EventKind::NodeDeleted { node: removed });
         }
 
@@ -158,6 +161,7 @@ impl<T: Node> Engine<T> {
             prev_sibling,
             next_sibling,
             detached_nodes,
+            detached_blueprints,
         })
     }
 

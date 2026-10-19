@@ -49,6 +49,8 @@ pub enum ControlErrorKind {
     Overloaded,
     /// The actor is shutting down or no longer available.
     Disconnected,
+    /// An admitted operation was discarded before it started.
+    Cancelled,
 }
 
 /// Failure to admit or complete a control operation.
@@ -59,6 +61,13 @@ pub struct ControlError {
 }
 
 impl ControlError {
+    /// Reports admitted work whose domain operation was cancelled before execution.
+    pub fn cancelled() -> Self {
+        Self {
+            kind: ControlErrorKind::Cancelled,
+            message: "accepted control operation was cancelled before execution".into(),
+        }
+    }
     fn disconnected() -> Self {
         Self {
             kind: ControlErrorKind::Disconnected,
@@ -110,7 +119,7 @@ pub struct ControlReceipt<R> {
 /// Accepted control operation that may be awaited independently of transport work.
 pub struct PendingControl<R> {
     sequence: u64,
-    receiver: mpsc::Receiver<(R, std::time::Duration, std::time::Duration)>,
+    receiver: mpsc::Receiver<ControlOutcome<R>>,
 }
 
 impl<R> PendingControl<R> {
@@ -126,7 +135,7 @@ impl<R> PendingControl<R> {
 
     /// Waits for authoritative application.
     pub fn wait(self) -> Result<ControlReceipt<R>, ControlError> {
-        let (output, queue_wait, apply_time) = self.receiver.recv().map_err(|_| ControlError::disconnected())?;
+        let (output, queue_wait, apply_time) = self.receiver.recv().map_err(|_| ControlError::disconnected())??;
         Ok(ControlReceipt {
             sequence: self.sequence,
             status: ControlStatus::Applied,
@@ -134,6 +143,37 @@ impl<R> PendingControl<R> {
             apply_time,
             output,
         })
+    }
+}
+
+type ControlOutcome<R> = Result<(R, std::time::Duration, std::time::Duration), ControlError>;
+
+/// A queued closure owns its response even when shutdown discards it without invocation.
+struct ControlResponse<R> {
+    sender: Option<mpsc::SyncSender<ControlOutcome<R>>>,
+    started: bool,
+}
+
+impl<R> ControlResponse<R> {
+    fn finish(mut self, outcome: ControlOutcome<R>) {
+        if let Some(sender) = self.sender.take() {
+            let _ = sender.try_send(outcome);
+        }
+    }
+}
+
+impl<R> Drop for ControlResponse<R> {
+    fn drop(&mut self) {
+        if let Some(sender) = self.sender.take() {
+            // A panicking started operation may already have effects. Only a closure
+            // discarded before execution can truthfully be reported as cancelled.
+            let error = if self.started {
+                ControlError::disconnected()
+            } else {
+                ControlError::cancelled()
+            };
+            let _ = sender.try_send(Err(error));
+        }
     }
 }
 
@@ -166,15 +206,20 @@ impl<S: Send + 'static> ControlHandle<S> {
         let sequence = self.next_sequence.fetch_add(1, Ordering::Relaxed);
         let admitted_at = Instant::now();
         let (response_tx, response_rx) = mpsc::sync_channel(1);
+        let mut response = ControlResponse {
+            sender: Some(response_tx),
+            started: false,
+        };
         let metrics = self.metrics.clone();
         let task = Box::new(move |state: &mut S| {
+            response.started = true;
             let queue_wait = admitted_at.elapsed();
             metrics.control_started(duration_ns(queue_wait));
             let started_at = Instant::now();
             let output = operation(state);
             let apply_time = started_at.elapsed();
             metrics.control_finished(duration_ns(apply_time));
-            let _ = response_tx.send((output, queue_wait, apply_time));
+            response.finish(Ok((output, queue_wait, apply_time)));
         });
         self.metrics.control_received();
         let admission = if self.accepting.load(Ordering::Acquire) {
@@ -255,9 +300,10 @@ impl<S: Send + 'static> ControlActor<S> {
             accepting,
         };
         let actor_stopping = stopping.clone();
+        let actor_metrics = handle.metrics.clone();
         let thread = thread::Builder::new()
             .name(name.into())
-            .spawn(move || actor_loop(state, receiver, actor_stopping))?;
+            .spawn(move || actor_loop(state, receiver, actor_stopping, actor_metrics))?;
         Ok(Self {
             handle,
             stopping,
@@ -299,7 +345,21 @@ impl<S> Drop for ControlActor<S> {
     }
 }
 
-fn actor_loop<S>(mut state: S, receiver: mpsc::Receiver<ControlMessage<S>>, stopping: Arc<AtomicBool>) {
+struct ActorLifetimeMetrics(Arc<RuntimeMetrics>);
+
+impl Drop for ActorLifetimeMetrics {
+    fn drop(&mut self) {
+        self.0.control_discard_pending();
+    }
+}
+
+fn actor_loop<S>(
+    mut state: S,
+    receiver: mpsc::Receiver<ControlMessage<S>>,
+    stopping: Arc<AtomicBool>,
+    metrics: Arc<RuntimeMetrics>,
+) {
+    let _lifetime = ActorLifetimeMetrics(metrics);
     while let Ok(message) = receiver.recv() {
         match message {
             ControlMessage::Apply(task) => task(&mut state),

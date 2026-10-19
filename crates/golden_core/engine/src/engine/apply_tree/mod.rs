@@ -22,6 +22,20 @@ pub(super) struct InsertedNode {
     pub(super) decl_id: DeclId,
 }
 
+/// A structural mutation has committed even when its lifecycle completion fails.
+/// The caller must record its effect before returning the completion error.
+pub(crate) struct AppliedEdit<E> {
+    pub(crate) effect: E,
+    pub(crate) completion: Result<(), EngineEditError>,
+}
+
+impl<E> AppliedEdit<E> {
+    pub(crate) fn capture_completion(self, completion: &mut Result<(), EngineEditError>) -> E {
+        *completion = self.completion;
+        self.effect
+    }
+}
+
 mod insert;
 mod lifecycle;
 mod r#move;

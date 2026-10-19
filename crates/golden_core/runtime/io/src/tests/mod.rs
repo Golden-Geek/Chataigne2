@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use crate::testkit::{TestTransportSendError, test_transport_pair};
 use crate::{BoundedQueue, ReconnectBackoff, RetirementPool, WorkerTask};
 
+mod bounded_worker;
 mod pending;
 
 #[test]

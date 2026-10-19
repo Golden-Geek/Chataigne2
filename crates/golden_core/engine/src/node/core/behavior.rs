@@ -13,97 +13,11 @@ use crate::{
 };
 
 use super::{
-    DeclId, EventPropagation, Folder, NodeData, NodeId, NodeMetaPatch, NodeReference, NodeScriptDescriptor,
-    NodeUserPermissions, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextHostPolicy,
-    UserCreatableItem, core_node_script_descriptor, lookup_script_child_by_key_and_type,
+    DeclId, EventPropagation, Folder, NodeCreationContext, NodeData, NodeId, NodeMetaPatch, NodeReference,
+    NodeScriptDescriptor, NodeUserPermissions, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_NODE_TYPE, UserContainerRules,
+    UserContextHostPolicy, UserCreatableItem, core_node_script_descriptor, lookup_script_child_by_key_and_type,
     parameter_node_type_from_value,
 };
-
-/// Creation context for one node instance after attachment, decode, and child reconciliation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeCreationContext {
-    /// Fresh node inserted by regular runtime editing or blueprint creation.
-    Fresh,
-    /// Node recreated while loading a persisted project.
-    ProjectLoad,
-    /// App-owned structure added after persisted project reconstruction but before cutover.
-    ///
-    /// This retains loaded-data lifecycle semantics while allowing the engine to omit
-    /// transient event and UI projections that the host replaces with a full snapshot.
-    ProjectLoadAugmentation,
-    /// Node recreated while duplicating/copy-pasting a persisted subtree.
-    Duplicate,
-    /// Duplicate whose caller supplied explicit initial parameter values.
-    ///
-    /// App lifecycle code may use this to avoid applying a default duplicate
-    /// adjustment over a value the higher-level operation already resolved.
-    DuplicateWithInitialParams,
-}
-
-impl NodeCreationContext {
-    /// Returns `true` when this creation path restored persisted data.
-    pub const fn has_loaded_data(self) -> bool {
-        !matches!(self, Self::Fresh)
-    }
-
-    /// Returns `true` for persisted reconstruction and pre-cutover augmentation.
-    pub const fn is_project_load(self) -> bool {
-        matches!(self, Self::ProjectLoad | Self::ProjectLoadAugmentation)
-    }
-}
-
-enum InboxDispatchEvent {
-    ParamChanged {
-        param: NodeId,
-        old_value: ParamValue,
-    },
-    ParamControlChanged {
-        param: NodeId,
-        old_state: ParameterControlState,
-        new_state: ParameterControlState,
-    },
-    ParamConstraintsChanged {
-        param: NodeId,
-        old_constraints: ParameterConstraints,
-        new_constraints: Box<ParameterConstraints>,
-    },
-    ChildAdded {
-        parent: NodeId,
-        child: NodeId,
-        decl_id: DeclId,
-    },
-    ChildRemoved {
-        parent: NodeId,
-        child: NodeId,
-    },
-    ChildReplaced {
-        parent: NodeId,
-        old: NodeId,
-        new: NodeId,
-        decl_id: DeclId,
-    },
-    ChildMoved {
-        child: NodeId,
-        old_parent: NodeId,
-        new_parent: NodeId,
-    },
-    ChildReordered {
-        parent: NodeId,
-        child: NodeId,
-    },
-    NodeCreated {
-        node: NodeId,
-    },
-    NodeDeleted {
-        node: NodeId,
-    },
-    MetaChanged {
-        node: NodeId,
-        patch: NodeMetaPatch,
-    },
-    GraphTransaction,
-    Custom(CustomEvent),
-}
 
 #[allow(missing_docs)]
 /// Behavior contract implemented by all node types.
@@ -180,6 +94,21 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
         Ok(serde_json::Value::Null)
+    }
+
+    /// Captures complete authored data for in-place history restoration.
+    /// Sparse custom codecs must override this to include default-valued fields.
+    /// Runtime resources and transient caches do not belong in this payload.
+    #[doc(hidden)]
+    fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
+        self.project_encode_data()
+    }
+
+    /// Restores a payload captured by `engine_capture_authored_data` on this instance.
+    /// Implementations must preserve runtime-only state and defer external activation.
+    #[doc(hidden)]
+    fn engine_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        self.project_decode_data(data)
     }
 
     #[doc(hidden)]
@@ -771,6 +700,15 @@ pub trait Node: Send + Any {
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {}
     fn update(&mut self, _ctx: &mut ProcessCtx) {}
+    /// Services a coalesced worker notification without advancing the scheduled update clock.
+    /// The node owns its bounded mailbox drain and re-arms its waker if work remains.
+    fn on_worker_wake(&mut self, _ctx: &mut ProcessCtx) {}
+    /// Returns whether the next worker notification needs a process-tree snapshot.
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+    /// Releases runtime resources. When the payload is retained for undo/rollback,
+    /// the engine preserves its authored data across this callback.
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
 
     /// Returns `false` when [`Self::update`] is guaranteed to be a no-op this tick,
@@ -974,136 +912,7 @@ pub trait Node: Send + Any {
     }
 
     fn dispatch_inbox(&mut self, ctx: &mut ProcessCtx) {
-        if ctx.has_structure_changed() {
-            self.on_structure_changed(ctx);
-        }
-
-        for index in 0..ctx.events.len() {
-            let event = match &ctx.events[index].kind {
-                EventKind::ParamChanged { param, old_value, .. } => InboxDispatchEvent::ParamChanged {
-                    param: *param,
-                    old_value: old_value.clone(),
-                },
-                EventKind::ParamControlChanged {
-                    param,
-                    old_state,
-                    new_state,
-                } => InboxDispatchEvent::ParamControlChanged {
-                    param: *param,
-                    old_state: old_state.clone(),
-                    new_state: new_state.clone(),
-                },
-                EventKind::ParamConstraintsChanged {
-                    param,
-                    old_constraints,
-                    new_constraints,
-                } => InboxDispatchEvent::ParamConstraintsChanged {
-                    param: *param,
-                    old_constraints: old_constraints.clone(),
-                    new_constraints: new_constraints.clone(),
-                },
-                EventKind::ChildAdded { parent, child, decl_id } => InboxDispatchEvent::ChildAdded {
-                    parent: *parent,
-                    child: *child,
-                    decl_id: decl_id.clone(),
-                },
-                EventKind::ChildRemoved { parent, child } => InboxDispatchEvent::ChildRemoved {
-                    parent: *parent,
-                    child: *child,
-                },
-                EventKind::ChildReplaced {
-                    parent,
-                    old,
-                    new,
-                    decl_id,
-                } => InboxDispatchEvent::ChildReplaced {
-                    parent: *parent,
-                    old: *old,
-                    new: *new,
-                    decl_id: decl_id.clone(),
-                },
-                EventKind::ChildMoved {
-                    child,
-                    old_parent,
-                    new_parent,
-                } => InboxDispatchEvent::ChildMoved {
-                    child: *child,
-                    old_parent: *old_parent,
-                    new_parent: *new_parent,
-                },
-                EventKind::ChildReordered { parent, child } => InboxDispatchEvent::ChildReordered {
-                    parent: *parent,
-                    child: *child,
-                },
-                EventKind::NodeCreated { node } => InboxDispatchEvent::NodeCreated { node: *node },
-                EventKind::NodeDeleted { node } => InboxDispatchEvent::NodeDeleted { node: *node },
-                EventKind::MetaChanged { node, patch } => InboxDispatchEvent::MetaChanged {
-                    node: *node,
-                    patch: patch.clone(),
-                },
-                EventKind::GraphTransaction { .. } => {
-                    // Handled implicitly by on_structure_changed or individual ops if destructured later.
-                    InboxDispatchEvent::GraphTransaction
-                }
-                EventKind::Custom(event) => InboxDispatchEvent::Custom(event.clone()),
-            };
-            match event {
-                InboxDispatchEvent::ParamChanged { param, old_value } => {
-                    self.on_param_change(ctx, param, old_value);
-                }
-                InboxDispatchEvent::ParamControlChanged {
-                    param,
-                    old_state,
-                    new_state,
-                } => {
-                    self.on_param_control_changed(ctx, param, old_state, new_state);
-                }
-                InboxDispatchEvent::ParamConstraintsChanged {
-                    param,
-                    old_constraints,
-                    new_constraints,
-                } => {
-                    self.on_param_constraints_changed(ctx, param, old_constraints, *new_constraints);
-                }
-                InboxDispatchEvent::ChildAdded { parent, child, decl_id } => {
-                    self.on_child_added_decl(ctx, parent, child, &decl_id);
-                }
-                InboxDispatchEvent::ChildRemoved { parent, child } => {
-                    self.on_child_removed(ctx, parent, child);
-                }
-                InboxDispatchEvent::ChildReplaced {
-                    parent,
-                    old,
-                    new,
-                    decl_id,
-                } => {
-                    self.on_child_replaced_decl(ctx, parent, old, new, &decl_id);
-                }
-                InboxDispatchEvent::ChildMoved {
-                    child,
-                    old_parent,
-                    new_parent,
-                } => {
-                    self.on_child_moved(ctx, child, old_parent, new_parent);
-                }
-                InboxDispatchEvent::ChildReordered { parent, child } => {
-                    self.on_child_reordered(ctx, parent, child);
-                }
-                InboxDispatchEvent::NodeCreated { node } => {
-                    self.on_node_created(ctx, node);
-                }
-                InboxDispatchEvent::NodeDeleted { node } => {
-                    self.on_node_deleted(ctx, node);
-                }
-                InboxDispatchEvent::MetaChanged { node, patch } => {
-                    self.on_meta_changed(ctx, node, patch);
-                }
-                InboxDispatchEvent::GraphTransaction => {}
-                InboxDispatchEvent::Custom(event) => {
-                    self.on_custom_event(ctx, event);
-                }
-            }
-        }
+        super::inbox::dispatch_inbox(self, ctx);
     }
 
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
@@ -1147,148 +956,4 @@ pub trait Node: Send + Any {
     fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {}
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, _enabled: bool) {}
     fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {}
-}
-
-#[allow(missing_docs)]
-/// Adapter used by `#[node(..., via = ...)]` to access either a `NodeData` field directly or a composed node that owns the runtime identity.
-pub trait ViaTarget {
-    /// Returns the node data backing the via target.
-    fn via_node_data(&self) -> &NodeData;
-    /// Returns mutable node data backing the via target.
-    fn via_node_data_mut(&mut self) -> &mut NodeData;
-
-    fn via_engine_child_event_interest_depth(&self, _event: &Event) -> u32 {
-        0
-    }
-
-    fn via_engine_on_attached(&mut self, _ctx: &mut ProcessCtx) {}
-
-    fn via_engine_sync_param_handle_cache(&mut self, _param: NodeId, _new_value: &ParamValue) {}
-
-    fn via_engine_sync_bound_param_handles(&mut self, _resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {}
-
-    fn via_engine_materialize_declared_inbox(&mut self, _ctx: &mut ProcessCtx) {}
-
-    fn via_engine_preprocess_inbox(&mut self, _ctx: &mut ProcessCtx) {}
-
-    fn via_script_host_policy(&self) -> Option<ScriptHostPolicy> {
-        None
-    }
-
-    fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
-        None
-    }
-
-    fn via_user_container_rules(&self) -> Option<UserContainerRules> {
-        None
-    }
-
-    fn via_user_container_accepts_item(&self, _item_type: &str, _item_kind: &str) -> bool {
-        false
-    }
-
-    fn via_user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        Vec::new()
-    }
-
-    fn via_create_user_item(&self, _node_type: &str) -> Option<Box<dyn Node>> {
-        None
-    }
-
-    fn via_create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
-        let _ = host_node_type;
-        self.via_create_user_item(node_type)
-    }
-
-    fn via_project_encode_data(&self) -> Result<serde_json::Value, String> {
-        Ok(serde_json::Value::Null)
-    }
-
-    fn via_project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-        if data.is_null() {
-            return Ok(());
-        }
-
-        Err("via target does not support persisted project data".to_string())
-    }
-}
-
-impl ViaTarget for NodeData {
-    fn via_node_data(&self) -> &NodeData {
-        self
-    }
-
-    fn via_node_data_mut(&mut self) -> &mut NodeData {
-        self
-    }
-}
-
-impl<T: Node + ?Sized> ViaTarget for T {
-    fn via_node_data(&self) -> &NodeData {
-        self.node_data()
-    }
-
-    fn via_node_data_mut(&mut self) -> &mut NodeData {
-        self.node_data_mut()
-    }
-
-    fn via_engine_child_event_interest_depth(&self, event: &Event) -> u32 {
-        self.engine_child_event_interest_depth(event)
-    }
-
-    fn via_engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
-        self.engine_on_attached(ctx);
-    }
-
-    fn via_engine_sync_param_handle_cache(&mut self, param: NodeId, new_value: &ParamValue) {
-        self.engine_sync_param_handle_cache(param, new_value);
-    }
-
-    fn via_engine_sync_bound_param_handles(&mut self, resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {
-        self.engine_sync_bound_param_handles(resolve);
-    }
-
-    fn via_engine_materialize_declared_inbox(&mut self, ctx: &mut ProcessCtx) {
-        self.engine_materialize_declared_inbox(ctx);
-    }
-
-    fn via_engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
-        self.engine_preprocess_inbox(ctx);
-    }
-
-    fn via_script_host_policy(&self) -> Option<ScriptHostPolicy> {
-        self.script_host_policy()
-    }
-
-    fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
-        self.user_context_host_policy()
-    }
-
-    fn via_user_container_rules(&self) -> Option<UserContainerRules> {
-        self.user_container_rules()
-    }
-
-    fn via_user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        self.user_container_accepts_item(item_type, item_kind)
-    }
-
-    fn via_user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        self.user_creatable_items()
-    }
-
-    fn via_create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        self.create_user_item(node_type)
-    }
-
-    fn via_create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
-        self.create_user_item_for_host(host_node_type, node_type)
-    }
-
-    fn via_project_encode_data(&self) -> Result<serde_json::Value, String> {
-        self.project_encode_data()
-    }
-
-    fn via_project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-        self.project_decode_data(data)
-    }
 }

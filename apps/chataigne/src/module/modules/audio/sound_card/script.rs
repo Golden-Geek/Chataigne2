@@ -8,7 +8,7 @@ use golden_core::{
 };
 
 use super::SoundCardModule;
-use crate::app::module_modules_audio_sound_card_commands::{SoundCardCommandRequest, playback_start_offset};
+use crate::app::module_modules_audio_sound_card_commands::{playback_start_offset, SoundCardCommandRequest};
 
 pub(super) const SOUND_CARD_SCRIPT_METHODS: &[&str] = &[
     "playFile",

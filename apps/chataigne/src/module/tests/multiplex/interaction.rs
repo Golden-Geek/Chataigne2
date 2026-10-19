@@ -99,10 +99,10 @@ fn multiplex_sample_production_duplicate_transactions_stay_interactive() {
     let runtime = ProductionRuntime::new(
         engine,
         UiProjectFileSpec::from_project_file_spec(ProjectFileSpec::new("Noisette", "noisette"), None),
-    );
+    ).unwrap();
 
     let (processor_result, processor_transaction_ms) =
-        elapsed_ms(|| runtime.apply_ui_transaction(processor_intent, Some("multiplex-edit-performance")));
+        elapsed_ms(|| runtime.apply_ui_transaction(processor_intent, Some("multiplex-edit-performance")).unwrap());
     assert!(
         processor_result.acknowledgement.success,
         "processor duplication should apply: {:?}",
@@ -134,7 +134,7 @@ fn multiplex_sample_production_duplicate_transactions_stay_interactive() {
         .len();
 
     let (state_result, state_transaction_ms) =
-        elapsed_ms(|| runtime.apply_ui_transaction(state_intent, Some("multiplex-edit-performance")));
+        elapsed_ms(|| runtime.apply_ui_transaction(state_intent, Some("multiplex-edit-performance")).unwrap());
     assert!(
         state_result.acknowledgement.success,
         "state duplication should apply: {:?}",

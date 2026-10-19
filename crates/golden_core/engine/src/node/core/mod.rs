@@ -1,19 +1,23 @@
 mod behavior;
 mod builtins;
 mod constants;
+mod creation_context;
 mod events;
 mod identity;
+mod inbox;
 mod metadata;
 mod policies;
 mod script_support;
 mod user_items;
+mod via_target;
 
-pub use behavior::{Node, NodeCreationContext, ViaTarget};
+pub use behavior::Node;
 pub use builtins::{
     Folder, UserContextFolder, UserContextMultiplexListNode, UserContextMultiplexNode, UserContextNode,
     user_context_multiplex_list_node_type, user_context_multiplex_list_value_type,
 };
 pub use constants::*;
+pub use creation_context::NodeCreationContext;
 pub use events::{EventPropagation, EventSubscription};
 pub use identity::{DeclId, NodeId, NodeReference, NodeUuid};
 pub use metadata::{
@@ -24,6 +28,7 @@ pub use user_items::{
     DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem, UserCreatableItemInitialParam,
     UserNodeRole,
 };
+pub use via_target::ViaTarget;
 
 pub(crate) use builtins::{parameter_child_exists, user_context_multiplex_entry_parameter};
 pub(crate) use script_support::{

@@ -1,169 +1,148 @@
 use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender, TrySendError},
-        OnceLock,
-    },
+    sync::{Arc, Condvar, Mutex, OnceLock, Weak},
     thread,
     time::{Duration, Instant},
 };
 
-use golden_core::{edit::Edit, events::CustomEvent, node::NodeId};
+use golden_core::engine::NodeWaker;
 
-pub(crate) const SOUND_CARD_RUNTIME_WAKE_TOPIC: &str =
-    "chataigne.sound_card.runtime_wake.v1";
-const DELAYED_WAKE_CAPACITY: usize = 64;
+const DELAYED_WAKE_CAPACITY: usize = 1024;
 
-struct ScheduledWake {
-    deadline: Instant,
-    wake: RuntimeWakeSender,
+struct TimerState {
+    registrations: Vec<Weak<RuntimeWakeInner>>,
 }
 
-struct DelayedWakeScheduler {
-    sender: SyncSender<ScheduledWake>,
-    pending: Arc<AtomicUsize>,
+struct WakeTimer {
+    state: Mutex<TimerState>,
+    changed: Condvar,
 }
 
-/// Coalesces worker notifications into transient engine events.
-///
-/// The host/runtime boundary owns wake timing. The Sound Card node itself remains
-/// passive and only runs when an authored graph event or this wake event reaches
-/// its inbox.
+struct RuntimeWakeInner {
+    waker: NodeWaker,
+    deadline: Mutex<Option<Instant>>,
+    timer: Arc<WakeTimer>,
+}
+
+/// A reserved engine wake plus one coalesced host timer registration.
+/// All payloads remain in the owning worker mailboxes; this carries no graph edit or event.
 #[derive(Clone)]
-pub(crate) struct RuntimeWakeSender {
-    edits: Sender<Edit>,
-    module: NodeId,
-    pending: Arc<AtomicBool>,
-}
+pub(crate) struct RuntimeWakeSender(Arc<RuntimeWakeInner>);
 
 impl RuntimeWakeSender {
-    pub(crate) fn new(edits: Sender<Edit>, module: NodeId) -> Self {
-        Self {
-            edits,
-            module,
-            pending: Arc::new(AtomicBool::new(false)),
-        }
+    pub(crate) fn new(waker: NodeWaker) -> Result<Self, String> {
+        wake_timer()?.register(waker)
+    }
+
+    pub(crate) fn matches(&self, waker: &NodeWaker) -> bool {
+        self.0.waker == *waker
     }
 
     pub(crate) fn wake(&self) {
-        if self.pending.swap(true, Ordering::AcqRel) {
-            return;
-        }
-        let event = CustomEvent::transient(
-            SOUND_CARD_RUNTIME_WAKE_TOPIC,
-            Some(self.module),
-            serde_json::Value::Null,
-        );
-        if self.edits.send(Edit::EmitCustomEvent { event }).is_err() {
-            self.pending.store(false, Ordering::Release);
-        }
+        let _ = self.0.waker.wake();
     }
 
     pub(crate) fn wake_after(&self, delay: Duration) {
-        let Some(scheduler) = delayed_wake_scheduler() else {
-            self.wake();
-            return;
-        };
-        if scheduler
-            .try_schedule(ScheduledWake {
-                deadline: Instant::now() + delay,
-                wake: self.clone(),
-            })
-            .is_err()
-        {
-            self.wake();
-        }
-    }
-
-    pub(crate) fn acknowledge(&self) {
-        self.pending.store(false, Ordering::Release);
+        // Pair deadline publication with the timer's condition-variable lock. One source
+        // retains only its earliest wake; the runtime still owns the actual retry deadline.
+        let _state = self.0.timer.state.lock().unwrap_or_else(|p| p.into_inner());
+        let mut deadline = self.0.deadline.lock().unwrap_or_else(|p| p.into_inner());
+        let requested = Instant::now() + delay;
+        *deadline = Some(deadline.map_or(requested, |old| old.min(requested)));
+        self.0.timer.changed.notify_one();
     }
 }
 
-impl DelayedWakeScheduler {
-    fn try_schedule(&self, wake: ScheduledWake) -> Result<(), ScheduledWake> {
-        if self
-            .pending
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |pending| {
-                (pending < DELAYED_WAKE_CAPACITY).then_some(pending + 1)
-            })
-            .is_err()
-        {
-            return Err(wake);
-        }
-        match self.sender.try_send(wake) {
-            Ok(()) => Ok(()),
-            Err(TrySendError::Full(wake)) | Err(TrySendError::Disconnected(wake)) => {
-                self.pending.fetch_sub(1, Ordering::AcqRel);
-                Err(wake)
-            }
-        }
-    }
-}
-
-fn delayed_wake_scheduler() -> Option<&'static DelayedWakeScheduler> {
-    static SCHEDULER: OnceLock<Option<DelayedWakeScheduler>> = OnceLock::new();
-    SCHEDULER
-        .get_or_init(|| {
-            let (sender, receiver) = mpsc::sync_channel(DELAYED_WAKE_CAPACITY);
-            let pending = Arc::new(AtomicUsize::new(0));
-            let worker_pending = pending.clone();
-            match thread::Builder::new()
-                .name("chataigne-sound-card-retry-timer".to_owned())
-                .spawn(move || delayed_wake_loop(receiver, worker_pending))
-            {
-                Ok(_worker) => Some(DelayedWakeScheduler { sender, pending }),
-                Err(error) => {
-                    eprintln!("failed to start Sound Card retry timer: {error}");
-                    None
-                }
-            }
+impl WakeTimer {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            state: Mutex::new(TimerState {
+                registrations: Vec::new(),
+            }),
+            changed: Condvar::new(),
         })
-        .as_ref()
-}
+    }
 
-fn delayed_wake_loop(receiver: Receiver<ScheduledWake>, pending: Arc<AtomicUsize>) {
-    let mut scheduled = Vec::<ScheduledWake>::with_capacity(DELAYED_WAKE_CAPACITY);
-    loop {
-        if scheduled.is_empty() {
-            let Ok(wake) = receiver.recv() else {
-                return;
-            };
-            scheduled.push(wake);
-        } else {
-            let now = Instant::now();
-            let next_deadline = scheduled
-                .iter()
-                .map(|wake| wake.deadline)
-                .min()
-                .expect("non-empty delayed wake set has a deadline");
-            match receiver.recv_timeout(next_deadline.saturating_duration_since(now)) {
-                Ok(wake) => scheduled.push(wake),
-                Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => return,
-            }
+    fn register(self: &Arc<Self>, waker: NodeWaker) -> Result<RuntimeWakeSender, String> {
+        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        state.registrations.retain(|entry| entry.strong_count() != 0);
+        if state.registrations.len() == DELAYED_WAKE_CAPACITY {
+            return Err("Sound Card retry timer registration capacity is exhausted".into());
         }
+        let inner = Arc::new(RuntimeWakeInner {
+            waker,
+            deadline: Mutex::new(None),
+            timer: Arc::clone(self),
+        });
+        state.registrations.push(Arc::downgrade(&inner));
+        Ok(RuntimeWakeSender(inner))
+    }
 
-        let now = Instant::now();
-        let mut index = 0;
-        while index < scheduled.len() {
-            if scheduled[index].deadline <= now {
-                scheduled.swap_remove(index).wake.wake();
-                pending.fetch_sub(1, Ordering::AcqRel);
+    fn collect_due(state: &mut TimerState, now: Instant) -> (Vec<NodeWaker>, Option<Instant>) {
+        let mut due = Vec::new();
+        let mut next = None::<Instant>;
+        state.registrations.retain(|entry| {
+            let Some(inner) = entry.upgrade() else {
+                return false;
+            };
+            let mut deadline = inner.deadline.lock().unwrap_or_else(|p| p.into_inner());
+            if deadline.is_some_and(|at| at <= now) {
+                deadline.take();
+                due.push(inner.waker.clone());
+            } else if let Some(at) = *deadline {
+                next = Some(next.map_or(at, |old| old.min(at)));
+            }
+            true
+        });
+        (due, next)
+    }
+
+    fn run(&self) {
+        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        loop {
+            let (due, next) = Self::collect_due(&mut state, Instant::now());
+            if !due.is_empty() {
+                drop(state);
+                for waker in due {
+                    let _ = waker.wake();
+                }
+                state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+            } else if let Some(at) = next {
+                let (guard, _) = self
+                    .changed
+                    .wait_timeout(state, at.saturating_duration_since(Instant::now()))
+                    .unwrap_or_else(|p| p.into_inner());
+                state = guard;
             } else {
-                index += 1;
+                state = self.changed.wait(state).unwrap_or_else(|p| p.into_inner());
             }
         }
     }
+}
+
+fn wake_timer() -> Result<Arc<WakeTimer>, String> {
+    static TIMER: OnceLock<Mutex<Option<Arc<WakeTimer>>>> = OnceLock::new();
+    let mut installed = TIMER
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
+    if let Some(timer) = &*installed {
+        return Ok(Arc::clone(timer));
+    }
+    let timer = WakeTimer::new();
+    let worker_timer = Arc::clone(&timer);
+    thread::Builder::new()
+        .name("chataigne-sound-card-retry-timer".into())
+        .spawn(move || worker_timer.run())
+        .map_err(|error| format!("failed to start Sound Card retry timer: {error}"))?;
+    *installed = Some(Arc::clone(&timer));
+    Ok(timer)
 }
 
 impl std::fmt::Debug for RuntimeWakeSender {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("RuntimeWakeSender")
-            .field("module", &self.module)
-            .field("pending", &self.pending.load(Ordering::Acquire))
-            .finish_non_exhaustive()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("RuntimeWakeSender").field(&self.0.waker).finish()
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -77,7 +77,10 @@ fn creating_script_under_osc_module_scaffolds_osc_callbacks() {
         label: Some("Script".to_string()),
         initial_params: Vec::new(),
     });
-    assert!(create_ack.success, "creating a script under an OSC module should succeed");
+    assert!(
+        create_ack.success,
+        "creating a script under an OSC module should succeed"
+    );
 
     let script_id = find_child_by_key(&engine, module_id, "Script").unwrap_or_else(|| {
         let children = child_labels(&engine, module_id);
@@ -209,12 +212,12 @@ fn incoming_multi_message_auto_adds_missing_path_with_batched_trees() {
         "batched missing path and multi-value leaf creation should drain the incoming queue"
     );
 
-    let first_value = find_path(&engine, module_id, "values/rig/arm/pose/value 1")
-        .expect("first multi-value parameter should exist");
+    let first_value =
+        find_path(&engine, module_id, "values/rig/arm/pose/value 1").expect("first multi-value parameter should exist");
     let second_value = find_path(&engine, module_id, "values/rig/arm/pose/value 2")
         .expect("second multi-value parameter should exist");
-    let third_value = find_path(&engine, module_id, "values/rig/arm/pose/value 3")
-        .expect("third multi-value parameter should exist");
+    let third_value =
+        find_path(&engine, module_id, "values/rig/arm/pose/value 3").expect("third multi-value parameter should exist");
 
     assert_eq!(param_value(&engine, first_value), ParamValue::Float(1.0));
     assert_eq!(param_value(&engine, second_value), ParamValue::Float(2.0));
@@ -376,8 +379,8 @@ fn sparse_project_serialization_omits_unchanged_osc_defaults() {
             .get_type(),
         "osc_output"
     );
-    let loaded_command_tester = find_path(&loaded, loaded_module, "command_tester")
-        .expect("omitted command tester default should be restored");
+    let loaded_command_tester =
+        find_path(&loaded, loaded_module, "command_tester").expect("omitted command tester default should be restored");
     let loaded_command_types = loaded
         .nodes
         .get(loaded_command_tester)
@@ -481,8 +484,7 @@ fn sparse_project_serialization_saves_only_changed_declared_osc_port_delta() {
         .get(loaded_manager)
         .and_then(|manager| manager.node_data().first_child)
         .expect("osc module should reload");
-    let loaded_port =
-        find_path(&loaded, loaded_module, "connection/input/port").expect("receiver port should reload");
+    let loaded_port = find_path(&loaded, loaded_module, "connection/input/port").expect("receiver port should reload");
     let loaded_port_node = loaded.nodes.get(loaded_port).expect("receiver port node should exist");
     let snapshot = loaded_port_node
         .engine_param_snapshot()
@@ -527,11 +529,7 @@ fn sparse_project_round_trip_preserves_saved_osc_command_tester_children() {
     let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     let command_id = create_send_custom_message_command(&mut engine, command_tester_id);
     let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
-    set_param(
-        &mut engine,
-        address_param,
-        ParamValue::Str("/save/reopen".to_string()),
-    );
+    set_param(&mut engine, address_param, ParamValue::Str("/save/reopen".to_string()));
     engine.apply_edits().expect("command edit should apply");
 
     let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
@@ -967,8 +965,7 @@ fn output_manager_creates_module_linked_osc_command() {
     let catalog = engine.catalog_creatable_items(output_manager_id);
     assert!(
         catalog.iter().any(|item| {
-            item.node_type
-                == crate::app::systems_alchemist_generic_commands::GenericLogCommand::NODE_TYPE
+            item.node_type == crate::app::systems_alchemist_generic_commands::GenericLogCommand::NODE_TYPE
                 && item.menu_path == vec!["Generic".to_string()]
         }),
         "generic output commands should be grouped under Generic; catalog was {catalog:?}"
@@ -989,11 +986,7 @@ fn output_manager_creates_module_linked_osc_command() {
         parent: output_manager_id,
         node_type: command_item.node_type.clone(),
         label: Some(command_item.label.clone()),
-        initial_params: command_item
-            .initial_params
-            .into_iter()
-            .map(Into::into)
-            .collect(),
+        initial_params: command_item.initial_params.into_iter().map(Into::into).collect(),
     });
     assert!(
         create_ack.success,
@@ -1031,27 +1024,21 @@ fn output_manager_creates_module_linked_osc_command() {
         Some(module_uuid)
     );
 
-    let address_param =
-        find_path(&engine, command_id, "address").expect("command address param should exist");
-    let trigger_param =
-        find_path(&engine, command_id, "trigger").expect("command trigger param should exist");
+    let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
+    let trigger_param = find_path(&engine, command_id, "trigger").expect("command trigger param should exist");
     set_param(
         &mut engine,
         address_param,
         ParamValue::Str("/test/output-manager".to_string()),
     );
-    engine
-        .apply_edits()
-        .expect("command setup edits should apply");
+    engine.apply_edits().expect("command setup edits should apply");
 
     engine.edits.push(Edit::SetParam {
         node: trigger_param,
         value: ParamValue::Trigger(),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
-    engine
-        .apply_edits()
-        .expect("command trigger edit should apply");
+    engine.apply_edits().expect("command trigger edit should apply");
     engine
         .dispatch_inbox(ExecutionPhase::EngineTick)
         .expect("command trigger should dispatch");
@@ -1178,7 +1165,7 @@ fn changing_values_parameter_sends_osc_packet_through_module_output() {
     let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
 
     let values_id = find_path(&engine, module_id, "values").expect("values folder should exist");
-    
+
     // Enable auto_feedback to allow sending values
     let auto_feedback_id = find_path(&engine, module_id, "parameters/processing/auto_feedback")
         .expect("auto_feedback parameter should exist");
@@ -1235,11 +1222,7 @@ fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) 
     None
 }
 
-fn find_direct_child_by_type(
-    engine: &crate::app::AppEngine,
-    parent: NodeId,
-    node_type: &str,
-) -> Option<NodeId> {
+fn find_direct_child_by_type(engine: &crate::app::AppEngine, parent: NodeId, node_type: &str) -> Option<NodeId> {
     let mut child = engine.nodes.get(parent)?.node_data().first_child;
     while let Some(child_id) = child {
         let node = engine.nodes.get(child_id)?;

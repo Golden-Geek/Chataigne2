@@ -7,9 +7,19 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-18 against source `49d65b0fe71f66b73d338ebe026a572a53c7dcf6` during a
-documentation-only consolidation. Scanned **1324 source files**; **46 exceed
-1,000 lines**. No new size exceptions are established by this inventory.
+Refreshed 2026-10-19 against `2e1f392551ee6d4b9a5859bc3c62945e18811fe4` plus the uncommitted
+P01/P02 engine and transport repairs plus P03 bounded-worker/HTTP/node-wake/lifecycle/UDP work. Scanned **1383 source files**; **42 exceed
+1,000 lines**. Persistence lifecycle and node behavior extractions brought
+`engine/persistence/mod.rs` and `node/core/behavior.rs` below the limit. No new size exceptions
+are established by this inventory. Standard formatting of the touched Sound Card modules also
+brings its integration coordinator below 1000 lines; the bounded wake modules add no exception.
+The lifecycle budget module and public lifecycle regression suite also remain below the limit.
+UDP's worker, generation owner, and focused test modules introduce no new size exception.
+
+The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
+each public Node hook must reach both sets of variants there. P12 still owns extracting its
+mechanical forwarding. Codec generation now lives in the focused `support/macros/src/node_data.rs`
+module rather than expanding the oversized macro entrypoint.
 
 Discover files with `rg --files apps crates packages tools` using normal ignore rules.
 Count UTF-8 text lines in `.rs`, `.ts`, `.svelte`, `.js`, `.mjs`, `.py`, `.ps1`, and `.sh`.
@@ -26,41 +36,38 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 
 |  Lines | Source                                                                               | Kind           |
 | -----: | ------------------------------------------------------------------------------------ | -------------- |
-| 13,423 | `crates/golden_core/engine/src/engine/tests/engine.rs`                               | Test suite     |
+| 13,280 | `crates/golden_core/engine/src/engine/tests/engine.rs`                               | Test suite     |
 |  6,423 | `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte`              | Implementation |
 |  6,098 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs`                    | Implementation |
 |  5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte`               | Implementation |
-|  5,070 | `crates/golden_core/support/macros/src/lib.rs`                                       | Implementation |
+|  5,027 | `crates/golden_core/support/macros/src/lib.rs`                                       | Implementation |
 |  3,152 | `apps/chataigne/src/module/modules/protocol/midi/midi_module/mod.rs`                 | Implementation |
 |  3,110 | `packages/golden-graph-ui/components/GraphCanvas.svelte`                             | Implementation |
 |  2,680 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs`                  | Test suite     |
 |  2,596 | `apps/chataigne/src/module/modules/generators/spatializer/mod.rs`                    | Implementation |
 |  2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte`             | Implementation |
 |  2,422 | `apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte` | Implementation |
-|  2,395 | `crates/golden_core/hosts/transport/src/ui_server/mod.rs`                            | Implementation |
-|  2,334 | `crates/golden_core/engine/src/engine/controls.rs`                                   | Implementation |
 |  2,075 | `crates/golden_core/engine/src/app/mod.rs`                                           | Implementation |
+|  2,067 | `crates/golden_core/engine/src/engine/controls.rs`                                   | Implementation |
 |  1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte`                   | Implementation |
 |  1,923 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs`                      | Implementation |
 |  1,850 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs`              | Test suite     |
 |  1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs`                          | Test suite     |
 |  1,737 | `apps/chataigne/systems/alchemist/integration/processor/catalog.rs`                  | Implementation |
-|  1,673 | `packages/golden-ui/transport/http.ts`                                               | Implementation |
-|  1,665 | `crates/golden_core/engine/src/node_macros.rs`                                       | Implementation |
+|  1,683 | `crates/golden_core/engine/src/node_macros.rs`                                       | Implementation |
+|  1,662 | `packages/golden-ui/transport/http.ts`                                               | Implementation |
 |  1,601 | `apps/chataigne/systems/alchemist/integration/processor/tests/processor.rs`          | Test suite     |
 |  1,594 | `apps/chataigne/src/module/modules/controllers/joycon/mod.rs`                        | Implementation |
 |  1,480 | `packages/golden-ui/components/common/NodeContextMenu.svelte`                        | Implementation |
 |  1,474 | `apps/chataigne/systems/alchemist/src/tests/runtime.rs`                              | Test suite     |
-|  1,447 | `apps/chataigne/src/module/modules/protocol/osc/generic_osc_module/tests/mod.rs`     | Test suite     |
 |  1,433 | `apps/chataigne/systems/alchemist/integration/processor/tests/authoring.rs`          | Test suite     |
+|  1,430 | `apps/chataigne/src/module/modules/protocol/osc/generic_osc_module/tests/mod.rs`     | Test suite     |
 |  1,359 | `apps/chataigne/ui/scripts/ui-browser-tools.mjs`                                     | Implementation |
 |  1,331 | `crates/golden_core/engine/src/node/curve/model.rs`                                  | Implementation |
-|  1,294 | `crates/golden_core/engine/src/node/core/behavior.rs`                                | Implementation |
 |  1,275 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mouse_runtime.rs`         | Implementation |
 |  1,231 | `packages/golden-ui/components/panels/inspector/ParameterInspector.svelte`           | Implementation |
 |  1,230 | `apps/chataigne/src/module/modules/controllers/gamepad/gamepad/mod.rs`               | Implementation |
 |  1,217 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs`                  | Test suite     |
-|  1,174 | `crates/golden_core/engine/src/engine/persistence/mod.rs`                            | Implementation |
 |  1,166 | `apps/chataigne/src/module/modules/protocol/midi/commands/mod.rs`                    | Implementation |
 |  1,148 | `apps/chataigne/systems/alchemist/processor/src/tests/managed_formula.rs`            | Test suite     |
 |  1,139 | `apps/chataigne/src/module/modules/controllers/mouse/mouse/mod.rs`                   | Implementation |
@@ -71,4 +78,3 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 |  1,054 | `crates/golden_core/engine/src/node/curve/node.rs`                                   | Implementation |
 |  1,052 | `apps/chataigne/src/module/modules/controllers/keyboard/keyboard/mod.rs`             | Implementation |
 |  1,014 | `apps/chataigne/src/module/modules/protocol/osc/osc_module_base.rs`                  | Implementation |
-|  1,006 | `apps/chataigne/src/module/modules/audio/sound_card/integration.rs`                  | Implementation |

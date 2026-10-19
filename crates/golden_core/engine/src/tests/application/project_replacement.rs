@@ -15,7 +15,7 @@ fn project_replacement_commits_one_generation_after_exclusive_device_handoff() {
     assert_eq!(result.project_generation.get(), 2);
     assert_eq!(runtime.current_project_generation(), result.project_generation);
     assert_eq!(
-        runtime.project_runtime_status(),
+        runtime.project_runtime_status().unwrap(),
         ProjectRuntimeStatus::Active {
             generation: result.project_generation,
         }
@@ -59,10 +59,10 @@ fn replacement_failures_before_handoff_keep_old_project_active() {
                 "pre-handoff-failure",
             ))
             .expect_err("injected replacement should fail");
-        assert!(error.contains("injected"));
+        assert!(error.to_string().contains("injected"));
         assert_eq!(runtime.current_project_generation().get(), 1);
         assert_eq!(
-            runtime.project_runtime_status(),
+            runtime.project_runtime_status().unwrap(),
             ProjectRuntimeStatus::Active {
                 generation: crate::app::ProjectGeneration::INITIAL,
             }
@@ -105,9 +105,9 @@ fn script_evaluation_failure_is_rejected_before_device_handoff() {
     let error = runtime
         .replace_project(replacement_request(candidate, "invalid-script"))
         .expect_err("invalid script should reject the detached candidate");
-    assert!(error.contains("script") && error.contains("failed validation"));
+    assert!(error.to_string().contains("script") && error.to_string().contains("failed validation"));
     assert!(matches!(
-        runtime.project_runtime_status(),
+        runtime.project_runtime_status().unwrap(),
         ProjectRuntimeStatus::Active { generation }
             if generation == crate::app::ProjectGeneration::INITIAL
     ));
@@ -142,11 +142,11 @@ fn replacement_failures_after_handoff_leave_old_project_explicitly_paused() {
             ))
             .expect_err("injected replacement should fail");
         assert_eq!(runtime.current_project_generation().get(), 1);
-        let ProjectRuntimeStatus::Paused { generation, error } = runtime.project_runtime_status() else {
+        let ProjectRuntimeStatus::Paused { generation, error } = runtime.project_runtime_status().unwrap() else {
             panic!("old project should be explicitly paused");
         };
         assert_eq!(generation, crate::app::ProjectGeneration::INITIAL);
-        assert!(error.contains("failed"));
+        assert!(error.to_string().contains("failed"));
         assert!(OLD_PROJECT_DESTROYED.load(Ordering::SeqCst));
         assert!(CANDIDATE_DESTROYED.load(Ordering::SeqCst));
         assert_eq!(LIVE_PROJECT_OWNER.load(Ordering::SeqCst), 0);
@@ -160,7 +160,9 @@ fn replacement_failures_after_handoff_leave_old_project_explicitly_paused() {
                 .iter()
                 .any(|node| node.meta.label == "Rejected Candidate")
         );
-        let rejected = runtime.apply_ui_transaction(UiEditIntent::ReevaluateGraph, Some("paused-project"));
+        let rejected = runtime
+            .apply_ui_transaction(UiEditIntent::ReevaluateGraph, Some("paused-project"))
+            .unwrap();
         assert!(!rejected.acknowledgement.success);
         assert_eq!(
             rejected.acknowledgement.error_code.as_deref(),
@@ -184,12 +186,12 @@ fn activation_failure_releases_partial_candidate_ownership_and_preserves_old_pro
         ))
         .expect_err("invalid ready edit should reject activation");
 
-    assert!(error.contains("missing node"));
+    assert!(error.to_string().contains("missing node"));
     assert!(CANDIDATE_SAW_EXCLUSIVE_HANDOFF.load(Ordering::SeqCst));
     assert!(CANDIDATE_DESTROYED.load(Ordering::SeqCst));
     assert_eq!(LIVE_PROJECT_OWNER.load(Ordering::SeqCst), 0);
     assert!(matches!(
-        runtime.project_runtime_status(),
+        runtime.project_runtime_status().unwrap(),
         ProjectRuntimeStatus::Paused { generation, .. }
             if generation == crate::app::ProjectGeneration::INITIAL
     ));
@@ -222,7 +224,7 @@ fn retirement_failure_is_reported_after_new_generation_is_committed() {
     assert_eq!(result.project_generation.get(), 2);
     assert_eq!(result.retirement_error.as_deref(), Some("injected retirement failure"));
     assert!(matches!(
-        runtime.project_runtime_status(),
+        runtime.project_runtime_status().unwrap(),
         ProjectRuntimeStatus::Active { generation } if generation.get() == 2
     ));
     assert_eq!(LIVE_PROJECT_OWNER.load(Ordering::SeqCst), 2);
@@ -280,7 +282,7 @@ fn project_replacement_rejects_when_bounded_retirement_capacity_is_exhausted() {
             "retirement-overload",
         ))
         .expect_err("third concurrent retirement must be rejected");
-    assert!(error.contains("retirement capacity") && error.contains("retry"));
+    assert!(error.to_string().contains("retirement capacity") && error.to_string().contains("retry"));
     assert_eq!(runtime.current_project_generation().get(), 3);
 
     let (released, changed) = &*release;
@@ -366,7 +368,7 @@ fn superseded_candidate_is_discarded_before_device_handoff() {
         .join()
         .expect("first replacement thread")
         .expect_err("older candidate should be superseded");
-    assert!(first_error.contains("superseded"));
+    assert!(first_error.to_string().contains("superseded"));
     let second_result = second
         .join()
         .expect("second replacement thread")

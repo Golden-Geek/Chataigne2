@@ -1,14 +1,14 @@
 use std::{
     num::NonZeroUsize,
     sync::{
-        Arc,
         atomic::{AtomicU32, Ordering},
+        Arc,
     },
     thread::{self, JoinHandle},
 };
 
 use golden_audio::{AudioEvent, AudioEventReceiver};
-use golden_io::{PendingReceiver, pending_channel};
+use golden_io::{pending_channel, PendingReceiver};
 
 use super::RuntimeWakeSender;
 
@@ -35,27 +35,21 @@ impl SoundCardRuntimeEvents {
         refresh_rate_hz: u32,
     ) -> Result<Self, String> {
         let (pending_sender, pending) = pending_channel();
-        let refresh_rate_hz = Arc::new(AtomicU32::new(
-            super::bounded_levels_update_rate_hz(refresh_rate_hz),
-        ));
+        let refresh_rate_hz = Arc::new(AtomicU32::new(super::bounded_levels_update_rate_hz(refresh_rate_hz)));
         let worker_refresh_rate_hz = Arc::clone(&refresh_rate_hz);
         let worker = thread::Builder::new()
             .name("chataigne-sound-card-events".to_owned())
-            .spawn(move || {
-                loop {
-                    let interval = super::levels_update_interval(
-                        worker_refresh_rate_hz.load(Ordering::Acquire),
-                    );
-                    match events.recv_timeout(interval) {
-                        Ok(Some(event)) => {
-                            if pending_sender.send(event).is_err() {
-                                break;
-                            }
-                            wake.wake();
+            .spawn(move || loop {
+                let interval = super::levels_update_interval(worker_refresh_rate_hz.load(Ordering::Acquire));
+                match events.recv_timeout(interval) {
+                    Ok(Some(event)) => {
+                        if pending_sender.send(event).is_err() {
+                            break;
                         }
-                        Ok(None) => wake.wake(),
-                        Err(_) => break,
+                        wake.wake();
                     }
+                    Ok(None) => wake.wake(),
+                    Err(_) => break,
                 }
             })
             .map_err(|error| format!("failed to start Sound Card event bridge: {error}"))?;
@@ -67,10 +61,8 @@ impl SoundCardRuntimeEvents {
     }
 
     pub(super) fn set_refresh_rate_hz(&self, refresh_rate_hz: u32) {
-        self.refresh_rate_hz.store(
-            super::bounded_levels_update_rate_hz(refresh_rate_hz),
-            Ordering::Release,
-        );
+        self.refresh_rate_hz
+            .store(super::bounded_levels_update_rate_hz(refresh_rate_hz), Ordering::Release);
     }
 
     pub(super) fn drain(&self) -> Vec<AudioEvent> {

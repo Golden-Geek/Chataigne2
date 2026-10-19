@@ -36,16 +36,16 @@ impl<T: Node> Engine<T> {
     /// | Phase | Reads | Writes | May emit events | May append edits |
     /// |-------|-------|--------|-----------------|-----------------|
     /// | 1. resolve | schedule state | topo_order, buckets | no | no |
-    /// | 2. absorb external edits | external_edits_rx | edits.pending | no | yes |
-    /// | 3. apply external edits | edits.pending | nodes, schedule | yes (ChildAdded etc.) | no |
-    /// | 4. inbox precompute | inbox.events, nodes | per_node_events | no | no |
-    /// | 5. inbox preprocess (on_child_added) | per_node_events | nodes | yes | yes |
+    /// | 2. apply pending edits | edits.pending | nodes, schedule | yes (ChildAdded etc.) | no |
+    /// | 3. inbox precompute | inbox.events, nodes | per_node_events | no | no |
+    /// | 4. inbox preprocess (on_child_added) | per_node_events | nodes | yes | yes |
+    /// | 5. worker wakes | reserved node signals | nodes, edits.pending | no | yes |
     /// | 6. control pass | nodes (param controls) | edits.pending | yes (ParamChanged) | yes |
     /// | 7. scheduled updates (node.update) | nodes, parameter_values_cache | nodes, inbox | yes | yes |
     /// | 8. stabilization rounds | inbox, edits.pending | nodes | yes | yes |
     /// | 9. logger sync | logger state | ui_event_log | no | no |
     pub fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
-        self.run_tick_with_compiled_schedule(elapsed, |_, _| {})
+        self.run_tick_with_compiled_schedule(elapsed, |_, _, _| {})
     }
 
     /// Executes a tick while delegating unique due-node ordering to an immutable compiled
@@ -57,7 +57,7 @@ impl<T: Node> Engine<T> {
         mut order_due_nodes: F,
     ) -> Result<(), EngineRuntimeError>
     where
-        F: FnMut(&[NodeId], &mut Vec<NodeId>),
+        F: FnMut(ScheduleRevision, &[NodeId], &mut Vec<NodeId>),
     {
         let tick_started = Instant::now();
         self.tick_scratch.clear_stats();
@@ -69,8 +69,8 @@ impl<T: Node> Engine<T> {
         // Apply structural edits deferred from the previous tick's stabilization rounds.
         // Structural edits cannot run inside stabilization because they reset the schedule
         // and would extend the loop unpredictably.
-        for edit in self.deferred_structural_edits.drain(..) {
-            self.edits.push(edit);
+        for request in self.deferred_structural_edits.drain(..) {
+            self.edits.push_request(request);
         }
 
         let resolve1_started = Instant::now();
@@ -82,17 +82,13 @@ impl<T: Node> Engine<T> {
         self.time.seq = 0;
         self.runtime_elapsed = self.runtime_elapsed.saturating_add(elapsed);
 
-        let absorb_started = Instant::now();
-        self.absorb_external_edits()?;
-        let absorb_external_edits_ms = absorb_started.elapsed().as_millis();
-
         let pending_edits = self.edits.pending.len();
         let apply_started = Instant::now();
         if !self.edits.pending.is_empty() {
             self.apply_edits_without_history()?;
             self.resolve_if_needed()?;
         }
-        let apply_external_edits_ms = apply_started.elapsed().as_millis();
+        let apply_pending_edits_ms = apply_started.elapsed().as_millis();
 
         let inbox_events = self.inbox.events.len();
         let mut inbox_precompute_ms = 0;
@@ -110,6 +106,14 @@ impl<T: Node> Engine<T> {
             }
             inbox_preprocess_ms = preprocess_started.elapsed().as_millis();
         }
+
+        let wake_started = Instant::now();
+        self.run_worker_wakes()?;
+        if !self.edits.pending.is_empty() {
+            self.apply_edits_without_history()?;
+            self.resolve_if_needed()?;
+        }
+        let wake_ms = wake_started.elapsed().as_millis();
 
         let control_started = Instant::now();
         self.run_control_pass()?;
@@ -142,12 +146,12 @@ impl<T: Node> Engine<T> {
         let total_ms = tick_started.elapsed().as_millis();
         if *PERF_TRACE_ENABLED && total_ms >= PERF_LOG_TICK_THRESHOLD_MS {
             eprintln!(
-                "[engine] tick total_ms={} preamble_ms={} resolve1_ms={} absorb_external_edits_ms={} apply_external_edits_ms={} inbox_precompute_ms={} inbox_preprocess_ms={} control_ms={} scheduled_ms={} stabilization_ms={} logger_sync_ms={} pending_edits={} inbox_events={}",
+                "[engine] tick total_ms={} preamble_ms={} resolve1_ms={} wake_ms={} apply_pending_edits_ms={} inbox_precompute_ms={} inbox_preprocess_ms={} control_ms={} scheduled_ms={} stabilization_ms={} logger_sync_ms={} pending_edits={} inbox_events={}",
                 total_ms,
                 preamble_ms,
                 resolve1_ms,
-                absorb_external_edits_ms,
-                apply_external_edits_ms,
+                wake_ms,
+                apply_pending_edits_ms,
                 inbox_precompute_ms,
                 inbox_preprocess_ms,
                 control_ms,
@@ -164,7 +168,7 @@ impl<T: Node> Engine<T> {
                 self.last_performance_log_tick = Some(self.time.tick);
                 let stats = self.tick_stats();
                 eprintln!(
-                    "[engine] slow_tick total_ms={total_ms} resolve_ms={resolve1_ms} external_edits_ms={apply_external_edits_ms} inbox_precompute_ms={inbox_precompute_ms} inbox_preprocess_ms={inbox_preprocess_ms} control_ms={control_ms} scheduled_ms={scheduled_ms} stabilization_ms={stabilization_ms} logger_sync_ms={logger_sync_ms} pending_edits={pending_edits} inbox_events={inbox_events} nodes_due={} callbacks={} events_emitted={} edits_applied={} stabilization_passes={} snapshot_rebuilds={} snapshot_builds={} snapshot_build_us={} snapshot_nodes_cloned={} dispatch_events_routed={} dispatch_recipient_deliveries={} dispatch_max_fanout={} controls_params_scanned={} control_index_rebuilds={}",
+                    "[engine] slow_tick total_ms={total_ms} resolve_ms={resolve1_ms} pending_edits_ms={apply_pending_edits_ms} wake_ms={wake_ms} inbox_precompute_ms={inbox_precompute_ms} inbox_preprocess_ms={inbox_preprocess_ms} control_ms={control_ms} scheduled_ms={scheduled_ms} stabilization_ms={stabilization_ms} logger_sync_ms={logger_sync_ms} pending_edits={pending_edits} inbox_events={inbox_events} nodes_due={} callbacks={} events_emitted={} edits_applied={} stabilization_passes={} snapshot_rebuilds={} snapshot_builds={} snapshot_build_us={} snapshot_nodes_cloned={} dispatch_events_routed={} dispatch_recipient_deliveries={} dispatch_max_fanout={} controls_params_scanned={} control_index_rebuilds={}",
                     stats.nodes_due,
                     stats.callbacks_fired,
                     stats.events_emitted,

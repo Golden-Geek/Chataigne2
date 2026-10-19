@@ -8,16 +8,16 @@ use crate::{
     process_ctx::ProcessCtx,
 };
 
-static READY_WITH_EXTERNAL_SENDER_COUNT: AtomicUsize = AtomicUsize::new(0);
+static READY_WITH_NODE_WAKER_COUNT: AtomicUsize = AtomicUsize::new(0);
 
-#[crate::node("ready_external_sender_probe")]
-struct ReadyExternalSenderProbe {}
+#[crate::node("ready_node_waker_probe")]
+struct ReadyNodeWakerProbe {}
 
-#[crate::node("ready_external_sender_probe", from_struct)]
-impl Node for ReadyExternalSenderProbe {
+#[crate::node("ready_node_waker_probe", from_struct)]
+impl Node for ReadyNodeWakerProbe {
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        if ctx.external_edit_sender().is_some() {
-            READY_WITH_EXTERNAL_SENDER_COUNT.fetch_add(1, Ordering::SeqCst);
+        if ctx.node_waker().is_ok() {
+            READY_WITH_NODE_WAKER_COUNT.fetch_add(1, Ordering::SeqCst);
         }
     }
 
@@ -57,26 +57,109 @@ impl Node for ForestCatalogItem {
 
 crate::define_node_enum!(
     enum LifecycleTestNode {
-        ReadyExternalSenderProbe,
+        ReadyNodeWakerProbe,
         ForestContainer,
         ForestCatalogItem,
+        ExpansionProbe,
     }
 );
 
+#[crate::node("expansion_probe")]
+struct ExpansionProbe {
+    remaining: usize,
+    runtime_active: bool,
+    #[state(default = 0)]
+    runtime_starts: usize,
+}
+
+#[crate::node("expansion_probe", from_struct)]
+impl Node for ExpansionProbe {
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        if self.remaining > 0 {
+            ctx.add_child(self.id(), Self::new(self.remaining - 1, false), None);
+        }
+    }
+
+    fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        self.runtime_active = true;
+        self.runtime_starts += 1;
+    }
+
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.runtime_active = false;
+    }
+}
+
 #[test]
-fn batched_ready_callbacks_receive_external_edit_sender() {
-    READY_WITH_EXTERNAL_SENDER_COUNT.store(0, Ordering::SeqCst);
+fn atomic_expansion_failure_restores_the_original_graph_and_ready_state() {
+    let mut engine = Engine::new(LifecycleTestNode::from(Folder::new("root")));
+    engine.add_node(ExpansionProbe::new(0, false).into(), None);
+    engine.apply_edits().unwrap();
+    let id = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
+    engine.clear_history();
+    engine.set_lifecycle_limits(crate::engine::LifecycleLimits {
+        max_passes: std::num::NonZeroUsize::new(2).unwrap(),
+        ..Default::default()
+    });
+    let before = engine.ui_event_log().to_vec();
+    let result: Result<(), EngineEditError> = engine.apply_atomic_edit_operation(|engine| {
+        // Multiple payload handoffs still restore one live root exactly once.
+        engine.edits.push(Edit::ReplaceNode {
+            node: id,
+            new_node: Box::new(ExpansionProbe::new(0, false)),
+        });
+        engine.edits.push(Edit::ReplaceNode {
+            node: id,
+            new_node: Box::new(ExpansionProbe::new(20, false)),
+        });
+        engine.apply_edits()
+    });
+    assert!(matches!(result, Err(EngineEditError::LifecycleBudgetExceeded { .. })));
+    assert_eq!(engine.nodes.len(), 2);
+    assert_eq!(engine.undo_len(), 0);
+    assert_eq!(engine.ui_event_log(), before);
+    let LifecycleTestNode::ExpansionProbe(node) = engine.nodes.get(id).unwrap() else {
+        panic!("probe")
+    };
+    assert_eq!(node.remaining, 0);
+    assert!(node.runtime_active, "rollback reactivates the original payload");
+    assert_eq!(node.runtime_starts, 2, "one initial start and one rollback start");
+    assert!(engine.edits.pending.is_empty());
+}
+
+#[test]
+fn project_load_augmentation_uses_the_same_expansion_guard() {
+    let mut engine = Engine::new(LifecycleTestNode::from(Folder::new("root")));
+    engine.set_lifecycle_limits(crate::engine::LifecycleLimits {
+        max_passes: std::num::NonZeroUsize::new(2).unwrap(),
+        ..Default::default()
+    });
+    let result =
+        engine.apply_project_load_node_trees(vec![NodeTree::new(ExpansionProbe::new(20, false))], engine.root, None);
+    assert!(matches!(result, Err(EngineEditError::LifecycleBudgetExceeded { .. })));
+    assert!(engine.nodes.len() <= 4);
+    assert!(engine.edits.pending.is_empty());
+    assert_eq!(engine.undo_len(), 0);
+}
+
+#[test]
+fn batched_ready_callbacks_can_reserve_node_wakers() {
+    READY_WITH_NODE_WAKER_COUNT.store(0, Ordering::SeqCst);
     let root: LifecycleTestNode = Folder::new("root".to_owned()).into();
     let mut engine = Engine::new(root);
 
     engine.edits.push(Edit::AddNodeTree {
         parent: engine.root,
         prev_sibling: None,
-        tree: NodeTree::new(ReadyExternalSenderProbe::new()),
+        tree: NodeTree::new(ReadyNodeWakerProbe::new()),
     });
     engine.apply_edits().expect("batched node tree should be added");
 
-    assert_eq!(READY_WITH_EXTERNAL_SENDER_COUNT.load(Ordering::SeqCst), 1);
+    assert_eq!(READY_WITH_NODE_WAKER_COUNT.load(Ordering::SeqCst), 1);
 }
 
 #[test]

@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use crate::app::{ProjectGeneration, ProjectLifecycle};
 use crate::ui_sync::UiProjectFileSpec;
 
-use super::ProductionRuntime;
+use super::{ApplicationError, CommittedSave, ProductionRuntime};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ProjectSaveStage {
@@ -116,30 +116,26 @@ struct SavePublication {
 
 impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Captures, encodes, and commits one project through the coordinated persistence service.
-    pub fn save_project(&self, request: ProjectSaveRequest) -> Result<ProjectSaveResult, String> {
+    pub fn save_project(&self, request: ProjectSaveRequest) -> Result<ProjectSaveResult, ApplicationError> {
         let started = Instant::now();
         let ProjectSaveRequest { path, ui_state } = request;
         let project_document = self.inner.project_document.clone();
-        let capture_receipt = self
-            .inner
-            .control
-            .call(move |state| {
-                let capture_started = Instant::now();
-                let document = project_document.capture()?;
-                let persistence = state.project_persistence_snapshot();
-                if document.project_generation != persistence.project_generation
-                    || document.document_revision != persistence.document_revision
-                {
-                    return Err(
-                        "project document projection is not synchronized with the authoritative revision".to_string(),
-                    );
-                }
-                Ok::<_, String>(TimedProjectDocumentCapture {
-                    document,
-                    capture: capture_started.elapsed(),
-                })
+        let capture_receipt = self.inner.control.call(move |state| {
+            let capture_started = Instant::now();
+            let document = project_document.capture()?;
+            let persistence = state.project_persistence_snapshot();
+            if document.project_generation != persistence.project_generation
+                || document.document_revision != persistence.document_revision
+            {
+                return Err(
+                    "project document projection is not synchronized with the authoritative revision".to_string(),
+                );
+            }
+            Ok::<_, String>(TimedProjectDocumentCapture {
+                document,
+                capture: capture_started.elapsed(),
             })
-            .map_err(|error| error.to_string())?;
+        })?;
         let capture = capture_receipt.output?;
 
         let ticket = self
@@ -190,11 +186,20 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                             saved_document_revision: persistence.saved_document_revision,
                         }
                     })
-                    .expect("production control actor disconnected during save publication")
-                    .output
+                    .map(|receipt| receipt.output)
             })
             .map_err(|error| error.to_string())?;
-        let publication = committed.publication;
+        let publication = committed
+            .publication
+            .map_err(|source| ApplicationError::SavePublication {
+                source,
+                committed: CommittedSave {
+                    path: target_path.clone(),
+                    request_id: committed.ticket.request_id,
+                    project_generation: capture.document.project_generation,
+                    document_revision: capture.document.document_revision,
+                },
+            })?;
 
         Ok(ProjectSaveResult {
             path: target_path,
@@ -216,7 +221,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     }
 
     /// Returns one actor-consistent view of authored revision and save metadata.
-    pub fn project_persistence_status(&self) -> ProjectPersistenceStatus {
+    pub fn project_persistence_status(&self) -> Result<ProjectPersistenceStatus, ApplicationError> {
         let read_model = self.inner.read_model.clone();
         self.inner
             .control
@@ -232,7 +237,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     dirty: persistence.saved_document_revision != Some(persistence.document_revision),
                 }
             })
-            .expect("production control actor disconnected")
-            .output
+            .map(|receipt| receipt.output)
+            .map_err(Into::into)
     }
 }

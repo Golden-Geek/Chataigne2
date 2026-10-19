@@ -127,6 +127,9 @@ impl<T: Node> Engine<T> {
         creation_context: NodeCreationContext,
         prepared_snapshot: Option<Arc<crate::process_ctx::ProcessTreeSnapshot>>,
     ) -> Result<(), EngineEditError> {
+        if self.rollback_replay {
+            return Ok(());
+        }
         if node_ids.is_empty() {
             return Ok(());
         }
@@ -143,18 +146,25 @@ impl<T: Node> Engine<T> {
         for (index, node_id) in node_ids.iter().copied().enumerate() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
-            ctx.set_external_edit_sender(self.external_edit_sender());
+            ctx.set_node_wake_source(self.node_wakes.source.clone(), node_id);
             if let Some(tree_snapshot) = &tree_snapshot {
                 ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
             }
 
-            if let Some(node) = self.nodes.get_mut(node_id) {
+            if creation_context == NodeCreationContext::HistoryRestore {
+                self.run_runtime_callback(node_id, &mut ctx, |node, ctx| {
+                    node.on_node_ready(ctx, creation_context);
+                })?;
+            } else if let Some(node) = self.nodes.get_mut(node_id) {
                 crate::logger::with_node_origin(node_id, || {
                     node.on_node_ready(&mut ctx, creation_context);
                 });
             }
-            self.absorb_edits(&mut ctx)?;
-            if self.stabilization_scope_depth == 0 && self.pending_lifecycle_edits_include_structural() {
+            self.absorb_ready_edits(node_id, &mut ctx, creation_context)?;
+            if creation_context != NodeCreationContext::HistoryRestore
+                && self.stabilization_scope_depth == 0
+                && self.pending_lifecycle_edits_include_structural()
+            {
                 self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
                 event_cursor = self.inbox.events.len();
                 if needs_tree_snapshot && index + 1 < node_ids.len() {
@@ -162,7 +172,7 @@ impl<T: Node> Engine<T> {
                 }
             }
         }
-        if self.stabilization_scope_depth == 0 {
+        if creation_context != NodeCreationContext::HistoryRestore && self.stabilization_scope_depth == 0 {
             self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
         }
 
@@ -176,10 +186,17 @@ impl<T: Node> Engine<T> {
         mut event_cursor: usize,
         creation_context: Option<NodeCreationContext>,
     ) -> Result<(), EngineEditError> {
+        let owns_budget = self.lifecycle_budget.is_none();
+        if owns_budget {
+            self.lifecycle_budget = Some(super::super::lifecycle_budget::LifecycleBudget::new(
+                self.lifecycle_limits,
+            ));
+        }
         self.stabilization_scope_depth = self.stabilization_scope_depth.saturating_add(1);
         let result = (|| -> Result<(), EngineEditError> {
             loop {
                 while !self.edits.pending.is_empty() {
+                    self.charge_lifecycle_pass()?;
                     self.apply_edits_internal(false, creation_context)?;
                 }
 
@@ -198,8 +215,10 @@ impl<T: Node> Engine<T> {
                 }
 
                 if creation_context.is_some() {
+                    self.charge_lifecycle_pass()?;
                     self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
                 } else {
+                    self.charge_lifecycle_pass()?;
                     self.materialize_declared_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
                 }
             }
@@ -207,6 +226,14 @@ impl<T: Node> Engine<T> {
             Ok(())
         })();
         self.stabilization_scope_depth = self.stabilization_scope_depth.saturating_sub(1);
+        if result.is_err() {
+            // Reject generated suffixes now; they must not restart the expansion
+            // on the next tick. Dropping requests fails their completion receipts.
+            self.edits.pending.clear();
+        }
+        if owns_budget {
+            self.lifecycle_budget = None;
+        }
         result
     }
 
@@ -243,6 +270,9 @@ impl<T: Node> Engine<T> {
         node_id: NodeId,
         creation_context: NodeCreationContext,
     ) -> Result<(), EngineEditError> {
+        if self.rollback_replay {
+            return Ok(());
+        }
         let needs_tree_snapshot = self
             .nodes
             .get(node_id)
@@ -250,20 +280,62 @@ impl<T: Node> Engine<T> {
         let created_tree_snapshot = needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("ready-single", 1));
         let mut created_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         created_ctx.runtime_elapsed = self.runtime_elapsed;
-        created_ctx.set_external_edit_sender(self.external_edit_sender());
+        created_ctx.set_node_wake_source(self.node_wakes.source.clone(), node_id);
         if let Some(created_tree_snapshot) = &created_tree_snapshot {
             created_ctx.set_tree_snapshot(Arc::clone(created_tree_snapshot));
         }
-        if let Some(node) = self.nodes.get_mut(node_id) {
+        if creation_context == NodeCreationContext::HistoryRestore {
+            self.run_runtime_callback(node_id, &mut created_ctx, |node, ctx| {
+                node.on_node_ready(ctx, creation_context);
+            })?;
+        } else if let Some(node) = self.nodes.get_mut(node_id) {
             crate::logger::with_node_origin(node_id, || {
                 node.on_node_ready(&mut created_ctx, creation_context);
             });
         }
-        self.absorb_edits(&mut created_ctx)?;
-        if self.stabilization_scope_depth == 0 {
+        self.absorb_ready_edits(node_id, &mut created_ctx, creation_context)?;
+        if creation_context != NodeCreationContext::HistoryRestore && self.stabilization_scope_depth == 0 {
             self.stabilize_added_node_structure(self.inbox.events.len(), Some(creation_context))?;
         }
 
+        Ok(())
+    }
+
+    fn absorb_ready_edits(
+        &mut self,
+        node: NodeId,
+        ctx: &mut ProcessCtx,
+        context: NodeCreationContext,
+    ) -> Result<(), EngineEditError> {
+        if context != NodeCreationContext::HistoryRestore {
+            return self.absorb_edits(ctx);
+        }
+        self.absorb_history_callback_edits(ctx)?;
+        let values = &self.parameter_values_cache;
+        if let Some(target) = self.nodes.get_mut(node) {
+            target.engine_sync_bound_param_handles(&mut |id| values.get(&id).cloned());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn absorb_history_callback_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        // Restored node payloads already contain the authoritative authored state.
+        // Subscriptions are runtime registrations; authored callback edits would
+        // duplicate effects that history has itself replayed.
+        for (edit_index, request) in ctx.edits.drain().into_iter().enumerate() {
+            match request.edit {
+                crate::edit::Edit::AddEventListener {
+                    subscriber,
+                    subscription,
+                } => self.apply_add_event_listener(edit_index, subscriber, subscription)?,
+                crate::edit::Edit::RemoveEventListener {
+                    subscriber,
+                    subscription,
+                } => self.apply_remove_event_listener(subscriber, subscription),
+                _ => continue,
+            }
+            self.complete_edit_requests(request.completions);
+        }
         Ok(())
     }
 
@@ -271,23 +343,26 @@ impl<T: Node> Engine<T> {
         &mut self,
         node_id: NodeId,
         tree_snapshot: Option<&Arc<crate::process_ctx::ProcessTreeSnapshot>>,
-    ) {
+    ) -> Result<(), EngineEditError> {
         let mut destroy_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         destroy_ctx.runtime_elapsed = self.runtime_elapsed;
         if let Some(tree_snapshot) = tree_snapshot {
             destroy_ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
         }
 
-        if let Some(node) = self.nodes.get_mut(node_id) {
+        if self.history_replay || self.edit_journal.is_some() {
+            self.run_runtime_callback(node_id, &mut destroy_ctx, |node, ctx| node.destroy(ctx))?;
+        } else if let Some(node) = self.nodes.get_mut(node_id) {
             crate::logger::with_node_origin(node_id, || {
                 node.destroy(&mut destroy_ctx);
             });
         }
+        Ok(())
     }
 
-    pub(crate) fn run_destroy_for_subtree(&mut self, node_ids: &[NodeId]) {
+    pub(crate) fn run_destroy_for_subtree(&mut self, node_ids: &[NodeId]) -> Result<(), EngineEditError> {
         if node_ids.is_empty() {
-            return;
+            return Ok(());
         }
 
         // Same dynamic gate as the add/init path: only pay for a whole-tree snapshot
@@ -300,8 +375,9 @@ impl<T: Node> Engine<T> {
         let tree_snapshot =
             needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("destroy-batch", node_ids.len()));
         for node_id in node_ids.iter().rev().copied() {
-            self.run_node_destroy(node_id, tree_snapshot.as_ref());
+            self.run_node_destroy(node_id, tree_snapshot.as_ref())?;
         }
+        Ok(())
     }
 
     pub(crate) fn run_node_ready_for_subtree(

@@ -39,7 +39,7 @@ pub struct PendingReceiver<T> {
 /// Failure to admit an event without losing ownership of it.
 #[derive(Debug, PartialEq, Eq)]
 pub enum PendingSendError<T> {
-    /// The receiver has been dropped.
+    /// The receiver has closed admission or been dropped.
     Disconnected(T),
     /// The configured item or retained-weight bound is exhausted.
     Full(T),
@@ -65,7 +65,7 @@ pub struct PendingMetricsSnapshot {
 pub enum PendingDrainState {
     /// The queue was observed empty after all preceding accepted sends were drained.
     Empty,
-    /// Every sender was dropped and no more items can arrive.
+    /// Admission closed or every sender dropped; no more items can arrive.
     Disconnected,
     /// The caller's service budget was consumed. Readiness is conservatively re-armed.
     BudgetExhausted,
@@ -197,6 +197,16 @@ impl<T> Drop for PendingSender<T> {
 }
 
 impl<T> PendingReceiver<T> {
+    /// Refuses new sends without clearing accepted entries; the receiver may finish draining.
+    pub fn close(&self) {
+        self.state.receiver_connected.store(false, Ordering::Release);
+    }
+
+    /// Returns whether all producers have exited, including unexpected worker failure.
+    pub fn is_disconnected(&self) -> bool {
+        self.state.sender_count.load(Ordering::Acquire) == 0
+    }
+
     /// Reports whether a drain turn should be scheduled.
     pub fn has_pending(&self) -> bool {
         self.state.pending.load(Ordering::Acquire)
@@ -231,7 +241,9 @@ impl<T> PendingReceiver<T> {
         let state = if !queue.is_empty() {
             self.state.pending.store(true, Ordering::Release);
             PendingDrainState::BudgetExhausted
-        } else if self.state.sender_count.load(Ordering::Acquire) == 0 {
+        } else if self.state.sender_count.load(Ordering::Acquire) == 0
+            || !self.state.receiver_connected.load(Ordering::Acquire)
+        {
             PendingDrainState::Disconnected
         } else {
             PendingDrainState::Empty

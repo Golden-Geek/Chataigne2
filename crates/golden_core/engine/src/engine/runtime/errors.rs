@@ -3,6 +3,8 @@ use super::*;
 #[derive(Debug)]
 /// Errors that can occur during engine runtime execution.
 pub enum EngineRuntimeError {
+    /// A new resolved schedule cannot reuse an exhausted revision identity.
+    ScheduleRevisionExhausted,
     /// The authored project remains available, but live resource activation failed during handoff.
     ProjectPaused {
         /// Actionable activation or publication error that caused the pause.
@@ -55,6 +57,7 @@ pub enum EngineRuntimeError {
 impl fmt::Display for EngineRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ScheduleRevisionExhausted => write!(f, "runtime schedule revision counter exhausted"),
             Self::ProjectPaused { message } => write!(f, "project runtime is paused: {message}"),
             Self::AppOperation { message } => {
                 write!(f, "app-owned runtime operation failed: {message}")

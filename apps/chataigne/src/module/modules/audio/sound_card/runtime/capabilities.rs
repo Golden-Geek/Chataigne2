@@ -79,19 +79,13 @@ pub(crate) fn selected_probe_targets(
         let selection = serde_json::from_str::<AudioDeviceSelection>(value)
             .map_err(|error| format!("invalid audio device selection: {error}"))?;
         if selection.target.backend() != driver {
-            return Err(
-                "selected audio device belongs to another audio driver".to_owned(),
-            );
+            return Err("selected audio device belongs to another audio driver".to_owned());
         }
         Ok(Some(selection.target))
     };
     let input_target = parse_target(input_value)?;
     let output_target = parse_target(output_value)?;
-    if driver.as_str() == "asio"
-        && input_target.is_some()
-        && output_target.is_some()
-        && input_target != output_target
-    {
+    if driver.as_str() == "asio" && input_target.is_some() && output_target.is_some() && input_target != output_target {
         return Err("ASIO input and output must use the same driver device".to_owned());
     }
     let mut targets = Vec::with_capacity(2);
@@ -108,14 +102,8 @@ pub(crate) fn probe_targets_are_pending(
     targets: &[AudioDeviceTargetId],
 ) -> bool {
     targets.iter().any(|target| {
-        inspector
-            .device_catalog
-            .iter()
-            .any(|entry| entry.target == *target)
-            && !inspector
-                .devices
-                .iter()
-                .any(|device| device.target == *target)
+        inspector.device_catalog.iter().any(|entry| entry.target == *target)
+            && !inspector.devices.iter().any(|device| device.target == *target)
     })
 }
 

@@ -808,6 +808,14 @@ macro_rules! define_node_enum {
                 $crate::__dispatch_node_enum!(self, project_encode_data; $($variant),*)
             }
 
+            fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
+                $crate::__dispatch_node_enum!(self, engine_capture_authored_data; $($variant),*)
+            }
+
+            fn engine_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, engine_restore_authored_data, data; $($variant),*)
+            }
+
             #[inline(always)]
             fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
                 $crate::__dispatch_node_enum!(self, project_decode_data, data; $($variant),*)
@@ -994,6 +1002,16 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn update(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
                 $crate::__dispatch_node_enum!(self, update, ctx; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn on_worker_wake(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
+                $crate::__dispatch_node_enum!(self, on_worker_wake, ctx; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn worker_wake_requires_tree_snapshot(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, worker_wake_requires_tree_snapshot; $($variant),*)
             }
 
             #[inline(always)]

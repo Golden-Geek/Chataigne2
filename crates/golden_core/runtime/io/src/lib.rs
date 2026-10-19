@@ -1,5 +1,6 @@
 //! App-agnostic primitives for event-driven IO workers and recoverable transports.
 
+mod bounded_worker;
 mod pending;
 mod queue;
 mod recovery;
@@ -8,6 +9,7 @@ mod worker;
 
 pub mod testkit;
 
+pub use bounded_worker::{BoundedWorker, WorkerCancellation, WorkerContext, WorkerLimits, WorkerStartError};
 pub use pending::{
     PendingDrain, PendingDrainState, PendingMetricsSnapshot, PendingReceiver, PendingSendError, PendingSender,
     bounded_pending_channel, pending_channel,

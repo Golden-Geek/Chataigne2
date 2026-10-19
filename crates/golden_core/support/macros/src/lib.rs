@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+mod node_data;
+
 use proc_macro::TokenStream;
 use proc_macro2::{Delimiter, Span, TokenTree};
 use quote::{format_ident, quote};
@@ -3042,79 +3044,9 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             None
         }
     };
-    let generated_project_encode_data = if persisted_state_fields.is_empty() {
-        quote! {
-            Ok(serde_json::Value::Null)
-        }
-    } else {
-        let inserts = persisted_state_fields
-            .iter()
-            .map(|(field_ident, field_name, default_expr)| {
-                if let Some(default_expr) = default_expr {
-                    quote! {
-                        let __golden_current_value = serde_json::to_value(&self.#field_ident)
-                            .map_err(|err| format!("failed to encode '{}' field: {err}", #field_name))?;
-                        let __golden_default_value = serde_json::to_value(&(#default_expr))
-                            .map_err(|err| format!("failed to encode default for '{}' field: {err}", #field_name))?;
-                        if __golden_current_value != __golden_default_value {
-                            __golden_data.insert(
-                                ::std::string::ToString::to_string(#field_name),
-                                __golden_current_value,
-                            );
-                        }
-                    }
-                } else {
-                    quote! {
-                        __golden_data.insert(
-                            ::std::string::ToString::to_string(#field_name),
-                            serde_json::to_value(&self.#field_ident)
-                                .map_err(|err| format!("failed to encode '{}' field: {err}", #field_name))?,
-                        );
-                    }
-                }
-            });
-        quote! {
-            let mut __golden_data = serde_json::Map::new();
-            #(#inserts)*
-            if __golden_data.is_empty() {
-                Ok(serde_json::Value::Null)
-            } else {
-                Ok(serde_json::Value::Object(__golden_data))
-            }
-        }
-    };
-    let generated_project_decode_data = if persisted_state_fields.is_empty() {
-        quote! {
-            if data.is_null() {
-                return Ok(());
-            }
-
-            Err(format!("node type '{}' does not support persisted project data", #resolved_type_name))
-        }
-    } else {
-        let decodes = persisted_state_fields
-            .iter()
-            .map(|(field_ident, field_name, _default_expr)| {
-                quote! {
-                    if let Some(__golden_value) = __golden_object.get(#field_name) {
-                        self.#field_ident = serde_json::from_value(__golden_value.clone())
-                            .map_err(|err| format!("invalid '{}' field: {err}", #field_name))?;
-                    }
-                }
-            });
-        quote! {
-            if data.is_null() {
-                return Ok(());
-            }
-
-            let Some(__golden_object) = data.as_object() else {
-                return Err(format!("node type '{}' expects persisted project data as an object", #resolved_type_name));
-            };
-
-            #(#decodes)*
-            Ok(())
-        }
-    };
+    let generated_project_encode_data = node_data::encode(&persisted_state_fields, false);
+    let generated_authored_encode_data = node_data::encode(&persisted_state_fields, true);
+    let generated_project_decode_data = node_data::decode(&persisted_state_fields, &resolved_type_name);
 
     let generated_user_item_kind = item_kind.as_ref().map(|item_kind| {
         quote! {
@@ -3189,6 +3121,22 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
 
                 fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                     self
+                }
+
+                fn project_create(node_type: &str) -> Option<Self> {
+                    Self::__golden_node_project_create(node_type)
+                }
+
+                fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+                    Self::__golden_node_project_encode_data(self)
+                }
+
+                fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+                    Self::__golden_node_project_decode_data(self, data)
+                }
+
+                fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
+                    Self::__golden_node_capture_authored_data(self)
                 }
 
                 #generated_user_item_kind
@@ -3285,6 +3233,11 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             #[doc(hidden)]
             pub fn __golden_node_project_encode_data(&self) -> Result<serde_json::Value, String> {
                 #generated_project_encode_data
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_capture_authored_data(&self) -> Result<serde_json::Value, String> {
+                #generated_authored_encode_data
             }
 
             #[doc(hidden)]
@@ -3553,6 +3506,10 @@ fn expand_impl(expansion: NodeExpansion, mut input: ItemImpl) -> proc_macro2::To
                 Self::__golden_node_project_create(node_type)
             }
         });
+    }
+
+    if from_struct {
+        node_data::add_authored_methods(&mut input, via.as_ref().map(|path| path.segments.as_slice()));
     }
 
     if from_struct && !has_method(&input, "project_encode_data") {

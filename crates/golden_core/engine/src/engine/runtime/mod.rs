@@ -37,13 +37,14 @@ mod scheduler;
 mod stabilization;
 mod tick;
 mod trace;
+mod worker_wakes;
 
 pub use errors::EngineRuntimeError;
 pub use limits::{
     DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, FixedStepConfig, MissedPeriodPolicy, NodeExecutionRule, NodeUpdateRate,
     RuntimeLimits, runtime_loop_interval_for_frequency_hz,
 };
-pub(crate) use scheduler::{ScheduleCompileEntry, ScheduleMgr};
+pub(crate) use scheduler::{ScheduleCompileEntry, ScheduleMgr, ScheduleRevision};
 
 impl<T: Node> Engine<T> {
     pub(crate) fn mark_schedule_dirty(&mut self) {
@@ -122,6 +123,11 @@ impl<T: Node> Engine<T> {
     /// Captures the immutable scheduled-node/compiler root built by the latest resolve pass.
     pub(crate) fn schedule_compile_topology(&self) -> Arc<[ScheduleCompileEntry]> {
         self.runtime_schedule.compile_topology()
+    }
+
+    /// Compiler and execution ordering refer to this same resolved schedule identity.
+    pub(crate) fn schedule_revision(&self) -> ScheduleRevision {
+        self.runtime_schedule.revision()
     }
 
     /// Returns the node bucket for a given update rate when present.

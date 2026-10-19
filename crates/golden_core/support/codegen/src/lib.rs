@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use golden_graph::GraphRevision;
 use golden_protocol::{
-    UI_PROTOCOL_VERSION, UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiEventBatch,
-    UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto,
+    UI_PROTOCOL_VERSION, UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiErrorResponse,
+    UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto,
     UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
     UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSnapshot,
     UiSnapshotRequest,
@@ -165,6 +165,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiEventBatch>(&config, "UiEventBatch");
     export_binding::<UiClientMessage>(&config, "UiClientMessage");
     export_binding::<UiServerMessage>(&config, "UiServerMessage");
+    export_binding::<UiErrorResponse>(&config, "UiErrorResponse");
     export_binding::<UiAck>(&config, "UiAck");
     export_binding::<UiEditIntent>(&config, "UiEditIntent");
     export_binding::<UiReferenceTargetsDto>(&config, "UiReferenceTargetsDto");

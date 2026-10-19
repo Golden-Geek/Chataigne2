@@ -10,7 +10,7 @@ use crate::node::{EventSubscription, NodeId};
 /// This lets `collect_subscription_recipients` look up only the ancestors of the current event
 /// origin instead of scanning every subscriber, reducing the hot path from O(N_subscribers) to
 /// O(tree_depth × avg_listeners_per_node).
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct ListenerIndex {
     by_subscriber: HashMap<NodeId, Vec<EventSubscription>>,
     by_origin: HashMap<NodeId, Vec<(NodeId, u32)>>,
@@ -62,17 +62,7 @@ impl ListenerIndex {
 
     /// Removes all entries where `node` appears as a subscriber or as an origin.
     pub(crate) fn purge_for_node(&mut self, node: NodeId) {
-        // Remove node as a subscriber and clean up its back-references in by_origin.
-        if let Some(subs) = self.by_subscriber.remove(&node) {
-            for sub in &subs {
-                if let Some(origins) = self.by_origin.get_mut(&sub.node) {
-                    origins.retain(|&(id, _)| id != node);
-                    if origins.is_empty() {
-                        self.by_origin.remove(&sub.node);
-                    }
-                }
-            }
-        }
+        self.remove_subscriber(node);
         // Remove node as an origin and clean up its subscribers' by_subscriber entries.
         if let Some(listeners) = self.by_origin.remove(&node) {
             for &(subscriber_id, _) in &listeners {
@@ -80,6 +70,21 @@ impl ListenerIndex {
                     subs.retain(|s| s.node != node);
                     if subs.is_empty() {
                         self.by_subscriber.remove(&subscriber_id);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Retires payload-owned registrations while retaining listeners to its identity.
+    pub(crate) fn remove_subscriber(&mut self, node: NodeId) {
+        // Remove node as a subscriber and clean up its back-references in by_origin.
+        if let Some(subs) = self.by_subscriber.remove(&node) {
+            for sub in &subs {
+                if let Some(origins) = self.by_origin.get_mut(&sub.node) {
+                    origins.retain(|&(id, _)| id != node);
+                    if origins.is_empty() {
+                        self.by_origin.remove(&sub.node);
                     }
                 }
             }

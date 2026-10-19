@@ -82,6 +82,7 @@ fn production_runtime(engine: Engine<ReplaceOrderTestNode>) -> ProductionRuntime
         engine,
         UiProjectFileSpec::from_project_file_spec(ReplaceOrderTestNode::project_file_spec(), None),
     )
+    .unwrap()
 }
 
 #[test]
@@ -186,11 +187,11 @@ fn replace_live_engine_activation_failure_preserves_a_paused_old_project() {
     let error = replace_live_engine(&runtime, next_engine, "test_replace", true, None)
         .expect_err("activation failures cannot commit a partially activated candidate");
     assert!(
-        error.contains("SetParam") && error.contains("missing node"),
+        error.to_string().contains("SetParam") && error.to_string().contains("missing node"),
         "expected readable missing-node startup failure, got {error}"
     );
     assert!(matches!(
-        runtime.project_runtime_status(),
+        runtime.project_runtime_status().unwrap(),
         ProjectRuntimeStatus::Paused { .. }
     ));
     assert!(
@@ -236,7 +237,7 @@ fn project_decode_failure_never_enters_the_replacement_transaction() {
             .any(|node| node.meta.label == "Authoritative Root")
     );
     assert!(matches!(
-        runtime.project_runtime_status(),
+        runtime.project_runtime_status().unwrap(),
         ProjectRuntimeStatus::Active { .. }
     ));
 }

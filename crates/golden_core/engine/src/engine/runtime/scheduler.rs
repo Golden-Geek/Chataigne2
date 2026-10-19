@@ -1,7 +1,12 @@
 use super::*;
 
+/// Identity of a successfully resolved schedule, independent of compiler admission tickets.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ScheduleRevision(u64);
+
 #[derive(Default)]
 pub(crate) struct ScheduleMgr {
+    revision: ScheduleRevision,
     topo_order: Arc<[NodeId]>,
     compile_topology: Arc<[ScheduleCompileEntry]>,
     buckets: Vec<ScheduleBucket>,
@@ -56,6 +61,21 @@ impl ScheduleMgr {
         topo_order: Vec<NodeId>,
         rules: &HashMap<NodeId, NodeExecutionRule>,
     ) -> Result<(), EngineRuntimeError> {
+        let revision = ScheduleRevision(
+            self.revision
+                .0
+                .checked_add(1)
+                .ok_or(EngineRuntimeError::ScheduleRevisionExhausted)?,
+        );
+        // All recoverable validation precedes replacing the last usable schedule.
+        for node in &topo_order {
+            if rules.get(node).is_some_and(|rule| rule.update_rate == Some(0)) {
+                return Err(EngineRuntimeError::InvalidUpdateRate {
+                    node: *node,
+                    rate_hz: 0,
+                });
+            }
+        }
         self.bucket_by_node.clear();
         self.buckets.clear();
         self.nodes_by_rate.clear();
@@ -69,13 +89,6 @@ impl ScheduleMgr {
             let Some(rate_hz) = rule.update_rate else {
                 continue;
             };
-
-            if rate_hz == 0 {
-                return Err(EngineRuntimeError::InvalidUpdateRate {
-                    node: *node_id,
-                    rate_hz,
-                });
-            }
 
             self.nodes_by_rate.entry(rate_hz).or_default().push(*node_id);
             buckets_by_rule
@@ -114,8 +127,13 @@ impl ScheduleMgr {
             })
             .collect();
         self.topo_order = scheduled.into();
+        self.revision = revision;
 
         Ok(())
+    }
+
+    pub(super) fn revision(&self) -> ScheduleRevision {
+        self.revision
     }
 
     /// Advances bucket accumulators and merges due nodes into `out` in topological order.

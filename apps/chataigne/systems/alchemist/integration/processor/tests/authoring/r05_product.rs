@@ -227,7 +227,7 @@ fn action_command_copy_into_mapping_gets_local_bindings_without_stealing_source(
             ProjectFileSpec::new("Mapping copy", "mapping-copy"),
             None,
         ),
-    );
+    ).unwrap();
     let acknowledgement = runtime
         .apply_ui_transaction(
             UiEditIntent::DuplicateNode {
@@ -237,7 +237,7 @@ fn action_command_copy_into_mapping_gets_local_bindings_without_stealing_source(
                 initial_params: Vec::new(),
             },
             Some("mapping-command-copy-test"),
-        )
+        ).unwrap()
         .acknowledgement;
     assert!(
         acknowledgement.success,
@@ -295,7 +295,7 @@ fn action_command_copy_into_mapping_gets_local_bindings_without_stealing_source(
     let copied_uuid = node(copied).uuid;
 
     let undo = runtime
-        .apply_ui_transaction(UiEditIntent::Undo, Some("mapping-command-copy-test"))
+        .apply_ui_transaction(UiEditIntent::Undo, Some("mapping-command-copy-test")).unwrap()
         .acknowledgement;
     assert!(undo.success, "copied command should undo: {undo:?}");
     let undone = runtime
@@ -305,7 +305,7 @@ fn action_command_copy_into_mapping_gets_local_bindings_without_stealing_source(
     assert!(undone.nodes.iter().any(|node| node.uuid == action_uuid));
 
     let redo = runtime
-        .apply_ui_transaction(UiEditIntent::Redo, Some("mapping-command-copy-test"))
+        .apply_ui_transaction(UiEditIntent::Redo, Some("mapping-command-copy-test")).unwrap()
         .acknowledgement;
     assert!(redo.success, "copied command should redo: {redo:?}");
     for _ in 0..4 {

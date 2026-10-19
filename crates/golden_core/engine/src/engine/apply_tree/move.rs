@@ -8,7 +8,7 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         new_parent: NodeId,
         new_prev_sibling: Option<NodeId>,
-    ) -> Result<MoveNodeEffect, EngineEditError> {
+    ) -> Result<AppliedEdit<MoveNodeEffect>, EngineEditError> {
         const OP: &str = "MoveNode";
 
         if node == self.root {
@@ -56,6 +56,7 @@ impl<T: Node> Engine<T> {
         }
 
         self.validate_item_roots_for_move(edit_index, OP, node, new_parent)?;
+        self.validate_previous_sibling(edit_index, OP, Some(node), new_parent, new_prev_sibling)?;
 
         let (old_parent, old_prev_sibling, old_next_sibling) = self.node_position(edit_index, OP, node)?;
 
@@ -110,19 +111,24 @@ impl<T: Node> Engine<T> {
         }
 
         // When the parent changed the effective_enabled of the whole subtree may have changed.
-        if detached_parent != new_parent {
+        let completion = if detached_parent != new_parent {
             let changes = self.subtree_effective_enabled_changes(node);
-            self.queue_effective_enabled_callbacks(&changes)?;
-        }
+            self.queue_effective_enabled_callbacks(&changes)
+        } else {
+            Ok(())
+        };
 
-        Ok(MoveNodeEffect {
-            node,
-            old_parent,
-            old_prev_sibling,
-            old_next_sibling,
-            new_parent,
-            new_prev_sibling,
-            new_next_sibling,
+        Ok(AppliedEdit {
+            effect: MoveNodeEffect {
+                node,
+                old_parent,
+                old_prev_sibling,
+                old_next_sibling,
+                new_parent,
+                new_prev_sibling,
+                new_next_sibling,
+            },
+            completion,
         })
     }
 }

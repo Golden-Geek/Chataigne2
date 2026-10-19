@@ -1,34 +1,31 @@
 use std::sync::Arc;
 
 use golden_audio::{
-    AudioDeviceCatalogEntry, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceId,
+    profile_key_for, AudioDeviceCatalogEntry, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceId,
     AudioDeviceInspectorState, AudioDeviceReadiness, AudioDeviceSelection, AudioDeviceTargetId, AudioDirection,
     AudioErrorCategory, AudioInspectorError, AudioSampleFormat, AudioStreamStatus, BackendId,
     PhysicalChannelDescriptor, PhysicalChannelKey, SampleRate, SupportedBufferFrames, SupportedStreamConfiguration,
-    profile_key_for,
 };
 use golden_core::{
     edit::Edit,
     engine::EngineTime,
     events::{CustomEvent, Event, EventFrame},
     node::{DeclId, Folder, Node, NodeId, NodeMetaPatch},
-    parameter::{
-        ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour,
-    },
+    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour},
     process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeSnapshot},
 };
 
 use super::{
-    NO_AUDIO_DEVICE, SYSTEM_DEFAULT_DEVICE, SoundCardModule, connection_feedback, find_path, integration, runtime,
-    structure,
+    connection_feedback, find_path, integration, runtime, structure, SoundCardModule, NO_AUDIO_DEVICE,
+    SYSTEM_DEFAULT_DEVICE,
 };
 
-mod hierarchy;
 mod connection;
+mod hierarchy;
 mod levels;
 mod playback_status;
 mod traffic_logging;
-
+mod worker_wakes;
 
 #[test]
 fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
@@ -45,12 +42,7 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
         .get(engine.root)
         .and_then(|root| root.node_data().first_child)
         .expect("Sound Card module");
-    select_enum_parameter(
-        &mut engine,
-        module,
-        "connection/input_device",
-        SYSTEM_DEFAULT_DEVICE,
-    );
+    select_enum_parameter(&mut engine, module, "connection/input_device", SYSTEM_DEFAULT_DEVICE);
     let input_channels = channels("input", 2)
         .into_iter()
         .map(|channel| channel.key)
@@ -77,24 +69,14 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
         .expect("Sound Card module type");
     sound_card.input_default_routes_pending = true;
     sound_card.output_default_routes_pending = true;
-    assert!(sound_card.seed_default_routes_from_inventory(
-        &mut ctx,
-        &snapshot,
-        &input_channels,
-        &output_channels,
-    ));
+    assert!(sound_card.seed_default_routes_from_inventory(&mut ctx, &snapshot, &input_channels, &output_channels,));
     for request in ctx.edits.drain() {
         engine.edits.push(request.edit);
     }
-    engine
-        .apply_edits()
-        .expect("default routes should materialize");
+    engine.apply_edits().expect("default routes should materialize");
 
     let snapshot = engine.process_tree_snapshot();
-    for path in [
-        "connection/input_routing/routes",
-        "connection/output_routing/routes",
-    ] {
+    for path in ["connection/input_routing/routes", "connection/output_routing/routes"] {
         let routes = find_path(&snapshot, module, path).expect("route container");
         assert_eq!(
             snapshot.child_ids_slice(routes).len(),
@@ -122,22 +104,14 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
     sound_card.output_default_routes_pending = true;
     sound_card.input_route_reset_pending = true;
     sound_card.output_route_reset_pending = true;
-    assert!(sound_card.reset_routes_for_device_selection(
-        &mut reset_ctx,
-        &snapshot,
-    ));
+    assert!(sound_card.reset_routes_for_device_selection(&mut reset_ctx, &snapshot,));
     for request in reset_ctx.edits.drain() {
         engine.edits.push(request.edit);
     }
-    engine
-        .apply_edits()
-        .expect("previous routes should be cleared");
+    engine.apply_edits().expect("previous routes should be cleared");
 
     let snapshot = engine.process_tree_snapshot();
-    for path in [
-        "connection/input_routing/routes",
-        "connection/output_routing/routes",
-    ] {
+    for path in ["connection/input_routing/routes", "connection/output_routing/routes"] {
         let routes = find_path(&snapshot, module, path).expect("route container");
         assert!(snapshot.child_ids_slice(routes).is_empty());
     }
@@ -166,15 +140,10 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
     for request in reseed_ctx.edits.drain() {
         engine.edits.push(request.edit);
     }
-    engine
-        .apply_edits()
-        .expect("replacement routes should materialize");
+    engine.apply_edits().expect("replacement routes should materialize");
 
     let snapshot = engine.process_tree_snapshot();
-    for path in [
-        "connection/input_routing/routes",
-        "connection/output_routing/routes",
-    ] {
+    for path in ["connection/input_routing/routes", "connection/output_routing/routes"] {
         let routes = find_path(&snapshot, module, path).expect("route container");
         assert_eq!(snapshot.child_ids_slice(routes).len(), 2);
     }
@@ -195,12 +164,7 @@ fn authored_routes_survive_sparse_project_save_and_load() {
         .get(engine.root)
         .and_then(|root| root.node_data().first_child)
         .expect("Sound Card module");
-    select_enum_parameter(
-        &mut engine,
-        module,
-        "connection/input_device",
-        SYSTEM_DEFAULT_DEVICE,
-    );
+    select_enum_parameter(&mut engine, module, "connection/input_device", SYSTEM_DEFAULT_DEVICE);
     let snapshot = engine.process_tree_snapshot();
     let mut ctx = test_process_ctx(1);
     let sound_card = engine
@@ -227,12 +191,9 @@ fn authored_routes_survive_sparse_project_save_and_load() {
     for request in ctx.edits.drain() {
         engine.edits.push(request.edit);
     }
-    engine
-        .apply_edits()
-        .expect("authored routes should materialize");
+    engine.apply_edits().expect("authored routes should materialize");
 
-    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
-        .expect("Sound Card project should serialize");
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("Sound Card project should serialize");
     let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
         .expect("Sound Card project should deserialize");
     let loaded_module = loaded
@@ -241,10 +202,7 @@ fn authored_routes_survive_sparse_project_save_and_load() {
         .and_then(|root| root.node_data().first_child)
         .expect("loaded Sound Card module");
     let snapshot = loaded.process_tree_snapshot();
-    for path in [
-        "connection/input_routing/routes",
-        "connection/output_routing/routes",
-    ] {
+    for path in ["connection/input_routing/routes", "connection/output_routing/routes"] {
         let routes = find_path(&snapshot, loaded_module, path).expect("decoded route container");
         assert_eq!(
             snapshot.child_ids_slice(routes).len(),
@@ -256,10 +214,7 @@ fn authored_routes_survive_sparse_project_save_and_load() {
         .apply_edits()
         .expect("loaded Sound Card declarations should reconcile");
     let snapshot = loaded.process_tree_snapshot();
-    for path in [
-        "connection/input_routing/routes",
-        "connection/output_routing/routes",
-    ] {
+    for path in ["connection/input_routing/routes", "connection/output_routing/routes"] {
         let routes = find_path(&snapshot, loaded_module, path).expect("reconciled route container");
         assert_eq!(
             snapshot.child_ids_slice(routes).len(),
@@ -267,8 +222,7 @@ fn authored_routes_survive_sparse_project_save_and_load() {
             "{path} should survive declared structure reconciliation"
         );
     }
-    golden_core::app::prepare_engine_for_runtime(&mut loaded)
-        .expect("loaded Sound Card should become ready");
+    golden_core::app::prepare_engine_for_runtime(&mut loaded).expect("loaded Sound Card should become ready");
 
     let loaded_module = loaded
         .nodes
@@ -276,10 +230,7 @@ fn authored_routes_survive_sparse_project_save_and_load() {
         .and_then(|root| root.node_data().first_child)
         .expect("loaded Sound Card module");
     let snapshot = loaded.process_tree_snapshot();
-    for path in [
-        "connection/input_routing/routes",
-        "connection/output_routing/routes",
-    ] {
+    for path in ["connection/input_routing/routes", "connection/output_routing/routes"] {
         let routes = find_path(&snapshot, loaded_module, path).expect("loaded route container");
         assert_eq!(
             snapshot.child_ids_slice(routes).len(),
@@ -295,9 +246,6 @@ fn telemetry_does_not_redrive_the_runtime_that_emitted_it() {
 
     assert!(!module.inbox_drives_runtime(&custom_event_frame(
         chataigne_sound_card_protocol::SOUND_CARD_TELEMETRY_TOPIC,
-    )));
-    assert!(module.inbox_drives_runtime(&custom_event_frame(
-        runtime::SOUND_CARD_RUNTIME_WAKE_TOPIC,
     )));
 }
 
@@ -329,11 +277,8 @@ fn sound_card_is_passive_and_no_driver_cannot_start_a_runtime() {
     assert_eq!(module.execution_rule().update_rate, None);
     assert!(!module.needs_update());
 
-    let error = runtime::SoundCardRuntime::start_selected(
-        SampleRate::new(48_000).expect("valid sample rate"),
-        None,
-    )
-    .expect_err("an explicit driver is required");
+    let error = runtime::SoundCardRuntime::start_selected(SampleRate::new(48_000).expect("valid sample rate"), None)
+        .expect_err("an explicit driver is required");
     assert!(error.contains("explicitly selected"));
 }
 
@@ -357,15 +302,7 @@ fn capability_intersection_uses_full_channel_configs_and_real_buffer_endpoints()
         "Output",
         0,
         2,
-        vec![stream(
-            AudioDirection::Output,
-            2,
-            48_000,
-            96_000,
-            128,
-            384,
-            160,
-        )],
+        vec![stream(AudioDirection::Output, 2, 48_000, 96_000, 128, 384, 160)],
     );
 
     assert_eq!(
@@ -384,19 +321,9 @@ fn capability_intersection_uses_full_channel_configs_and_real_buffer_endpoints()
         "Fixed Output",
         0,
         2,
-        vec![stream(
-            AudioDirection::Output,
-            2,
-            96_000,
-            96_000,
-            128,
-            256,
-            128,
-        )],
+        vec![stream(AudioDirection::Output, 2, 96_000, 96_000, 128, 256, 128)],
     );
-    assert!(
-        runtime::supported_sample_rates(Some(&input), Some(&incompatible_output), None).is_empty()
-    );
+    assert!(runtime::supported_sample_rates(Some(&input), Some(&incompatible_output), None).is_empty());
 }
 
 #[test]
@@ -407,11 +334,9 @@ fn asio_pairs_are_validated_before_probe_and_target_changes_require_disable() {
     let value_a = selection_value(&target_a, "A");
     let value_b = selection_value(&target_b, "B");
 
-    assert!(
-        runtime::selected_probe_targets(Some(&asio), &value_a, &value_b)
-            .expect_err("different ASIO devices are invalid")
-            .contains("same driver device")
-    );
+    assert!(runtime::selected_probe_targets(Some(&asio), &value_a, &value_b)
+        .expect_err("different ASIO devices are invalid")
+        .contains("same driver device"));
     assert_eq!(
         runtime::selected_probe_targets(Some(&asio), &value_a, &value_a).expect("same device"),
         vec![target_a.clone()]
@@ -430,11 +355,7 @@ fn asio_pairs_are_validated_before_probe_and_target_changes_require_disable() {
         std::slice::from_ref(&target_b),
     ));
     assert!(
-        runtime::requires_disable_before_probe(
-            Some(&asio),
-            &inspector,
-            &[target_a, target_b],
-        ),
+        runtime::requires_disable_before_probe(Some(&asio), &inspector, &[target_a, target_b],),
         "A/A to authored A/B must stop A before any exact probe",
     );
 }
@@ -473,15 +394,7 @@ fn asio_device_choices_expose_only_one_duplex_selector() {
                 "Output Only",
                 0,
                 2,
-                vec![stream(
-                    AudioDirection::Output,
-                    2,
-                    48_000,
-                    48_000,
-                    64,
-                    256,
-                    128,
-                )],
+                vec![stream(AudioDirection::Output, 2, 48_000, 48_000, 64, 256, 128)],
             ),
         ],
         ..AudioDeviceInspectorState::default()
@@ -520,18 +433,17 @@ fn catalog_choices_are_available_before_probe_and_keep_friendly_authored_labels(
     };
     let authored = selection_value(&target, "Previously Saved Name");
 
-    let recovered = integration::device_options_for_current(
-        authored.as_str(),
-        &state,
-        AudioDirection::Input,
-        Some(&backend),
-    );
+    let recovered =
+        integration::device_options_for_current(authored.as_str(), &state, AudioDirection::Input, Some(&backend));
     let recovered = recovered
         .iter()
         .find(|option| option.variant_id == authored)
         .expect("catalog target should retain the authored identity");
     assert_eq!(recovered.label, "Live Interface");
-    assert_eq!(recovered.value, golden_core::parameter::ParamValue::Enum(authored.clone()));
+    assert_eq!(
+        recovered.value,
+        golden_core::parameter::ParamValue::Enum(authored.clone())
+    );
     assert!(!recovered.tags.iter().any(|tag| tag == "missing"));
 
     let missing = integration::device_options_for_current(
@@ -547,12 +459,8 @@ fn catalog_choices_are_available_before_probe_and_keep_friendly_authored_labels(
     assert_eq!(missing.label, "Missing: Previously Saved Name");
     assert!(missing.tags.iter().any(|tag| tag == "missing"));
 
-    let pending = runtime::selected_probe_targets(
-        Some(&backend),
-        authored.as_str(),
-        NO_AUDIO_DEVICE,
-    )
-    .expect("catalog selection");
+    let pending =
+        runtime::selected_probe_targets(Some(&backend), authored.as_str(), NO_AUDIO_DEVICE).expect("catalog selection");
     assert!(runtime::probe_targets_are_pending(&state, &pending));
     let exact_state = AudioDeviceInspectorState {
         device_catalog: vec![entry],
@@ -600,23 +508,14 @@ fn stabilize_sound_card(engine: &mut crate::app::AppEngine) {
     }
 }
 
-fn select_enum_parameter(
-    engine: &mut crate::app::AppEngine,
-    module: NodeId,
-    path: &str,
-    value: &str,
-) {
+fn select_enum_parameter(engine: &mut crate::app::AppEngine, module: NodeId, path: &str, value: &str) {
     let snapshot = engine.process_tree_snapshot();
     let node = find_path(&snapshot, module, path).expect("enum parameter");
     let mut constraints = snapshot
         .node(node)
         .and_then(|state| state.param_constraints.clone())
         .expect("enum constraints");
-    if !constraints
-        .enum_options
-        .iter()
-        .any(|option| option.variant_id == value)
-    {
+    if !constraints.enum_options.iter().any(|option| option.variant_id == value) {
         constraints.enum_options.push(ParameterEnumOption {
             variant_id: value.to_owned(),
             value: ParamValue::Enum(value.to_owned()),
@@ -624,12 +523,8 @@ fn select_enum_parameter(
             tags: Vec::new(),
             ordering: None,
         });
-        engine
-            .edits
-            .push(Edit::SetParamConstraints { node, constraints });
-        engine
-            .apply_edits()
-            .expect("enum test option should be accepted");
+        engine.edits.push(Edit::SetParamConstraints { node, constraints });
+        engine.apply_edits().expect("enum test option should be accepted");
     }
     set_param_value(engine, node, ParamValue::Enum(value.to_owned()));
     stabilize_sound_card(engine);
@@ -655,19 +550,13 @@ fn patch_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: bool
     engine.apply_edits().expect("enabled edit should apply");
 }
 
-fn assert_selector_value(
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    path: &str,
-    expected: &str,
-) {
+fn assert_selector_value(snapshot: &ProcessTreeSnapshot, module: NodeId, path: &str, expected: &str) {
     let actual = find_path(snapshot, module, path)
         .and_then(|node| snapshot.node(node))
         .and_then(|state| state.param_value.as_ref())
         .and_then(ParamValue::as_enum);
     assert_eq!(actual.as_deref(), Some(expected));
 }
-
 
 fn target(backend: &BackendId, id: &str) -> AudioDeviceTargetId {
     AudioDeviceTargetId::Device {
@@ -757,12 +646,5 @@ fn custom_event_frame(topic: &str) -> EventFrame {
 }
 
 fn test_process_ctx(tick: u64) -> ProcessCtx {
-    ProcessCtx::new(
-        ExecutionPhase::EngineTick,
-        EngineTime {
-            tick,
-            micro: 0,
-            seq: 0,
-        },
-    )
+    ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick, micro: 0, seq: 0 })
 }

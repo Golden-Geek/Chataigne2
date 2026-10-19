@@ -10,8 +10,8 @@ use std::{
 
 use golden_audio::{BackendId, SampleRate};
 use golden_io::{
-    PendingDrainState, PendingReceiver, RetirementError, RetirementPermit, RetirementPool, WorkerTask,
-    bounded_pending_channel,
+    bounded_pending_channel, PendingDrainState, PendingReceiver, RetirementError, RetirementPermit, RetirementPool,
+    WorkerTask,
 };
 
 use super::{RuntimeWakeSender, SoundCardRuntime};
@@ -25,8 +25,7 @@ fn lifecycle_worker_retirements() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
     POOL.get_or_init(|| {
         RetirementPool::new(
-            NonZeroUsize::new(LIFECYCLE_WORKER_CAPACITY)
-                .expect("Sound Card lifecycle worker capacity is non-zero"),
+            NonZeroUsize::new(LIFECYCLE_WORKER_CAPACITY).expect("Sound Card lifecycle worker capacity is non-zero"),
         )
     })
 }
@@ -168,9 +167,7 @@ impl SoundCardRuntimeWorker {
         let drain = events.drain_into(&mut started, NonZeroUsize::MIN);
         match started.pop() {
             Some(started) => SoundCardRuntimeWorkerPoll::Started(started),
-            None if drain.state == PendingDrainState::Disconnected => {
-                SoundCardRuntimeWorkerPoll::Disconnected
-            }
+            None if drain.state == PendingDrainState::Disconnected => SoundCardRuntimeWorkerPoll::Disconnected,
             None => SoundCardRuntimeWorkerPoll::Pending,
         }
     }
@@ -182,8 +179,7 @@ impl SoundCardRuntimeWorker {
         if let Err(
             TrySendError::Full(SoundCardRuntimeWorkerCommand::Retire(runtime))
             | TrySendError::Disconnected(SoundCardRuntimeWorkerCommand::Retire(runtime)),
-        ) =
-            task.send(SoundCardRuntimeWorkerCommand::Retire(Box::new(runtime)))
+        ) = task.send(SoundCardRuntimeWorkerCommand::Retire(Box::new(runtime)))
         {
             return retire_detached(*runtime);
         }
@@ -193,11 +189,9 @@ impl SoundCardRuntimeWorker {
 
 impl Drop for SoundCardRuntimeWorker {
     fn drop(&mut self) {
-        let (Some(events), Some(task), Some(permit)) = (
-            self.events.take(),
-            self.task.take(),
-            self.retirement_permit.take(),
-        ) else {
+        let (Some(events), Some(task), Some(permit)) =
+            (self.events.take(), self.task.take(), self.retirement_permit.take())
+        else {
             return;
         };
         let worker = task.into_join_handle();
@@ -232,9 +226,5 @@ impl fmt::Debug for SoundCardRuntimeWorker {
 }
 
 pub(crate) fn retire_detached(runtime: SoundCardRuntime) -> Result<(), RetirementError<SoundCardRuntime>> {
-    detached_runtime_retirements().try_retire(
-        "chataigne-sound-card-retirement",
-        runtime,
-        |mut runtime| runtime.stop(),
-    )
+    detached_runtime_retirements().try_retire("chataigne-sound-card-retirement", runtime, |mut runtime| runtime.stop())
 }

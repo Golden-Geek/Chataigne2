@@ -12,6 +12,8 @@ pub struct TickStats {
     pub nodes_due: usize,
     /// Number of `update()` callbacks actually invoked this tick.
     pub callbacks_fired: usize,
+    /// Number of worker-notification callbacks, separate from scheduled `update()` callbacks.
+    pub wake_callbacks_fired: usize,
     /// Number of events pushed to the engine inbox this tick.
     pub events_emitted: usize,
     /// Number of edit requests applied via `apply_edits_without_history` this tick.

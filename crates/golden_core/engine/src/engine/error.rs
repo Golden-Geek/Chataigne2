@@ -6,6 +6,22 @@ use crate::node::NodeId;
 /// Error returned when edit validation or application fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EngineEditError {
+    /// Callback-generated materialization exceeded its admitted scope budget.
+    LifecycleBudgetExceeded {
+        /// Bounded resource: passes or generated work.
+        resource: &'static str,
+        /// Admitted maximum.
+        limit: usize,
+        /// Requested cumulative usage, saturated on overflow.
+        attempted: usize,
+    },
+    /// An atomic operation was rejected and its inverse edits also failed.
+    AtomicRollbackFailed {
+        /// Original operation rejection.
+        original: Box<EngineEditError>,
+        /// First inverse failure; rollback still attempts all remaining steps.
+        rollback: Box<EngineEditError>,
+    },
     /// A node-carrying edit provided a node of the wrong runtime type.
     NodeTypeMismatch {
         /// Index of the edit in the drained queue.
@@ -251,6 +267,19 @@ pub enum EngineEditError {
 impl fmt::Display for EngineEditError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::LifecycleBudgetExceeded {
+                resource,
+                limit,
+                attempted,
+            } => {
+                write!(
+                    f,
+                    "lifecycle expansion exceeded {resource} budget {limit} (requested {attempted})"
+                )
+            }
+            Self::AtomicRollbackFailed { original, rollback } => {
+                write!(f, "{original}; rollback also failed: {rollback}")
+            }
             Self::NodeTypeMismatch {
                 edit_index,
                 operation,

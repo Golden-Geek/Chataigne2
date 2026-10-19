@@ -23,10 +23,7 @@ pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -
             if !matches!(state.param_value, Some(ParamValue::Float(_))) {
                 continue;
             }
-            let value_uuid = NodeUuid(Uuid::new_v5(
-                &state.uuid.0,
-                b"sound-card-channel-value",
-            ));
+            let value_uuid = NodeUuid(Uuid::new_v5(&state.uuid.0, b"sound-card-channel-value"));
             if let Some(value) = snapshot.node_id_by_uuid(value_uuid) {
                 bindings
                     .channel_levels
@@ -56,8 +53,8 @@ pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -
             bindings.active_voices,
             bindings.loading_voices,
         ]
-            .into_iter()
-            .flatten(),
+        .into_iter()
+        .flatten(),
     );
     bindings
         .runtime_values

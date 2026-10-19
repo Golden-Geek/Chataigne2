@@ -146,8 +146,47 @@ define_node_enum!(
         HistoryReadySnapshotProbe,
         OldProjectOwner,
         SnapshotProbeNode,
+        LifecycleMutationFailure,
     }
 );
+
+#[crate::node("lifecycle_mutation_failure")]
+struct LifecycleMutationFailure {
+    #[state(default = 0, persist)]
+    authored_writes: usize,
+}
+
+#[crate::node("lifecycle_mutation_failure", from_struct)]
+impl Node for LifecycleMutationFailure {
+    fn on_custom_event(&mut self, ctx: &mut crate::process_ctx::ProcessCtx, event: crate::events::CustomEvent) {
+        if event.topic == "reject_authored_event" {
+            self.authored_writes += 1;
+            ctx.patch_node_meta(
+                self.id(),
+                crate::node::NodeMetaPatch {
+                    label: Some("Rejected event mutation".into()),
+                    ..Default::default()
+                },
+            );
+            ctx.set_param(NodeId(u64::MAX), ParamValue::Int(1));
+        }
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut crate::process_ctx::ProcessCtx, context: crate::node::NodeCreationContext) {
+        if context == crate::node::NodeCreationContext::Duplicate {
+            let root = ctx.tree_snapshot().unwrap().root();
+            ctx.patch_node_meta(
+                root,
+                crate::node::NodeMetaPatch {
+                    label: Some("Rejected mutation".into()),
+                    ..Default::default()
+                },
+            );
+            ctx.add_child(root, Folder::new("Rejected sibling"), None);
+            ctx.set_param(NodeId(u64::MAX), ParamValue::Int(1));
+        }
+    }
+}
 
 impl ProjectLifecycle for FacadeTestNode {}
 
@@ -159,6 +198,7 @@ fn runtime() -> ProductionRuntime<FacadeTestNode> {
         engine,
         UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
     )
+    .unwrap()
 }
 
 fn reset_replacement_probes() {
@@ -178,6 +218,7 @@ fn runtime_with_old_project_owner() -> ProductionRuntime<FacadeTestNode> {
         engine,
         UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
     )
+    .unwrap()
 }
 
 fn replacement_engine(label: &str, failing_activation: bool) -> Engine<FacadeTestNode> {
@@ -227,7 +268,8 @@ fn runtime_with_preferences(include_snapshot_probe: bool) -> (ProductionRuntime<
     let runtime = ProductionRuntime::new(
         engine,
         UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
-    );
+    )
+    .unwrap();
 
     (runtime, max_frequency)
 }
@@ -262,6 +304,7 @@ fn assert_rejected_intent_is_atomic(engine: &mut Engine<FacadeTestNode>, intent:
         .expect("graph should serialize before rejected edit");
     let history_before = engine.ui_history_state();
     let events_before = engine.ui_event_log().to_vec();
+    engine.take_project_dirty_nodes();
 
     let acknowledgement = apply_ui_intent_to_engine(engine, intent, Some("atomic-duplicate-test"));
 
@@ -274,6 +317,10 @@ fn assert_rejected_intent_is_atomic(engine: &mut Engine<FacadeTestNode>, intent:
     );
     assert_eq!(engine.ui_history_state(), history_before);
     assert_eq!(engine.ui_event_log(), events_before.as_slice());
+    assert!(
+        engine.take_project_dirty_nodes().is_empty(),
+        "rejected intent must not dirty the project"
+    );
 }
 
 fn install_first_publication_gate(
@@ -325,7 +372,7 @@ fn production_facade_keeps_graph_edits_and_observation_on_one_authoritative_path
     let revision = runtime.apply_graph_edit(UiEditIntent::ReevaluateGraph).unwrap();
     let snapshot = runtime.snapshot(UiSubscriptionScope::WholeGraph).unwrap();
 
-    assert_eq!(revision, runtime.history_state());
+    assert_eq!(revision, runtime.history_state().unwrap());
     assert_eq!(snapshot.nodes.len(), 1);
 }
 
@@ -341,21 +388,23 @@ fn production_runtime_value_facade_reports_non_parameter_inputs() {
         .node_id;
     let error = runtime.publish_input(root, ParamValue::Int(5), 123).unwrap_err();
 
-    assert!(!error.is_empty());
+    assert!(!error.to_string().is_empty());
 }
 
 #[test]
 fn production_tick_refreshes_runtime_limit_without_snapshotting_unrelated_nodes() {
     let (runtime, max_frequency) = runtime_with_preferences(true);
 
-    let transaction = runtime.apply_ui_transaction(
-        UiEditIntent::SetParam {
-            node: max_frequency,
-            value: ParamValue::Int(125),
-            behaviour: Default::default(),
-        },
-        Some("runtime-limit-test"),
-    );
+    let transaction = runtime
+        .apply_ui_transaction(
+            UiEditIntent::SetParam {
+                node: max_frequency,
+                value: ParamValue::Int(125),
+                behaviour: Default::default(),
+            },
+            Some("runtime-limit-test"),
+        )
+        .unwrap();
     assert!(transaction.acknowledgement.success);
 
     SNAPSHOT_PROBE_DESCRIPTOR_CALLS.store(0, Ordering::Relaxed);
@@ -388,14 +437,16 @@ fn concurrent_tick_and_ui_mutation_publish_in_control_actor_order() {
     let (ui_done_tx, ui_done_rx) = mpsc::channel();
     let ui_runtime = runtime.clone();
     let ui = thread::spawn(move || {
-        let result = ui_runtime.apply_ui_transaction(
-            UiEditIntent::SetParam {
-                node: max_frequency,
-                value: ParamValue::Int(102),
-                behaviour: Default::default(),
-            },
-            Some("ordered-publication-test"),
-        );
+        let result = ui_runtime
+            .apply_ui_transaction(
+                UiEditIntent::SetParam {
+                    node: max_frequency,
+                    value: ParamValue::Int(102),
+                    behaviour: Default::default(),
+                },
+                Some("ordered-publication-test"),
+            )
+            .unwrap();
         let _ = ui_done_tx.send(result.acknowledgement.success);
         result
     });
@@ -445,14 +496,16 @@ fn project_replace_cannot_be_overtaken_by_an_old_capture_or_project_file_update(
 
     let old_runtime = runtime.clone();
     let old_mutation = thread::spawn(move || {
-        old_runtime.apply_ui_transaction(
-            UiEditIntent::SetParam {
-                node: max_frequency,
-                value: ParamValue::Int(111),
-                behaviour: Default::default(),
-            },
-            Some("old-project-publication-test"),
-        )
+        old_runtime
+            .apply_ui_transaction(
+                UiEditIntent::SetParam {
+                    node: max_frequency,
+                    value: ParamValue::Int(111),
+                    behaviour: Default::default(),
+                },
+                Some("old-project-publication-test"),
+            )
+            .unwrap()
     });
     publication_entered
         .recv_timeout(Duration::from_secs(2))
@@ -481,11 +534,13 @@ fn project_replace_cannot_be_overtaken_by_an_old_capture_or_project_file_update(
 
     let metadata_runtime = runtime.clone();
     let metadata = thread::spawn(move || {
-        metadata_runtime.set_project_file(UiProjectFileSpec {
-            display_name: "Replacement".to_string(),
-            extension: "noisette".to_string(),
-            current_path: Some("saved-after-replacement.noisette".to_string()),
-        });
+        metadata_runtime
+            .set_project_file(UiProjectFileSpec {
+                display_name: "Replacement".to_string(),
+                extension: "noisette".to_string(),
+                current_path: Some("saved-after-replacement.noisette".to_string()),
+            })
+            .unwrap();
     });
     assert!(
         wait_for_control_queue_depth(&runtime, 2),
@@ -534,7 +589,9 @@ fn project_replace_cannot_be_overtaken_by_an_old_capture_or_project_file_update(
 fn ui_transactions_report_only_authoritative_preferences_changes() {
     let (runtime, max_frequency) = runtime_with_preferences(false);
 
-    let unrelated = runtime.apply_ui_transaction(UiEditIntent::ReevaluateGraph, Some("preferences-test"));
+    let unrelated = runtime
+        .apply_ui_transaction(UiEditIntent::ReevaluateGraph, Some("preferences-test"))
+        .unwrap();
     assert!(unrelated.acknowledgement.success);
     assert!(!unrelated.preferences_changed);
 
@@ -553,41 +610,47 @@ fn ui_transactions_report_only_authoritative_preferences_changes() {
         .find(|node| node.meta.label == "Work")
         .expect("ordinary work folder")
         .node_id;
-    let duplicated = runtime.apply_ui_transaction(
-        UiEditIntent::DuplicateNode {
-            source: work,
-            new_parent: root,
-            new_prev_sibling: Some(work),
-            initial_params: Vec::new(),
-        },
-        Some("preferences-test"),
-    );
+    let duplicated = runtime
+        .apply_ui_transaction(
+            UiEditIntent::DuplicateNode {
+                source: work,
+                new_parent: root,
+                new_prev_sibling: Some(work),
+                initial_params: Vec::new(),
+            },
+            Some("preferences-test"),
+        )
+        .unwrap();
     assert!(duplicated.acknowledgement.success);
     assert!(!duplicated.preferences_changed);
 
-    let changed = runtime.apply_ui_transaction(
-        UiEditIntent::SetParam {
-            node: max_frequency,
-            value: ParamValue::Int(125),
-            behaviour: Default::default(),
-        },
-        Some("preferences-test"),
-    );
+    let changed = runtime
+        .apply_ui_transaction(
+            UiEditIntent::SetParam {
+                node: max_frequency,
+                value: ParamValue::Int(125),
+                behaviour: Default::default(),
+            },
+            Some("preferences-test"),
+        )
+        .unwrap();
     assert!(changed.acknowledgement.success);
     assert!(changed.preferences_changed);
 
-    let batch = runtime.apply_ui_transaction_batch(
-        vec![
-            UiEditIntent::ReevaluateGraph,
-            UiEditIntent::SetParam {
-                node: max_frequency,
-                value: ParamValue::Int(144),
-                behaviour: Default::default(),
-            },
-        ],
-        Some("preferences-test"),
-        true,
-    );
+    let batch = runtime
+        .apply_ui_transaction_batch(
+            vec![
+                UiEditIntent::ReevaluateGraph,
+                UiEditIntent::SetParam {
+                    node: max_frequency,
+                    value: ParamValue::Int(144),
+                    behaviour: Default::default(),
+                },
+            ],
+            Some("preferences-test"),
+            true,
+        )
+        .unwrap();
     assert!(!batch.transactions[0].preferences_changed);
     assert!(batch.transactions[1].preferences_changed);
     assert!(batch.preferences_changed);
@@ -605,7 +668,9 @@ fn nonstructural_ui_batch_collects_preferences_subtree_once() {
         .collect();
 
     runtime.reset_preferences_subtree_collection_count();
-    let batch = runtime.apply_ui_transaction_batch(intents, Some("preference-scan-test"), true);
+    let batch = runtime
+        .apply_ui_transaction_batch(intents, Some("preference-scan-test"), true)
+        .unwrap();
 
     assert!(
         batch
@@ -871,25 +936,27 @@ fn failed_transaction_batch_closes_matching_edit_session_and_skips_later_work() 
         .first()
         .expect("root node")
         .node_id;
-    let batch = runtime.apply_ui_transaction_batch(
-        vec![
-            UiEditIntent::BeginEdit {
-                client_edit_id: "batch-edit".to_string(),
-                label: Some("Batch".to_string()),
-            },
-            UiEditIntent::SetParam {
-                node: root,
-                value: ParamValue::Int(1),
-                behaviour: Default::default(),
-            },
-            UiEditIntent::EndEdit {
-                client_edit_id: "batch-edit".to_string(),
-            },
-            UiEditIntent::ReevaluateGraph,
-        ],
-        Some("client"),
-        true,
-    );
+    let batch = runtime
+        .apply_ui_transaction_batch(
+            vec![
+                UiEditIntent::BeginEdit {
+                    client_edit_id: "batch-edit".to_string(),
+                    label: Some("Batch".to_string()),
+                },
+                UiEditIntent::SetParam {
+                    node: root,
+                    value: ParamValue::Int(1),
+                    behaviour: Default::default(),
+                },
+                UiEditIntent::EndEdit {
+                    client_edit_id: "batch-edit".to_string(),
+                },
+                UiEditIntent::ReevaluateGraph,
+            ],
+            Some("client"),
+            true,
+        )
+        .unwrap();
 
     assert!(batch.transactions[0].acknowledgement.success);
     assert!(!batch.transactions[1].acknowledgement.success);

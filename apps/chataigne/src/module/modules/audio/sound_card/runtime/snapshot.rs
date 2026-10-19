@@ -22,16 +22,16 @@ pub(super) fn collect_input_channels(
     module: NodeId,
 ) -> Result<Vec<InputChannel>, ConfigurationError> {
     parameter_children(snapshot, find_path(snapshot, module, INPUT_CHANNELS_PATH))
-    .into_iter()
-    .map(|node| {
-        let state = snapshot.node(node).expect("typed child exists");
-        Ok(InputChannel {
-            node,
-            id: AudioChannelId::from_uuid(state.uuid.0),
-            label: channel_name(state),
+        .into_iter()
+        .map(|node| {
+            let state = snapshot.node(node).expect("typed child exists");
+            Ok(InputChannel {
+                node,
+                id: AudioChannelId::from_uuid(state.uuid.0),
+                label: channel_name(state),
+            })
         })
-    })
-    .collect()
+        .collect()
 }
 
 pub(super) fn collect_output_channels(
@@ -39,18 +39,18 @@ pub(super) fn collect_output_channels(
     module: NodeId,
 ) -> Result<Vec<OutputChannel>, ConfigurationError> {
     parameter_children(snapshot, find_path(snapshot, module, OUTPUT_CHANNELS_PATH))
-    .into_iter()
-    .map(|node| {
-        let state = snapshot.node(node).expect("typed child exists");
-        Ok(OutputChannel {
-            node,
-            uuid: state.uuid,
-            id: AudioChannelId::from_uuid(state.uuid.0),
-            label: channel_name(state),
-            gain: gain_at_node(snapshot, node)?,
+        .into_iter()
+        .map(|node| {
+            let state = snapshot.node(node).expect("typed child exists");
+            Ok(OutputChannel {
+                node,
+                uuid: state.uuid,
+                id: AudioChannelId::from_uuid(state.uuid.0),
+                label: channel_name(state),
+                gain: gain_at_node(snapshot, node)?,
+            })
         })
-    })
-    .collect()
+        .collect()
 }
 
 fn parameter_children(snapshot: &ProcessTreeSnapshot, parent: Option<NodeId>) -> Vec<NodeId> {
@@ -141,12 +141,7 @@ pub(super) fn required_child_enum(
         .node(node)
         .and_then(|state| state.param_value.as_ref())
         .and_then(ParamValue::as_enum)
-        .ok_or_else(|| {
-            configuration_error(
-                node,
-                format!("Sound Card selector '{key}' is missing an enum value"),
-            )
-        })?;
+        .ok_or_else(|| configuration_error(node, format!("Sound Card selector '{key}' is missing an enum value")))?;
     Ok((node, value))
 }
 
@@ -167,10 +162,7 @@ pub(super) fn gain(snapshot: &ProcessTreeSnapshot, module: NodeId, path: &str) -
     GainDb::new(value as f32).map_err(|error| configuration_error(node, error.to_string()))
 }
 
-pub(super) fn gain_at_node(
-    snapshot: &ProcessTreeSnapshot,
-    node: NodeId,
-) -> Result<GainDb, ConfigurationError> {
+pub(super) fn gain_at_node(snapshot: &ProcessTreeSnapshot, node: NodeId) -> Result<GainDb, ConfigurationError> {
     let value = snapshot
         .node(node)
         .and_then(|node| node.param_value.as_ref())

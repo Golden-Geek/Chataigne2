@@ -12,50 +12,9 @@ impl<T: Node> Engine<T> {
         parent: NodeId,
         prev_sibling: Option<NodeId>,
     ) -> Result<(), EngineEditError> {
-        if !self.nodes.contains(parent) {
-            return Err(EngineEditError::ParentNotFound {
-                edit_index,
-                operation,
-                parent,
-            });
-        }
-
-        let effective_prev_sibling = match prev_sibling {
-            Some(sibling) => {
-                if sibling == node {
-                    return Err(EngineEditError::InvalidSiblingReference {
-                        edit_index,
-                        operation,
-                        node,
-                        sibling,
-                    });
-                }
-
-                let sibling_parent = self
-                    .nodes
-                    .get(sibling)
-                    .ok_or(EngineEditError::SiblingNotFound {
-                        edit_index,
-                        operation,
-                        sibling,
-                    })?
-                    .node_data()
-                    .parent;
-
-                if sibling_parent != Some(parent) {
-                    return Err(EngineEditError::InvalidSiblingParent {
-                        edit_index,
-                        operation,
-                        parent,
-                        sibling,
-                        sibling_parent,
-                    });
-                }
-
-                Some(sibling)
-            }
-            None => self.nodes.get(parent).and_then(|n| n.node_data().last_child),
-        };
+        self.validate_previous_sibling(edit_index, operation, Some(node), parent, prev_sibling)?;
+        let effective_prev_sibling =
+            prev_sibling.or_else(|| self.nodes.get(parent).and_then(|n| n.node_data().last_child));
 
         let effective_next_sibling = match effective_prev_sibling {
             Some(prev) => self.nodes.get(prev).and_then(|n| n.node_data().next_sibling),
@@ -371,42 +330,5 @@ impl<T: Node> Engine<T> {
         }
 
         Ok(out)
-    }
-
-    /// Rewrites `parent` for every node in a sibling chain starting at `first_child`.
-    pub(crate) fn reparent_child_chain(
-        &mut self,
-        edit_index: usize,
-        operation: &'static str,
-        first_child: Option<NodeId>,
-        parent: NodeId,
-    ) -> Result<(), EngineEditError> {
-        let mut child = first_child;
-        while let Some(child_id) = child {
-            let next = self
-                .nodes
-                .get(child_id)
-                .ok_or(EngineEditError::NodeNotFound {
-                    edit_index,
-                    operation,
-                    node: child_id,
-                })?
-                .node_data()
-                .next_sibling;
-
-            self.nodes
-                .get_mut(child_id)
-                .ok_or(EngineEditError::NodeNotFound {
-                    edit_index,
-                    operation,
-                    node: child_id,
-                })?
-                .node_data_mut()
-                .parent = Some(parent);
-
-            child = next;
-        }
-
-        Ok(())
     }
 }

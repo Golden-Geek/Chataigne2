@@ -18,7 +18,8 @@ Implement docs/plan/Chataigne2_Codex_Implementation_Plan.md.
 Read AGENTS.md and the current status ledger linked from the plan. Reconcile
 the checkout, diff, and existing evidence, then continue the earliest
 dependency-ready unfinished task. Preserve completed work and unrelated edits.
-Work in coherent, reviewable batches, maintain the ledger, and continue safe
+Work in coherent, reviewable batches, commit and push each verified milestone,
+maintain the ledger, and continue safe
 independent local work when an external qualification is unavailable. Follow
 the plan's scope, acceptance criteria, and device/remote-action limits.
 ```
@@ -130,9 +131,23 @@ dragging, routing, meter animation, or native webview behavior. See
 
 ### Execution permissions
 
-Proceed through authorized local implementation and checks without per-task approval. This
-instruction does not authorize pushing, publishing, remote issues/PRs, or desktop automation.
+Proceed through authorized implementation, checks, milestone commits, and pushes without
+per-task approval. Continue on `main` after merging `codex/builtin-mapping`, as requested by
+the user on 2026-10-19. This instruction does not authorize releases, deployments, remote
+issues/PRs, or desktop automation.
 Do not operate the user's keyboard, mouse, ASIO panel, or native desktop through automation.
+
+### Milestone delivery
+
+Treat each coherent, verified implementation batch as a delivery milestone; do not wait for
+an entire P-task or the full plan to finish. Complete the relevant checks and formatting,
+update the ledger with evidence and remaining scope, then commit and push the milestone to
+`origin/main` before starting the next batch. Preserve unrelated changes and unfinished work
+outside the milestone commit. Do not publish known failing implementation as a verified milestone.
+
+Reconcile remote changes before pushing and preserve other contributors' commits. Never force
+push or rewrite published history. If a check, merge, or push fails, record the actual failure,
+repair it where possible, and retain the local work; do not report delivery until the push succeeds.
 
 The existing named **ASIO4ALL → VB-Audio loopback** authorization remains valid only when the
 exact driver and underlying route can be selected and verified. Focusrite drivers are also
@@ -233,6 +248,21 @@ every small edit. Treat the October audit observations in the ledger as a baseli
 
 ### P01 — Make failed edits coherent
 
+<!-- Mode: Escalating to XHigh for applied-prefix history finalization and atomic intent rollback/publication invariants. -->
+<!-- Mode: Returning to High after low-level applied-prefix/lifecycle repair passed 461 engine tests and strict Clippy; compound-intent work remains. -->
+<!-- Mode: Escalating to XHigh for compound creation prevalidation, lifecycle rollback, and history/dirty/publication invariants, including an already-active edit session. -->
+<!-- Mode: Returning to High after creation/reference/dashboard repair passed optimized engine package tests and strict Clippy; existing-node lifecycle rollback remains a separate P01 subtask. -->
+<!-- Mode: Escalating to XHigh for journaling existing-node lifecycle mutations across provisional creation rollback, history ordering, and publication. -->
+<!-- Mode: Returning to High after structured journal, lifecycle replay, and blueprint-index regressions passed focused engine tests and strict Clippy; opaque callbacks and remaining compound scopes stay open. -->
+<!-- Mode: Escalating to XHigh for outer compound-intent transaction ownership, nested prepared-subtree admission, and rollback inside an existing edit session. -->
+<!-- Mode: Returning to High after implicit compound UI rollback and nested preparation passed the complete engine suite and strict Clippy; remaining direct intents and authored callback capture stay open. -->
+<!-- Mode: Escalating to XHigh for complete authored callback capture, default restoration, nested edit ordering, and atomic rejection/undo invariants. -->
+<!-- Mode: Returning to High after complete callback capture, recursive prefix history, composed/default restoration, and automatic node contracts passed engine/macro tests and strict Clippy; direct-intent acceptance remains open. -->
+<!-- Mode: Escalating to XHigh for direct UI intent rollback, control-state/child-tree history ownership, and rejected transaction publication/context invariants. -->
+<!-- Mode: Returning to High after direct editing, notification ownership, control-child identity, context aliases, and production next-save checks passed the complete engine suite and strict Clippy; history replay/error ownership remains open. -->
+<!-- Mode: Escalating to XHigh for failed history replay ownership, exact live-state restoration, and authored callback suppression during undo/redo. -->
+<!-- Mode: Returning to High after history failure recovery, authored replay/teardown preservation, and the complete 495-test engine suite passed; P02 admission remains separate. -->
+
 **Evidence:** reproduced valid `AddNode` followed by invalid `SetParam(Folder)` leaves one added
 node with `undo_len=0`. `engine/src/engine/apply.rs` drains requests and several `?` exits bypass
 common history/reference/context finalization.
@@ -249,6 +279,13 @@ undo for the applied prefix; atomic user intents leave no partial mutation.
 
 ### P02 — Unify schedule revisions and propagate actor failures
 
+<!-- Mode: Escalating to XHigh for authoritative schedule revisions, stale compilation fencing, and dependency-safe runtime continuity during compilation. -->
+<!-- Mode: Returning to High after seven production scheduling/fencing regressions, the 501-test engine suite, strict Clippy, and workspace integration passed; actor admission/error propagation remains a separate focused subtask. -->
+<!-- Mode: Escalating to XHigh for typed actor admission/completion failures, cancellation semantics, and truthful application/transport acknowledgements under saturation. -->
+<!-- Mode: Returning to High after typed actor/facade/transport failures, cancellation and overload recovery passed owning suites, workspace test compilation, and frontend checks; saturated session cleanup and post-commit save publication remain a separate audit. -->
+<!-- Mode: Escalating to XHigh for connection-scoped edit-session lifetime fencing and post-commit save/publication failure recovery under actor saturation. -->
+<!-- Mode: Returning to High after connection-lifetime fencing, accepted disconnect history, and committed-save recovery passed owning suites, strict Clippy, and workspace/test compilation. P02 verified locally. -->
+
 **Evidence:** `ReevaluateGraph` can resolve a new engine order without production recompilation;
 `runtime_center.rs` can reuse the old generation and append newly scheduled nodes. Existing
 membership checks do not establish dependency order. Public application paths also turn typed
@@ -264,6 +301,25 @@ prerequisites during compilation, replace projects, and saturate admission. Veri
 effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
+
+<!-- Mode: Escalating to XHigh for UDP command/result admission, cancellation, and socket ownership across failed bind, disable/reconfigure, and worker retirement. -->
+<!-- Mode: Returning to High after 24 IO tests, 10 UDP tests, HTTP/Sound Card preservation, strict Clippy, and workspace/test compilation passed native queue admission, generation handoff, cancellation, and recovery. Stream parsing, node scheduling, and cursor bounds remain P03 work. -->
+
+<!-- Mode: Escalating to XHigh for lifecycle expansion budgets and replacement runtime handoff across committed-prefix history, atomic rollback, and fresh wake generations. -->
+<!-- Mode: Returning to High after 522 engine unit tests, eight public integration tests, and seven doctests passed lifecycle work admission, replacement ownership, history failure recovery, and single rollback activation. App preservation and routine validation closeout remain. -->
+
+<!-- Mode: Escalating to XHigh for bounded external node-wake registration, coalescing, callback-failure ownership, and passive Sound Card recovery while removing the unbounded arbitrary-edit channel. -->
+<!-- Mode: Returning to High after 520 engine tests, three public consumer tests, seven doctests, and 37 null-backend/Sound Card tests passed the bounded wake, clock separation, retry timer, and destroy/undo invariants. Routine loopback fixture and final lint/workspace closeout remain. -->
+
+<!-- Mode: Escalating to XHigh for deferred HTTP graph-edit completion across accepted-prefix failure, structural deferral, and atomic rollback. Scheduled callbacks share a queue while the response cursor currently advances before application. -->
+<!-- Mode: Returning to High after engine completion/discard/rollback/deferral and HTTP graph/callback ownership passed owning suites, strict Clippy, and workspace/test compilation. Remaining P03 external ingress, lifecycle, module/channel, UDP, and generator work stays open. -->
+
+<!-- Mode: Escalating to XHigh for HTTP worker cancellation, bounded reply backpressure, and resource lifetime handoff during saturated shutdown/reconfiguration. -->
+<!-- Mode: Returning to High after bounded-worker lifetime/backpressure and HTTP shutdown/retry/admission/response-limit regressions passed owning suites, strict Clippy, and workspace/test compilation. Reconfiguration semantics and remaining P03 service bounds stay open. -->
+<!-- Mode: Escalating to XHigh for resumable HTTP graph materialization, FIFO completion, and accepted request ownership across reconfiguration and cancellation. -->
+<!-- Mode: Returning to High after HTTP materialization budgets, FIFO callbacks, exact trigger delivery, and alias-index semantics passed app/engine suites, strict Clippy, and workspace/test compilation. Accepted-request reconfiguration ownership remains a separate P03 repair. -->
+<!-- Mode: Escalating to XHigh for graceful HTTP generation handoff, accepted request/completion ownership, and bounded recovery under saturated reconfiguration. -->
+<!-- Mode: Returning to High after HTTP accepted-request handoff, bounded reconfiguration/recovery, native retirement independence, and disable/re-enable passed owning suites, strict Clippy, and workspace/test compilation. Remaining P03 engine/module/lifecycle/generator work stays open. -->
 
 **Evidence:** HTTP stop performs blocking send/join behind requests/retries from module callbacks;
 UDP outbound commands and some other module channels remain unbounded; variable-size pending

@@ -1,8 +1,6 @@
-use crate::edit::NodeMutation;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterConstraints, ParameterEventBehaviour};
-use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::ScriptNodeConfig;
 use crate::ui_sync::{UiGraphOp, UiNodeMetaPatch};
 
@@ -10,6 +8,48 @@ use super::history::{PatchMetaEffect, SetParamConstraintsEffect, SetParamEffect,
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
+    /// Resolves and validates a value without changing authored state or emitting events.
+    pub(crate) fn prepare_set_param_value(
+        &self,
+        edit_index: usize,
+        node: NodeId,
+        value: ParamValue,
+    ) -> Result<ParamValue, EngineEditError> {
+        let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
+            edit_index,
+            operation: "SetParam",
+            node,
+        })?;
+        let node_type = target.get_type().to_string();
+        if target.engine_param_snapshot().is_none() {
+            return Err(EngineEditError::ParamEditTargetMismatch {
+                edit_index,
+                node,
+                node_type,
+            });
+        }
+        let value = match value {
+            ParamValue::Reference(reference) => self
+                .normalize_reference_value_for_param(node, reference)
+                .map(ParamValue::Reference)
+                .map_err(|message| EngineEditError::ParamConstraintViolation {
+                    edit_index,
+                    node,
+                    node_type: node_type.clone(),
+                    message,
+                })?,
+            value => value,
+        };
+        target
+            .engine_prepare_param_value(value)
+            .map_err(|message| EngineEditError::ParamConstraintViolation {
+                edit_index,
+                node,
+                node_type,
+                message,
+            })
+    }
+
     /// Applies a parameter value update and returns the captured before/after effect for history.
     pub(crate) fn apply_set_param(
         &mut self,
@@ -18,24 +58,7 @@ impl<T: Node> Engine<T> {
         value: ParamValue,
     ) -> Result<Option<SetParamEffect>, EngineEditError> {
         const OP: &str = "SetParam";
-        let node_type_hint = self
-            .nodes
-            .get(node)
-            .map(|target| target.get_type().to_string())
-            .unwrap_or_else(|| "unknown".to_string());
-        let value = if let ParamValue::Reference(reference) = value {
-            let normalized = self
-                .normalize_reference_value_for_param(node, reference)
-                .map_err(|message| EngineEditError::ParamConstraintViolation {
-                    edit_index,
-                    node,
-                    node_type: node_type_hint.clone(),
-                    message,
-                })?;
-            ParamValue::Reference(normalized)
-        } else {
-            value
-        };
+        let prepared_value = self.prepare_set_param_value(edit_index, node, value)?;
 
         let (old_value, new_value, change_check) = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
@@ -44,14 +67,6 @@ impl<T: Node> Engine<T> {
                 node,
             })?;
             let node_type = target.get_type().to_string();
-            let prepared_value = target.engine_prepare_param_value(value).map_err(|message| {
-                EngineEditError::ParamConstraintViolation {
-                    edit_index,
-                    node,
-                    node_type: node_type.clone(),
-                    message,
-                }
-            })?;
             let snapshot = target.engine_param_snapshot();
             let change_check = snapshot.as_ref().map(|state| state.change_check.clone());
 
@@ -59,6 +74,13 @@ impl<T: Node> Engine<T> {
                 && matches!(change_check, Some(ParameterChangeCheck::ValueChange))
                 && snapshot.as_ref().is_some_and(|state| state.value == prepared_value)
             {
+                // References compare authored identity, excluding cached runtime ids.
+                // Preserve no-op history semantics while refreshing live resolution.
+                if matches!(&prepared_value, ParamValue::Reference(_)) {
+                    target.engine_set_param_value(prepared_value.clone());
+                    self.parameter_values_cache.insert(node, prepared_value);
+                    self.clear_tick_tree_snapshot();
+                }
                 return Ok(None);
             }
 
@@ -179,6 +201,17 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         patch: NodeMetaPatch,
     ) -> Result<PatchMetaEffect, EngineEditError> {
+        let applied = self.apply_patch_meta_with_completion(edit_index, node, patch)?;
+        applied.completion?;
+        Ok(applied.effect)
+    }
+
+    pub(crate) fn apply_patch_meta_with_completion(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        patch: NodeMetaPatch,
+    ) -> Result<super::apply_tree::AppliedEdit<PatchMetaEffect>, EngineEditError> {
         const OP: &str = "PatchMeta";
 
         let subtree_ids = patch
@@ -203,7 +236,7 @@ impl<T: Node> Engine<T> {
             self.mark_schedule_dirty();
         }
 
-        if old_meta.enabled != new_meta.enabled {
+        let completion = if old_meta.enabled != new_meta.enabled {
             let effective_enabled_changes = old_effective_enabled
                 .into_iter()
                 .filter_map(|(node_id, was_enabled)| {
@@ -211,18 +244,23 @@ impl<T: Node> Engine<T> {
                     (enabled != was_enabled).then_some((node_id, enabled))
                 })
                 .collect::<Vec<_>>();
-            self.queue_effective_enabled_callbacks(&effective_enabled_changes)?;
-        }
+            self.queue_effective_enabled_callbacks(&effective_enabled_changes)
+        } else {
+            Ok(())
+        };
 
         let ui_patch = UiNodeMetaPatch::from(&patch);
         self.emit_inbox_event(EventKind::MetaChanged { node, patch });
         if !ui_patch.is_empty() {
             self.push_ui_graph_transaction(vec![UiGraphOp::NodeMetaPatched { node, patch: ui_patch }]);
         }
-        Ok(PatchMetaEffect {
-            node,
-            old_meta,
-            new_meta,
+        Ok(super::apply_tree::AppliedEdit {
+            effect: PatchMetaEffect {
+                node,
+                old_meta,
+                new_meta,
+            },
+            completion,
         })
     }
 
@@ -305,138 +343,6 @@ impl<T: Node> Engine<T> {
             new_config,
             force_reload,
         }))
-    }
-
-    /// Applies a script-property write on one target node.
-    pub(crate) fn apply_set_node_script_property(
-        &mut self,
-        edit_index: usize,
-        node: NodeId,
-        property: String,
-        value: ParamValue,
-    ) -> Result<(), EngineEditError> {
-        const OP: &str = "SetNodeScriptProperty";
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
-        ctx.runtime_elapsed = self.runtime_elapsed;
-        let handled = {
-            let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
-                edit_index,
-                operation: OP,
-                node,
-            })?;
-            let node_type = target.get_type().to_string();
-            target
-                .engine_set_script_property(&mut ctx, property.as_str(), value)
-                .map_err(|message| EngineEditError::ScriptPropertyRejected {
-                    edit_index,
-                    operation: OP,
-                    node,
-                    node_type,
-                    message,
-                })?
-        };
-
-        if !handled {
-            let node_type = self
-                .nodes
-                .get(node)
-                .map(|entry| entry.get_type().to_string())
-                .unwrap_or_else(|| "unknown".to_string());
-            return Err(EngineEditError::ScriptPropertyRejected {
-                edit_index,
-                operation: OP,
-                node,
-                node_type,
-                message: format!("property '{property}' is not exposed by target node"),
-            });
-        }
-
-        self.absorb_edits(&mut ctx)?;
-        Ok(())
-    }
-
-    /// Applies a script-method call on one target node.
-    pub(crate) fn apply_call_node_script_method(
-        &mut self,
-        edit_index: usize,
-        node: NodeId,
-        method: String,
-        args: Vec<ParamValue>,
-    ) -> Result<(), EngineEditError> {
-        const OP: &str = "CallNodeScriptMethod";
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
-        ctx.runtime_elapsed = self.runtime_elapsed;
-        ctx.set_tree_snapshot(self.get_or_build_tick_snapshot());
-        let handled = {
-            let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
-                edit_index,
-                operation: OP,
-                node,
-            })?;
-            let node_type = target.get_type().to_string();
-            target
-                .engine_call_script_method(&mut ctx, method.as_str(), args.as_slice())
-                .map_err(|message| EngineEditError::ScriptMethodRejected {
-                    edit_index,
-                    operation: OP,
-                    node,
-                    node_type,
-                    message,
-                })?
-        };
-
-        if !handled {
-            let node_type = self
-                .nodes
-                .get(node)
-                .map(|entry| entry.get_type().to_string())
-                .unwrap_or_else(|| "unknown".to_string());
-            return Err(EngineEditError::ScriptMethodRejected {
-                edit_index,
-                operation: OP,
-                node,
-                node_type,
-                message: format!("method '{method}' is not exposed by target node"),
-            });
-        }
-
-        self.absorb_edits(&mut ctx)?;
-        Ok(())
-    }
-
-    /// Applies one typed runtime node-mutation callback on one target node.
-    pub(crate) fn apply_call_node_mutation(
-        &mut self,
-        edit_index: usize,
-        node: NodeId,
-        callback: NodeMutation,
-        needs_tree_snapshot: bool,
-    ) -> Result<(), EngineEditError> {
-        const OP: &str = "CallNodeMutation";
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
-        ctx.runtime_elapsed = self.runtime_elapsed;
-        if needs_tree_snapshot {
-            ctx.set_tree_snapshot(self.get_or_build_tick_snapshot());
-        }
-
-        {
-            let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
-                edit_index,
-                operation: OP,
-                node,
-            })?;
-            let node_type = target.get_type().to_string();
-            callback(target as &mut dyn Node, &mut ctx).map_err(|message| EngineEditError::NodeMutationRejected {
-                edit_index,
-                operation: OP,
-                node,
-                node_type,
-                message,
-            })?;
-        }
-
-        self.absorb_edits(&mut ctx)?;
-        Ok(())
     }
 
     pub(crate) fn apply_script_config_for_history(
@@ -626,7 +532,12 @@ impl<T: Node> Engine<T> {
             })
     }
 
-    fn emit_param_events_for_state_change(&mut self, node: NodeId, old_value: &ParamValue, new_value: &ParamValue) {
+    pub(super) fn emit_param_events_for_state_change(
+        &mut self,
+        node: NodeId,
+        old_value: &ParamValue,
+        new_value: &ParamValue,
+    ) {
         if old_value == new_value {
             return;
         }
@@ -641,7 +552,7 @@ impl<T: Node> Engine<T> {
         self.parameter_values_cache.insert(node, new_value.clone());
     }
 
-    fn emit_param_constraints_event(
+    pub(super) fn emit_param_constraints_event(
         &mut self,
         node: NodeId,
         old_constraints: ParameterConstraints,

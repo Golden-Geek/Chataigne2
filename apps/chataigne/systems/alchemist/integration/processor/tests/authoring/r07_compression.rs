@@ -275,7 +275,7 @@ fn production_runtime_trigger_uses_the_backend_transition_and_reports_blockers()
             ProjectFileSpec::new("Mapping compression", "mapping-compression"),
             None,
         ),
-    );
+    ).unwrap();
     let result = runtime.apply_ui_transaction(
         UiEditIntent::SetParam {
             node: compress,
@@ -283,7 +283,7 @@ fn production_runtime_trigger_uses_the_backend_transition_and_reports_blockers()
             behaviour: ParameterEventBehaviour::Append,
         },
         Some("mapping-compression-test"),
-    );
+    ).unwrap();
     assert!(result.acknowledgement.success, "{result:?}");
     let snapshot = runtime
         .read_model()

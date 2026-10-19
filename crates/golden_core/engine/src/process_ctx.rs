@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::sync::{Arc, mpsc::Sender};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
-use crate::engine::EngineTime;
+use crate::engine::{EngineTime, NodeWakeError, NodeWakeSource, NodeWaker};
 use crate::events::{CustomEvent, EventFrame};
 use crate::node::{
     DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeReference, NodeUuid,
@@ -166,6 +166,7 @@ impl fmt::Display for ProcessTreeNodeSnapshot {
 struct ProcessTreeChildIndexes {
     ids_by_parent: HashMap<NodeId, Box<[NodeId]>>,
     ids_by_decl_id: HashMap<NodeId, HashMap<Box<str>, NodeId>>,
+    ids_by_child_key: HashMap<NodeId, HashMap<Box<str>, NodeId>>,
 }
 
 /// Shared read-only tree snapshot for one processing pass.
@@ -212,13 +213,14 @@ impl ProcessTreeSnapshot {
 
     fn build_child_indexes(nodes: &HashMap<NodeId, ProcessTreeNodeSnapshot>) -> Arc<ProcessTreeChildIndexes> {
         // Most folders are small; index only wide parents to avoid one map and
-        // cloned declaration strings per folder on every full-tree snapshot.
+        // cloned selector strings per folder on every full-tree snapshot.
         const DECL_INDEX_THRESHOLD: usize = 16;
         let parent_ids = nodes
             .iter()
             .filter_map(|(node_id, node)| node.first_child.map(|_| *node_id));
         let mut child_ids_by_parent = HashMap::new();
         let mut child_ids_by_decl_id = HashMap::new();
+        let mut child_ids_by_key = HashMap::new();
 
         for parent in parent_ids {
             let mut child_ids = Vec::new();
@@ -250,10 +252,18 @@ impl ProcessTreeSnapshot {
 
             if child_ids.len() > DECL_INDEX_THRESHOLD {
                 let mut decl_ids = HashMap::with_capacity(child_ids.len());
+                let mut keys = HashMap::with_capacity(child_ids.len());
                 for child_id in &child_ids {
                     let Some(child) = nodes.get(child_id) else {
                         break;
                     };
+                    // Match the ordered scan across all aliases: an earlier label also
+                    // wins over a later declaration id. Do not allocate duplicate aliases.
+                    for key in [&child.decl_id, &child.short_name, &child.label] {
+                        if !keys.contains_key(key.as_str()) {
+                            keys.insert(key.clone().into_boxed_str(), *child_id);
+                        }
+                    }
                     decl_ids
                         .entry(child.decl_id.clone().into_boxed_str())
                         .or_insert(*child_id);
@@ -264,6 +274,7 @@ impl ProcessTreeSnapshot {
                     }
                 }
                 child_ids_by_decl_id.insert(parent, decl_ids);
+                child_ids_by_key.insert(parent, keys);
             }
             child_ids_by_parent.insert(parent, child_ids.into_boxed_slice());
         }
@@ -271,6 +282,7 @@ impl ProcessTreeSnapshot {
         Arc::new(ProcessTreeChildIndexes {
             ids_by_parent: child_ids_by_parent,
             ids_by_decl_id: child_ids_by_decl_id,
+            ids_by_child_key: child_ids_by_key,
         })
     }
 
@@ -307,6 +319,9 @@ impl ProcessTreeSnapshot {
     ///
     /// Child keys are matched against `decl_id`, `short_name`, then `label`.
     pub fn find_child(&self, parent: NodeId, key: &str) -> Option<NodeId> {
+        if let Some(children) = self.child_indexes.ids_by_child_key.get(&parent) {
+            return children.get(key).copied();
+        }
         for child_id in self.child_ids_slice(parent).iter().copied() {
             let child_snapshot = self.node(child_id)?;
             if child_snapshot.matches_child_key(key) {
@@ -432,8 +447,8 @@ pub struct ProcessCtx {
     tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
     /// Live parameter targets requested by a callback that does not need the whole tree.
     referenced_params: HashMap<NodeUuid, (NodeId, ParamValue)>,
-    /// Thread-safe ingress used by IO workers to re-enter the engine edit pipeline.
-    external_edit_sender: Option<Sender<Edit>>,
+    /// Scoped registration source supplied to engine-owned ready callbacks.
+    node_wake_source: Option<(NodeWakeSource, NodeId)>,
 }
 
 impl ProcessCtx {
@@ -448,20 +463,21 @@ impl ProcessCtx {
             runtime_elapsed: Duration::ZERO,
             tree_snapshot: None,
             referenced_params: HashMap::new(),
-            external_edit_sender: None,
+            node_wake_source: None,
         }
     }
 
-    /// Attaches the engine's thread-safe edit ingress for lifecycle and runtime callbacks.
-    pub(crate) fn set_external_edit_sender(&mut self, sender: Sender<Edit>) {
-        self.external_edit_sender = Some(sender);
+    /// Attaches a wake reservation source scoped to the current ready callback's node.
+    pub(crate) fn set_node_wake_source(&mut self, source: NodeWakeSource, node: NodeId) {
+        self.node_wake_source = Some((source, node));
     }
 
-    /// Returns a sender that background workers may use to emit edits back into this engine.
+    /// Reserves a coalesced wake handle before starting this node's workers.
     ///
-    /// Standalone contexts created outside an [`crate::engine::Engine`] do not expose one.
-    pub fn external_edit_sender(&self) -> Option<Sender<Edit>> {
-        self.external_edit_sender.clone()
+    /// Available in engine-owned ready callbacks; standalone contexts cannot register one.
+    pub fn node_waker(&self) -> Result<NodeWaker, NodeWakeError> {
+        let (source, node) = self.node_wake_source.as_ref().ok_or(NodeWakeError::Unavailable)?;
+        source.register(*node)
     }
 
     /// Attaches a read-only tree snapshot to this context.

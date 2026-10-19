@@ -7,7 +7,8 @@ impl<T: Node> Engine<T> {
         edit_index: usize,
         node: NodeId,
         new_node: Box<dyn Node>,
-    ) -> Result<ReplaceNodeEffect<T>, EngineEditError> {
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<AppliedEdit<ReplaceNodeEffect<T>>, EngineEditError> {
         const OP: &str = "ReplaceNode";
 
         let old_data = self
@@ -42,6 +43,8 @@ impl<T: Node> Engine<T> {
             replacement_data.effective_enabled = old_data.effective_enabled;
         }
 
+        // Only the replaced payload retires; its retained children stay live.
+        self.run_destroy_for_subtree(&[node])?;
         self.unregister_node_uuid(node);
         let old_node = self.nodes.detach(node).ok_or(EngineEditError::NodeNotFound {
             edit_index,
@@ -49,13 +52,27 @@ impl<T: Node> Engine<T> {
             node,
         })?;
         self.purge_param_cache_entry(node);
+        self.node_wakes.source.close(node);
+        self.event_listeners.remove_subscriber(node);
         self.nodes.reattach(node, replacement);
         self.register_node_uuid(node);
         self.populate_param_cache_entry(node);
         self.mark_schedule_dirty();
-        self.blueprints.unregister_instance(node);
+        let old_blueprint = self.blueprints.unregister_instance(node);
         let enabled_changes = self.subtree_effective_enabled_changes(node);
-        self.queue_effective_enabled_callbacks(&enabled_changes)?;
+        let completion = (|| {
+            self.queue_effective_enabled_callbacks(&enabled_changes)?;
+            self.run_node_attached_for_batch(&[node], creation_context)?;
+            if let Some(context) = creation_context {
+                self.run_node_init(node, creation_context)?;
+                if context.is_project_load() {
+                    self.queue_node_ready(node, context);
+                } else {
+                    self.run_node_ready(node, context)?;
+                }
+            }
+            Ok(())
+        })();
 
         self.emit_event(EventKind::ChildReplaced {
             parent,
@@ -73,13 +90,13 @@ impl<T: Node> Engine<T> {
             }]);
         }
 
-        Ok(ReplaceNodeEffect {
-            parent,
-            old_id: node,
-            new_id: node,
-            prev_sibling: old_data.prev_sibling,
-            next_sibling: old_data.next_sibling,
-            old_node,
+        Ok(AppliedEdit {
+            effect: ReplaceNodeEffect {
+                node,
+                old_node,
+                old_blueprint,
+            },
+            completion,
         })
     }
 }

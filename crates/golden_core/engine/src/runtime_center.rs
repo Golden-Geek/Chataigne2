@@ -16,10 +16,16 @@ use golden_values::{ColorValue as RuntimeColor, TriggerValue as RuntimeTrigger, 
 
 use crate::app::ProjectGeneration;
 use crate::edit::Edit;
-use crate::engine::{Engine, EngineRuntimeError, EngineTime, ParameterValueStore, ScheduleCompileEntry};
-use crate::events::EventKind;
+use crate::engine::{Engine, EngineRuntimeError, ParameterValueStore, ScheduleCompileEntry, ScheduleRevision};
 use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
+
+mod client_sessions;
+mod compilation;
+pub use client_sessions::UiClientLease;
+
+#[cfg(test)]
+mod tests;
 
 const INPUT_LOSSLESS_CAPACITY: usize = 16_384;
 #[derive(Clone)]
@@ -29,6 +35,7 @@ struct CompiledParameter {
 }
 
 struct EngineCompileSnapshot {
+    schedule_revision: ScheduleRevision,
     parameter_values: ParameterValueStore,
     schedule: Arc<[ScheduleCompileEntry]>,
     materialized: OnceLock<Arc<EngineCompileLayout>>,
@@ -48,6 +55,7 @@ struct CompiledScheduledNode {
 impl EngineCompileSnapshot {
     fn capture<T: Node>(engine: &Engine<T>) -> Self {
         Self {
+            schedule_revision: engine.schedule_revision(),
             parameter_values: engine.parameter_values_cache.clone(),
             schedule: engine.schedule_compile_topology(),
             materialized: OnceLock::new(),
@@ -400,11 +408,15 @@ pub(crate) struct ProjectPersistenceSnapshot {
 }
 
 pub(crate) struct ProductionState<T: Node> {
+    ui_session_lease: Option<client_sessions::UiSessionLease>,
     pub(crate) engine: Engine<T>,
     semantic: SemanticRuntime,
     compiler: CompilationService<EngineCompileSnapshot, EngineGenerationCompiler>,
     pending_compilations: BTreeMap<u64, PendingCompilation>,
-    project_revision: ProjectRevision,
+    /// Orders compiler requests; schedule identity remains owned by the engine.
+    compilation_revision: ProjectRevision,
+    compiled_schedule_revision: ScheduleRevision,
+    requested_schedule_revision: ScheduleRevision,
     input_plane: Arc<RuntimeInputPlane>,
     input_generation: Arc<InputGeneration>,
     input_mailbox: Arc<RuntimeInputMailbox>,
@@ -455,11 +467,14 @@ impl<T: Node> ProductionState<T> {
 
         Ok((
             Self {
+                ui_session_lease: None,
                 engine,
                 semantic,
                 compiler,
                 pending_compilations: BTreeMap::new(),
-                project_revision: revision,
+                compilation_revision: revision,
+                compiled_schedule_revision: snapshot.schedule_revision,
+                requested_schedule_revision: snapshot.schedule_revision,
                 input_plane,
                 input_generation,
                 input_mailbox,
@@ -482,6 +497,7 @@ impl<T: Node> ProductionState<T> {
     }
 
     pub(crate) fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
+        self.release_closed_ui_session();
         if let Some(message) = &self.project_pause_error {
             return Err(EngineRuntimeError::ProjectPaused {
                 message: message.clone(),
@@ -489,8 +505,8 @@ impl<T: Node> ProductionState<T> {
         }
         self.apply_completed_compilations();
         self.apply_dense_inputs();
-        let previous_event_time = self.engine.ui_event_log().last().map(|event| event.time);
         let generation = self.semantic.current_generation();
+        let compiled_revision = self.compiled_schedule_revision;
         let scheduled_node_to_work = &self.scheduled_node_to_work;
         let scheduled_work_nodes = &self.scheduled_work_nodes;
         let input_work_count = self.input_work_count;
@@ -498,197 +514,49 @@ impl<T: Node> ProductionState<T> {
         let work_selector = &mut self.work_selector;
         let selected_work = &mut self.selected_work;
         let runtime_error = &mut self.last_runtime_plane_error;
-        let tick_result = self
-            .engine
-            .run_tick_with_compiled_schedule(elapsed, |due_nodes, ordered_nodes| {
-                dirty.clear();
-                for node in due_nodes {
-                    if let Some(work) = scheduled_node_to_work.get(node).copied()
-                        && let Err(error) = dirty.mark(work)
-                    {
-                        *runtime_error = Some(error.to_string());
-                    }
-                }
-
-                match work_selector.select_into(&generation.schedule, dirty, selected_work) {
-                    Ok(_) => {
-                        for work in selected_work.iter().copied() {
-                            let Some(index) = work.id.index().checked_sub(input_work_count) else {
-                                continue;
-                            };
-                            if let Some(node) = scheduled_work_nodes.get(index).copied() {
-                                ordered_nodes.push(node);
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        *runtime_error = Some(error.to_string());
-                        for node in scheduled_work_nodes {
-                            if due_nodes.contains(node) {
-                                ordered_nodes.push(*node);
-                            }
-                        }
-                    }
-                }
-
-                // A structural edit may become runnable while its replacement generation is still
-                // compiling. Preserve previous-generation continuity by appending only those new
-                // nodes; the next successful atomic swap assigns their stable work positions.
-                for node in due_nodes {
-                    if !scheduled_node_to_work.contains_key(node) && !ordered_nodes.contains(node) {
-                        ordered_nodes.push(*node);
-                    }
-                }
-                dirty.clear();
-            });
-        tick_result?;
-        if has_structural_events_since(&self.engine, previous_event_time) {
-            self.request_compilation("runtime.structure");
-        }
-        Ok(())
-    }
-
-    pub(crate) fn request_compilation(&mut self, affected: &str) {
-        if let Err(error) = self.request_compilation_inner(affected) {
-            self.last_runtime_plane_error = Some(error);
-        }
-    }
-
-    pub(crate) fn recompile_blocking(&mut self, affected: &str) -> Result<(), String> {
-        let ticket = self.request_compilation_inner(affected)?;
-        loop {
-            let completion = self.compiler.complete().map_err(|error| error.to_string())?;
-            let completed_ticket = completion.ticket;
-            self.apply_completion(completion);
-            if completed_ticket == ticket {
-                return self.last_runtime_plane_error.take().map_or(Ok(()), Err);
-            }
-        }
-    }
-
-    fn request_compilation_inner(&mut self, affected: &str) -> Result<u64, String> {
-        if self.engine.is_resolve_pending() {
+        let tick_result =
             self.engine
-                .resolve()
-                .map_err(|error| format!("failed to resolve runtime schedule before compilation: {error}"))?;
-        }
-        self.project_revision.0 = self.project_revision.0.saturating_add(1);
-        let snapshot = Arc::new(EngineCompileSnapshot::capture(&self.engine));
-        let mut changes = RuntimeChangeSet::new();
-        changes.mark(affected);
-        let admission = self
-            .compiler
-            .handle()
-            .request(CompileRequest {
-                project: snapshot.clone(),
-                revision: self.project_revision,
-                changes,
-                previous: Some(self.semantic.current_generation()),
-            })
-            .map_err(|error| error.to_string())?;
-        if let Some(superseded_ticket) = admission.superseded_ticket {
-            self.pending_compilations.remove(&superseded_ticket);
-        }
-        let ticket = admission.ticket;
-        self.pending_compilations.insert(
-            ticket,
-            PendingCompilation {
-                snapshot,
-                project_generation: self.project_generation,
-            },
-        );
-        Ok(ticket)
-    }
+                .run_tick_with_compiled_schedule(elapsed, |resolved_revision, due_nodes, ordered_nodes| {
+                    // The engine supplies its revision after preamble edits and resolution.
+                    // Empty output selects its canonical dependency order until compilation catches up.
+                    if compiled_revision != resolved_revision {
+                        return;
+                    }
+                    dirty.clear();
+                    for node in due_nodes {
+                        if let Some(work) = scheduled_node_to_work.get(node).copied()
+                            && let Err(error) = dirty.mark(work)
+                        {
+                            *runtime_error = Some(error.to_string());
+                        }
+                    }
 
-    fn apply_completed_compilations(&mut self) {
-        loop {
-            match self.compiler.try_complete() {
-                Ok(Some(completion)) => self.apply_completion(completion),
-                Ok(None) => break,
-                Err(error) => {
-                    self.last_runtime_plane_error = Some(error.to_string());
-                    break;
-                }
-            }
-        }
-    }
+                    match work_selector.select_into(&generation.schedule, dirty, selected_work) {
+                        Ok(_) => {
+                            for work in selected_work.iter().copied() {
+                                let Some(index) = work.id.index().checked_sub(input_work_count) else {
+                                    continue;
+                                };
+                                if let Some(node) = scheduled_work_nodes.get(index).copied() {
+                                    ordered_nodes.push(node);
+                                }
+                            }
+                        }
+                        Err(error) => {
+                            *runtime_error = Some(error.to_string());
+                            for node in scheduled_work_nodes {
+                                if due_nodes.contains(node) {
+                                    ordered_nodes.push(*node);
+                                }
+                            }
+                        }
+                    }
 
-    fn apply_completion(&mut self, completion: CompilationCompletion) {
-        let Some(pending) = self.pending_compilations.remove(&completion.ticket) else {
-            return;
-        };
-        if pending.project_generation != self.project_generation {
-            return;
-        }
-        if completion.revision != self.project_revision {
-            return;
-        }
-        let generation = match completion.result {
-            Ok(generation) => generation,
-            Err(error) => {
-                self.last_runtime_plane_error = Some(error.to_string());
-                return;
-            }
-        };
-        if let Err(error) = self.install_generation(generation, &pending.snapshot) {
-            self.last_runtime_plane_error = Some(error);
-        }
-    }
-
-    fn install_generation(
-        &mut self,
-        generation: Arc<RuntimeGeneration>,
-        snapshot: &EngineCompileSnapshot,
-    ) -> Result<(), String> {
-        let layout = snapshot.compiled_layout();
-        let (next_mailbox, next_input_generation) = make_input_generation(snapshot, false)?;
-        let work_count = generation.schedule.work_count();
-        next_input_generation.activate()?;
-        self.input_generation.deactivate()?;
-        self.input_plane.current.store(next_input_generation.clone());
-        self.apply_dense_inputs();
-        self.semantic.swap_generation(generation);
-        seed_semantic_inputs(&mut self.semantic, snapshot)?;
-        self.input_mailbox = next_mailbox;
-        self.input_generation = next_input_generation;
-        self.slot_to_node = layout.slot_to_node();
-        self.scheduled_node_to_work = layout.scheduled_node_to_work();
-        self.scheduled_work_nodes = layout.scheduled_nodes.iter().map(|scheduled| scheduled.node).collect();
-        self.input_work_count = layout.parameters.len();
-        self.dirty = DirtySet::new(work_count);
-        self.selected_work.clear();
-        self.selected_work.reserve(work_count);
-        self.work_selector.prepare(work_count);
+                    dirty.clear();
+                });
+        tick_result?;
+        self.request_schedule_compilation("runtime.schedule");
         Ok(())
-    }
-
-    pub(crate) fn compile_project_candidate(&mut self, engine: &Engine<T>) -> Result<CompiledProjectCandidate, String> {
-        let snapshot = Arc::new(EngineCompileSnapshot::capture(engine));
-        let mut changes = RuntimeChangeSet::new();
-        changes.mark("project.replace");
-        let admission = self
-            .compiler
-            .handle()
-            .request(CompileRequest {
-                project: snapshot.clone(),
-                revision: ProjectRevision(1),
-                changes,
-                previous: None,
-            })
-            .map_err(|error| error.to_string())?;
-        if let Some(superseded_ticket) = admission.superseded_ticket {
-            self.pending_compilations.remove(&superseded_ticket);
-        }
-        let ticket = admission.ticket;
-
-        loop {
-            let completion = self.compiler.complete().map_err(|error| error.to_string())?;
-            if completion.ticket == ticket {
-                let generation = completion.result.map_err(|error| error.to_string())?;
-                return Ok(CompiledProjectCandidate { snapshot, generation });
-            }
-            self.apply_completion(completion);
-        }
     }
 
     pub(crate) fn commit_project<R>(
@@ -700,6 +568,12 @@ impl<T: Node> ProductionState<T> {
         publish_read_model: impl FnOnce(&Engine<T>) -> R,
     ) -> Result<(Engine<T>, R), RejectedProjectCommit<T>> {
         let CompiledProjectCandidate { snapshot, generation } = compiled;
+        if engine.is_resolve_pending() || snapshot.schedule_revision != engine.schedule_revision() {
+            return Err(RejectedProjectCommit {
+                error: "project candidate schedule changed after compilation".into(),
+                candidate: Box::new(engine),
+            });
+        }
         let layout = snapshot.compiled_layout();
         let (next_mailbox, next_input_generation) = match make_input_generation(&snapshot, false) {
             Ok(prepared) => prepared,
@@ -735,8 +609,11 @@ impl<T: Node> ProductionState<T> {
         }
 
         let previous = std::mem::replace(&mut self.engine, engine);
+        self.ui_session_lease = None;
         self.semantic = semantic;
-        self.project_revision = ProjectRevision(1);
+        self.compilation_revision = ProjectRevision(1);
+        self.compiled_schedule_revision = snapshot.schedule_revision;
+        self.requested_schedule_revision = snapshot.schedule_revision;
         self.input_mailbox = next_mailbox;
         self.input_generation = next_input_generation.clone();
         self.slot_to_node = layout.slot_to_node();
@@ -934,21 +811,4 @@ fn runtime_to_param_value(value: &RuntimeValue, current: Option<&ParamValue>) ->
         RuntimeValue::Color(value) => Ok(ParamValue::Color(value.red, value.green, value.blue, value.alpha)),
         other => Err(format!("runtime value {other:?} cannot be applied to a parameter")),
     }
-}
-
-pub(crate) fn has_structural_events_since<T: Node>(engine: &Engine<T>, previous: Option<EngineTime>) -> bool {
-    let start_index = engine.ui_event_log_start_index(previous);
-    engine.ui_event_log()[start_index..].iter().any(|event| {
-        matches!(
-            event.kind,
-            EventKind::ChildAdded { .. }
-                | EventKind::ChildRemoved { .. }
-                | EventKind::ChildReplaced { .. }
-                | EventKind::ChildMoved { .. }
-                | EventKind::ChildReordered { .. }
-                | EventKind::NodeCreated { .. }
-                | EventKind::NodeDeleted { .. }
-                | EventKind::GraphTransaction { .. }
-        )
-    })
 }

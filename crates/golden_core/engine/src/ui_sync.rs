@@ -46,12 +46,12 @@ impl<T: Node> Engine<T> {
         config: ScriptUiConfig,
         force_reload: bool,
     ) -> Result<(), String> {
-        self.edits.push(Edit::SetScriptConfig {
+        self.apply_atomic_ui_edits([Edit::SetScriptConfig {
             node,
             config: ScriptNodeConfig::from(config),
             force_reload,
-        });
-        self.apply_edits().map_err(|err| err.to_string())
+        }])
+        .map_err(|err| err.to_string())
     }
 
     /// Requests runtime reload for script node `node`.
@@ -120,8 +120,7 @@ impl<T: Node> Engine<T> {
                     let result = Err(error);
                     return self.finish_ui_apply_now(before_event_time, result);
                 }
-                self.edits.push(Edit::SetParam { node, value, behaviour });
-                let result = self.apply_ui_stabilization_to_fixed_point(16);
+                let result = self.apply_atomic_ui_edits([Edit::SetParam { node, value, behaviour }]);
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetTextParamSmart { node, value, behaviour } => {
@@ -140,39 +139,26 @@ impl<T: Node> Engine<T> {
                 if let Some(error) = self.read_only_ui_param_error(node) {
                     return self.finish_ui_apply_now(before_event_time, Err(error));
                 }
-                match self.apply_set_param_control_state(0, node, state.into()) {
-                    Ok(Some(effect)) => {
-                        self.record_set_param_control_state_history(effect);
-                        self.finish_ui_apply_now(before_event_time, Ok(()))
-                    }
-                    Ok(None) => self.finish_ui_apply_now(before_event_time, Ok(())),
-                    Err(err) => self.finish_ui_apply_now(before_event_time, Err(err)),
-                }
+                let result = self.apply_atomic_ui_edits([Edit::SetParamControlState { node, state: state.into() }]);
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::SetParamConstraints { node, constraints } => {
                 if let Some(error) = self.read_only_ui_param_error(node) {
                     return self.finish_ui_apply_now(before_event_time, Err(error));
                 }
-                match self.apply_set_param_constraints(0, node, constraints) {
-                    Ok(Some(effect)) => {
-                        self.record_set_param_constraints_history(effect);
-                        self.finish_ui_apply_now(before_event_time, Ok(()))
-                    }
-                    Ok(None) => self.finish_ui_apply_now(before_event_time, Ok(())),
-                    Err(err) => self.finish_ui_apply_now(before_event_time, Err(err)),
-                }
+                let result = self.apply_atomic_ui_edits([Edit::SetParamConstraints { node, constraints }]);
+                self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::MoveNode {
                 node,
                 new_parent,
                 new_prev_sibling,
             } => {
-                self.edits.push(Edit::MoveNode {
+                let result = self.apply_atomic_ui_edits([Edit::MoveNode {
                     node,
                     new_parent,
                     new_prev_sibling,
-                });
-                let result = self.apply_edits();
+                }]);
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::RemoveNode { node } => {
@@ -182,7 +168,7 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id,
                     |engine| {
                         engine.edits.push(Edit::RemoveNode { node });
-                        engine.apply_ui_stabilization_to_fixed_point(16)
+                        engine.settle_edit_notifications(16)
                     },
                 );
                 self.finish_ui_apply_now(before_event_time, result)
@@ -200,7 +186,7 @@ impl<T: Node> Engine<T> {
                         for node in roots {
                             engine.edits.push(Edit::RemoveNode { node });
                         }
-                        engine.apply_ui_stabilization_to_fixed_point(16)
+                        engine.settle_edit_notifications(16)
                     },
                 );
                 self.finish_ui_apply_now(before_event_time, result)
@@ -338,7 +324,7 @@ impl<T: Node> Engine<T> {
                 ),
             ),
             UiEditIntent::FitAnimationCurvePath { curve, points, options } => {
-                self.edits.push(Edit::CallNodeMutation {
+                let result = self.apply_atomic_ui_edits([Edit::CallNodeMutation {
                     node: curve,
                     needs_tree_snapshot: true,
                     callback: Box::new(move |node, ctx| {
@@ -348,16 +334,14 @@ impl<T: Node> Engine<T> {
                         curve_node.replace_range_with_fitted_samples(ctx, points.as_slice(), options)?;
                         Ok(())
                     }),
-                });
-                let result = self.apply_edits_to_fixed_point(16);
+                }]);
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::PatchMeta { node, patch } => {
-                self.edits.push(Edit::PatchMeta {
+                let result = self.apply_atomic_ui_edits([Edit::PatchMeta {
                     node,
                     patch: patch.into(),
-                });
-                let result = self.apply_edits();
+                }]);
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::EnsureUserContextScope { owner } => match self.ensure_user_context_scope(owner) {
@@ -426,20 +410,20 @@ impl<T: Node> Engine<T> {
                 self.applied_ui_ack_since(before_event_time)
             }
             UiEditIntent::SendNodeEvent { node, topic, payload } => {
-                let result = if !self.nodes.contains(node) {
+                let result = self.apply_atomic_ui_operation(|engine| if !engine.nodes.contains(node) {
                     Err(crate::engine::EngineEditError::NodeNotFound {
                         edit_index: 0,
                         operation: "SendNodeEvent",
                         node,
                     })
                 } else {
-                    self.emit_inbox_event(EventKind::Custom(crate::events::CustomEvent::new(
+                    engine.emit_inbox_event(EventKind::Custom(crate::events::CustomEvent::new(
                         topic,
                         Some(node),
                         payload,
                     )));
-                    self.apply_ui_stabilization_to_fixed_point(16)
-                };
+                    Ok(())
+                });
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::ReevaluateGraph => {
@@ -481,6 +465,37 @@ impl<T: Node> Engine<T> {
         ack
     }
 
+    fn apply_atomic_ui_edits(
+        &mut self,
+        edits: impl IntoIterator<Item = Edit>,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        self.apply_atomic_ui_operation(|engine| {
+            for edit in edits {
+                engine.edits.push(edit);
+            }
+            Ok(())
+        })
+    }
+
+    fn apply_atomic_ui_operation<R>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<R, crate::engine::EngineEditError>,
+    ) -> Result<R, crate::engine::EngineEditError> {
+        self.with_atomic_ui_operation(operation)
+    }
+
+    pub(crate) fn with_atomic_ui_operation<R, E: crate::engine::EditOperationError>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<R, E>,
+    ) -> Result<R, E> {
+        self.settle_edit_notifications(16).map_err(E::from)?;
+        self.apply_atomic_edit_operation(|engine| {
+            let value = operation(engine)?;
+            engine.settle_edit_notifications(16).map_err(E::from)?;
+            Ok(value)
+        })
+    }
+
     fn apply_implicit_ui_edit_session<F>(
         &mut self,
         label: &str,
@@ -491,8 +506,9 @@ impl<T: Node> Engine<T> {
     where
         F: FnOnce(&mut Self) -> Result<(), crate::engine::EngineEditError>,
     {
+        self.settle_edit_notifications(16)?;
         if self.has_active_edit_session() {
-            return operation(self);
+            return self.apply_atomic_ui_operation(operation);
         }
 
         let client_edit_id = client_edit_id.to_string();
@@ -504,7 +520,7 @@ impl<T: Node> Engine<T> {
         });
         self.apply_edits()?;
 
-        let operation_result = operation(self);
+        let operation_result = self.apply_atomic_ui_operation(operation);
         self.edits.push(Edit::EndEditSession { client_edit_id });
         let end_result = self.apply_edits();
 
@@ -549,60 +565,6 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn apply_edits_to_fixed_point(&mut self, max_passes: usize) -> Result<(), crate::engine::EngineEditError> {
-        let pass_limit = max_passes.max(1);
-        for _ in 0..pass_limit {
-            self.apply_edits()?;
-            if self.edits.pending.is_empty() {
-                return Ok(());
-            }
-        }
-
-        Err(crate::engine::EngineEditError::NodeMutationRejected {
-            edit_index: 0,
-            operation: "UiApplyFixedPoint",
-            node: self.root,
-            node_type: self
-                .nodes
-                .get(self.root)
-                .map(|node| node.get_type().to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
-            message: format!("ui intent left pending edits after {pass_limit} stabilization passes"),
-        })
-    }
-
-    fn apply_ui_stabilization_to_fixed_point(
-        &mut self,
-        max_passes: usize,
-    ) -> Result<(), crate::engine::EngineEditError> {
-        let pass_limit = max_passes.max(1);
-        for _ in 0..pass_limit {
-            if !self.edits.pending.is_empty() {
-                self.apply_edits()?;
-            }
-
-            if !self.inbox.events.is_empty() {
-                self.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)?;
-            }
-
-            if self.edits.pending.is_empty() && self.inbox.events.is_empty() {
-                return Ok(());
-            }
-        }
-
-        Err(crate::engine::EngineEditError::NodeMutationRejected {
-            edit_index: 0,
-            operation: "UiApplyStabilizationFixedPoint",
-            node: self.root,
-            node_type: self
-                .nodes
-                .get(self.root)
-                .map(|node| node.get_type().to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
-            message: format!("ui intent left pending edits or inbox events after {pass_limit} stabilization passes"),
-        })
-    }
-
     fn apply_ui_initialization_to_fixed_point(
         &mut self,
         max_passes: usize,
@@ -640,6 +602,8 @@ impl<T: Node> Engine<T> {
 
 fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
     match error {
+        crate::engine::EngineEditError::LifecycleBudgetExceeded { .. } => "lifecycle_budget_exceeded",
+        crate::engine::EngineEditError::AtomicRollbackFailed { .. } => "atomic_rollback_failed",
         crate::engine::EngineEditError::NodeTypeMismatch { .. } => "node_type_mismatch",
         crate::engine::EngineEditError::ParamEditTargetMismatch { .. } => "param_edit_target_mismatch",
         crate::engine::EngineEditError::ParamConstraintViolation { .. } => "param_constraint_violation",

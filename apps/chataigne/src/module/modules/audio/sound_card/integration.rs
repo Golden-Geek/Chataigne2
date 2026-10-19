@@ -1,5 +1,5 @@
 use chataigne_sound_card_protocol::{
-    SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC, SoundCardUiControlRequest, SoundCardUiTelemetryDto,
+    SoundCardUiControlRequest, SoundCardUiTelemetryDto, SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC,
 };
 use golden_audio::{AudioCommand, AudioError, AudioErrorCategory, CommandSequence, PlayFileRequest};
 use golden_core::{
@@ -11,9 +11,9 @@ use uuid::Uuid;
 
 use super::*;
 use crate::app::module_modules_audio_sound_card_commands::{
-    SOUND_CARD_COMMAND_TYPES, SOUND_CARD_PLAY_FILE_COMMAND_NODE_TYPE, SOUND_CARD_SET_CHANNEL_VOLUME_COMMAND_NODE_TYPE,
-    SOUND_CARD_SET_MASTER_VOLUME_COMMAND_NODE_TYPE, SOUND_CARD_STOP_ALL_FILES_COMMAND_NODE_TYPE,
-    SOUND_CARD_STOP_FILE_COMMAND_NODE_TYPE, SoundCardCommandRequest,
+    SoundCardCommandRequest, SOUND_CARD_COMMAND_TYPES, SOUND_CARD_PLAY_FILE_COMMAND_NODE_TYPE,
+    SOUND_CARD_SET_CHANNEL_VOLUME_COMMAND_NODE_TYPE, SOUND_CARD_SET_MASTER_VOLUME_COMMAND_NODE_TYPE,
+    SOUND_CARD_STOP_ALL_FILES_COMMAND_NODE_TYPE, SOUND_CARD_STOP_FILE_COMMAND_NODE_TYPE,
 };
 use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, SoundCardOutputRoute};
 
@@ -21,7 +21,7 @@ mod command_admission;
 mod device_choices;
 
 use command_admission::*;
-use device_choices::{DeviceChoice, direction_ready, sync_device_enum_with_state, sync_numeric_enum};
+use device_choices::{direction_ready, sync_device_enum_with_state, sync_numeric_enum, DeviceChoice};
 #[cfg(test)]
 pub(super) fn device_options_for_current(
     current: &str,
@@ -611,30 +611,23 @@ impl SoundCardModule {
         let (input_device, output_device) = self.selected_device_values();
         let input_device = input_device.to_owned();
         let output_device = output_device.to_owned();
-        let probe_targets = match runtime::selected_probe_targets(
-            driver.as_ref(),
-            input_device.as_str(),
-            output_device.as_str(),
-        ) {
-            Ok(targets) => targets,
-            Err(error) => {
-                if let Some(runtime) = self.runtime.as_mut() {
-                    let _ = runtime.set_enabled(false);
+        let probe_targets =
+            match runtime::selected_probe_targets(driver.as_ref(), input_device.as_str(), output_device.as_str()) {
+                Ok(targets) => targets,
+                Err(error) => {
+                    if let Some(runtime) = self.runtime.as_mut() {
+                        let _ = runtime.set_enabled(false);
+                    }
+                    self.set_runtime_error(ctx, self.id(), error.as_str());
+                    self.configuration_dirty = false;
+                    return;
                 }
-                self.set_runtime_error(ctx, self.id(), error.as_str());
-                self.configuration_dirty = false;
-                return;
-            }
-        };
+            };
         let Some(runtime) = self.runtime.as_mut() else {
             return;
         };
         let inspector = runtime.inspector_state();
-        if runtime::requires_disable_before_probe(
-            driver.as_ref(),
-            &inspector,
-            probe_targets.as_slice(),
-        ) {
+        if runtime::requires_disable_before_probe(driver.as_ref(), &inspector, probe_targets.as_slice()) {
             if let Err(error) = runtime.set_enabled(false) {
                 self.set_runtime_error(ctx, self.id(), error.as_str());
                 self.configuration_dirty = false;
@@ -648,10 +641,7 @@ impl SoundCardModule {
         }
         let inspector = runtime.inspector_state();
         let runtime_sample_rate = runtime.sample_rate();
-        if runtime::probe_targets_are_pending(
-            &inspector,
-            probe_targets.as_slice(),
-        ) {
+        if runtime::probe_targets_are_pending(&inspector, probe_targets.as_slice()) {
             let _ = runtime.set_enabled(false);
             self.configuration_dirty = false;
             self.clear_runtime_error(ctx);
@@ -756,9 +746,7 @@ impl SoundCardModule {
                 self.apply_device_connection_feedback(ctx, status);
             }
             if self.base.log_outgoing_enabled() {
-                if let Some(message) =
-                    super::traffic_logging::outgoing_audio_log_message(event)
-                {
+                if let Some(message) = super::traffic_logging::outgoing_audio_log_message(event) {
                     golden_core::log!(origin = self.id(); message);
                 }
             }
@@ -877,21 +865,9 @@ impl SoundCardModule {
     ) {
         let driver = self.requested_driver().ok().flatten();
         if self.uses_duplex_device() {
-            sync_device_enum_with_state(
-                ctx,
-                self.device.id(),
-                state,
-                DeviceChoice::Duplex,
-                driver.as_ref(),
-            );
+            sync_device_enum_with_state(ctx, self.device.id(), state, DeviceChoice::Duplex, driver.as_ref());
         } else {
-            sync_device_enum_with_state(
-                ctx,
-                self.input_device.id(),
-                state,
-                DeviceChoice::Input,
-                driver.as_ref(),
-            );
+            sync_device_enum_with_state(ctx, self.input_device.id(), state, DeviceChoice::Input, driver.as_ref());
             sync_device_enum_with_state(
                 ctx,
                 self.output_device.id(),
@@ -917,11 +893,7 @@ impl SoundCardModule {
         let _ = ctx.emit_latest_custom_payload(SOUND_CARD_TELEMETRY_TOPIC, Some(self.id()), telemetry);
     }
 
-    pub(super) fn apply_runtime_warnings(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        warnings: &[runtime::RuntimeWarning],
-    ) {
+    pub(super) fn apply_runtime_warnings(&mut self, ctx: &mut ProcessCtx, warnings: &[runtime::RuntimeWarning]) {
         let next = warnings
             .iter()
             .map(|warning| (warning.node, warning.id.clone()))
@@ -945,7 +917,7 @@ impl SoundCardModule {
         self.active_runtime_warnings = next;
     }
 
-    fn set_runtime_error(&mut self, ctx: &mut ProcessCtx, node: NodeId, message: &str) {
+    pub(super) fn set_runtime_error(&mut self, ctx: &mut ProcessCtx, node: NodeId, message: &str) {
         if let Some(previous) = self.runtime_error_node {
             if previous != node {
                 ctx.clear_node_warning(previous, Some("sound-card-runtime"));
@@ -995,10 +967,7 @@ impl SoundCardModule {
 }
 
 pub(super) fn runtime_event_changes_inventory(event: &golden_audio::AudioEvent) -> bool {
-    matches!(
-        event,
-        golden_audio::AudioEvent::DeviceInventoryChanged { .. }
-    )
+    matches!(event, golden_audio::AudioEvent::DeviceInventoryChanged { .. })
 }
 
 pub(super) fn any_direction_connected(state: &golden_audio::AudioDeviceInspectorState) -> bool {

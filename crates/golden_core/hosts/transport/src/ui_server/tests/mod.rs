@@ -9,6 +9,7 @@ use serde_json::json;
 use super::runtime_pacer::DeadlineSchedule;
 use super::*;
 
+mod control_failures;
 mod outbound_recovery;
 mod snapshot_encoding;
 
@@ -213,7 +214,7 @@ fn client_with_subscription_count(count: usize) -> WsClientState {
     WsClientState {
         outbound,
         subscriptions,
-        client_instance_id: None,
+        connection: UiClientLease::new(None),
     }
 }
 
@@ -284,6 +285,7 @@ fn failed_reliable_push_preserves_queued_latest_value_messages() {
     let reliable = reliable_message(1);
     let latest = observation_message(1);
     let incoming = WsOutbound::Message(WsServerMessage::Error {
+        code: None,
         message: "overload-detail".repeat(64),
         request_id: Some("request".to_string()),
     });
@@ -555,7 +557,10 @@ fn websocket_command_overload_is_rejected_without_a_received_control_update() {
         &outbound,
     ));
 
-    let Some(WsOutbound::Message(WsServerMessage::Error { message, request_id })) = outbound.pop() else {
+    let Some(WsOutbound::Message(WsServerMessage::Error {
+        message, request_id, ..
+    })) = outbound.pop()
+    else {
         panic!("expected explicit hub overload rejection");
     };
     assert!(message.contains("capacity is exhausted"));
@@ -585,7 +590,10 @@ fn websocket_intent_batch_rejects_excess_operation_weight_before_hub_admission()
         &outbound,
     ));
 
-    let Some(WsOutbound::Message(WsServerMessage::Error { message, request_id })) = outbound.pop() else {
+    let Some(WsOutbound::Message(WsServerMessage::Error {
+        message, request_id, ..
+    })) = outbound.pop()
+    else {
         panic!("expected explicit batch-weight rejection");
     };
     assert!(message.contains("intent batch exceeds"));

@@ -1,3 +1,4 @@
+use crate::blueprints::BlueprintInstanceMeta;
 use crate::edit::EditOrigin;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMeta, NodeMetaPatch};
@@ -5,8 +6,10 @@ use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState, 
 use crate::script::ScriptNodeConfig;
 use crate::ui_sync::UiGraphOp;
 
+use super::apply_opaque::AuthoredNodeEffect;
 use super::{Engine, EngineEditError};
 
+mod atomic;
 mod batch;
 mod replay;
 
@@ -173,6 +176,8 @@ impl<T: Node> ActiveEditSession<T> {
 
 /// Reversible unit describing how to undo/redo one applied edit operation.
 pub(crate) enum HistoryStep<T: Node> {
+    /// Authored self-state changed by a mutable node callback.
+    AuthoredNode(AuthoredNodeEffect),
     /// Parameter value update history.
     SetParam(SetParamHistory),
     /// Parameter control-state update history.
@@ -191,6 +196,59 @@ pub(crate) enum HistoryStep<T: Node> {
     MoveNode(MoveNodeHistory),
     /// Node replacement history.
     ReplaceNode(ReplaceNodeHistory<T>),
+}
+
+impl<T: Node> HistoryStep<T> {
+    pub(crate) fn added_node(&self) -> Option<NodeId> {
+        match self {
+            Self::AddNode(step) => Some(step.node),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn nodes_restored_on_undo(&self) -> Vec<NodeId> {
+        match self {
+            Self::ReplaceNode(step) if step.old_node.is_some() => vec![step.node],
+            Self::RemoveNode(step) => step
+                .detached_nodes
+                .as_ref()
+                .map(|nodes| nodes.iter().rev().map(|(id, _)| *id).collect())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        }
+    }
+
+    pub(crate) fn touches_original_nodes(&self, original: &std::collections::HashSet<NodeId>) -> bool {
+        match self {
+            Self::AuthoredNode(step) => original.contains(&step.node),
+            Self::SetParam(step) => original.contains(&step.node),
+            Self::SetParamControlState(step) => original.contains(&step.node),
+            Self::SetParamConstraints(step) => original.contains(&step.node),
+            Self::PatchMeta(step) => original.contains(&step.node),
+            Self::SetScriptConfig(step) => original.contains(&step.node),
+            Self::AddNode(step) => original.contains(&step.parent),
+            Self::RemoveNode(step) => {
+                original.contains(&step.node)
+                    || step
+                        .detached_nodes
+                        .as_ref()
+                        .is_some_and(|nodes| nodes.iter().any(|(node, _)| original.contains(node)))
+            }
+            Self::MoveNode(step) => {
+                original.contains(&step.node)
+                    || original.contains(&step.old_parent)
+                    || original.contains(&step.new_parent)
+            }
+            Self::ReplaceNode(step) => original.contains(&step.node),
+        }
+    }
+
+    pub(crate) fn undo_for_rollback(&mut self, engine: &mut Engine<T>) -> Result<(), EngineEditError> {
+        self.undo(engine)
+    }
+    pub(crate) fn dispose_detached(&mut self, engine: &mut Engine<T>) {
+        self.dispose(engine);
+    }
 }
 
 /// Captured effect for a successful `SetParam` edit.
@@ -277,6 +335,8 @@ pub(crate) struct RemoveNodeEffect<T: Node> {
     pub(crate) next_sibling: Option<NodeId>,
     /// Detached subtree payloads stored for undo.
     pub(crate) detached_nodes: Vec<(NodeId, T)>,
+    /// Instance metadata owned by the detached subtree, including nested roots.
+    pub(crate) detached_blueprints: Vec<(NodeId, BlueprintInstanceMeta)>,
 }
 
 /// Captured effect for a successful `MoveNode` edit.
@@ -299,18 +359,10 @@ pub(crate) struct MoveNodeEffect {
 
 /// Captured effect for a successful `ReplaceNode` edit.
 pub(crate) struct ReplaceNodeEffect<T: Node> {
-    /// Parent containing both old and replacement nodes.
-    pub(crate) parent: NodeId,
-    /// Original node id that was replaced.
-    pub(crate) old_id: NodeId,
-    /// New replacement node id.
-    pub(crate) new_id: NodeId,
-    /// Previous sibling position of the replaced node.
-    pub(crate) prev_sibling: Option<NodeId>,
-    /// Next sibling position of the replaced node.
-    pub(crate) next_sibling: Option<NodeId>,
-    /// Detached original node payload stored for undo.
+    /// Stable identity and topology are retained when replacing a node payload.
+    pub(crate) node: NodeId,
     pub(crate) old_node: T,
+    pub(crate) old_blueprint: Option<BlueprintInstanceMeta>,
 }
 
 /// Undo/redo payload for parameter edits.
@@ -385,6 +437,7 @@ pub(crate) struct AddNodeHistory<T: Node> {
     next_sibling: Option<NodeId>,
     /// Detached subtree payloads used to replay undo/redo.
     detached_nodes: Option<Vec<(NodeId, T)>>,
+    detached_blueprints: Vec<(NodeId, BlueprintInstanceMeta)>,
 }
 
 /// Undo/redo payload for remove-node edits.
@@ -399,6 +452,7 @@ pub(crate) struct RemoveNodeHistory<T: Node> {
     next_sibling: Option<NodeId>,
     /// Detached subtree payloads used to replay undo/redo.
     detached_nodes: Option<Vec<(NodeId, T)>>,
+    detached_blueprints: Vec<(NodeId, BlueprintInstanceMeta)>,
 }
 
 /// Undo/redo payload for move-node edits.
@@ -423,20 +477,11 @@ pub(crate) struct MoveNodeHistory {
 
 /// Undo/redo payload for replace-node edits.
 pub(crate) struct ReplaceNodeHistory<T: Node> {
-    /// Parent containing old/new nodes.
-    parent: NodeId,
-    /// Original node id.
-    old_id: NodeId,
-    /// Replacement node id.
-    new_id: NodeId,
-    /// Previous sibling position.
-    prev_sibling: Option<NodeId>,
-    /// Next sibling position.
-    next_sibling: Option<NodeId>,
-    /// Detached old-node payload used by undo.
+    node: NodeId,
     old_node: Option<T>,
-    /// Detached new-node payload used by redo.
     new_node: Option<T>,
+    /// Metadata travels with whichever node is currently detached.
+    detached_blueprint: Option<BlueprintInstanceMeta>,
 }
 
 impl<T: Node> From<SetParamEffect> for HistoryStep<T> {
@@ -448,6 +493,12 @@ impl<T: Node> From<SetParamEffect> for HistoryStep<T> {
             behaviour: effect.behaviour,
             tick: effect.tick,
         })
+    }
+}
+
+impl<T: Node> From<AuthoredNodeEffect> for HistoryStep<T> {
+    fn from(effect: AuthoredNodeEffect) -> Self {
+        Self::AuthoredNode(effect)
     }
 }
 
@@ -502,6 +553,7 @@ impl<T: Node> From<AddNodeEffect> for HistoryStep<T> {
             prev_sibling: effect.prev_sibling,
             next_sibling: effect.next_sibling,
             detached_nodes: None,
+            detached_blueprints: Vec::new(),
         })
     }
 }
@@ -514,6 +566,7 @@ impl<T: Node> From<RemoveNodeEffect<T>> for HistoryStep<T> {
             prev_sibling: effect.prev_sibling,
             next_sibling: effect.next_sibling,
             detached_nodes: Some(effect.detached_nodes),
+            detached_blueprints: effect.detached_blueprints,
         })
     }
 }
@@ -536,13 +589,10 @@ impl<T: Node> From<MoveNodeEffect> for HistoryStep<T> {
 impl<T: Node> From<ReplaceNodeEffect<T>> for HistoryStep<T> {
     fn from(effect: ReplaceNodeEffect<T>) -> Self {
         Self::ReplaceNode(ReplaceNodeHistory {
-            parent: effect.parent,
-            old_id: effect.old_id,
-            new_id: effect.new_id,
-            prev_sibling: effect.prev_sibling,
-            next_sibling: effect.next_sibling,
+            node: effect.node,
             old_node: Some(effect.old_node),
             new_node: None,
+            detached_blueprint: effect.old_blueprint,
         })
     }
 }
@@ -571,6 +621,10 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn record_single_history_step(&mut self, step: HistoryStep<T>) {
+        if let Some(order) = self.edit_order() {
+            self.capture_journal_step(order, step);
+            return;
+        }
         self.clear_redo_history();
         if self.active_edit_session.is_some() {
             self.push_step_into_active_history_transaction(step);
@@ -580,16 +634,6 @@ impl<T: Node> Engine<T> {
         let mut transaction = HistoryTransaction::new();
         transaction.push(step);
         self.push_undo_transaction(transaction);
-    }
-
-    /// Records a parameter control-state update in undo/redo history.
-    pub(crate) fn record_set_param_control_state_history(&mut self, effect: SetParamControlStateEffect) {
-        self.record_single_history_step(effect.into());
-    }
-
-    /// Records a parameter-constraints update in undo/redo history.
-    pub(crate) fn record_set_param_constraints_history(&mut self, effect: SetParamConstraintsEffect) {
-        self.record_single_history_step(effect.into());
     }
 
     fn drop_active_edit_session_history(&mut self) {
@@ -620,7 +664,21 @@ impl<T: Node> Engine<T> {
         true
     }
 
-    /// Drops all redo transactions and releases any detached payloads they own.
+    /// Finalizes accepted UI edits only when the session and owner still match.
+    pub(crate) fn finish_ui_edit_session(&mut self, client_instance_id: Option<&str>, edit_id: &str) -> bool {
+        if !self.active_edit_session.as_ref().is_some_and(|active| {
+            active.origin == EditOrigin::Ui
+                && active.client_edit_id == edit_id
+                && active.ui_client_instance_id.as_deref() == client_instance_id
+        }) {
+            return false;
+        }
+        let active = self.active_edit_session.take().expect("matched UI session");
+        self.push_undo_transaction(active.transaction);
+        true
+    }
+
+    /// Drops all redo transactions and releases detached payloads they own.
     pub(crate) fn clear_redo_history(&mut self) {
         while let Some(mut transaction) = self.redo_stack.pop() {
             transaction.dispose(self);
@@ -690,10 +748,10 @@ impl<T: Node> Engine<T> {
         let before_state_id = transaction.before_state_id().unwrap_or(0);
 
         // eprintln!("[gc-history] undo start: tx_steps={} undo_after_pop={} redo_before={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
-        transaction.undo(self)?;
-        self.sync_missing_reference_warnings();
-        self.rebuild_user_context_registry_from_nodes();
-        self.mark_user_context_graph_changed();
+        if let Err(error) = transaction.replay_atomically(self, true) {
+            self.undo_stack.push(transaction);
+            return Err(error);
+        }
         self.redo_stack.push(transaction);
         self.current_history_state_id = before_state_id;
         // eprintln!("[gc-history] undo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
@@ -709,10 +767,10 @@ impl<T: Node> Engine<T> {
         let after_state_id = transaction.after_state_id().unwrap_or(self.current_history_state_id);
 
         // eprintln!("[gc-history] redo start: tx_steps={} undo_before={} redo_after_pop={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
-        transaction.redo(self)?;
-        self.sync_missing_reference_warnings();
-        self.rebuild_user_context_registry_from_nodes();
-        self.mark_user_context_graph_changed();
+        if let Err(error) = transaction.replay_atomically(self, false) {
+            self.redo_stack.push(transaction);
+            return Err(error);
+        }
         self.undo_stack.push(transaction);
         self.current_history_state_id = after_state_id;
         // eprintln!("[gc-history] redo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());

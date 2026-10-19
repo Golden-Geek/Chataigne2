@@ -2,29 +2,19 @@ use std::time::Duration;
 
 use golden_core::parameter::{ParamValue, RangeConstraint};
 
+use super::super::{LEVELS_UPDATE_RATE_DEFAULT_HZ, LEVELS_UPDATE_RATE_MAX_HZ, LEVELS_UPDATE_RATE_MIN_HZ};
 use super::*;
-use super::super::{
-    LEVELS_UPDATE_RATE_DEFAULT_HZ, LEVELS_UPDATE_RATE_MAX_HZ,
-    LEVELS_UPDATE_RATE_MIN_HZ,
-};
 
 #[test]
 fn processing_exposes_bounded_levels_update_rate() {
     let (engine, module) = create_sound_card();
     let snapshot = engine.process_tree_snapshot();
-    let update_rate = find_path(
-        &snapshot,
-        module,
-        "parameters/processing/levels_update_rate_hz",
-    )
-    .expect("levels update rate");
+    let update_rate =
+        find_path(&snapshot, module, "parameters/processing/levels_update_rate_hz").expect("levels update rate");
     let state = snapshot.node(update_rate).expect("levels update rate state");
 
     assert_eq!(state.label, "Levels Update Rate");
-    assert_eq!(
-        state.param_value,
-        Some(ParamValue::Int(LEVELS_UPDATE_RATE_DEFAULT_HZ))
-    );
+    assert_eq!(state.param_value, Some(ParamValue::Int(LEVELS_UPDATE_RATE_DEFAULT_HZ)));
     assert_eq!(
         state
             .param_constraints
@@ -41,10 +31,7 @@ fn processing_exposes_bounded_levels_update_rate() {
 fn levels_update_interval_clamps_to_authored_range() {
     assert_eq!(runtime::levels_update_interval(5), Duration::from_millis(200));
     assert_eq!(runtime::levels_update_interval(0), Duration::from_secs(1));
-    assert_eq!(
-        runtime::levels_update_interval(31),
-        Duration::from_secs_f64(1.0 / 30.0)
-    );
+    assert_eq!(runtime::levels_update_interval(31), Duration::from_secs_f64(1.0 / 30.0));
 }
 
 #[test]
@@ -86,10 +73,7 @@ fn missing_runtime_clears_active_output_once() {
         first_events[0].topic,
         chataigne_sound_card_protocol::SOUND_CARD_OUTPUT_ACTIVITY_TOPIC
     );
-    assert_eq!(
-        first_events[0].payload.as_ref(),
-        &serde_json::Value::Bool(false)
-    );
+    assert_eq!(first_events[0].payload.as_ref(), &serde_json::Value::Bool(false));
 
     let mut unchanged = test_process_ctx(2);
     module.synchronize_runtime_projection(&mut unchanged);

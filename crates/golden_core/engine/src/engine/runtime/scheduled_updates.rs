@@ -7,7 +7,7 @@ impl<T: Node> Engine<T> {
         order_due_nodes: &mut F,
     ) -> Result<(), EngineRuntimeError>
     where
-        F: FnMut(&[NodeId], &mut Vec<NodeId>),
+        F: FnMut(ScheduleRevision, &[NodeId], &mut Vec<NodeId>),
     {
         // Reuse scratch buffer to avoid per-tick Vec allocation.
         let mut due_nodes = std::mem::take(&mut self.tick_scratch.due_nodes);
@@ -43,7 +43,7 @@ impl<T: Node> Engine<T> {
         }
         let mut ordered_due_nodes = std::mem::take(&mut self.tick_scratch.ordered_due_nodes);
         ordered_due_nodes.clear();
-        order_due_nodes(&due_nodes, &mut ordered_due_nodes);
+        order_due_nodes(self.schedule_revision(), &due_nodes, &mut ordered_due_nodes);
 
         let mut seen_by_node = std::mem::take(&mut self.tick_scratch.seen_by_node);
         let compiled_order_is_complete = ordered_due_nodes.len() == due_counts.len()

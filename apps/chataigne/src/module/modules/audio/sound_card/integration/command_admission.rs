@@ -55,9 +55,7 @@ fn resolve_output_channel_node(
     if !matches!(target_state.param_value, Some(ParamValue::Float(_)))
         || target_state.parent != find_path(snapshot, module, OUTPUT_CHANNELS_PATH)
     {
-        return Err(command_error(
-            "Sound Card channel gain target is not an output channel",
-        ));
+        return Err(command_error("Sound Card channel gain target is not an output channel"));
     }
     Ok(target)
 }

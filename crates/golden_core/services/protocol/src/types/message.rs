@@ -1,7 +1,29 @@
 use super::*;
 
 /// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.6.0";
+pub const UI_PROTOCOL_VERSION: &str = "0.7.0";
+
+/// Stable control-plane failure category shared by HTTP and WebSocket clients.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum UiControlErrorCode {
+    /// The bounded actor queue could not admit the operation.
+    Overloaded,
+    /// The actor or an authoritative completion was unavailable.
+    Disconnected,
+    /// An admitted operation was discarded before execution.
+    Cancelled,
+}
+
+/// Canonical HTTP error response, including a typed actor cause when applicable.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiErrorResponse {
+    /// Human-readable diagnostic.
+    pub error: String,
+    /// Control-plane category; absent for ordinary request/domain errors.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<UiControlErrorCode>,
+}
 
 /// Scope used by snapshot/event subscriptions.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
@@ -248,6 +270,9 @@ pub enum UiServerMessage {
     },
     /// Reports a protocol or transport error.
     Error {
+        /// Control-plane category when admission or completion failed.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        code: Option<UiControlErrorCode>,
         /// Human-readable diagnostic.
         message: String,
         /// Matching request identifier when available.

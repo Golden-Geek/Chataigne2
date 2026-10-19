@@ -106,12 +106,7 @@ fn module_script_template_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(MODULE_SCRIPT_TEMPLATE_DIR)
 }
 
-pub(crate) fn emit_script_callback(
-    ctx: &mut ProcessCtx,
-    module_id: NodeId,
-    callback: &str,
-    args: Vec<JsonValue>,
-) {
+pub(crate) fn emit_script_callback(ctx: &mut ProcessCtx, module_id: NodeId, callback: &str, args: Vec<JsonValue>) {
     ctx.emit_custom_event(script_callback_event(module_id, callback, args));
 }
 
@@ -128,11 +123,7 @@ pub(crate) fn emit_transient_script_callback(
     ));
 }
 
-fn script_callback_event(
-    module_id: NodeId,
-    callback: &str,
-    args: Vec<JsonValue>,
-) -> CustomEvent {
+pub(crate) fn script_callback_event(module_id: NodeId, callback: &str, args: Vec<JsonValue>) -> CustomEvent {
     CustomEvent::new(
         MODULE_SCRIPT_CALLBACK_TOPIC,
         Some(module_id),
@@ -141,10 +132,11 @@ fn script_callback_event(
 }
 
 fn script_callback_payload(callback: &str, args: Vec<JsonValue>) -> JsonValue {
-    serde_json::json!({
-        "callback": callback,
-        "args": args,
-    })
+    // Worker-prepared arguments can contain large bodies; transfer them without reserializing.
+    JsonValue::Object(serde_json::Map::from_iter([
+        ("callback".into(), JsonValue::String(callback.into())),
+        ("args".into(), JsonValue::Array(args)),
+    ]))
 }
 
 pub(crate) struct ModuleParamCallbackRoots {
@@ -154,11 +146,7 @@ pub(crate) struct ModuleParamCallbackRoots {
 }
 
 impl ModuleParamCallbackRoots {
-    pub(crate) const fn new(
-        connection: Option<NodeId>,
-        parameters: Option<NodeId>,
-        values: Option<NodeId>,
-    ) -> Self {
+    pub(crate) const fn new(connection: Option<NodeId>, parameters: Option<NodeId>, values: Option<NodeId>) -> Self {
         Self {
             connection,
             parameters,

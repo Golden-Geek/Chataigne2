@@ -28,22 +28,8 @@ fn default_hierarchy_has_named_ranged_output_gains_and_no_unused_folders() {
         first_connection_child.decl_id, "connection/connected",
         "Connected should stay at the top of the connection container",
     );
-    assert!(
-        find_path(
-            &snapshot,
-            module,
-            "connection/input_routing/routes"
-        )
-        .is_some()
-    );
-    assert!(
-        find_path(
-            &snapshot,
-            module,
-            "connection/output_routing/routes"
-        )
-        .is_some()
-    );
+    assert!(find_path(&snapshot, module, "connection/input_routing/routes").is_some());
+    assert!(find_path(&snapshot, module, "connection/output_routing/routes").is_some());
 
     let parameters = find_path(&snapshot, module, "parameters").expect("parameters container");
     assert!(
@@ -55,15 +41,13 @@ fn default_hierarchy_has_named_ranged_output_gains_and_no_unused_folders() {
         "Parameters must not retain an unnamed empty folder",
     );
 
-    let input_channels =
-        find_path(&snapshot, module, "parameters/input/channels").expect("input channel container");
+    let input_channels = find_path(&snapshot, module, "parameters/input/channels").expect("input channel container");
     assert!(
         snapshot.child_ids_slice(input_channels).is_empty(),
         "input gains should not materialize before an input device is selected",
     );
 
-    let output_channels =
-        find_path(&snapshot, module, "parameters/output/channels").expect("output channel container");
+    let output_channels = find_path(&snapshot, module, "parameters/output/channels").expect("output channel container");
     let output_gains = snapshot.child_ids_slice(output_channels);
     assert_eq!(output_gains.len(), 2);
     for (index, channel) in output_gains.iter().enumerate() {
@@ -106,16 +90,10 @@ fn default_hierarchy_has_named_ranged_output_gains_and_no_unused_folders() {
 #[test]
 fn selecting_input_materializes_ranged_input_levels_before_output_levels() {
     let (mut engine, module) = create_sound_card();
-    select_enum_parameter(
-        &mut engine,
-        module,
-        "connection/input_device",
-        SYSTEM_DEFAULT_DEVICE,
-    );
+    select_enum_parameter(&mut engine, module, "connection/input_device", SYSTEM_DEFAULT_DEVICE);
 
     let snapshot = engine.process_tree_snapshot();
-    let input_channels =
-        find_path(&snapshot, module, "parameters/input/channels").expect("input channel container");
+    let input_channels = find_path(&snapshot, module, "parameters/input/channels").expect("input channel container");
     let input_gains = snapshot.child_ids_slice(input_channels);
     assert_eq!(input_gains.len(), 2);
     for (index, channel) in input_gains.iter().enumerate() {
@@ -180,19 +158,14 @@ fn selecting_input_materializes_ranged_input_levels_before_output_levels() {
 fn processing_values_follow_pitch_and_spectral_enablement_without_legacy_bands() {
     let (mut engine, module) = create_sound_card();
     let snapshot = engine.process_tree_snapshot();
-    let processing =
-        find_path(&snapshot, module, "parameters/processing").expect("Processing parameter container");
+    let processing = find_path(&snapshot, module, "parameters/processing").expect("Processing parameter container");
     assert_eq!(
         spectral_processing_children(&snapshot, processing).len(),
         1,
         "fresh modules must declare exactly one Spectral Analysis container",
     );
-    let spectral_parameter = find_path(
-        &snapshot,
-        module,
-        "parameters/processing/spectral_analysis",
-    )
-    .expect("Spectral Analysis parameter container");
+    let spectral_parameter = find_path(&snapshot, module, "parameters/processing/spectral_analysis")
+        .expect("Spectral Analysis parameter container");
     let spectral_state = snapshot
         .node(spectral_parameter)
         .expect("Spectral Analysis parameter container");
@@ -220,13 +193,11 @@ fn processing_values_follow_pitch_and_spectral_enablement_without_legacy_bands()
         ParamValue::Bool(false),
         ParameterChangeCheck::ValueChange,
     );
-    stale_toggle.node_data_mut().meta.decl_id =
-        DeclId("parameters/processing/spectral_analysis".to_owned());
+    stale_toggle.node_data_mut().meta.decl_id = DeclId("parameters/processing/spectral_analysis".to_owned());
     stale_toggle.node_data_mut().meta.short_name = "spectral_analysis".to_owned();
     engine.add_node(stale_toggle.into(), Some(processing));
     let mut stale_folder = Folder::new("Spectral Analysis");
-    stale_folder.node_data_mut().meta.decl_id =
-        DeclId("parameters/processing/spectral_analysis".to_owned());
+    stale_folder.node_data_mut().meta.decl_id = DeclId("parameters/processing/spectral_analysis".to_owned());
     stale_folder.node_data_mut().meta.short_name = "spectral_analysis".to_owned();
     stale_folder.node_data_mut().meta.can_be_disabled = true;
     stale_folder.node_data_mut().meta.enabled = false;
@@ -271,8 +242,7 @@ fn processing_values_follow_pitch_and_spectral_enablement_without_legacy_bands()
     patch_enabled(&mut engine, spectral_parameter, true);
     stabilize_sound_card(&mut engine);
     let snapshot = engine.process_tree_snapshot();
-    let spectral_values =
-        find_path(&snapshot, module, "values/spectral_analysis").expect("Spectral Analysis values");
+    let spectral_values = find_path(&snapshot, module, "values/spectral_analysis").expect("Spectral Analysis values");
     assert!(
         snapshot.child_ids_slice(spectral_values).is_empty(),
         "Spectral Analysis values stay empty until the band manager is introduced",
@@ -308,8 +278,7 @@ fn processing_values_follow_pitch_and_spectral_enablement_without_legacy_bands()
 fn channel_names_remain_free_form_while_gain_labels_and_runtime_names_diverge() {
     let (mut engine, module) = create_sound_card();
     let snapshot = engine.process_tree_snapshot();
-    let output_channels =
-        find_path(&snapshot, module, "parameters/output/channels").expect("output channel container");
+    let output_channels = find_path(&snapshot, module, "parameters/output/channels").expect("output channel container");
     let channel = snapshot.child_ids_slice(output_channels)[0];
     let channel_uuid = snapshot.node(channel).expect("output gain").uuid.0.to_string();
     assert_eq!(
@@ -343,11 +312,7 @@ fn channel_names_remain_free_form_while_gain_labels_and_runtime_names_diverge() 
     let channel = snapshot.node(channel).expect("renamed output gain");
     assert_eq!(channel.label, format!("{authored_name} Gain"));
     assert_eq!(channel.short_name, authored_name);
-    let references = structure::channel_references(
-        &snapshot,
-        module,
-        "parameters/output/channels",
-    );
+    let references = structure::channel_references(&snapshot, module, "parameters/output/channels");
     assert_eq!(
         references[0].cached_name.as_deref(),
         Some(authored_name),
@@ -360,10 +325,7 @@ fn channel_names_remain_free_form_while_gain_labels_and_runtime_names_diverge() 
     );
 }
 
-fn spectral_processing_children(
-    snapshot: &ProcessTreeSnapshot,
-    processing: NodeId,
-) -> Vec<NodeId> {
+fn spectral_processing_children(snapshot: &ProcessTreeSnapshot, processing: NodeId) -> Vec<NodeId> {
     snapshot
         .child_ids_slice(processing)
         .iter()

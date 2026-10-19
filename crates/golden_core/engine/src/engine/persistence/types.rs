@@ -225,6 +225,13 @@ pub enum ProjectPersistenceError {
     Json(serde_json::Error),
     /// Engine structural error while rebuilding the graph.
     Engine(EngineEditError),
+    /// A rejected operation whose authored-state rollback also encountered a failure.
+    Rollback {
+        /// Original rejection, retained without losing its typed cause.
+        original: Box<ProjectPersistenceError>,
+        /// First failure observed while reversing provisional edits.
+        rollback: Box<EngineEditError>,
+    },
     /// Graph traversal encountered a missing node id.
     MissingNode(NodeId),
     /// Unsupported project format version.
@@ -339,6 +346,7 @@ impl fmt::Display for ProjectPersistenceError {
             Self::Io(err) => write!(f, "project I/O error: {err}"),
             Self::Json(err) => write!(f, "project JSON error: {err}"),
             Self::Engine(err) => write!(f, "engine rebuild error: {err}"),
+            Self::Rollback { original, rollback } => write!(f, "{original}; provisional rollback failed: {rollback}"),
             Self::MissingNode(node) => write!(f, "project graph references missing node id {:?}", node),
             Self::UnsupportedVersion { found, expected } => {
                 write!(f, "unsupported project version '{found}' (expected '{expected}')")

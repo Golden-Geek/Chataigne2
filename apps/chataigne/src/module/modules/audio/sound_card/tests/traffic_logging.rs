@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use golden_audio::{
-    AudioError, AudioEvent, CommandSequence, PlaybackCommandIgnored, PlaybackFailure, PlaybackId,
-    PlaybackInfo, PlaybackStopInfo, PlaybackStopReason, VoiceId,
+    AudioError, AudioEvent, CommandSequence, PlaybackCommandIgnored, PlaybackFailure, PlaybackId, PlaybackInfo,
+    PlaybackStopInfo, PlaybackStopReason, VoiceId,
 };
 
 use super::super::traffic_logging::outgoing_audio_log_message;
@@ -52,40 +52,29 @@ fn playback_lifecycle_events_have_outgoing_log_messages() {
 
 #[test]
 fn ignored_playback_commands_explain_why_they_had_no_effect() {
-    let ignored_play = AudioEvent::PlaybackCommandIgnored(
-        PlaybackCommandIgnored::PlayFileAlreadyActive {
+    let ignored_play = AudioEvent::PlaybackCommandIgnored(PlaybackCommandIgnored::PlayFileAlreadyActive {
         sequence: CommandSequence::new(7).expect("sequence"),
         playback_id: PlaybackId::new("music").expect("playback ID"),
         path: PathBuf::from("music/loop.wav"),
     });
-    assert!(
-        outgoing_audio_log_message(&ignored_play)
-            .expect("ignored play log")
-            .contains("Force Restart is disabled")
-    );
+    assert!(outgoing_audio_log_message(&ignored_play)
+        .expect("ignored play log")
+        .contains("Force Restart is disabled"));
 
-    let ignored_stop = AudioEvent::PlaybackCommandIgnored(
-        PlaybackCommandIgnored::StopFileNotFound {
-            sequence: CommandSequence::new(8).expect("sequence"),
-            playback_id: PlaybackId::new("missing").expect("playback ID"),
-        },
-    );
+    let ignored_stop = AudioEvent::PlaybackCommandIgnored(PlaybackCommandIgnored::StopFileNotFound {
+        sequence: CommandSequence::new(8).expect("sequence"),
+        playback_id: PlaybackId::new("missing").expect("playback ID"),
+    });
     assert_eq!(
         outgoing_audio_log_message(&ignored_stop).as_deref(),
-        Some(
-            "Stop audio playback `missing` had no effect because no active or loading playback uses that ID."
-        )
+        Some("Stop audio playback `missing` had no effect because no active or loading playback uses that ID.")
     );
 
-    let ignored_stop_all = AudioEvent::PlaybackCommandIgnored(
-        PlaybackCommandIgnored::StopAllFilesEmpty {
-            sequence: CommandSequence::new(9).expect("sequence"),
-        },
-    );
+    let ignored_stop_all = AudioEvent::PlaybackCommandIgnored(PlaybackCommandIgnored::StopAllFilesEmpty {
+        sequence: CommandSequence::new(9).expect("sequence"),
+    });
     assert_eq!(
         outgoing_audio_log_message(&ignored_stop_all).as_deref(),
-        Some(
-            "Stop all audio files had no effect because no audio files are active or loading."
-        )
+        Some("Stop all audio files had no effect because no audio files are active or loading.")
     );
 }

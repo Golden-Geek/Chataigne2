@@ -8,7 +8,9 @@ use golden_engine::app::{
     insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
     load_sparse_project_file_with_ui_state_recovering,
 };
-use golden_engine::application::{ProductionRuntime, ProjectReplacement, ProjectSaveRequest};
+use golden_engine::application::{
+    ApplicationError, ControlError, ProductionRuntime, ProjectReplacement, ProjectSaveRequest,
+};
 use golden_engine::engine::{Engine, ProjectLoadRecoveryReport, ProjectPersistenceError};
 use golden_engine::logger::{self, LogLevel};
 use golden_engine::ui_sync::UiProjectFileSpec;
@@ -23,6 +25,7 @@ pub(crate) struct ProjectLoadResult {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ProjectLoadError {
+    pub(crate) control: Option<ControlError>,
     pub(crate) message: String,
     pub(crate) recovery: Option<ProjectLoadRecoveryReport>,
 }
@@ -36,6 +39,7 @@ impl ProjectLoadError {
             _ => None,
         };
         Self {
+            control: None,
             message: error.to_string(),
             recovery,
         }
@@ -123,7 +127,7 @@ fn replace_live_engine<T: ProjectLifecycle>(
     reason: &str,
     recover: bool,
     current_path: Option<String>,
-) -> Result<ProjectLoadRecoveryReport, String> {
+) -> Result<ProjectLoadRecoveryReport, ApplicationError> {
     let project_file = UiProjectFileSpec::from_project_file_spec(T::project_file_spec(), current_path);
     let result = runtime.replace_project(ProjectReplacement {
         engine: next_engine,
@@ -186,7 +190,7 @@ pub(crate) fn load_preferences_into_engine<T: ProjectLifecycle>(
 pub(crate) fn save_preferences<T: ProjectLifecycle>(
     runtime: &ProductionRuntime<T>,
     preferences: &UiPreferencesConfig,
-) -> Result<(), String> {
+) -> Result<(), ApplicationError> {
     let Some(json) = runtime.encode_preferences()? else {
         return Ok(());
     };
@@ -202,13 +206,14 @@ pub(crate) fn save_preferences<T: ProjectLifecycle>(
                 "failed to write preferences file {}: {err}",
                 preferences.file_path.display()
             )
+            .into()
         })
 }
 
 pub(crate) fn create_new_project<T: ProjectLifecycle>(
     runtime: &ProductionRuntime<T>,
     preferences: Option<&UiPreferencesConfig>,
-) -> Result<(), String> {
+) -> Result<(), ApplicationError> {
     let mut next_engine = create_new_project_engine::<T>()?;
     load_preferences_into_engine(&mut next_engine, preferences)?;
     T::project_opened(&mut next_engine)?;
@@ -219,7 +224,7 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
     runtime: &ProductionRuntime<T>,
     raw_path: &str,
     ui_state: Option<serde_json::Value>,
-) -> Result<String, String> {
+) -> Result<String, ApplicationError> {
     let file_spec = T::project_file_spec();
     let path = normalize_project_save_path(raw_path, &file_spec)
         .ok_or_else(|| "project-save path cannot be empty".to_string())?;
@@ -295,6 +300,7 @@ fn load_project_with_options<T: ProjectLifecycle>(
     recover: bool,
 ) -> Result<ProjectLoadResult, ProjectLoadError> {
     let path = normalize_project_path(raw_path).ok_or_else(|| ProjectLoadError {
+        control: None,
         message: "project-load path cannot be empty".to_string(),
         recovery: None,
     })?;
@@ -314,10 +320,12 @@ fn load_project_with_options<T: ProjectLifecycle>(
 
     let configure_started = Instant::now();
     load_preferences_into_engine(&mut next_engine, preferences).map_err(|message| ProjectLoadError {
+        control: None,
         message,
         recovery: None,
     })?;
     configure_loaded_engine(&mut next_engine).map_err(|message| ProjectLoadError {
+        control: None,
         message,
         recovery: None,
     })?;
@@ -325,9 +333,15 @@ fn load_project_with_options<T: ProjectLifecycle>(
 
     let replace_started = Instant::now();
     let runtime_recovery = replace_live_engine(runtime, next_engine, "project_loaded", recover, Some(path.clone()))
-        .map_err(|message| {
+        .map_err(|error| {
+            let control = error.control_error().cloned();
+            let message = error.to_string();
             let recovery = recover.then(|| ProjectLoadRecoveryReport::from_runtime_startup_error(message.clone()));
-            ProjectLoadError { message, recovery }
+            ProjectLoadError {
+                control,
+                message,
+                recovery,
+            }
         })?;
     let replace_elapsed = replace_started.elapsed();
     recovery.problems.extend(runtime_recovery.problems);
@@ -409,16 +423,19 @@ fn upload_project_and_load_with_options<T: ProjectLifecycle>(
 ) -> Result<ProjectLoadResult, ProjectLoadError> {
     if contents.trim().is_empty() {
         return Err(ProjectLoadError {
+            control: None,
             message: "project upload contents cannot be empty".to_string(),
             recovery: None,
         });
     }
 
     let directory = browser_project_directory::<T>().map_err(|message| ProjectLoadError {
+        control: None,
         message,
         recovery: None,
     })?;
     fs::create_dir_all(&directory).map_err(|err| ProjectLoadError {
+        control: None,
         message: format!(
             "failed to create browser project upload directory {}: {err}",
             directory.display()
@@ -431,6 +448,7 @@ fn upload_project_and_load_with_options<T: ProjectLifecycle>(
     let path = directory.join(file_name);
     golden_persistence::write_file_atomically_with_recovery(&path, contents.as_bytes()).map_err(|err| {
         ProjectLoadError {
+            control: None,
             message: format!("failed to write uploaded project file {}: {err}", path.display()),
             recovery: None,
         }

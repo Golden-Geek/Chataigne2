@@ -11,8 +11,8 @@ use crate::engine::{Engine, ProjectLoadRecoveryReport};
 use crate::ui_read_model::{RetiredUiReadModelState, UiReadModel, UiReadModelReplaceReason};
 use crate::ui_sync::UiProjectFileSpec;
 
-use super::ProductionRuntime;
 use super::project_document::{PreparedProjectDocumentReplacement, RetiredProjectDocumentState};
+use super::{ApplicationError, ProductionRuntime};
 
 /// Request to replace the live project with a decoded engine.
 pub struct ProjectReplacement<T: ProjectLifecycle> {
@@ -152,7 +152,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     }
 
     /// Returns whether the authoritative project currently owns live runtime resources.
-    pub fn project_runtime_status(&self) -> ProjectRuntimeStatus {
+    pub fn project_runtime_status(&self) -> Result<ProjectRuntimeStatus, ApplicationError> {
         self.inner
             .control
             .call(|state| match state.project_pause_error() {
@@ -164,12 +164,15 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     generation: state.project_generation(),
                 },
             })
-            .expect("production control actor disconnected")
-            .output
+            .map(|receipt| receipt.output)
+            .map_err(Into::into)
     }
 
     /// Replaces the live project after the caller decodes and configures it.
-    pub fn replace_project(&self, mut request: ProjectReplacement<T>) -> Result<ProjectReplacementResult, String> {
+    pub fn replace_project(
+        &self,
+        mut request: ProjectReplacement<T>,
+    ) -> Result<ProjectReplacementResult, ApplicationError> {
         let started = Instant::now();
         let retirement_permit = self
             .inner
@@ -211,7 +214,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             Ok(recovery) => recovery,
             Err(error) => {
                 shutdown_engine_for_runtime(&mut request.engine);
-                return Err(error);
+                return Err(error.into());
             }
         };
         let mut prepared_project_document =
@@ -219,7 +222,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 Ok(prepared) => prepared,
                 Err(error) => {
                     shutdown_engine_for_runtime(&mut request.engine);
-                    return Err(error);
+                    return Err(error.into());
                 }
             };
         let detached_prepare = prepare_started.elapsed();
@@ -231,7 +234,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             Ok(fence) => fence,
             Err(error) => {
                 shutdown_engine_for_runtime(&mut request.engine);
-                return Err(error.to_string());
+                return Err(error.to_string().into());
             }
         };
 
@@ -240,114 +243,110 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         let publication_hook = self.inner.read_model_publication_hook.clone();
         let replacement_fault_hook = self.inner.project_replacement_fault_hook.clone();
         let latest_requested_project_generation = self.inner.latest_requested_project_generation.clone();
-        let receipt = self
-            .inner
-            .control
-            .call(move |state| {
-                let candidate_prepare_started = Instant::now();
-                let mut candidate = request.engine;
-                let node_count = candidate.nodes.iter().count();
-                let stale = || latest_requested_project_generation.load(Ordering::Acquire) != generation.get();
-                if stale() {
-                    return reject_project_candidate(
-                        candidate,
-                        format!("project replacement generation {} was superseded", generation.get()),
-                    );
-                }
-                if let Err(error) = replacement_fault_hook.check(ProjectReplacementStage::CandidateCompilation) {
-                    return reject_project_candidate(candidate, error);
-                }
-                if let Err(error) = state.compile_project_candidate(&candidate) {
-                    return reject_project_candidate(candidate, error);
-                }
-                if stale() {
-                    return reject_project_candidate(
-                        candidate,
-                        format!("project replacement generation {} was superseded", generation.get()),
-                    );
-                }
+        let receipt = self.inner.control.call(move |state| {
+            let candidate_prepare_started = Instant::now();
+            let mut candidate = request.engine;
+            let node_count = candidate.nodes.iter().count();
+            let stale = || latest_requested_project_generation.load(Ordering::Acquire) != generation.get();
+            if stale() {
+                return reject_project_candidate(
+                    candidate,
+                    format!("project replacement generation {} was superseded", generation.get()),
+                );
+            }
+            if let Err(error) = replacement_fault_hook.check(ProjectReplacementStage::CandidateCompilation) {
+                return reject_project_candidate(candidate, error);
+            }
+            if let Err(error) = state.compile_project_candidate(&mut candidate) {
+                return reject_project_candidate(candidate, error);
+            }
+            if stale() {
+                return reject_project_candidate(
+                    candidate,
+                    format!("project replacement generation {} was superseded", generation.get()),
+                );
+            }
 
-                let shutdown_started = Instant::now();
-                shutdown_engine_for_runtime(&mut state.engine);
-                let shutdown = shutdown_started.elapsed();
-                state.pause_project(format!(
-                    "project replacement generation {} is awaiting resource activation",
-                    generation.get()
-                ));
+            let shutdown_started = Instant::now();
+            shutdown_engine_for_runtime(&mut state.engine);
+            let shutdown = shutdown_started.elapsed();
+            state.pause_project(format!(
+                "project replacement generation {} is awaiting resource activation",
+                generation.get()
+            ));
 
-                let activation = replacement_fault_hook
-                    .check(ProjectReplacementStage::DeviceActivation)
-                    .and_then(|()| activate_engine_for_runtime(&mut candidate).map_err(|error| error.to_string()));
-                if let Err(error) = activation {
-                    state.pause_project(format!("replacement device activation failed: {error}"));
-                    return reject_project_candidate(candidate, error);
-                }
-                if let Err(error) = replacement_fault_hook.check(ProjectReplacementStage::ActivatedCompilation) {
+            let activation = replacement_fault_hook
+                .check(ProjectReplacementStage::DeviceActivation)
+                .and_then(|()| activate_engine_for_runtime(&mut candidate).map_err(|error| error.to_string()));
+            if let Err(error) = activation {
+                state.pause_project(format!("replacement device activation failed: {error}"));
+                return reject_project_candidate(candidate, error);
+            }
+            if let Err(error) = replacement_fault_hook.check(ProjectReplacementStage::ActivatedCompilation) {
+                state.pause_project(format!("replacement post-activation compilation failed: {error}"));
+                return reject_project_candidate(candidate, error);
+            }
+            let compiled = match state.compile_project_candidate(&mut candidate) {
+                Ok(compiled) => compiled,
+                Err(error) => {
                     state.pause_project(format!("replacement post-activation compilation failed: {error}"));
                     return reject_project_candidate(candidate, error);
                 }
-                let compiled = match state.compile_project_candidate(&candidate) {
-                    Ok(compiled) => compiled,
-                    Err(error) => {
-                        state.pause_project(format!("replacement post-activation compilation failed: {error}"));
+            };
+
+            if let Err(error) = prepared_project_document.synchronize(&mut candidate) {
+                state.pause_project(format!("replacement document publication failed: {error}"));
+                return reject_project_candidate(candidate, error);
+            }
+
+            candidate.clear_ui_event_log();
+            candidate.push_ui_custom_event(
+                "__transport.resync_required",
+                None,
+                serde_json::json!({ "reason": request.reason }),
+            );
+            if let Err(error) = replacement_fault_hook.check(ProjectReplacementStage::PublicationPreparation) {
+                state.pause_project(format!("replacement publication preparation failed: {error}"));
+                return reject_project_candidate(candidate, error);
+            }
+            let project_was_saved = request.project_file.current_path.is_some();
+            let prepared_read_model =
+                UiReadModel::prepare_project_replacement(&candidate, request.project_file, generation);
+            if stale() {
+                let error = format!("project replacement generation {} was superseded", generation.get());
+                state.pause_project(error.clone());
+                return reject_project_candidate(candidate, error);
+            }
+
+            let (previous, (retired_read_model, retired_project_document)) =
+                match state.commit_project(candidate, compiled, generation, project_was_saved, move |engine| {
+                    publication_hook.invoke();
+                    let retired = read_model
+                        .commit_project_replacement(prepared_read_model, UiReadModelReplaceReason::ProjectReplaced);
+                    let retired_project_document =
+                        project_document.commit_project_replacement(prepared_project_document);
+                    read_model.publish_engine_events_since(engine, None);
+                    (retired, retired_project_document)
+                }) {
+                    Ok(previous) => previous,
+                    Err(rejected) => {
+                        let error = rejected.error;
+                        let candidate = *rejected.candidate;
+                        state.pause_project(format!("replacement commit preparation failed: {error}"));
                         return reject_project_candidate(candidate, error);
                     }
                 };
 
-                if let Err(error) = prepared_project_document.synchronize(&mut candidate) {
-                    state.pause_project(format!("replacement document publication failed: {error}"));
-                    return reject_project_candidate(candidate, error);
-                }
-
-                candidate.clear_ui_event_log();
-                candidate.push_ui_custom_event(
-                    "__transport.resync_required",
-                    None,
-                    serde_json::json!({ "reason": request.reason }),
-                );
-                if let Err(error) = replacement_fault_hook.check(ProjectReplacementStage::PublicationPreparation) {
-                    state.pause_project(format!("replacement publication preparation failed: {error}"));
-                    return reject_project_candidate(candidate, error);
-                }
-                let project_was_saved = request.project_file.current_path.is_some();
-                let prepared_read_model =
-                    UiReadModel::prepare_project_replacement(&candidate, request.project_file, generation);
-                if stale() {
-                    let error = format!("project replacement generation {} was superseded", generation.get());
-                    state.pause_project(error.clone());
-                    return reject_project_candidate(candidate, error);
-                }
-
-                let (previous, (retired_read_model, retired_project_document)) =
-                    match state.commit_project(candidate, compiled, generation, project_was_saved, move |engine| {
-                        publication_hook.invoke();
-                        let retired = read_model
-                            .commit_project_replacement(prepared_read_model, UiReadModelReplaceReason::ProjectReplaced);
-                        let retired_project_document =
-                            project_document.commit_project_replacement(prepared_project_document);
-                        read_model.publish_engine_events_since(engine, None);
-                        (retired, retired_project_document)
-                    }) {
-                        Ok(previous) => previous,
-                        Err(rejected) => {
-                            let error = rejected.error;
-                            let candidate = *rejected.candidate;
-                            state.pause_project(format!("replacement commit preparation failed: {error}"));
-                            return reject_project_candidate(candidate, error);
-                        }
-                    };
-
-                ProjectReplacementActorOutcome::Committed(Box::new(CommittedProjectReplacement {
-                    previous,
-                    retired_read_model,
-                    retired_project_document,
-                    recovery,
-                    node_count,
-                    shutdown,
-                    prepare: detached_prepare.saturating_add(candidate_prepare_started.elapsed()),
-                }))
-            })
-            .map_err(|error| error.to_string())?;
+            ProjectReplacementActorOutcome::Committed(Box::new(CommittedProjectReplacement {
+                previous,
+                retired_read_model,
+                retired_project_document,
+                recovery,
+                node_count,
+                shutdown,
+                prepare: detached_prepare.saturating_add(candidate_prepare_started.elapsed()),
+            }))
+        })?;
         let committed = match receipt.output {
             ProjectReplacementActorOutcome::Committed(committed) => {
                 replacement_fence
@@ -358,7 +357,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             ProjectReplacementActorOutcome::Rejected { candidate, error } => {
                 drop(replacement_fence);
                 drop(candidate);
-                return Err(error);
+                return Err(error.into());
             }
         };
 

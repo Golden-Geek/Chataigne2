@@ -2,14 +2,13 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     node::{Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor},
-    parameter::{ParameterEventBehaviour, ParamValue},
+    parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 use crate::app::{
     module::common::received_values::{
-        apply_received_value_batch, ReceivedValueBatchMessage, ReceivedValueBatchOptions,
-        ReceivedValuePayload,
+        apply_received_value_batch, ReceivedValueBatchMessage, ReceivedValueBatchOptions, ReceivedValuePayload,
     },
     OscDecodedMessage, OscValuePayload,
 };
@@ -74,7 +73,7 @@ impl GenericOscModule {
             received_values.iter().map(|received| ReceivedValueBatchMessage {
                 path_segments: received.path_segments.as_slice(),
                 payload: &received.payload,
-                source_description: received.source_description.as_str(),
+                source_description: Some(received.source_description.as_str()),
             }),
             ReceivedValueBatchOptions {
                 auto_add: base.auto_add_enabled(),

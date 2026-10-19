@@ -7,6 +7,7 @@ use crate::node::{
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 
+use super::apply_tree::AppliedEdit;
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
 
@@ -200,7 +201,7 @@ impl<T: Node> Engine<T> {
         prev_sibling: Option<NodeId>,
         label: Option<String>,
         creation_context: Option<NodeCreationContext>,
-    ) -> Result<AddNodeEffect, EngineEditError> {
+    ) -> Result<AppliedEdit<AddNodeEffect>, EngineEditError> {
         const OPERATION: &str = "CreateBlueprintInstance";
 
         let blueprint_id = BlueprintId::new(blueprint_id);
@@ -223,13 +224,17 @@ impl<T: Node> Engine<T> {
             node.node_data_mut().meta.tags.push(tag);
         }
 
-        let effect = self.apply_add_user_item(edit_index, Box::new(node), parent, prev_sibling, creation_context)?;
-        let decl_index = self.collect_blueprint_decl_index(effect.node, edit_index, OPERATION)?;
-        self.blueprints.register_instance(
-            effect.node,
-            BlueprintInstanceMeta::new(blueprint_id, blueprint_version, decl_index),
-        );
-        Ok(effect)
+        let mut applied =
+            self.apply_add_user_item(edit_index, Box::new(node), parent, prev_sibling, creation_context)?;
+        applied.completion = applied.completion.and_then(|()| {
+            let decl_index = self.collect_blueprint_decl_index(applied.effect.node, edit_index, OPERATION)?;
+            self.blueprints.register_instance(
+                applied.effect.node,
+                BlueprintInstanceMeta::new(blueprint_id, blueprint_version, decl_index),
+            );
+            Ok(())
+        });
+        Ok(applied)
     }
 
     fn collect_blueprint_decl_index(

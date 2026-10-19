@@ -35,7 +35,8 @@ fn runtime_with_project_parameter() -> (ProductionRuntime<FacadeTestNode>, NodeI
         ProductionRuntime::new(
             engine,
             UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
-        ),
+        )
+        .unwrap(),
         parameter,
     )
 }
@@ -63,7 +64,8 @@ fn opaque_script_config_mutation_is_published_to_the_project_document() {
     let runtime = ProductionRuntime::new(
         engine,
         UiProjectFileSpec::from_project_file_spec(FacadeTestNode::project_file_spec(), None),
-    );
+    )
+    .unwrap();
     let expected_source = "const persistedMarker = 7;";
     runtime
         .set_script_config(
@@ -75,7 +77,6 @@ fn opaque_script_config_mutation_is_published_to_the_project_document() {
             },
             false,
         )
-        .0
         .expect("script config update");
 
     let directory = tempdir().expect("temporary project directory");
@@ -110,7 +111,7 @@ fn successful_save_publishes_path_and_exact_clean_revision() {
     let (runtime, project_value) = runtime_with_project_parameter();
     let directory = tempdir().expect("temporary project directory");
     let target = directory.path().join("saved.noisette");
-    let initial = runtime.project_persistence_status();
+    let initial = runtime.project_persistence_status().unwrap();
     assert!(initial.dirty);
     assert!(initial.saved_document_revision.is_none());
 
@@ -123,7 +124,7 @@ fn successful_save_publishes_path_and_exact_clean_revision() {
     assert!(saved.metadata_applied);
     assert!(!saved.dirty);
     assert_eq!(saved.document_revision, 0);
-    let clean = runtime.project_persistence_status();
+    let clean = runtime.project_persistence_status().unwrap();
     assert_eq!(clean.saved_document_revision, Some(clean.document_revision));
     assert_eq!(clean.current_path.as_deref(), Some(saved.path.as_str()));
 
@@ -134,7 +135,7 @@ fn successful_save_publishes_path_and_exact_clean_revision() {
             behaviour: Default::default(),
         })
         .expect("authored edit");
-    let dirty = runtime.project_persistence_status();
+    let dirty = runtime.project_persistence_status().unwrap();
     assert!(dirty.dirty);
     assert_ne!(dirty.saved_document_revision, Some(dirty.document_revision));
 
@@ -199,7 +200,7 @@ fn edit_after_capture_keeps_the_later_authored_revision_dirty() {
     assert!(saved.metadata_applied);
     assert!(saved.dirty);
     assert!(saved.current_document_revision > saved.document_revision);
-    let status = runtime.project_persistence_status();
+    let status = runtime.project_persistence_status().unwrap();
     assert_eq!(status.saved_document_revision, Some(saved.document_revision));
     assert!(status.dirty);
     let json = std::fs::read_to_string(&target).expect("captured project JSON");
@@ -257,7 +258,7 @@ fn save_as_metadata_follows_latest_successful_request_not_completion_order() {
     assert_eq!(first.request_id, 1);
     assert!(!first.metadata_applied);
 
-    let status = runtime.project_persistence_status();
+    let status = runtime.project_persistence_status().unwrap();
     assert_eq!(status.latest_save_request_id, 2);
     assert_eq!(status.current_path.as_deref(), Some(expected_second_path.as_str()));
     runtime.set_project_save_fault_hook(None);
@@ -299,10 +300,10 @@ fn replacement_invalidates_an_accepted_save_that_has_not_started_writing() {
         .join()
         .expect("save thread")
         .expect_err("old-generation save must be rejected before writing");
-    assert!(error.contains("stale"));
+    assert!(error.to_string().contains("stale"));
     assert!(!target.exists());
 
-    let status = runtime.project_persistence_status();
+    let status = runtime.project_persistence_status().unwrap();
     assert_eq!(status.project_generation.get(), 2);
     assert_eq!(status.current_path.as_deref(), Some(replacement_path.as_str()));
     runtime.set_project_save_fault_hook(None);

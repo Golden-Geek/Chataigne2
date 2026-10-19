@@ -162,6 +162,44 @@ fn declaration_lookup_preserves_order_across_small_and_wide_parents() {
 }
 
 #[test]
+fn child_key_lookup_preserves_first_match_across_aliases_and_parent_widths() {
+    for count in [16_u64, 17, 20_000] {
+        let root = NodeId(1);
+        let mut root_node = snapshot_node(root, NodeUuid(Uuid::from_u128(1)), None);
+        root_node.first_child = Some(NodeId(2));
+        let mut nodes = HashMap::from([(root, root_node)]);
+        for index in 0..count {
+            let id = NodeId(index + 2);
+            let mut child = snapshot_node(id, NodeUuid(Uuid::from_u128(u128::from(id.0))), None);
+            child.parent = Some(root);
+            child.next_sibling = (index + 1 < count).then_some(NodeId(id.0 + 1));
+            child.decl_id = format!("declaration_{index}");
+            child.short_name = format!("short_{index}");
+            child.label = format!("label_{index}");
+            if index == 0 {
+                child.label = "collision".into();
+            }
+            if index == 1 {
+                child.decl_id = "collision".into();
+            }
+            nodes.insert(id, child);
+        }
+        let snapshot = ProcessTreeSnapshot::new(root, nodes);
+        assert_eq!(snapshot.find_child(root, "collision"), Some(NodeId(2)));
+        for index in (2..count).rev() {
+            for key in [
+                format!("declaration_{index}"),
+                format!("short_{index}"),
+                format!("label_{index}"),
+            ] {
+                assert_eq!(snapshot.find_child(root, &key), Some(NodeId(index + 2)));
+            }
+        }
+        assert_eq!(snapshot.find_child(root, "absent"), None);
+    }
+}
+
+#[test]
 fn snapshot_child_index_stops_a_cycle_after_the_inline_sibling_limit() {
     let root = NodeId(1);
     let mut root_node = snapshot_node(root, NodeUuid(Uuid::from_u128(1)), None);

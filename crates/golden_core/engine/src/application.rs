@@ -4,10 +4,21 @@
 //! transports from owning or locking it directly. It is the application seam through which
 //! runtime planes can be selected independently.
 
+mod error;
 mod graph_editing;
+
+pub use error::{ApplicationError, CommittedSave};
+pub use golden_runtime::{ControlError, ControlErrorKind};
 mod project_document;
 mod project_persistence;
 mod project_replacement;
+mod transactions;
+
+pub use crate::runtime_center::UiClientLease;
+pub use transactions::PendingUiTransactionBatch;
+
+#[cfg(test)]
+mod tests;
 
 pub use graph_editing::GraphEditError;
 use graph_editing::{graph_revision_result, transaction_acknowledgement_result};
@@ -306,19 +317,14 @@ impl<T: ProjectLifecycle> Clone for ProductionRuntime<T> {
 
 impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Wraps an already-created engine and seeds its immutable observation projection.
-    pub fn new(mut engine: Engine<T>, project_file: UiProjectFileSpec) -> Self {
+    pub fn new(mut engine: Engine<T>, project_file: UiProjectFileSpec) -> Result<Self, ApplicationError> {
         let project_was_saved = project_file.current_path.is_some();
         let read_model = Arc::new(UiReadModel::from_engine(&engine, project_file));
-        let project_document = Arc::new(
-            ProjectDocumentReadModel::from_engine(&mut engine)
-                .expect("the initial project document projection must encode"),
-        );
+        let project_document = Arc::new(ProjectDocumentReadModel::from_engine(&mut engine)?);
         let metrics = Arc::new(RuntimeMetrics::default());
-        let (state, input_port) = ProductionState::new(engine, metrics.clone(), project_was_saved)
-            .expect("the initial production runtime generation must compile");
-        let control = ControlActor::spawn_with_metrics("golden-control", state, metrics)
-            .expect("the production control-plane actor must start");
-        Self {
+        let (state, input_port) = ProductionState::new(engine, metrics.clone(), project_was_saved)?;
+        let control = ControlActor::spawn_with_metrics("golden-control", state, metrics)?;
+        Ok(Self {
             inner: Arc::new(ProductionRuntimeInner {
                 control,
                 read_model,
@@ -336,7 +342,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 #[cfg(test)]
                 preferences_subtree_collection_count: Arc::new(AtomicUsize::new(0)),
             }),
-        }
+        })
     }
 
     /// Returns the immutable observation projection used by transport read paths.
@@ -357,206 +363,6 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     /// Returns the generation-aware dense input adapter for module and I/O producers.
     pub fn input_port(&self) -> ProductionInputPort {
         self.inner.input_port.clone()
-    }
-
-    /// Applies one UI transaction and publishes its captured observation delta.
-    pub fn apply_ui_transaction(
-        &self,
-        intent: UiEditIntent,
-        ui_client_instance_id: Option<&str>,
-    ) -> AppliedUiTransaction {
-        self.apply_ui_transaction_batch(vec![intent], ui_client_instance_id, true)
-            .transactions
-            .into_iter()
-            .next()
-            .expect("single transaction batch always returns one result")
-    }
-
-    /// Applies ordered UI transactions under one control-plane lock.
-    ///
-    /// When `stop_after_failure` is true, later transactions receive deterministic skipped
-    /// acknowledgements and are not applied.
-    pub fn apply_ui_transaction_batch(
-        &self,
-        intents: Vec<UiEditIntent>,
-        ui_client_instance_id: Option<&str>,
-        stop_after_failure: bool,
-    ) -> AppliedUiTransactionBatch {
-        let ui_client_instance_id = ui_client_instance_id.map(str::to_owned);
-        let read_model = self.inner.read_model.clone();
-        let project_document = self.inner.project_document.clone();
-        let publication_hook = self.inner.read_model_publication_hook.clone();
-        #[cfg(test)]
-        let preferences_subtree_collection_count = self.inner.preferences_subtree_collection_count.clone();
-        let receipt = self
-            .inner
-            .control
-            .call(move |state| {
-                if let Some(error) = state.project_pause_error().map(str::to_string) {
-                    return intents
-                        .into_iter()
-                        .map(|_| {
-                            let before = state.engine.ui_event_log().last().map(|event| event.time);
-                            let capture = read_model.collect_event_batch(&state.engine, before);
-                            let events = publish_event_capture(
-                                &project_document,
-                                &read_model,
-                                &publication_hook,
-                                &mut state.engine,
-                                capture,
-                            );
-                            (
-                                rejected_ack(
-                                    &state.engine,
-                                    "project_runtime_paused",
-                                    format!("project runtime is paused: {error}"),
-                                ),
-                                events,
-                                false,
-                                ApplicationTransactionTiming::default(),
-                            )
-                        })
-                        .collect();
-                }
-                let mut failed = false;
-                let mut opened_edit_session: Option<String> = None;
-                let mut pending = Vec::with_capacity(intents.len());
-                let mut runtime_compile_requested = false;
-                #[cfg(test)]
-                preferences_subtree_collection_count.fetch_add(1, Ordering::Relaxed);
-                let mut preferences_nodes = preferences_subtree_node_ids(&state.engine);
-
-                for intent in intents {
-                    let intent_started = Instant::now();
-                    let requires_runtime_compile = ui_intent_requires_runtime_compile(&intent);
-                    let is_matching_end_edit = opened_edit_session.as_ref().is_some_and(
-                        |active_id| matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id),
-                    );
-                    if failed && stop_after_failure && !is_matching_end_edit {
-                        let capture = read_model.collect_event_batch(
-                            &state.engine,
-                            state.engine.ui_event_log().last().map(|event| event.time),
-                        );
-                        let events = publish_event_capture(
-                            &project_document,
-                            &read_model,
-                            &publication_hook,
-                            &mut state.engine,
-                            capture,
-                        );
-                        pending.push((
-                            skipped_after_failed_batch_ack(&state.engine),
-                            events,
-                            false,
-                            ApplicationTransactionTiming {
-                                lock_wait: Duration::ZERO,
-                                total: intent_started.elapsed(),
-                                ..Default::default()
-                            },
-                        ));
-                        continue;
-                    }
-
-                    let begin_edit_id = match &intent {
-                        UiEditIntent::BeginEdit { client_edit_id, .. } => Some(client_edit_id.clone()),
-                        _ => None,
-                    };
-                    let end_edit_id = match &intent {
-                        UiEditIntent::EndEdit { client_edit_id } => Some(client_edit_id.clone()),
-                        _ => None,
-                    };
-
-                    let before_event_time = state.engine.ui_event_log().last().map(|event| event.time);
-                    let apply_started = Instant::now();
-                    let mut acknowledgement =
-                        apply_ui_intent_to_engine(&mut state.engine, intent, ui_client_instance_id.as_deref());
-                    if acknowledgement.success
-                        && let Err(error) = T::settle_pending_operations(&mut state.engine)
-                    {
-                        acknowledgement = rejected_ack(
-                            &state.engine,
-                            "app_operation_failed",
-                            error,
-                        );
-                    }
-                    let apply = apply_started.elapsed();
-                    let event_collect_started = Instant::now();
-                    let capture = read_model.collect_event_batch(&state.engine, before_event_time);
-                    let preferences_changed = if event_batch_has_structural_graph_changes(capture.batch()) {
-                        #[cfg(test)]
-                        preferences_subtree_collection_count.fetch_add(1, Ordering::Relaxed);
-                        let updated_preferences_nodes = preferences_subtree_node_ids(&state.engine);
-                        let changed = event_batch_changes_preferences(capture.batch(), &preferences_nodes)
-                            || event_batch_changes_preferences(capture.batch(), &updated_preferences_nodes);
-                        preferences_nodes = updated_preferences_nodes;
-                        changed
-                    } else {
-                        event_batch_changes_preferences(capture.batch(), &preferences_nodes)
-                    };
-                    let events = publish_event_capture(
-                        &project_document,
-                        &read_model,
-                        &publication_hook,
-                        &mut state.engine,
-                        capture,
-                    );
-                    let event_collect = event_collect_started.elapsed();
-                    if acknowledgement.success {
-                        if let Some(client_edit_id) = begin_edit_id {
-                            opened_edit_session = Some(client_edit_id);
-                        }
-                        if end_edit_id.as_ref() == opened_edit_session.as_ref() {
-                            opened_edit_session = None;
-                        }
-                    }
-                    failed |= !acknowledgement.success;
-                    runtime_compile_requested |= acknowledgement.success && requires_runtime_compile;
-                    pending.push((
-                        acknowledgement,
-                        events,
-                        preferences_changed,
-                        ApplicationTransactionTiming {
-                            lock_wait: Duration::ZERO,
-                            apply,
-                            event_collect,
-                            total: intent_started.elapsed(),
-                        },
-                    ));
-                }
-                if runtime_compile_requested {
-                    state.request_compilation("ui.graph");
-                }
-                pending
-            })
-            .expect("production control actor disconnected");
-        let lock_wait = receipt.queue_wait;
-        let pending = receipt.output;
-
-        let transactions = pending
-            .into_iter()
-            .enumerate()
-            .map(|(index, (acknowledgement, events, preferences_changed, mut timing))| {
-                if index == 0 {
-                    timing.lock_wait = lock_wait;
-                }
-                timing.total = timing
-                    .total
-                    .saturating_add(if index == 0 { lock_wait } else { Duration::ZERO });
-                AppliedUiTransaction {
-                    acknowledgement,
-                    events,
-                    preferences_changed,
-                    timing,
-                }
-            })
-            .collect::<Vec<_>>();
-        let preferences_changed = transactions.iter().any(|transaction| transaction.preferences_changed);
-
-        AppliedUiTransactionBatch {
-            transactions,
-            preferences_changed,
-            lock_wait,
-        }
     }
 
     #[cfg(test)]
@@ -587,7 +393,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     }
 
     /// Cancels one client's active edit session and publishes resulting events.
-    pub fn cancel_ui_edit_session(&self, ui_client_instance_id: &str) -> UiEventBatch {
+    pub fn cancel_ui_edit_session(&self, ui_client_instance_id: &str) -> Result<UiEventBatch, ApplicationError> {
         let ui_client_instance_id = ui_client_instance_id.to_owned();
         let read_model = self.inner.read_model.clone();
         let project_document = self.inner.project_document.clone();
@@ -601,7 +407,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     }
 
     /// Runs one authoritative engine tick and publishes its observation delta.
-    pub fn run_tick(&self, elapsed: Duration) -> Result<ApplicationTickResult, EngineRuntimeError> {
+    pub fn run_tick(&self, elapsed: Duration) -> Result<ApplicationTickResult, ApplicationError> {
         let read_model = self.inner.read_model.clone();
         let project_document = self.inner.project_document.clone();
         let publication_hook = self.inner.read_model_publication_hook.clone();
@@ -610,43 +416,46 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .control
             .call(move |state| {
                 let before = state.engine.ui_event_log().last().map(|event| event.time);
-                state.run_tick(elapsed)?;
+                let outcome = state.run_tick(elapsed).and_then(|()| {
+                    T::settle_pending_operations(&mut state.engine)
+                        .map_err(|message| EngineRuntimeError::AppOperation { message })
+                });
                 let engine = &mut state.engine;
-                T::settle_pending_operations(engine).map_err(|message| EngineRuntimeError::AppOperation { message })?;
                 let capture = read_model.collect_event_batch(engine, before);
                 apply_preferences_runtime_limits(engine);
                 let next_interval = engine.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));
                 let events = publish_event_capture(&project_document, &read_model, &publication_hook, engine, capture);
-                Ok::<_, EngineRuntimeError>((events, next_interval))
-            })
-            .expect("production control actor disconnected")
+                outcome.map(|()| (events, next_interval))
+            })?
             .output?;
         Ok(ApplicationTickResult { events, next_interval })
     }
 
     /// Returns current history state without exposing the live engine.
-    pub fn history_state(&self) -> UiHistoryState {
+    pub fn history_state(&self) -> Result<UiHistoryState, ApplicationError> {
         self.call_engine(|engine| engine.ui_history_state())
     }
 
     /// Returns reference-picker targets for one parameter.
-    pub fn reference_targets(&self, param: NodeId) -> UiReferenceTargetsDto {
+    pub fn reference_targets(&self, param: NodeId) -> Result<UiReferenceTargetsDto, ApplicationError> {
         self.call_engine(move |engine| engine.ui_reference_targets_for_param(param))
     }
 
     /// Returns lexical context candidates for one parameter.
-    pub fn context_candidates(&self, param: NodeId) -> UiUserContextCandidatesDto {
+    pub fn context_candidates(&self, param: NodeId) -> Result<UiUserContextCandidatesDto, ApplicationError> {
         self.call_engine(move |engine| engine.ui_context_candidates_for_param(param))
     }
 
     /// Returns control-mode information for one parameter.
-    pub fn param_control_info(&self, param: NodeId) -> Result<UiParamControlInfoDto, String> {
-        self.call_engine(move |engine| engine.ui_param_control_info(param))
+    pub fn param_control_info(&self, param: NodeId) -> Result<UiParamControlInfoDto, ApplicationError> {
+        self.call_engine(move |engine| engine.ui_param_control_info(param))?
+            .map_err(Into::into)
     }
 
     /// Returns current script runtime state.
-    pub fn script_state(&self, node: NodeId) -> Result<ScriptUiState, String> {
-        self.call_engine(move |engine| engine.ui_script_state(node))
+    pub fn script_state(&self, node: NodeId) -> Result<ScriptUiState, ApplicationError> {
+        self.call_engine(move |engine| engine.ui_script_state(node))?
+            .map_err(Into::into)
     }
 
     /// Replaces script configuration and publishes resulting observation events.
@@ -655,35 +464,45 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         node: NodeId,
         config: ScriptUiConfig,
         force_reload: bool,
-    ) -> (Result<(), String>, UiEventBatch) {
-        self.apply_engine_mutation(move |engine| engine.ui_set_script_config(node, config, force_reload))
+    ) -> Result<UiEventBatch, ApplicationError> {
+        let (result, events) =
+            self.apply_engine_mutation(move |engine| engine.ui_set_script_config(node, config, force_reload))?;
+        result?;
+        Ok(events)
     }
 
     /// Requests script reload and publishes resulting observation events.
-    pub fn reload_script(&self, node: NodeId) -> (Result<(), String>, UiEventBatch) {
-        self.apply_engine_mutation(move |engine| engine.ui_reload_script(node))
+    pub fn reload_script(&self, node: NodeId) -> Result<UiEventBatch, ApplicationError> {
+        let (result, events) = self.apply_engine_mutation(move |engine| engine.ui_reload_script(node))?;
+        result?;
+        Ok(events)
     }
 
     /// Applies project-derived runtime limits after preferences change.
-    pub fn refresh_runtime_limits(&self) {
-        self.call_engine(apply_preferences_runtime_limits);
+    pub fn refresh_runtime_limits(&self) -> Result<(), ApplicationError> {
+        self.call_engine(apply_preferences_runtime_limits)
     }
 
     /// Serializes the Preferences subtree through the authoritative sparse codec.
-    pub fn encode_preferences(&self) -> Result<Option<String>, String> {
-        self.call_engine(|engine| to_sparse_preferences_json_pretty(engine).map_err(|error| error.to_string()))
+    pub fn encode_preferences(&self) -> Result<Option<String>, ApplicationError> {
+        self.call_engine(|engine| to_sparse_preferences_json_pretty(engine).map_err(|error| error.to_string()))?
+            .map_err(Into::into)
     }
 
     #[cfg(test)]
-    pub(crate) fn set_project_file(&self, project_file: UiProjectFileSpec) {
+    pub(crate) fn set_project_file(&self, project_file: UiProjectFileSpec) -> Result<(), ApplicationError> {
         let read_model = self.inner.read_model.clone();
         self.inner
             .control
             .call(move |_state| read_model.set_project_file(project_file))
-            .expect("production control actor disconnected");
+            .map(|_| ())
+            .map_err(Into::into)
     }
 
-    fn apply_engine_mutation<R>(&self, mutation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static) -> (R, UiEventBatch)
+    fn apply_engine_mutation<R>(
+        &self,
+        mutation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static,
+    ) -> Result<(R, UiEventBatch), ApplicationError>
     where
         R: Send + 'static,
     {
@@ -699,25 +518,45 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         })
     }
 
-    fn call_engine<R>(&self, operation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static) -> R
+    fn call_engine<R>(
+        &self,
+        operation: impl FnOnce(&mut Engine<T>) -> R + Send + 'static,
+    ) -> Result<R, ApplicationError>
     where
         R: Send + 'static,
     {
+        let read_model = self.inner.read_model.clone();
+        let project_document = self.inner.project_document.clone();
+        let publication_hook = self.inner.read_model_publication_hook.clone();
         self.inner
             .control
-            .call(move |state| operation(&mut state.engine))
-            .expect("production control actor disconnected")
-            .output
+            .call(move |state| {
+                if state.release_closed_ui_session() {
+                    let before = state.engine.ui_event_log().last().map(|event| event.time);
+                    let capture = read_model.collect_event_batch(&state.engine, before);
+                    publish_event_capture(
+                        &project_document,
+                        &read_model,
+                        &publication_hook,
+                        &mut state.engine,
+                        capture,
+                    );
+                }
+                operation(&mut state.engine)
+            })
+            .map(|receipt| receipt.output)
+            .map_err(Into::into)
     }
 }
 
 impl<T: ProjectLifecycle> ProjectTransactions for ProductionRuntime<T> {
     type Transaction = UiEditIntent;
     type Receipt = UiAck;
-    type Error = GraphEditError;
+    type Error = ApplicationError;
 
     fn apply_transaction(&self, transaction: Self::Transaction) -> Result<Self::Receipt, Self::Error> {
-        transaction_acknowledgement_result(self.apply_ui_transaction(transaction, None).acknowledgement)
+        transaction_acknowledgement_result(self.apply_ui_transaction(transaction, None)?.acknowledgement)
+            .map_err(Into::into)
     }
 
     fn undo(&self) -> Result<Self::Receipt, Self::Error> {
@@ -732,31 +571,34 @@ impl<T: ProjectLifecycle> ProjectTransactions for ProductionRuntime<T> {
 impl<T: ProjectLifecycle> GraphEditing for ProductionRuntime<T> {
     type Edit = UiEditIntent;
     type Revision = UiHistoryState;
-    type Error = GraphEditError;
+    type Error = ApplicationError;
 
     fn apply_graph_edit(&self, edit: Self::Edit) -> Result<Self::Revision, Self::Error> {
-        graph_revision_result(self.apply_ui_transaction(edit, None).acknowledgement)
+        graph_revision_result(self.apply_ui_transaction(edit, None)?.acknowledgement).map_err(Into::into)
     }
 }
 
 impl<T: ProjectLifecycle> RuntimeValues for ProductionRuntime<T> {
     type Key = NodeId;
     type Value = ParamValue;
-    type Error = String;
+    type Error = ApplicationError;
 
     fn read_value(&self, key: &Self::Key) -> Result<Option<Self::Value>, Self::Error> {
         let key = *key;
-        Ok(self.call_engine(move |engine| {
+        self.call_engine(move |engine| {
             engine
                 .nodes
                 .get(key)
                 .and_then(Node::engine_param_snapshot)
                 .map(|snapshot| snapshot.value)
-        }))
+        })
     }
 
     fn publish_input(&self, key: Self::Key, value: Self::Value, source_time_ns: u64) -> Result<(), Self::Error> {
-        self.inner.input_port.publish(key, value, source_time_ns)
+        self.inner
+            .input_port
+            .publish(key, value, source_time_ns)
+            .map_err(Into::into)
     }
 }
 
@@ -781,7 +623,7 @@ impl<T: ProjectLifecycle> Persistence for ProductionRuntime<T> {
     type LoadResult = ProjectReplacementResult;
     type SaveRequest = ProjectSaveRequest;
     type SaveResult = ProjectSaveResult;
-    type Error = String;
+    type Error = ApplicationError;
 
     fn load(&self, request: Self::LoadRequest) -> Result<Self::LoadResult, Self::Error> {
         self.replace_project(request)
@@ -797,7 +639,7 @@ impl<T: ProjectLifecycle> HostLifecycle for ProductionRuntime<T> {
     type StartResult = ProjectLoadRecoveryReport;
     type StopRequest = ();
     type StopResult = ();
-    type Error = String;
+    type Error = ApplicationError;
 
     fn start(&self, request: Self::StartRequest) -> Result<Self::StartResult, Self::Error> {
         let read_model = self.inner.read_model.clone();
@@ -823,30 +665,15 @@ impl<T: ProjectLifecycle> HostLifecycle for ProductionRuntime<T> {
                     &mut state.engine,
                     capture,
                 );
-                Ok(recovery)
-            })
-            .map_err(|error| error.to_string())?
+                Ok::<_, String>(recovery)
+            })?
             .output
+            .map_err(Into::into)
     }
 
     fn stop(&self, _request: Self::StopRequest) -> Result<Self::StopResult, Self::Error> {
-        self.call_engine(shutdown_engine_for_runtime);
-        Ok(())
+        self.call_engine(shutdown_engine_for_runtime)
     }
-}
-
-fn ui_intent_requires_runtime_compile(intent: &UiEditIntent) -> bool {
-    !matches!(
-        intent,
-        UiEditIntent::BeginEdit { .. }
-            | UiEditIntent::EndEdit { .. }
-            | UiEditIntent::SetParam { .. }
-            | UiEditIntent::SetTextParamSmart { .. }
-            | UiEditIntent::SendNodeEvent { .. }
-            | UiEditIntent::ReevaluateGraph
-            | UiEditIntent::ClearLogs
-            | UiEditIntent::SetLogMaxEntries { .. }
-    )
 }
 
 pub(crate) fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
@@ -862,17 +689,19 @@ pub(crate) fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
             new_parent,
             new_prev_sibling,
             initial_params,
-        } => match engine.duplicate_subtree_with_initial_params(
-            source,
-            new_parent,
-            new_prev_sibling,
-            initial_params
-                .into_iter()
-                .map(|initial_param| (initial_param.decl_id, initial_param.value))
-                .collect(),
-            |node| node.project_encode_data(),
-            |node_type, data, meta| T::project_decode_node(node_type, data, meta),
-        ) {
+        } => match engine.with_atomic_ui_operation(|engine| {
+            engine.duplicate_subtree_with_initial_params(
+                source,
+                new_parent,
+                new_prev_sibling,
+                initial_params
+                    .into_iter()
+                    .map(|initial_param| (initial_param.decl_id, initial_param.value))
+                    .collect(),
+                |node| node.project_encode_data(),
+                |node_type, data, meta| T::project_decode_node(node_type, data, meta),
+            )
+        }) {
             Ok(_) => applied_ack_since(engine, before_event_time),
             Err(error) => rejected_ack(engine, "duplicate_node_failed", error.to_string()),
         },

@@ -67,7 +67,7 @@ fn unresolved_filter_duplicates_through_the_shared_backend_contract() {
             ProjectFileSpec::new("Mapping", "mapping"),
             None,
         ),
-    );
+    ).unwrap();
     let result = runtime.apply_ui_transaction(
         UiEditIntent::DuplicateNode {
             source: original,
@@ -76,7 +76,7 @@ fn unresolved_filter_duplicates_through_the_shared_backend_contract() {
             initial_params: Vec::new(),
         },
         Some("mapping-unresolved-filter-duplicate"),
-    );
+    ).unwrap();
     assert!(
         result.acknowledgement.success,
         "unresolved filter duplication should apply: {:?}",

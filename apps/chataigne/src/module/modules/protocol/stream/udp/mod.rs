@@ -1,3 +1,4 @@
+mod lifecycle;
 mod transport;
 
 use golden_core::{
@@ -8,7 +9,6 @@ use golden_core::{
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
-use golden_io::PendingDrainState;
 
 use crate::app::{
     module::common::streaming::{
@@ -19,9 +19,8 @@ use crate::app::{
     StreamingModuleBase,
 };
 
-use self::transport::{
-    StreamingWorkerEvent, UdpStreamingOutboundPacket, UdpStreamingTransportConfig, UdpStreamingTransportHandle,
-};
+use self::lifecycle::{UdpTransportEvent, UdpTransports};
+use self::transport::{UdpStreamingOutboundPacket, UdpStreamingTransportConfig};
 
 const UDP_INTERFACE_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const UDP_MODULE_UPDATE_RATE_HZ: u32 = 120;
@@ -114,14 +113,13 @@ impl Node for UdpOutputManager {
 pub struct UdpModule {
     stream: StreamingModuleBase,
     interface_refresh_elapsed: f64,
-    transport: Option<UdpStreamingTransportHandle>,
-    last_transport_config: Option<UdpStreamingTransportConfig>,
+    transports: UdpTransports,
     transport_dirty: bool,
 }
 
 impl UdpModule {
     pub fn create() -> Self {
-        Self::new(StreamingModuleBase::create(), 0.0, None, None, true)
+        Self::new(StreamingModuleBase::create(), 0.0, UdpTransports::default(), true)
     }
 
     fn interface_refresh_due(&self) -> bool {
@@ -158,8 +156,7 @@ impl UdpModule {
         self.transport_dirty = false;
 
         if !self.module_enabled(snapshot) {
-            self.stop_transport();
-            self.last_transport_config = None;
+            self.transports.pause_admission();
             self.clear_input_warning(ctx, snapshot);
             self.stream.set_connected(ctx, false);
             return;
@@ -169,8 +166,7 @@ impl UdpModule {
             Ok(binding) => binding,
             Err(error) => {
                 logerror!("Invalid UDP module configuration: {}", error);
-                self.stop_transport();
-                self.last_transport_config = None;
+                self.transports.pause_admission();
                 self.set_input_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
                 return;
@@ -178,8 +174,7 @@ impl UdpModule {
         };
 
         if !binding.receive_enabled && !binding.send_enabled {
-            self.stop_transport();
-            self.last_transport_config = None;
+            self.transports.pause_admission();
             self.clear_input_warning(ctx, snapshot);
             self.stream.set_connected(ctx, false);
             return;
@@ -193,25 +188,15 @@ impl UdpModule {
             receive_enabled: binding.receive_enabled,
         };
 
-        if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            self.clear_input_warning(ctx, snapshot);
-            self.stream.set_connected(ctx, true);
-            return;
-        }
-
-        self.stop_transport();
-
-        match UdpStreamingTransportHandle::spawn(config.clone()) {
-            Ok(handle) => {
-                self.transport = Some(handle);
-                self.last_transport_config = Some(config);
+        match self.transports.configure(config) {
+            Ok(configured) => {
+                self.transport_dirty = !configured;
                 self.clear_input_warning(ctx, snapshot);
-                self.stream.set_connected(ctx, true);
+                self.stream.set_connected(ctx, self.transports.connected());
             }
             Err(error) => {
                 logerror!("Failed to start UDP transport: {}", error);
-                self.transport = None;
-                self.last_transport_config = None;
+                self.transport_dirty = true;
                 self.set_input_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
             }
@@ -244,26 +229,14 @@ impl UdpModule {
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
-        let mut worker_events = Vec::new();
-        let Some(transport) = &self.transport else {
-            return;
-        };
-
-        let worker_disconnected =
-            transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
+        let poll = self.transports.poll();
 
         let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
-        for event in worker_events {
+        for event in poll.events {
             match event {
-                StreamingWorkerEvent::Bytes(bytes) if !processing_enabled => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        true,
-                    );
+                UdpTransportEvent::Bytes(bytes) if !processing_enabled => {
+                    streaming_script::emit_stream_bytes_callbacks(ctx, self.id(), bytes.as_slice(), None, true);
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
@@ -271,14 +244,8 @@ impl UdpModule {
                         );
                     }
                 }
-                StreamingWorkerEvent::Bytes(bytes) => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        true,
-                    );
+                UdpTransportEvent::Bytes(bytes) => {
+                    streaming_script::emit_stream_bytes_callbacks(ctx, self.id(), bytes.as_slice(), None, true);
                     match self.stream.parse_bytes_cached(bytes.as_slice()) {
                         Ok(messages) => {
                             received_bytes = true;
@@ -295,7 +262,7 @@ impl UdpModule {
                         }
                     }
                 }
-                StreamingWorkerEvent::Error(error) => {
+                UdpTransportEvent::Error(error) => {
                     logerror!("UDP transport error: {}", error);
                 }
             }
@@ -305,10 +272,14 @@ impl UdpModule {
             self.stream.emit_incoming_traffic(ctx);
         }
 
-        if worker_disconnected {
-            logerror!("UDP transport worker disconnected");
-            self.stop_transport();
-            self.last_transport_config = None;
+        self.stream.set_connected(ctx, self.transports.connected());
+        if let Some(error) = poll.failure {
+            logerror!("UDP transport failed: {}", error);
+            if let Some(snapshot) = ctx.tree_snapshot_arc() {
+                self.set_input_warning(ctx, snapshot.as_ref(), &error);
+            }
+        }
+        if poll.disconnected {
             self.transport_dirty = true;
         }
     }
@@ -375,11 +346,6 @@ impl UdpModule {
             return Err("no enabled UDP outputs are configured".to_string());
         }
 
-        let transport = self
-            .transport
-            .as_ref()
-            .ok_or_else(|| "UDP transport is not available".to_string())?;
-
         let mut queued = 0usize;
         let mut errors = Vec::new();
         for output in outputs {
@@ -388,7 +354,7 @@ impl UdpModule {
                 remote_host: output.remote_host.clone(),
                 remote_port: output.remote_port,
             };
-            match transport.send(packet) {
+            match self.transports.send(packet) {
                 Ok(()) => {
                     queued = queued.saturating_add(1);
                     if self.stream.log_outgoing_enabled() {
@@ -498,9 +464,7 @@ impl UdpModule {
     }
 
     fn stop_transport(&mut self) {
-        if let Some(mut transport) = self.transport.take() {
-            transport.stop();
-        }
+        self.transports.cancel_all();
     }
 }
 
@@ -541,8 +505,7 @@ impl Node for UdpModule {
         self.drain_transport_events(ctx);
         self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
-        let needs_snapshot =
-            self.interface_refresh_due() || self.transport_dirty || self.stream.has_pending_messages();
+        let needs_snapshot = self.interface_refresh_due() || self.transport_dirty || self.stream.has_pending_messages();
         if !needs_snapshot {
             return;
         }
@@ -577,7 +540,7 @@ impl Node for UdpModule {
         self.transport_dirty
             || self.stream.has_pending_messages()
             || self.interface_refresh_due()
-            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+            || self.transports.has_pending()
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -585,8 +548,7 @@ impl Node for UdpModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(UDP_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.udp")
+        NodeExecutionRule::periodic(UDP_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.udp")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -637,8 +599,7 @@ impl Node for UdpModule {
         if enabled {
             self.transport_dirty = true;
         } else {
-            self.stop_transport();
-            self.last_transport_config = None;
+            self.transports.pause_admission();
             if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
                 self.clear_input_warning(ctx, snapshot_arc.as_ref());
             }

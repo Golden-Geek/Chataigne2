@@ -1,10 +1,28 @@
 use std::{
-    sync::mpsc::{self, Receiver, Sender, SyncSender, TrySendError},
-    thread::{self, JoinHandle},
+    io::Read,
+    num::NonZeroUsize,
+    sync::OnceLock,
     time::{Duration, Instant},
 };
 
 const HTTP_REQUEST_CHANNEL_CAPACITY: usize = 256;
+const HTTP_REQUEST_BYTES: usize = 8 * 1024 * 1024;
+pub(super) const HTTP_RESPONSE_CAPACITY: usize = 4;
+pub(super) const HTTP_EVENT_BYTES: usize = 32 * 1024 * 1024;
+pub(super) const HTTP_RESPONSE_BODY_BYTES: usize = 1024 * 1024;
+
+use golden_io::{
+    BoundedWorker, PendingDrain, PendingSendError, RetirementPool, WorkerCancellation, WorkerContext, WorkerLimits,
+};
+
+mod generation;
+mod weights;
+pub(super) use generation::GenerationFence;
+
+pub(super) fn worker_lifetimes() -> &'static RetirementPool {
+    static POOL: OnceLock<RetirementPool> = OnceLock::new();
+    POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()))
+}
 
 use reqwest::{
     blocking::{multipart, Client, RequestBuilder},
@@ -13,8 +31,8 @@ use reqwest::{
 };
 
 use crate::app::module::common::http::{
-    HttpAuthConfig, HttpAuthMode, HttpHeader, HttpReceivedValue, HttpRequestBody, HttpRequestPayload,
-    response_json_received_values, HTTP_AUTH_BASIC, HTTP_AUTH_BEARER, HTTP_AUTH_HEADER,
+    response_json_received_values, HttpAuthConfig, HttpAuthMode, HttpHeader, HttpReceivedValue, HttpRequestBody,
+    HttpRequestPayload, HTTP_AUTH_BASIC, HTTP_AUTH_BEARER, HTTP_AUTH_HEADER,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -57,6 +75,7 @@ pub(crate) struct HttpResponse {
     pub received_values: Result<Option<Vec<HttpReceivedValue>>, String>,
     pub elapsed_ms: u128,
     pub attempts: u32,
+    pub callback_args: Vec<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -65,6 +84,7 @@ pub(crate) struct HttpFailure {
     pub request: HttpRequestPayload,
     pub error: String,
     pub attempts: u32,
+    pub callback_args: Vec<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -74,53 +94,159 @@ pub(crate) enum HttpWorkerEvent {
 }
 
 pub(crate) struct HttpTransportHandle {
-    command_tx: SyncSender<HttpWorkerCommand>,
-    event_rx: Receiver<HttpWorkerEvent>,
-    worker: Option<JoinHandle<()>>,
+    worker: BoundedWorker<HttpQueuedRequest, HttpWorkerEvent>,
+    completion: GenerationFence,
+    predecessor: Option<GenerationFence>,
 }
 
+type HttpExecutor = dyn FnMut(
+        &Client,
+        &HttpTransportConfig,
+        &HttpQueuedRequest,
+        &WorkerCancellation,
+        &mut AttemptProgress,
+    ) -> Option<HttpWorkerEvent>
+    + Send;
+
 impl HttpTransportHandle {
-    pub(crate) fn spawn(config: HttpTransportConfig) -> Result<Self, String> {
-        let client = Client::builder()
-            .timeout(config.timeout)
-            .connect_timeout(config.timeout.min(Duration::from_secs(10)))
-            .build()
-            .map_err(|error| format!("failed to build HTTP client: {error}"))?;
+    #[cfg(test)]
+    pub(super) fn spawn(config: HttpTransportConfig) -> Result<Self, String> {
+        Self::spawn_with_lifetimes(config, &RetirementPool::new(NonZeroUsize::MIN))
+    }
 
-        let (command_tx, command_rx) = mpsc::sync_channel(HTTP_REQUEST_CHANNEL_CAPACITY);
-        let (event_tx, event_rx) = mpsc::channel();
-        let thread_name = http_thread_name(config.base_address.as_str());
+    #[cfg(test)]
+    pub(super) fn spawn_with_lifetimes(
+        config: HttpTransportConfig,
+        lifetimes: &RetirementPool,
+    ) -> Result<Self, String> {
+        Self::spawn_generation(config, lifetimes, None)
+    }
 
-        let worker = thread::Builder::new()
-            .name(thread_name)
-            .spawn(move || worker_loop(client, config, command_rx, event_tx))
-            .map_err(|error| format!("failed to start HTTP worker thread: {error}"))?;
+    pub(super) fn spawn_generation(
+        config: HttpTransportConfig,
+        lifetimes: &RetirementPool,
+        predecessor: Option<GenerationFence>,
+    ) -> Result<Self, String> {
+        Self::spawn_using(config, lifetimes, predecessor, execute_with_retries)
+    }
 
+    pub(super) fn spawn_using<F>(
+        config: HttpTransportConfig,
+        lifetimes: &RetirementPool,
+        predecessor: Option<GenerationFence>,
+        execute: F,
+    ) -> Result<Self, String>
+    where
+        F: FnMut(
+                &Client,
+                &HttpTransportConfig,
+                &HttpQueuedRequest,
+                &WorkerCancellation,
+                &mut AttemptProgress,
+            ) -> Option<HttpWorkerEvent>
+            + Send
+            + 'static,
+    {
+        Self::spawn_worker(config, lifetimes, predecessor, Box::new(execute), None)
+    }
+
+    #[cfg(test)]
+    pub(super) fn spawn_with_retirement_hook<F, R>(
+        config: HttpTransportConfig,
+        lifetimes: &RetirementPool,
+        predecessor: Option<GenerationFence>,
+        execute: F,
+        retire: R,
+    ) -> Result<Self, String>
+    where
+        F: FnMut(
+                &Client,
+                &HttpTransportConfig,
+                &HttpQueuedRequest,
+                &WorkerCancellation,
+                &mut AttemptProgress,
+            ) -> Option<HttpWorkerEvent>
+            + Send
+            + 'static,
+        R: FnOnce() + Send + 'static,
+    {
+        Self::spawn_worker(
+            config,
+            lifetimes,
+            predecessor,
+            Box::new(execute),
+            Some(Box::new(retire)),
+        )
+    }
+
+    fn spawn_worker(
+        config: HttpTransportConfig,
+        lifetimes: &RetirementPool,
+        predecessor: Option<GenerationFence>,
+        execute: Box<HttpExecutor>,
+        retirement_hook: Option<Box<dyn FnOnce() + Send>>,
+    ) -> Result<Self, String> {
+        let completion = GenerationFence::default();
+        let worker_completion = completion.clone();
+        let worker_predecessor = predecessor.clone();
+        let worker = BoundedWorker::spawn(
+            "chataigne-http",
+            lifetimes,
+            WorkerLimits {
+                command_items: HTTP_REQUEST_CHANNEL_CAPACITY,
+                command_weight: HTTP_REQUEST_BYTES,
+                event_items: HTTP_RESPONSE_CAPACITY,
+                event_weight: HTTP_EVENT_BYTES,
+            },
+            move |context| {
+                let mut complete = worker_completion.guard();
+                let ready = worker_predecessor
+                    .as_ref()
+                    .is_none_or(|previous| previous.wait(context.cancellation()));
+                worker_loop(config, context, ready, &mut complete, execute, retirement_hook);
+            },
+        )
+        .map_err(|error| format!("failed to start HTTP worker: {error}"))?;
         Ok(Self {
-            command_tx,
-            event_rx,
-            worker: Some(worker),
+            worker,
+            completion,
+            predecessor,
         })
     }
 
     pub(crate) fn send(&self, request: HttpQueuedRequest) -> Result<(), String> {
-        self.command_tx
-            .try_send(HttpWorkerCommand::Send(Box::new(request)))
-            .map_err(|error| match error {
-                TrySendError::Full(_) => "HTTP request queue is full".to_string(),
-                TrySendError::Disconnected(_) => "HTTP worker is no longer running".to_string(),
-            })
+        let weight = weights::request_weight(&request)?;
+        self.worker.send_weighted(request, weight).map_err(|error| match error {
+            PendingSendError::Full(_) => "HTTP request queue item/byte capacity is full".to_string(),
+            PendingSendError::Disconnected(_) => "HTTP worker is no longer running".to_string(),
+        })
     }
 
-    pub(crate) fn try_recv(&self) -> Result<HttpWorkerEvent, mpsc::TryRecvError> {
-        self.event_rx.try_recv()
+    pub(crate) fn drain_events(&self, events: &mut Vec<HttpWorkerEvent>, budget: NonZeroUsize) -> PendingDrain {
+        self.worker.drain_events(events, budget)
+    }
+
+    pub(crate) fn has_pending(&self) -> bool {
+        self.worker.has_pending() || self.completion.is_drained()
     }
 
     pub(crate) fn stop(&mut self) {
-        let _ = self.command_tx.send(HttpWorkerCommand::Stop);
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
+        self.worker.cancel();
+        if let Some(previous) = &self.predecessor {
+            previous.wake();
         }
+    }
+
+    pub(super) fn finish_admission(&mut self) {
+        self.worker.finish_admission();
+    }
+
+    pub(super) fn completion_fence(&self) -> GenerationFence {
+        self.completion.clone()
+    }
+
+    pub(super) fn requests_drained(&self) -> bool {
+        self.completion.is_drained()
     }
 }
 
@@ -130,80 +256,181 @@ impl Drop for HttpTransportHandle {
     }
 }
 
-enum HttpWorkerCommand {
-    Send(Box<HttpQueuedRequest>),
-    Stop,
+#[derive(Default)]
+pub(super) struct AttemptProgress {
+    pub attempts: u32,
 }
 
 fn worker_loop(
-    client: Client,
     config: HttpTransportConfig,
-    command_rx: Receiver<HttpWorkerCommand>,
-    event_tx: Sender<HttpWorkerEvent>,
+    context: WorkerContext<HttpQueuedRequest, HttpWorkerEvent>,
+    predecessor_ready: bool,
+    complete: &mut generation::CompletionGuard,
+    mut execute: Box<HttpExecutor>,
+    retirement_hook: Option<Box<dyn FnOnce() + Send>>,
 ) {
-    while let Ok(command) = command_rx.recv() {
-        match command {
-            HttpWorkerCommand::Send(request) => {
-                if send_worker_event(&event_tx, execute_with_retries(&client, &config, *request)) {
-                    continue;
-                }
-                break;
+    if context.cancellation().is_cancelled() {
+        return;
+    }
+    // Client construction, blocking request I/O, and client/runtime destruction stay here.
+    let mut unavailable =
+        (!predecessor_ready).then(|| "previous HTTP generation ended before resolving its requests".to_string());
+    let client = if unavailable.is_none() {
+        match Client::builder()
+            .timeout(config.timeout)
+            .connect_timeout(config.timeout.min(Duration::from_secs(10)))
+            .build()
+        {
+            Ok(client) => Some(client),
+            Err(error) => {
+                unavailable = Some(format!("failed to build HTTP client: {error}"));
+                None
             }
-            HttpWorkerCommand::Stop => break,
+        }
+    } else {
+        None
+    };
+    if unavailable.is_some() {
+        context.close_command_admission();
+    }
+    while let Some(request) = context.receive() {
+        let event = if let Some(error) = &unavailable {
+            Some(failed_request(request, error.clone(), 0))
+        } else {
+            let mut progress = AttemptProgress::default();
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                execute(
+                    client.as_ref().expect("available HTTP client"),
+                    &config,
+                    &request,
+                    context.cancellation(),
+                    &mut progress,
+                )
+            })) {
+                Ok(result) => {
+                    drop(request);
+                    result
+                }
+                Err(_) => {
+                    let error =
+                        "HTTP request worker failed; earlier attempts may have reached the endpoint".to_string();
+                    unavailable = Some(
+                        "HTTP worker unavailable after an earlier request failed; this request was not sent".into(),
+                    );
+                    context.close_command_admission();
+                    Some(failed_request(request, error, progress.attempts))
+                }
+            }
+        };
+        let Some(mut event) = event else { return };
+        if let HttpWorkerEvent::Failure(failure) = &mut event {
+            // A diagnostic may quote a large admitted URL. Keep the failure reply smaller
+            // than the request budget so reporting an error cannot strand later commands.
+            let mut end = failure.error.len().min(4096);
+            while !failure.error.is_char_boundary(end) {
+                end -= 1;
+            }
+            failure.error.truncate(end);
+            failure.error.shrink_to_fit();
+            failure.callback_args = super::callbacks::prepare_failure_callback(failure);
+        }
+        let weight = match weights::event_weight(&event) {
+            Ok(weight) if weight <= HTTP_EVENT_BYTES => weight,
+            _ => {
+                let (origin, request, attempts) = match event {
+                    HttpWorkerEvent::Response(response) => (response.origin, response.request, response.attempts),
+                    HttpWorkerEvent::Failure(failure) => (failure.origin, failure.request, failure.attempts),
+                };
+                event = HttpWorkerEvent::Failure(HttpFailure {
+                    origin,
+                    request,
+                    attempts,
+                    error: "HTTP response exceeds retained payload or JSON complexity limits".into(),
+                    callback_args: Vec::new(),
+                });
+                if let HttpWorkerEvent::Failure(failure) = &mut event {
+                    failure.callback_args = super::callbacks::prepare_failure_callback(failure);
+                }
+                weights::event_weight(&event).expect("admitted request fits in a failure reply")
+            }
+        };
+        if context.publish_weighted(event, weight).is_err() {
+            return;
+        }
+    }
+    if !context.cancellation().is_cancelled() {
+        complete.drained();
+        if let Some(retire) = retirement_hook {
+            retire();
         }
     }
 }
 
-fn send_worker_event(
-    event_tx: &Sender<HttpWorkerEvent>,
-    event: HttpWorkerEvent,
-) -> bool {
-    event_tx.send(event).is_ok()
+fn failed_request(request: HttpQueuedRequest, error: String, attempts: u32) -> HttpWorkerEvent {
+    HttpWorkerEvent::Failure(HttpFailure {
+        origin: request.origin,
+        request: request.payload,
+        error,
+        attempts,
+        callback_args: Vec::new(),
+    })
 }
 
 fn execute_with_retries(
     client: &Client,
     config: &HttpTransportConfig,
-    request: HttpQueuedRequest,
-) -> HttpWorkerEvent {
+    request: &HttpQueuedRequest,
+    cancellation: &WorkerCancellation,
+    progress: &mut AttemptProgress,
+) -> Option<HttpWorkerEvent> {
     let max_attempts = config.retry_count.saturating_add(1).max(1);
     let started_at = Instant::now();
     let mut attempts = 0;
     let mut last_error = None;
 
     while attempts < max_attempts {
+        if cancellation.is_cancelled() {
+            return None;
+        }
         attempts += 1;
-        match execute_once(client, config, &request, started_at, attempts) {
+        progress.attempts = attempts;
+        match execute_once(client, config, request, started_at, attempts) {
             Ok(response) if should_retry_status(response.status) && attempts < max_attempts => {
                 last_error = Some(format!(
                     "HTTP {} returned status {}",
                     response.request.method.label(),
                     response.status
                 ));
-                sleep_before_retry(config, attempts);
+                if wait_before_retry(config, attempts, cancellation) {
+                    return None;
+                }
             }
-            Ok(response) => return HttpWorkerEvent::Response(response),
+            Ok(response) => return Some(HttpWorkerEvent::Response(response)),
             Err(error) if attempts < max_attempts => {
                 last_error = Some(error);
-                sleep_before_retry(config, attempts);
+                if wait_before_retry(config, attempts, cancellation) {
+                    return None;
+                }
             }
             Err(error) => {
-                return HttpWorkerEvent::Failure(HttpFailure {
-                    origin: request.origin,
-                    request: request.payload,
+                return Some(HttpWorkerEvent::Failure(HttpFailure {
+                    origin: request.origin.clone(),
+                    request: request.payload.clone(),
                     error,
                     attempts,
-                });
+                    callback_args: Vec::new(),
+                }));
             }
         }
     }
 
-    HttpWorkerEvent::Failure(HttpFailure {
-        origin: request.origin,
-        request: request.payload,
+    Some(HttpWorkerEvent::Failure(HttpFailure {
+        origin: request.origin.clone(),
+        request: request.payload.clone(),
         error: last_error.unwrap_or_else(|| "HTTP request failed without a response".to_string()),
         attempts,
-    })
+        callback_args: Vec::new(),
+    }))
 }
 
 fn execute_once(
@@ -239,10 +466,26 @@ fn execute_once(
         .get(CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
-    let body = response
-        .bytes()
-        .map_err(|error| format!("failed to read HTTP response from {url_text}: {error}"))?
-        .to_vec();
+    if response
+        .content_length()
+        .is_some_and(|length| length > HTTP_RESPONSE_BODY_BYTES as u64)
+    {
+        return Err(format!(
+            "HTTP response from {url_text} exceeds the {}-byte body limit",
+            HTTP_RESPONSE_BODY_BYTES
+        ));
+    }
+    let mut body = Vec::new();
+    response
+        .take(HTTP_RESPONSE_BODY_BYTES as u64 + 1)
+        .read_to_end(&mut body)
+        .map_err(|error| format!("failed to read HTTP response from {url_text}: {error}"))?;
+    if body.len() > HTTP_RESPONSE_BODY_BYTES {
+        return Err(format!(
+            "HTTP response from {url_text} exceeds the {}-byte body limit",
+            HTTP_RESPONSE_BODY_BYTES
+        ));
+    }
 
     let received_values = response_json_received_values(
         body.as_slice(),
@@ -251,7 +494,7 @@ fn execute_once(
         request.payload.value_path.as_str(),
     );
 
-    Ok(HttpResponse {
+    let mut response = HttpResponse {
         origin: request.origin.clone(),
         request: request.payload.clone(),
         url: url_text,
@@ -263,12 +506,15 @@ fn execute_once(
         received_values,
         elapsed_ms: started_at.elapsed().as_millis(),
         attempts,
-    })
+        callback_args: Vec::new(),
+    };
+    response.callback_args = super::callbacks::prepare_response_callback(&response);
+    Ok(response)
 }
 
 fn resolve_request_url(base_address: &str, path: &str, query: &str) -> Result<Url, String> {
-    let base = Url::parse(base_address)
-        .map_err(|error| format!("invalid HTTP base address '{base_address}': {error}"))?;
+    let base =
+        Url::parse(base_address).map_err(|error| format!("invalid HTTP base address '{base_address}': {error}"))?;
     let path = path.trim();
     if path.contains("://") || path.starts_with("//") {
         return Err("HTTP request paths must be relative to the module Base address".to_string());
@@ -295,10 +541,7 @@ fn append_query(url: &mut Url, query: &str) {
     url.set_query(Some(merged.as_str()));
 }
 
-fn apply_headers(
-    mut builder: RequestBuilder,
-    headers: &[HttpHeader],
-) -> Result<RequestBuilder, String> {
+fn apply_headers(mut builder: RequestBuilder, headers: &[HttpHeader]) -> Result<RequestBuilder, String> {
     for header in headers {
         let name = HeaderName::from_bytes(header.name.as_bytes())
             .map_err(|error| format!("invalid HTTP header name '{}': {error}", header.name))?;
@@ -309,10 +552,7 @@ fn apply_headers(
     Ok(builder)
 }
 
-fn apply_auth(
-    builder: RequestBuilder,
-    auth: &HttpAuthConfig,
-) -> Result<RequestBuilder, String> {
+fn apply_auth(builder: RequestBuilder, auth: &HttpAuthConfig) -> Result<RequestBuilder, String> {
     match auth.mode {
         HttpAuthMode::None => Ok(builder),
         HttpAuthMode::Basic => {
@@ -343,10 +583,7 @@ fn apply_auth(
     }
 }
 
-fn apply_body(
-    builder: RequestBuilder,
-    body: &HttpRequestBody,
-) -> Result<RequestBuilder, String> {
+fn apply_body(builder: RequestBuilder, body: &HttpRequestBody) -> Result<RequestBuilder, String> {
     match body {
         HttpRequestBody::Empty => Ok(builder),
         HttpRequestBody::Text { text, content_type } => {
@@ -408,23 +645,10 @@ fn should_retry_status(status: u16) -> bool {
         return false;
     };
 
-    status == StatusCode::REQUEST_TIMEOUT
-        || status == StatusCode::TOO_MANY_REQUESTS
-        || status.is_server_error()
+    status == StatusCode::REQUEST_TIMEOUT || status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
 }
 
-fn sleep_before_retry(config: &HttpTransportConfig, completed_attempts: u32) {
-    if config.retry_delay.is_zero() {
-        return;
-    }
+fn wait_before_retry(config: &HttpTransportConfig, completed_attempts: u32, cancellation: &WorkerCancellation) -> bool {
     let multiplier = completed_attempts.max(1);
-    thread::sleep(config.retry_delay.saturating_mul(multiplier));
-}
-
-fn http_thread_name(base_address: &str) -> String {
-    let suffix = base_address
-        .chars()
-        .map(|character| if character.is_ascii_alphanumeric() { character } else { '-' })
-        .collect::<String>();
-    format!("http-{suffix}")
+    cancellation.wait(config.retry_delay.saturating_mul(multiplier))
 }

@@ -66,6 +66,13 @@ impl<T: Node> Engine<T> {
                 format!("EndEditSession client_edit_id={client_edit_id}")
             }
             Edit::SetParam { node, .. } => format!("SetParam target={}", self.describe_node(*node)),
+            Edit::SetParamControlState { node, state } => {
+                format!(
+                    "SetParamControlState target={} mode={:?}",
+                    self.describe_node(*node),
+                    state.mode
+                )
+            }
             Edit::SetParamConstraints { node, .. } => {
                 format!("SetParamConstraints target={}", self.describe_node(*node))
             }
