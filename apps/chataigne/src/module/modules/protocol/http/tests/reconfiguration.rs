@@ -222,7 +222,7 @@ fn http_invalid_settings_reject_new_admission_without_discarding_old_completions
         .transports
         .configure_using(config("http://127.0.0.1/".into()), |config, pool, previous| {
             super::super::transport::HttpTransportHandle::spawn_using(config, pool, previous, |_, _, next, _, _| {
-                Some(super::super::transport::HttpWorkerEvent::Response(test_response(
+                Some(super::super::transport::HttpOutcome::Response(test_response(
                     &next.payload.path,
                     None,
                     Vec::new(),

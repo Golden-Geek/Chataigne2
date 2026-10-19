@@ -38,48 +38,38 @@ pub(super) fn prepare_response_callback(response: &HttpResponse) -> Vec<serde_js
     vec![serde_json::json!(response.status), body_arg, response_arg]
 }
 
-impl HttpModule {
-    pub(super) fn response_received_callback(&self, response: HttpResponse) -> CustomEvent {
-        crate::app::module::script_api::script_callback_event(
-            self.id(),
-            HTTP_RESPONSE_RECEIVED_CALLBACK,
-            response.callback_args,
-        )
-    }
-
-    pub(super) fn request_failed_callback(&self, failure: HttpFailure) -> CustomEvent {
-        crate::app::module::script_api::script_callback_event(
-            self.id(),
-            HTTP_REQUEST_FAILED_CALLBACK,
-            failure.callback_args,
-        )
-    }
+pub(super) fn prepare_failure_callback(failure: &HttpFailure) -> Vec<serde_json::Value> {
+    prepare_failure_args(&failure.origin, &failure.request, failure.attempts, &failure.error)
 }
 
-pub(super) fn prepare_failure_callback(failure: &HttpFailure) -> Vec<serde_json::Value> {
+pub(super) const APPLICATION_FAILURE: &str = "HTTP response received, but queued value edits did not complete; an applied prefix may remain. The request was sent and is not retried.";
+
+pub(super) fn prepare_application_failure_callback(response: &HttpResponse) -> Vec<serde_json::Value> {
+    prepare_failure_args(
+        &response.origin,
+        &response.request,
+        response.attempts,
+        APPLICATION_FAILURE,
+    )
+}
+
+fn prepare_failure_args(
+    origin: &HttpRequestOrigin,
+    request: &HttpRequestPayload,
+    attempts: u32,
+    error: &str,
+) -> Vec<serde_json::Value> {
     let failure_arg = serde_json::json!({
-        "method": failure.request.method.label(),
-        "path": failure.request.path.as_str(),
-        "query": failure.request.query.as_str(),
-        "valuePath": failure.request.value_path.as_str(),
-        "error": failure.error.as_str(),
-        "attempts": failure.attempts,
-        "source": origin_script_arg(&failure.origin),
+        "method": request.method.label(),
+        "path": request.path.as_str(),
+        "query": request.query.as_str(),
+        "valuePath": request.value_path.as_str(),
+        "error": error,
+        "attempts": attempts,
+        "source": origin_script_arg(origin),
     });
 
-    vec![serde_json::json!(failure.error.as_str()), failure_arg]
-}
-
-pub(super) fn response_application_failure(response: HttpResponse) -> HttpFailure {
-    let mut failure = HttpFailure {
-        origin: response.origin,
-        request: response.request,
-        attempts: response.attempts,
-        error: "HTTP response received, but queued value edits did not complete; an applied prefix may remain. The request was sent and is not retried.".into(),
-        callback_args: Vec::new(),
-    };
-    failure.callback_args = prepare_failure_callback(&failure);
-    failure
+    vec![serde_json::json!(error), failure_arg]
 }
 
 fn headers_script_arg(headers: &[HttpHeader]) -> serde_json::Value {

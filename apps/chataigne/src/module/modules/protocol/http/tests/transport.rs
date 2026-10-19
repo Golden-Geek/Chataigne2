@@ -162,7 +162,7 @@ fn declared_and_streamed_oversized_responses_fail_then_the_next_request_succeeds
         let events = collect(&handle, 2);
         assert!(matches!(&events[0], HttpWorkerEvent::Failure(failure) if failure.error.contains("body limit")));
         assert!(
-            matches!(&events[1], HttpWorkerEvent::Response(response) if response.body == b"ok" && response.callback_args[1] == "ok")
+            matches!(&events[1], HttpWorkerEvent::Response(response) if response.body == b"ok" && response.response_callback(golden_core::node::NodeId(1)).payload["args"][1] == "ok")
         );
         handle.stop();
         server.join().unwrap();

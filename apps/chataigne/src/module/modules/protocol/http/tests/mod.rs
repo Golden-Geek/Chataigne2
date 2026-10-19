@@ -343,7 +343,7 @@ fn rick_and_morty_like_response() -> Vec<u8> {
 }
 
 fn test_response(path: &str, content_type: Option<&str>, body: Vec<u8>) -> HttpResponse {
-    let mut response = HttpResponse {
+    let response = HttpResponse {
         origin: HttpRequestOrigin::Script {
             method: "get".to_string(),
         },
@@ -370,9 +370,7 @@ fn test_response(path: &str, content_type: Option<&str>, body: Vec<u8>) -> HttpR
         ),
         elapsed_ms: 1,
         attempts: 1,
-        callback_args: Vec::new(),
     };
-    response.callback_args = super::callbacks::prepare_response_callback(&response);
     response
 }
 

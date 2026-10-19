@@ -30,11 +30,13 @@ use crate::app::module::common::{
 
 use self::transport::{
     HttpFailure, HttpQueuedRequest, HttpRequestOrigin, HttpResponse, HttpTransportConfig, HttpWorkerEvent,
+    PreparedHttpResponse,
 };
 use lifecycle::HttpTransports;
-use response_service::PendingHttpEvent;
+use response_service::{HttpCallbackDelivery, PendingHttpEvent};
 
 const HTTP_MODULE_UPDATE_RATE_HZ: u32 = 120;
+const HTTP_RESULT_WARNING_ID: &str = "http_result_admission";
 const HTTP_BASE_WARNING_ID: &str = "http_base_address";
 const HTTP_AUTH_DECL_ID: &str = "auth";
 const HTTP_RESPONSE_RECEIVED_CALLBACK: &str = "responseReceived";
@@ -164,6 +166,11 @@ impl HttpModule {
 
     #[cfg(test)]
     pub(crate) fn enqueue_response_for_test(&mut self, response: HttpResponse) {
+        let HttpWorkerEvent::Response(response) =
+            transport::prepared::prepare(transport::HttpOutcome::Response(response))
+        else {
+            panic!("test response must fit native result admission")
+        };
         self.enqueue_pending_response(response);
     }
 
@@ -291,24 +298,28 @@ impl HttpModule {
                 HttpWorkerEvent::Failure(failure) => {
                     self.pending_events.push_back(PendingHttpEvent::Failure(failure));
                 }
+                HttpWorkerEvent::Rejected(rejection) => {
+                    self.pending_events
+                        .push_back(PendingHttpEvent::Rejected(rejection.into()));
+                }
             }
         }
 
-        if poll.active_failed {
-            logerror!("HTTP worker stopped unexpectedly; restarting.");
-            self.set_base_warning(ctx, "HTTP worker stopped unexpectedly. Restarting.");
+        if poll.active_ended {
+            logerror!("HTTP worker ended; restarting.");
+            self.set_base_warning(ctx, "HTTP worker ended. Restarting.");
             self.base.set_connected(ctx, false);
             self.transport_dirty = true;
             self.retry_at = Some(self.reconnect_backoff.schedule(Instant::now()));
         }
     }
 
-    fn enqueue_pending_response(&mut self, response: HttpResponse) {
+    fn enqueue_pending_response(&mut self, response: PreparedHttpResponse) {
         if let Err(error) = &response.received_values {
             logerror!(
                 "Failed to parse HTTP response from '{}': {}",
                 diagnostic_url(&response.url),
-                error
+                diagnostic_url(error)
             );
         }
         assert!(
@@ -321,13 +332,20 @@ impl HttpModule {
 
     fn service_pending_events(&mut self, ctx: &mut ProcessCtx, snapshot: Option<&ProcessTreeSnapshot>) {
         let values_id = self.base.values_id();
+        let module = self.id();
         let progress = match self.pending_events.front_mut() {
             Some(PendingHttpEvent::Response(response, cursor)) => {
                 cursor.service(response.messages(), ctx, snapshot, values_id, self.auto_add.get(), true)
             }
             Some(PendingHttpEvent::Failure(_)) => ReceivedValueProgress::Complete,
+            Some(PendingHttpEvent::Rejected(delivery)) => {
+                if delivery.service(ctx, module) {
+                    self.pending_events.pop_front();
+                }
+                return;
+            }
             Some(PendingHttpEvent::Callback(delivery)) => {
-                if delivery.service(ctx) {
+                if delivery.service(ctx, module) {
                     self.pending_events.pop_front();
                 }
                 return;
@@ -335,21 +353,28 @@ impl HttpModule {
             None => return,
         };
         if progress != ReceivedValueProgress::Pending {
+            let clear_warning = self
+                .node_data()
+                .meta
+                .presentation
+                .warning(Some(HTTP_RESULT_WARNING_ID))
+                .is_some();
             let event = match self.pending_events.pop_front().expect("completed HTTP event") {
                 PendingHttpEvent::Response(response, _) if progress == ReceivedValueProgress::Failed => {
-                    let failure = callbacks::response_application_failure(response);
-                    logerror!("HTTP response application failed: {}", failure.error);
-                    self.request_failed_callback(failure)
+                    logerror!("HTTP response application failed: {}", callbacks::APPLICATION_FAILURE);
+                    response.application_failure_callback(self.id())
                 }
-                PendingHttpEvent::Response(response, _) => self.response_received_callback(response),
+                PendingHttpEvent::Response(response, _) => response.response_callback(self.id()),
                 PendingHttpEvent::Failure(failure) => {
                     logerror!("HTTP request failed: {}", failure.error);
-                    self.request_failed_callback(failure)
+                    failure.callback(self.id())
                 }
-                PendingHttpEvent::Callback(_) => unreachable!("delivery serviced above"),
+                PendingHttpEvent::Callback(_) | PendingHttpEvent::Rejected(_) => {
+                    unreachable!("delivery serviced above")
+                }
             };
-            let mut delivery = crate::app::module::script_api::CallbackDelivery::new(event);
-            delivery.service(ctx);
+            let mut delivery = HttpCallbackDelivery::new(event, clear_warning);
+            delivery.service(ctx, module);
             self.pending_events.push_front(PendingHttpEvent::Callback(delivery));
         }
     }
@@ -561,7 +586,9 @@ impl Node for HttpModule {
         self.transport_refresh_due()
             || match self.pending_events.front() {
                 Some(PendingHttpEvent::Response(response, cursor)) => cursor.requires_snapshot(response.messages()),
-                Some(PendingHttpEvent::Failure(_) | PendingHttpEvent::Callback(_)) => false,
+                Some(PendingHttpEvent::Failure(_) | PendingHttpEvent::Callback(_) | PendingHttpEvent::Rejected(_)) => {
+                    false
+                }
                 None => self.transports.has_pending(),
             }
     }

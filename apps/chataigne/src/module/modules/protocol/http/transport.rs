@@ -17,6 +17,8 @@ use golden_io::{
 };
 
 mod generation;
+pub(super) mod prepared;
+pub(super) use prepared::{HttpResultRejection, HttpWorkerEvent, PreparedHttpFailure, PreparedHttpResponse};
 mod weights;
 pub(super) use generation::GenerationFence;
 
@@ -76,7 +78,6 @@ pub(crate) struct HttpResponse {
     pub received_values: Result<Option<Vec<ReceivedValueMessage>>, String>,
     pub elapsed_ms: u128,
     pub attempts: u32,
-    pub callback_args: Vec<serde_json::Value>,
 }
 
 impl HttpResponse {
@@ -95,11 +96,10 @@ pub(crate) struct HttpFailure {
     pub request: HttpRequestPayload,
     pub error: String,
     pub attempts: u32,
-    pub callback_args: Vec<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum HttpWorkerEvent {
+pub(crate) enum HttpOutcome {
     Response(HttpResponse),
     Failure(HttpFailure),
 }
@@ -116,7 +116,7 @@ type HttpExecutor = dyn FnMut(
         &HttpQueuedRequest,
         &WorkerCancellation,
         &mut AttemptProgress,
-    ) -> Option<HttpWorkerEvent>
+    ) -> Option<HttpOutcome>
     + Send;
 
 impl HttpTransportHandle {
@@ -154,7 +154,7 @@ impl HttpTransportHandle {
                 &HttpQueuedRequest,
                 &WorkerCancellation,
                 &mut AttemptProgress,
-            ) -> Option<HttpWorkerEvent>
+            ) -> Option<HttpOutcome>
             + Send
             + 'static,
     {
@@ -176,7 +176,7 @@ impl HttpTransportHandle {
                 &HttpQueuedRequest,
                 &WorkerCancellation,
                 &mut AttemptProgress,
-            ) -> Option<HttpWorkerEvent>
+            ) -> Option<HttpOutcome>
             + Send
             + 'static,
         R: FnOnce() + Send + 'static,
@@ -214,7 +214,15 @@ impl HttpTransportHandle {
                 let ready = worker_predecessor
                     .as_ref()
                     .is_none_or(|previous| previous.wait(context.cancellation()));
-                worker_loop(config, context, ready, &mut complete, execute, retirement_hook);
+                worker_loop(
+                    config,
+                    context,
+                    ready,
+                    &mut complete,
+                    execute,
+                    retirement_hook,
+                    prepared::prepare,
+                );
             },
         )
         .map_err(|error| format!("failed to start HTTP worker: {error}"))?;
@@ -279,6 +287,7 @@ fn worker_loop(
     complete: &mut generation::CompletionGuard,
     mut execute: Box<HttpExecutor>,
     retirement_hook: Option<Box<dyn FnOnce() + Send>>,
+    mut prepare: impl FnMut(HttpOutcome) -> HttpWorkerEvent,
 ) {
     if context.cancellation().is_cancelled() {
         return;
@@ -333,38 +342,13 @@ fn worker_loop(
                 }
             }
         };
-        let Some(mut event) = event else { return };
-        if let HttpWorkerEvent::Failure(failure) = &mut event {
-            // A diagnostic may quote a large admitted URL. Keep the failure reply smaller
-            // than the request budget so reporting an error cannot strand later commands.
-            let mut end = failure.error.len().min(4096);
-            while !failure.error.is_char_boundary(end) {
-                end -= 1;
-            }
-            failure.error.truncate(end);
-            failure.error.shrink_to_fit();
-            failure.callback_args = super::callbacks::prepare_failure_callback(failure);
+        let Some(event) = event else { return };
+        let event = prepare(event);
+        if matches!(event, HttpWorkerEvent::Rejected(_)) {
+            unavailable = Some("HTTP result storage unavailable; this queued request was not sent".into());
+            context.close_command_admission();
         }
-        let weight = match weights::event_weight(&event) {
-            Ok(weight) if weight <= HTTP_EVENT_BYTES => weight,
-            _ => {
-                let (origin, request, attempts) = match event {
-                    HttpWorkerEvent::Response(response) => (response.origin, response.request, response.attempts),
-                    HttpWorkerEvent::Failure(failure) => (failure.origin, failure.request, failure.attempts),
-                };
-                event = HttpWorkerEvent::Failure(HttpFailure {
-                    origin,
-                    request,
-                    attempts,
-                    error: "HTTP response exceeds retained payload or JSON complexity limits".into(),
-                    callback_args: Vec::new(),
-                });
-                if let HttpWorkerEvent::Failure(failure) = &mut event {
-                    failure.callback_args = super::callbacks::prepare_failure_callback(failure);
-                }
-                weights::event_weight(&event).expect("admitted request fits in a failure reply")
-            }
-        };
+        let weight = event.retained_weight();
         if context.publish_weighted(event, weight).is_err() {
             return;
         }
@@ -377,13 +361,12 @@ fn worker_loop(
     }
 }
 
-fn failed_request(request: HttpQueuedRequest, error: String, attempts: u32) -> HttpWorkerEvent {
-    HttpWorkerEvent::Failure(HttpFailure {
+fn failed_request(request: HttpQueuedRequest, error: String, attempts: u32) -> HttpOutcome {
+    HttpOutcome::Failure(HttpFailure {
         origin: request.origin,
         request: request.payload,
         error,
         attempts,
-        callback_args: Vec::new(),
     })
 }
 
@@ -393,7 +376,7 @@ fn execute_with_retries(
     request: &HttpQueuedRequest,
     cancellation: &WorkerCancellation,
     progress: &mut AttemptProgress,
-) -> Option<HttpWorkerEvent> {
+) -> Option<HttpOutcome> {
     let max_attempts = config.retry_count.saturating_add(1).max(1);
     let started_at = Instant::now();
     let mut attempts = 0;
@@ -416,7 +399,7 @@ fn execute_with_retries(
                     return None;
                 }
             }
-            Ok(response) => return Some(HttpWorkerEvent::Response(response)),
+            Ok(response) => return Some(HttpOutcome::Response(response)),
             Err(error) if attempts < max_attempts => {
                 last_error = Some(error);
                 if wait_before_retry(config, attempts, cancellation) {
@@ -424,23 +407,21 @@ fn execute_with_retries(
                 }
             }
             Err(error) => {
-                return Some(HttpWorkerEvent::Failure(HttpFailure {
+                return Some(HttpOutcome::Failure(HttpFailure {
                     origin: request.origin.clone(),
                     request: request.payload.clone(),
                     error,
                     attempts,
-                    callback_args: Vec::new(),
                 }));
             }
         }
     }
 
-    Some(HttpWorkerEvent::Failure(HttpFailure {
+    Some(HttpOutcome::Failure(HttpFailure {
         origin: request.origin.clone(),
         request: request.payload.clone(),
         error: last_error.unwrap_or_else(|| "HTTP request failed without a response".to_string()),
         attempts,
-        callback_args: Vec::new(),
     }))
 }
 
@@ -505,7 +486,7 @@ fn execute_once(
         request.payload.value_path.as_str(),
     );
 
-    let mut response = HttpResponse {
+    let response = HttpResponse {
         origin: request.origin.clone(),
         request: request.payload.clone(),
         url: url_text,
@@ -517,9 +498,7 @@ fn execute_once(
         received_values,
         elapsed_ms: started_at.elapsed().as_millis(),
         attempts,
-        callback_args: Vec::new(),
     };
-    response.callback_args = super::callbacks::prepare_response_callback(&response);
     Ok(response)
 }
 

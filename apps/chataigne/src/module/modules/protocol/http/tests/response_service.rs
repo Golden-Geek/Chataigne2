@@ -1,6 +1,175 @@
 use super::*;
 
 #[test]
+fn http_result_warning_clear_survives_an_earlier_failure_before_callback_delivery() {
+    use golden_core::{edit::Edit, parameter::ParameterEventBehaviour, process_ctx::ProcessCtx};
+    let (mut engine, module_id) = create_http_module();
+    engine.set_node_warning_with(
+        module_id,
+        Some(super::super::HTTP_RESULT_WARNING_ID),
+        "old result rejection",
+        None,
+    );
+    engine.apply_edits().unwrap();
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+        panic!("HTTP")
+    };
+    module.enqueue_response_for_test(test_response("recovered", None, b"ok".to_vec()));
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    module.service_pending_events(&mut ctx, None);
+    engine.edits.push(Edit::SetParam {
+        node: NodeId(u64::MAX),
+        value: ParamValue::Int(1),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.absorb_edits(&mut ctx).unwrap();
+    assert!(engine.apply_edits().is_err());
+    assert!(callbacks(&engine).is_empty());
+    for _ in 0..4 {
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+        let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+            panic!("HTTP")
+        };
+        module.service_pending_events(&mut ctx, None);
+        engine.absorb_edits(&mut ctx).unwrap();
+        engine.apply_edits().unwrap();
+    }
+    assert_eq!(callbacks(&engine), ["responseReceived"]);
+    assert!(engine
+        .nodes
+        .get(module_id)
+        .unwrap()
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some(super::super::HTTP_RESULT_WARNING_ID))
+        .is_none());
+}
+
+#[test]
+fn http_result_warning_retries_only_its_unpublished_edit_after_an_earlier_failure() {
+    use golden_core::{edit::Edit, parameter::ParameterEventBehaviour, process_ctx::ProcessCtx};
+    let (mut engine, module_id) = create_http_module();
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+        panic!("HTTP")
+    };
+    module
+        .pending_events
+        .push_back(super::super::PendingHttpEvent::Rejected(
+            super::super::transport::HttpResultRejection {
+                description: "GET /capacity".into(),
+                command_id: None,
+                attempts: 1,
+                error: "injected result rejection".into(),
+            }
+            .into(),
+        ));
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    module.service_pending_events(&mut ctx, None);
+    engine.edits.push(Edit::SetParam {
+        node: NodeId(u64::MAX),
+        value: ParamValue::Int(1),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.absorb_edits(&mut ctx).unwrap();
+    assert!(engine.apply_edits().is_err());
+    assert!(engine
+        .nodes
+        .get(module_id)
+        .unwrap()
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some(super::super::HTTP_RESULT_WARNING_ID))
+        .is_none());
+    for _ in 0..2 {
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+        let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+            panic!("HTTP")
+        };
+        module.service_pending_events(&mut ctx, None);
+        engine.absorb_edits(&mut ctx).unwrap();
+        engine.apply_edits().unwrap();
+    }
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).unwrap() else {
+        panic!("HTTP")
+    };
+    assert!(module.pending_events.is_empty());
+    assert!(module
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some(super::super::HTTP_RESULT_WARNING_ID))
+        .is_some());
+    assert!(callbacks(&engine).is_empty());
+}
+
+#[test]
+fn http_result_rejection_is_visible_without_a_snapshot_and_clears_after_recovery() {
+    use golden_core::process_ctx::ProcessCtx;
+    let (mut engine, module_id) = create_http_module();
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+        panic!("HTTP")
+    };
+    module.transport_dirty = false;
+    module
+        .pending_events
+        .push_back(super::super::PendingHttpEvent::Rejected(
+            super::super::transport::HttpResultRejection {
+                description: "GET /capacity".into(),
+                command_id: None,
+                attempts: 1,
+                error: "result capacity exhausted".into(),
+            }
+            .into(),
+        ));
+    assert!(!module.update_requires_tree_snapshot());
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    module.service_pending_events(&mut ctx, None);
+    assert!(
+        !module.pending_events.is_empty(),
+        "warning publication must settle before advancing"
+    );
+    engine.absorb_edits(&mut ctx).unwrap();
+    engine.apply_edits().unwrap();
+    let warning = engine
+        .nodes
+        .get(module_id)
+        .unwrap()
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some(super::super::HTTP_RESULT_WARNING_ID))
+        .unwrap();
+    assert!(warning.message.contains("before value/callback delivery"));
+    assert!(warning.message.contains("attempts 1"));
+    assert!(callbacks(&engine).is_empty());
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+        panic!("HTTP")
+    };
+    module.enqueue_response_for_test(test_response("recovered", None, b"ok".to_vec()));
+    for _ in 0..4 {
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+        let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+            panic!("HTTP")
+        };
+        module.service_pending_events(&mut ctx, None);
+        engine.absorb_edits(&mut ctx).unwrap();
+        engine.apply_edits().unwrap();
+    }
+    assert_eq!(callbacks(&engine), ["responseReceived"]);
+    assert!(engine
+        .nodes
+        .get(module_id)
+        .unwrap()
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some(super::super::HTTP_RESULT_WARNING_ID))
+        .is_none());
+}
+
+#[test]
 fn http_rejected_graph_edits_report_failure_without_replaying_the_response() {
     use golden_core::{edit::Edit, process_ctx::ProcessCtx};
 
@@ -285,14 +454,17 @@ fn http_failure_completion_cannot_overtake_a_materializing_response() {
     let (mut engine, module_id) = create_http_module();
     enqueue_list(&mut engine, module_id, 1024);
     let response = test_response("later failure", None, Vec::new());
-    let mut failure = super::super::transport::HttpFailure {
+    let failure = super::super::transport::HttpFailure {
         origin: response.origin,
         request: response.request,
         error: "injected failure".into(),
         attempts: 1,
-        callback_args: Vec::new(),
     };
-    failure.callback_args = super::super::callbacks::prepare_failure_callback(&failure);
+    let super::super::transport::HttpWorkerEvent::Failure(failure) =
+        super::super::transport::prepared::prepare(super::super::transport::HttpOutcome::Failure(failure))
+    else {
+        panic!("test failure must be admitted")
+    };
     let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
         panic!("HTTP module")
     };

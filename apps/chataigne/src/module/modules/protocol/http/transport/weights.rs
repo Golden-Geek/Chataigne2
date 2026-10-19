@@ -6,34 +6,29 @@ pub(super) fn request_weight(request: &HttpQueuedRequest) -> Result<usize, Strin
     Ok(size_of::<HttpQueuedRequest>() + payload_weight(&request.payload)? + origin_weight(&request.origin))
 }
 
-pub(super) fn event_weight(event: &HttpWorkerEvent) -> Result<usize, String> {
+pub(super) fn event_weight(event: &HttpOutcome) -> Result<usize, String> {
     let (origin, payload) = match event {
-        HttpWorkerEvent::Response(response) => (&response.origin, &response.request),
-        HttpWorkerEvent::Failure(failure) => (&failure.origin, &failure.request),
+        HttpOutcome::Response(response) => (&response.origin, &response.request),
+        HttpOutcome::Failure(failure) => (&failure.origin, &failure.request),
     };
     // Requests were bounded at admission. Borrow their metadata without cloning large bodies.
-    let mut weight = payload_weight(payload)? + origin_weight(origin) + size_of::<HttpWorkerEvent>();
+    let mut weight = payload_weight(payload)? + origin_weight(origin) + size_of::<HttpOutcome>();
     match event {
-        HttpWorkerEvent::Failure(failure) => {
+        HttpOutcome::Failure(failure) => {
             weight += failure.error.capacity();
-            for arg in &failure.callback_args {
-                weight = weight.saturating_add(json_weight(arg)?);
-            }
         }
-        HttpWorkerEvent::Response(response) => {
+        HttpOutcome::Response(response) => {
             weight += response.body.capacity()
                 + response.url.capacity()
                 + response.status_text.capacity()
                 + headers_weight(&response.headers)
                 + response.content_type.as_ref().map_or(0, String::capacity);
+            weight += response.received_values.as_ref().err().map_or(0, String::capacity);
             if let Ok(Some(values)) = &response.received_values {
                 weight += values.capacity() * size_of::<ReceivedValueMessage>();
                 for value in values {
                     weight = weight.saturating_add(value.retained_weight());
                 }
-            }
-            for arg in &response.callback_args {
-                weight = weight.saturating_add(json_weight(arg)?);
             }
         }
     }

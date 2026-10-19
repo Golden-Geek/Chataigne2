@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `3166e805` plus the verified P03 batch 17 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `8c2c5ff8` plus the verified P03 batch 18 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 17 callback JSON lifetime admission across event routing/replay
+- Current batch: P03 batch 18 retained HTTP response/callback ownership and result-capacity outcomes
   verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 17 callback lifetime admission delivered in `8c2c5ff8`.
   Batch 16 worker input/generation isolation delivered in `3166e805`.
   Batch 15 native ownership and disabled completion service delivered in `1663106e`.
   Batch 14 was delivered in `0196c0f8`; batch 13 in `df0c7876`; batch 12 in `a617d313`. Separately committed
@@ -24,14 +25,16 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `3166e805`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `8c2c5ff8`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: integrate HTTP's
-  response/callback envelope with the app's native callback lifetime boundary. TCP/UDP callback JSON
-  reservation now follows routing/replay/exported event copies and passes owning checks. TCP input
+- Next implementation action: replace HTTP's
+  periodic owner service with passive worker/deadline wakeups and preserve disabled completions.
+  HTTP response/callback envelopes now have worker-prepared retained lifetimes and explicit result
+  rejection/receipt recovery. TCP/UDP callback JSON reservation follows routing/replay/exported event
+  copies. TCP input
   parsing/preparation, grammar/connection-generation fencing, and connection-folder warning ownership
   remain verified. Preserve native cursors,
   applied-snapshot admission, passive receipt delivery, retirement, and disabled completions.
@@ -63,7 +66,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-17 | TCP/UDP callback event lifetime verified; HTTP integration and broader module/generator audit open                        |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-18 | HTTP retained results/callbacks verified; HTTP passive service and broader module/generator audit open                    |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2125,3 +2128,90 @@ audio. Physical-device, other-platform, UI/native-interaction, and full-product 
 remain separate. Commit and push this verified milestone on `main`, then integrate HTTP callback
 and retained envelope ownership. P03 remains **IN_PROGRESS**; P04-P18 retain their states, including
 the previously recorded P12 incremental-link artifact issue.
+
+### P03 batch 18: retained HTTP result ownership
+
+Resumed clean delivered `8c2c5ff866674b214670c96ee7b3a2120a01c52e` on `main`; previous turn:
+**progress**, no owned jobs live. App HTTP owns response parsing, callback shape, and result policy;
+Golden IO supplies retained immutable lifetimes. HTTP replies currently transfer body/parsed-value
+containers and callback args to the owner. This batch retains their final cleanup off the actor,
+prepares normal and graph-application-failure callbacks on the worker, and reserves callback JSON
+through the canonical native callback pool. Result-admission exhaustion must produce an explicit
+bounded rejection, never unbudgeted callback JSON or an automatic resend; close native admission
+and report each remaining queued request without sending it. Requested **XHigh; actual effort
+unchanged/unobservable**, with no supported control exposed. Broader P03 audits remain open.
+
+HTTP now separates native `HttpOutcome` from typed retained owner replies. Bodies, request metadata,
+and parsed values use a **256-allocation / 256 MiB** HTTP pool; normal, failure, and graph-application-
+failure callback JSON is prepared/reserved on the worker through the existing native callback pool.
+Owner selection/binding is shallow; raw callback argument vectors and owner-built failure payloads
+were removed. Cached reply weights include callback reservations, container capacities, and parse
+error storage. Ordinary HTTP response/JSON bounds still produce a prepared failure callback.
+Result/callback resource exhaustion instead returns bounded identity/attempt feedback, closes native
+command admission, and resolves the accepted suffix without further endpoint sends or unbudgeted
+callback payloads. Owner warning service needs no snapshot and clears its result warning on recovery.
+
+The first test-compilation check failed on fixture visibility and the new rejection's snapshot
+match arm; both were corrected. `cargo check --locked -p Chataigne2 --tests` then **passed in
+22.80s**. A final small owning pass renamed lifecycle feedback from failed to ended, since result
+pressure can intentionally end a generation, and bounded parse-error log detail. Six retained/native
+tests plus a node warning/recovery regression were added. The first settled HTTP test job is live;
+no final pass is claimed yet. HTTP's existing periodic owner service remains a following P03 audit,
+alongside TCP server/WebSocket/serial, Sound Card/channels, and generator time accounting.
+
+The first settled HTTP run passed **39/43**; four failures were retained as evidence. One receipt
+regression found that unconditional warning clearing inserted a second edit in a callback-only turn.
+The large lifetime fixture retained all **257** completion envelopes in its collector, exhausting
+the **256** global result slots and causing collateral parallel fixture rejections. The owning
+fixture now consumes four-result batches and retains only path evidence; the production limit was
+not enlarged. Warning clearing now checks committed metadata, and rejected-result warnings keep
+their own application receipt before advancing (retrying only unpublished warning edits). The
+second HTTP run is live against this correction; no final pass is assumed.
+
+The corrected HTTP run **passed 43/43** in **0.23s** after **1m47s** compilation, including the
+bounded collector, original callback-only receipt contract, graph failure preservation, and native
+rejection/queued-suffix checks. Two focused tests were then added for warning publication discarded
+by an earlier failed edit and for alternate-callback admission failing after normal callback
+preparation; runtime behavior is unchanged by that addition. The final HTTP run, IO contract suite,
+and strict IO/app Clippy are live/queued against settled source. No whole-suite/native success is
+assumed yet. HTTP warning delivery retries only an unpublished warning and never emits a callback
+outside its reservation or reissues a native request.
+
+The **45/45** HTTP run passed in **0.23s** after **1m32s** compilation. Strict IO/app Clippy also
+passed (**56.50s**, including queue wait), and IO passed **38/38**. A final queue-ordering review
+then identified that warning clearing also needed an independent receipt: an earlier rejected edit
+could otherwise discard the clear while a later callback retry succeeded. HTTP callback delivery
+now waits for an observed clear only when a result warning exists; ordinary callback-only turns
+keep their original shape. A focused earlier-failure/clear/callback regression was added, and the
+**46-test** HTTP rerun is live. The prior passes precede that final runtime correction and are
+not relabelled as final-source evidence. Full preservation/lint/workspace/native checks remain.
+
+Final settled HTTP source passed **46/46** in **0.24s** after **1m55s** compilation. The strict
+IO/app Clippy rerun passed in **1m10s**, including queue wait. IO's **38/38** pass is against unchanged
+IO source in this batch, and supplies final-claim/Arc/disposer/retirement contract evidence. Focused
+HTTP lifetime/generation/publication work is verified: **return to High requested; actual effort
+unchanged/unobservable** with no supported control exposed. The broader preservation filters and
+workspace/test check are live; default native build and delivery remain. Explicit source inventory
+is **1618 files / 42 oversized** (same Rust/TS/Svelte/JS/MJS scope); no new exception is introduced.
+
+Final preservation filters passed script API **8**, concrete streams **77**, shared streams **45**,
+Sound Card **35** plus null product evidence **1**, OSC **25**, and initial Formula cache **1**.
+With final HTTP **46**, their compiled-name sets contain **238 distinct passing app tests**; IO
+adds **38**, for **276 current IO/app passes**. Earlier overlapping HTTP runs are not added again.
+`cargo check --locked --workspace --tests` passed in **18.89s**. Root/Core Cargo formatting,
+explicit owning app Rustfmt, maintained-doc Prettier, and whitespace checks pass. Runtime source
+is settled; the default native build is live. HTTP's passive owner conversion remains the next
+P03 boundary before the broader transport/module/channel/generator audit.
+
+The default `cargo build --locked -p Chataigne2 --bin Chataigne2` **PASSED in 1m36s**. All owned
+jobs are terminal; no artifact cleanup or compiler flag changes were needed this batch. Final
+root/Core Cargo formatting, explicit HTTP-module Rustfmt, maintained-doc Prettier and whitespace
+checks pass. Milestone evidence: **276 distinct IO/app tests** (238 app + 38 IO), final strict
+IO/app Clippy, workspace/test compilation, and default native build. Earlier failures and
+intermediate passes remain labelled above. Inventory remains **1618 / 42 oversized**; the HTTP
+node is **891** lines, response service **123**, prepared results **238**, and their native tests
+**246**, with no new size exception. No wire shape, persistence schema, dependency, or UI source
+changed. Checks used Windows/default features, controlled HTTP/stream loopbacks, missing-serial
+fixtures, and null audio. They do not qualify physical devices, other platforms, full-product
+scale, or UI/native interaction. Commit and push this milestone on `main`, then convert HTTP's
+periodic owner to worker/deadline wakeups. P03 remains **IN_PROGRESS**; P04-P18 retain their states.

@@ -19,7 +19,7 @@ struct Generation {
 
 pub(super) struct TransportPoll {
     pub events: Vec<HttpWorkerEvent>,
-    pub active_failed: bool,
+    pub active_ended: bool,
     pub active_response: bool,
 }
 
@@ -121,7 +121,7 @@ impl HttpTransports {
     pub(super) fn poll(&mut self) -> TransportPoll {
         let mut poll = TransportPoll {
             events: Vec::new(),
-            active_failed: false,
+            active_ended: false,
             active_response: false,
         };
         // Both the generation count and total service budget are fixed. A slow predecessor
@@ -148,7 +148,7 @@ impl HttpTransports {
             let ended = self.generations.pop_front().expect("polled HTTP generation");
             if ended.accepting {
                 self.blocked = true;
-                poll.active_failed = true;
+                poll.active_ended = true;
             }
         }
         poll

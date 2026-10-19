@@ -113,8 +113,22 @@ spare container/string storage. Owner binding uses the shared payload and cached
 exhaustion explicitly rejects preparation and recovers after consumers release storage; it does
 not replay external work or evict accepted callbacks. Final JSON destruction belongs to the
 canonical disposer, including after node or engine removal. The stream envelope/value pool has
-its separate 256-allocation / 256 MiB limit. HTTP and other callback producers still need their
-own integration through this boundary; these stream limits do not qualify them.
+its separate 256-allocation / 256 MiB limit. HTTP also uses this canonical callback reservation.
+Other callback producers still need their own integration; these limits do not qualify them.
+
+HTTP separates native outcomes from admitted owner replies. The worker prepares both the response
+callback and its graph-application-failure alternative, and retains response/request/body/parsed-value
+storage in the app HTTP result pool (256 allocations / 256 MiB). Nodes receive immutable handles;
+callback selection/binding and receipt service do not rebuild JSON or destroy large reply containers.
+Existing HTTP response/JSON complexity and 32 MiB reply limits apply before publication, including
+the prepared callbacks. Callback/result capacity failure produces a bounded typed rejection carrying
+request description, command identity, and attempt count. Its generation closes command admission;
+the accepted suffix receives failure/rejection outcomes without sending more requests. The node
+reports result rejection through a warning and log, then clears that warning when admitted results
+recover. Warning set and clear operations retain individual receipts; a discarded clear is retried
+before the recovery callback is published. Such rejection precedes graph/callback delivery, never fabricates a script callback outside
+its budget, and never resends endpoint effects. Normal callback names, arguments, replay, and
+individual publication receipts remain unchanged.
 
 `golden_io::BoundedWorker::spawn_notified` can publish those node wakes after reply admission and
 final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node

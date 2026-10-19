@@ -1,5 +1,5 @@
 use super::super::lifecycle::HttpTransports;
-use super::super::transport::{HttpTransportHandle, HttpWorkerEvent};
+use super::super::transport::{HttpOutcome, HttpTransportHandle, HttpWorkerEvent};
 use super::transport::{config, request};
 use super::*;
 use golden_io::RetirementPool;
@@ -14,8 +14,8 @@ fn named(path: &str) -> super::super::transport::HttpQueuedRequest {
     next
 }
 
-fn succeeded(next: &super::super::transport::HttpQueuedRequest) -> HttpWorkerEvent {
-    HttpWorkerEvent::Response(test_response(&next.payload.path, None, Vec::new()))
+fn succeeded(next: &super::super::transport::HttpQueuedRequest) -> HttpOutcome {
+    HttpOutcome::Response(test_response(&next.payload.path, None, Vec::new()))
 }
 
 fn settings(index: usize) -> super::super::transport::HttpTransportConfig {
@@ -52,8 +52,24 @@ fn paths(events: &[HttpWorkerEvent]) -> Vec<&str> {
         .map(|event| match event {
             HttpWorkerEvent::Response(response) => response.request.path.as_str(),
             HttpWorkerEvent::Failure(failure) => failure.request.path.as_str(),
+            HttpWorkerEvent::Rejected(rejection) => panic!("unexpected rejection: {}", rejection.error),
         })
         .collect()
+}
+
+fn collect_paths(manager: &mut HttpTransports, count: usize) -> Vec<String> {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut collected = Vec::new();
+    while collected.len() < count && Instant::now() < deadline {
+        let poll = manager.poll();
+        assert!(poll.events.len() <= 4);
+        collected.extend(paths(&poll.events).into_iter().map(str::to_string));
+        // Release each admitted envelope before asking the producer for another batch.
+        drop(poll);
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(collected.len(), count);
+    collected
 }
 
 #[test]
@@ -99,7 +115,7 @@ fn http_full_lifetime_capacity_preserves_the_old_owner_and_recovers() {
         .unwrap_err()
         .contains("not admitted"));
     release_tx.send(()).unwrap();
-    assert_eq!(paths(&collect(&mut manager, expected.len())), expected);
+    assert_eq!(collect_paths(&mut manager, expected.len()), expected);
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
     assert!(manager.poll().events.is_empty());
     manager.configure_using(settings(1), success_factory).unwrap();
