@@ -7,8 +7,6 @@ use serde_json::Value as JsonValue;
 const STREAM_TEXT_RECEIVED_CALLBACK: &str = "textReceived";
 const STREAM_DATA_RECEIVED_CALLBACK: &str = "dataReceived";
 const STREAM_DATA_RECEIVE_CALLBACK: &str = "dataReceive";
-const STREAM_CLIENT_CONNECTED_CALLBACK: &str = "clientConnected";
-const STREAM_CLIENT_DISCONNECTED_CALLBACK: &str = "clientDisconnected";
 
 pub(crate) const STREAMING_SCRIPT_METHODS: &[&str] = &[
     "sendText",
@@ -68,22 +66,4 @@ fn stream_bytes_callback_args(
         }
     }
     callbacks
-}
-
-pub(crate) fn emit_client_connected(ctx: &mut ProcessCtx, module_id: NodeId, client_id: &str, info: String) {
-    crate::app::module::script_api::emit_script_callback(
-        ctx,
-        module_id,
-        STREAM_CLIENT_CONNECTED_CALLBACK,
-        vec![serde_json::json!(client_id), serde_json::json!(info)],
-    );
-}
-
-pub(crate) fn emit_client_disconnected(ctx: &mut ProcessCtx, module_id: NodeId, client_id: &str, reason: Option<&str>) {
-    crate::app::module::script_api::emit_script_callback(
-        ctx,
-        module_id,
-        STREAM_CLIENT_DISCONNECTED_CALLBACK,
-        vec![serde_json::json!(client_id), serde_json::json!(reason)],
-    );
 }

@@ -4,6 +4,7 @@ use super::{
     peers::Peers,
     Event, ReplySource, WebSocketServerTransportConfig as Config, MAX_CLIENTS, TURN,
 };
+use crate::app::module::common::streaming::input::InputPlan;
 use crate::app::module::common::streaming::native_replies::NativeReplies;
 use golden_io::{PendingDrainState, ReconnectBackoff, WorkerContext};
 use std::{
@@ -30,6 +31,7 @@ pub(super) fn run(
     context: Context,
     config: Config,
     count: Arc<AtomicUsize>,
+    input: InputPlan,
     mut binder: impl FnMut(&Config) -> Result<TcpListener, String>,
 ) {
     let mut peers = Peers::new(count);
@@ -203,7 +205,7 @@ pub(super) fn run(
                 if !replies.permits(ReplySource::Input) {
                     break;
                 }
-                if let Some(event) = peers.receive(config.receive_enabled) {
+                if let Some(event) = peers.receive(config.receive_enabled, &input) {
                     if !replies.offer(&context, ReplySource::Input, event) {
                         return;
                     }

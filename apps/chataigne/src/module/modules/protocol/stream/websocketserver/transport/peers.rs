@@ -1,5 +1,13 @@
-use super::{outbound::Broadcast, Event, StreamingSendFrameKind};
+use super::{outbound::Broadcast, Event, ReplySource};
 use crate::app::module::common::streaming::websocket::socket::WireSocket;
+use crate::app::module::{
+    common::streaming::{
+        input::{self, InputPlan},
+        native_replies::NativeReply,
+        parser::StreamingParser,
+    },
+    script_api::NativeCallbackPayload,
+};
 use std::{
     net::Shutdown,
     sync::{
@@ -16,6 +24,8 @@ pub(super) struct Peer {
     socket: WireSocket,
     control_since: Option<Instant>,
     closing: bool,
+    parser: StreamingParser,
+    input_generation: Option<u64>,
 }
 pub(super) struct Peers {
     pub entries: Vec<Peer>,
@@ -48,17 +58,35 @@ impl Peers {
             socket,
             control_since: None,
             closing: false,
+            parser: StreamingParser::default(),
+            input_generation: None,
         });
         self.count.store(self.entries.len(), Ordering::Release);
-        Event::ClientConnected { client_id: label, info }
+        let callback = NativeCallbackPayload::prepare(
+            "clientConnected",
+            vec![serde_json::json!(label), serde_json::json!(info)],
+        );
+        Event::ClientConnected {
+            client_id: label,
+            info,
+            callback,
+        }
     }
     pub fn remove(&mut self, index: usize, reason: Option<String>) -> Event {
-        let peer = self.entries.remove(index);
+        let mut peer = self.entries.remove(index);
         self.count.store(self.entries.len(), Ordering::Release);
         let _ = peer.socket.get_ref().stream.shutdown(Shutdown::Both);
+        peer.parser.discard_partial_input();
+        let rejected_lines = peer.parser.take_rejected_line_count();
+        let callback = NativeCallbackPayload::prepare(
+            "clientDisconnected",
+            vec![serde_json::json!(peer.label), serde_json::json!(reason)],
+        );
         Event::ClientDisconnected {
             client_id: peer.label,
             reason,
+            rejected_lines,
+            callback,
         }
     }
     pub fn write(&mut self, command: &mut Broadcast, recipient: usize) -> Option<Event> {
@@ -77,7 +105,7 @@ impl Peers {
             }
         }
     }
-    pub fn receive(&mut self, receive_enabled: bool) -> Option<Event> {
+    pub fn receive(&mut self, receive_enabled: bool, input: &InputPlan) -> Option<Event> {
         if self.entries.is_empty() {
             return None;
         }
@@ -106,29 +134,20 @@ impl Peers {
         }
         // Control frames must progress even when application input is disabled.
         match peer.socket.read() {
-            Ok(message) => {
-                let frame = match message {
-                    Message::Text(text) if receive_enabled => {
-                        Some((StreamingSendFrameKind::Text, text.as_bytes().to_vec()))
-                    }
-                    Message::Binary(bytes) if receive_enabled => Some((StreamingSendFrameKind::Binary, bytes.to_vec())),
-                    Message::Ping(_) => {
-                        peer.control_since.get_or_insert_with(Instant::now);
-                        None
-                    }
-                    Message::Close(_) => {
-                        peer.closing = true;
-                        peer.control_since.get_or_insert_with(Instant::now);
-                        None
-                    }
-                    _ => None,
-                };
-                frame.map(|(frame_kind, bytes)| Event::Bytes {
-                    client_id: peer.label.clone(),
-                    frame_kind,
-                    bytes,
-                })
-            }
+            Ok(message) => match message {
+                Message::Text(text) if receive_enabled => Some(peer.prepare(input, text.as_bytes(), true)),
+                Message::Binary(bytes) if receive_enabled => Some(peer.prepare(input, &bytes, false)),
+                Message::Ping(_) => {
+                    peer.control_since.get_or_insert_with(Instant::now);
+                    None
+                }
+                Message::Close(_) => {
+                    peer.closing = true;
+                    peer.control_since.get_or_insert_with(Instant::now);
+                    None
+                }
+                _ => None,
+            },
             Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::WouldBlock => None,
             Err(Error::ConnectionClosed | Error::AlreadyClosed) => Some(self.remove(index, None)),
             Err(error) => Some(self.remove(index, Some(format!("WebSocket input failed: {error}")))),
@@ -143,6 +162,32 @@ impl Peers {
             None
         } else {
             Some(self.remove(0, None))
+        }
+    }
+}
+impl Peer {
+    fn prepare(&mut self, plan: &InputPlan, bytes: &[u8], text_hint: bool) -> Event {
+        let snapshot = plan.snapshot();
+        if self.input_generation != Some(snapshot.generation) {
+            self.parser.discard_partial_input();
+            self.input_generation = Some(snapshot.generation);
+        }
+        let event = match input::prepare(
+            &mut self.parser,
+            &snapshot,
+            bytes,
+            "WebSocket server",
+            Some(&self.label),
+            text_hint,
+        ) {
+            Ok(input) => Event::Input(input),
+            Err(error) => Event::Error(format!("WebSocket server input was not admitted: {error}")),
+        };
+        if event.weight() > Event::limit(ReplySource::Input) {
+            self.parser.discard_partial_input();
+            Event::oversized(ReplySource::Input)
+        } else {
+            event
         }
     }
 }

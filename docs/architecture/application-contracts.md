@@ -171,7 +171,7 @@ keep their separate delivery owners until their receipts settle. Disabled servic
 explicitly opts in for that accepted prefix, and retired client status cannot restore the live
 client list. A replacement starts after the old producer resolves; destroy alone cancels producers
 and discards runtime deliveries. Undo reserves a fresh wake source. The server has no periodic or
-compiled node kernel. WebSocket server/serial and broader producer admission/disposal audits remain P03 work.
+compiled node kernel. Serial and broader producer admission/disposal audits remain P03 work.
 
 WebSocket client uses the same passive wake, retained input and callback-receipt contracts. Its
 native owner uses the locked Tungstenite public nonblocking handshake/framing/control API, with
@@ -216,11 +216,26 @@ Temporary native lifetime exhaustion retries after a coarse owner deadline, with
 snapshots while that deadline is pending.
 
 Applied port/path/enabled values fence command/script admission before configuration callbacks.
-The server owner still polls and prepares callbacks/parsing on the actor with shared parser state;
-per-peer prepared input, passive receipt delivery and accepted-prefix retirement across ordinary
-disable/reconfiguration are the next P03 batch. Native graceful admission closure is tested, but
-the current owner still explicitly cancels its transport on those transitions. Per-peer codec
-buffers are finite under the 128-peer/16-lifetime limits; this is not a product-scale memory qualification.
+Each native peer owns a parser with a 1 MiB partial-line limit (128 MiB maximum across 128 peers).
+Grammar/processing generations invalidate that peer's partial input; logging-only edits preserve it.
+Workers prepare peer-tagged values, bounded logs and canonical retained callbacks, preserving
+text/binary callback semantics. Input-envelope rejection invalidates only the rejected peer's parser.
+Connection/disconnection callbacks use the same canonical payload pool; disconnection reports
+discarded partial lines. Input settings update live without rebinding the listener.
+
+The module is passive: replies, receipts, configuration/metadata edits, native producer exit and
+retry deadlines wake focused service. One bounded native drain stays owned through callback
+publication receipts, and discarded publication retries that callback without rebuilding input.
+Snapshot-free callback delivery precedes bounded graph application. No periodic or compiled node
+kernel remains. Ordinary disable/reconfigure closes native admission and retains one retiring
+producer through its accepted frame/input/callback prefix. Disabled wake service finishes that
+prefix; retiring statuses cannot restore the live client projection. Replacements wait for old
+producer disconnection. Destroy cancels native producers, clears runtime deliveries and releases
+the wake source; undo reserves a fresh source. Per-peer codec/parser buffers are finite under the
+128-peer/16-lifetime limits; this is not a product-scale memory qualification.
+Connection/warning/client projections keep their own completion receipt. A discarded or partly
+applied projection reconciles desired state against a fresh snapshot, preserving committed client
+identities rather than replaying structural edits or trusting optimistic parameter caches.
 Serial and broader producer admission/disposal audits also remain P03 work.
 
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured

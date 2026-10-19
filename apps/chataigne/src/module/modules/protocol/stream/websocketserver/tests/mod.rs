@@ -11,6 +11,11 @@ use tokio_tungstenite::connect_async;
 use super::transport::{WebSocketServerTransportConfig, WebSocketServerTransportHandle, WebSocketServerWorkerEvent};
 
 mod admission;
+mod feedback;
+mod fixture;
+mod input_delivery;
+mod lifecycle;
+use fixture::*;
 
 #[test]
 fn websocket_transport_server_accepts_websocket_connection() {
@@ -18,13 +23,22 @@ fn websocket_transport_server_accepts_websocket_connection() {
     let port = reserved.local_addr().expect("read reserved local addr").port();
     drop(reserved);
 
-    let mut handle = WebSocketServerTransportHandle::spawn(WebSocketServerTransportConfig {
-        bind_host: "127.0.0.1".to_string(),
-        bind_port: port,
-        path: String::new(),
-        receive_enabled: true,
-        send_enabled: true,
-    })
+    let mut handle = WebSocketServerTransportHandle::spawn(
+        WebSocketServerTransportConfig {
+            bind_host: "127.0.0.1".to_string(),
+            bind_port: port,
+            path: String::new(),
+            receive_enabled: true,
+            send_enabled: true,
+            input: crate::app::module::common::streaming::input::StreamInputConfig {
+                module: golden_core::node::NodeId(1),
+                parse: Default::default(),
+                processing_enabled: true,
+                log_incoming: false,
+            },
+        },
+        golden_io::WorkerNotifier::new(|| {}),
+    )
     .expect("spawn websocket server transport");
 
     let deadline = Instant::now() + Duration::from_secs(2);

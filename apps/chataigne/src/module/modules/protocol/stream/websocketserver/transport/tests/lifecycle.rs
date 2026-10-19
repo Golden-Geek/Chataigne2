@@ -6,7 +6,7 @@ fn blocked_native_setup_retains_its_slot_and_never_blocks_stop_or_drop() {
     let pool = pool();
     let (started_tx, started_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
-    let mut handle = WebSocketServerTransportHandle::spawn_using(config(0), &pool, move |_| {
+    let mut handle = spawn_using(config(0), &pool, move |_| {
         started_tx.send(()).unwrap();
         release_rx.recv().unwrap();
         Err("delayed bind".into())
@@ -18,7 +18,7 @@ fn blocked_native_setup_retains_its_slot_and_never_blocks_stop_or_drop() {
     drop(handle);
     assert!(started.elapsed() < Duration::from_millis(100));
     assert_eq!(pool.metrics().active, 1);
-    assert!(WebSocketServerTransportHandle::spawn_using(config(0), &pool, worker::bind).is_err());
+    assert!(spawn_using(config(0), &pool, worker::bind).is_err());
     release_tx.send(()).unwrap();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
 }

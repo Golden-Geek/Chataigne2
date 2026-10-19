@@ -5,8 +5,17 @@ mod peers;
 mod tests;
 mod worker;
 
-use crate::app::module::common::streaming::{commands::StreamingSendFrameKind, native_replies::NativeReply};
-use golden_io::{BoundedWorker, PendingDrain, PendingSendError, RetirementPool, WorkerLimits};
+use crate::app::module::{
+    common::streaming::{
+        commands::StreamingSendFrameKind,
+        input::{InputPlan, PreparedStreamInput, StreamInputConfig},
+        native_replies::NativeReply,
+    },
+    script_api::NativeCallbackPayload,
+};
+use golden_io::{
+    BoundedWorker, PendingDrain, PendingSendError, RetainedPayload, RetirementPool, WorkerLimits, WorkerNotifier,
+};
 use outbound::Command;
 use std::{
     mem::size_of,
@@ -23,43 +32,50 @@ const EVENT_BYTES: usize = 32 * 1024 * 1024;
 const MAX_CLIENTS: usize = 128;
 const TURN: usize = 4;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct WebSocketServerTransportConfig {
     pub bind_host: String,
     pub bind_port: u16,
     pub path: String,
     pub receive_enabled: bool,
     pub send_enabled: bool,
+    pub input: StreamInputConfig,
 }
 impl WebSocketServerTransportConfig {
-    fn validate(&self) -> Result<(), String> {
+    pub(super) fn validate(&self) -> Result<(), String> {
         if self.bind_host.capacity() > 1024 || self.bind_host.trim().is_empty() {
             return Err("WebSocket server bind host must contain 1–1024 retained bytes".into());
         }
         if self.path.capacity() > 8192 || (!self.path.is_empty() && !self.path.starts_with('/')) {
             return Err("WebSocket server path must be empty or start with / and fit 8192 retained bytes".into());
         }
-        Ok(())
+        self.input.validate()
+    }
+    pub(super) fn same_endpoint(&self, other: &Self) -> bool {
+        self.bind_host == other.bind_host
+            && self.bind_port == other.bind_port
+            && self.path == other.path
+            && self.receive_enabled == other.receive_enabled
+            && self.send_enabled == other.send_enabled
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(crate) enum WebSocketServerWorkerEvent {
     Listening(SocketAddr),
     Recovering(String),
     ClientConnected {
         client_id: String,
         info: String,
+        callback: Result<NativeCallbackPayload, String>,
     },
     ClientDisconnected {
         client_id: String,
         reason: Option<String>,
+        rejected_lines: u64,
+        callback: Result<NativeCallbackPayload, String>,
     },
-    Bytes {
-        client_id: String,
-        frame_kind: StreamingSendFrameKind,
-        bytes: Vec<u8>,
-    },
+    Input(RetainedPayload<PreparedStreamInput>),
     Error(String),
 }
 use WebSocketServerWorkerEvent as Event;
@@ -78,11 +94,18 @@ impl NativeReply for Event {
             + match self {
                 Self::Listening(_) => 0,
                 Self::Recovering(message) | Self::Error(message) => message.capacity(),
-                Self::ClientConnected { client_id, info } => client_id.capacity() + info.capacity(),
-                Self::ClientDisconnected { client_id, reason } => {
-                    client_id.capacity() + reason.as_ref().map_or(0, String::capacity)
-                }
-                Self::Bytes { client_id, bytes, .. } => client_id.capacity() + bytes.capacity(),
+                Self::ClientConnected {
+                    client_id,
+                    info,
+                    callback,
+                } => client_id.capacity() + info.capacity() + callback_weight(callback),
+                Self::ClientDisconnected {
+                    client_id,
+                    reason,
+                    callback,
+                    ..
+                } => client_id.capacity() + reason.as_ref().map_or(0, String::capacity) + callback_weight(callback),
+                Self::Input(input) => input.weight,
             }
     }
     fn limit(source: ReplySource) -> usize {
@@ -101,25 +124,29 @@ pub(crate) struct WebSocketServerTransportHandle {
     worker: BoundedWorker<Command, Event>,
     clients: Arc<AtomicUsize>,
     send_enabled: bool,
+    input: InputPlan,
 }
 fn lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
     POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()))
 }
 impl WebSocketServerTransportHandle {
-    pub(crate) fn spawn(config: WebSocketServerTransportConfig) -> Result<Self, String> {
-        Self::spawn_using(config, lifetimes(), worker::bind)
+    pub(crate) fn spawn(config: WebSocketServerTransportConfig, notifier: WorkerNotifier) -> Result<Self, String> {
+        Self::spawn_using(config, lifetimes(), worker::bind, notifier)
     }
     fn spawn_using(
         config: WebSocketServerTransportConfig,
         pool: &RetirementPool,
         binder: impl FnMut(&WebSocketServerTransportConfig) -> Result<TcpListener, String> + Send + 'static,
+        notifier: WorkerNotifier,
     ) -> Result<Self, String> {
         config.validate()?;
         let clients = Arc::new(AtomicUsize::new(0));
         let native_clients = clients.clone();
         let send_enabled = config.send_enabled;
-        let worker = BoundedWorker::spawn(
+        let input = InputPlan::new(config.input.clone());
+        let native_input = input.clone();
+        let worker = BoundedWorker::spawn_notified(
             "streaming-websocket-server",
             pool,
             WorkerLimits {
@@ -128,13 +155,15 @@ impl WebSocketServerTransportHandle {
                 event_items: 64,
                 event_weight: EVENT_BYTES,
             },
-            move |context| worker::run(context, config, native_clients, binder),
+            notifier,
+            move |context| worker::run(context, config, native_clients, native_input, binder),
         )
         .map_err(|error| format!("WebSocket server worker could not start: {error}"))?;
         Ok(Self {
             worker,
             clients,
             send_enabled,
+            input,
         })
     }
     pub(crate) fn send(&self, kind: StreamingSendFrameKind, bytes: &[u8]) -> Result<(), String> {
@@ -160,5 +189,20 @@ impl WebSocketServerTransportHandle {
     pub(crate) fn stop(&mut self) {
         self.clients.store(0, Ordering::Release);
         self.worker.cancel();
+    }
+    pub(crate) fn finish_admission(&mut self) {
+        self.worker.finish_admission();
+    }
+    pub(crate) fn update_input(&self, config: StreamInputConfig) -> Result<(), String> {
+        config.validate()?;
+        self.input.update(config);
+        Ok(())
+    }
+}
+
+fn callback_weight(callback: &Result<NativeCallbackPayload, String>) -> usize {
+    match callback {
+        Ok(callback) => callback.retained_bytes(),
+        Err(error) => error.capacity(),
     }
 }

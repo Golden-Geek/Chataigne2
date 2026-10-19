@@ -7,6 +7,7 @@ use std::{
 };
 use tokio_tungstenite::tungstenite::{client::client, Message, WebSocket};
 
+mod input;
 mod lifecycle;
 mod pressure;
 
@@ -17,13 +18,29 @@ fn config(port: u16) -> WebSocketServerTransportConfig {
         path: String::new(),
         receive_enabled: true,
         send_enabled: true,
+        input: StreamInputConfig {
+            module: golden_core::node::NodeId(1),
+            parse: Default::default(),
+            processing_enabled: true,
+            log_incoming: false,
+        },
     }
+}
+fn notifier() -> WorkerNotifier {
+    WorkerNotifier::new(|| {})
+}
+fn spawn_using(
+    config: WebSocketServerTransportConfig,
+    pool: &RetirementPool,
+    binder: impl FnMut(&WebSocketServerTransportConfig) -> Result<TcpListener, String> + Send + 'static,
+) -> Result<WebSocketServerTransportHandle, String> {
+    WebSocketServerTransportHandle::spawn_using(config, pool, binder, notifier())
 }
 fn pool() -> RetirementPool {
     RetirementPool::new(NonZeroUsize::MIN)
 }
 fn spawn(config: WebSocketServerTransportConfig, pool: &RetirementPool) -> WebSocketServerTransportHandle {
-    WebSocketServerTransportHandle::spawn_using(config, pool, worker::bind).unwrap()
+    spawn_using(config, pool, worker::bind).unwrap()
 }
 fn wait(mut condition: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -111,13 +128,25 @@ fn inbound_frames_keep_their_peer_and_text_binary_identity() {
     let mut client = connect(&handle, address, "/input");
     let label = client.get_ref().local_addr().unwrap().to_string();
     client.send(Message::text("text")).unwrap();
-    until(
-        &handle,
-        |event| matches!(event, Event::Bytes { client_id, frame_kind: StreamingSendFrameKind::Text, bytes } if client_id == &label && bytes == b"text"),
-    );
+    until(&handle, |event| {
+        if let Event::Input(input) = event {
+            assert_eq!(input.callbacks.len(), 3);
+            assert_eq!(input.callbacks[2].payload()["args"][0], "text");
+            assert_eq!(input.callbacks[2].payload()["args"][1], label);
+            true
+        } else {
+            false
+        }
+    });
     client.send(Message::binary(vec![0, 255])).unwrap();
-    until(
-        &handle,
-        |event| matches!(event, Event::Bytes { client_id, frame_kind: StreamingSendFrameKind::Binary, bytes } if client_id == &label && bytes == &[0, 255]),
-    );
+    until(&handle, |event| {
+        if let Event::Input(input) = event {
+            assert_eq!(input.callbacks.len(), 2);
+            assert_eq!(input.callbacks[0].payload()["args"][0], serde_json::json!([0, 255]));
+            assert_eq!(input.callbacks[0].payload()["args"][1], label);
+            true
+        } else {
+            false
+        }
+    });
 }

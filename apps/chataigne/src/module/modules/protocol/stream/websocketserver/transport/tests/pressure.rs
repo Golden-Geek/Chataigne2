@@ -6,7 +6,7 @@ fn bounded_command_admission_rejects_whole_payloads_before_queue_overflow() {
         let pool = pool();
         let (started_tx, started_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
-        let mut handle = WebSocketServerTransportHandle::spawn_using(config(0), &pool, move |_| {
+        let mut handle = spawn_using(config(0), &pool, move |_| {
             started_tx.send(()).unwrap();
             release_rx.recv().unwrap();
             Err("delayed setup".into())
@@ -67,8 +67,8 @@ fn saturated_output_failures_retain_input_and_resume_without_replaying_native_ef
         for event in events {
             match event {
                 Event::Error(error) if error.contains("UTF-8") => failures += 1,
-                Event::Bytes { bytes, .. } => {
-                    assert_eq!(bytes, b"independent input");
+                Event::Input(input) => {
+                    assert_eq!(input.callbacks[2].payload()["args"][0], "independent input");
                     inputs += 1;
                 }
                 other => panic!("unexpected pressure result: {other:?}"),
@@ -85,10 +85,13 @@ fn invalid_configuration_capacity_is_rejected_before_native_reservation() {
     let pool = pool();
     let mut invalid = config(0);
     invalid.bind_host.reserve(1025);
-    assert!(WebSocketServerTransportHandle::spawn_using(invalid, &pool, worker::bind).is_err());
+    assert!(spawn_using(invalid, &pool, worker::bind).is_err());
     let mut invalid = config(0);
     invalid.path.reserve(8193);
-    assert!(WebSocketServerTransportHandle::spawn_using(invalid, &pool, worker::bind).is_err());
+    assert!(spawn_using(invalid, &pool, worker::bind).is_err());
+    let mut invalid = config(0);
+    invalid.input.parse.mode.reserve(17);
+    assert!(spawn_using(invalid, &pool, worker::bind).is_err());
     assert_eq!(pool.metrics().active, 0);
 }
 
