@@ -85,6 +85,12 @@ callbacks synchronize parameter handles and request snapshots through
 `worker_wake_requires_tree_snapshot`. They use their own hook with zero scheduled delta and never
 advance the timed `update()` baseline, including for replay-policy nodes. Modules must re-arm
 their waker if their own drain budget leaves pending mailbox work.
+Worker callbacks are suppressed while disabled by default. A node can explicitly opt in through
+`worker_wake_when_disabled` while it owns accepted asynchronous completions or retiring resources.
+Such service uses the same callback budget, zero scheduled delta, and receipt handling; it never
+enables timed updates. The node must reject new work and avoid starting disabled resources.
+TCP client and UDP use this hook to finish graceful retirement while disabled. Removal still
+closes the registration, and enum dispatch forwards the hook for built-in and consumer variants.
 These short-lock notifications belong on host workers; realtime audio callbacks keep using their
 realtime-safe queues.
 

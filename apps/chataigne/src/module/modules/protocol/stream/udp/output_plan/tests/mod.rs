@@ -6,7 +6,12 @@ fn native_preparation_yields_after_a_bounded_number_of_edges() {
     let snapshot = Arc::new(nested_snapshot(20_000, "127.0.0.1", 9000));
     let (mut send, _) = command(&mut None, &snapshot, NodeId(1), vec![1], false).unwrap();
     let visits = std::cell::Cell::new(0);
-    assert!(!send.prepare_turn(|| { visits.set(visits.get() + 1); false }).unwrap());
+    assert!(!send
+        .prepare_turn(|| {
+            visits.set(visits.get() + 1);
+            false
+        })
+        .unwrap());
     assert_eq!(visits.get(), PREPARATION_EDGES_PER_TURN);
     assert!(send.prepared_count().is_none());
     send.prepare(|| false).unwrap();

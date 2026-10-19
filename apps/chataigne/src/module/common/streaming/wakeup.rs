@@ -2,14 +2,14 @@ use golden_core::engine::NodeWaker;
 use golden_io::{DelayedNotifier, WorkerNotifier};
 use std::time::Duration;
 
-pub(super) struct UdpWake {
+pub(crate) struct StreamingWake {
     pub notifier: WorkerNotifier,
     delayed: DelayedNotifier,
     waker: NodeWaker,
 }
 
-impl UdpWake {
-    pub(super) fn new(waker: NodeWaker) -> Result<Self, String> {
+impl StreamingWake {
+    pub(crate) fn new(waker: NodeWaker) -> Result<Self, String> {
         let target = waker.clone();
         let notifier = WorkerNotifier::new(move || {
             let _ = target.wake();
@@ -22,14 +22,14 @@ impl UdpWake {
         })
     }
 
-    pub(super) fn matches(&self, waker: &NodeWaker) -> bool {
+    pub(crate) fn matches(&self, waker: &NodeWaker) -> bool {
         self.waker == *waker
     }
 
-    pub(super) fn later(&self, delay: Duration) {
+    pub(crate) fn later(&self, delay: Duration) {
         self.delayed.wake_after(delay);
     }
-    pub(super) fn cancel_deadline(&self) {
+    pub(crate) fn cancel_deadline(&self) {
         self.delayed.cancel_deadline();
     }
 }

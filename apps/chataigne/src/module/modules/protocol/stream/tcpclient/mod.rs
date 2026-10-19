@@ -1,5 +1,6 @@
 mod transport;
 
+use crate::app::module::common::streaming::wakeup::StreamingWake;
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
@@ -20,11 +21,9 @@ use crate::app::{
 };
 
 use self::transport::{
-    StreamingWorkerEvent, TcpStreamingConnectionStatus, TcpStreamingTransportConfig,
-    TcpStreamingTransportHandle,
+    StreamingWorkerEvent, TcpStreamingConnectionStatus, TcpStreamingTransportConfig, TcpStreamingTransportHandle,
 };
 
-const TCP_CLIENT_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const TCP_CLIENT_TARGET_WARNING_ID: &str = "tcp_client_target_transport";
 
 #[node("tcp_client_module", label = "TCP Client")]
@@ -45,13 +44,31 @@ const TCP_CLIENT_TARGET_WARNING_ID: &str = "tcp_client_target_transport";
 pub struct TcpClientModule {
     stream: StreamingModuleBase,
     transport: Option<TcpStreamingTransportHandle>,
+    retiring_transport: Option<TcpStreamingTransportHandle>,
     last_transport_config: Option<TcpStreamingTransportConfig>,
     transport_dirty: bool,
+    wake: Option<StreamingWake>,
+    retry_at: Option<std::time::Instant>,
 }
 
 impl TcpClientModule {
     pub fn create() -> Self {
-        Self::new(StreamingModuleBase::create(), None, None, true)
+        Self::new(StreamingModuleBase::create(), None, None, None, true, None, None)
+    }
+
+    fn request_service(&self) {
+        if let Some(wake) = &self.wake {
+            wake.notifier.notify();
+        }
+    }
+
+    fn retire_transport(&mut self) {
+        if let Some(mut transport) = self.transport.take() {
+            debug_assert!(self.retiring_transport.is_none());
+            transport.finish_admission();
+            self.retiring_transport = Some(transport);
+        }
+        self.last_transport_config = None;
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
@@ -59,21 +76,28 @@ impl TcpClientModule {
     }
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        if let Some(at) = self.retry_at.filter(|at| std::time::Instant::now() < *at) {
+            if let Some(wake) = &self.wake {
+                wake.later(at.saturating_duration_since(std::time::Instant::now()));
+            }
+            return;
+        }
+        self.retry_at = None;
         self.transport_dirty = false;
 
         if !self.module_enabled(snapshot) {
-            self.stop_transport();
+            self.retire_transport();
             self.last_transport_config = None;
             self.clear_target_warning(ctx, snapshot);
             self.stream.set_connected(ctx, false);
             return;
         }
 
-        let config = match self.transport_config() {
+        let config = match self.transport_config(snapshot) {
             Ok(config) => config,
             Err(error) => {
                 logerror!("Invalid TCP module configuration: {}", error);
-                self.stop_transport();
+                self.retire_transport();
                 self.last_transport_config = None;
                 self.set_target_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
@@ -85,9 +109,16 @@ impl TcpClientModule {
             return;
         }
 
-        self.stop_transport();
+        self.retire_transport();
+        if self.retiring_transport.is_some() {
+            self.transport_dirty = true;
+            return;
+        }
+        let Some(wake) = &self.wake else {
+            return;
+        };
 
-        match TcpStreamingTransportHandle::spawn(config.clone()) {
+        match TcpStreamingTransportHandle::spawn(config.clone(), wake.notifier.clone()) {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
@@ -98,19 +129,34 @@ impl TcpClientModule {
                 logerror!("Failed to start TCP transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
+                self.transport_dirty = true;
+                self.retry_at = Some(std::time::Instant::now() + std::time::Duration::from_millis(250));
+                wake.later(std::time::Duration::from_millis(250));
                 self.set_target_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
             }
         }
     }
 
-    fn transport_config(&self) -> Result<TcpStreamingTransportConfig, String> {
-        let remote_host = self.remote_host.get_ref().clone();
-        if remote_host.trim().is_empty() {
-            return Err("TCP remote host cannot be empty".to_string());
+    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<TcpStreamingTransportConfig, String> {
+        let Some(ParamValue::Str(host)) = snapshot
+            .node(self.remote_host.id())
+            .and_then(|node| node.param_value.as_ref())
+        else {
+            return Err("TCP remote host is unavailable".into());
+        };
+        if host.trim().is_empty() || host.len() > 1024 {
+            return Err("TCP remote host must contain 1–1024 bytes".to_string());
         }
+        let remote_host = host.clone();
 
-        let remote_port = u16::try_from(self.remote_port.get())
+        let Some(ParamValue::Int(port)) = snapshot
+            .node(self.remote_port.id())
+            .and_then(|node| node.param_value.as_ref())
+        else {
+            return Err("TCP remote port is unavailable".into());
+        };
+        let remote_port = u16::try_from(*port)
             .map_err(|_| "TCP remote port 'connection/target/remote_port' must be between 0 and 65535".to_string())?;
 
         Ok(TcpStreamingTransportConfig {
@@ -122,8 +168,9 @@ impl TcpClientModule {
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
+        let retiring = self.retiring_transport.is_some();
         let (worker_events, worker_disconnected) = {
-            let Some(transport) = &self.transport else {
+            let Some(transport) = self.retiring_transport.as_ref().or(self.transport.as_ref()) else {
                 return;
             };
 
@@ -139,13 +186,7 @@ impl TcpClientModule {
         for event in worker_events {
             match event {
                 StreamingWorkerEvent::Bytes(bytes) if !processing_enabled => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        true,
-                    );
+                    streaming_script::emit_stream_bytes_callbacks(ctx, self.id(), bytes.as_slice(), None, true);
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
@@ -157,13 +198,7 @@ impl TcpClientModule {
                     }
                 }
                 StreamingWorkerEvent::Bytes(bytes) => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        true,
-                    );
+                    streaming_script::emit_stream_bytes_callbacks(ctx, self.id(), bytes.as_slice(), None, true);
                     match self.stream.parse_bytes_cached(bytes.as_slice()) {
                         Ok(messages) => {
                             received_bytes = true;
@@ -183,6 +218,10 @@ impl TcpClientModule {
                 StreamingWorkerEvent::Error(error) => {
                     logerror!("TCP transport error: {}", error);
                 }
+                StreamingWorkerEvent::OutgoingLog(message) => {
+                    golden_core::log!(origin = self.id(); message.as_str());
+                }
+                StreamingWorkerEvent::Status(_) if retiring => {}
                 StreamingWorkerEvent::Status(status) => match status {
                     TcpStreamingConnectionStatus::Connected { remote_address } => {
                         golden_core::logsuccess!(
@@ -204,8 +243,18 @@ impl TcpClientModule {
         }
 
         if worker_disconnected {
-            logerror!("TCP transport worker stopped unexpectedly; restarting.");
-            self.stop_transport();
+            if retiring {
+                self.retiring_transport = None;
+            } else {
+                logerror!(
+                    "TCP transport worker stopped; outstanding commands have an unknown outcome and are not replayed."
+                );
+                self.transport = None;
+                self.retry_at = Some(std::time::Instant::now() + std::time::Duration::from_millis(250));
+                if let Some(wake) = &self.wake {
+                    wake.later(std::time::Duration::from_millis(250));
+                }
+            }
             self.last_transport_config = None;
             self.stream.set_connected(ctx, false);
             self.transport_dirty = true;
@@ -219,22 +268,22 @@ impl TcpClientModule {
     fn queue_send_request(
         &self,
         ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
-        request: &StreamingSendRequest,
+        snapshot: &ProcessTreeSnapshot,
+        request: StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.module_enabled(snapshot) {
+            return Err("TCP module is disabled; command was not admitted".into());
+        }
+        let applied = self.transport_config(snapshot)?;
+        if self.last_transport_config.as_ref() != Some(&applied) {
+            return Err("TCP endpoint configuration is pending; command was not admitted".into());
+        }
         let transport = self
             .transport
             .as_ref()
             .ok_or_else(|| "TCP transport is not available".to_string())?;
-        transport.send(request.bytes.clone())?;
+        transport.send(request.bytes, self.stream.log_outgoing_enabled())?;
         self.stream.emit_outgoing_traffic(ctx);
-
-        if self.stream.log_outgoing_enabled() {
-            golden_core::log!(
-                origin = self.id();
-                format!("Sent TCP {}", format_bytes_for_log(request.bytes.as_slice()))
-            );
-        }
 
         Ok(format!("Queued TCP {}", request.description))
     }
@@ -254,7 +303,7 @@ impl TcpClientModule {
 
         if let Err(error) = serde_json::from_value::<StreamingSendRequest>(request.payload)
             .map_err(|error| format!("invalid TCP command payload: {error}"))
-            .and_then(|payload| self.queue_send_request(ctx, snapshot, &payload))
+            .and_then(|payload| self.queue_send_request(ctx, snapshot, payload))
         {
             logerror!(format!(
                 "Failed to handle TCP command {:?}: {error}",
@@ -266,12 +315,14 @@ impl TcpClientModule {
     fn on_param_change_inner(&mut self, param: NodeId) {
         if self.param_affects_transport(param) {
             self.transport_dirty = true;
+            self.retry_at = None;
         }
     }
 
     fn param_affects_transport(&self, param: NodeId) -> bool {
         (self.remote_host.is_bound() && self.remote_host.id() == param)
             || (self.remote_port.is_bound() && self.remote_port.id() == param)
+            || self.stream.affects_input_configuration(param)
     }
 
     fn target_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
@@ -301,6 +352,9 @@ impl TcpClientModule {
         if let Some(mut transport) = self.transport.take() {
             transport.stop();
         }
+        if let Some(mut transport) = self.retiring_transport.take() {
+            transport.stop();
+        }
     }
 }
 
@@ -325,6 +379,24 @@ impl Node for TcpClientModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let source = match ctx.node_waker() {
+            Ok(source) => source,
+            Err(error) => {
+                logerror!("Failed to register TCP worker wake: {}", error);
+                return;
+            }
+        };
+        if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
+            self.stop_transport();
+            self.stream.discard_pending_input();
+            self.wake = match StreamingWake::new(source) {
+                Ok(wake) => Some(wake),
+                Err(error) => {
+                    logerror!("Failed to register TCP retry deadline: {}", error);
+                    return;
+                }
+            };
+        }
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
@@ -332,48 +404,59 @@ impl Node for TcpClientModule {
         self.refresh_transport(ctx, snapshot);
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(wake) = &self.wake {
+            wake.cancel_deadline();
+        }
         // Drain transport bytes using only cached config — no snapshot needed.
         self.drain_transport_events(ctx);
 
-        let needs_snapshot = self.transport_dirty || self.stream.has_pending_messages();
-        if !needs_snapshot {
-            return;
+        if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+            let snapshot = snapshot_arc.as_ref();
+            self.stream.refresh_config_cache(snapshot);
+            self.refresh_data_capabilities(ctx, snapshot);
+            if self.transport_dirty {
+                self.refresh_transport(ctx, snapshot);
+            }
+            self.stream.process_pending(ctx, snapshot);
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        // Refresh cached config while we have the snapshot so the next drain is accurate.
-        self.stream.refresh_config_cache(snapshot);
-        self.refresh_data_capabilities(ctx, snapshot);
-
-        if self.transport_dirty {
-            self.refresh_transport(ctx, snapshot);
+        if self.stream.has_pending_messages()
+            || self.transport.as_ref().is_some_and(|transport| transport.has_pending())
+            || self
+                .retiring_transport
+                .as_ref()
+                .is_some_and(|transport| transport.has_pending())
+        {
+            self.request_service();
+        } else if self.transport_dirty && self.retiring_transport.is_none() {
+            if let Some(wake) = &self.wake {
+                wake.later(self.retry_at.map_or(std::time::Duration::from_millis(1), |at| {
+                    at.saturating_duration_since(std::time::Instant::now())
+                }));
+            }
         }
-
-        self.stream.process_pending(ctx, snapshot);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
+        self.wake = None;
+        self.retry_at = None;
+        self.stream.discard_pending_input();
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty
-            || self.stream.has_pending_messages()
-            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+        false
     }
 
-    fn update_requires_tree_snapshot(&self) -> bool {
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
         self.transport_dirty || self.stream.has_pending_messages()
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.retiring_transport.is_some() || self.transport_dirty || self.stream.has_pending_messages()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(TCP_CLIENT_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.tcp")
+        NodeExecutionRule::passive()
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -395,7 +478,7 @@ impl Node for TcpClientModule {
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, snapshot_arc.as_ref(), &request)?;
+            self.queue_send_request(ctx, snapshot_arc.as_ref(), request)?;
             return Ok(true);
         }
 
@@ -408,6 +491,9 @@ impl Node for TcpClientModule {
                 .emit_script_param_callback(ctx, snapshot_arc.as_ref(), param, &old_value);
         }
         self.on_param_change_inner(param);
+        if self.transport_dirty {
+            self.request_service();
+        }
     }
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
@@ -416,6 +502,7 @@ impl Node for TcpClientModule {
                 let _ = ctx;
                 let _ = enabled;
                 self.transport_dirty = true;
+                self.request_service();
             }
         }
     }
@@ -423,8 +510,9 @@ impl Node for TcpClientModule {
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if enabled {
             self.transport_dirty = true;
+            self.request_service();
         } else {
-            self.stop_transport();
+            self.retire_transport();
             self.last_transport_config = None;
             if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
                 self.clear_target_warning(ctx, snapshot_arc.as_ref());

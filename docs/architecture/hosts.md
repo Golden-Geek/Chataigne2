@@ -109,6 +109,9 @@ every already-accepted command before exiting. Neither path needs an extra stop 
 `WorkerContext::drain_commands` exposes a bounded nonblocking turn for workers that also receive
 unsolicited native input. Graceful closure drains accepted commands before disconnection;
 explicit cancellation ends service without consuming the remaining queue.
+`command_admission_closed` observes producer closure even while accepted commands remain queued.
+Duplex loops can stop admitting native input or reconnect/discovery work during graceful retirement
+without discarding that queued command prefix.
 `WorkerContext::try_publish_weighted` attempts one reply admission without waiting and returns
 the original event on overload or disconnection. A duplex adapter can retain a bounded reply
 continuation and keep servicing independent native work. `publish_weighted` remains the ordered,
@@ -229,16 +232,40 @@ suffix, and rejects each oversized line once while discarding through its delimi
 surrounding frames survive. A changed grammar rejects a partial old line before interpreting new
 input. Per-line preparation also enforces expansion/path admission and preserves other valid
 frames in the same input turn. Line rejection is logged at the app-owned stream boundary.
-Other stream modules still prepare input in node callbacks and retain their existing periodic
-service. Their worker ownership, channel admission, and retirement remain open P03 work; UDP's
-qualification does not qualify those paths or the wider module/generator audit.
+The TCP client uses a bounded native worker with 16 global lifetime slots, 256 commands / 1 MiB,
+one additional 1 MiB write cursor, and 64 replies / 32 MiB. The owner drains at most four events.
+DNS resolution, up to eight 500 ms connection attempts, capped reconnect backoff, socket health,
+writes, and outgoing log preparation run on that worker. Stop cancels without joining; an
+uninterruptible setup call retains its slot. Reconfiguration closes admission and retains the
+old owner until accepted sends/results finish before opening a replacement endpoint.
+
+Each native write turn submits at most 64 KiB, retaining its exact offset across partial writes,
+`WouldBlock`, and interruption. A five-second deadline from the first native write attempt closes a stalled
+connection. Failure reports its written prefix; no prefix or suffix is replayed after reconnect.
+Admission captures the live connection generation, and the worker rejects queued commands from
+an old generation even if a new socket is already connected.
+Admission also compares the endpoint against the applied snapshot before moving the payload;
+a send immediately after an endpoint edit is rejected while reconfiguration is pending.
+Native service bounds command work to 16 steps and input to four 8 KiB reads per turn.
+Input, output-outcome, and status continuations
+share the app's generic stream reply FIFO, with per-source limits of 32 MiB / 64 KiB / 64 KiB.
+Input pressure cannot gate successful unlogged output. Outgoing logs are bounded and follow
+complete native writes. Connection status is a bounded latest-state read model.
+
+TCP client is passive: reply/exit notifications and bounded retry deadlines drive its owner,
+including explicit disabled-node completion service during retirement. TCP input parsing,
+callback preparation, and grammar/connection-generation handling still need their worker-side
+boundary; these native ownership checks do not qualify that remaining actor work. TCP server,
+WebSocket, and serial retain periodic service and still require worker/channel/retirement audits.
+The wider module/generator audit remains open P03 work.
 
 Reconfiguration and disable close send admission while retaining accepted work and results.
 The next generation waits for the old socket's release, including when rebinding the same port.
 Only destination destruction cancels pending work. Bind failures explicitly fail already-admitted
 sends, and worker/native failures use capped 250 ms-to-5 s reconnect backoff. An asynchronous Ready
-event controls connected state. A disabled consumer retains its bounded completion backlog until
-re-enabled or destroyed. Cancellation never joins setup, DNS, or cleanup; an uninterruptible
+event controls connected state. Disabled consumers normally retain their bounded completion backlog
+until re-enabled or destroyed; owners that opt into disabled-node completion service can finish
+accepted work while remaining disabled. Cancellation never joins setup, DNS, or cleanup; an uninterruptible
 native call retains its global lifetime slot until it returns.
 
 The app-owned HTTP adapter uses that boundary with 16 global worker lifetimes, 256 commands / 8 MiB

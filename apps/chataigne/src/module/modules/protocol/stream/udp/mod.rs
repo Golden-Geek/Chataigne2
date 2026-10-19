@@ -4,11 +4,10 @@ mod lifecycle;
 mod outbound;
 mod output_plan;
 mod transport;
-mod wakeup;
 
+use crate::app::module::common::streaming::wakeup::StreamingWake;
 use delivery::InputDelivery;
 use std::{collections::VecDeque, time::Duration};
-use wakeup::UdpWake;
 
 use golden_core::{
     engine::NodeExecutionRule,
@@ -114,7 +113,7 @@ impl Node for UdpOutputManager {
 )]
 pub struct UdpModule {
     stream: StreamingModuleBase,
-    wake: Option<UdpWake>,
+    wake: Option<StreamingWake>,
     transports: UdpTransports,
     transport_dirty: bool,
     pending_inputs: VecDeque<InputDelivery>,
@@ -479,7 +478,7 @@ impl Node for UdpModule {
             self.pending_inputs.clear();
             self.output_plan = None;
             self.stream.discard_pending_input();
-            match UdpWake::new(source) {
+            match StreamingWake::new(source) {
                 Ok(wake) => self.wake = Some(wake),
                 Err(error) => {
                     logerror!("Failed to register UDP retry deadline: {}", error);
@@ -537,6 +536,12 @@ impl Node for UdpModule {
 
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
         self.transport_dirty || self.stream.has_pending_messages()
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.transports.waiting_for_retirement()
+            || self.transport_dirty
+            || !self.pending_inputs.is_empty()
+            || self.stream.has_pending_messages()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

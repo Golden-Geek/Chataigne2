@@ -19,6 +19,7 @@ fn bounded_command_turns_preserve_fifo_through_graceful_close() {
     let (resume_tx, resume_rx) = mpsc::channel();
     let (done_tx, done_rx) = mpsc::channel();
     let mut worker = BoundedWorker::<u32, ()>::spawn("command-turns", &pool, limits(), move |context| {
+        assert!(!context.command_admission_closed());
         let mut commands = Vec::new();
         assert_eq!(
             context.drain_commands(&mut commands, NonZeroUsize::MIN).state,
@@ -26,6 +27,10 @@ fn bounded_command_turns_preserve_fifo_through_graceful_close() {
         );
         turn_tx.send(()).unwrap();
         resume_rx.recv().unwrap();
+        assert!(
+            context.command_admission_closed(),
+            "closure is visible before draining the accepted prefix"
+        );
         let first = context.drain_commands(&mut commands, NonZeroUsize::MIN);
         assert_eq!(first.received, 1);
         assert_eq!(first.state, crate::PendingDrainState::BudgetExhausted);

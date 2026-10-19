@@ -8,7 +8,8 @@ use super::{
 use crate::app::module::common::streaming::parser::StreamingParser;
 use golden_io::RetainedPayload;
 mod replies;
-use replies::{NativeReplies, ReplySource};
+use crate::app::module::common::streaming::native_replies::NativeReplies;
+use replies::ReplySource;
 use std::{
     net::{SocketAddr, ToSocketAddrs, UdpSocket},
     num::NonZeroUsize,
@@ -243,7 +244,7 @@ fn worker_loop(
     let mut commands_closed = false;
     let mut parser = StreamingParser::default();
     let mut input_generation = None;
-    let mut replies = NativeReplies::default();
+    let mut replies = NativeReplies::<StreamingWorkerEvent>::default();
     loop {
         if context.cancellation().is_cancelled() || !replies.flush(&context) {
             return;
@@ -308,7 +309,10 @@ fn worker_loop(
             }
             return;
         }
-        if replies.permits(ReplySource::Interfaces) && std::time::Instant::now() >= next_interfaces {
+        if !context.command_admission_closed()
+            && replies.permits(ReplySource::Interfaces)
+            && std::time::Instant::now() >= next_interfaces
+        {
             let options = discover_interfaces();
             if last_interfaces.as_ref() != Some(&options) {
                 if !replies.offer(
@@ -322,9 +326,9 @@ fn worker_loop(
             }
             next_interfaces = std::time::Instant::now() + Duration::from_secs(1);
         }
-        if receive_enabled {
+        if receive_enabled && !context.command_admission_closed() {
             for _ in 0..UDP_RECEIVE_TURN {
-                if !replies.permits(ReplySource::Input) {
+                if !replies.permits(ReplySource::Input) || context.command_admission_closed() {
                     break;
                 }
                 if context.cancellation().is_cancelled() {

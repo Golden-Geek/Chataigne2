@@ -13,6 +13,7 @@ use golden_core::{
 };
 
 use super::TcpClientModule;
+mod native_lifecycle;
 
 #[test]
 fn tcp_module_root_enable_toggle_stops_and_restarts_transport() {
@@ -110,7 +111,9 @@ fn tcp_module_recovers_when_server_appears_and_after_connection_loss() {
     });
 
     assert_eq!(
-        stage_rx.recv_timeout(Duration::from_secs(5)).expect("TCP client should connect once the server appears"),
+        stage_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("TCP client should connect once the server appears"),
         1
     );
     wait_for_connected_value(&mut engine, module_id, true);
@@ -119,7 +122,9 @@ fn tcp_module_recovers_when_server_appears_and_after_connection_loss() {
         .send(())
         .expect("test should signal the first TCP connection to close");
     assert_eq!(
-        stage_rx.recv_timeout(Duration::from_secs(5)).expect("TCP client should reconnect after the connection drops"),
+        stage_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("TCP client should reconnect after the connection drops"),
         2
     );
     wait_for_connected_value(&mut engine, module_id, true);
@@ -177,22 +182,35 @@ fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue
 }
 
 fn settle_transport_state(engine: &mut crate::app::AppEngine) {
-    engine.apply_edits().expect("pending TCP edits should apply");
-    engine
-        .dispatch_inbox(ExecutionPhase::EngineTick)
-        .expect("pending TCP edits should dispatch");
-    engine.apply_edits().expect("TCP event reactions should apply");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("TCP transport tick should succeed");
-    engine.apply_edits().expect("TCP transport edits should apply");
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        engine.apply_edits().expect("pending TCP edits should apply");
+        engine
+            .dispatch_inbox(ExecutionPhase::EngineTick)
+            .expect("pending TCP edits should dispatch");
+        engine.apply_edits().expect("TCP event reactions should apply");
+        engine
+            .run_tick(Duration::from_millis(20))
+            .expect("TCP transport tick should succeed");
+        engine.apply_edits().expect("TCP transport edits should apply");
+        let ready = engine.nodes.iter().all(|(_, node)| match node {
+            crate::app::AppNode::TcpClientModule(module) => {
+                !module.transport_dirty && module.retiring_transport.is_none()
+            }
+            _ => true,
+        });
+        if ready {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "TCP native generation did not finish its bounded handoff"
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
 }
 
-fn wait_for_connected_value(
-    engine: &mut crate::app::AppEngine,
-    module_id: NodeId,
-    expected: bool,
-) {
+fn wait_for_connected_value(engine: &mut crate::app::AppEngine, module_id: NodeId, expected: bool) {
     let deadline = Instant::now() + Duration::from_secs(3);
     while Instant::now() < deadline {
         wait_for_transport_io();
@@ -231,10 +249,7 @@ fn connected_value(engine: &crate::app::AppEngine, module_id: NodeId) -> Option<
 }
 
 fn parameter_node(engine: &crate::app::AppEngine, node_id: NodeId) -> &Parameter {
-    let crate::app::AppNode::Parameter(parameter) = engine
-        .nodes
-        .get(node_id)
-        .expect("parameter node should exist")
+    let crate::app::AppNode::Parameter(parameter) = engine.nodes.get(node_id).expect("parameter node should exist")
     else {
         panic!("expected Parameter node");
     };

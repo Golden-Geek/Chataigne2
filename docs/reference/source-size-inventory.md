@@ -7,8 +7,8 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-19 against delivered `df0c787621162dead9623751d989478cf09198ae` plus P03
-duplex UDP reply backpressure on `main`. Scanned **1419 source files**; **42 exceed
+Refreshed 2026-10-19 against delivered `0196c0f88fbfa3306996ade41f692ddd00ff32f1` plus P03
+TCP client native ownership and disabled completion service on `main`. Scanned **1425 source files**; **42 exceed
 1,000 lines**. Persistence lifecycle and node behavior extractions brought
 `engine/persistence/mod.rs` and `node/core/behavior.rs` below the limit. No new size exceptions
 are established by this inventory. Standard formatting of the touched Sound Card modules also
@@ -24,6 +24,10 @@ All six remain below 1000 lines. Snapshot allocation accounting/lifetime modules
 UDP fixture/preparation files add four sources, all below 1000 lines; no new exception is introduced.
 The UDP reply continuation and its two focused pressure/FIFO test files add three more sources,
 also below 1000 lines.
+TCP's transport facade, native loop, cursor, and focused tests remain below the limit. Shared
+stream reply/wake helpers replace UDP-local implementations; its obsolete wake file is removed.
+The public disabled-completion hook adds forwarding to the existing centralized node registry,
+without introducing another oversized source or expanding its documented exception.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its
@@ -63,7 +67,7 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 |  1,850 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs`              | Test suite     |
 |  1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs`                          | Test suite     |
 |  1,737 | `apps/chataigne/systems/alchemist/integration/processor/catalog.rs`                  | Implementation |
-|  1,683 | `crates/golden_core/engine/src/node_macros.rs`                                       | Implementation |
+|  1,686 | `crates/golden_core/engine/src/node_macros.rs`                                       | Implementation |
 |  1,662 | `packages/golden-ui/transport/http.ts`                                               | Implementation |
 |  1,601 | `apps/chataigne/systems/alchemist/integration/processor/tests/processor.rs`          | Test suite     |
 |  1,594 | `apps/chataigne/src/module/modules/controllers/joycon/mod.rs`                        | Implementation |

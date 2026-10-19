@@ -123,31 +123,47 @@ struct OutputCursor {
 
 impl OutputCursor {
     fn new(snapshot: &ProcessTreeSnapshot, root: NodeId) -> Self {
-        let state = snapshot.node(root).and_then(|node| node.first_child).map_or(Walk::Done, Walk::Visit);
-        Self { root, state, remaining: snapshot.node_count().saturating_mul(2) }
+        let state = snapshot
+            .node(root)
+            .and_then(|node| node.first_child)
+            .map_or(Walk::Done, Walk::Visit);
+        Self {
+            root,
+            state,
+            remaining: snapshot.node_count().saturating_mul(2),
+        }
     }
 
     // One call visits or advances one edge, including deep ancestor unwinding.
     fn step(&mut self, snapshot: &ProcessTreeSnapshot) -> Result<Option<Option<NodeId>>, String> {
-        if matches!(self.state, Walk::Done) { return Ok(None); }
-        if self.remaining == 0 { return Err("UDP output traversal exceeded its node bound".into()); }
+        if matches!(self.state, Walk::Done) {
+            return Ok(None);
+        }
+        if self.remaining == 0 {
+            return Err("UDP output traversal exceeded its node bound".into());
+        }
         self.remaining -= 1;
         match self.state {
             Walk::Visit(id) => {
                 let node = snapshot.node(id).ok_or("UDP output tree has a missing node")?;
                 self.state = if node.node_type == "folder" {
                     node.first_child.map_or(Walk::Advance(id), Walk::Visit)
-                } else { Walk::Advance(id) };
+                } else {
+                    Walk::Advance(id)
+                };
                 Ok(Some((node.node_type == UDP_OUTPUT_NODE_TYPE).then_some(id)))
             }
             Walk::Advance(id) => {
                 let node = snapshot.node(id).ok_or("UDP output tree has a missing node")?;
-                self.state = if let Some(sibling) = node.next_sibling { Walk::Visit(sibling) }
-                    else { match node.parent {
+                self.state = if let Some(sibling) = node.next_sibling {
+                    Walk::Visit(sibling)
+                } else {
+                    match node.parent {
                         Some(parent) if parent != self.root => Walk::Advance(parent),
                         Some(_) => Walk::Done,
                         None => return Err("UDP output tree has a detached node".into()),
-                    } };
+                    }
+                };
                 Ok(Some(None))
             }
             Walk::Done => unreachable!(),
@@ -167,18 +183,36 @@ pub(super) struct OutputPreparation {
 impl OutputPreparation {
     pub(super) fn new(snapshot: golden_io::RetainedPayload<ProcessTreeSnapshot>, root: NodeId, limit: usize) -> Self {
         let cursor = OutputCursor::new(&snapshot, root);
-        Self { snapshot, cursor, builder: Some(OutputPlanBuilder::with_limit(limit)) }
+        Self {
+            snapshot,
+            cursor,
+            builder: Some(OutputPlanBuilder::with_limit(limit)),
+        }
     }
 
     pub(super) fn service(&mut self, cancelled: &impl Fn() -> bool) -> Option<Result<PreparedOutputPlan, PlanFailure>> {
         for _ in 0..PREPARATION_EDGES_PER_TURN {
-            if cancelled() { return Some(Err(PlanFailure::unavailable("UDP output preparation cancelled"))); }
+            if cancelled() {
+                return Some(Err(PlanFailure::unavailable("UDP output preparation cancelled")));
+            }
             match self.cursor.step(&self.snapshot) {
                 Err(error) => return Some(Err(PlanFailure::invalid(error))),
-                Ok(None) => return Some(self.builder.take().expect("active output builder").finish().map_err(PlanFailure::unavailable)),
-                Ok(Some(None)) => {},
+                Ok(None) => {
+                    return Some(
+                        self.builder
+                            .take()
+                            .expect("active output builder")
+                            .finish()
+                            .map_err(PlanFailure::unavailable),
+                    )
+                }
+                Ok(Some(None)) => {}
                 Ok(Some(Some(output))) => {
-                    if let Err(error) = append_target(&self.snapshot, output, self.builder.as_mut().expect("active output builder")) {
+                    if let Err(error) = append_target(
+                        &self.snapshot,
+                        output,
+                        self.builder.as_mut().expect("active output builder"),
+                    ) {
                         return Some(Err(error));
                     }
                 }
@@ -188,29 +222,59 @@ impl OutputPreparation {
     }
 }
 
-fn append_target(snapshot: &ProcessTreeSnapshot, output: NodeId, builder: &mut OutputPlanBuilder) -> Result<(), PlanFailure> {
-    if !snapshot.node(output).is_some_and(|node| node.enabled) { return Ok(()); }
-    let host = snapshot.find_child_by_decl_id(output, "remote_host")
-        .and_then(|id| snapshot.node(id)).and_then(|node| node.param_value.as_ref());
-    let Some(ParamValue::Str(host)) = host else { return Ok(()); };
-    if host.len() > UDP_HOST_BYTES {
-        return Err(PlanFailure::invalid(format!("UDP output {output:?} host exceeds the 1024-byte limit; no output was sent")));
+fn append_target(
+    snapshot: &ProcessTreeSnapshot,
+    output: NodeId,
+    builder: &mut OutputPlanBuilder,
+) -> Result<(), PlanFailure> {
+    if !snapshot.node(output).is_some_and(|node| node.enabled) {
+        return Ok(());
     }
-    if host.trim().is_empty() { return Ok(()); }
+    let host = snapshot
+        .find_child_by_decl_id(output, "remote_host")
+        .and_then(|id| snapshot.node(id))
+        .and_then(|node| node.param_value.as_ref());
+    let Some(ParamValue::Str(host)) = host else {
+        return Ok(());
+    };
+    if host.len() > UDP_HOST_BYTES {
+        return Err(PlanFailure::invalid(format!(
+            "UDP output {output:?} host exceeds the 1024-byte limit; no output was sent"
+        )));
+    }
+    if host.trim().is_empty() {
+        return Ok(());
+    }
     let port = crate::app::module::common::streaming::module_helpers::child_int_param(snapshot, output, "remote_port")
         .and_then(|port| u16::try_from(port).ok());
     if let Some(remote_port) = port {
-        builder.push_target(UdpOutputTarget { remote_host: host.clone(), remote_port }).map_err(PlanFailure::invalid)?;
+        builder
+            .push_target(UdpOutputTarget {
+                remote_host: host.clone(),
+                remote_port,
+            })
+            .map_err(PlanFailure::invalid)?;
     }
     Ok(())
 }
 
 #[cfg(test)]
-fn prepare(snapshot: &ProcessTreeSnapshot, root: NodeId, limit: usize, cancelled: impl Fn() -> bool) -> Result<PreparedOutputPlan, PlanFailure> {
+fn prepare(
+    snapshot: &ProcessTreeSnapshot,
+    root: NodeId,
+    limit: usize,
+    cancelled: impl Fn() -> bool,
+) -> Result<PreparedOutputPlan, PlanFailure> {
     let snapshot = Arc::new(snapshot.clone());
-    let lease = snapshot.try_lease().map_err(|error| PlanFailure::unavailable(error.to_string()))?;
+    let lease = snapshot
+        .try_lease()
+        .map_err(|error| PlanFailure::unavailable(error.to_string()))?;
     let mut preparation = OutputPreparation::new(lease, root, limit);
-    loop { if let Some(result) = preparation.service(&cancelled) { return result; } }
+    loop {
+        if let Some(result) = preparation.service(&cancelled) {
+            return result;
+        }
+    }
 }
 
 #[cfg(test)]

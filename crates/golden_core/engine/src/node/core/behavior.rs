@@ -707,6 +707,12 @@ pub trait Node: Send + Any {
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
         false
     }
+    /// Allows bounded service of previously accepted asynchronous completions while disabled.
+    /// Opt-in nodes must still reject new work and must not start disabled resources. This does
+    /// not enable scheduled updates, and removal always closes the wake registration.
+    fn worker_wake_when_disabled(&self) -> bool {
+        false
+    }
     /// Releases runtime resources. When the payload is retained for undo/rollback,
     /// the engine preserves its authored data across this callback.
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}

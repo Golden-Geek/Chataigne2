@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `df0c7876` plus the owned P03 batch 14 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `0196c0f8` plus the owned P03 batch 15 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,22 +13,25 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 14 duplex UDP reply admission, per-source continuations, and native
-  send fairness verified locally. Reconcile its milestone commit and `origin/main` before resuming.
-  Batch 13 was delivered in `df0c7876`; batch 12 in `a617d313`; batch 11 in `95c64618`. Separately committed
+- Current batch: P03 batch 15 TCP client native admission/lifetimes, resumable writes, connection
+  fencing, and disabled completion service verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 14 was delivered in `0196c0f8`; batch 13 in `df0c7876`; batch 12 in `a617d313`. Separately committed
   footer UI parent `3b4bdc7b` and build-cache ancestor `5b81c44e` are preserved.
 - Delivery: `f02205af3baa1c2ebf49527104364980c3a7b920` committed the verified P01/P02/P03-through-batch-7
   milestone and milestone delivery policy. `codex/builtin-mapping` was fast-forwarded into `main`
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `df0c7876`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `0196c0f8`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: continue TCP/WebSocket/serial
-  worker ownership and the full module/channel audit (including Sound Card
+- Next implementation action: finish TCP client worker-side input parsing/callback preparation
+  and grammar/connection-generation input fencing. Its owner is now passive; preserve the native
+  cursor, applied-snapshot admission, generation/retirement, and disabled-completion regressions.
+  Replace its stale `connection/target` warning lookup when restructuring that remaining adapter.
+  Then continue TCP server/WebSocket/serial worker ownership and the full module/channel audit (including Sound Card
   stop/join, event-drain, admission/recovery, and configuration bounds) and generator time accounting.
   Cold UDP preparation now runs in bounded native slices with reserved snapshot storage; preserve
   revision-fenced pending/ready tickets, whole-command admission, FIFO fanout/retirement,
@@ -56,7 +59,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-14 | Duplex UDP reply pressure and native send continuity verified; broader module/channel/generator audit remains open        |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-15 | TCP native cursor/lifetimes and disabled completion verified; TCP input boundary and broader module/generator audit open  |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -1891,3 +1894,109 @@ protocol-generation drift, dependency change, or unrelated source edit is includ
 Commit and push the verified batch on `main`, then resume TCP/WebSocket/serial worker ownership,
 the broader module/channel audit, and generator time accounting. P03 remains **IN_PROGRESS**;
 P04-P18 retain their states, including the recurring P12 native incremental-artifact gap.
+
+P03 batch 15 resumed at clean delivered `0196c0f88fbfa3306996ade41f692ddd00ff32f1` on `main`,
+matching fetched `origin/main`. Previous turn: **progress**; batch 14 was verified and delivered.
+No owned jobs are live. TCP client currently resolves DNS on the caller, owns an unbounded command
+channel, joins on stop, and uses `write_all` on a nonblocking socket without a resumable offset.
+The app owns TCP connection policy and native cursor/generation semantics; Golden IO supplies
+bounded lifetime/admission/cancellation primitives. Shared stream reply continuations will be
+reused by TCP and UDP. **XHigh requested; actual effort unchanged/unobservable**, with no supported
+control exposed. TCP actor-side input preparation/passive service remains an explicit following
+step at resume; passive owner service is now included, while worker-side input preparation remains
+open. This batch establishes the native boundary and graceful generation ownership first.
+
+### P03 batch 15: TCP client native ownership and completion service
+
+- TCP client now uses Golden IO's bounded worker with 16 global native lifetimes, 256 commands /
+  1 MiB, one extra 1 MiB write cursor, and 64 replies / 32 MiB; owner drains four events. Endpoint
+  resolution/connect/reconnect, health checks, writes, outgoing logs, and native cleanup stay on
+  the worker. Stop cancels without a join; blocked setup retains its lifetime reservation.
+- Commands capture their connection generation. Partial writes retain their suffix and submit
+  at most 64 KiB per step; `WouldBlock`/interruption never restart a prefix. A five-second absolute
+  command deadline fails stalled output, and connection failure explicitly reports written bytes
+  without replaying a command on a replacement socket. Work turns bound command steps and reads.
+- Shared app stream reply continuations and wake/deadline adapters serve TCP and UDP. UDP keeps
+  its app-owned limits/error policy; no private compatibility wrapper is retained. Its output
+  plan sources were also formatted with the repository formatter. TCP nodes use passive owner
+  service, preserve one retiring generation across endpoint edits/disable, and consume outgoing
+  log completion events instead of formatting full payloads or declaring sends on the actor.
+- Initial engine/app test compilation and strict app Clippy passed. The first concrete stream
+  run passed **66/67**; root TCP disable timed out waiting for retirement. Inspection found that
+  Golden Engine unconditionally skipped disabled-node worker callbacks. This is an owning engine
+  contract gap, not an endpoint timeout. A public default-false `worker_wake_when_disabled` hook
+  now permits bounded accepted-completion service. Enum dispatch forwards it for built-ins and
+  consumer variants; TCP and UDP opt in only while lifecycle/accepted work remains. A regression
+  checks default suppression, explicit opt-in, ending the opt-in, timed-clock separation, and
+  removal fencing. Native/module tests also cover disabled graceful draining and endpoint handoff.
+- Final core/app compilation passed the hook change. Full engine/IO and concrete stream runs are
+  pending/live; no final verification claim yet. TCP worker-side input parsing, callback preparation,
+  and grammar/connection-generation input fencing remain the next P03 boundary. TCP server,
+  WebSocket, serial, Sound Card/channel audits, and generator time accounting remain open.
+- Source scan: **1425 files / 42 oversized**, no new exception. Runtime/test files remain split
+  into focused modules; no wire format, persistence schema, dependency, or UI source changed.
+
+Retirement admission is now explicit at the generic IO boundary: `command_admission_closed`
+observes a closed producer before its accepted prefix is drained. TCP/UDP stop new input and
+reconnect/discovery work in that state, while retaining admitted sends/results. A connector that
+returns after closure cannot install a new TCP connection. The existing IO command-turn regression
+also checks that closure is visible before either queued command is consumed. This additive IO
+query postdates the initial core run's compilation; final IO/app checks must cover it. No existing
+Golden IO method changed behavior in this step.
+
+After the disabled-completion hook, concrete streams **passed 70/70**, including TCP root
+disable/re-enable, disabled draining of a saturated admitted prefix, endpoint handoff, idle
+passivity, partial-write/deadline/generation cases, and all UDP regressions. The engine unit
+suite passed **531** with **3 ignored**, and its **8 integration tests** passed; IO passed **38**.
+The same command's **7 doctests failed** with `E0460` because the IO source changed during the
+validation run and its newer artifact no longer matched the engine artifact. This was a
+validation sequencing error; a source-settled doc-only rerun is queued. No doctest pass is assumed.
+
+A final native-routing review added snapshot-based TCP endpoint admission, checked before moving
+the payload to the worker. A parameter edit followed by a script call in the same batch must
+reject pending configuration instead of sending on the prior endpoint. The saturated endpoint
+handoff regression now includes that rejected call and still requires the old admitted prefix
+to arrive exactly once at its original peer. This app-only change postdates the 70-test run;
+final stream/lint/native checks must use the updated source. Runtime source is now frozen.
+
+The source-settled IO rerun passed **38/38**, including pre-drain admission closure. The first
+native/default build failed with the recurring incremental MSVC/LLVM artifact issue, **19
+unresolved externals**. Final source still needs a fresh native build after the current app/doc/lint
+jobs finish. No cache cleanup, user-process interruption, or runtime workaround has been performed
+for that failure yet. Workspace/test compilation and the prior strict engine/IO/app Clippy run
+passed before the final applied-snapshot admission addition; the latest lint rerun is pending.
+
+Final applied-snapshot source passed **70/70 concrete stream tests** and strict
+`cargo clippy --locked -p golden_engine -p golden_io -p Chataigne2 --all-targets -- -D warnings`.
+The doc-only settled rerun `cargo test-fast --locked -p golden_engine --doc` passed **7/7**;
+with **531 engine unit + 8 integration**, that is **546 engine tests**, plus the same **3 ignored**
+manual measurements. Source-settled IO passed **38/38**. App preservation filters passed shared
+streams **44**, HTTP **36**, Sound Card/null **36**, OSC/OSCQuery **25**, and initial Formula cache
+**1**, making **212 distinct app tests** with concrete streams. Total current evidence is **796
+passing tests**; overlapping profiles and UDP subsets are not counted twice.
+
+All owned tests/lint/check jobs were terminal, and no live native app/compiler was observed.
+The resolved Cargo target was verified inside the workspace before app-package-only artifact
+cleanup. A fresh default native build is now running. The user watcher remains untouched; no
+dependency cache was removed and no runtime workaround was introduced. Native success is pending.
+
+The app-only cleanup command `cargo clean --locked -p Chataigne2 --profile dev` removed **4955
+files / 8.1 GiB**. Focused native cursor/generation, applied-snapshot admission, and disabled
+completion verification is complete. **Return to High requested; actual effort unchanged/unobservable**
+because no supported control is exposed. Routine native-build/documentation/delivery closeout
+remains; TCP worker-side input preparation is still the next dependency-ready P03 task.
+
+The fresh `cargo build --locked -p Chataigne2 --bin Chataigne2` **PASSED in 2m14s**. The final
+`cargo check --locked --workspace --tests` against settled source **passed in 32.97s**. All owned
+jobs are terminal. Root and Golden Core formatting, explicit formatting of touched app modules,
+maintained-doc Prettier, and whitespace checks passed. Source inventory remains **1425 / 42
+oversized**, with no new exception. The package clean changed build artifacts only.
+
+This milestone records **796 distinct passing tests** plus **3 ignored** manual engine cases;
+earlier failure evidence is preserved above rather than relabelled. Validation used Windows/default
+features, controlled loopback/missing-serial endpoints, and null audio. Occupied default-port and
+injected-error logs were diagnostics within passing suites. No physical-device, other-platform,
+ignored-measurement, or full-product scale qualification follows. No GUI automation or user-process
+interruption was used. Commit and push this verified batch on `main`, then continue the remaining
+TCP input boundary. P03 remains **IN_PROGRESS**; P04-P18 retain their states, including the P12
+incremental native-link artifact issue.

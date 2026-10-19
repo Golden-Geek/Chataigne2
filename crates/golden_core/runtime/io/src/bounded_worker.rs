@@ -266,6 +266,13 @@ impl<C, E> WorkerContext<C, E> {
         self.cancellation.notify();
     }
 
+    /// Observes graceful closure before the accepted command queue is empty. Duplex
+    /// workers use this to stop accepting native input or starting reconnect attempts
+    /// while still finishing the already-admitted command prefix.
+    pub fn command_admission_closed(&self) -> bool {
+        self.commands.is_disconnected()
+    }
+
     pub fn cancellation(&self) -> &WorkerCancellation {
         &self.cancellation
     }

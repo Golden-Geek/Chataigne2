@@ -19,7 +19,12 @@ impl<T: Node> Engine<T> {
                 delivery.close();
                 continue;
             }
-            if !self.is_enabled(node_id, true) {
+            if !self.is_enabled(node_id, true)
+                && !self
+                    .nodes
+                    .get(node_id)
+                    .is_some_and(|node| node.worker_wake_when_disabled())
+            {
                 delivery.complete();
                 continue;
             }

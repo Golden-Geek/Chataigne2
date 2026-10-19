@@ -27,6 +27,7 @@ struct WorkerWakeProbe {
     failure: WakeFailure,
     scheduled: bool,
     create_tree: bool,
+    allow_disabled: bool,
 }
 
 #[crate::node("worker_wake_probe", from_struct)]
@@ -89,6 +90,9 @@ impl Node for WorkerWakeProbe {
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
         false
     }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.allow_disabled
+    }
     fn lifecycle_requires_tree_snapshot(&self) -> bool {
         false
     }
@@ -121,6 +125,7 @@ fn add_probe(
             false,
             WakeFailure::None,
             scheduled,
+            false,
             false,
         )
         .into(),
@@ -166,6 +171,49 @@ fn probe(engine: &mut Engine<WakeNode>, id: NodeId) -> &mut WorkerWakeProbe {
         panic!("worker probe")
     };
     probe
+}
+
+#[test]
+fn disabled_worker_completion_service_is_an_explicit_bounded_opt_in() {
+    for allow in [false, true] {
+        let (mut engine, id, target, sender, calls) = fixture();
+        probe(&mut engine, id).allow_disabled = allow;
+        engine.edits.push(Edit::PatchMeta {
+            node: id,
+            patch: crate::node::NodeMetaPatch {
+                enabled: Some(false),
+                ..Default::default()
+            },
+        });
+        engine.apply_edits().unwrap();
+        let waker = engine.node_waker(id).unwrap();
+        sender.send(ParamValue::Int(42)).unwrap();
+        waker.wake().unwrap();
+        engine.run_tick(Duration::from_millis(1)).unwrap();
+        assert_eq!(calls.load(Ordering::Relaxed), usize::from(allow));
+        assert_eq!(
+            engine.tick_stats().callbacks_fired,
+            0,
+            "opt-in cannot enable timed updates"
+        );
+        assert_eq!(
+            engine.nodes.get(target).unwrap().engine_param_snapshot().unwrap().value,
+            ParamValue::Int(if allow { 42 } else { 0 })
+        );
+        probe(&mut engine, id).allow_disabled = false;
+        waker.wake().unwrap();
+        engine.run_tick(Duration::from_millis(1)).unwrap();
+        assert_eq!(
+            calls.load(Ordering::Relaxed),
+            usize::from(allow),
+            "the opt-in can end after retirement"
+        );
+        engine.edits.push(Edit::RemoveNode { node: id });
+        engine.apply_edits().unwrap();
+        assert_eq!(waker.wake(), Err(NodeWakeError::Closed));
+    }
+    let built_in: WakeNode = Folder::new("default").into();
+    assert!(!built_in.worker_wake_when_disabled());
 }
 
 #[test]

@@ -1,5 +1,6 @@
-use super::super::replies::{NativeReplies, ReplySource};
+use super::super::replies::ReplySource;
 use super::*;
+use crate::app::module::common::streaming::native_replies::NativeReplies;
 
 #[test]
 fn pending_reply_sources_resume_in_one_fifo_and_retirement_delivers_every_result() {

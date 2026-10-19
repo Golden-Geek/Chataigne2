@@ -1013,6 +1013,9 @@ macro_rules! define_node_enum {
             fn worker_wake_requires_tree_snapshot(&self) -> bool {
                 $crate::__dispatch_node_enum!(self, worker_wake_requires_tree_snapshot; $($variant),*)
             }
+            fn worker_wake_when_disabled(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, worker_wake_when_disabled; $($variant),*)
+            }
 
             #[inline(always)]
             fn destroy(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
