@@ -1,6 +1,35 @@
 use super::*;
 
 #[test]
+fn canonical_udp_cursor_keeps_one_original_datagram_after_source_retirement() {
+    use crate::app::module::common::streaming::commands::preparation::tests::native_payload;
+    let pool = golden_io::PayloadPool::new("udp-canonical", 1, 128 * 1024).unwrap();
+    let payload = native_payload(&pool, vec![9; UDP_MAX_PAYLOAD]);
+    let pointer = payload.request.bytes.as_ptr();
+    let mut builder = OutputPlanBuilder::default();
+    builder
+        .push_target(UdpOutputTarget {
+            remote_host: "127.0.0.1".into(),
+            remote_port: 9000,
+        })
+        .unwrap();
+    let mut command = UdpOutboundSend::with_ticket(
+        SendInput::Prepared(&payload),
+        PlanTicket::ready(builder.finish().unwrap()),
+        None,
+        false,
+    )
+    .unwrap();
+    assert_eq!(command.bytes().as_ptr(), pointer);
+    drop(payload);
+    command.prepare(|| false).unwrap();
+    assert_eq!(command.bytes().as_ptr(), pointer);
+    assert_eq!(command.bytes(), vec![9; UDP_MAX_PAYLOAD]);
+    drop(command);
+    assert!(pool.wait_for_idle(std::time::Duration::from_secs(2)));
+}
+
+#[test]
 fn large_destination_plan_retains_one_datagram_and_accounts_for_allocated_capacity() {
     let bytes = vec![9; UDP_MAX_PAYLOAD];
     let address = bytes.as_ptr();

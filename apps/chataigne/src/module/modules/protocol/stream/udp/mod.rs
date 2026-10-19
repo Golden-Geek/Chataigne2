@@ -376,7 +376,7 @@ impl UdpModule {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        if let Err(error) = self.queue_send_request(ctx, &snapshot, (&command.request).into()) {
+        if let Err(error) = self.queue_send_request(ctx, &snapshot, command.into()) {
             logerror!(format!("Prepared stream command was not admitted: {}", error));
         }
     }

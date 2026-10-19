@@ -1,33 +1,34 @@
-use super::{ScriptSend, StreamingSendFrameKind, StreamingSendRequest};
+use super::{preparation::PreparedCommand, ScriptSend, StreamingSendFrameKind};
+use golden_io::RetainedPayload;
 use std::ops::Deref;
 
 #[derive(Clone, Copy)]
 pub(crate) enum StreamSend<'a> {
-    Prepared(&'a StreamingSendRequest),
+    Prepared(&'a RetainedPayload<PreparedCommand>),
     Script(&'a ScriptSend),
 }
 impl<'a> StreamSend<'a> {
     pub fn input(self) -> SendInput<'a> {
         match self {
-            Self::Prepared(request) => SendInput::Borrowed(&request.bytes),
+            Self::Prepared(request) => SendInput::Prepared(request),
             Self::Script(input) => SendInput::Script(input),
         }
     }
     pub fn frame_kind(self) -> StreamingSendFrameKind {
         match self {
-            Self::Prepared(request) => request.frame_kind,
+            Self::Prepared(request) => request.request.frame_kind,
             Self::Script(input) => input.frame_kind(),
         }
     }
     pub fn description(self) -> &'a str {
         match self {
-            Self::Prepared(request) => &request.description,
+            Self::Prepared(request) => &request.request.description,
             Self::Script(_) => "script command",
         }
     }
 }
-impl<'a> From<&'a StreamingSendRequest> for StreamSend<'a> {
-    fn from(request: &'a StreamingSendRequest) -> Self {
+impl<'a> From<&'a RetainedPayload<PreparedCommand>> for StreamSend<'a> {
+    fn from(request: &'a RetainedPayload<PreparedCommand>) -> Self {
         Self::Prepared(request)
     }
 }
@@ -38,94 +39,105 @@ impl<'a> From<&'a ScriptSend> for StreamSend<'a> {
 }
 
 pub(crate) enum SendInput<'a> {
+    Prepared(&'a RetainedPayload<PreparedCommand>),
+    #[cfg(test)]
     Borrowed(&'a [u8]),
+    #[cfg(test)]
     Owned(Vec<u8>),
     Script(&'a ScriptSend),
 }
-impl<'a> From<&'a [u8]> for SendInput<'a> {
-    fn from(value: &'a [u8]) -> Self {
-        Self::Borrowed(value)
-    }
-}
-impl<'a, const N: usize> From<&'a [u8; N]> for SendInput<'a> {
-    fn from(value: &'a [u8; N]) -> Self {
-        Self::Borrowed(value)
-    }
-}
-impl<'a> From<&'a Vec<u8>> for SendInput<'a> {
-    fn from(value: &'a Vec<u8>) -> Self {
-        Self::Borrowed(value)
-    }
-}
-impl From<Vec<u8>> for SendInput<'_> {
-    fn from(value: Vec<u8>) -> Self {
-        Self::Owned(value)
-    }
+
+/// Admission carries exactly one source. Failed preparation cannot expose an
+/// empty successful command; ready canonical bytes never need actor-side copying.
+#[derive(Debug)]
+enum OutgoingData {
+    Prepared(RetainedPayload<PreparedCommand>),
+    Script(ScriptSend),
+    Owned(Vec<u8>),
+    Failed,
 }
 
-/// Created before native admission; only a native owner may prepare/take the bytes.
-/// Script output reserves a conservative shape-derived bound, capped by the transport.
 #[derive(Debug)]
 pub(crate) struct OutgoingBytes {
-    bytes: Vec<u8>,
-    script: Option<ScriptSend>,
+    data: OutgoingData,
     limit: usize,
-    failed: bool,
 }
 impl OutgoingBytes {
     pub fn new<'a>(input: impl Into<SendInput<'a>>, mut limit: usize) -> Result<Self, String> {
-        let (bytes, script) = match input.into() {
-            SendInput::Borrowed(bytes) if bytes.len() <= limit => (bytes.to_vec(), None),
-            SendInput::Owned(bytes) if bytes.capacity() <= limit => (bytes, None),
+        let data = match input.into() {
+            SendInput::Prepared(request) if request.request.bytes.len() <= limit => {
+                OutgoingData::Prepared(request.clone())
+            }
             SendInput::Script(script) => {
                 limit = limit.min(script.output_bound());
-                (Vec::new(), Some(script.clone()))
+                OutgoingData::Script(script.clone())
             }
+            #[cfg(test)]
+            SendInput::Borrowed(bytes) if bytes.len() <= limit => OutgoingData::Owned(bytes.to_vec()),
+            #[cfg(test)]
+            SendInput::Owned(bytes) if bytes.capacity() <= limit => OutgoingData::Owned(bytes),
             _ => {
                 return Err("Stream command exceeds the transport retained-byte limit; command was not admitted".into())
             }
         };
-        Ok(Self {
-            bytes,
-            script,
-            limit,
-            failed: false,
-        })
+        Ok(Self { data, limit })
     }
     pub fn weight(&self) -> usize {
-        if self.script.is_some() {
-            self.limit
-        } else {
-            self.bytes.capacity()
+        match &self.data {
+            // Canonical storage (including spare capacity) has its own pool
+            // reservation. Queues reserve logical output plus their own header.
+            OutgoingData::Prepared(prepared) => prepared.request.bytes.len(),
+            OutgoingData::Script(_) => self.limit,
+            OutgoingData::Owned(bytes) => bytes.capacity(),
+            OutgoingData::Failed => 0,
         }
     }
     pub fn encoded_len(&self) -> Option<usize> {
-        (self.script.is_none() && !self.failed).then_some(self.bytes.len())
+        match self.data {
+            OutgoingData::Prepared(_) | OutgoingData::Owned(_) => Some(self.len()),
+            OutgoingData::Script(_) | OutgoingData::Failed => None,
+        }
     }
     pub fn prepare(&mut self) -> Result<(), String> {
-        if self.failed {
-            return Err("Stream script preparation previously failed; command must not be sent".into());
-        }
-        if let Some(script) = self.script.take() {
-            self.failed = true;
-            let mut request = script.materialize()?;
-            request.bytes.shrink_to_fit();
-            if request.bytes.capacity() > self.limit {
-                return Err("Encoded stream script exceeds the transport output limit; command was not sent".into());
+        match &self.data {
+            OutgoingData::Prepared(_) | OutgoingData::Owned(_) => return Ok(()),
+            OutgoingData::Failed => {
+                return Err("Stream script preparation previously failed; command must not be sent".into())
             }
-            self.bytes = request.bytes;
-            self.failed = false;
+            OutgoingData::Script(_) => {}
         }
+        let OutgoingData::Script(script) = std::mem::replace(&mut self.data, OutgoingData::Failed) else {
+            unreachable!("matched script preparation")
+        };
+        let mut request = script.materialize()?;
+        request.bytes.shrink_to_fit();
+        if request.bytes.capacity() > self.limit {
+            return Err("Encoded stream script exceeds the transport output limit; command was not sent".into());
+        }
+        self.data = OutgoingData::Owned(request.bytes);
         Ok(())
     }
     pub fn into_vec(mut self) -> Result<Vec<u8>, String> {
         self.prepare()?;
-        Ok(self.bytes)
+        // Ownership-consuming frame/broadcast APIs copy on their native owner.
+        // Slice-based writers keep the canonical bytes directly through Deref.
+        Ok(match self.data {
+            OutgoingData::Prepared(prepared) => prepared.request.bytes.clone(),
+            OutgoingData::Owned(bytes) => bytes,
+            OutgoingData::Script(_) | OutgoingData::Failed => unreachable!("prepared native output"),
+        })
     }
 }
 impl Deref for OutgoingBytes {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
-        &self.bytes
+        match &self.data {
+            OutgoingData::Prepared(prepared) => &prepared.request.bytes,
+            OutgoingData::Owned(bytes) => bytes,
+            OutgoingData::Script(_) | OutgoingData::Failed => &[],
+        }
     }
 }
+
+#[cfg(test)]
+mod tests;

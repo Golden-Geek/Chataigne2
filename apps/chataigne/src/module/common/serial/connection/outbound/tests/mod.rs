@@ -1,4 +1,22 @@
 use super::*;
+
+#[test]
+fn canonical_serial_cursor_keeps_the_original_allocation_through_partial_writes() {
+    use crate::app::module::common::streaming::commands::preparation::tests::native_payload;
+    let pool = golden_io::PayloadPool::new("serial-canonical", 1, 128 * 1024).unwrap();
+    let payload = native_payload(&pool, vec![9; 100_000]);
+    let pointer = payload.request.bytes.as_ptr();
+    let mut command = Outbound::new(SendInput::Prepared(&payload), 1, false).unwrap();
+    assert_eq!(command.bytes.as_ptr(), pointer);
+    drop(payload);
+    command.prepare().unwrap();
+    let mut port = wire([Ok(3), Err(io::ErrorKind::WouldBlock.into())]);
+    while !command.write_turn(&mut port).unwrap() {}
+    assert_eq!(command.bytes.as_ptr(), pointer);
+    assert_eq!(port.bytes, vec![9; 100_000]);
+    drop(command);
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
 use std::collections::VecDeque;
 
 struct Wire {

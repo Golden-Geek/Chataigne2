@@ -13,6 +13,29 @@ use std::{
 mod pressure;
 mod receipts;
 
+/// Native-only fixture after admission. Retiring its engine must not revoke an
+/// already accepted byte prefix; only the module admission boundary checks it.
+pub(crate) fn native_payload(pool: &PayloadPool, bytes: Vec<u8>) -> RetainedPayload<PreparedCommand> {
+    let engine = golden_core::engine::Engine::new(Folder::new("native fixture"));
+    let request = StreamingSendRequest {
+        bytes,
+        description: "native fixture".into(),
+        frame_kind: super::super::StreamingSendFrameKind::Binary,
+    };
+    let weight =
+        std::mem::size_of::<PreparedCommand>() + request.bytes.capacity() + request.description.capacity() + 1024;
+    pool.try_retain(
+        PreparedCommand {
+            module: engine.root,
+            request,
+            source: Arc::new(AtomicBool::new(false)),
+            target: engine.node_waker(engine.root).unwrap(),
+        },
+        weight,
+    )
+    .unwrap()
+}
+
 type Owner = Arc<Mutex<CommandPreparation>>;
 fn fixture() -> (crate::app::AppEngine, NodeId, CommandCapture) {
     let mut engine = crate::app::AppEngine::new(Folder::new("root").into());

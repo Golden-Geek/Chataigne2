@@ -1,4 +1,26 @@
 use super::*;
+
+#[test]
+fn canonical_websocket_frame_admission_is_shallow_and_encoding_is_native() {
+    use crate::app::module::common::streaming::commands::preparation::tests::native_payload;
+    let pool = golden_io::PayloadPool::new("ws-client-canonical", 1, 128 * 1024).unwrap();
+    let payload = native_payload(&pool, vec![9; 100_000]);
+    let pointer = payload.request.bytes.as_ptr() as usize;
+    let mut command = Outbound::new(StreamingSendFrameKind::Binary, SendInput::Prepared(&payload), 1, false).unwrap();
+    assert_eq!(command.bytes.as_ref().unwrap().as_ptr() as usize, pointer);
+    drop(payload);
+    std::thread::spawn(move || {
+        command.prepare().unwrap();
+        let Some(Message::Binary(bytes)) = command.message.take() else {
+            panic!("native binary frame")
+        };
+        assert_ne!(bytes.as_ptr() as usize, pointer);
+        assert_eq!(bytes.as_ref(), vec![9; 100_000]);
+    })
+    .join()
+    .unwrap();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
 use std::{
     collections::VecDeque,
     io::{self, Cursor},

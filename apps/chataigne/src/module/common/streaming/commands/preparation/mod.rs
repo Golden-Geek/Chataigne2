@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 mod worker;
 
 use super::{bounds::json_weight, CommandCapture, StreamingSendRequest};

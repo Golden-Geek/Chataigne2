@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for canonical prepared-byte leases through all six native queues, rejected admission/final-owner disposal, output byte accounting and accepted-prefix lifetime semantics. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 23 common command tests and six owning transport tests passed allocation identity, canonical capacity, queue-full rejection, final reservation release and native-only owned-buffer creation. Routine preservation, lint/workspace checks and native cache recovery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for native stream script argument leases, conservative output admission, shared transport queues, original-connection generations and accepted-prefix retirement across all six stream modules. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 20 focused command tests, five serial admission/retirement tests, the UDP conversion-isolation regression and the full Golden Engine suite passed shared input identity, native conversion, output admission, failure recovery and accepted-prefix ownership. Routine lint/integration/native validation and logging call-site cleanup remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

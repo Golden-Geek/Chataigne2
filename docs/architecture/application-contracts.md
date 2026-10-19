@@ -254,6 +254,20 @@ conversion failures are asynchronous feedback. Argument-shape, lifetime-capacity
 admission failures remain synchronous. Inputs rejected before a lease can be reserved still require
 the broader generic ingress/disposal audit in P03; this does not qualify engine bound-handle costs.
 
+Encoded command delivery also retains its canonical preparation lease through native admission.
+Production send inputs accept only retained command or script data; raw vector/slice constructors
+are test fixtures. Full or disconnected queues release a small lease on the actor, keeping final
+buffer disposal on the shared payload pool. Serial, TCP Client and UDP write directly from the
+original allocation. WebSocket frames and TCP broadcasts create owned buffers on their native
+worker when the downstream API consumes a vector.
+
+Canonical storage, including spare capacity and envelope metadata, keeps its existing pool
+reservation. Each native queue accounts for its own header and logical output bytes; it does not
+charge the shared allocation again for every lease. The outgoing state is exclusive: prepared,
+script, owned native bytes, or terminal failure. The module checks source/target eligibility before
+native admission. After acceptance, the original transport generation/cursor owns the prefix;
+retiring the command source does not revoke already admitted bytes.
+
 WebSocket client uses the same passive wake, retained input and callback-receipt contracts. Its
 native owner uses the locked Tungstenite public nonblocking handshake/framing/control API, with
 at most 16 live or retiring workers. Commands allow 256 items / 8 MiB, with a 1 MiB retained frame

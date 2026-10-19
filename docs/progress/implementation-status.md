@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on clean `main` at delivered `b8c4c4e7`, matching fetched `origin/main`.
+Last reconciled: 2026-10-19 on clean `main` at delivered `cccd449e`, matching fetched `origin/main`.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 31 native stream script argument ownership verified locally;
+- Current batch: P03 batch 32 canonical encoded outbound ownership verified locally;
   milestone delivery is the commit containing this entry.
+  Batch 31 native stream script ownership delivered in `cccd449e`.
   Batch 30 bounded native stream command preparation delivered in `b8c4c4e7`.
   Batch 29 native outgoing completion logging delivered in `ed6f1039`.
   Batch 28 serial retained catalog/passive ownership delivered in `2c24b119`.
@@ -38,13 +39,13 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `b8c4c4e7`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `cccd449e`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: continue P03 admission/disposal: encoded stream outbound copying
-  and rejected payload ownership; generic script ingress/disposal; HTTP request conversion/disposal; then Sound Card
+- Next implementation action: continue P03 generic script ingress/rejected-input disposal;
+  HTTP request conversion/disposal; then Sound Card
   and remaining module/channel/generator ownership. Serial now has bounded retained discovery
   catalogs/options, subscriber/producer notifications and coarse recovery, native prepared input
   generations, passive callback/feedback receipts and accepted-prefix retirement. Preserve its
@@ -52,7 +53,7 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 - TCP/WebSocket Server share one app feedback component with verified discarded/partial projection
   recovery and newer desired state retained during an in-flight projection. Preserve each protocol's
   target IDs, client-parameter factory, native limits, callback receipts and accepted-prefix lifecycle.
-- P03 remaining scope includes encoded outbound copying and rejected-ingress disposal admission;
+- P03 remaining scope includes generic rejected-ingress disposal admission;
   HTTP request argument conversion/disposal; Sound Card stop/join, event drain,
   admission/recovery and configuration bounds; the remaining module/channel audit; and generator
   elapsed-time accounting. Do not claim the module audit complete from one stream repair.
@@ -62,8 +63,8 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   destroy/undo wake fencing. WebSocket server also preserves per-peer grammar. Both servers use receipt-owned
   connection/warning/client projections, including stable IDs after partial failure. Detailed
   regressions and measurements remain under their implementation batches below.
-- Requested return to High after native argument ownership, conversion, output admission, FIFO,
-  original-connection fencing and accepted-prefix retirement passed focused checks. Actual effort remains
+- Requested return to High after canonical allocation identity, queue rejection, final reservation
+  release and native ownership-consuming conversion passed focused checks. Actual effort remains
   unchanged/unobservable; no supported control is exposed.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
   The reproduced edit-prefix undo loss is fixed locally. Compound creation now uses prepared
@@ -84,7 +85,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-31 | Native stream script ownership verified; broader ingress/admission/module/generator audit open                            |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-32 | Canonical stream outbound ownership verified; broader ingress/admission/module/generator audit open                       |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -3127,3 +3128,82 @@ verified milestone on `main`. Next, continue P03 encoded outbound copying/reject
 and generic ingress/disposal, followed by HTTP argument conversion/disposal, Sound Card/module/
 channel ownership and generator elapsed-time accounting. P03 stays **IN_PROGRESS**; P04-P18 retain
 their states.
+
+### P03 batch 32: Canonical encoded outbound ownership
+
+Resumed clean delivered `cccd449e798c8b0f7d175a403e1d3a6e2eb0915b` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live at resume. The user's independent
+development watcher was present. Source audit confirmed encoded commands still borrowed their
+prepared byte slice into native constructors, which cloned it on the actor before queue admission.
+Full/disconnected queue rejection then destroyed that private vector on the actor. This batch
+extends the existing canonical preparation lease through all six native send queues.
+
+Requested **XHigh** for retained lifetimes, rejected admission/final-owner disposal, byte accounting
+and accepted-prefix semantics. No supported effort control is exposed; actual effort remains
+unchanged/unobservable. App common `StreamSend`/`SendInput` now require a retained prepared command
+or script input in production. Borrowed/owned raw byte variants and conversion conveniences are
+test fixtures, with their implementations under the adjacent outgoing `tests/` directory.
+No Golden, wire, persistence, generated protocol, app-shell startup or UI contracts change.
+
+`OutgoingBytes` has one exclusive state: canonical prepared data, retained script input, owned
+native bytes or terminal failure. It cannot hold conflicting sources or turn failed preparation
+into an empty successful output. Prepared admission performs a shallow lease clone and length
+check. Serial, TCP Client and UDP keep the original allocation through partial writes/fanout.
+WebSocket frames and TCP broadcasts create private ownership-consuming buffers on their native
+owner. Failed queue admission releases only the small retained handle on the actor; the payload
+pool continues to own final destruction of its vector, metadata and guards.
+
+The existing canonical pool charges actual storage, including spare capacity. Native queue weight
+reserves its own header plus logical output bytes instead of charging the shared allocation again
+for every lease. Output limits still apply before native admission. The module validates source/
+target eligibility at that boundary. After acceptance, the original transport generation/cursor
+owns the prefix; source retirement does not revoke already admitted bytes. Native cancellation,
+disabled/reconfigured drain, output logs, UDP destination tickets and no-replay cursors survive.
+
+Initial app/test compilation passed in **49.94s**, with a later expanded check passing in **23.90s**.
+The first ordinary Cargo test attempt failed its native application link with **LNK2019/LNK1120**:
+1067 unresolved anonymous LLVM symbols in unchanged macro-generated inbox/Alchemist/node code.
+Its compiler was observed through terminal state, without restarting on observation timeouts.
+The source state was subsequently consolidated into the exclusive outgoing enum above.
+
+`cargo test-fast --locked -p Chataigne2 --bin Chataigne2 common::streaming::commands -- --test-threads=4`
+passed **23/23** in **0.06s**, after **1m46s** preparation. Three new common tests verify pointer
+identity, spare canonical capacity with a free item slot, bounded native owned conversion, full
+queue rejection, independent retirement of a rejected input and final reservation release while an
+accepted prefix remains blocked. Six new owning tests, one per transport, passed individually.
+They prove shallow admission, slice-cursor allocation identity through partial writes/retirement,
+and worker-side ownership-consuming conversion. Retired engine guards intentionally model an
+already accepted native prefix; the tests prevent accidental revalidation after admission.
+Requested return to **High** after focused proof; actual effort remains unchanged/unobservable.
+
+Strict IO/app Clippy passed first in **41.13s**, then finally in **14.40s**. Final
+`cargo check --locked --workspace --tests` passed in **23.94s**. After affected compilers were
+terminal, the native app incremental directory `Chataigne2-2lml0tamgzb10` was preserved by a
+reversible rename to `Chataigne2-2lml0tamgzb10-retired-batch32`, with both paths checked beneath
+the workspace's `target/debug/incremental` directory. No files were deleted or compiler/profile
+settings changed. `cargo build --locked -p Chataigne2 --bin Chataigne2` passed in **0.53s** with
+a warm native artifact independently produced by the development watcher. Its executable timestamp
+was **23:26:20**, after the last runtime source edit at **23:21:23**. This is not a measured cold
+rebuild. Repeating the original ordinary Cargo command test path passed **23/23** in **0.06s**,
+after **0.90s** preparation. The incremental artifact gap remains P12 work.
+
+Final disjoint compiled-name preservation filters passed script API **8**, concrete streams **191**,
+common streaming **61**, common serial **28**, HTTP **59**, Sound Card **35**, OSC **25**, initial
+Formula **1**, and null-device Sound Card evidence **1**: **409 distinct app tests**. They run
+`target/debug/deps/Chataigne2-c47f0ddae7812c83.exe` with those filters and `--test-threads=4`,
+checking name sets for overlap before summing. Streams passed in **6.44s**, common streaming in
+**0.18s**, and common serial in **2.26s**. `cargo test-fast --locked -p golden_io` passed **38/38**
+in **0.20s**, after **0.15s** preparation. The full Golden Engine command passed **536 unit tests**,
+**8 integration tests** and **7 doctests**: **551 passed**, with **3 existing ignored tests**, after
+**0.25s** preparation. Together this is **998 distinct passed tests**; focused reruns count once.
+
+Root/Core Cargo formatting, explicit affected-feature rustfmt, maintained-doc Prettier and whitespace
+checks pass. Inventory: **1697 source files / 42 oversized**, with no new size exceptions. Outgoing
+runtime/tests are **143/143** lines. Runtime and tests remain separate. All owned jobs are terminal;
+the development watcher remains independent. Fetched `origin/main` has no divergence from the parent.
+
+Tests use deterministic gates, controlled loopback and injected serial ports, and do not qualify
+physical devices, other platforms, native UI or product-scale latency/memory. Commit and push this
+verified milestone on `main`. Next, continue generic script ingress/rejected-input disposal, HTTP
+argument conversion/disposal, Sound Card/module/channel ownership and generator elapsed-time
+accounting. P03 stays **IN_PROGRESS**; P04-P18 retain their states.
