@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at parent `b93f18ad` plus the owned P03 batch 10 diff.
+Last reconciled: 2026-10-19 on `main` at parent `3b4bdc7b` plus the owned P03 batch 11 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,22 +13,23 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 10 passive UDP input and reusable IO notification/deadline/payload
-  ownership verified locally. Reconcile its milestone commit and `origin/main` before resuming.
-  Batch 9 was delivered in `b93f18ad`; separately committed build-cache parent `5b81c44e` is preserved.
+- Current batch: P03 batch 11 whole-command UDP fanout verified locally; 91 owning/preservation
+  tests, strict Clippy, workspace compilation, and fresh native build passed. Reconcile its milestone
+  commit and `origin/main` before resuming. Batch 10 was delivered in `e59ad7d5`; separately committed
+  footer UI parent `3b4bdc7b` and build-cache ancestor `5b81c44e` are preserved.
 - Delivery: `f02205af3baa1c2ebf49527104364980c3a7b920` committed the verified P01/P02/P03-through-batch-7
   milestone and milestone delivery policy. `codex/builtin-mapping` was fast-forwarded into `main`
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `b93f18ad`;
-  no unrelated edits or live owned jobs found at resume. The previous goal turn was progress.
+- P00 resumed check: `main` and `origin/main` at delivered `e59ad7d5`, with three separately owned
+  UI paths subsequently committed as `3b4bdc7b`. No live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: audit and bound UDP outbound output collection/fanout and whole-command
-  admission. Its node still scans outputs, clones a packet per destination, and can report combined
-  errors after partially accepting a send. Preserve the now-passive incoming worker, configuration,
+- Next implementation action: bound UDP actor-side output-tree collection, ID accumulation,
+  hostname extraction, and rejected-plan cleanup. Preserve whole-command mailbox admission,
+  the native destination cursor, and the now-passive incoming worker, configuration,
   callback, disposal, retry, and shared stream cursor/receipt regressions. Continue TCP/WebSocket/serial
   worker ownership and the full module/channel audit (including Sound Card
   stop/join, event-drain, admission/recovery, and configuration bounds) and generator time accounting.
@@ -53,7 +54,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-10 | Passive UDP input and generic IO lifetime primitives verified; outbound/module/generator bounds remain open               |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-11 | Whole-command UDP fanout/cursor verified; actor output traversal and remaining module/generator bounds stay open          |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -1548,3 +1549,74 @@ collection and per-output packet admission; partial acceptance can precede a com
 that outbound path before extending the passive-worker pattern to remaining stream modules.
 Engine-retained event/history payload copies have separate lifetimes and are not covered by the
 new stream disposal pool's budget. P04-P18 retain their prior implementation states.
+
+P03 batch 11 resumed on `main` at delivered `e59ad7d5430e2649926fe6ece4e3e6c20c4a9396`.
+Previous goal turn: **progress**, with batch 10 verified, committed, and pushed. The three
+separate header/footer UI paths remain untouched. App-owned UDP owns frozen destination plans
+and native send policy. **XHigh requested; actual effort unchanged/unobservable** for atomic
+fanout admission and native cursor/retirement ownership; no supported effort control is exposed.
+First repair replaces packet-per-destination queueing with one weighted whole-command envelope
+and a bounded native destination cursor. Actor-side output-tree collection remains a separate
+read-path repair; this batch does not qualify that traversal or all of P03.
+
+Batch 11 implementation and owning evidence:
+
+- `udp/outbound.rs` owns an immutable-after-admission command: one moved datagram, ordered
+  destinations, outgoing-log policy, and cached allocation weight. The 1 MiB reservation includes
+  payload capacity, allocated destination slots, and hostname capacity. Payloads over 65,507 bytes,
+  hosts over 1024 bytes, oversized plans, and empty plans reject before native admission. A failed
+  destination append invalidates the builder, so its earlier valid prefix cannot be submitted.
+- Script/custom-event sends construct the entire plan before one native mailbox admission.
+  Queue pressure rejects that command as a whole. The old per-output payload clone/admission loop
+  and its partly-accepted combined-error result are removed. Native delivery remains best effort:
+  a destination failure reports its index/count and continues later destinations without replay.
+- The native worker retains one command cursor outside the 256-item / 1 MiB mailbox, adding at
+  most one further 1 MiB envelope. A turn sends at most 16 destinations across command boundaries
+  and receives at most 16 packets. Graceful closure finishes the current cursor before later
+  commands and socket release. Terminal receive failure closes admission and uses the same cursor
+  to drain accepted sends. Destruction retains explicit cancellation semantics.
+- Outgoing logs now describe successful native sends. Their first-1024-byte prefixes are built
+  on the worker and published through the existing weighted, four-event owner drain; the node
+  no longer formats the complete datagram once per output.
+- Six new tests cover a 10,000-destination plan retaining the original maximum-datagram allocation,
+  exact capacity accounting, poisoned plan rejection, full-mailbox whole-fanout rejection,
+  40-destination FIFO retirement spanning native turns, and an IPv6-destination failure on an IPv4
+  socket preserving prior/later send multiplicity and log outcomes. UDP passed **26 tests**;
+  the full concrete-stream filter passed **47** (including UDP), and shared streams passed **44**.
+- Initial `cargo check --locked -p Chataigne2 --tests` caught two stale packet-loop references
+  during cursor integration; both were repaired before test compilation. The subsequent
+  `cargo test-fast --locked -p Chataigne2 module_modules_protocol_stream_udp -- --quiet` built the
+  app test executable, but its companion native binary failed with **148 unresolved MSVC/LLVM
+  anonymous/internal symbols**. That command is **FAILED**. Direct execution of its successfully
+  linked test binary `target/debug/deps/Chataigne2-c47f0ddae7812c83.exe` passed the filters above.
+  Strict Clippy, workspace compilation, and fresh-native artifact closeout are still pending.
+- Concurrent footer UI work was committed separately as `3b4bdc7b`; preserve that parent. The
+  updated size scan includes it: **1406 source files / 42 oversized**, with three new outbound
+  model/test files and one separately committed `EngineStatus.svelte`; no new size exception.
+
+Actor-side `collect_outputs_recursive`, output-ID accumulation, and hostname extraction remain
+open read-path work. The bounded native envelope does not qualify their scan, transient storage,
+or cleanup costs. Do not replace that audit with an arbitrary small output count that prevents
+large graphs, nor pin unbudgeted full snapshots per queued command. TCP/WebSocket/serial worker
+ownership, the wider module audit, and generator elapsed-time accounting remain open after it.
+
+Final batch 11 validation (Windows/default features, current source plus separate parent `3b4bdc7b`):
+
+- Direct app test filters passed **47 concrete-stream tests** (including **26 UDP**) and **44 shared
+  stream tests**, **91 distinct tests** total. The UDP filter also passed separately and is not
+  double-counted. All six new outbound cases passed on controlled loopback; no physical endpoints
+  were opened and no other platform or full-product throughput qualification is claimed.
+- `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed (41.87s).
+  `cargo check --locked --workspace --tests` passed (47.88s, including its build-lock wait).
+- After the failed incremental companion link, `cargo clean --locked -p Chataigne2 --profile dev`
+  removed only app artifacts (2809 files / 4.9 GiB). The fresh
+  `cargo build --locked -p Chataigne2 --bin Chataigne2` **passed in 2m12s**. No source workaround,
+  dependency-cache removal, or user-process interruption was used. Recurring anonymous-symbol
+  incremental failures remain P12 tooling evidence; the successful fresh build qualifies this batch.
+- Root and Golden Core `cargo fmt --all` / `--check`, maintained-doc Prettier, and `git diff --check`
+  passed. All owned jobs are terminal. The separate UI commit remains preserved as the parent.
+
+Focused whole-command admission/cursor/retirement verification is complete. **Return to High
+requested; actual effort unchanged/unobservable** because no supported control is exposed.
+Commit and push this verified milestone on `main`. Keep P03 **IN_PROGRESS** and resume the
+actor-side output-tree preparation/cleanup audit before the remaining module and generator work.

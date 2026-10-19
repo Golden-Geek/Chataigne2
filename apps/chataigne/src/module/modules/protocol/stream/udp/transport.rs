@@ -1,4 +1,10 @@
-use super::input::{self, InputPlan, PreparedUdpInput, UdpInputConfig};
+use super::outbound::UDP_COMMAND_BYTES;
+#[cfg(test)]
+use super::outbound::{UdpOutputTarget, UDP_MAX_PAYLOAD};
+use super::{
+    input::{self, InputPlan, PreparedUdpInput, UdpInputConfig},
+    outbound::UdpOutboundSend,
+};
 use crate::app::module::common::streaming::parser::StreamingParser;
 use golden_io::RetainedPayload;
 use std::{
@@ -13,8 +19,6 @@ use golden_io::{
     WorkerNotifier,
 };
 
-pub(super) const UDP_MAX_PAYLOAD: usize = 65_507;
-pub(super) const UDP_COMMAND_BYTES: usize = 1024 * 1024;
 const UDP_EVENT_DRAIN_BUDGET: NonZeroUsize = NonZeroUsize::new(4).unwrap();
 const UDP_COMMAND_TURN: NonZeroUsize = NonZeroUsize::new(16).unwrap();
 const UDP_RECEIVE_TURN: usize = 16;
@@ -41,18 +45,12 @@ impl UdpStreamingTransportConfig {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct UdpStreamingOutboundPacket {
-    pub bytes: Vec<u8>,
-    pub remote_host: String,
-    pub remote_port: u16,
-}
-
 #[derive(Clone, Debug)]
 pub(crate) enum StreamingWorkerEvent {
     Ready(SocketAddr),
     Input(RetainedPayload<PreparedUdpInput>),
     Interfaces(Result<Vec<golden_core::parameter::ParameterEnumOption>, String>),
+    OutgoingLog(String),
     Error(String),
     Failed(String),
 }
@@ -65,13 +63,13 @@ impl StreamingWorkerEvent {
                 Self::Input(input) => input.weight,
                 Self::Interfaces(Ok(options)) => interface_weight(options),
                 Self::Interfaces(Err(error)) => error.capacity(),
-                Self::Error(message) | Self::Failed(message) => message.capacity(),
+                Self::OutgoingLog(message) | Self::Error(message) | Self::Failed(message) => message.capacity(),
             }
     }
 }
 
 pub(crate) struct UdpStreamingTransportHandle {
-    worker: BoundedWorker<UdpStreamingOutboundPacket, StreamingWorkerEvent>,
+    worker: BoundedWorker<UdpOutboundSend, StreamingWorkerEvent>,
     input: InputPlan,
 }
 
@@ -120,21 +118,11 @@ impl UdpStreamingTransportHandle {
         self.input.update(config);
     }
 
-    pub(crate) fn send(&self, packet: UdpStreamingOutboundPacket) -> Result<(), String> {
-        if packet.bytes.len() > UDP_MAX_PAYLOAD {
-            return Err(format!(
-                "UDP payload exceeds {UDP_MAX_PAYLOAD} bytes; packet was not admitted"
-            ));
-        }
-        if packet.remote_host.len() > UDP_HOST_BYTES {
-            return Err("UDP destination host exceeds 1024 bytes; packet was not admitted".into());
-        }
-        let weight = std::mem::size_of::<UdpStreamingOutboundPacket>()
-            .saturating_add(packet.bytes.capacity())
-            .saturating_add(packet.remote_host.capacity());
-        self.worker.send_weighted(packet, weight).map_err(|error| match error {
-            PendingSendError::Full(_) => "UDP command capacity exhausted; packet was not admitted".into(),
-            PendingSendError::Disconnected(_) => "UDP worker is not accepting packets".into(),
+    pub(super) fn send(&self, command: UdpOutboundSend) -> Result<(), String> {
+        let weight = command.admission_weight()?;
+        self.worker.send_weighted(command, weight).map_err(|error| match error {
+            PendingSendError::Full(_) => "UDP command capacity exhausted; whole command was not admitted".into(),
+            PendingSendError::Disconnected(_) => "UDP worker is not accepting commands".into(),
         })
     }
 
@@ -192,17 +180,14 @@ fn bind_socket(config: &UdpStreamingTransportConfig) -> Result<UdpSocket, String
     Ok(socket)
 }
 
-fn publish(
-    context: &WorkerContext<UdpStreamingOutboundPacket, StreamingWorkerEvent>,
-    event: StreamingWorkerEvent,
-) -> bool {
+fn publish(context: &WorkerContext<UdpOutboundSend, StreamingWorkerEvent>, event: StreamingWorkerEvent) -> bool {
     let weight = event.weight();
     context.publish_weighted(event, weight).is_ok()
 }
 
 fn worker_loop(
-    context: WorkerContext<UdpStreamingOutboundPacket, StreamingWorkerEvent>,
-    receive_enabled: bool,
+    context: WorkerContext<UdpOutboundSend, StreamingWorkerEvent>,
+    mut receive_enabled: bool,
     input: InputPlan,
     setup: impl FnOnce() -> Result<UdpSocket, String>,
 ) {
@@ -222,10 +207,10 @@ fn worker_loop(
             let mut commands = Vec::new();
             loop {
                 let turn = context.drain_commands(&mut commands, UDP_COMMAND_TURN);
-                for packet in commands.drain(..) {
+                for command in commands.drain(..) {
                     let message = format!(
-                        "UDP packet to {}:{} failed before send: {error}",
-                        packet.remote_host, packet.remote_port
+                        "UDP command for {} output(s) failed before send: {error}",
+                        command.len()
                     );
                     if !publish(&context, StreamingWorkerEvent::Error(message)) {
                         return;
@@ -243,20 +228,33 @@ fn worker_loop(
     let mut buffer = [0u8; 65_535];
     let mut last_interfaces = None;
     let mut next_interfaces = std::time::Instant::now();
-    let mut commands = Vec::new();
+    let mut current: Option<(UdpOutboundSend, usize)> = None;
+    let mut commands_closed = false;
     let mut parser = StreamingParser::default();
     let mut input_generation = None;
     loop {
         if context.cancellation().is_cancelled() {
             return;
         }
-        let turn = context.drain_commands(&mut commands, UDP_COMMAND_TURN);
-        for packet in commands.drain(..) {
-            if context.cancellation().is_cancelled() || !send_packet(&socket, &context, packet) {
+        for _ in 0..UDP_COMMAND_TURN.get() {
+            if current.is_none() {
+                let mut next = Vec::with_capacity(1);
+                let turn = context.drain_commands(&mut next, NonZeroUsize::MIN);
+                commands_closed = turn.state == PendingDrainState::Disconnected;
+                current = next.pop().map(|command| (command, 0));
+            }
+            let Some((command, index)) = current.as_mut() else {
+                break;
+            };
+            if context.cancellation().is_cancelled() || !send_target(&socket, &context, command, *index) {
                 return;
             }
+            *index += 1;
+            if *index == command.len() {
+                current = None;
+            }
         }
-        if turn.state == PendingDrainState::Disconnected {
+        if commands_closed && current.is_none() {
             parser.discard_partial_input();
             let rejected = parser.take_rejected_line_count();
             if rejected > 0 {
@@ -309,17 +307,13 @@ fn worker_loop(
                             &context,
                             StreamingWorkerEvent::Failed(format!("UDP socket receive error: {error}")),
                         );
-                        while let Some(packet) = context.receive() {
-                            if !send_packet(&socket, &context, packet) {
-                                return;
-                            }
-                        }
-                        return;
+                        receive_enabled = false;
+                        break;
                     }
                 }
             }
         }
-        if turn.state != PendingDrainState::BudgetExhausted {
+        if current.is_none() {
             context.cancellation().wait(Duration::from_millis(5));
         }
     }
@@ -329,23 +323,40 @@ fn should_ignore_receive_error(error: &std::io::Error) -> bool {
     error.raw_os_error() == Some(10054) || (cfg!(windows) && error.kind() == std::io::ErrorKind::ConnectionReset)
 }
 
-fn send_packet(
+fn send_target(
     socket: &UdpSocket,
-    context: &WorkerContext<UdpStreamingOutboundPacket, StreamingWorkerEvent>,
-    packet: UdpStreamingOutboundPacket,
+    context: &WorkerContext<UdpOutboundSend, StreamingWorkerEvent>,
+    command: &UdpOutboundSend,
+    index: usize,
 ) -> bool {
-    let outcome = resolve_socket_addr(&packet.remote_host, packet.remote_port).and_then(|address| {
+    let target = command.target(index);
+    let outcome = resolve_socket_addr(&target.remote_host, target.remote_port).and_then(|address| {
         socket
-            .send_to(&packet.bytes, address)
+            .send_to(command.bytes(), address)
             .map_err(|error| error.to_string())
     });
     match outcome {
+        Ok(_) if command.log_outgoing() => {
+            let bytes = command.bytes();
+            let prefix = &bytes[..bytes.len().min(1024)];
+            let message = format!(
+                "Sent UDP {} ({} bytes) to {}:{}",
+                crate::app::module::common::streaming::module_helpers::format_bytes_for_log(prefix),
+                bytes.len(),
+                target.remote_host,
+                target.remote_port
+            );
+            publish(context, StreamingWorkerEvent::OutgoingLog(message))
+        }
         Ok(_) => true,
         Err(error) => publish(
             context,
             StreamingWorkerEvent::Error(format!(
-                "UDP packet to {}:{} failed: {error}",
-                packet.remote_host, packet.remote_port
+                "UDP output {}/{} to {}:{} failed: {error}",
+                index + 1,
+                command.len(),
+                target.remote_host,
+                target.remote_port
             )),
         ),
     }

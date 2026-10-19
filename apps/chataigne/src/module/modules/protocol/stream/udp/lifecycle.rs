@@ -2,13 +2,15 @@ use std::time::{Duration, Instant};
 
 use golden_io::{PendingDrainState, ReconnectBackoff, WorkerNotifier};
 
-use super::transport::{
-    StreamingWorkerEvent, UdpStreamingOutboundPacket, UdpStreamingTransportConfig, UdpStreamingTransportHandle,
+use super::{
+    outbound::UdpOutboundSend,
+    transport::{StreamingWorkerEvent, UdpStreamingTransportConfig, UdpStreamingTransportHandle},
 };
 
 pub(super) enum UdpTransportEvent {
     Input(golden_io::RetainedPayload<super::input::PreparedUdpInput>),
     Interfaces(Result<Vec<golden_core::parameter::ParameterEnumOption>, String>),
+    OutgoingLog(String),
     Error(String),
 }
 
@@ -106,9 +108,9 @@ impl UdpTransports {
         }
     }
 
-    pub(super) fn send(&self, packet: UdpStreamingOutboundPacket) -> Result<(), String> {
+    pub(super) fn send(&self, command: UdpOutboundSend) -> Result<(), String> {
         match &self.state {
-            State::Active { handle, .. } => handle.send(packet),
+            State::Active { handle, .. } => handle.send(command),
             _ => Err("UDP configuration is pending or disabled; packet was not admitted".into()),
         }
     }
@@ -172,6 +174,9 @@ impl UdpTransports {
                 StreamingWorkerEvent::Failed(error) if active => result.failure = Some(error),
                 StreamingWorkerEvent::Interfaces(options) => result.events.push(UdpTransportEvent::Interfaces(options)),
                 StreamingWorkerEvent::Input(input) => result.events.push(UdpTransportEvent::Input(input)),
+                StreamingWorkerEvent::OutgoingLog(message) => {
+                    result.events.push(UdpTransportEvent::OutgoingLog(message))
+                }
                 StreamingWorkerEvent::Error(error) => result.events.push(UdpTransportEvent::Error(error)),
                 _ => {}
             }

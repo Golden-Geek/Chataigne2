@@ -1,6 +1,7 @@
 mod delivery;
 mod input;
 mod lifecycle;
+mod outbound;
 mod transport;
 mod wakeup;
 
@@ -20,25 +21,20 @@ use golden_core::{
 use crate::app::{
     module::common::streaming::{
         commands::{streaming_script_send_request, StreamingSendRequest},
-        module_helpers::{child_int_param, child_string_param, format_bytes_for_log, streaming_command_type_supported},
+        module_helpers::{child_int_param, child_string_param, streaming_command_type_supported},
         script as streaming_script,
     },
     StreamingModuleBase,
 };
 
 use self::lifecycle::{UdpTransportEvent, UdpTransports};
-use self::transport::{UdpStreamingOutboundPacket, UdpStreamingTransportConfig};
+use self::outbound::{UdpOutboundSend, UdpOutputTarget};
+use self::transport::UdpStreamingTransportConfig;
 
 const UDP_INPUT_WARNING_ID: &str = "udp_input_transport";
 const UDP_INTERFACE_WARNING_ID: &str = "udp_network_interface_options";
 const UDP_OUTPUT_NODE_TYPE: &str = "udp_output";
 const UDP_INPUT_DECL_ID: &str = "input";
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct UdpOutputTarget {
-    remote_host: String,
-    remote_port: u16,
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct UdpTransportBinding {
@@ -285,6 +281,9 @@ impl UdpModule {
                     self.pending_inputs.push_back(InputDelivery::new(input));
                 }
                 UdpTransportEvent::Interfaces(options) => self.refresh_interface_options(ctx, options),
+                UdpTransportEvent::OutgoingLog(message) => {
+                    golden_core::log!(origin = self.id(); message.as_str());
+                }
                 UdpTransportEvent::Error(error) => {
                     logerror!("UDP transport error: {}", error);
                 }
@@ -321,24 +320,6 @@ impl UdpModule {
         ctx.add_user_item_boxed(outputs_id, Box::new(UdpOutput::new()), None);
     }
 
-    fn collect_enabled_outputs(&self, snapshot: &ProcessTreeSnapshot) -> Vec<UdpOutputTarget> {
-        if !self.outputs_enabled(snapshot).unwrap_or(false) {
-            return Vec::new();
-        }
-
-        let Some(outputs_id) = self.outputs.current_id() else {
-            return Vec::new();
-        };
-
-        let mut output_ids = Vec::new();
-        collect_outputs_recursive(snapshot, outputs_id, &mut output_ids);
-
-        output_ids
-            .into_iter()
-            .filter_map(|output_id| self.output_target(snapshot, output_id))
-            .collect()
-    }
-
     fn output_target(&self, snapshot: &ProcessTreeSnapshot, output_id: NodeId) -> Option<UdpOutputTarget> {
         if !snapshot.node(output_id)?.enabled {
             return None;
@@ -362,49 +343,25 @@ impl UdpModule {
         &self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
-        request: &StreamingSendRequest,
+        request: StreamingSendRequest,
     ) -> Result<String, String> {
-        let outputs = self.collect_enabled_outputs(snapshot);
-        if outputs.is_empty() {
-            return Err("no enabled UDP outputs are configured".to_string());
+        if !self.outputs_enabled(snapshot).unwrap_or(false) {
+            return Err("UDP outputs are disabled; command was not admitted".into());
         }
-
-        let mut queued = 0usize;
-        let mut errors = Vec::new();
-        for output in outputs {
-            let packet = UdpStreamingOutboundPacket {
-                bytes: request.bytes.clone(),
-                remote_host: output.remote_host.clone(),
-                remote_port: output.remote_port,
-            };
-            match self.transports.send(packet) {
-                Ok(()) => {
-                    queued = queued.saturating_add(1);
-                    if self.stream.log_outgoing_enabled() {
-                        golden_core::log!(
-                            origin = self.id();
-                            format!(
-                                "Sent UDP {} to {}:{}",
-                                format_bytes_for_log(request.bytes.as_slice()),
-                                output.remote_host,
-                                output.remote_port
-                            )
-                        );
-                    }
+        let mut command = UdpOutboundSend::new(request.bytes, self.stream.log_outgoing_enabled())?;
+        if let Some(outputs_id) = self.outputs.current_id() {
+            let mut output_ids = Vec::new();
+            collect_outputs_recursive(snapshot, outputs_id, &mut output_ids);
+            for output_id in output_ids {
+                if let Some(target) = self.output_target(snapshot, output_id) {
+                    command.push_target(target)?;
                 }
-                Err(error) => errors.push(error),
             }
         }
-
-        if queued > 0 {
-            self.stream.emit_outgoing_traffic(ctx);
-        }
-
-        if errors.is_empty() {
-            Ok(format!("Queued UDP {} for {} output(s)", request.description, queued))
-        } else {
-            Err(errors.join("; "))
-        }
+        let count = command.len();
+        self.transports.send(command)?;
+        self.stream.emit_outgoing_traffic(ctx);
+        Ok(format!("Queued UDP {} for {count} output(s)", request.description))
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -422,7 +379,7 @@ impl UdpModule {
 
         if let Err(error) = serde_json::from_value::<StreamingSendRequest>(request.payload)
             .map_err(|error| format!("invalid UDP command payload: {error}"))
-            .and_then(|payload| self.queue_send_request(ctx, snapshot, &payload))
+            .and_then(|payload| self.queue_send_request(ctx, snapshot, payload))
         {
             logerror!(format!(
                 "Failed to handle UDP command {:?}: {error}",
@@ -603,7 +560,7 @@ impl Node for UdpModule {
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, snapshot_arc.as_ref(), &request)?;
+            self.queue_send_request(ctx, snapshot_arc.as_ref(), request)?;
             return Ok(true);
         }
 

@@ -1,4 +1,5 @@
 use super::*;
+mod fanout;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -40,17 +41,7 @@ fn starting_a_transport_does_not_wait_for_endpoint_setup() {
 
 #[test]
 fn impossible_datagram_is_rejected_before_transport_admission() {
-    let mut handle = UdpStreamingTransportHandle::spawn(config(), notifier()).unwrap();
-    let result = handle.send(UdpStreamingOutboundPacket {
-        bytes: vec![0; 65_536],
-        remote_host: "127.0.0.1".into(),
-        remote_port: 9000,
-    });
-    handle.stop();
-    assert!(
-        result.is_err(),
-        "oversized datagrams must fail admission rather than enter the worker queue"
-    );
+    assert!(UdpOutboundSend::new(vec![0; 65_536], false).is_err());
 }
 
 #[test]
@@ -68,11 +59,7 @@ fn byte_admission_and_cancellation_remain_bounded_during_blocked_setup() {
     let mut accepted = 0;
     for _ in 0..64 {
         if handle
-            .send(UdpStreamingOutboundPacket {
-                bytes: vec![0; 60_000],
-                remote_host: "127.0.0.1".into(),
-                remote_port: 9000,
-            })
+            .send(packet_to(vec![0; 60_000], "127.0.0.1".into(), 9000))
             .is_err()
         {
             break;
@@ -117,22 +104,10 @@ fn graceful_close_attempts_all_accepted_packets_in_order() {
     })
     .unwrap();
     for value in 0..32u8 {
-        handle
-            .send(UdpStreamingOutboundPacket {
-                bytes: vec![value],
-                remote_host: "127.0.0.1".into(),
-                remote_port: port,
-            })
-            .unwrap();
+        handle.send(packet_to(vec![value], "127.0.0.1".into(), port)).unwrap();
     }
     handle.finish_admission();
-    assert!(handle
-        .send(UdpStreamingOutboundPacket {
-            bytes: vec![99],
-            remote_host: "127.0.0.1".into(),
-            remote_port: port
-        })
-        .is_err());
+    assert!(handle.send(packet_to(vec![99], "127.0.0.1".into(), port)).is_err());
     release_tx.send(()).unwrap();
     let mut buffer = [0u8; 8];
     for expected in 0..32u8 {
@@ -152,13 +127,7 @@ fn failed_setup_resolves_every_previously_admitted_send() {
     })
     .unwrap();
     for value in 0..3 {
-        handle
-            .send(UdpStreamingOutboundPacket {
-                bytes: vec![value],
-                remote_host: "127.0.0.1".into(),
-                remote_port: 9000,
-            })
-            .unwrap();
+        handle.send(packet_to(vec![value], "127.0.0.1".into(), 9000)).unwrap();
     }
     release_tx.send(()).unwrap();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
@@ -172,13 +141,7 @@ fn failed_setup_resolves_every_previously_admitted_send() {
             .count(),
         3
     );
-    assert!(handle
-        .send(UdpStreamingOutboundPacket {
-            bytes: vec![9],
-            remote_host: "127.0.0.1".into(),
-            remote_port: 9000
-        })
-        .is_err());
+    assert!(handle.send(packet_to(vec![9], "127.0.0.1".into(), 9000)).is_err());
 }
 
 #[test]
@@ -217,11 +180,11 @@ fn continuous_input_keeps_bounded_owner_turns_and_does_not_starve_sends_or_cance
     let receiver = UdpSocket::bind("127.0.0.1:0").unwrap();
     receiver.set_nonblocking(true).unwrap();
     handle
-        .send(UdpStreamingOutboundPacket {
-            bytes: vec![99],
-            remote_host: "127.0.0.1".into(),
-            remote_port: receiver.local_addr().unwrap().port(),
-        })
+        .send(packet_to(
+            vec![99],
+            "127.0.0.1".into(),
+            receiver.local_addr().unwrap().port(),
+        ))
         .unwrap();
     let mut delivered = false;
     let mut received = 0;
@@ -305,6 +268,17 @@ fn input_is_prepared_on_its_worker_and_cannot_be_reinterpreted_after_reconfigura
     assert_eq!(old.values.as_ref().unwrap()[0].path_segments, ["old"]);
     handle.stop();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+fn packet_to(bytes: Vec<u8>, remote_host: String, remote_port: u16) -> UdpOutboundSend {
+    let mut command = UdpOutboundSend::new(bytes, false).unwrap();
+    command
+        .push_target(UdpOutputTarget {
+            remote_host,
+            remote_port,
+        })
+        .unwrap();
+    command
 }
 
 #[test]

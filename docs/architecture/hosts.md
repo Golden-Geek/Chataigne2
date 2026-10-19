@@ -130,14 +130,24 @@ these admission bounds are not a whole-process RSS or event-history budget.
 The app-owned UDP adapter owns socket generations in `stream/udp/lifecycle.rs`, using one active
 or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup, packet
 sends, parsing, script-argument preparation, and bounded log formatting stay on the worker.
-Command admission is bounded by 256 items / 1 MiB; reply admission uses
-64 items / 32 MiB, charging prepared values and callback allocations. Each native turn services at most 16 commands
+Command admission is bounded by 256 items / 1 MiB; each item owns one payload and a frozen,
+ordered destination plan. Admission accepts or rejects the whole command before any send;
+an invalid or oversized later destination cannot admit its valid prefix. Allocated payload,
+destination slots, and hostname capacity all contribute to the cached weight. One native cursor
+retains at most one additional command outside the mailbox, bounded by another 1 MiB. Graceful
+retirement completes that cursor and every queued command in FIFO order. Cancellation abandons
+the destination; network failure is reported per destination without replaying prior sends.
+Reply admission uses 64 items / 32 MiB, charging prepared values and callback allocations.
+Each native turn services at most 16 destinations (across command boundaries)
 and 16 incoming packets, and an owner drain extracts at most four events. Oversized UDP payloads
 and host names fail admission synchronously. These bounds cover retained transport allocations;
 shared stream preparation and graph application use the separate bounds below. A maximum raw
 datagram and its callbacks fit the reply budget. A node drains one batch of at most four events
 and publishes one prepared callback at a time with its own completion receipt. Failed publication
 retries only an unpublished event, preserving FIFO and multiplicity; it never rebuilds byte arrays.
+Outgoing log prefixes are prepared on the native worker after successful sends and use the same
+bounded event drain. Actor-side output-tree collection still needs its own resumable or prepared
+read-path boundary; these transport limits do not qualify that traversal.
 
 UDP nodes are passive. Reply/exit notifications and shared retry deadlines drive service without
 scheduled updates or an idle compiled kernel. Settings are copied on the worker input boundary;
