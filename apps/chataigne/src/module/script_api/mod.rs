@@ -1,3 +1,6 @@
+mod callback_delivery;
+pub(crate) use callback_delivery::CallbackDelivery;
+
 use std::path::PathBuf;
 
 use golden_core::{

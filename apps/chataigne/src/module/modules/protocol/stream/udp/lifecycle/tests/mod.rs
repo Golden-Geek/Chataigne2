@@ -22,6 +22,7 @@ fn reconfiguration_waits_for_old_sends_and_socket_release_before_rebinding() {
         bind_interface_host: "127.0.0.1".into(),
         bind_port,
         receive_enabled: false,
+        input: input_config(),
     };
     let mut next = config.clone();
     next.receive_enabled = true;
@@ -29,7 +30,7 @@ fn reconfiguration_waits_for_old_sends_and_socket_release_before_rebinding() {
     let mut transports = UdpTransports::default();
     transports
         .configure_using(config, |config| {
-            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, move || {
+            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), move || {
                 release_rx.recv().unwrap();
                 Ok(old_socket)
             })
@@ -52,7 +53,7 @@ fn reconfiguration_waits_for_old_sends_and_socket_release_before_rebinding() {
     assert!(transports
         .configure_using(next, |config| {
             let port = config.bind_port;
-            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, move || {
+            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), move || {
                 UdpSocket::bind(("127.0.0.1", port)).map_err(|error| error.to_string())
             })
         })
@@ -79,11 +80,14 @@ fn native_failure_closes_admission_and_recovery_obeys_backoff() {
         bind_interface_host: "127.0.0.1".into(),
         bind_port: 0,
         receive_enabled: false,
+        input: input_config(),
     };
     let mut transports = UdpTransports::default();
     transports
         .configure_using(config.clone(), |config| {
-            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, || Err("controlled bind failure".into()))
+            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), || {
+                Err("controlled bind failure".into())
+            })
         })
         .unwrap();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
@@ -97,7 +101,7 @@ fn native_failure_closes_admission_and_recovery_obeys_backoff() {
     transports.retry_at = Some(Instant::now() - Duration::from_millis(1));
     assert!(transports
         .configure_using(config, |config| {
-            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, || {
+            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), || {
                 UdpSocket::bind("127.0.0.1:0").map_err(|error| error.to_string())
             })
         })
@@ -110,4 +114,45 @@ fn native_failure_closes_admission_and_recovery_obeys_backoff() {
     }
     transports.cancel_all();
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+fn notifier() -> golden_io::WorkerNotifier {
+    golden_io::WorkerNotifier::new(|| {})
+}
+
+#[test]
+fn changing_processing_configuration_keeps_the_live_socket_generation() {
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let config = UdpStreamingTransportConfig {
+        bind_interface_host: "127.0.0.1".into(),
+        bind_port: 0,
+        receive_enabled: true,
+        input: input_config(),
+    };
+    let mut transports = UdpTransports::default();
+    transports
+        .configure_using(config.clone(), |config| {
+            UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), || {
+                UdpSocket::bind("127.0.0.1:0").map_err(|error| error.to_string())
+            })
+        })
+        .unwrap();
+    let mut next = config;
+    next.input.parse.mode = "raw".into();
+    next.input.processing_enabled = true;
+    assert!(transports
+        .configure_using(next.clone(), |_| panic!("processing changes must not rebind"))
+        .unwrap());
+    assert_eq!(transports.configuration(), Some(&next));
+    transports.cancel_all();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+fn input_config() -> crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
+    crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
+        module: golden_core::node::NodeId(1),
+        parse: Default::default(),
+        processing_enabled: false,
+        log_incoming: false,
+    }
 }

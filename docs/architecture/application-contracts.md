@@ -88,6 +88,11 @@ their waker if their own drain budget leaves pending mailbox work.
 These short-lock notifications belong on host workers; realtime audio callbacks keep using their
 realtime-safe queues.
 
+`golden_io::BoundedWorker::spawn_notified` can publish those node wakes after reply admission and
+final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node
+polling clock. A `PayloadPool` can retain prepared data through consumer ownership and perform
+its final destruction on a background disposer; graph/event-owned copies keep their own lifetimes.
+
 Unprocessed wakes and callback-absorption failures return to their reserved slots. Deferred-edit
 receipts retain readiness until application settles; failure re-arms the node's level notification,
 without replaying an edit batch or consumed command. The node still owns cursor/payload recovery.

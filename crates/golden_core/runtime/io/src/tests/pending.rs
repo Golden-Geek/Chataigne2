@@ -10,6 +10,40 @@ const ONE: NonZeroUsize = NonZeroUsize::MIN;
 const EIGHT: NonZeroUsize = NonZeroUsize::new(8).expect("eight is nonzero");
 
 #[test]
+fn notification_observes_published_readiness_without_the_queue_lock_and_sees_last_sender_exit() {
+    let slot = Arc::new(std::sync::Mutex::new(None::<crate::PendingReceiver<u32>>));
+    let observer = slot.clone();
+    let (seen_tx, seen_rx) = mpsc::channel();
+    let (sender, receiver) = crate::notified_pending_channel(
+        2,
+        8,
+        crate::WorkerNotifier::new(move || {
+            let receiver = observer.lock().unwrap();
+            let receiver = receiver.as_ref().unwrap();
+            assert!(receiver.has_pending());
+            let mut values = Vec::new();
+            let drain = receiver.drain_into(&mut values, EIGHT);
+            seen_tx.send((values, drain.state)).unwrap();
+        }),
+    );
+    *slot.lock().unwrap() = Some(receiver);
+    let producer = thread::spawn(move || {
+        sender.send(7).unwrap();
+        drop(sender);
+    });
+    assert_eq!(
+        seen_rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+        (vec![7], PendingDrainState::Empty)
+    );
+    assert_eq!(
+        seen_rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+        (vec![], PendingDrainState::Disconnected)
+    );
+    producer.join().unwrap();
+    slot.lock().unwrap().take();
+}
+
+#[test]
 fn pending_signal_tracks_accepted_events_without_polling() {
     let (sender, receiver) = pending_channel();
     assert!(!receiver.has_pending());

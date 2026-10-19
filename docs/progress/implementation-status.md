@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at parent `5b81c44e` plus the owned P03 batch 9 diff.
+Last reconciled: 2026-10-19 on `main` at parent `b93f18ad` plus the owned P03 batch 10 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,23 +13,24 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 9 stream preparation admission verified locally. Reconcile its
-  milestone commit and `origin/main` before resuming. Batch 8 was delivered in `9d8500b4`;
-  separately committed build-cache parent `5b81c44e` is preserved.
+- Current batch: P03 batch 10 passive UDP input and reusable IO notification/deadline/payload
+  ownership verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 9 was delivered in `b93f18ad`; separately committed build-cache parent `5b81c44e` is preserved.
 - Delivery: `f02205af3baa1c2ebf49527104364980c3a7b920` committed the verified P01/P02/P03-through-batch-7
   milestone and milestone delivery policy. `codex/builtin-mapping` was fast-forwarded into `main`
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `9d8500b4`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `b93f18ad`;
   no unrelated edits or live owned jobs found at resume. The previous goal turn was progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: move UDP admitted parsing/callback preparation/interface discovery
-  off the node and replace its 120 Hz service
-  with worker notifications. Preserve the shared stream line, retained-byte, bounded-cursor,
-  ordering, and receipt-failure regressions. Continue the full module/channel audit (including Sound Card
+- Next implementation action: audit and bound UDP outbound output collection/fanout and whole-command
+  admission. Its node still scans outputs, clones a packet per destination, and can report combined
+  errors after partially accepting a send. Preserve the now-passive incoming worker, configuration,
+  callback, disposal, retry, and shared stream cursor/receipt regressions. Continue TCP/WebSocket/serial
+  worker ownership and the full module/channel audit (including Sound Card
   stop/join, event-drain, admission/recovery, and configuration bounds) and generator time accounting.
   Preserve the lifecycle/replacement, bounded wake, and HTTP graph/callback failure regressions.
   Preserve the accumulated P01 repair and its regressions.
@@ -47,27 +48,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Implementation | Local validation   | External qualification / evidence                                                                                           |
-| --------------------------- | -------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | VERIFIED_LOCAL | PASSED             | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                  |
-| P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8 | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                   |
-| P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3 | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                    |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-9 | Native workers/lifecycle and stream preparation/graph admission verified; worker ownership and module/generator bounds open |
-| P04 Audio order/types       | NOT_STARTED    | PENDING            | Legal interleaving and invalid deserialization established from source                                                      |
-| P05 Transport trust         | NOT_STARTED    | PENDING            | Missing admission verified; exploit not demonstrated                                                                        |
-| P06 Dependencies            | NOT_STARTED    | FAILED baseline    | Four Rustls advisories on audit date; refresh DB before repair                                                              |
-| P07 DMX streaming           | NOT_STARTED    | PENDING            | Refresh/filter/service gaps; protocol loopback qualification needed                                                         |
-| P08 Formula backend intents | NOT_STARTED    | PENDING            | UI polling/identity and mutation policy verified; corruption not reproduced                                                 |
-| P09 Graph document          | NOT_STARTED    | PENDING            | Ordered-map mutation costs source-derived                                                                                   |
-| P10 Canvas                  | NOT_STARTED    | PENDING            | Projection diagnostic and crossing-edge reproduction; mounted performance open                                              |
-| P11 Workspace UX            | NOT_STARTED    | PENDING            | Collection/keyboard gaps source-reviewed; native usability open                                                             |
-| P12 Boundaries/gates        | NOT_STARTED    | PENDING            | App policy leak, omitted graph tests, oversized files, unsafe protocol conversions                                          |
-| P13 Formula execution       | NOT_STARTED    | PENDING            | Historical profiles retained; production parallelism not mandated                                                           |
-| P14 Production time         | NOT_STARTED    | PENDING            | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                  |
-| P15 Assets                  | NOT_STARTED    | PENDING            | Audio path/cache identity exists; project asset boundary unimplemented                                                      |
-| P16 Product scale           | NOT_STARTED    | PENDING            | Historical full-product gates remain open; 20k/50k/mounted canvas required                                                  |
-| P17 Platforms/artifacts     | NOT_STARTED    | PENDING            | Windows history retained; exact current app/native/platform checks required                                                 |
-| P18 Named devices           | NOT_STARTED    | PENDING            | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                             |
+| Task                        | Implementation | Local validation    | External qualification / evidence                                                                                         |
+| --------------------------- | -------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
+| P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
+| P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-10 | Passive UDP input and generic IO lifetime primitives verified; outbound/module/generator bounds remain open               |
+| P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
+| P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
+| P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
+| P07 DMX streaming           | NOT_STARTED    | PENDING             | Refresh/filter/service gaps; protocol loopback qualification needed                                                       |
+| P08 Formula backend intents | NOT_STARTED    | PENDING             | UI polling/identity and mutation policy verified; corruption not reproduced                                               |
+| P09 Graph document          | NOT_STARTED    | PENDING             | Ordered-map mutation costs source-derived                                                                                 |
+| P10 Canvas                  | NOT_STARTED    | PENDING             | Projection diagnostic and crossing-edge reproduction; mounted performance open                                            |
+| P11 Workspace UX            | NOT_STARTED    | PENDING             | Collection/keyboard gaps source-reviewed; native usability open                                                           |
+| P12 Boundaries/gates        | NOT_STARTED    | PENDING             | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap |
+| P13 Formula execution       | NOT_STARTED    | PENDING             | Historical profiles retained; production parallelism not mandated                                                         |
+| P14 Production time         | NOT_STARTED    | PENDING             | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                |
+| P15 Assets                  | NOT_STARTED    | PENDING             | Audio path/cache identity exists; project asset boundary unimplemented                                                    |
+| P16 Product scale           | NOT_STARTED    | PENDING             | Historical full-product gates remain open; 20k/50k/mounted canvas required                                                |
+| P17 Platforms/artifacts     | NOT_STARTED    | PENDING             | Windows history retained; exact current app/native/platform checks required                                               |
+| P18 Named devices           | NOT_STARTED    | PENDING             | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                           |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -1449,3 +1450,101 @@ Batch 9 closeout:
   needed for this ordinary bounded parsing subtask; audit the next coupled worker design separately.
 - Commit and push this verified preparation milestone on `main`, preserving `5b81c44e`, before
   beginning the next batch. P04-P18 states remain unchanged.
+
+P03 batch 10 resumed on clean `main` at delivered
+`b93f18ada220aa4adfa4b6fbdf90104eaab08a11`, matching `origin/main`. The previous turn was
+progress: stream preparation admission was implemented, verified, committed, and pushed.
+No owned jobs remain live; the user's watcher/app are not implementation jobs. The next change
+belongs in generic Golden IO notification/deadline primitives and app-owned UDP stream/runtime
+adapters. **XHigh requested; actual effort unchanged/unobservable** for worker/configuration,
+retry/exit, prepared callback, and payload retirement invariants. No supported effort control
+is exposed. Preserve the nine verified P03 batches and avoid joining or cancelling the user's app.
+
+Batch 10 implementation and intermediate evidence:
+
+- Generic `golden_io` now provides payload-free `WorkerNotifier`, notified pending channels and
+  `BoundedWorker::spawn_notified`. Readiness is published after enqueue, outside the queue lock;
+  final sender exit also notifies, including a worker panic. `DelayedNotifier` moves the existing
+  shared Sound Card timer into Golden IO: one host timer thread, 1024 weak registrations,
+  coalesced earliest deadlines, and explicit cancellation. Sound Card retains its node-generation
+  adapter and now consumes that generic timer. No app type entered Golden IO.
+- `PayloadPool` reserves both items and retained bytes before sharing data. One background
+  disposer holds the final strong owner, performs destructors outside its state lock, and releases
+  capacity only after destruction. Blocked cleanup retains its reservation; destructor panic does
+  not strand the pool. Consumer release is a short ownership notification, never a join or payload
+  destructor. App stream preparation uses one shared 256-payload / 256 MiB pool; immutable
+  message batches and UDP prepared packets remain registered until their consumers release them.
+  Domain values copied into the graph and callback payload copies retained by the engine have
+  their own engine lifetimes; this pool is not a whole-process RSS or event-history budget.
+- UDP is passive: no scheduled `update()` or compiled periodic kernel. Native reply/exit wakes
+  and shared retry deadlines drive bounded service. Bind/DNS, input parsing, callback arguments,
+  bounded logging prefixes, and interface discovery execute on the native worker. Interface
+  discovery runs at most once per second there, suppresses unchanged results, and rejects more
+  than 256 choices / 64 KiB without replacing existing choices. The native turn still services
+  at most 16 commands and 16 receives; a node drains at most four events into one retained batch.
+  Reply admission is now 64 items / 32 MiB so a maximum raw datagram plus prepared callbacks fits.
+- Processing settings are copied at the worker input boundary. Grammar/processing generations
+  discard old partial lines explicitly; logging-only changes do not change the grammar generation.
+  Processing changes update the live socket's shared settings without rebinding. Already prepared
+  results retain their interpretation through later settings changes, disable, and retirement.
+  Only destruction abandons the destination; destroy/undo clears queued runtime input instead of
+  resurrecting it in a fresh worker generation.
+- Script callback receipt delivery moved from HTTP into app `script_api/callback_delivery.rs` and
+  is reused by UDP. Each event retains its own publication receipt; rejection retries only an
+  unpublished event. UDP emits prepared callbacks in FIFO order, then admits its prepared values
+  to the existing bounded graph cursor. It never reparses received bytes or builds byte arrays
+  in the node callback. Engine wake deliveries gate subsequent turns on their aggregate receipt.
+- Golden IO passed **33 tests**, including reply/exit publication, panic/disconnect, coalesced
+  deadlines, capacity recovery, background final drop, blocked cleanup, and destructor-panic
+  recovery. The UDP baseline failed because its rule requested 120 Hz. The repaired owning suite
+  passed **18 tests**, including passive live input, exact callbacks, processing generation fencing,
+  same-socket updates, callback-publication retry, graceful sends, rebind/backoff, and destroy/undo
+  stale-input rejection. Two additional maximum-input/passive-retry regressions are running.
+  Strict root `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings`
+  passed before those last two fixture additions; rerun its test targets at final closeout.
+
+Final UDP source passed **20 tests**, including the maximum raw worker reply and passive retry
+after a controlled occupied-port failure. The preservation run passed concrete streams **41**,
+HTTP **36**, Sound Card/null **36**, and OSC **18**. Two Sound Card timer-only cases moved into
+Golden IO coverage rather than disappearing; its engine-adapter timer test remains app-owned.
+The shared stream run exposed **one failure of 44**: adding the disposer header after preparation
+could exceed the 16 MiB cap at a tight boundary. Admission now reserves that header before
+acceptance and charges it once throughout the payload lifetime; the owning rerun passed **44/44**.
+Final-source preservation/lint/workspace/native closeout follows this correction.
+
+Final-source owning evidence after the header correction: shared streams **44**, concrete
+streams **41** (including all **20 UDP** cases), HTTP **36**, Sound Card/null **36**, and OSC **18**
+passed using the rebuilt app test executable. Together with Golden IO **33**, this is **208
+owning/preservation tests**; UDP is included in concrete streams and not double-counted.
+Root strict IO/app Clippy and `cargo check --locked --workspace --tests` passed. Controlled
+HTTP failures, native capacity pressure, occupied-port recovery, and the existing TCP fixture's
+default-port collision emitted diagnostics without failing those owning checks.
+
+Native closeout hit a link failure with **496 unresolved anonymous MSVC/LLVM symbols** in the
+app artifact, while the app unit-test executable linked and passed. As with batch 8's earlier
+failure, an app-package-only `cargo clean -p Chataigne2 --profile dev` and fresh native build
+were used to distinguish stale artifact behavior from a source/link defect. No runtime
+source workaround, global dependency-cache removal, or user-process interruption is involved.
+The fresh `cargo build --locked -p Chataigne2 --bin Chataigne2` then **passed in 1m55s**.
+The recurring incremental/native artifact behavior remains P12 tooling qualification evidence;
+the clean build passes, while the stale-artifact reproduction has no source-level diagnosis yet.
+
+Batch 10 closeout: root and Golden Core `cargo fmt --all` and their `--check` runs passed;
+maintained-doc Prettier and `git diff --check` passed. All owned test/check/build jobs are terminal.
+The required formatter also normalized the app module coordinator and missing helper newlines;
+those changes have no intentional behavioral effect. Native checks use Windows/default features; endpoint tests use
+controlled loopback and null audio only. Physical devices, other platforms, and full-product load
+remain unqualified.
+
+Separate concurrent UI work appeared after validation in `packages/golden-ui/components/app/`
+(`AppHeader.svelte`, `AppFooter.svelte`, and new `EngineStatus.svelte`). It is preserved unstaged
+and excluded from this milestone. The successful native build and source-size count describe the
+verified milestone before those edits, not the newer combined working tree.
+
+Focused passive-input/configuration/lifetime verification is complete. **Return to High requested;
+actual effort unchanged/unobservable** because no supported control is exposed. P03 remains
+**IN_PROGRESS**. In particular, `udp/mod.rs::queue_send_request` still performs synchronous output
+collection and per-output packet admission; partial acceptance can precede a combined error. Audit
+that outbound path before extending the passive-worker pattern to remaining stream modules.
+Engine-retained event/history payload copies have separate lifetimes and are not covered by the
+new stream disposal pool's budget. P04-P18 retain their prior implementation states.

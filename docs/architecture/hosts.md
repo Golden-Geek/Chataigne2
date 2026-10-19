@@ -110,13 +110,42 @@ every already-accepted command before exiting. Neither path needs an extra stop 
 unsolicited native input. Graceful closure drains accepted commands before disconnection;
 explicit cancellation ends service without consuming the remaining queue.
 
+`BoundedWorker::spawn_notified` publishes readiness after a reply enters its mailbox and after
+the final sender exits, including an unexpected worker failure. `WorkerNotifier` carries only a
+short, nonblocking wake callback; it never carries payloads or graph operations. Notifications run
+outside the mailbox lock. `DelayedNotifier` shares one host timer with 1024 weak registrations,
+coalesces each source's earliest deadline, and supports cancellation. Sound Card and UDP supply
+their own engine-node wake adapters; Golden IO imports no app or engine-node types.
+
+`PayloadPool` owns one background disposer and reserves item/retained-byte capacity before sharing
+a prepared value. Its retained handle gives consumers read-only access while the pool keeps the
+final strong owner. Destruction happens outside the pool lock, capacity stays reserved through
+blocked cleanup, and dropping the host handle does not join. Destructor panic is contained so
+later cleanup can continue. Consumers must not grow interior storage beyond the declared weight.
+App stream data uses one shared pool capped at 256 payloads / 256 MiB. Message vectors and strings
+are therefore finally disposed outside node callbacks, including after producer failure or node
+removal. Graph-owned value copies and engine-owned event/replay payloads have separate lifetimes;
+these admission bounds are not a whole-process RSS or event-history budget.
+
 The app-owned UDP adapter owns socket generations in `stream/udp/lifecycle.rs`, using one active
-or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup and packet
-sends stay on the worker. Command admission is bounded by 256 items / 1 MiB; reply admission uses
-64 items / 512 KiB, charging owned buffer capacity. Each native turn services at most 16 commands
+or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup, packet
+sends, parsing, script-argument preparation, and bounded log formatting stay on the worker.
+Command admission is bounded by 256 items / 1 MiB; reply admission uses
+64 items / 32 MiB, charging prepared values and callback allocations. Each native turn services at most 16 commands
 and 16 incoming packets, and an owner drain extracts at most four events. Oversized UDP payloads
 and host names fail admission synchronously. These bounds cover retained transport allocations;
-shared stream parsing and graph application have separate limits and qualification work.
+shared stream preparation and graph application use the separate bounds below. A maximum raw
+datagram and its callbacks fit the reply budget. A node drains one batch of at most four events
+and publishes one prepared callback at a time with its own completion receipt. Failed publication
+retries only an unpublished event, preserving FIFO and multiplicity; it never rebuilds byte arrays.
+
+UDP nodes are passive. Reply/exit notifications and shared retry deadlines drive service without
+scheduled updates or an idle compiled kernel. Settings are copied on the worker input boundary;
+processing/grammar generations reject incomplete old frames, while logging-only changes preserve
+the parser generation. Prepared results cannot be reinterpreted by a later UI setting. Processing
+changes update the live socket without rebinding. Interface discovery runs on the worker at most
+once per second, suppresses unchanged results, and retains existing choices if 256 entries / 64 KiB
+would be exceeded. Destruction clears queued runtime input; undo creates a fresh input generation.
 
 The app's `common/received_values` owns the shared HTTP/stream message model, retained-weight
 accounting, and graph-application cursor. `common/streaming/admission.rs` owns immutable prepared
@@ -146,9 +175,9 @@ suffix, and rejects each oversized line once while discarding through its delimi
 surrounding frames survive. A changed grammar rejects a partial old line before interpreting new
 input. Per-line preparation also enforces expansion/path admission and preserves other valid
 frames in the same input turn. Line rejection is logged at the app-owned stream boundary.
-Stream parsing and callback preparation still run in node callbacks, and UDP interface discovery
-and periodic polling remain open P03 work; these preparation/queue/cursor bounds
-do not qualify that remaining actor work.
+Other stream modules still prepare input in node callbacks and retain their existing periodic
+service. Their worker ownership, channel admission, and retirement remain open P03 work; UDP's
+qualification does not qualify those paths or the wider module/generator audit.
 
 Reconfiguration and disable close send admission while retaining accepted work and results.
 The next generation waits for the old socket's release, including when rebinding the same port.

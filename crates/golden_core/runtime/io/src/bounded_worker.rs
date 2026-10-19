@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use crate::{
     PendingDrain, PendingDrainState, PendingReceiver, PendingSendError, PendingSender, RetirementCapacityError,
-    RetirementPool, bounded_pending_channel,
+    RetirementPool, WorkerNotifier, bounded_pending_channel, notified_pending_channel,
 };
 
 /// Item and retained-weight bounds for both directions of a worker boundary.
@@ -134,9 +134,39 @@ impl<C: Send + 'static, E: Send + 'static> BoundedWorker<C, E> {
     where
         F: FnOnce(WorkerContext<C, E>) + Send + 'static,
     {
+        Self::spawn_with_notifications(name, lifetimes, limits, None, run)
+    }
+
+    /// Notifies the owner after each reply publication and final producer disconnection.
+    pub fn spawn_notified<F>(
+        name: impl Into<String>,
+        lifetimes: &RetirementPool,
+        limits: WorkerLimits,
+        notifier: WorkerNotifier,
+        run: F,
+    ) -> Result<Self, WorkerStartError>
+    where
+        F: FnOnce(WorkerContext<C, E>) + Send + 'static,
+    {
+        Self::spawn_with_notifications(name, lifetimes, limits, Some(notifier), run)
+    }
+
+    fn spawn_with_notifications<F>(
+        name: impl Into<String>,
+        lifetimes: &RetirementPool,
+        limits: WorkerLimits,
+        notifier: Option<WorkerNotifier>,
+        run: F,
+    ) -> Result<Self, WorkerStartError>
+    where
+        F: FnOnce(WorkerContext<C, E>) + Send + 'static,
+    {
         let permit = lifetimes.try_reserve().map_err(WorkerStartError::Capacity)?;
         let (commands, command_rx) = bounded_pending_channel(limits.command_items, limits.command_weight);
-        let (event_tx, events) = bounded_pending_channel(limits.event_items, limits.event_weight);
+        let (event_tx, events) = match notifier {
+            Some(notifier) => notified_pending_channel(limits.event_items, limits.event_weight, notifier),
+            None => bounded_pending_channel(limits.event_items, limits.event_weight),
+        };
         let cancellation = WorkerCancellation::default();
         let context = WorkerContext {
             commands: command_rx,

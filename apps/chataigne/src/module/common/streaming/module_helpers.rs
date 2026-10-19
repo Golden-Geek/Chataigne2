@@ -93,7 +93,10 @@ impl StreamingIncomingQueue {
     pub(super) fn take_pending_messages_for_test(&mut self) -> Vec<ReceivedValueMessage> {
         self.retained_items = 0;
         self.retained_weight = 0;
-        self.batches.drain(..).flat_map(|batch| batch.messages).collect()
+        self.batches
+            .drain(..)
+            .flat_map(|batch| batch.messages.to_vec())
+            .collect()
     }
 
     pub(crate) fn has_pending_messages(&self) -> bool {

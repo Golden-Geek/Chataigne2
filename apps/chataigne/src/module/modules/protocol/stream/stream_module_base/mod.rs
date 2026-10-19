@@ -115,6 +115,18 @@ impl StreamingModuleBase {
         self.cached_processing_enabled
     }
 
+    pub(crate) fn parse_config_cached(&self) -> StreamingParseConfig {
+        self.cached_parse_config.clone()
+    }
+
+    pub(crate) fn affects_input_configuration(&self, param: NodeId) -> bool {
+        (self.parse_mode.is_bound() && self.parse_mode.id() == param)
+            || (self.name_separator.is_bound() && self.name_separator.id() == param)
+            || (self.value_separator.is_bound() && self.value_separator.id() == param)
+            || (self.hierarchy_separator.is_bound() && self.hierarchy_separator.id() == param)
+            || self.base.affects_incoming_logging(param)
+    }
+
     /// Refreshes `cached_parse_config` and `cached_processing_enabled` from the snapshot.
     /// Call this whenever the snapshot is available (e.g. when `transport_dirty` or
     /// `has_pending_messages`) so the hot drain path can run without a snapshot.
@@ -125,6 +137,11 @@ impl StreamingModuleBase {
 
     pub(crate) fn has_pending_messages(&self) -> bool {
         self.incoming.has_pending_messages()
+    }
+
+    pub(crate) fn discard_pending_input(&mut self) {
+        self.incoming = StreamingIncomingQueue::new();
+        self.parser.discard_partial_input();
     }
 
     pub(crate) fn parse_bytes_cached(&mut self, bytes: &[u8]) -> Result<PreparedMessages, String> {

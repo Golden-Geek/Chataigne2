@@ -1,3 +1,6 @@
+use super::input::{self, InputPlan, PreparedUdpInput, UdpInputConfig};
+use crate::app::module::common::streaming::parser::StreamingParser;
+use golden_io::RetainedPayload;
 use std::{
     net::{SocketAddr, ToSocketAddrs, UdpSocket},
     num::NonZeroUsize,
@@ -7,6 +10,7 @@ use std::{
 
 use golden_io::{
     BoundedWorker, PendingDrain, PendingDrainState, PendingSendError, RetirementPool, WorkerContext, WorkerLimits,
+    WorkerNotifier,
 };
 
 pub(super) const UDP_MAX_PAYLOAD: usize = 65_507;
@@ -21,11 +25,20 @@ fn worker_lifetimes() -> &'static RetirementPool {
     POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()))
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct UdpStreamingTransportConfig {
     pub bind_interface_host: String,
     pub bind_port: u16,
     pub receive_enabled: bool,
+    pub input: UdpInputConfig,
+}
+
+impl UdpStreamingTransportConfig {
+    pub(super) fn same_socket(&self, other: &Self) -> bool {
+        self.bind_interface_host == other.bind_interface_host
+            && self.bind_port == other.bind_port
+            && self.receive_enabled == other.receive_enabled
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,10 +48,11 @@ pub(crate) struct UdpStreamingOutboundPacket {
     pub remote_port: u16,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(crate) enum StreamingWorkerEvent {
     Ready(SocketAddr),
-    Bytes(Vec<u8>),
+    Input(RetainedPayload<PreparedUdpInput>),
+    Interfaces(Result<Vec<golden_core::parameter::ParameterEnumOption>, String>),
     Error(String),
     Failed(String),
 }
@@ -48,7 +62,9 @@ impl StreamingWorkerEvent {
         std::mem::size_of::<Self>()
             + match self {
                 Self::Ready(_) => 0,
-                Self::Bytes(bytes) => bytes.capacity(),
+                Self::Input(input) => input.weight,
+                Self::Interfaces(Ok(options)) => interface_weight(options),
+                Self::Interfaces(Err(error)) => error.capacity(),
                 Self::Error(message) | Self::Failed(message) => message.capacity(),
             }
     }
@@ -56,42 +72,52 @@ impl StreamingWorkerEvent {
 
 pub(crate) struct UdpStreamingTransportHandle {
     worker: BoundedWorker<UdpStreamingOutboundPacket, StreamingWorkerEvent>,
+    input: InputPlan,
 }
 
 impl UdpStreamingTransportHandle {
-    pub(crate) fn spawn(config: UdpStreamingTransportConfig) -> Result<Self, String> {
+    pub(crate) fn spawn(config: UdpStreamingTransportConfig, notifier: WorkerNotifier) -> Result<Self, String> {
         let binding = config.clone();
-        Self::spawn_using(config, move || bind_socket(&binding))
+        Self::spawn_using(config, notifier, move || bind_socket(&binding))
     }
 
     fn spawn_using(
         config: UdpStreamingTransportConfig,
+        notifier: WorkerNotifier,
         setup: impl FnOnce() -> Result<UdpSocket, String> + Send + 'static,
     ) -> Result<Self, String> {
-        Self::spawn_with_setup(config, worker_lifetimes(), setup)
+        Self::spawn_with_setup(config, worker_lifetimes(), notifier, setup)
     }
 
     pub(super) fn spawn_with_setup(
         config: UdpStreamingTransportConfig,
         lifetimes: &RetirementPool,
+        notifier: WorkerNotifier,
         setup: impl FnOnce() -> Result<UdpSocket, String> + Send + 'static,
     ) -> Result<Self, String> {
         if config.bind_interface_host.len() > UDP_HOST_BYTES {
             return Err("UDP bind host exceeds the 1024-byte limit".into());
         }
-        let worker = BoundedWorker::spawn(
+        let input = InputPlan::new(config.input.clone());
+        let worker_input = input.clone();
+        let worker = BoundedWorker::spawn_notified(
             "streaming-udp",
             lifetimes,
             WorkerLimits {
                 command_items: 256,
                 command_weight: UDP_COMMAND_BYTES,
                 event_items: 64,
-                event_weight: 512 * 1024,
+                event_weight: 32 * 1024 * 1024,
             },
-            move |context| worker_loop(context, config.receive_enabled, setup),
+            notifier,
+            move |context| worker_loop(context, config.receive_enabled, worker_input, setup),
         )
         .map_err(|error| format!("failed to start UDP worker: {error}"))?;
-        Ok(Self { worker })
+        Ok(Self { worker, input })
+    }
+
+    pub(super) fn update_input(&self, config: UdpInputConfig) {
+        self.input.update(config);
     }
 
     pub(crate) fn send(&self, packet: UdpStreamingOutboundPacket) -> Result<(), String> {
@@ -131,6 +157,31 @@ impl UdpStreamingTransportHandle {
     }
 }
 
+fn interface_weight(options: &Vec<golden_core::parameter::ParameterEnumOption>) -> usize {
+    options.capacity() * std::mem::size_of::<golden_core::parameter::ParameterEnumOption>()
+        + options
+            .iter()
+            .map(|option| {
+                option.variant_id.capacity()
+                    + option.label.capacity()
+                    + option.tags.capacity() * std::mem::size_of::<String>()
+                    + option.tags.iter().map(String::capacity).sum::<usize>()
+                    + match &option.value {
+                        golden_core::parameter::ParamValue::Enum(value) => value.capacity(),
+                        _ => 0,
+                    }
+            })
+            .sum::<usize>()
+}
+
+fn discover_interfaces() -> Result<Vec<golden_core::parameter::ParameterEnumOption>, String> {
+    let options = crate::app::module::common::network_interfaces::available_interface_options()?;
+    if options.len() > 256 || interface_weight(&options) > 64 * 1024 {
+        return Err("UDP interface discovery exceeds 256 entries / 64 KiB; existing choices retained".into());
+    }
+    Ok(options)
+}
+
 fn bind_socket(config: &UdpStreamingTransportConfig) -> Result<UdpSocket, String> {
     let bind_address = resolve_socket_addr(config.bind_interface_host.as_str(), config.bind_port)?;
     let socket = UdpSocket::bind(bind_address)
@@ -152,6 +203,7 @@ fn publish(
 fn worker_loop(
     context: WorkerContext<UdpStreamingOutboundPacket, StreamingWorkerEvent>,
     receive_enabled: bool,
+    input: InputPlan,
     setup: impl FnOnce() -> Result<UdpSocket, String>,
 ) {
     let (socket, address) = match setup().and_then(|socket| {
@@ -189,7 +241,11 @@ fn worker_loop(
         return;
     }
     let mut buffer = [0u8; 65_535];
+    let mut last_interfaces = None;
+    let mut next_interfaces = std::time::Instant::now();
     let mut commands = Vec::new();
+    let mut parser = StreamingParser::default();
+    let mut input_generation = None;
     loop {
         if context.cancellation().is_cancelled() {
             return;
@@ -201,7 +257,27 @@ fn worker_loop(
             }
         }
         if turn.state == PendingDrainState::Disconnected {
+            parser.discard_partial_input();
+            let rejected = parser.take_rejected_line_count();
+            if rejected > 0 {
+                publish(
+                    &context,
+                    StreamingWorkerEvent::Error(format!(
+                        "UDP retired with {rejected} incomplete input lines; data was not replayed"
+                    )),
+                );
+            }
             return;
+        }
+        if std::time::Instant::now() >= next_interfaces {
+            let options = discover_interfaces();
+            if last_interfaces.as_ref() != Some(&options) {
+                if !publish(&context, StreamingWorkerEvent::Interfaces(options.clone())) {
+                    return;
+                }
+                last_interfaces = Some(options);
+            }
+            next_interfaces = std::time::Instant::now() + Duration::from_secs(1);
         }
         if receive_enabled {
             for _ in 0..UDP_RECEIVE_TURN {
@@ -210,7 +286,16 @@ fn worker_loop(
                 }
                 match socket.recv_from(&mut buffer) {
                     Ok((length, _source)) => {
-                        if !publish(&context, StreamingWorkerEvent::Bytes(buffer[..length].to_vec())) {
+                        let snapshot = input.snapshot();
+                        if input_generation.is_some_and(|generation| generation != snapshot.generation) {
+                            parser.discard_partial_input();
+                        }
+                        input_generation = Some(snapshot.generation);
+                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..length]) {
+                            Ok(input) => StreamingWorkerEvent::Input(input),
+                            Err(error) => StreamingWorkerEvent::Error(format!("UDP input was not admitted: {error}")),
+                        };
+                        if !publish(&context, event) {
                             return;
                         }
                     }

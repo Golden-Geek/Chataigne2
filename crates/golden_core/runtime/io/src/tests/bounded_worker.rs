@@ -75,6 +75,72 @@ fn pool(capacity: usize) -> RetirementPool {
 }
 
 #[test]
+fn notified_worker_publishes_readiness_after_reply_and_after_native_cleanup() {
+    let pool = pool(1);
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let (cleaned_tx, cleaned_rx) = mpsc::channel();
+    struct Native(mpsc::Sender<()>);
+    impl Drop for Native {
+        fn drop(&mut self) {
+            let _ = self.0.send(());
+        }
+    }
+    let worker = BoundedWorker::<(), u8>::spawn_notified(
+        "notified-worker",
+        &pool,
+        limits(),
+        crate::WorkerNotifier::new(move || {
+            let _ = ready_tx.send(());
+        }),
+        move |context| {
+            let _native = Native(cleaned_tx);
+            context.publish_weighted(7, 1).unwrap();
+            release_rx.recv().unwrap();
+        },
+    )
+    .unwrap();
+    ready_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(worker.has_pending());
+    let mut events = Vec::new();
+    assert_eq!(worker.drain_events(&mut events, NonZeroUsize::MIN).received, 1);
+    assert_eq!(events, [7]);
+    assert!(!worker.has_pending());
+    release_tx.send(()).unwrap();
+    ready_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    cleaned_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(worker.has_pending());
+    assert_eq!(
+        worker.drain_events(&mut events, NonZeroUsize::MIN).state,
+        crate::PendingDrainState::Disconnected
+    );
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
+fn a_panicking_worker_notifies_its_owner_of_disconnection_without_a_reply() {
+    let pool = pool(1);
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let worker = BoundedWorker::<(), ()>::spawn_notified(
+        "panic-notification",
+        &pool,
+        limits(),
+        crate::WorkerNotifier::new(move || {
+            let _ = ready_tx.send(());
+        }),
+        |_context| panic!("controlled worker failure"),
+    )
+    .unwrap();
+    ready_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(worker.has_pending());
+    assert_eq!(
+        worker.drain_events(&mut Vec::new(), NonZeroUsize::MIN).state,
+        crate::PendingDrainState::Disconnected
+    );
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
 fn command_admission_rejects_items_and_weight_with_original_ownership() {
     let pool = pool(1);
     let (entered_tx, entered_rx) = mpsc::channel();

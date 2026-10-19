@@ -7,8 +7,8 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-19 against `5b81c44e` (separately committed frontend build cache) plus P03
-stream preparation admission on `main`. Scanned **1391 source files**; **42 exceed
+Refreshed 2026-10-19 against delivered `b93f18ada220aa4adfa4b6fbdf90104eaab08a11` plus P03
+passive UDP/notification/payload ownership on `main`. Scanned **1402 source files**; **42 exceed
 1,000 lines**. Persistence lifecycle and node behavior extractions brought
 `engine/persistence/mod.rs` and `node/core/behavior.rs` below the limit. No new size exceptions
 are established by this inventory. Standard formatting of the touched Sound Card modules also
@@ -16,9 +16,11 @@ brings its integration coordinator below 1000 lines; the bounded wake modules ad
 The lifecycle budget module and public lifecycle regression suite also remain below the limit.
 UDP's worker, generation owner, and focused test modules introduce no new size exception.
 Shared received-value accounting/service modules and stream regressions remain below the limit.
-The count includes two build-cache sources committed separately in parent `5b81c44e` while this
-stream milestone was underway; the stream preparation work itself adds three source files.
 Stream admission, JSON preparation, and the focused preparation regression file add no exception.
+Golden IO notification/deadline/payload modules, app UDP preparation/delivery adapters, and focused
+tests add eleven source files. All remain below 1000 lines. Required formatter output also
+normalizes the app module coordinator and missing final newlines in three app-common helpers.
+The count excludes concurrent header/footer UI work that appeared after this milestone's scan.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its

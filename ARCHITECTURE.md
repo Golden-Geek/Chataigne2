@@ -18,7 +18,8 @@ Its internal workspace crates are grouped by role:
 
 - `engine/`: node tree, edit loop, scheduling, and UI read model.
 - `foundation/`: application contracts, identities, values, parameters, and contexts.
-- `runtime/`: control runtime, I/O workers, and scripting.
+- `runtime/`: control runtime, bounded I/O workers, readiness/deadline notifications,
+  payload retirement, and scripting.
 - `services/`: persistence and protocol boundaries.
 - `hosts/`: desktop and transport hosts.
 - `support/`: macros and code generation.

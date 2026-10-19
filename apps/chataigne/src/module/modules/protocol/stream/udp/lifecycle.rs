@@ -1,13 +1,14 @@
 use std::time::{Duration, Instant};
 
-use golden_io::{PendingDrainState, ReconnectBackoff};
+use golden_io::{PendingDrainState, ReconnectBackoff, WorkerNotifier};
 
 use super::transport::{
     StreamingWorkerEvent, UdpStreamingOutboundPacket, UdpStreamingTransportConfig, UdpStreamingTransportHandle,
 };
 
 pub(super) enum UdpTransportEvent {
-    Bytes(Vec<u8>),
+    Input(golden_io::RetainedPayload<super::input::PreparedUdpInput>),
+    Interfaces(Result<Vec<golden_core::parameter::ParameterEnumOption>, String>),
     Error(String),
 }
 
@@ -22,7 +23,7 @@ enum State {
     Active {
         config: UdpStreamingTransportConfig,
         handle: UdpStreamingTransportHandle,
-        connected: bool,
+        bound: Option<std::net::SocketAddr>,
     },
     Retiring(UdpStreamingTransportHandle),
 }
@@ -47,8 +48,14 @@ impl Default for UdpTransports {
 
 impl UdpTransports {
     /// Returns false while a prior generation or recovery deadline still owns the endpoint.
-    pub(super) fn configure(&mut self, config: UdpStreamingTransportConfig) -> Result<bool, String> {
-        self.configure_using(config, UdpStreamingTransportHandle::spawn)
+    pub(super) fn configure(
+        &mut self,
+        config: UdpStreamingTransportConfig,
+        notifier: WorkerNotifier,
+    ) -> Result<bool, String> {
+        self.configure_using(config, move |config| {
+            UdpStreamingTransportHandle::spawn(config, notifier)
+        })
     }
 
     fn configure_using(
@@ -56,8 +63,13 @@ impl UdpTransports {
         config: UdpStreamingTransportConfig,
         spawn: impl FnOnce(UdpStreamingTransportConfig) -> Result<UdpStreamingTransportHandle, String>,
     ) -> Result<bool, String> {
-        if let State::Active { config: active, .. } = &self.state {
-            if &config == active {
+        if let State::Active {
+            config: active, handle, ..
+        } = &mut self.state
+        {
+            if active.same_socket(&config) {
+                handle.update_input(config.input.clone());
+                *active = config;
                 return Ok(true);
             }
             self.pause_admission();
@@ -78,7 +90,7 @@ impl UdpTransports {
         self.state = State::Active {
             config,
             handle,
-            connected: false,
+            bound: None,
         };
         self.retry_at = None;
         Ok(true)
@@ -101,8 +113,24 @@ impl UdpTransports {
         }
     }
 
+    pub(super) fn retry_in(&self) -> Option<Duration> {
+        self.retry_at.map(|at| at.saturating_duration_since(Instant::now()))
+    }
+
+    pub(super) fn waiting_for_retirement(&self) -> bool {
+        matches!(self.state, State::Retiring(_))
+    }
+
     pub(super) fn connected(&self) -> bool {
-        matches!(self.state, State::Active { connected: true, .. })
+        matches!(self.state, State::Active { bound: Some(_), .. })
+    }
+
+    #[cfg(test)]
+    pub(super) fn bound_address(&self) -> Option<std::net::SocketAddr> {
+        match &self.state {
+            State::Active { bound, .. } => *bound,
+            _ => None,
+        }
     }
 
     pub(super) fn has_pending(&self) -> bool {
@@ -135,14 +163,15 @@ impl UdpTransports {
         let drain = handle.drain_events(&mut events);
         for event in events {
             match event {
-                StreamingWorkerEvent::Ready(_) if active => {
-                    if let State::Active { connected, .. } = &mut self.state {
-                        *connected = true;
+                StreamingWorkerEvent::Ready(address) if active => {
+                    if let State::Active { bound, .. } = &mut self.state {
+                        *bound = Some(address);
                     }
                     self.backoff.reset();
                 }
                 StreamingWorkerEvent::Failed(error) if active => result.failure = Some(error),
-                StreamingWorkerEvent::Bytes(bytes) => result.events.push(UdpTransportEvent::Bytes(bytes)),
+                StreamingWorkerEvent::Interfaces(options) => result.events.push(UdpTransportEvent::Interfaces(options)),
+                StreamingWorkerEvent::Input(input) => result.events.push(UdpTransportEvent::Input(input)),
                 StreamingWorkerEvent::Error(error) => result.events.push(UdpTransportEvent::Error(error)),
                 _ => {}
             }

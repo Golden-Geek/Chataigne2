@@ -39,16 +39,16 @@ pub(super) fn parse_json_bytes(bytes: &[u8]) -> Result<PreparedMessages, String>
         serde_json::from_slice(bytes).map_err(|error| format!("invalid JSON input: {error}"))?;
 
     validate_json_structure(&value, 0, &mut 0)?;
-    let mut messages = PreparedMessages::default();
+    let mut messages = MessagePreparation::default();
     let mut path_segments = Vec::new();
     collect_json_messages(&value, &mut path_segments, &mut messages)?;
-    Ok(messages)
+    messages.finish()
 }
 
 fn collect_json_messages(
     value: &serde_json::Value,
     path_segments: &mut Vec<String>,
-    messages: &mut PreparedMessages,
+    messages: &mut MessagePreparation,
 ) -> Result<(), String> {
     validate_path(path_segments)?;
     if let Some(payload) = decode_json_payload(value)? {

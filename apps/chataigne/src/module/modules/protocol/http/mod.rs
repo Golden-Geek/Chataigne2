@@ -348,7 +348,7 @@ impl HttpModule {
                 }
                 PendingHttpEvent::Callback(_) => unreachable!("delivery serviced above"),
             };
-            let mut delivery = callbacks::CallbackDelivery::new(event);
+            let mut delivery = crate::app::module::script_api::CallbackDelivery::new(event);
             delivery.service(ctx);
             self.pending_events.push_front(PendingHttpEvent::Callback(delivery));
         }

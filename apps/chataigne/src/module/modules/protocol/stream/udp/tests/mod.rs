@@ -9,6 +9,22 @@ use golden_core::{
 
 use super::UdpModule;
 
+mod input_delivery;
+
+#[test]
+fn udp_idle_runtime_is_passive_and_does_not_schedule_periodic_node_work() {
+    let (mut engine, module) = create_udp_module();
+    assert_eq!(
+        udp_module(&engine, module).execution_rule(),
+        golden_core::engine::NodeExecutionRule::passive()
+    );
+    for _ in 0..10 {
+        engine.run_tick(Duration::from_millis(20)).unwrap();
+        assert!(!udp_module(&engine, module).needs_update());
+        assert_eq!(engine.tick_stats().callbacks_fired, 0);
+    }
+}
+
 #[test]
 fn udp_module_root_enable_toggle_stops_and_restarts_transport() {
     let (mut engine, module_id) = create_udp_module();

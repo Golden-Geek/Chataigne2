@@ -1,6 +1,8 @@
 mod json;
 
-use super::admission::{bounded_description, validate_path, PreparedMessages, MAX_STREAM_MESSAGES, MAX_VALUE_UNITS};
+use super::admission::{
+    bounded_description, validate_path, MessagePreparation, PreparedMessages, MAX_STREAM_MESSAGES, MAX_VALUE_UNITS,
+};
 use json::parse_json_bytes;
 
 use golden_core::parameter::ParamValue;
@@ -104,7 +106,7 @@ impl StreamingParser {
             if bytes.len() > MAX_STREAM_MESSAGES {
                 return Err("raw stream input exceeds 65536 byte messages".into());
             }
-            let mut messages = PreparedMessages::default();
+            let mut messages = MessagePreparation::default();
             for byte in bytes {
                 messages.try_push(ReceivedValueMessage {
                     path_segments: vec![DEFAULT_RAW_VALUE_NAME.to_string()],
@@ -112,7 +114,7 @@ impl StreamingParser {
                     source_description: format!("raw byte 0x{byte:02X}"),
                 })?;
             }
-            return Ok(messages);
+            return messages.finish();
         }
 
         if config.mode == STREAMING_INPUT_MODE_JSON {
@@ -121,7 +123,7 @@ impl StreamingParser {
             return parse_json_bytes(bytes);
         }
 
-        let mut messages = PreparedMessages::default();
+        let mut messages = MessagePreparation::default();
         for part in bytes.split_inclusive(|byte| matches!(byte, b'\r' | b'\n')) {
             if self.skip_lf_after_cr {
                 self.skip_lf_after_cr = false;
@@ -166,11 +168,22 @@ impl StreamingParser {
             }
         }
 
-        Ok(messages)
+        messages.finish()
     }
 
     pub(crate) fn take_rejected_line_count(&mut self) -> u64 {
         std::mem::take(&mut self.rejected_lines)
+    }
+
+    /// A connection or processing generation cannot inherit an incomplete prior frame.
+    pub(crate) fn discard_partial_input(&mut self) {
+        if !self.pending_line_bytes.is_empty() {
+            self.rejected_lines = self.rejected_lines.saturating_add(1);
+        }
+        self.pending_line_bytes.clear();
+        self.skip_lf_after_cr = false;
+        self.discarding_line = false;
+        self.active_config = None;
     }
 }
 

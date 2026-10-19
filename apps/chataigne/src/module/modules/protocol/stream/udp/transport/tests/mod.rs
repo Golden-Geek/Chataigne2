@@ -10,6 +10,7 @@ fn config() -> UdpStreamingTransportConfig {
         bind_interface_host: "127.0.0.1".into(),
         bind_port: 0,
         receive_enabled: false,
+        input: input_config(),
     }
 }
 
@@ -19,7 +20,7 @@ fn starting_a_transport_does_not_wait_for_endpoint_setup() {
     let (release_tx, release_rx) = mpsc::sync_channel(1);
     let (handle_tx, handle_rx) = mpsc::sync_channel(1);
     let caller = thread::spawn(move || {
-        let handle = UdpStreamingTransportHandle::spawn_using(config(), move || {
+        let handle = UdpStreamingTransportHandle::spawn_using(config(), notifier(), move || {
             entered_tx.send(()).unwrap();
             release_rx.recv().unwrap();
             UdpSocket::bind("127.0.0.1:0").map_err(|error| error.to_string())
@@ -39,7 +40,7 @@ fn starting_a_transport_does_not_wait_for_endpoint_setup() {
 
 #[test]
 fn impossible_datagram_is_rejected_before_transport_admission() {
-    let mut handle = UdpStreamingTransportHandle::spawn(config()).unwrap();
+    let mut handle = UdpStreamingTransportHandle::spawn(config(), notifier()).unwrap();
     let result = handle.send(UdpStreamingOutboundPacket {
         bytes: vec![0; 65_536],
         remote_host: "127.0.0.1".into(),
@@ -57,7 +58,7 @@ fn byte_admission_and_cancellation_remain_bounded_during_blocked_setup() {
     let pool = RetirementPool::new(NonZeroUsize::MIN);
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::sync_channel(1);
-    let mut handle = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, move || {
+    let mut handle = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, notifier(), move || {
         entered_tx.send(()).unwrap();
         release_rx.recv().unwrap();
         UdpSocket::bind("127.0.0.1:0").map_err(|error| error.to_string())
@@ -90,7 +91,7 @@ fn byte_admission_and_cancellation_remain_bounded_during_blocked_setup() {
         1,
         "blocked native setup keeps its reserved lifetime"
     );
-    let rejected = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, || {
+    let rejected = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, notifier(), || {
         UdpSocket::bind("127.0.0.1:0").map_err(|e| e.to_string())
     });
     release_tx.send(()).unwrap();
@@ -110,7 +111,7 @@ fn graceful_close_attempts_all_accepted_packets_in_order() {
     receiver.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
     let port = receiver.local_addr().unwrap().port();
     let (release_tx, release_rx) = mpsc::sync_channel(1);
-    let mut handle = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, move || {
+    let mut handle = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, notifier(), move || {
         release_rx.recv().unwrap();
         UdpSocket::bind("127.0.0.1:0").map_err(|error| error.to_string())
     })
@@ -145,7 +146,7 @@ fn graceful_close_attempts_all_accepted_packets_in_order() {
 fn failed_setup_resolves_every_previously_admitted_send() {
     let pool = RetirementPool::new(NonZeroUsize::MIN);
     let (release_tx, release_rx) = mpsc::sync_channel(1);
-    let handle = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, move || {
+    let handle = UdpStreamingTransportHandle::spawn_with_setup(config(), &pool, notifier(), move || {
         release_rx.recv().unwrap();
         Err("injected bind failure".into())
     })
@@ -187,7 +188,8 @@ fn continuous_input_keeps_bounded_owner_turns_and_does_not_starve_sends_or_cance
     let address = socket.local_addr().unwrap();
     let mut input = config();
     input.receive_enabled = true;
-    let mut handle = UdpStreamingTransportHandle::spawn_with_setup(input, &pool, move || Ok(socket)).unwrap();
+    let mut handle =
+        UdpStreamingTransportHandle::spawn_with_setup(input, &pool, notifier(), move || Ok(socket)).unwrap();
     let deadline = std::time::Instant::now() + Duration::from_secs(3);
     loop {
         let mut events = Vec::new();
@@ -231,7 +233,7 @@ fn continuous_input_keeps_bounded_owner_turns_and_does_not_starve_sends_or_cance
         maximum_turn = maximum_turn.max(turn.received);
         received += events
             .iter()
-            .filter(|event| matches!(event, StreamingWorkerEvent::Bytes(_)))
+            .filter(|event| matches!(event, StreamingWorkerEvent::Input(_)))
             .count();
         if let Ok(length) = receiver.recv(&mut buffer) {
             delivered |= buffer[..length] == [99];
@@ -245,4 +247,115 @@ fn continuous_input_keeps_bounded_owner_turns_and_does_not_starve_sends_or_cance
     assert!(maximum_turn <= UDP_EVENT_DRAIN_BUDGET.get());
     assert!(received >= 12, "continuous native input must reach bounded owner turns");
     assert!(delivered, "receive traffic must not starve an admitted outbound packet");
+}
+
+fn notifier() -> golden_io::WorkerNotifier {
+    golden_io::WorkerNotifier::new(|| {})
+}
+
+fn input_config() -> crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
+    crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
+        module: golden_core::node::NodeId(1),
+        parse: Default::default(),
+        processing_enabled: false,
+        log_incoming: false,
+    }
+}
+
+fn next_input(handle: &UdpStreamingTransportHandle) -> RetainedPayload<PreparedUdpInput> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        let mut events = Vec::new();
+        handle.drain_events(&mut events);
+        for event in events {
+            match event {
+                StreamingWorkerEvent::Input(input) => return input,
+                StreamingWorkerEvent::Failed(error) | StreamingWorkerEvent::Error(error) => panic!("{error}"),
+                _ => {}
+            }
+        }
+        assert!(std::time::Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn input_is_prepared_on_its_worker_and_cannot_be_reinterpreted_after_reconfiguration() {
+    let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let address = socket.local_addr().unwrap();
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let mut config = config();
+    config.receive_enabled = true;
+    config.input.processing_enabled = true;
+    let mut changed = config.input.clone();
+    let mut handle =
+        UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), move || Ok(socket)).unwrap();
+    let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
+    sender.send_to(b"old 1\n", address).unwrap();
+    let old = next_input(&handle);
+    assert_eq!(old.values.as_ref().unwrap()[0].path_segments, ["old"]);
+    assert_eq!(old.callbacks.len(), 3);
+    assert_eq!(old.callbacks[0].payload["callback"], "dataReceived");
+    assert_eq!(old.callbacks[2].payload["args"][0], "old 1\n");
+    changed.parse.mode = "json".into();
+    handle.update_input(changed);
+    sender.send_to(br#"{"new":2}"#, address).unwrap();
+    let new = next_input(&handle);
+    assert_eq!(new.values.as_ref().unwrap()[0].path_segments, ["new"]);
+    assert_eq!(old.values.as_ref().unwrap()[0].path_segments, ["old"]);
+    handle.stop();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
+fn processing_generations_reject_old_partial_lines_and_preserve_new_data() {
+    let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let address = socket.local_addr().unwrap();
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let mut config = config();
+    config.receive_enabled = true;
+    config.input.processing_enabled = true;
+    let mut disabled = config.input.clone();
+    disabled.processing_enabled = false;
+    let enabled = config.input.clone();
+    let mut handle =
+        UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), move || Ok(socket)).unwrap();
+    let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
+    sender.send_to(b"partial ", address).unwrap();
+    assert!(next_input(&handle).values.as_ref().unwrap().is_empty());
+    handle.update_input(disabled);
+    sender.send_to(b"ignored\n", address).unwrap();
+    let ignored = next_input(&handle);
+    assert!(ignored.values.as_ref().unwrap().is_empty());
+    assert_eq!(ignored.rejected_lines, 1);
+    assert_eq!(ignored.callbacks.len(), 3);
+    handle.update_input(enabled);
+    sender.send_to(b"next 7\n", address).unwrap();
+    let next = next_input(&handle);
+    assert_eq!(next.values.as_ref().unwrap()[0].path_segments, ["next"]);
+    handle.stop();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
+fn maximum_raw_datagram_fits_worker_reply_and_payload_lifetime_admission() {
+    let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let address = socket.local_addr().unwrap();
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let mut config = config();
+    config.receive_enabled = true;
+    config.input.processing_enabled = true;
+    config.input.parse.mode = "raw".into();
+    let mut handle =
+        UdpStreamingTransportHandle::spawn_with_setup(config, &pool, notifier(), move || Ok(socket)).unwrap();
+    UdpSocket::bind("127.0.0.1:0")
+        .unwrap()
+        .send_to(&vec![7; UDP_MAX_PAYLOAD], address)
+        .unwrap();
+    let input = next_input(&handle);
+    assert_eq!(input.values.as_ref().unwrap().len(), UDP_MAX_PAYLOAD);
+    assert!(input.weight <= 32 * 1024 * 1024);
+    assert_eq!(input.callbacks.len(), 3);
+    handle.stop();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
 }

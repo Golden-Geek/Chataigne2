@@ -3,8 +3,8 @@ use golden_core::{
     events::CustomEvent,
     node,
     node::{
-        Node, NodeHandle, NodeId, UserContainerRules, UserContextNode, UserCreatableItem,
-        USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
+        Node, NodeHandle, NodeId, UserContainerRules, UserContextNode, UserCreatableItem, USER_CONTEXT_DEFAULT_LABEL,
+        USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
     },
     process_ctx::ProcessCtx,
     script::ScriptNode,
@@ -14,9 +14,9 @@ pub(crate) mod common;
 mod constants;
 mod permissions;
 mod reference_filters;
+pub(crate) mod script_api;
 #[cfg(test)]
 mod tests;
-pub(crate) mod script_api;
 
 pub(crate) use constants::MODULE_ITEM_KIND;
 pub(crate) use permissions::{enable_module_authoring, enable_module_manager_authoring};
@@ -121,6 +121,10 @@ impl ModuleBase {
         self.log_incoming.get()
     }
 
+    pub(crate) fn affects_incoming_logging(&self, param: NodeId) -> bool {
+        self.log_incoming.is_bound() && self.log_incoming.id() == param
+    }
+
     pub fn log_outgoing_enabled(&self) -> bool {
         self.log_outgoing.get()
     }
@@ -134,10 +138,10 @@ impl ModuleBase {
         ctx: &mut ProcessCtx,
         available_command_types: &'static [&'static str],
     ) {
-        let Some(command_tester_id) = self
-            .command_tester_id()
-            .or_else(|| ctx.tree_snapshot().and_then(|snapshot| snapshot.find_child_by_decl_id(self.id(), "command_tester")))
-        else {
+        let Some(command_tester_id) = self.command_tester_id().or_else(|| {
+            ctx.tree_snapshot()
+                .and_then(|snapshot| snapshot.find_child_by_decl_id(self.id(), "command_tester"))
+        }) else {
             return;
         };
 
@@ -147,10 +151,9 @@ impl ModuleBase {
             .is_some_and(|node| node.node_type == crate::app::ModuleCommandTester::NODE_TYPE);
 
         if is_command_tester {
-            NodeHandle::new(command_tester_id).with_mut::<crate::app::ModuleCommandTester, _>(
-                ctx,
-                move |tester, _| tester.set_available_command_types(available_command_types),
-            );
+            NodeHandle::new(command_tester_id).with_mut::<crate::app::ModuleCommandTester, _>(ctx, move |tester, _| {
+                tester.set_available_command_types(available_command_types)
+            });
             return;
         }
 
@@ -174,11 +177,7 @@ impl ModuleBase {
             ctx,
             snapshot,
             self.id(),
-            script_api::ModuleParamCallbackRoots::new(
-                self.connection_id(),
-                self.parameters_id(),
-                self.values_id(),
-            ),
+            script_api::ModuleParamCallbackRoots::new(self.connection_id(), self.parameters_id(), self.values_id()),
             param,
             old_value,
         );

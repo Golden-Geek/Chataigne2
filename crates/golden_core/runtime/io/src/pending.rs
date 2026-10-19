@@ -6,6 +6,8 @@ use std::sync::{
 };
 use std::time::Instant;
 
+use crate::WorkerNotifier;
+
 const DEFAULT_MAXIMUM_ITEMS: usize = 4_096;
 const DEFAULT_MAXIMUM_WEIGHT: usize = 4 * 1024 * 1024;
 
@@ -24,6 +26,7 @@ struct PendingState<T> {
     maximum_weight: usize,
     retained_weight: AtomicUsize,
     rejected: AtomicU64,
+    notifier: Option<WorkerNotifier>,
 }
 
 /// Sender half of a bounded event channel that exposes pending work without polling.
@@ -93,6 +96,24 @@ pub fn bounded_pending_channel<T>(
     maximum_items: usize,
     maximum_weight: usize,
 ) -> (PendingSender<T>, PendingReceiver<T>) {
+    make_pending_channel(maximum_items, maximum_weight, None)
+}
+
+/// Publishes readiness after enqueue and after the last sender disconnects.
+/// Notifications never run with the queue locked and carry no payload or graph operation.
+pub fn notified_pending_channel<T>(
+    maximum_items: usize,
+    maximum_weight: usize,
+    notifier: WorkerNotifier,
+) -> (PendingSender<T>, PendingReceiver<T>) {
+    make_pending_channel(maximum_items, maximum_weight, Some(notifier))
+}
+
+fn make_pending_channel<T>(
+    maximum_items: usize,
+    maximum_weight: usize,
+    notifier: Option<WorkerNotifier>,
+) -> (PendingSender<T>, PendingReceiver<T>) {
     assert!(maximum_items > 0, "pending channel must accept at least one item");
     assert!(maximum_weight > 0, "pending channel must accept positive weight");
     let state = Arc::new(PendingState {
@@ -104,6 +125,7 @@ pub fn bounded_pending_channel<T>(
         maximum_weight,
         retained_weight: AtomicUsize::new(0),
         rejected: AtomicU64::new(0),
+        notifier,
     });
     (
         PendingSender {
@@ -170,6 +192,9 @@ impl<T> PendingSender<T> {
 
         before_publish();
         self.state.pending.store(true, Ordering::Release);
+        if let Some(notifier) = &self.state.notifier {
+            notifier.notify();
+        }
         Ok(())
     }
 
@@ -192,6 +217,9 @@ impl<T> Drop for PendingSender<T> {
     fn drop(&mut self) {
         if self.state.sender_count.fetch_sub(1, Ordering::AcqRel) == 1 {
             self.state.pending.store(true, Ordering::Release);
+            if let Some(notifier) = &self.state.notifier {
+                notifier.notify();
+            }
         }
     }
 }

@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for passive UDP worker delivery, configuration generations, retry/exit notifications, and prepared input/callback lifetime ownership across disable and retirement. -->
+<!-- Mode: Returning to High after 208 owning/preservation tests, strict IO/app Clippy, workspace/test compilation, and a fresh native app build passed passive input/configuration/callback/disposal/retry invariants. UDP outbound fanout/admission and remaining module/generator audits stay open in P03. Actual effort remains unchanged/unobservable. -->
+
 <!-- Mode: Escalating to XHigh for shared stream retained-byte admission, resumable graph cursors, receipt ownership, and ordered repeated values against a shared snapshot. -->
 <!-- Mode: Returning to High after shared stream admission, ordering, receipt failure/recovery, line bounds, and maximum raw datagram regressions passed, with HTTP/stream/Sound Card/OSC preservation, strict Clippy, workspace/test compilation, and native app build. Worker preparation/notifications remain a separate P03 batch. -->
 
