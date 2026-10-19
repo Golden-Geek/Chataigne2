@@ -13,6 +13,7 @@ use golden_core::{
 };
 
 use super::TcpClientModule;
+mod input_delivery;
 mod native_lifecycle;
 
 #[test]

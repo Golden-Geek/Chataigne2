@@ -221,8 +221,8 @@ fn notifier() -> golden_io::WorkerNotifier {
     golden_io::WorkerNotifier::new(|| {})
 }
 
-fn input_config() -> crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
-    crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
+fn input_config() -> crate::app::module::common::streaming::input::StreamInputConfig {
+    crate::app::module::common::streaming::input::StreamInputConfig {
         module: golden_core::node::NodeId(1),
         parse: Default::default(),
         processing_enabled: false,
@@ -230,7 +230,7 @@ fn input_config() -> crate::app::module_modules_protocol_stream_udp::input::UdpI
     }
 }
 
-fn next_input(handle: &UdpStreamingTransportHandle) -> RetainedPayload<PreparedUdpInput> {
+fn next_input(handle: &UdpStreamingTransportHandle) -> RetainedPayload<PreparedStreamInput> {
     let deadline = std::time::Instant::now() + Duration::from_secs(3);
     loop {
         let mut events = Vec::new();

@@ -3,6 +3,10 @@ use super::{
     ReplySource, StreamingWorkerEvent, TcpStreamingConnectionStatus as Status, TcpStreamingTransportConfig,
 };
 use crate::app::module::common::streaming::native_replies::NativeReplies;
+use crate::app::module::common::streaming::{
+    input::{self, InputPlan},
+    parser::StreamingParser,
+};
 use golden_io::{PendingDrainState, ReconnectBackoff, WorkerCancellation, WorkerContext};
 use std::{
     io::Read,
@@ -83,6 +87,7 @@ impl Drop for Connection {
 pub(super) fn run(
     context: WorkerContext<Outbound, StreamingWorkerEvent>,
     config: TcpStreamingTransportConfig,
+    input: InputPlan,
     published: Arc<AtomicU64>,
     mut connector: impl FnMut(&WorkerCancellation) -> Result<TcpStream, String>,
 ) {
@@ -92,6 +97,8 @@ pub(super) fn run(
     let mut current: Option<Outbound> = None;
     let mut closed = false;
     let mut buffer = [0; 8192];
+    let mut parser = StreamingParser::default();
+    let mut input_generation = None;
     loop {
         if context.cancellation().is_cancelled() || !replies.flush(&context) {
             return;
@@ -141,8 +148,33 @@ pub(super) fn run(
             }
         }
         if closed && current.is_none() {
+            parser.discard_partial_input();
+            let rejected = parser.take_rejected_line_count();
             replies.finish(&context);
+            if rejected > 0 {
+                let event = StreamingWorkerEvent::RejectedInput(rejected);
+                context
+                    .publish_weighted(event, std::mem::size_of::<StreamingWorkerEvent>())
+                    .ok();
+            }
             return;
+        }
+        // A failed connection must release its partial frame even if the replacement
+        // produces no bytes. Prepared replies already admitted remain immutable.
+        if connection.stream.is_none() {
+            parser.discard_partial_input();
+            if replies.permits(ReplySource::Input) {
+                let rejected = parser.take_rejected_line_count();
+                if rejected > 0
+                    && !replies.offer(
+                        &context,
+                        ReplySource::Input,
+                        StreamingWorkerEvent::RejectedInput(rejected),
+                    )
+                {
+                    return;
+                }
+            }
         }
         if connection.stream.is_none()
             && !context.command_admission_closed()
@@ -189,11 +221,17 @@ pub(super) fn run(
                         break;
                     }
                     Ok(count) => {
-                        if !replies.offer(
-                            &context,
-                            ReplySource::Input,
-                            StreamingWorkerEvent::Bytes(buffer[..count].to_vec()),
-                        ) {
+                        let snapshot = input.snapshot();
+                        let generation = (connection.generation, snapshot.generation);
+                        if input_generation != Some(generation) {
+                            parser.discard_partial_input();
+                            input_generation = Some(generation);
+                        }
+                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..count], "TCP") {
+                            Ok(input) => StreamingWorkerEvent::Input(input),
+                            Err(error) => StreamingWorkerEvent::Error(format!("TCP input was not admitted: {error}")),
+                        };
+                        if !replies.offer(&context, ReplySource::Input, event) {
                             return;
                         }
                     }

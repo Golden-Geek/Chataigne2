@@ -12,7 +12,7 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct UdpInputConfig {
+pub(crate) struct StreamInputConfig {
     pub module: NodeId,
     pub parse: StreamingParseConfig,
     pub processing_enabled: bool,
@@ -20,22 +20,22 @@ pub(crate) struct UdpInputConfig {
 }
 
 #[derive(Clone)]
-pub(super) struct InputSnapshot {
+pub(crate) struct InputSnapshot {
     pub generation: u64,
-    pub config: UdpInputConfig,
+    pub config: StreamInputConfig,
 }
 
 #[derive(Clone)]
-pub(super) struct InputPlan(Arc<Mutex<InputSnapshot>>);
+pub(crate) struct InputPlan(Arc<Mutex<InputSnapshot>>);
 
 impl InputPlan {
-    pub(super) fn new(config: UdpInputConfig) -> Self {
+    pub(crate) fn new(config: StreamInputConfig) -> Self {
         Self(Arc::new(Mutex::new(InputSnapshot { generation: 0, config })))
     }
-    pub(super) fn snapshot(&self) -> InputSnapshot {
+    pub(crate) fn snapshot(&self) -> InputSnapshot {
         self.0.lock().unwrap_or_else(|p| p.into_inner()).clone()
     }
-    pub(super) fn update(&self, config: UdpInputConfig) {
+    pub(crate) fn update(&self, config: StreamInputConfig) {
         let mut current = self.0.lock().unwrap_or_else(|p| p.into_inner());
         if current.config.parse != config.parse
             || current.config.processing_enabled != config.processing_enabled
@@ -48,7 +48,7 @@ impl InputPlan {
 }
 
 #[derive(Debug)]
-pub(super) struct PreparedUdpInput {
+pub(crate) struct PreparedStreamInput {
     pub values: Result<PreparedMessages, String>,
     pub callbacks: Vec<CustomEvent>,
     pub log_message: Option<String>,
@@ -56,11 +56,12 @@ pub(super) struct PreparedUdpInput {
     pub weight: usize,
 }
 
-pub(super) fn prepare(
+pub(crate) fn prepare(
     parser: &mut StreamingParser,
     snapshot: &InputSnapshot,
     bytes: &[u8],
-) -> Result<RetainedPayload<PreparedUdpInput>, String> {
+    transport: &str,
+) -> Result<RetainedPayload<PreparedStreamInput>, String> {
     let config = &snapshot.config;
     let values = if config.processing_enabled {
         parser.push_bytes(bytes, &config.parse)
@@ -77,7 +78,7 @@ pub(super) fn prepare(
             String::new()
         };
         format!(
-            "Received UDP {}{}{}",
+            "Received {transport} {}{}{}",
             format_bytes_for_log(prefix),
             suffix,
             if config.processing_enabled {
@@ -87,7 +88,7 @@ pub(super) fn prepare(
             }
         )
     });
-    let own_weight = size_of::<PreparedUdpInput>()
+    let own_weight = size_of::<PreparedStreamInput>()
         + callbacks.capacity() * size_of::<CustomEvent>()
         + callbacks
             .iter()
@@ -97,7 +98,7 @@ pub(super) fn prepare(
         + values.as_ref().err().map_or(0, String::capacity);
     let weight = own_weight + values.as_ref().map_or(0, PreparedMessages::retained_bytes);
     retain_payload(
-        PreparedUdpInput {
+        PreparedStreamInput {
             values,
             callbacks,
             log_message,

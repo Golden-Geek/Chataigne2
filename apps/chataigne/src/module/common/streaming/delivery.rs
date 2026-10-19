@@ -1,10 +1,10 @@
-use super::input::PreparedUdpInput;
+use super::input::PreparedStreamInput;
 use crate::app::{module::script_api::CallbackDelivery, StreamingModuleBase};
 use golden_core::process_ctx::ProcessCtx;
 use golden_io::RetainedPayload;
 
-pub(super) struct InputDelivery {
-    input: RetainedPayload<PreparedUdpInput>,
+pub(crate) struct InputDelivery {
+    input: RetainedPayload<PreparedStreamInput>,
     next: usize,
     pending: Option<CallbackDelivery>,
 }
@@ -13,7 +13,7 @@ pub(super) struct InputDelivery {
 mod tests;
 
 impl InputDelivery {
-    pub(super) fn new(input: RetainedPayload<PreparedUdpInput>) -> Self {
+    pub(crate) fn new(input: RetainedPayload<PreparedStreamInput>) -> Self {
         Self {
             input,
             next: 0,
@@ -21,7 +21,7 @@ impl InputDelivery {
         }
     }
 
-    pub(super) fn service(&mut self, ctx: &mut ProcessCtx, stream: &mut StreamingModuleBase) -> bool {
+    pub(crate) fn service(&mut self, ctx: &mut ProcessCtx, stream: &mut StreamingModuleBase) -> bool {
         while let Some(event) = self.input.callbacks.get(self.next) {
             let delivery = self.pending.get_or_insert_with(|| CallbackDelivery::new(event.clone()));
             if !delivery.service(ctx) {

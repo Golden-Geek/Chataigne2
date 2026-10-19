@@ -146,8 +146,8 @@ fn changing_processing_configuration_keeps_the_live_socket_generation() {
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
 }
 
-fn input_config() -> crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
-    crate::app::module_modules_protocol_stream_udp::input::UdpInputConfig {
+fn input_config() -> crate::app::module::common::streaming::input::StreamInputConfig {
+    crate::app::module::common::streaming::input::StreamInputConfig {
         module: golden_core::node::NodeId(1),
         parse: Default::default(),
         processing_enabled: false,

@@ -1,10 +1,8 @@
+use super::outbound::UdpOutboundSend;
 use super::outbound::UDP_COMMAND_BYTES;
 #[cfg(test)]
 use super::outbound::{UdpOutputTarget, UDP_MAX_PAYLOAD};
-use super::{
-    input::{self, InputPlan, PreparedUdpInput, UdpInputConfig},
-    outbound::UdpOutboundSend,
-};
+use crate::app::module::common::streaming::input::{self, InputPlan, PreparedStreamInput, StreamInputConfig};
 use crate::app::module::common::streaming::parser::StreamingParser;
 use golden_io::RetainedPayload;
 mod replies;
@@ -38,7 +36,7 @@ pub(crate) struct UdpStreamingTransportConfig {
     pub bind_interface_host: String,
     pub bind_port: u16,
     pub receive_enabled: bool,
-    pub input: UdpInputConfig,
+    pub input: StreamInputConfig,
 }
 
 impl UdpStreamingTransportConfig {
@@ -52,7 +50,7 @@ impl UdpStreamingTransportConfig {
 #[derive(Clone, Debug)]
 pub(crate) enum StreamingWorkerEvent {
     Ready(SocketAddr),
-    Input(RetainedPayload<PreparedUdpInput>),
+    Input(RetainedPayload<PreparedStreamInput>),
     Interfaces(Result<Vec<golden_core::parameter::ParameterEnumOption>, String>),
     OutgoingLog(String),
     Error(String),
@@ -118,7 +116,7 @@ impl UdpStreamingTransportHandle {
         Ok(Self { worker, input })
     }
 
-    pub(super) fn update_input(&self, config: UdpInputConfig) {
+    pub(super) fn update_input(&self, config: StreamInputConfig) {
         self.input.update(config);
     }
 
@@ -341,7 +339,7 @@ fn worker_loop(
                             parser.discard_partial_input();
                         }
                         input_generation = Some(snapshot.generation);
-                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..length]) {
+                        let event = match input::prepare(&mut parser, &snapshot, &buffer[..length], "UDP") {
                             Ok(input) => StreamingWorkerEvent::Input(input),
                             Err(error) => StreamingWorkerEvent::Error(format!("UDP input was not admitted: {error}")),
                         };

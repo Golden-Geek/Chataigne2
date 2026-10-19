@@ -1,12 +1,10 @@
-mod delivery;
-mod input;
 mod lifecycle;
 mod outbound;
 mod output_plan;
 mod transport;
 
 use crate::app::module::common::streaming::wakeup::StreamingWake;
-use delivery::InputDelivery;
+use crate::app::module::common::streaming::{delivery::InputDelivery, input::StreamInputConfig};
 use std::{collections::VecDeque, time::Duration};
 
 use golden_core::{
@@ -206,7 +204,7 @@ impl UdpModule {
             ),
             bind_port: binding.bind_port,
             receive_enabled: binding.receive_enabled,
-            input: input::UdpInputConfig {
+            input: StreamInputConfig {
                 module: self.id(),
                 parse: self.stream.parse_config_cached(),
                 processing_enabled: self.stream.processing_enabled_cached(),

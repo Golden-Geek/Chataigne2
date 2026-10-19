@@ -94,6 +94,16 @@ closes the registration, and enum dispatch forwards the hook for built-in and co
 These short-lock notifications belong on host workers; realtime audio callbacks keep using their
 realtime-safe queues.
 
+TCP client and UDP prepare incoming stream values, callback JSON, and bounded diagnostic logs
+on their native workers using app-owned common streaming code. Input plans separate live parsing
+settings from socket identity: grammar/processing changes invalidate a partial frame; logging
+changes preserve it. TCP also fences partial frames by connection generation and reports abandoned
+frames on recovery or graceful retirement. Prepared results keep their original interpretation.
+The owner retains at most one four-event drain, publishes callbacks through individual application
+receipts, then submits the prepared values to the shared graph cursor. Callback-only service needs
+no tree snapshot. Destroy/undo restores authored state with fresh runtime input, and final prepared
+payload disposal uses the shared stream pool. TCP transport warnings belong on its connection folder.
+
 `golden_io::BoundedWorker::spawn_notified` can publish those node wakes after reply admission and
 final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node
 polling clock. A `PayloadPool` can retain prepared data through consumer ownership and perform

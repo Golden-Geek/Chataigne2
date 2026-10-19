@@ -8,7 +8,7 @@ use super::{
 };
 
 pub(super) enum UdpTransportEvent {
-    Input(golden_io::RetainedPayload<super::input::PreparedUdpInput>),
+    Input(golden_io::RetainedPayload<crate::app::module::common::streaming::input::PreparedStreamInput>),
     Interfaces(Result<Vec<golden_core::parameter::ParameterEnumOption>, String>),
     OutgoingLog(String),
     Error(String),

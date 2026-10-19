@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `0196c0f8` plus the owned P03 batch 15 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `1663106e` plus the verified P03 batch 16 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 15 TCP client native admission/lifetimes, resumable writes, connection
-  fencing, and disabled completion service verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+- Current batch: P03 batch 16 TCP worker input preparation and grammar/connection generation
+  isolation verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 15 native ownership and disabled completion service delivered in `1663106e`.
   Batch 14 was delivered in `0196c0f8`; batch 13 in `df0c7876`; batch 12 in `a617d313`. Separately committed
   footer UI parent `3b4bdc7b` and build-cache ancestor `5b81c44e` are preserved.
 - Delivery: `f02205af3baa1c2ebf49527104364980c3a7b920` committed the verified P01/P02/P03-through-batch-7
@@ -22,15 +23,16 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `0196c0f8`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `1663106e`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: finish TCP client worker-side input parsing/callback preparation
-  and grammar/connection-generation input fencing. Its owner is now passive; preserve the native
-  cursor, applied-snapshot admission, generation/retirement, and disabled-completion regressions.
-  Replace its stale `connection/target` warning lookup when restructuring that remaining adapter.
+- Next implementation action: audit callback
+  JSON retained-byte admission and final disposal after prepared envelopes hand payloads to event
+  routing/replay. TCP input parsing/callback preparation, grammar/connection-generation fencing,
+  and connection-folder warning ownership have passed owning checks. Preserve native cursors,
+  applied-snapshot admission, passive receipt delivery, retirement, and disabled completions.
   Then continue TCP server/WebSocket/serial worker ownership and the full module/channel audit (including Sound Card
   stop/join, event-drain, admission/recovery, and configuration bounds) and generator time accounting.
   Cold UDP preparation now runs in bounded native slices with reserved snapshot storage; preserve
@@ -59,7 +61,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-15 | TCP native cursor/lifetimes and disabled completion verified; TCP input boundary and broader module/generator audit open  |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-16 | TCP native input and owner delivery verified; callback payload lifetime and broader module/generator audit open           |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2000,3 +2002,68 @@ ignored-measurement, or full-product scale qualification follows. No GUI automat
 interruption was used. Commit and push this verified batch on `main`, then continue the remaining
 TCP input boundary. P03 remains **IN_PROGRESS**; P04-P18 retain their states, including the P12
 incremental native-link artifact issue.
+
+### P03 batch 16: TCP worker input preparation
+
+Resumed clean delivered `1663106e9742fc67dc900295fb5674ddddd8c108` on `main`, matching fetched
+`origin/main`; no owned jobs are live. Shared stream input preparation/delivery belongs in app
+common streaming code; TCP connection/parser generations remain transport policy. This batch
+moves TCP parsing, callback JSON, and bounded input logs off the actor and preserves receipt-owned
+delivery. Partial frames must not span grammar/processing or connection generations. Requested
+**XHigh; actual effort unchanged/unobservable** because no supported control is exposed.
+
+Shared UDP preparation/delivery moved into app common streaming modules and TCP now consumes the
+same immutable retained input envelope. Live input settings update independently of socket identity;
+TCP partial frames are fenced by parser and connection generations. Owner callbacks use individual
+receipts, a bounded four-event batch, and snapshot-free callback service. The stale TCP warning
+lookup now targets the bound connection folder. The first check found one old UDP test type after
+extraction; it was corrected. Five native generation/configuration/retirement regressions and three
+owner delivery/passivity/destroy regressions were added; the first settled stream test job is live.
+No validation pass was claimed at that point. The full P03/module/channel/generator work remains open.
+
+The settled stream run passed **77/77** in **2.39s** after **2m53s** compilation. This includes
+five native input tests and three owner tests added here; the UDP callback receipt regression
+moved to common streaming, so its count is not duplicated. Shared streaming passed **45**, HTTP
+**36**, Sound Card **35** plus null-device product evidence **1**, OSC **25**, and initial Formula
+cache **1**: **220 distinct app tests passed**. Direct executable filters were checked against
+the compiled test inventory; unmatched/zero-test attempts were corrected and add no pass evidence.
+`cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed in **49.02s**;
+`cargo check --locked --workspace --tests` passed in **21.29s**. Golden runtime source is unchanged
+in this batch; previous engine/IO passes remain historical evidence, not new executions.
+
+Focused input generation/receipt work is verified. **Return to High requested; actual effort
+unchanged/unobservable** because no supported control is exposed. Default native build is live;
+delivery remains pending that gate. Root/Core Cargo formatting, explicit app module formatting,
+maintained-doc Prettier and whitespace checks have passed against the current source.
+
+Review also identified a distinct remaining P03 lifetime boundary: callback JSON `Arc` copies
+held by routing/replay can outlive a prepared input envelope's reservation. The shared stream
+pool owns final envelope disposal, while downstream event copies currently follow engine event
+lifetimes. Audit byte admission/final disposal at that handoff before expanding native input to
+the next transports; do not infer a routing/replay byte budget from the envelope budget. Then
+continue TCP server/WebSocket/serial, Sound Card/channel ownership, and generator time accounting.
+
+The first default native build **FAILED** with MSVC `LNK1120`: **1081 unresolved externals**,
+including compiler-generated `anon.*.llvm.*` and local function symbols. This matches the recurring
+incremental app-artifact failure class retained under P12; tests/lint/checks are not relabelled as
+native success. All owned jobs are terminal. Verify no live app/compiler and the resolved target
+inside the workspace, clean the app package's dev artifacts only, then require a fresh native pass.
+
+No live app, Cargo, Rust compiler, or linker process was observed before cleanup; the resolved
+target was verified as `D:\Projects\Dev\Chataigne2\target`. The app-only command
+`cargo clean --locked -p Chataigne2 --profile dev` removed **2231 files / 4.7 GiB**. Fresh default
+native build is live. Dependency caches, compiler flags, and user processes were left alone.
+Fresh source-size scan (`rg --files apps crates packages`, Rust/TS/Svelte/JS/MJS) is **1614 files /
+42 oversized**; all touched source stays below 1000 lines (largest TCP node: **559**). This explicit
+broader scan includes more files than the earlier inventory; it does not imply new size exceptions.
+
+The fresh `cargo build --locked -p Chataigne2 --bin Chataigne2` **PASSED in 2m02s** against the
+same settled runtime source. The failed incremental attempt remains evidence above; scoped app
+artifact cleanup is recovery, not a P12 fix. All owned jobs are terminal. Final root/Core Cargo
+formatting, explicit app formatting, maintained-doc Prettier, and whitespace checks pass. Milestone
+evidence is **220 distinct passing app tests**, strict IO/app Clippy, workspace/test compilation,
+and fresh default native build. Validation used Windows/default features, controlled loopback and
+missing-serial endpoints, and null audio. Physical devices, other platforms, full-product scale,
+and UI/native interaction were not qualified by this batch. Commit and push this milestone on
+`main`, then audit the downstream callback JSON lifetime boundary. P03 remains **IN_PROGRESS**;
+P04-P18 retain their states.

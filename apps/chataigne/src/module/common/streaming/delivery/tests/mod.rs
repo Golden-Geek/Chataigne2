@@ -1,4 +1,4 @@
-use super::super::input::{self, InputSnapshot, UdpInputConfig};
+use super::super::input::{self, InputSnapshot, StreamInputConfig};
 use super::*;
 use crate::app::module::common::streaming::parser::StreamingParser;
 use golden_core::{
@@ -14,14 +14,14 @@ fn discarded_callback_publication_retries_only_the_unpublished_event() {
     let mut engine = crate::app::AppEngine::new(Folder::new("root").into());
     let snapshot = InputSnapshot {
         generation: 0,
-        config: UdpInputConfig {
+        config: StreamInputConfig {
             module: engine.root,
             parse: Default::default(),
             processing_enabled: true,
             log_incoming: false,
         },
     };
-    let packet = input::prepare(&mut StreamingParser::default(), &snapshot, b"value 7\n").unwrap();
+    let packet = input::prepare(&mut StreamingParser::default(), &snapshot, b"value 7\n", "TCP").unwrap();
     let mut delivery = InputDelivery::new(packet);
     let mut stream = StreamingModuleBase::create();
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);

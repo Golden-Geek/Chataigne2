@@ -1,4 +1,5 @@
 use super::*;
+mod input;
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
@@ -13,6 +14,12 @@ fn config() -> TcpStreamingTransportConfig {
         remote_port: 9002,
         receive_enabled: false,
         send_enabled: true,
+        input: StreamInputConfig {
+            module: golden_core::node::NodeId(1),
+            parse: Default::default(),
+            processing_enabled: true,
+            log_incoming: false,
+        },
     }
 }
 fn pool() -> RetirementPool {

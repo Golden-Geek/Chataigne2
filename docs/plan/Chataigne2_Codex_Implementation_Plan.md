@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for TCP worker input preparation, grammar/connection generation isolation, and receipt-owned callback delivery across reconnect, disable, and reconfiguration. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 220 distinct app tests, strict IO/app Clippy, and workspace/test compilation passed native input configuration/generation, passive callback receipt, and destroy/undo invariants. Native build/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for TCP client native lifetime/admission ownership, connection-generation fencing, resumable partial writes, and graceful reconfiguration across native failures and reply pressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 796 distinct engine/IO/app tests passed native cursor/generation ownership, applied-snapshot admission, and explicit disabled completion service, with strict engine/IO/app Clippy, workspace/test compilation, and a fresh native build. TCP worker-side input preparation and broader P03 audits stay open. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

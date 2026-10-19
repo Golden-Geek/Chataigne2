@@ -3,6 +3,7 @@ mod outbound;
 mod tests;
 mod worker;
 
+use crate::app::module::common::streaming::input::{InputPlan, PreparedStreamInput, StreamInputConfig};
 use crate::app::module::common::streaming::native_replies::NativeReply;
 use golden_io::{BoundedWorker, PendingDrain, PendingSendError, RetirementPool, WorkerLimits, WorkerNotifier};
 use outbound::Outbound;
@@ -19,12 +20,22 @@ const COMMAND_BYTES: usize = 1024 * 1024;
 const EVENT_BYTES: usize = 32 * 1024 * 1024;
 const EVENT_TURN: NonZeroUsize = NonZeroUsize::new(4).unwrap();
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct TcpStreamingTransportConfig {
     pub remote_host: String,
     pub remote_port: u16,
     pub receive_enabled: bool,
     pub send_enabled: bool,
+    pub input: StreamInputConfig,
+}
+
+impl TcpStreamingTransportConfig {
+    pub(super) fn same_endpoint(&self, other: &Self) -> bool {
+        self.remote_host == other.remote_host
+            && self.remote_port == other.remote_port
+            && self.receive_enabled == other.receive_enabled
+            && self.send_enabled == other.send_enabled
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,9 +44,10 @@ pub(crate) enum TcpStreamingConnectionStatus {
     Recovering { message: String },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(crate) enum StreamingWorkerEvent {
-    Bytes(Vec<u8>),
+    Input(golden_io::RetainedPayload<PreparedStreamInput>),
+    RejectedInput(u64),
     Error(String),
     OutgoingLog(String),
     Status(TcpStreamingConnectionStatus),
@@ -54,7 +66,8 @@ impl NativeReply for StreamingWorkerEvent {
     fn weight(&self) -> usize {
         std::mem::size_of::<Self>()
             + match self {
-                Self::Bytes(bytes) => bytes.capacity(),
+                Self::Input(input) => input.weight,
+                Self::RejectedInput(_) => 0,
                 Self::Error(message) | Self::OutgoingLog(message) => message.capacity(),
                 Self::Status(TcpStreamingConnectionStatus::Recovering { message }) => message.capacity(),
                 Self::Status(_) => 0,
@@ -77,6 +90,7 @@ pub(crate) struct TcpStreamingTransportHandle {
     worker: BoundedWorker<Outbound, StreamingWorkerEvent>,
     connection: Arc<AtomicU64>,
     send_enabled: bool,
+    input: InputPlan,
 }
 
 fn lifetimes() -> &'static RetirementPool {
@@ -104,6 +118,8 @@ impl TcpStreamingTransportHandle {
         let connection = Arc::new(AtomicU64::new(0));
         let native_connection = connection.clone();
         let send_enabled = config.send_enabled;
+        let input = InputPlan::new(config.input.clone());
+        let worker_input = input.clone();
         let worker = BoundedWorker::spawn_notified(
             "streaming-tcp-client",
             pool,
@@ -114,13 +130,14 @@ impl TcpStreamingTransportHandle {
                 event_weight: EVENT_BYTES,
             },
             notifier,
-            move |context| worker::run(context, config, native_connection, connector),
+            move |context| worker::run(context, config, worker_input, native_connection, connector),
         )
         .map_err(|error| format!("TCP worker could not start: {error}"))?;
         Ok(Self {
             worker,
             connection,
             send_enabled,
+            input,
         })
     }
 
@@ -142,6 +159,9 @@ impl TcpStreamingTransportHandle {
 
     pub(crate) fn drain_events(&self, events: &mut Vec<StreamingWorkerEvent>) -> PendingDrain {
         self.worker.drain_events(events, EVENT_TURN)
+    }
+    pub(super) fn update_input(&self, config: StreamInputConfig) {
+        self.input.update(config);
     }
     pub(crate) fn has_pending(&self) -> bool {
         self.worker.has_pending()
