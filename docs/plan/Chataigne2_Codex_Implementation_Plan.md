@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for bounded native stream command preparation, captured snapshot/override ownership, typed engine-local delivery, FIFO receipt recovery, and destroy/undo generation fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 15 focused command tests and the full Golden Engine suite passed bounded admission, producer recovery, receipt retry, local delivery, and stale-snapshot/destroy/undo fencing. Routine integration and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for native outgoing completion logs coupled to original-recipient cursors, partial failures, bounded reply continuations and accepted-prefix retirement across Serial/TCP Server/WebSocket Server. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 119 owning Serial/TCP Server/WebSocket Server tests and 381 distinct app tests passed native completion logging, typed recipient outcomes, flush confirmation, bounded feedback pressure, independent input and accepted-prefix retirement. Routine lint/workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

@@ -537,10 +537,24 @@ impl ProcessCtx {
 
     /// Reserves a coalesced wake handle before starting this node's workers.
     ///
-    /// Available in engine-owned ready callbacks; standalone contexts cannot register one.
+    /// Available in engine-owned ready, inbox, script/mutation, scheduled, and worker callbacks.
+    /// Standalone, init, attached, and destroy contexts cannot register one.
     pub fn node_waker(&self) -> Result<NodeWaker, NodeWakeError> {
         let (source, node) = self.node_wake_source.as_ref().ok_or(NodeWakeError::Unavailable)?;
         source.register(*node)
+    }
+    /// Reserves another live node's lifetime for work admitted by this callback.
+    /// The snapshot validates the target before a bounded wake slot is reserved.
+    pub fn node_waker_for(&self, node: NodeId) -> Result<NodeWaker, NodeWakeError> {
+        let (source, _) = self.node_wake_source.as_ref().ok_or(NodeWakeError::Unavailable)?;
+        if self
+            .tree_snapshot
+            .as_ref()
+            .is_none_or(|snapshot| snapshot.node(node).is_none())
+        {
+            return Err(NodeWakeError::Closed);
+        }
+        source.register(node)
     }
 
     /// Attaches a read-only tree snapshot to this context.

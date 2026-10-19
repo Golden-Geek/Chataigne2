@@ -53,6 +53,10 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
+        self.node_wakes
+            .source
+            .attach(node_ids.iter().copied().filter(|node| self.nodes.contains(*node)));
+
         let event_cursor = self.inbox.events.len();
         let tree_snapshot = prepared_snapshot.or_else(|| {
             self.batch_lifecycle_tree_snapshot("attached-batch", node_ids, Node::attached_requires_tree_snapshot)
@@ -127,6 +131,9 @@ impl<T: Node> Engine<T> {
         creation_context: NodeCreationContext,
         prepared_snapshot: Option<Arc<crate::process_ctx::ProcessTreeSnapshot>>,
     ) -> Result<(), EngineEditError> {
+        self.node_wakes
+            .source
+            .attach(node_ids.iter().copied().filter(|node| self.nodes.contains(*node)));
         if self.rollback_replay {
             return Ok(());
         }
@@ -272,6 +279,9 @@ impl<T: Node> Engine<T> {
     ) -> Result<(), EngineEditError> {
         if self.rollback_replay {
             return Ok(());
+        }
+        if self.nodes.contains(node_id) {
+            self.node_wakes.source.attach([node_id]);
         }
         let needs_tree_snapshot = self
             .nodes

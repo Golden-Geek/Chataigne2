@@ -1,5 +1,6 @@
 use super::*;
 use golden_core::parameter::ParamValue;
+mod bounds;
 
 #[test]
 fn bytes_request_accepts_decimal_and_hex_tokens() {
@@ -19,7 +20,7 @@ fn hex_string_request_ignores_spacing() {
 
 #[test]
 fn string_request_uses_text_frames() {
-    let request = string_request("hello", LINE_ENDING_NONE);
+    let request = string_request("hello", LINE_ENDING_NONE).unwrap();
 
     assert_eq!(request.bytes, b"hello");
     assert_eq!(request.frame_kind, StreamingSendFrameKind::Text);
@@ -27,7 +28,7 @@ fn string_request_uses_text_frames() {
 
 #[test]
 fn values_request_uses_binary_frames() {
-    let request = values_request(&[ParamValue::Int(1), ParamValue::Bool(true)], "", "", ",");
+    let request = values_request(&[ParamValue::Int(1), ParamValue::Bool(true)], "", "", ",").unwrap();
 
     assert_eq!(request.bytes, b"1,true");
     assert_eq!(request.frame_kind, StreamingSendFrameKind::Binary);

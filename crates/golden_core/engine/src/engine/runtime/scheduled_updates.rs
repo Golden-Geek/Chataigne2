@@ -155,6 +155,7 @@ impl<T: Node> Engine<T> {
                 }
 
                 let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+                ctx.set_node_wake_source(self.node_wakes.source.clone(), node_id);
                 ctx.delta_time = delta_time;
                 ctx.runtime_elapsed = self.runtime_elapsed;
                 if let Some(tree_snapshot) = &tree_snapshot

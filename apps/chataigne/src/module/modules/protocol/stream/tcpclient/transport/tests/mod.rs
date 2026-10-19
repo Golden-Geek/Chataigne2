@@ -61,7 +61,7 @@ fn blocked_endpoint_setup_returns_early_and_cancellation_retains_its_single_nati
     })
     .unwrap();
     entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-    assert!(handle.send(vec![1], false).unwrap_err().contains("not connected"));
+    assert!(handle.send(&[1], false).unwrap_err().contains("not connected"));
     handle.stop();
     assert_eq!(pool.metrics().active, 1);
     assert!(
@@ -85,7 +85,7 @@ fn full_command_and_reply_queues_retire_every_accepted_send_and_log_once() {
     let mut expected = Vec::new();
     for index in 0..1000 {
         let value = index as u8;
-        match handle.send(vec![value], true) {
+        match handle.send(&[value], true) {
             Ok(()) => expected.push(value),
             Err(error) => {
                 assert!(error.contains("capacity exhausted"));
@@ -95,7 +95,7 @@ fn full_command_and_reply_queues_retire_every_accepted_send_and_log_once() {
     }
     assert!(!expected.is_empty() && expected.len() <= 321);
     handle.finish_admission();
-    assert!(handle.send(vec![99], false).is_err());
+    assert!(handle.send(&[99], false).is_err());
     wait(|| handle.worker.event_metrics().rejected > 0);
     assert!(!pool.wait_for_idle(Duration::from_millis(20)));
     let events = drain(&handle);
@@ -134,7 +134,7 @@ fn an_old_generation_admission_race_cannot_send_on_a_replacement_connection() {
     let old = Outbound::new(b"old".to_vec(), 1, false).unwrap();
     let weight = old.weight();
     handle.worker.send_weighted(old, weight).unwrap();
-    handle.send(b"new".to_vec(), false).unwrap();
+    handle.send(b"new", false).unwrap();
     handle.finish_admission();
     let events = drain(&handle);
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
@@ -159,7 +159,7 @@ fn incoming_reply_pressure_does_not_gate_a_successful_unlogged_send() {
     let mut sender = peer.try_clone().unwrap();
     let producer = thread::spawn(move || sender.write_all(&vec![1; 8192 * 80]));
     wait(|| handle.worker.event_metrics().rejected > 0);
-    handle.send(b"out".to_vec(), false).unwrap();
+    handle.send(b"out", false).unwrap();
     let mut bytes = [0; 3];
     peer.read_exact(&mut bytes).unwrap();
     handle.stop();

@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on clean `main` at delivered `2c24b119`, matching fetched `origin/main`.
+Last reconciled: 2026-10-19 on clean `main` at delivered `ed6f1039`, matching fetched `origin/main`.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 29 native outgoing completion logging verified locally.
-  Milestone commit/push follows the checks below; reconcile delivery from Git on resume.
+- Current batch: P03 batch 30 bounded native stream command preparation verified locally;
+  milestone delivery is the commit containing this entry. Native stream script capture is next.
+  Batch 29 native outgoing completion logging delivered in `ed6f1039`.
   Batch 28 serial retained catalog/passive ownership delivered in `2c24b119`.
   Batch 27 native connection/discovery ownership delivered in `2066f735`.
   Batch 26 shared TCP/WebSocket projection receipts delivered in `d2e8764c`.
@@ -36,13 +37,13 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `2c24b119`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `ed6f1039`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: continue P03 admission/disposal: shared stream script/command
-  argument capture/materialization and disposal; HTTP request conversion/disposal; then Sound Card
+- Next implementation action: continue P03 admission/disposal: native stream script argument
+  capture/materialization and disposal; HTTP request conversion/disposal; then Sound Card
   and remaining module/channel/generator ownership. Serial now has bounded retained discovery
   catalogs/options, subscriber/producer notifications and coarse recovery, native prepared input
   generations, passive callback/feedback receipts and accepted-prefix retirement. Preserve its
@@ -50,7 +51,7 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 - TCP/WebSocket Server share one app feedback component with verified discarded/partial projection
   recovery and newer desired state retained during an in-flight projection. Preserve each protocol's
   target IDs, client-parameter factory, native limits, callback receipts and accepted-prefix lifecycle.
-- P03 remaining scope includes shared stream script/command argument materialization, logging and
+- P03 remaining scope includes native stream script argument materialization and rejected-ingress
   disposal admission; HTTP request argument conversion/disposal; Sound Card stop/join, event drain,
   admission/recovery and configuration bounds; the remaining module/channel audit; and generator
   elapsed-time accounting. Do not claim the module audit complete from one stream repair.
@@ -60,8 +61,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   destroy/undo wake fencing. WebSocket server also preserves per-peer grammar. Both servers use receipt-owned
   connection/warning/client projections, including stable IDs after partial failure. Detailed
   regressions and measurements remain under their implementation batches below.
-- Focused native outgoing completion work passed; requested return to High for routine closeout
-  and subsequent work. Actual effort remains unchanged/unobservable, with no supported control.
+- Requested return to High after native command preparation/admission, typed local delivery,
+  receipt recovery and destroy/undo fencing passed focused verification. Actual effort remains
+  unchanged/unobservable; no supported control is exposed.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
   The reproduced edit-prefix undo loss is fixed locally. Compound creation now uses prepared
   validation/commit; its reference/dashboard regressions and optimized package checks pass.
@@ -81,7 +83,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-29 | Native stream logging/serial ownership verified; broader admission/module/generator audit open                            |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-30 | Native stream command preparation verified; broader script/admission/module/generator audit open                          |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2924,3 +2926,94 @@ string conversions, recursive value collection/JSON creation and command-envelop
 native admission. Then continue HTTP argument conversion/disposal, Sound Card/module/channel
 ownership and generator elapsed-time accounting. P03 stays **IN_PROGRESS**; P04-P18 retain their
 states.
+
+### P03 batch 30: Bounded native stream command preparation
+
+Resumed clean delivered `ed6f1039a957d41903685b57d99cc0679eba7827` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no live owned jobs at resume. This batch moves the five
+stream command node formats (string, bytes, hex, values and values-as-JSON) into one bounded app
+preparation service. Golden owns only reusable typed local events and exact node-lifetime guards;
+app common owns stream captures, budgets, preparation, cancellation and FIFO publication. The six
+concrete Serial/TCP/WebSocket/UDP modules consume prepared requests through public Golden APIs.
+
+Requested **XHigh** for snapshot/override ownership, bounded admission, receipt retry and
+destroy/undo fencing. No supported effort control is exposed; actual effort remains unchanged and
+unobservable. Command nodes capture fixed parameter IDs and a canonical immutable snapshot lease.
+The shared worker admits **64 queued jobs**, **256 live tickets**, and **16 tickets per owner**.
+Its single native lifetime blocks on notification-safe receive while idle. Source wake slots are
+reserved lazily and released after the queue settles, preserving the engine's 1024 live/retiring
+registration bound without reserving a slot for every authored command.
+
+Invocation JSON is preflighted before clone/typed decoding: **256 KiB**, **4096 values**, and
+**16 levels**, with a canonical **64-allocation / 16 MiB** override pool. Only the dispatch target
+is decoded on the actor, under a smaller **4 KiB / 128-value / eight-level** bound. Native work
+decodes other overrides, builds the immutable overlay, visits values, formats strings and encodes
+bytes/JSON. Tree preparation bounds **4096 values**, **16384 visited nodes**, **64 folder levels**
+and **4 MiB source data**. JSON output additionally limits depth to **32**. The incremental writer
+limits encoded output to **1 MiB**, including repeated separators, JSON escaping and mixed script
+byte arguments. Transport-specific limits still apply before native send.
+
+Prepared commands retain the shared stream payload reservation through routing and final disposal.
+Typed `CustomEvent::local` attachments are shallow-cloned, skipped by serialization and always
+transient, even if public retention metadata changes. They never enter UI replay or clear redo.
+Ordinary JSON events retain their existing wire representation; no generated protocol changes are
+needed. A new public shared-JSON constructor preserves native callback payload identity without
+requiring a struct literal that bypasses the local attachment invariant.
+
+Each source publishes one occurrence through an isolated edit receipt. A discarded publication
+retries the same lease; an applied occurrence is removed permanently. Native failure resolves
+the active and queued tickets explicitly, and a later admission can restart the bounded worker.
+Source cancellation invalidates already-published requests; an exact target guard prevents stale
+delivery after removal/undo. The wake registry tracks attached identities independently of callback
+snapshots, so an old read model cannot register a removed target. Current source/module enable state
+is also checked at admission. Preparation acceptance does not claim native send completion.
+
+Initial app/test compilation found mechanical API mismatches in reference paths, declared child
+handles and borrowed transport sends; corrected source passed. A later test fixture used struct
+update syntax on a Drop type; explicit field initialization fixed it. Review found that timed
+cancellation waits do not return on ordinary notifications; the native loop now uses the existing
+version-safe blocking receiver. Review also caught numeric script arguments bypassing a full byte
+buffer's output limit; all byte argument shapes now use the same bounded writer and regression.
+Strict Clippy found a manual slice-size calculation; `size_of_val` fixed it.
+
+The full Golden Engine suite passed **535 unit tests**, **8 integration tests**, and **7 doctests**:
+**550 passed**, with **3 existing ignored tests**. Four new owning tests verify shallow local
+delivery/serialization, forced transient retention/redo preservation, target lifetime capture and
+stale-snapshot/removal/undo fencing. The focused common command suite passed **15/15** in **0.04s**
+after **2m16s** preparation. Its eight new tests cover retained source capacity, output/JSON/token
+bounds, owner/native/global admission, producer failure recovery, discarded publication, wake-slot
+release and nonjoining destroy/undo cancellation. An earlier end-to-end UDP run passed **3/3** in
+**6.02s**; final current-source preservation is recorded below when complete.
+
+Focused verification complete: requested return to **High** for routine integration and delivery;
+actual effort remains unchanged/unobservable. P03 stays **IN_PROGRESS**. Native stream script
+argument capture/conversion/disposal, generic rejected-ingress disposal, HTTP argument conversion,
+Sound Card/module/channel ownership and generator elapsed-time accounting remain open. This batch
+does not qualify generic engine bound-parameter synchronization costs or product-scale actor latency.
+
+Final current-source common commands passed **15/15** in **0.06s**, after **2m19s** preparation.
+Disjoint compiled-name preservation filters passed script API **8**, concrete streams **183**,
+common streaming **53**, common serial **27**, HTTP **59**, Sound Card **35**, OSC **25**, initial
+Formula **1**, and null-device Sound Card evidence **1**: **392 distinct app tests**. The concrete
+stream pass includes all three new end-to-end UDP command tests against the final implementation;
+its **183/183** pass took **6.09s**. Common streaming passed **53/53** in **0.18s**. Tests run the
+compiled `target/debug/deps/Chataigne2-c47f0ddae7812c83.exe` with these filters and
+`--test-threads=4`; compiled name sets are checked for overlap before summing. Initial broad
+discovery filters overlapped HTTP handshakes/product evidence; those were narrowed before the run
+and contribute no extra pass count. `cargo test-fast --locked -p golden_io` passed **38/38** in
+**0.20s**, following **0.15s** preparation. Together with Golden Engine's **550**, this is **980
+distinct passed tests**; focused/overlapping reruns are counted once.
+
+Strict `cargo clippy --locked -p golden_engine -p golden_io -p Chataigne2 --all-targets -- -D warnings`
+passed in **30.09s** after the slice-size repair. Final
+`cargo check --locked --workspace --tests` passed in **28.22s**. Native
+`cargo build --locked -p Chataigne2 --bin Chataigne2` passed in **11.60s** without cache deletion
+or linker repair. Root/Core Cargo formatting, explicit affected-feature rustfmt, maintained-doc
+Prettier and whitespace checks pass. Inventory: **1692 source files / 42 oversized**, with no new
+size exceptions. Common command codecs/capture/preparation/native worker are **292/146/297/130**
+lines; the concrete command registry is **385**. Runtime and test sources remain separate.
+All owned jobs are terminal; fetched `origin/main` has no divergence from the delivered parent.
+
+These tests use deterministic gates, injected serial ports and controlled loopback. They do not
+qualify physical device/line timing, other platforms, native UI or product-scale latency/memory.
+Commit and push this verified milestone on `main`, then continue the native script boundary above.

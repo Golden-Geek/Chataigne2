@@ -18,7 +18,6 @@ use std::collections::VecDeque;
 use crate::app::{
     module::common::streaming::{
         commands::{streaming_script_send_request, StreamingSendRequest},
-        module_helpers::streaming_command_type_supported,
         script as streaming_script,
     },
     StreamingModuleBase,
@@ -315,8 +314,12 @@ impl WebSocketClientModule {
         &self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
-        request: StreamingSendRequest,
+        request: &StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.node_data().effective_enabled {
+            return Err("Stream module is disabled; command was not admitted".into());
+        }
+
         if !self.module_enabled(snapshot) {
             return Err("WebSocket module is disabled; command was not admitted".into());
         }
@@ -339,26 +342,20 @@ impl WebSocketClientModule {
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
+        let Some(command) =
+            crate::app::module::common::streaming::commands::preparation::prepared_command(&event, self.id())
+        else {
             return;
         };
-        if request.module_id != self.id() || !streaming_command_type_supported(request.command_type.as_str()) {
+        if !command.is_live() {
+            logerror!("Prepared stream command source or target retired; command was not sent");
             return;
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let snapshot = snapshot_arc.as_ref();
-
-        if let Err(error) = serde_json::from_value::<StreamingSendRequest>(request.payload)
-            .map_err(|error| format!("invalid WebSocket command payload: {error}"))
-            .and_then(|payload| self.queue_send_request(ctx, snapshot, payload))
-        {
-            logerror!(format!(
-                "Failed to handle WebSocket command {:?}: {error}",
-                request.command_id
-            ));
+        if let Err(error) = self.queue_send_request(ctx, snapshot.as_ref(), &command.request) {
+            logerror!("Prepared stream command was not admitted: {}", error);
         }
     }
 
@@ -536,7 +533,7 @@ impl Node for WebSocketClientModule {
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, snapshot_arc.as_ref(), request)?;
+            self.queue_send_request(ctx, snapshot_arc.as_ref(), &request)?;
             return Ok(true);
         }
 

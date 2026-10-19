@@ -306,7 +306,7 @@ impl<T: Node> Engine<T> {
             },
             inbox: Inbox::new(),
             edits: EditQueue::new(),
-            node_wakes: wake::NodeWakeQueue::new(),
+            node_wakes: wake::NodeWakeQueue::new(root),
             event_listeners: listener_index::ListenerIndex::default(),
             reference_filters: HashMap::new(),
             blueprints: crate::blueprints::BlueprintRegistry::new(),

@@ -8,7 +8,6 @@ use golden_core::{
 
 use super::{
     admission::{PreparedMessages, MAX_STREAM_BYTES, MAX_STREAM_MESSAGES},
-    commands::STREAMING_COMMAND_NODE_TYPES,
     parser::{StreamingParseConfig, StreamingSeparator},
 };
 use crate::app::module::common::received_values::service::{ReceivedValueCursor, ReceivedValueProgress};
@@ -141,10 +140,6 @@ pub(crate) fn streaming_parse_config(
         value_separator: value_separator.and_then(StreamingSeparator::from_variant),
         hierarchy_separator: hierarchy_separator.and_then(StreamingSeparator::from_variant),
     }
-}
-
-pub(crate) fn streaming_command_type_supported(command_type: &str) -> bool {
-    STREAMING_COMMAND_NODE_TYPES.contains(&command_type)
 }
 
 pub(crate) fn child_int_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<i32> {

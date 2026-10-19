@@ -29,6 +29,7 @@ impl<T: Node> Engine<T> {
                 continue;
             }
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+            ctx.set_node_wake_source(self.node_wakes.source.clone(), node_id);
             ctx.runtime_elapsed = self.runtime_elapsed;
             if self
                 .nodes

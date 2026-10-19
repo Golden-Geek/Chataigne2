@@ -70,8 +70,8 @@ closes that connection; repeated handshakes with the same identity are idempoten
 
 Worker ingress carries reserved node notifications through `NodeWaker`, never arbitrary edits,
 boxed nodes, closures, or payload buffers. A module owns its bounded result mailbox, parsing,
-timestamps, and recovery state. It reserves `ProcessCtx::node_waker` in its ready callback before
-starting a producer and publishes mailbox entries before signalling; hosts can reserve
+timestamps, and recovery state. It reserves `ProcessCtx::node_waker` in an engine-owned callback
+before starting a producer and publishes mailbox entries before signalling; hosts can reserve
 `Engine::node_waker` for an attached node. Graph operations
 from other threads use the public application actor contracts. Structural worker results become
 node-owned edits, preferably a detached `NodeTree`, when the node consumes its mailbox in
@@ -93,6 +93,19 @@ TCP client and UDP use this hook to finish graceful retirement while disabled. R
 closes the registration, and enum dispatch forwards the hook for built-in and consumer variants.
 These short-lock notifications belong on host workers; realtime audio callbacks keep using their
 realtime-safe queues.
+
+Engine-owned inbox, script/mutation, scheduled and worker callbacks also carry wake registration
+capability, allowing idle nodes to reserve only when admitting asynchronous work. A completed
+command releases its source registration instead of reserving one for every authored command.
+`ProcessCtx::node_waker_for` validates another target and reserves that exact attached lifetime;
+`NodeWaker::is_closed` never reopens a restored identity. The registry tracks attached node IDs
+separately from callback snapshots, so an old read model cannot register a removed target.
+
+`CustomEvent::local` shares typed, immutable runtime data through the ordinary inbox without JSON
+encoding/decoding. Its local attachment is skipped by serialization and always treated as transient,
+including if public retention metadata is edited. It never enters UI replay or clears redo history.
+The caller supplies admission and final-disposal ownership; Golden contains no app payload types.
+Ordinary JSON events and generated wire declarations keep their existing representation.
 
 TCP client and UDP prepare incoming stream values, callback JSON, and bounded diagnostic logs
 on their native workers using app-owned common streaming code. Input plans separate live parsing
@@ -192,8 +205,32 @@ states. Submission, partial effects and failed recipients never claim full succe
 confirmation waits for flush. Full feedback mailboxes retain that single output continuation and
 pause further output while independent input remains serviceable. Ordinary retirement drains the
 confirmed results even while disabled; explicit destroy may cancel them. These messages describe
-native send completion, not application-level acknowledgement by a peer. Shared command argument
-capture/materialization and its disposal admission remain a separate P03 boundary to finish.
+native send completion, not application-level acknowledgement by a peer. Stream script argument
+materialization/disposal remains a separate P03 boundary to finish.
+
+The five stream command node types capture immutable snapshot leases and their fixed parameter IDs
+before native preparation. One shared app worker admits 64 queued jobs and 256 total live tickets,
+with at most 16 per command owner. It blocks on notification-safe receive while idle. Invocation
+overrides reserve a separate 64-allocation / 16 MiB canonical input pool; each invocation permits
+256 KiB, 4096 JSON values and 16 levels. Only dispatch-target validation happens on the actor
+(reference overrides have a smaller 4 KiB/128-value/eight-level bound); decoding other overrides,
+creating overlays, visiting values and encoding bytes/JSON happen on the native worker.
+
+Command preparation bounds value trees to 4096 values, 16384 visited nodes, 64 folder levels and
+4 MiB of source data. JSON encoding additionally limits depth to 32; final encoded output is at
+most 1 MiB, with tighter transport limits checked before native send. Incremental byte writing
+prevents separator/JSON expansion from allocating an unbounded intermediate output. Source string
+views and flattened values borrow the captured model. Prepared requests reserve the shared stream
+payload pool, including fixed envelope/lifetime overhead, and final disposal stays off the actor.
+
+Owners publish one typed local request through an isolated edit receipt in FIFO order. Only a
+discarded publication retries; an applied request is never replayed. Producer failure resolves its
+active and queued tickets explicitly, and later admissions can restart the bounded worker. Source
+cancellation and target lifetime guards reject stale work across destroy/undo. Linked target and
+per-invocation values are captured before admission, while transport eligibility is checked when
+the module receives the request. Preparation admission does not claim a successful native send.
+Shared script helpers have source/output preflight bounds but still need native script conversion;
+generic rejected-ingress disposal and broader module admission audits remain P03 work.
 
 WebSocket client uses the same passive wake, retained input and callback-receipt contracts. Its
 native owner uses the locked Tungstenite public nonblocking handshake/framing/control API, with

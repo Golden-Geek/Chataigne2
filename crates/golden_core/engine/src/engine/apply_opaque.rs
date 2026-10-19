@@ -259,6 +259,7 @@ impl<T: Node> Engine<T> {
         };
         let old_param = capture.then(|| target.engine_param_snapshot()).flatten();
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        ctx.set_node_wake_source(self.node_wakes.source.clone(), node);
         ctx.runtime_elapsed = self.runtime_elapsed;
         if snapshot {
             ctx.set_tree_snapshot(self.get_or_build_tick_snapshot());

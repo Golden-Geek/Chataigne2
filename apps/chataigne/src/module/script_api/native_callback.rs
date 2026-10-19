@@ -49,12 +49,12 @@ impl NativeCallbackPayload {
 
     /// Binding a prepared payload performs no JSON traversal, copy, or serialization.
     pub(crate) fn event(&self, module: NodeId) -> CustomEvent {
-        CustomEvent {
-            topic: super::MODULE_SCRIPT_CALLBACK_TOPIC.into(),
-            origin: Some(module),
-            payload: self.payload.clone(),
-            retention: CustomEventRetention::Replay,
-        }
+        CustomEvent::shared(
+            super::MODULE_SCRIPT_CALLBACK_TOPIC,
+            Some(module),
+            self.payload.clone(),
+            CustomEventRetention::Replay,
+        )
     }
 }
 

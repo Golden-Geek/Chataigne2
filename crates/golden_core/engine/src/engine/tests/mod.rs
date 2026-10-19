@@ -10,6 +10,7 @@ mod engine;
 mod history_failures;
 mod intent_atomicity;
 mod lifecycle;
+mod local_events;
 mod node_wakes;
 mod opaque_edits;
 mod param_constraints;

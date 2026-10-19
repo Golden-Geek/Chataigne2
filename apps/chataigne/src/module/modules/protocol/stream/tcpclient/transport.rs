@@ -141,7 +141,13 @@ impl TcpStreamingTransportHandle {
         })
     }
 
-    pub(crate) fn send(&self, bytes: Vec<u8>, log: bool) -> Result<(), String> {
+    pub(crate) fn send(&self, bytes: &[u8], log: bool) -> Result<(), String> {
+        if !self.worker.is_accepting_commands() {
+            return Err("TCP worker is not accepting commands".into());
+        }
+        if std::mem::size_of::<Outbound>().saturating_add(bytes.len()) > COMMAND_BYTES {
+            return Err("TCP command exceeds the 1 MiB retained-byte limit; command was not admitted".into());
+        }
         if !self.send_enabled {
             return Err("TCP sender is disabled; command was not admitted".into());
         }
@@ -149,7 +155,7 @@ impl TcpStreamingTransportHandle {
         if generation == 0 {
             return Err("TCP transport is not connected; command was not admitted".into());
         }
-        let command = Outbound::new(bytes, generation, log)?;
+        let command = Outbound::new(bytes.to_vec(), generation, log)?;
         let weight = command.weight();
         self.worker.send_weighted(command, weight).map_err(|error| match error {
             PendingSendError::Full(_) => "TCP command capacity exhausted; command was not admitted".into(),

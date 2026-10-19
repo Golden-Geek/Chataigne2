@@ -120,27 +120,16 @@ pub(crate) fn resolve_module_command_child(
         .or_else(|| snapshot.resolve_path_from(command_id, path))
 }
 
-pub(crate) fn command_primary_value_parameter(
-    snapshot: &ProcessTreeSnapshot,
-    command_id: NodeId,
-) -> Option<NodeId> {
+pub(crate) fn command_primary_value_parameter(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> Option<NodeId> {
     snapshot
         .child_ids(command_id)
         .into_iter()
         .find_map(|child| command_primary_value_parameter_in(snapshot, child))
 }
 
-fn command_primary_value_parameter_in(
-    snapshot: &ProcessTreeSnapshot,
-    node_id: NodeId,
-) -> Option<NodeId> {
+fn command_primary_value_parameter_in(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<NodeId> {
     let node = snapshot.node(node_id)?;
-    if node.param_value.is_some()
-        && node
-            .tags
-            .iter()
-            .any(|tag| tag == COMMAND_PRIMARY_VALUE_TAG)
-    {
+    if node.param_value.is_some() && node.tags.iter().any(|tag| tag == COMMAND_PRIMARY_VALUE_TAG) {
         return Some(node_id);
     }
     snapshot
@@ -184,6 +173,10 @@ fn resolve_linked_module_root(snapshot: &ProcessTreeSnapshot, command_id: NodeId
             ParamValue::Reference(reference) => Some(reference),
             _ => None,
         })?;
+    resolve_module_reference(snapshot, reference)
+}
+
+fn resolve_module_reference(snapshot: &ProcessTreeSnapshot, reference: &NodeReference) -> Option<NodeId> {
     let module_id = reference
         .cached_id()
         .filter(|node_id| snapshot.node(*node_id).is_some())
@@ -196,6 +189,23 @@ fn resolve_linked_module_root(snapshot: &ProcessTreeSnapshot, command_id: NodeId
         .map(|_| module_id)
 }
 
+/// Resolves the dispatch target before asynchronous work is admitted. Invocation
+/// overrides can replace the module reference without cloning an entire snapshot.
+pub(crate) fn module_command_target(
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    target_override: Option<&ParamValue>,
+) -> Result<NodeId, String> {
+    let linked = match target_override {
+        Some(ParamValue::Reference(reference)) => resolve_module_reference(snapshot, reference),
+        Some(_) => None,
+        None => resolve_linked_module_root(snapshot, command_id),
+    };
+    linked
+        .or_else(|| crate::app::module::resolve_enclosing_module_root(snapshot, command_id))
+        .ok_or_else(|| "command is not attached under a module root".to_string())
+}
+
 pub(crate) fn emit_module_command_request<T: Serialize>(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
@@ -203,9 +213,7 @@ pub(crate) fn emit_module_command_request<T: Serialize>(
     command_type: &str,
     payload: &T,
 ) -> Result<(), String> {
-    let module_id = resolve_linked_module_root(snapshot, command_id)
-        .or_else(|| crate::app::module::resolve_enclosing_module_root(snapshot, command_id))
-        .ok_or_else(|| "command is not attached under a module root".to_string())?;
+    let module_id = module_command_target(snapshot, command_id, None)?;
     let module_snapshot = snapshot
         .node(module_id)
         .ok_or_else(|| "module root disappeared while executing command".to_string())?;
@@ -422,6 +430,13 @@ pub(crate) fn command_execute_snapshot<'a>(
     let Some(overrides) = command_execute_param_overrides(event, command_id) else {
         return Cow::Borrowed(snapshot);
     };
+    snapshot_with_command_overrides(snapshot, overrides)
+}
+
+pub(crate) fn snapshot_with_command_overrides(
+    snapshot: &ProcessTreeSnapshot,
+    overrides: ModuleCommandParamOverrides,
+) -> Cow<'_, ProcessTreeSnapshot> {
     if overrides.is_empty() {
         return Cow::Borrowed(snapshot);
     }

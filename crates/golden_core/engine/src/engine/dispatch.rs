@@ -191,6 +191,7 @@ impl<T: Node> Engine<T> {
             }
 
             let mut ctx = ProcessCtx::new(phase, self.time);
+            ctx.set_node_wake_source(self.node_wakes.source.clone(), node_id);
             ctx.events = events;
             ctx.runtime_elapsed = self.runtime_elapsed;
             ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
@@ -299,6 +300,7 @@ impl<T: Node> Engine<T> {
             let trace_event_count = events.len();
 
             let mut ctx = ProcessCtx::new(phase, self.time);
+            ctx.set_node_wake_source(self.node_wakes.source.clone(), node_id);
             ctx.events = events;
             ctx.runtime_elapsed = self.runtime_elapsed;
             if let Some(tree_snapshot) = &tree_snapshot {

@@ -3,14 +3,13 @@ use golden_core::{
     node,
     node::{Node, NodeId, UserContainerRules, UserCreatableItem, FOLDER_NODE_TYPE},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
 
 use crate::app::module::common::streaming::commands::{
-    bytes_request, hex_string_request, string_request, values_json_request, values_request, LINE_ENDING_NONE,
-    STREAMING_SEND_BYTES_COMMAND_NODE_TYPE, STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
-    STREAMING_SEND_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_VALUES_AS_JSON_COMMAND_NODE_TYPE,
-    STREAMING_SEND_VALUES_COMMAND_NODE_TYPE, StreamingSendRequest,
+    preparation::CommandPreparation, CommandCapture, LINE_ENDING_NONE, STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
+    STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+    STREAMING_SEND_VALUES_AS_JSON_COMMAND_NODE_TYPE, STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
 };
 
 const STREAMING_COMMAND_VALUE_ITEM_KINDS: &[&str] = &[
@@ -37,53 +36,60 @@ macro_rules! command_node_impl {
                 _ => 0,
             }
         }
-
         fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            let Some(snapshot) = ctx.tree_snapshot_arc() else {
                 return;
             };
-            let snapshot = snapshot_arc.as_ref();
-            if !crate::app::module_command::module_command_triggered(snapshot, self.id(), param) {
+            if !crate::app::module_command::module_command_triggered(&snapshot, self.id(), param) {
                 return;
             }
-
-            if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-                crate::app::module_command::emit_module_command_request(
-                    ctx,
-                    snapshot,
-                    self.id(),
-                    self.get_type(),
-                    &payload,
-                )
-            }) {
-                golden_core::logerror!(format!("Failed to trigger {}: {error}", $context));
+            if !self.node_data().effective_enabled {
+                golden_core::logerror!("Disabled stream command was not admitted");
+                return;
+            }
+            if let Err(error) = self
+                .capture()
+                .and_then(|capture| self.preparation.enqueue(ctx, &snapshot, self.id(), capture, None))
+            {
+                golden_core::logerror!("Failed to trigger {}: {}", $context, error);
             }
         }
-
         fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-            if !crate::app::module_command::is_command_execute_request(&event, self.id()) {
+            if event.topic != crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC
+                || event
+                    .payload
+                    .get("command_id")
+                    .and_then(serde_json::Value::as_u64)
+                    != Some(self.id().0)
+            {
                 return;
             }
-            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            if !self.node_data().effective_enabled {
+                golden_core::logerror!("Disabled stream command was not admitted");
+                return;
+            }
+            let Some(snapshot) = ctx.tree_snapshot_arc() else {
                 return;
             };
-            let snapshot = crate::app::module_command::command_execute_snapshot(
-                &event,
-                snapshot_arc.as_ref(),
-                self.id(),
-            );
-            let snapshot = snapshot.as_ref();
-            if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-                crate::app::module_command::emit_module_command_request(
-                    ctx,
-                    snapshot,
-                    self.id(),
-                    self.get_type(),
-                    &payload,
-                )
+            if let Err(error) = self.capture().and_then(|capture| {
+                self.preparation
+                    .enqueue(ctx, &snapshot, self.id(), capture, Some(event.payload))
             }) {
-                golden_core::logerror!(format!("Failed to execute {}: {error}", $context));
+                golden_core::logerror!("Failed to execute {}: {}", $context, error);
             }
+        }
+        fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+            self.preparation.service(ctx);
+        }
+        fn worker_wake_requires_tree_snapshot(&self) -> bool {
+            false
+        }
+        fn worker_wake_when_disabled(&self) -> bool {
+            true
+        }
+        fn destroy(&mut self, ctx: &mut ProcessCtx) {
+            self.preparation.clear();
+            self.base.destroy(ctx);
         }
     };
 }
@@ -103,8 +109,7 @@ impl Node for StreamingCommandValues {
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         vec![
-            UserCreatableItem::new(Self::NODE_TYPE, FOLDER_NODE_TYPE, "Folder")
-                .with_select_when_created(false),
+            UserCreatableItem::new(Self::NODE_TYPE, FOLDER_NODE_TYPE, "Folder").with_select_when_created(false),
             UserCreatableItem::new("trigger", "trigger", "Trigger").with_select_when_created(false),
             UserCreatableItem::new("int", "int", "Int").with_select_when_created(false),
             UserCreatableItem::new("float", "float", "Float").with_select_when_created(false),
@@ -153,18 +158,18 @@ impl Node for StreamingCommandValues {
 )]
 pub struct StreamingSendStringCommand {
     base: crate::app::ModuleCommandBase,
+    preparation: CommandPreparation,
 }
 
 impl StreamingSendStringCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(crate::app::ModuleCommandBase::new(), CommandPreparation::default())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<StreamingSendRequest, String> {
-        let text = command_string_param(snapshot, self.id(), "text").unwrap_or_default();
-        let line_ending = command_enum_param(snapshot, self.id(), "line_ending")
-            .unwrap_or_else(|| LINE_ENDING_NONE.to_string());
-        Ok(string_request(text.as_str(), line_ending.as_str()))
+    fn capture(&self) -> Result<CommandCapture, String> {
+        Ok(CommandCapture::String {
+            text: self.text.id(),
+            ending: self.line_ending.id(),
+        })
     }
 }
 
@@ -186,16 +191,15 @@ impl Node for StreamingSendStringCommand {
 )]
 pub struct StreamingSendBytesCommand {
     base: crate::app::ModuleCommandBase,
+    preparation: CommandPreparation,
 }
 
 impl StreamingSendBytesCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(crate::app::ModuleCommandBase::new(), CommandPreparation::default())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<StreamingSendRequest, String> {
-        let bytes = command_string_param(snapshot, self.id(), "bytes").unwrap_or_default();
-        bytes_request(bytes.as_str())
+    fn capture(&self) -> Result<CommandCapture, String> {
+        Ok(CommandCapture::Bytes(self.bytes.id()))
     }
 }
 
@@ -218,16 +222,15 @@ impl Node for StreamingSendBytesCommand {
 )]
 pub struct StreamingSendHexStringCommand {
     base: crate::app::ModuleCommandBase,
+    preparation: CommandPreparation,
 }
 
 impl StreamingSendHexStringCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(crate::app::ModuleCommandBase::new(), CommandPreparation::default())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<StreamingSendRequest, String> {
-        let hex = command_string_param(snapshot, self.id(), "hex").unwrap_or_default();
-        hex_string_request(hex.as_str())
+    fn capture(&self) -> Result<CommandCapture, String> {
+        Ok(CommandCapture::Hex(self.hex.id()))
     }
 }
 
@@ -261,29 +264,23 @@ impl Node for StreamingSendHexStringCommand {
 )]
 pub struct StreamingSendValuesCommand {
     base: crate::app::ModuleCommandBase,
+    preparation: CommandPreparation,
 }
 
 impl StreamingSendValuesCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(crate::app::ModuleCommandBase::new(), CommandPreparation::default())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<StreamingSendRequest, String> {
-        let prefix = command_string_param(snapshot, self.id(), "prefix").unwrap_or_default();
-        let suffix = command_string_param(snapshot, self.id(), "suffix").unwrap_or_default();
-        let separator = command_string_param(snapshot, self.id(), "separator").unwrap_or_else(|| ",".to_string());
-        let values_id = crate::app::module_command::resolve_module_command_child(snapshot, self.id(), "values")
-            .ok_or_else(|| "missing streaming command values folder 'values'".to_string())?;
-
-        let mut values = Vec::new();
-        collect_values_in_child_order(snapshot, values_id, &mut values);
-
-        Ok(values_request(
-            values.as_slice(),
-            prefix.as_str(),
-            suffix.as_str(),
-            separator.as_str(),
-        ))
+    fn capture(&self) -> Result<CommandCapture, String> {
+        Ok(CommandCapture::Values {
+            root: self
+                .values
+                .current_id()
+                .ok_or("Stream command values folder is unavailable")?,
+            prefix: self.prefix.id(),
+            suffix: self.suffix.id(),
+            separator: self.separator.id(),
+        })
     }
 }
 
@@ -305,18 +302,19 @@ impl Node for StreamingSendValuesCommand {
 )]
 pub struct StreamingSendValuesAsJsonCommand {
     base: crate::app::ModuleCommandBase,
+    preparation: CommandPreparation,
 }
 
 impl StreamingSendValuesAsJsonCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(crate::app::ModuleCommandBase::new(), CommandPreparation::default())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<StreamingSendRequest, String> {
-        let values_id = crate::app::module_command::resolve_module_command_child(snapshot, self.id(), "values")
-            .ok_or_else(|| "missing streaming command values folder 'values'".to_string())?;
-
-        values_json_request(&encode_values_tree_json(snapshot, values_id))
+    fn capture(&self) -> Result<CommandCapture, String> {
+        Ok(CommandCapture::Json(
+            self.values
+                .current_id()
+                .ok_or("Stream command values folder is unavailable")?,
+        ))
     }
 }
 
@@ -334,24 +332,6 @@ impl Node for StreamingSendValuesAsJsonCommand {
     command_node_impl!("streaming values as json command");
 }
 
-fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str)
-    })
-}
-
-fn command_enum_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_enum)
-    })
-}
-
 fn create_value_parameter(label: &str, value: ParamValue) -> Parameter {
     let mut parameter = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
@@ -363,49 +343,6 @@ fn create_values_folder(label: &str) -> StreamingCommandValues {
     folder.node_data_mut().meta.label = label.to_string();
     crate::app::module::enable_module_authoring(folder.node_data_mut());
     folder
-}
-
-fn collect_values_in_child_order(snapshot: &ProcessTreeSnapshot, parent_id: NodeId, output: &mut Vec<ParamValue>) {
-    for child_id in snapshot.child_ids(parent_id) {
-        let Some(child) = snapshot.node(child_id) else {
-            continue;
-        };
-
-        if let Some(value) = child.param_value.clone() {
-            output.push(value);
-            continue;
-        }
-
-        if child.node_type == StreamingCommandValues::NODE_TYPE || child.node_type == FOLDER_NODE_TYPE {
-            collect_values_in_child_order(snapshot, child_id, output);
-        }
-    }
-}
-
-fn encode_values_tree_json(snapshot: &ProcessTreeSnapshot, parent_id: NodeId) -> serde_json::Value {
-    let mut object = serde_json::Map::new();
-
-    for child_id in snapshot.child_ids(parent_id) {
-        let Some(child) = snapshot.node(child_id) else {
-            continue;
-        };
-
-        let key = child.label.trim();
-        if key.is_empty() {
-            continue;
-        }
-
-        if let Some(value) = child.param_value.as_ref() {
-            object.insert(key.to_string(), value.to_script_json());
-            continue;
-        }
-
-        if child.node_type == StreamingCommandValues::NODE_TYPE || child.node_type == FOLDER_NODE_TYPE {
-            object.insert(key.to_string(), encode_values_tree_json(snapshot, child_id));
-        }
-    }
-
-    serde_json::Value::Object(object)
 }
 
 fn value_label_for_node_type(node_type: &str) -> &str {

@@ -3,6 +3,10 @@ use crate::node::{DeclId, NodeId, NodeMetaPatch};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState};
 use std::ops::Index;
 use std::sync::Arc;
+mod local;
+#[cfg(test)]
+mod tests;
+use local::LocalPayload;
 
 pub use golden_model::CustomEventRetention;
 use serde::de::DeserializeOwned;
@@ -33,6 +37,8 @@ pub struct CustomEvent {
     /// UI replay retention policy.
     #[serde(default)]
     pub retention: CustomEventRetention,
+    #[serde(skip)]
+    local: Option<LocalPayload>,
 }
 
 impl CustomEvent {
@@ -43,6 +49,7 @@ impl CustomEvent {
             origin,
             payload: Arc::new(payload),
             retention: CustomEventRetention::Replay,
+            local: None,
         }
     }
 
@@ -53,6 +60,7 @@ impl CustomEvent {
             origin,
             payload: Arc::new(payload),
             retention: CustomEventRetention::Latest,
+            local: None,
         }
     }
 
@@ -63,6 +71,7 @@ impl CustomEvent {
             origin,
             payload: Arc::new(payload),
             retention: CustomEventRetention::Transient,
+            local: None,
         }
     }
 
@@ -96,6 +105,45 @@ impl CustomEvent {
     /// Deserializes the JSON payload into a typed value.
     pub fn payload_as<T: DeserializeOwned>(&self) -> serde_json::Result<T> {
         T::deserialize(self.payload.as_ref())
+    }
+    /// Shares already-prepared JSON without traversal or copying.
+    pub fn shared(
+        topic: impl Into<String>,
+        origin: Option<NodeId>,
+        payload: Arc<serde_json::Value>,
+        retention: CustomEventRetention,
+    ) -> Self {
+        Self {
+            topic: topic.into(),
+            origin,
+            payload,
+            retention,
+            local: None,
+        }
+    }
+    /// Creates an inbox-only typed runtime message. Routing clones share the value;
+    /// callers own admission and final-disposal policy (for example, a retained lease).
+    /// The attachment is never serialized and cannot be reconstructed by a transport.
+    pub fn local<T: Send + Sync + 'static>(topic: impl Into<String>, origin: Option<NodeId>, value: T) -> Self {
+        Self {
+            topic: topic.into(),
+            origin,
+            payload: Arc::new(serde_json::Value::Null),
+            retention: CustomEventRetention::Transient,
+            local: Some(LocalPayload::new(value)),
+        }
+    }
+    /// Borrows a local attachment without JSON decoding or cloning.
+    pub fn local_payload<T: 'static>(&self) -> Option<&T> {
+        self.local.as_ref()?.get()
+    }
+    /// Local data always stays inbox-only, including after public metadata is edited.
+    pub fn effective_retention(&self) -> CustomEventRetention {
+        if self.local.is_some() {
+            CustomEventRetention::Transient
+        } else {
+            self.retention
+        }
     }
 }
 

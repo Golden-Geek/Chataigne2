@@ -52,7 +52,7 @@ fn endpoint_reconfiguration_finishes_the_old_admitted_prefix_before_opening_the_
     let native = tcp_module(&engine, module).transport.as_ref().unwrap();
     for index in 0..1000 {
         let value = index as u8;
-        match native.send(vec![value], true) {
+        match native.send(&[value], true) {
             Ok(()) => expected.push(value),
             Err(error) => {
                 assert!(error.contains("capacity exhausted"));
@@ -114,7 +114,7 @@ fn disabling_a_module_drains_accepted_writes_while_keeping_its_endpoint_disabled
     let mut expected = Vec::new();
     for index in 0..1000 {
         let value = index as u8;
-        match native.send(vec![value], true) {
+        match native.send(&[value], true) {
             Ok(()) => expected.push(value),
             Err(error) => {
                 assert!(error.contains("capacity exhausted"));

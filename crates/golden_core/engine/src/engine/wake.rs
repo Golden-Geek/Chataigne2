@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     sync::{
         Arc, Mutex, Weak,
@@ -28,7 +28,7 @@ impl fmt::Display for NodeWakeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Closed => "node wake destination is closed",
-            Self::Unavailable => "node wake registration requires an engine ready callback",
+            Self::Unavailable => "node wake registration requires an engine-owned node callback",
             Self::Capacity => "engine node wake registration capacity is exhausted",
         })
     }
@@ -67,6 +67,15 @@ impl PartialEq for NodeWaker {
 impl Eq for NodeWaker {}
 
 impl NodeWaker {
+    /// Whether this exact node/engine lifetime has retired. This never registers
+    /// or wakes a replacement node that reuses the authored identity.
+    pub fn is_closed(&self) -> bool {
+        !self.0.source.0.alive.load(Ordering::Acquire)
+            || matches!(
+                *self.0.state.lock().unwrap_or_else(|p| p.into_inner()),
+                WakeState::Closed
+            )
+    }
     /// Requests an update without waiting for queue capacity, even for a passive node.
     pub fn wake(&self) -> Result<(), NodeWakeError> {
         let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
@@ -127,6 +136,7 @@ struct WakeRegistry {
 
 #[derive(Default)]
 struct Registrations {
+    live_nodes: HashSet<NodeId>,
     by_node: HashMap<NodeId, Weak<WakeSlot>>,
     // Closed generations remain reserved while a worker or delivery still owns them.
     slots: Vec<Weak<WakeSlot>>,
@@ -136,8 +146,17 @@ struct Registrations {
 pub(crate) struct NodeWakeSource(Arc<WakeRegistry>);
 
 impl NodeWakeSource {
+    pub(crate) fn attach(&self, nodes: impl IntoIterator<Item = NodeId>) {
+        self.0
+            .registrations
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .live_nodes
+            .extend(nodes);
+    }
     pub(super) fn close(&self, node: NodeId) {
-        let registrations = self.0.registrations.lock().unwrap_or_else(|p| p.into_inner());
+        let mut registrations = self.0.registrations.lock().unwrap_or_else(|p| p.into_inner());
+        registrations.live_nodes.remove(&node);
         if let Some(slot) = registrations.by_node.get(&node).and_then(Weak::upgrade) {
             *slot.state.lock().unwrap_or_else(|p| p.into_inner()) = WakeState::Closed;
         }
@@ -148,6 +167,11 @@ impl NodeWakeSource {
             return Err(NodeWakeError::Closed);
         }
         let mut registrations = self.0.registrations.lock().unwrap_or_else(|p| p.into_inner());
+        // A callback can retain an older read model. Presence in that snapshot
+        // must never recreate a wake lifetime for an already-detached target.
+        if !registrations.live_nodes.contains(&node) {
+            return Err(NodeWakeError::Closed);
+        }
         if let Some(slot) = registrations.by_node.get(&node).and_then(Weak::upgrade) {
             let closed = matches!(*slot.state.lock().unwrap_or_else(|p| p.into_inner()), WakeState::Closed);
             if !closed {
@@ -176,12 +200,15 @@ pub(super) struct NodeWakeQueue {
 }
 
 impl NodeWakeQueue {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(root: NodeId) -> Self {
         let (sender, receiver) = mpsc::sync_channel(MAXIMUM_NODE_WAKERS);
         Self {
             source: NodeWakeSource(Arc::new(WakeRegistry {
                 sender,
-                registrations: Mutex::new(Registrations::default()),
+                registrations: Mutex::new(Registrations {
+                    live_nodes: HashSet::from([root]),
+                    ..Registrations::default()
+                }),
                 alive: AtomicBool::new(true),
             })),
             receiver,

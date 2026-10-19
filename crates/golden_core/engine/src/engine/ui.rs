@@ -253,6 +253,10 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn push_ui_event_log(&mut self, event: Event) {
+        if matches!(&event.kind, EventKind::Custom(custom) if custom.effective_retention() == CustomEventRetention::Transient)
+        {
+            return;
+        }
         if let Some((topic, origin)) = ui_latest_custom_event_key(&event) {
             let key = (topic.to_owned(), origin);
             self.ui_pending_param_event_times.clear();

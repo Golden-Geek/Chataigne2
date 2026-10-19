@@ -159,7 +159,7 @@ fn retirement_reports_a_partial_frame_once_after_saturated_accepted_output() {
     assert!(next_input(&handle).values.as_ref().unwrap().is_empty());
     let mut accepted = 0;
     for _ in 0..1000 {
-        if handle.send(vec![7], true).is_err() {
+        if handle.send(&[7], true).is_err() {
             break;
         }
         accepted += 1;

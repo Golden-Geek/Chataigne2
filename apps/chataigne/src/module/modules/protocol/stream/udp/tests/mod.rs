@@ -9,6 +9,7 @@ use golden_core::{
 
 use super::UdpModule;
 
+mod commands;
 mod input_delivery;
 mod output_preparation;
 pub(super) mod snapshot;

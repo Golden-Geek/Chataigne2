@@ -19,7 +19,6 @@ use golden_core::{
 use crate::app::{
     module::common::streaming::{
         commands::{streaming_script_send_request, StreamingSendRequest},
-        module_helpers::streaming_command_type_supported,
         script as streaming_script,
     },
     StreamingModuleBase,
@@ -323,8 +322,12 @@ impl UdpModule {
         &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
-        request: StreamingSendRequest,
+        request: &StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.node_data().effective_enabled {
+            return Err("Stream module is disabled; command was not admitted".into());
+        }
+
         if !self.transports.accepts_commands() {
             self.output_plan = None;
             return Err("UDP configuration is pending or disabled; command was not admitted".into());
@@ -335,11 +338,11 @@ impl UdpModule {
         let root = self
             .outputs_node_id(snapshot)
             .ok_or("UDP output folder is unavailable")?;
-        let StreamingSendRequest {
-            bytes,
-            description,
-            frame_kind: _,
-        } = request;
+        if request.bytes.len() > outbound::UDP_MAX_PAYLOAD {
+            return Err("UDP command exceeds 65507 bytes; command was not admitted".into());
+        }
+        let bytes = request.bytes.clone();
+        let description = &request.description;
         let (command, candidate) = output_plan::command(
             &mut self.output_plan,
             snapshot,
@@ -364,24 +367,20 @@ impl UdpModule {
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
+        let Some(command) =
+            crate::app::module::common::streaming::commands::preparation::prepared_command(&event, self.id())
+        else {
             return;
         };
-        if request.module_id != self.id() || !streaming_command_type_supported(request.command_type.as_str()) {
+        if !command.is_live() {
+            logerror!("Prepared stream command source or target retired; command was not sent");
             return;
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        if let Err(error) = serde_json::from_value::<StreamingSendRequest>(request.payload)
-            .map_err(|error| format!("invalid UDP command payload: {error}"))
-            .and_then(|payload| self.queue_send_request(ctx, &snapshot_arc, payload))
-        {
-            logerror!(format!(
-                "Failed to handle UDP command {:?}: {error}",
-                request.command_id
-            ));
+        if let Err(error) = self.queue_send_request(ctx, &snapshot, &command.request) {
+            logerror!("Prepared stream command was not admitted: {}", error);
         }
     }
 
@@ -565,7 +564,7 @@ impl Node for UdpModule {
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, &snapshot_arc, request)?;
+            self.queue_send_request(ctx, &snapshot_arc, &request)?;
             return Ok(true);
         }
 

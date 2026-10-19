@@ -459,7 +459,7 @@ impl<T: Node> Engine<T> {
                             (Ok(effect.map(Into::into)), should_clear_redo)
                         }
                         Edit::EmitCustomEvent { event } => {
-                            if event.retention == CustomEventRetention::Transient {
+                            if event.effective_retention() == CustomEventRetention::Transient {
                                 self.emit_inbox_event(EventKind::Custom(event));
                                 (Ok(None), false)
                             } else {
@@ -571,6 +571,7 @@ impl<T: Node> Engine<T> {
         }
         match &kind {
             EventKind::NodeCreated { node } => {
+                self.node_wakes.source.attach([*node]);
                 self.last_update_elapsed_by_node
                     .entry(*node)
                     .or_insert(self.runtime_elapsed);
