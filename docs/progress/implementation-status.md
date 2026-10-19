@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `7836d1bf` plus the verified P03 batch 19 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `0edb6f48` plus the verified P03 batch 20 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 19 passive HTTP owner notifications and retry deadlines verified locally.
+- Current batch: P03 batch 20 HTTP applied-configuration admission and input bounds verified locally.
   Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 19 passive HTTP service delivered in `0edb6f48`.
   Batch 18 retained HTTP ownership delivered in `7836d1bf`.
   Batch 17 callback lifetime admission delivered in `8c2c5ff8`.
   Batch 16 worker input/generation isolation delivered in `3166e805`.
@@ -26,14 +27,16 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `7836d1bf`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `0edb6f48`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: fence HTTP script/command admission against applied configuration
-  changes before callbacks dispatch, then audit HTTP configuration input bounds and ownership.
-  HTTP owner service is now passive and preserves disabled completions.
+- Next implementation action: continue TCP server/WebSocket/serial worker ownership and the broader
+  module/channel audit. HTTP applied-configuration admission and configuration bounds are verified;
+  preserve its endpoint/auth-before-callback and inactive-auth metadata regressions. HTTP request
+  argument conversion/disposal still needs the broader producer-boundary audit. HTTP owner service
+  is passive and preserves disabled completions.
   HTTP response/callback envelopes now have worker-prepared retained lifetimes and explicit result
   rejection/receipt recovery. TCP/UDP callback JSON reservation follows routing/replay/exported event
   copies. TCP input
@@ -68,7 +71,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-19 | HTTP passive service verified; HTTP applied-config admission/bounds and broader module/generator audit open               |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-20 | HTTP passive service and applied-config admission/bounds verified; broader module/generator audit open                    |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2276,3 +2279,50 @@ interaction remain separate qualifications. Commit and push this milestone on `m
 the HTTP applied-configuration admission and configuration-bound audit recorded above. P03 remains
 **IN_PROGRESS**; broader TCP server/WebSocket/serial, Sound Card/channel and generator work remains,
 and P04-P18 retain their states.
+
+### P03 batch 20: HTTP configuration admission
+
+Resumed clean delivered `0edb6f489d203af76c97f1788405d165dd42f057` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live. App HTTP owns authored settings and
+admission. This batch reads configuration from the applied process snapshot, compares bounded
+active inputs before command/script sends, and captures inputs only for successfully configured
+generations. Configuration validation remains an edit-time backend operation; admission compares
+borrowed values without reparsing or cloning settings. Source input and native retained-capacity
+limits must be checked before allocation/cloning at their respective boundaries. Inactive auth
+fields must not retain unused credentials or cause transport identity changes. Requested **XHigh;
+actual effort unchanged/unobservable**, with no supported control exposed.
+
+Implemented bounded borrowed `HttpSettings` from applied snapshots, captured only after successful
+generation configuration. Endpoint/auth edits fence script/command admission before parameter
+callbacks dispatch. Auth-folder metadata uses the same effective-settings comparison: disabled or
+inactive auth edits and enabling mode `None` do not unnecessarily close admission. Preparation
+checks source limits before URL/header parsing and retains only active auth fields. Native manager
+and spawn boundaries validate capacities/ranges before configuration clone or lifetime reservation.
+ACK/log path descriptions are bounded. Settings validation lives in `http/configuration.rs`, keeping
+the coordinator at 711 lines; new tests live under the HTTP feature's existing `tests/` directory.
+
+Initial `cargo check --locked -p Chataigne2 --tests` passed in **18.06s**; the initial HTTP run passed
+**58/58** after **2m20s** compilation. Adding the mode-None metadata regression exposed a test-fixture
+setup error: `create_http_module` deliberately disables transport, so waiting without a configuration
+edit timed out (**58 passed / 1 failed**, **1m38s** compilation). Corrected that test to activate a local
+configuration before exercising admission; this was not a runtime failure. Corrected HTTP run passed
+**59/59** in **0.30s** after **1m25s** compilation. Preservation filters passed **192** distinct tests:
+script API 8, concrete streams 77, common streaming 45, Sound Card 35, OSC 25, initial Formula 1,
+and null-device Sound Card evidence 1. HTTP plus preservation totals **251 distinct app tests**.
+Initial strict Clippy found a now-test-only import and a needless test-helper borrow; corrected both.
+Focused verification complete; requested return to **High**, actual effort unchanged/unobservable.
+Final `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed in
+**24.86s** after the import/borrow cleanup. `cargo test-fast --locked -p golden_io` passed **38/38**
+in **0.20s** (7.25s including lock wait); combined with the disjoint app suites, **289 distinct tests**
+passed. `cargo check --locked --workspace --tests` passed in **19.76s**. Native
+`cargo build --locked -p Chataigne2 --bin Chataigne2` passed in **1m45s** including lock wait;
+no linker repair or cache deletion was needed. Root/Core `cargo fmt --all`, explicit HTTP rustfmt,
+maintained-doc Prettier, and whitespace checks pass. Inventory is **1622 source files / 42 oversized**;
+HTTP settings and configuration tests are 259 and 323 lines. All owned jobs are terminal.
+
+Evidence is the source and checked-in configuration regressions plus terminal commands recorded
+here. These Windows/default-feature checks use controlled local HTTP fixtures, native injected
+executors, existing stream/OSC loopbacks, missing-serial recovery, and null-device audio fixtures;
+they do not qualify live endpoints, hardware, other platforms, native UI, or product-scale timing.
+Commit and push this verified milestone on `main`, then continue TCP server/WebSocket/serial and
+the broader module/channel/generator audit. P03 remains **IN_PROGRESS**; P04-P18 retain their states.

@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for HTTP applied-snapshot admission fencing, active authored input identity, configuration byte bounds before cloning, and generation handoff across rejected configuration/script edits. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 59 HTTP tests passed applied endpoint/auth admission, inactive auth metadata, input/capacity bounds, and generation recovery. Strict lint/integration/native validation and milestone delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for passive HTTP owner notifications, pre-cleanup generation completion wakes, retry deadlines, disabled backlog re-arming, and destruction/undo source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 51 HTTP and 38 IO tests, full affected-app preservation, and strict IO/app Clippy passed passive delivery, pre-cleanup phase notification, retry recovery, disabled backlogs, and fresh undo wake ownership. Routine workspace/native/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

@@ -140,6 +140,16 @@ admission recovery. Destroy/replacement cancels its producers, clears pending ru
 deadlines, and starts a fresh wake source when restored. Script argument parsing lives beside the
 HTTP coordinator in `scripts.rs`; HTTP selects no periodic/compiled node kernel.
 
+HTTP admission reads applied snapshot values and compares them with the authored inputs captured
+for the active generation, so a configuration edit followed immediately by a command or script
+call cannot send to the previous endpoint or with previous credentials. This comparison borrows
+bounded values; URL/header preparation happens only when configuring a generation. Disabled auth
+and inactive scheme fields do not affect identity or retain unused credentials. Source limits are
+8 KiB for the base URL and each active auth field, 64 KiB for header text, and 256 default headers.
+Native configuration also checks retained allocation capacity (128 KiB total, including vector and
+string spare capacity) before cloning settings or reserving a worker lifetime. Invalid/pending
+settings reject new admission while accepted requests and completions retain their existing order.
+
 `golden_io::BoundedWorker::spawn_notified` can publish those node wakes after reply admission and
 final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node
 polling clock. A `PayloadPool` can retain prepared data through consumer ownership and perform

@@ -60,6 +60,10 @@ impl HttpTransports {
             WorkerNotifier,
         ) -> Result<HttpTransportHandle, String>,
     {
+        if let Err(error) = config.validate_limits() {
+            self.pause_admission();
+            return Err(error);
+        }
         if self
             .generations
             .back()

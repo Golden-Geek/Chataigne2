@@ -1,4 +1,6 @@
 mod callbacks;
+mod configuration;
+use configuration::HttpSettings;
 mod lifecycle;
 mod response_service;
 mod scripts;
@@ -23,16 +25,16 @@ use golden_core::{
 
 use crate::app::module::common::{
     http::{
-        body_looks_like_json, content_type_is_json, http_auth_mode_enum_options, parse_header_lines,
-        response_script_body_arg, response_script_json_arg, HttpAuthConfig, HttpAuthMode, HttpHeader,
-        HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
+        body_looks_like_json, content_type_is_json, http_auth_mode_enum_options, response_script_body_arg,
+        response_script_json_arg, HttpHeader, HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
     },
     received_values::service::{ReceivedValueCursor, ReceivedValueProgress},
 };
 
+#[cfg(test)]
+use self::transport::HttpTransportConfig;
 use self::transport::{
-    HttpFailure, HttpQueuedRequest, HttpRequestOrigin, HttpResponse, HttpTransportConfig, HttpWorkerEvent,
-    PreparedHttpResponse,
+    HttpFailure, HttpQueuedRequest, HttpRequestOrigin, HttpResponse, HttpWorkerEvent, PreparedHttpResponse,
 };
 use lifecycle::HttpTransports;
 use response_service::{HttpCallbackDelivery, PendingHttpEvent};
@@ -133,6 +135,7 @@ pub struct HttpModule {
     reconnect_backoff: ReconnectBackoff,
     retry_at: Option<Instant>,
     wake: Option<ModuleWake>,
+    active_settings: Option<HttpSettings<'static>>,
 }
 
 impl HttpModule {
@@ -143,6 +146,7 @@ impl HttpModule {
             true,
             VecDeque::new(),
             ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5)),
+            None,
             None,
             None,
         )
@@ -195,6 +199,7 @@ impl HttpModule {
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.retry_at = None;
         self.transport_dirty = false;
+        self.active_settings = None;
 
         if !self.module_enabled(snapshot) {
             self.transports.pause_admission();
@@ -203,8 +208,10 @@ impl HttpModule {
             return;
         }
 
-        let config = match self.transport_config(snapshot) {
-            Ok(config) => config,
+        let settings = match HttpSettings::read(self, snapshot)
+            .and_then(|settings| settings.prepare().map(|config| (settings, config)))
+        {
+            Ok(settings) => settings,
             Err(error) => {
                 logerror!("Invalid HTTP module configuration: {}", error);
                 self.transports.pause_admission();
@@ -217,8 +224,10 @@ impl HttpModule {
         let Some(wake) = &self.wake else {
             return;
         };
+        let (settings, config) = settings;
         match self.transports.configure(config, wake.notifier.clone()) {
             Ok(()) => {
+                self.active_settings = Some(settings.owned());
                 self.clear_base_warning(ctx);
                 self.base.set_connected(ctx, true);
             }
@@ -230,65 +239,6 @@ impl HttpModule {
                 self.retry_at = Some(self.reconnect_backoff.schedule(Instant::now()));
             }
         }
-    }
-
-    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<HttpTransportConfig, String> {
-        let base_address = normalize_base_address(self.base_address.get_ref().as_str())?;
-        let timeout = duration_ms(self.timeout_ms.get(), "HTTP timeout 'parameters/timeout_ms'")?;
-        let retry_count =
-            u32::try_from(self.retry_count.get()).map_err(|_| "HTTP retry count cannot be negative".to_string())?;
-        let retry_delay = duration_ms(
-            self.retry_delay_ms.get(),
-            "HTTP retry delay 'parameters/retry_delay_ms'",
-        )?;
-
-        Ok(HttpTransportConfig {
-            base_address,
-            default_headers: parse_header_lines(self.default_headers.get_ref().as_str(), "HTTP default")?,
-            auth: self.auth_config(snapshot)?,
-            timeout,
-            retry_count,
-            retry_delay,
-        })
-    }
-
-    fn auth_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<HttpAuthConfig, String> {
-        if !self.auth_enabled(snapshot).unwrap_or(false) {
-            return Ok(HttpAuthConfig::default());
-        }
-
-        let mode = HttpAuthMode::from_variant(self.auth_mode.get_ref().as_str())
-            .ok_or_else(|| format!("invalid HTTP auth mode '{}'", self.auth_mode.get_ref().as_str()))?;
-        let config = HttpAuthConfig {
-            mode,
-            username: self.username.get_ref().clone(),
-            password: self.password.get_ref().clone(),
-            token: self.token.get_ref().clone(),
-            header_name: self.header_name.get_ref().clone(),
-            header_value: self.header_value.get_ref().clone(),
-        };
-
-        match mode {
-            HttpAuthMode::None => {}
-            HttpAuthMode::Basic => {
-                if config.username.trim().is_empty() {
-                    return Err("HTTP Basic auth requires a username".to_string());
-                }
-            }
-            HttpAuthMode::Bearer => {
-                if config.token.trim().is_empty() {
-                    return Err("HTTP Bearer auth requires a token".to_string());
-                }
-            }
-            HttpAuthMode::Header => {
-                parse_header_lines(
-                    format!("{}: {}", config.header_name, config.header_value).as_str(),
-                    "HTTP auth",
-                )?;
-            }
-        }
-
-        Ok(config)
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
@@ -398,7 +348,17 @@ impl HttpModule {
         payload: HttpRequestPayload,
         origin: HttpRequestOrigin,
     ) -> Result<String, String> {
-        let description = format!("{} {}", payload.method.label(), payload.path.trim());
+        let snapshot = ctx
+            .tree_snapshot_arc()
+            .ok_or("HTTP admission requires an applied tree snapshot")?;
+        if !self.module_enabled(&snapshot) {
+            return Err("HTTP module is disabled; request was not admitted".into());
+        }
+        let applied = HttpSettings::read(self, &snapshot)?;
+        if self.active_settings.as_ref() != Some(&applied) {
+            return Err("HTTP configuration is pending; request was not admitted".into());
+        }
+        let description = format!("{} {}", payload.method.label(), diagnostic_url(payload.path.trim()));
         self.admit_request(HttpQueuedRequest { origin, payload })?;
 
         self.base.emit_outgoing_traffic(ctx);
@@ -468,6 +428,15 @@ impl HttpModule {
 
     fn on_param_change_inner(&mut self, snapshot: &ProcessTreeSnapshot, param: NodeId) {
         if self.param_affects_transport(snapshot, param) {
+            self.mark_configuration_pending(snapshot);
+        }
+    }
+
+    fn mark_configuration_pending(&mut self, snapshot: &ProcessTreeSnapshot) {
+        if self.transport_dirty
+            || !HttpSettings::read(self, snapshot)
+                .is_ok_and(|settings| self.active_settings.as_ref() == Some(&settings))
+        {
             self.transport_dirty = true;
             self.transports.block_admission();
             self.retry_at = None;
@@ -498,6 +467,7 @@ impl HttpModule {
             self.clear_base_warning(ctx);
             self.base.set_connected(ctx, false);
             self.transport_dirty = false;
+            self.active_settings = None;
             self.retry_at = None;
             if let Some(wake) = &self.wake {
                 wake.cancel_deadline();
@@ -535,6 +505,7 @@ impl HttpModule {
 
     fn stop_transport(&mut self) {
         self.transports.cancel_all();
+        self.active_settings = None;
         self.pending_events.clear();
         self.retry_at = None;
         if let Some(wake) = &self.wake {
@@ -703,9 +674,7 @@ impl Node for HttpModule {
                 .auth_node_id(snapshot_arc.as_ref())
                 .is_some_and(|auth_id| auth_id == node)
         {
-            self.transport_dirty = true;
-            self.retry_at = None;
-            self.request_service();
+            self.mark_configuration_pending(snapshot_arc.as_ref());
         }
     }
 
@@ -720,38 +689,6 @@ impl Node for HttpModule {
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
     }
-}
-
-fn normalize_base_address(raw: &str) -> Result<String, String> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Err("HTTP Base address cannot be empty".to_string());
-    }
-
-    let normalized = if trimmed.ends_with('/') {
-        trimmed.to_string()
-    } else {
-        format!("{trimmed}/")
-    };
-
-    let parsed = reqwest::Url::parse(normalized.as_str())
-        .map_err(|error| format!("invalid HTTP Base address '{trimmed}': {error}"))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        return Err("HTTP Base address must use http:// or https://".to_string());
-    }
-    if parsed.host_str().is_none() {
-        return Err("HTTP Base address must include a host".to_string());
-    }
-    if parsed.query().is_some() || parsed.fragment().is_some() {
-        return Err("HTTP Base address must not include a query string or fragment".to_string());
-    }
-
-    Ok(parsed.as_str().to_string())
-}
-
-fn duration_ms(value: i32, label: &str) -> Result<Duration, String> {
-    let value = u64::try_from(value).map_err(|_| format!("{label} cannot be negative"))?;
-    Ok(Duration::from_millis(value))
 }
 
 fn is_descendant_or_self(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: NodeId) -> bool {

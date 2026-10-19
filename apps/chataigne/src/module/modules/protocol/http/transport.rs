@@ -203,6 +203,7 @@ impl HttpTransportHandle {
         execute: Box<HttpExecutor>,
         retirement_hook: Option<Box<dyn FnOnce() + Send>>,
     ) -> Result<Self, String> {
+        config.validate_limits()?;
         let completion = GenerationFence::default();
         let worker_completion = completion.clone();
         let worker_predecessor = predecessor.clone();

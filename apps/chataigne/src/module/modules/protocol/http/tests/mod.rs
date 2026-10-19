@@ -11,6 +11,7 @@ use golden_core::{
 };
 use serde_json::json;
 
+mod configuration;
 mod generations;
 mod passive;
 mod reconfiguration;
