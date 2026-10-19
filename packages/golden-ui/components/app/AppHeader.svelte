@@ -25,58 +25,6 @@
 			? `${fileName}*`
 			: fileName;
 	});
-	let engineRateClass = $derived.by((): string => {
-		const hz = session.engineHz;
-		if (hz === null) {
-			return 'unknown';
-		}
-		const lowFrequency = Math.max(1, session.engineLowFrequencyHz);
-		if (hz < lowFrequency / 2) {
-			return 'low';
-		}
-		if (hz <= lowFrequency) {
-			return 'mid';
-		}
-		return 'high';
-	});
-	let engineRateLabel = $derived.by((): string => {
-		const hz = session.engineHz;
-		return hz === null ? '-- Hz' : `${Math.round(hz)} Hz`;
-	});
-	let engineRateDetail = $derived.by((): string => {
-		const stats = session.runtimeStats;
-		if (!stats) {
-			return 'Runtime metrics unavailable';
-		}
-		const averageQueueMs =
-			stats.control_applied > 0 ? stats.control_wait_ns / stats.control_applied / 1_000_000 : 0;
-		return [
-			`Generation ${stats.generation_id}`,
-			`control queue ${stats.control_queue_depth} (peak ${stats.control_queue_peak}, avg wait ${averageQueueMs.toFixed(2)} ms)`,
-			`batches ${stats.sparse_batches} sparse / ${stats.dense_batches} dense`,
-			`effects ${stats.effects_committed} committed / ${stats.effects_suppressed} suppressed`
-		].join(' · ');
-	});
-
-	let userActionPhaseLabel = $derived.by((): string => {
-		switch (session.userActionCurrentPhase) {
-			case 'queued':
-				return 'Queued';
-			case 'received':
-				return 'Received';
-			case 'accepted':
-				return 'Processing';
-			case 'applied':
-				return 'Finishing';
-			case 'rejected':
-				return 'Failed';
-			default:
-				return 'Processing';
-		}
-	});
-	let userActionStatusLabel = $derived(
-		`${session.userActionCurrentLabel ?? 'Applying change'} — ${userActionPhaseLabel}`
-	);
 
 	const refreshMaximizeState = async (): Promise<void> => {
 		const maximized = await invokeDesktopCommand(
@@ -200,10 +148,6 @@
 		<div class="app-title">
 			<span class="project-title">{projectTitle}</span>
 			<span class="app-title-app">Chataigne 2.0.0</span>
-			<span class="engine-rate {engineRateClass}" title={engineRateDetail}>
-				<span class="engine-rate-dot" aria-hidden="true"></span>
-				<span>{engineRateLabel}</span>
-			</span>
 		</div>
 	</div>
 	<div
@@ -214,27 +158,6 @@
 		onkeydown={() => {}}>
 	</div>
 	<div class="controls">
-		{#if session.userActionPendingCount > 0}
-			<div
-				class="user-action-activity"
-				role="status"
-				aria-live="polite"
-				aria-label={userActionStatusLabel}
-				title={userActionStatusLabel}
-				data-phase={session.userActionCurrentPhase}
-				data-no-drag>
-				<span class="user-action-spinner" aria-hidden="true"></span>
-				<span class="user-action-label">{session.userActionCurrentLabel ?? 'Applying change'}</span>
-				<span class="user-action-phase">{userActionPhaseLabel}</span>
-				{#if session.userActionPendingCount > 1}
-					<span
-						class="user-action-count"
-						aria-label={`${session.userActionPendingCount} pending actions`}>
-						{session.userActionPendingCount}
-					</span>
-				{/if}
-			</div>
-		{/if}
 		<div class="history-actions">
 			<button
 				type="button"
@@ -325,127 +248,10 @@
 		color: rgb(from var(--gc-color-text) r g b / 58%);
 	}
 
-	.engine-rate {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		min-width: 3.8rem;
-		padding: 0.15rem 0.42rem;
-		border: 0.05rem solid currentColor;
-		border-radius: 0.35rem;
-		font-size: 0.68rem;
-		font-weight: 700;
-		line-height: 1;
-		color: rgb(from var(--gc-color-text) r g b / 45%);
-		background-color: rgb(from var(--gc-color-text) r g b / 7%);
-		-webkit-app-region: no-drag;
-	}
-
-	.engine-rate.low {
-		color: var(--gc-color-error);
-		background-color: rgb(from var(--gc-color-error) r g b / 12%);
-	}
-
-	.engine-rate.mid {
-		color: var(--gc-color-warning);
-		background-color: rgb(from var(--gc-color-warning) r g b / 12%);
-	}
-
-	.engine-rate.high {
-		color: var(--gc-color-success);
-		background-color: rgb(from var(--gc-color-success) r g b / 12%);
-	}
-
-	.engine-rate-dot {
-		width: 0.45rem;
-		height: 0.45rem;
-		border-radius: 50%;
-		background-color: currentColor;
-		box-shadow: 0 0 0.35rem currentColor;
-	}
-
 	.controls {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-	}
-
-	.user-action-activity {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.38rem;
-		max-width: min(28vw, 18rem);
-		padding: 0.24rem 0.52rem;
-		border: 0.05rem solid rgb(from var(--gc-color-accent) r g b / 32%);
-		border-radius: 999rem;
-		color: rgb(from var(--gc-color-text) r g b / 88%);
-		background-color: rgb(from var(--gc-color-accent) r g b / 13%);
-		font-size: 0.66rem;
-		font-weight: 650;
-		line-height: 1;
-		pointer-events: none;
-		-webkit-app-region: no-drag;
-	}
-
-	.user-action-spinner {
-		flex: 0 0 auto;
-		width: 0.58rem;
-		height: 0.58rem;
-		border: 0.1rem solid rgb(from var(--gc-color-accent) r g b / 30%);
-		border-top-color: var(--gc-color-accent);
-		border-radius: 50%;
-		animation: user-action-spin 0.8s linear infinite;
-	}
-
-	.user-action-label {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.user-action-phase {
-		flex: 0 0 auto;
-		color: rgb(from var(--gc-color-text) r g b / 55%);
-		font-weight: 550;
-	}
-
-	.user-action-count {
-		display: inline-grid;
-		flex: 0 0 auto;
-		min-width: 1.05rem;
-		height: 1.05rem;
-		padding-inline: 0.24rem;
-		place-items: center;
-		border-radius: 999rem;
-		color: var(--gc-color-background);
-		background-color: var(--gc-color-accent);
-		font-size: 0.58rem;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.user-action-activity[data-phase='rejected'] {
-		border-color: rgb(from var(--gc-color-error) r g b / 38%);
-		color: var(--gc-color-error);
-		background-color: rgb(from var(--gc-color-error) r g b / 13%);
-	}
-
-	.user-action-activity[data-phase='rejected'] .user-action-spinner {
-		animation: none;
-		border-color: var(--gc-color-error);
-	}
-
-	@keyframes user-action-spin {
-		to {
-			transform: rotate(1turn);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.user-action-spinner {
-			animation: none;
-			border-color: var(--gc-color-accent);
-			opacity: 0.75;
-		}
 	}
 
 	.history-actions {

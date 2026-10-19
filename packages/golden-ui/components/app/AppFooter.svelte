@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { WorkbenchSession } from '../../store/workbench.svelte';
+	import EngineStatus from './EngineStatus.svelte';
 
 	const { session } = $props<{
 		session?: WorkbenchSession | null;
@@ -31,6 +32,7 @@
 				</div>
 			{/each}
 		</div>
+		<EngineStatus {session} />
 	{/if}
 </footer>
 
@@ -38,7 +40,7 @@
 	.gc-footer {
 		flex: 0 0 2rem;
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 		align-items: center;
 		gap: 0.75rem;
 		min-height: 2rem;
