@@ -85,6 +85,16 @@ graphs; its first build has a separate artifact cache. Use
 the final link.
 Run `cargo build --timings` to identify slow crates in a specific build.
 
+The app build script caches its bundled UI in Cargo's output directory. Rust-only
+edits reuse that bundle; frontend source, static assets, workspace UI packages,
+configuration, lockfile, Node/npm versions, and existing `VITE_*` / `PUBLIC_*`
+environment inputs invalidate it. The reusable content-cache helper lives in
+`golden_codegen_support::build_cache`; Chataigne owns frontend input discovery
+and the npm build command. Missing or modified bundle files also trigger a rebuild,
+and failed builds never populate the cache. `GC_FORCE_NPM_CI=1` forces dependency
+installation and bundle rebuilding. `GC_UI_ASSUME_BUILT=1` still consumes the
+separately built `ui/build` artifact; `GC_SKIP_UI_BUILD=1` still omits bundled UI.
+
 ## Test Placement
 
 Tests stay with their owning subsystem, but always inside a `tests/` directory:

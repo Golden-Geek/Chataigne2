@@ -1,5 +1,7 @@
 //! Build-script support helpers for Golden workspaces.
 
+pub mod build_cache;
+
 use std::collections::HashSet;
 use std::env;
 use std::fs;

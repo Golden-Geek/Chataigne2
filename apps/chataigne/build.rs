@@ -6,6 +6,7 @@ use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use golden_codegen_support::build_cache::build_if_stale;
 use golden_codegen_support::{generate_app_nodes_from_roots, AppNodeSourceRoot};
 
 const GC_FORCE_NPM_CI: &str = "GC_FORCE_NPM_CI";
@@ -19,6 +20,7 @@ struct BuildPaths {
     #[cfg(windows)]
     out_dir: PathBuf,
     bundled_ui_dir: PathBuf,
+    ui_bundle_stamp: PathBuf,
     ui_assets_rs: PathBuf,
     app_nodes_rs: PathBuf,
     builtin_formulas_dir: PathBuf,
@@ -42,6 +44,7 @@ impl BuildPaths {
             #[cfg(windows)]
             out_dir: out_dir.clone(),
             bundled_ui_dir: out_dir.join("ui-dist"),
+            ui_bundle_stamp: out_dir.join("ui-bundle.hash"),
             ui_assets_rs: out_dir.join("ui_assets.rs"),
             app_nodes_rs: out_dir.join("app_nodes.rs"),
             builtin_formulas_dir: PathBuf::from("resources/formulas/builtin"),
@@ -291,16 +294,45 @@ fn prepare_ui_assets(paths: &BuildPaths) -> std::io::Result<()> {
         );
         assumed_dist
     } else {
-        ensure_ui_dependencies(paths)?;
-        build_ui_bundle(paths)?;
+        let toolchain = ensure_ui_dependencies(paths)?;
+        let inputs = ui_input_files(&paths.ui_root, &paths.workspace_root, &paths.package_lock)?;
+        let mut environment = std::env::vars_os()
+            .filter(|(name, _)| {
+                let name = name.to_string_lossy();
+                name == "NODE_ENV" || name.starts_with("VITE_") || name.starts_with("PUBLIC_")
+            })
+            .collect::<Vec<_>>();
+        environment.sort();
+        println!("cargo:rerun-if-env-changed=NODE_ENV");
+        for (name, _) in &environment {
+            println!("cargo:rerun-if-env-changed={}", name.to_string_lossy());
+        }
+        let context = format!("{toolchain}\n{environment:?}");
+        let built = build_if_stale(
+            &paths.ui_bundle_stamp,
+            &paths.bundled_ui_dir,
+            &inputs,
+            &context,
+            env_flag(GC_FORCE_NPM_CI),
+            || build_ui_bundle(paths),
+        )?;
+        println!(
+            "cargo:warning=UI bundle {}",
+            if built {
+                "rebuilt (frontend inputs or output changed)"
+            } else {
+                "reused (frontend inputs unchanged)"
+            }
+        );
+        emit_rerun_if_changed_for_dir(&paths.bundled_ui_dir)?;
         paths.bundled_ui_dir.clone()
     };
 
     generate_ui_assets_module(&asset_root, &paths.ui_assets_rs)
 }
 
-fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<()> {
-    ensure_frontend_toolchain()?;
+fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<String> {
+    let toolchain = ensure_frontend_toolchain()?;
 
     let current_hash = file_hash(&paths.package_lock)?;
     let previous_hash = fs::read_to_string(&paths.npm_deps_stamp)
@@ -315,21 +347,21 @@ fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<()> {
         println!("cargo:warning={GC_FORCE_NPM_CI}=1; running npm ci");
         run_npm_command(&paths.workspace_root, &["ci", "--ignore-scripts"], &[])?;
         write_npm_deps_stamp(paths, &current_hash)?;
-        return Ok(());
+        return Ok(toolchain);
     }
 
     if !has_node_modules {
         println!("cargo:warning=ui/node_modules is missing; running npm ci");
         run_npm_command(&paths.workspace_root, &["ci", "--ignore-scripts"], &[])?;
         write_npm_deps_stamp(paths, &current_hash)?;
-        return Ok(());
+        return Ok(toolchain);
     }
 
     if !node_modules_ready {
         println!("cargo:warning=ui/node_modules is incomplete; running npm install");
         run_npm_command(&paths.workspace_root, &["install", "--ignore-scripts"], &[])?;
         write_npm_deps_stamp(paths, &current_hash)?;
-        return Ok(());
+        return Ok(toolchain);
     }
 
     match previous_hash.as_deref() {
@@ -345,7 +377,7 @@ fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<()> {
         }
     }
 
-    Ok(())
+    Ok(toolchain)
 }
 
 fn ui_node_modules_ready(paths: &BuildPaths) -> bool {
@@ -442,17 +474,66 @@ fn generate_builtin_formulas_module(formulas_dir: &Path, out_file: &Path) -> std
 }
 
 fn track_ui_inputs(ui_root: &Path, workspace_root: &Path, package_lock: &Path) -> std::io::Result<()> {
-    println!("cargo:rerun-if-changed={}", package_lock.display());
-    for relative in ["package.json", "svelte.config.js", "vite.config.ts", "src/app.html"] {
-        println!("cargo:rerun-if-changed={}", ui_root.join(relative).display());
+    for input in ui_input_files(ui_root, workspace_root, package_lock)? {
+        println!("cargo:rerun-if-changed={}", input.display());
     }
-
+    // Watch source directories as well as files so additions and removals rerun
+    // the script. Generated caches and bundle directories are not inputs.
     emit_rerun_if_changed_for_dir(&ui_root.join("src"))?;
     emit_rerun_if_changed_for_dir(&ui_root.join("static"))?;
     for package in ["golden-ui", "golden-graph-ui", "golden-audio-ui"] {
         emit_rerun_if_changed_for_dir(&workspace_root.join("packages").join(package))?;
     }
 
+    Ok(())
+}
+
+fn ui_input_files(ui_root: &Path, workspace_root: &Path, package_lock: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut files = vec![
+        package_lock.to_path_buf(),
+        workspace_root.join("package.json"),
+        PathBuf::from("build.rs"),
+    ];
+    let toolchain_manifest = workspace_root.join("tools/bootstrap/toolchain.json");
+    if toolchain_manifest.is_file() {
+        files.push(toolchain_manifest);
+    }
+    // Top-level UI files include Vite/Svelte/TypeScript configuration, npm
+    // configuration and any .env files used by Vite's production build.
+    for entry in fs::read_dir(ui_root)? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            files.push(entry.path());
+        }
+    }
+    for root in [ui_root.join("src"), ui_root.join("static")].into_iter().chain(
+        ["golden-ui", "golden-graph-ui", "golden-audio-ui"]
+            .map(|package| workspace_root.join("packages").join(package)),
+    ) {
+        collect_ui_input_files(&root, &mut files)?;
+    }
+    files.sort();
+    files.dedup();
+    Ok(files)
+}
+
+fn collect_ui_input_files(dir: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    if !dir.exists() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            if !["node_modules", "build", "dist", ".svelte-kit", "docs", "tests"]
+                .contains(&entry.file_name().to_string_lossy().as_ref())
+            {
+                collect_ui_input_files(&path, files)?;
+            }
+        } else {
+            files.push(path);
+        }
+    }
     Ok(())
 }
 
@@ -513,17 +594,17 @@ fn run_npm_command(ui_root: &Path, args: &[&str], envs: &[(&str, &OsStr)]) -> st
     )))
 }
 
-fn ensure_frontend_toolchain() -> std::io::Result<()> {
-    ensure_command_available("node", &["--version"])?;
-    ensure_command_available(npm_command(), &["--version"])
+fn ensure_frontend_toolchain() -> std::io::Result<String> {
+    let node = ensure_command_available("node", &["--version"])?;
+    let npm = ensure_command_available(npm_command(), &["--version"])?;
+    Ok(format!("node={node}\nnpm={npm}"))
 }
 
-fn ensure_command_available(command: &str, args: &[&str]) -> std::io::Result<()> {
-    let status = Command::new(command)
+fn ensure_command_available(command: &str, args: &[&str]) -> std::io::Result<String> {
+    let output = Command::new(command)
         .args(args)
-        .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status()
+        .output()
         .map_err(|err| {
             Error::new(
                 err.kind(),
@@ -534,12 +615,13 @@ fn ensure_command_available(command: &str, args: &[&str]) -> std::io::Result<()>
             )
         })?;
 
-    if status.success() {
-        return Ok(());
+    if output.status.success() {
+        return Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned());
     }
 
     Err(Error::other(format!(
-        "required frontend command `{command}` exited with status {status}\n{}",
+        "required frontend command `{command}` exited with status {}\n{}",
+        output.status,
         frontend_toolchain_help()
     )))
 }
