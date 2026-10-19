@@ -5,8 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-20 on `main` at delivered `bf6b6d09`, matching fetched `origin/main`,
-with the retained P03 batch 33 runtime/tests/docs work in progress described below.
+Last reconciled: 2026-10-20 on clean `main` at delivered `03c76798`, matching fetched `origin/main`.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -51,7 +50,8 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
 
 ## Current handoff
 
-- Current batch: P03 batch 33 retained script-method ingress verified locally; ready for milestone delivery.
+- Current batch: P03 batch 34 remaining script host-input admission/ownership in progress.
+  Batch 33 retained script-method ingress delivered in `03c76798`.
   Completion overview/per-task checkpoints were committed and pushed separately in `bf6b6d09`;
   the generic ingress workstream remains partial, so overall/P03 estimates stay **14% / 50%**.
   Batch 32 canonical encoded outbound ownership delivered in `b7a5c9a2`.
@@ -79,10 +79,8 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: `main` and fetched `origin/main` at delivered `bf6b6d09`, with only the
-  retained batch 33 diff and no unrelated changes. Previous turn: progress (completion overview
-  committed/pushed). Owned session `51520` was live at resume and subsequently passed in 7m24s:
-  engine 537 unit / 8 integration / 7 doctests, IO 42, script 11 unit / 7 integration tests.
+- P00 resumed check: clean `main` and fetched `origin/main` at delivered `03c76798`, no unrelated
+  changes or owned live jobs. Previous turn: progress (batch 33 committed/pushed).
 - Final owning batch 33 validation: owned exec session `9872` passed
   `cargo test-fast --locked -p golden_parameters -p golden_io -p golden_script -p golden_engine -- --quiet`
   after the last IO implementation and test-style edits: **619 passed**, three existing ignored
@@ -112,9 +110,8 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
   destroy/undo wake fencing. WebSocket server also preserves per-peer grammar. Both servers use receipt-owned
   connection/warning/client projections, including stable IDs after partial failure. Detailed
   regressions and measurements remain under their implementation batches below.
-- Return to High requested after 619 final owning tests passed pre-materialization reservations,
-  retained method ingress and QuickJS/engine failure/suffix disposal. Actual effort remains
-  unchanged/unobservable; no supported control is exposed. Ordinary app integration also passed.
+- Automatic reasoning-effort switching rules were removed at the user's request on 2026-10-20.
+  Previous effort notes below are historical evidence, not active instructions.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
   The reproduced edit-prefix undo loss is fixed locally. Compound creation now uses prepared
   validation/commit; its reference/dashboard regressions and optimized package checks pass.

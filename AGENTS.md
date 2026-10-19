@@ -16,19 +16,6 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Documents under `docs/archive/` preserve evidence only. Their pauses, branch/push instructions,
   old status tables, and task lists are non-operative.
 
-## Goal Mode Execution Rules
-
-- Default implementation reasoning effort is **High**. Keep routine UI, boilerplate, basic routing,
-  documentation, and mechanical refactors at High.
-- Use **XHigh** for a focused subtask when two meaningful High fix attempts fail, or when the work
-  involves critical persistence migrations, coupled state invariants, or concurrency/realtime races.
-  File count and task duration alone do not justify escalation.
-- Follow the authoritative [effort switching policy](docs/plan/Chataigne2_Codex_Implementation_Plan.md#reasoning-effort-during-implementation)
-  for failure counting, risk triggers, plan comments, and returning to High.
-- Change the actual effort through an exposed supported client control when available. Otherwise
-  report the request and actual setting honestly; an instruction/comment cannot change the runtime
-  setting. Do not create nested sessions or change models/configuration to simulate a switch.
-
 ## Core Stance
 
 - Prefer the cleanest architecture over the smallest diff.

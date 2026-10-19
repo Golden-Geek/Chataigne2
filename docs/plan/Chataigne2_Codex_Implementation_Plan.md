@@ -27,50 +27,6 @@ the plan's scope, acceptance criteria, and device/remote-action limits.
 Do not restart old T/R phases, execute archived instructions, or treat this document as
 permission to overwrite unrelated work. Resume through the ledger after context changes.
 
-## Reasoning effort during implementation
-
-Default to **High** (`high`). Use **XHigh** (`xhigh`) only for the focused subtask that meets an
-escalation trigger. Routine UI components, layout/style changes, boilerplate, basic routing,
-documentation, and mechanical refactors stay at High unless their actual behavior meets a risk
-trigger below. Touching several files or working for a long time is not a trigger by itself.
-
-Escalate when either condition applies:
-
-1. **Two consecutive meaningful High fix attempts fail** for the same unresolved implementation
-   issue. Each attempt must inspect diagnostics, apply a justified correction, and rerun the
-   relevant compile/test check. A known failing baseline, unchanged rerun, dependency download,
-   missing SDK/device, external service failure, or unrelated flaky test does not count. Diagnose
-   those separately. Reset the counter after a relevant pass or a change to an unrelated subtask.
-2. **The subtask has high-risk invariants**, before attempting its difficult design or repair:
-   critical database/project-schema migrations or identity-preserving data transformations;
-   coupled state across stores, layers, or transactions with rollback/undo/generation requirements;
-   asynchronous races, cancellation, ordering, resource handoff, or realtime ownership; or a
-   security trust-boundary change. Ordinary multi-file composition alone does not qualify.
-
-Before beginning an escalated subtask, place this inline comment immediately below its P-task
-heading in this plan, replacing `[Reason]` with the concrete subtask and triggering evidence:
-
-```html
-<!-- Mode: Escalating to XHigh for [Reason] -->
-```
-
-Use the client's supported effort control automatically when it is exposed and the selected model
-supports XHigh. Keep the model unchanged. A model/client setting change may apply only at the next
-supported turn boundary; do not claim the in-flight turn changed effort.
-
-If no supported control is available, make one concise switch request, record **XHigh requested;
-actual effort unchanged** in the ledger, and continue useful work at the available setting. If
-the actual setting is not observable, record it as unknown. Do not repeatedly interrupt the goal,
-edit global configuration, start a nested agent/session, or equate a plan comment with a real
-switch. The rule routes effort where supported; it does not manufacture a missing client capability.
-
-Return to High after the escalated design/fix and its focused verification are complete, before
-routine integration or the next independent subtask. Record the return in the ledger; optionally
-mark it beside the task with `<!-- Mode: Returning to High after [Task/result] -->`. Keep actual,
-requested, and unavailable effort distinct. A completed difficult task never makes XHigh the
-default for the rest of the goal. An explicit user instruction to pin effort overrides automatic
-routing.
-
 ## Outcome and boundaries
 
 Chataigne2 will ultimately host lighting creation, video manipulation, projection mapping,
@@ -252,21 +208,6 @@ every small edit. Treat the October audit observations in the ledger as a baseli
 
 ### P01 — Make failed edits coherent
 
-<!-- Mode: Escalating to XHigh for applied-prefix history finalization and atomic intent rollback/publication invariants. -->
-<!-- Mode: Returning to High after low-level applied-prefix/lifecycle repair passed 461 engine tests and strict Clippy; compound-intent work remains. -->
-<!-- Mode: Escalating to XHigh for compound creation prevalidation, lifecycle rollback, and history/dirty/publication invariants, including an already-active edit session. -->
-<!-- Mode: Returning to High after creation/reference/dashboard repair passed optimized engine package tests and strict Clippy; existing-node lifecycle rollback remains a separate P01 subtask. -->
-<!-- Mode: Escalating to XHigh for journaling existing-node lifecycle mutations across provisional creation rollback, history ordering, and publication. -->
-<!-- Mode: Returning to High after structured journal, lifecycle replay, and blueprint-index regressions passed focused engine tests and strict Clippy; opaque callbacks and remaining compound scopes stay open. -->
-<!-- Mode: Escalating to XHigh for outer compound-intent transaction ownership, nested prepared-subtree admission, and rollback inside an existing edit session. -->
-<!-- Mode: Returning to High after implicit compound UI rollback and nested preparation passed the complete engine suite and strict Clippy; remaining direct intents and authored callback capture stay open. -->
-<!-- Mode: Escalating to XHigh for complete authored callback capture, default restoration, nested edit ordering, and atomic rejection/undo invariants. -->
-<!-- Mode: Returning to High after complete callback capture, recursive prefix history, composed/default restoration, and automatic node contracts passed engine/macro tests and strict Clippy; direct-intent acceptance remains open. -->
-<!-- Mode: Escalating to XHigh for direct UI intent rollback, control-state/child-tree history ownership, and rejected transaction publication/context invariants. -->
-<!-- Mode: Returning to High after direct editing, notification ownership, control-child identity, context aliases, and production next-save checks passed the complete engine suite and strict Clippy; history replay/error ownership remains open. -->
-<!-- Mode: Escalating to XHigh for failed history replay ownership, exact live-state restoration, and authored callback suppression during undo/redo. -->
-<!-- Mode: Returning to High after history failure recovery, authored replay/teardown preservation, and the complete 495-test engine suite passed; P02 admission remains separate. -->
-
 **Evidence:** reproduced valid `AddNode` followed by invalid `SetParam(Folder)` leaves one added
 node with `undo_len=0`. `engine/src/engine/apply.rs` drains requests and several `?` exits bypass
 common history/reference/context finalization.
@@ -283,13 +224,6 @@ undo for the applied prefix; atomic user intents leave no partial mutation.
 
 ### P02 — Unify schedule revisions and propagate actor failures
 
-<!-- Mode: Escalating to XHigh for authoritative schedule revisions, stale compilation fencing, and dependency-safe runtime continuity during compilation. -->
-<!-- Mode: Returning to High after seven production scheduling/fencing regressions, the 501-test engine suite, strict Clippy, and workspace integration passed; actor admission/error propagation remains a separate focused subtask. -->
-<!-- Mode: Escalating to XHigh for typed actor admission/completion failures, cancellation semantics, and truthful application/transport acknowledgements under saturation. -->
-<!-- Mode: Returning to High after typed actor/facade/transport failures, cancellation and overload recovery passed owning suites, workspace test compilation, and frontend checks; saturated session cleanup and post-commit save publication remain a separate audit. -->
-<!-- Mode: Escalating to XHigh for connection-scoped edit-session lifetime fencing and post-commit save/publication failure recovery under actor saturation. -->
-<!-- Mode: Returning to High after connection-lifetime fencing, accepted disconnect history, and committed-save recovery passed owning suites, strict Clippy, and workspace/test compilation. P02 verified locally. -->
-
 **Evidence:** `ReevaluateGraph` can resolve a new engine order without production recompilation;
 `runtime_center.rs` can reuse the old generation and append newly scheduled nodes. Existing
 membership checks do not establish dependency order. Public application paths also turn typed
@@ -305,100 +239,6 @@ prerequisites during compilation, replace projects, and saturate admission. Veri
 effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
-
-<!-- Mode: Escalating to XHigh for pre-materialization payload reservations, typed retained script-method ingress, QuickJS conversion/queue rejection, engine failure/suffix disposal and shared argument ownership across native consumers. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after final retained argument/reservation/JSON bounds, engine rejection/suffix and script failure/reload checks passed 619 owning tests. Subsequent app/native integration passed; evidence remains in the ledger. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for canonical prepared-byte leases through all six native queues, rejected admission/final-owner disposal, output byte accounting and accepted-prefix lifetime semantics. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 23 common command tests and six owning transport tests passed allocation identity, canonical capacity, queue-full rejection, final reservation release and native-only owned-buffer creation. Routine preservation, lint/workspace checks and native cache recovery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for native stream script argument leases, conservative output admission, shared transport queues, original-connection generations and accepted-prefix retirement across all six stream modules. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 20 focused command tests, five serial admission/retirement tests, the UDP conversion-isolation regression and the full Golden Engine suite passed shared input identity, native conversion, output admission, failure recovery and accepted-prefix ownership. Routine lint/integration/native validation and logging call-site cleanup remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for bounded native stream command preparation, captured snapshot/override ownership, typed engine-local delivery, FIFO receipt recovery, and destroy/undo generation fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 15 focused command tests and the full Golden Engine suite passed bounded admission, producer recovery, receipt retry, local delivery, and stale-snapshot/destroy/undo fencing. Routine integration and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for native outgoing completion logs coupled to original-recipient cursors, partial failures, bounded reply continuations and accepted-prefix retirement across Serial/TCP Server/WebSocket Server. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 119 owning Serial/TCP Server/WebSocket Server tests and 381 distinct app tests passed native completion logging, typed recipient outcomes, flush confirmation, bounded feedback pressure, independent input and accepted-prefix retirement. Routine lint/workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for bounded retained serial catalog lifetimes, subscription/producer generations and passive recovery notifications, worker-prepared input generations, receipt delivery and accepted-prefix retirement. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 41 owning serial tests passed retained catalog bounds/reuse, stale subscription fencing and producer-exit recovery, native input generations, passive callbacks/receipts, disabled accepted-prefix retirement, partial feedback recovery and destroy/undo wake fencing. Routine preservation, workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for serial connection/discovery native lifetime and cancellation ownership, stale enumeration suppression, bounded command/result admission, original-connection partial-write cursors, reconnect generation fencing and independent reply pressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after the serial-focused run passed 30 matched tests, including blocked connection/cleanup/enumeration ownership, bounded cursors and queues, reconnect no-replay, duplex reply pressure, applied port/baud/control-line/disable admission and discovery recovery. Strict Clippy passes; routine preservation, workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for TCP server connection/client projection receipt recovery, stable identities across partial edit prefixes, and factoring the verified WebSocket reconciliation contract into shared app stream ownership. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 32 TCP Server and 39 WebSocket Server tests plus strict Clippy passed discarded/partial projection recovery, stable client identities, warning set/clear recovery and retention of newer desired state during an in-flight projection. Routine preservation, workspace/native validation, documentation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for WebSocket server per-peer grammar generations, retained worker-prepared lifecycle/input callbacks, passive receipt delivery, connection/client projection reconciliation after discarded or partly applied edits, accepted-prefix retirement across disable/reconfigure, and destroy/undo wake-source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 38 WebSocket server tests and strict Clippy passed per-peer prepared input, passive callback receipts, disabled/reconfigured accepted-prefix ownership, source-fenced undo, and discarded/partial projection recovery with stable client IDs. Routine preservation, workspace/native validation, documentation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for WebSocket server concurrent bounded handshakes, native lifetime/cancellation and bind recovery, original-peer broadcast submission/flush cursors, and independent reply backpressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 23 WebSocket server tests passed native ownership, concurrent handshake/peer limits, original-peer frame cursors, independent reply pressure, applied port/path/disable admission, normal close handling and bind/capacity recovery. Strict Clippy, workspace/test compilation and native app build pass; routine preservation, documentation and delivery closeout remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for WebSocket client bounded native lifetimes, cancellable connection/handshake recovery, retained frame submission/flush state, connection-generation fencing, and duplex reply backpressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 25 WebSocket client tests passed native frame/connection ownership, passive receipts, disabled/reconfigured accepted-prefix drain, source-fenced undo, and rejected-envelope partial-frame recovery. Routine lint/integration/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for TCP server per-client grammar isolation, retained worker-prepared lifecycle/input callbacks, passive receipt delivery, disabled accepted-prefix drain, and destroy/undo wake-source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 27 TCP server tests and 312 distinct app/IO tests passed per-client input isolation, passive receipt retry, disabled/reconfigured accepted-prefix ownership, and fresh undo wake sources. Strict lint/native/workspace validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for TCP server bounded native ownership, cancellation and bind recovery, per-client partial-write cursors, and independent reply backpressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 17 TCP server tests and 264 distinct app tests plus strict IO/app Clippy passed native admission, retained setup ownership, bind recovery, per-client cursors, reply-pressure independence, and applied-port/disable admission. Workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for HTTP applied-snapshot admission fencing, active authored input identity, configuration byte bounds before cloning, and generation handoff across rejected configuration/script edits. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 59 HTTP tests passed applied endpoint/auth admission, inactive auth metadata, input/capacity bounds, and generation recovery. Strict lint/integration/native validation and milestone delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for passive HTTP owner notifications, pre-cleanup generation completion wakes, retry deadlines, disabled backlog re-arming, and destruction/undo source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 51 HTTP and 38 IO tests, full affected-app preservation, and strict IO/app Clippy passed passive delivery, pre-cleanup phase notification, retry recovery, disabled backlogs, and fresh undo wake ownership. Routine workspace/native/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for retained HTTP response/callback ownership, graph-failure callback preparation, and truthful accepted-request completion under result-capacity failure, generation retirement, and cancellation. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 46 final HTTP and 38 IO tests, plus final strict IO/app Clippy, passed retained envelopes, alternate callbacks, native rejection/no-send suffixes, and warning set/clear receipt recovery. Routine preservation/workspace/native/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for worker-prepared callback JSON reservations across ordinary event Arc clones, routing/replay retention, failed publication, and final background disposal. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 266 distinct IO/app tests and strict IO/app Clippy passed callback reservation, shallow event binding, replay/export lifetime, and failed publication recovery. Workspace/native/delivery closeout and other producer integration remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for TCP worker input preparation, grammar/connection generation isolation, and receipt-owned callback delivery across reconnect, disable, and reconfiguration. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 220 distinct app tests, strict IO/app Clippy, and workspace/test compilation passed native input configuration/generation, passive callback receipt, and destroy/undo invariants. Native build/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for TCP client native lifetime/admission ownership, connection-generation fencing, resumable partial writes, and graceful reconfiguration across native failures and reply pressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 796 distinct engine/IO/app tests passed native cursor/generation ownership, applied-snapshot admission, and explicit disabled completion service, with strict engine/IO/app Clippy, workspace/test compilation, and a fresh native build. TCP worker-side input preparation and broader P03 audits stay open. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for nonblocking UDP reply admission, per-source pending-result bounds, and native command/input fairness across saturation, retirement, and cancellation. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after the reproduced starvation case and FIFO/retirement/cancellation regressions passed 240 distinct IO/app tests, strict IO/app Clippy, workspace/test compilation, and a fresh native build. Broader module/channel/generator work stays open. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for byte-budgeted shared snapshot leases, external Arc lifetime/final-owner tracking, and off-actor UDP cold preparation across configuration changes and native admission. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after focused shared snapshot/atomic final-owner verification; closeout passed 778 engine/IO/app tests, strict engine/IO/app Clippy, workspace/test compilation, and native app build. Broader module/channel/generator audits remain P03 work. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-
-<!-- Mode: Escalating to XHigh for authoritative subtree revision fencing of prepared output read models before callback delivery, topology/history changes, and background plan lifetimes. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 768 core/IO/app tests, strict engine/IO/app Clippy, workspace/test compilation, and a fresh native app build passed revision fencing, plan reuse, and admission ownership checks. Cold preparation and failed-builder cleanup remain P03 work. Actual effort remains unchanged/unobservable. -->
-
-<!-- Mode: Escalating to XHigh for whole-command UDP fanout admission, native destination cursors, and accepted-send ownership across queue pressure, failures, and graceful retirement. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
-<!-- Mode: Returning to High after 91 owning/preservation tests, strict IO/app Clippy, workspace/test compilation, and a fresh native app build passed whole-command admission, native fanout ordering, retirement, and destination-failure regressions. Actor-side output-tree preparation/cleanup and remaining module/generator work stay open. Actual effort remains unchanged/unobservable. -->
-
-<!-- Mode: Escalating to XHigh for passive UDP worker delivery, configuration generations, retry/exit notifications, and prepared input/callback lifetime ownership across disable and retirement. -->
-<!-- Mode: Returning to High after 208 owning/preservation tests, strict IO/app Clippy, workspace/test compilation, and a fresh native app build passed passive input/configuration/callback/disposal/retry invariants. UDP outbound fanout/admission and remaining module/generator audits stay open in P03. Actual effort remains unchanged/unobservable. -->
-
-<!-- Mode: Escalating to XHigh for shared stream retained-byte admission, resumable graph cursors, receipt ownership, and ordered repeated values against a shared snapshot. -->
-<!-- Mode: Returning to High after shared stream admission, ordering, receipt failure/recovery, line bounds, and maximum raw datagram regressions passed, with HTTP/stream/Sound Card/OSC preservation, strict Clippy, workspace/test compilation, and native app build. Worker preparation/notifications remain a separate P03 batch. -->
-
-<!-- Mode: Escalating to XHigh for UDP command/result admission, cancellation, and socket ownership across failed bind, disable/reconfigure, and worker retirement. -->
-<!-- Mode: Returning to High after 24 IO tests, 10 UDP tests, HTTP/Sound Card preservation, strict Clippy, and workspace/test compilation passed native queue admission, generation handoff, cancellation, and recovery. Stream parsing, node scheduling, and cursor bounds remain P03 work. -->
-
-<!-- Mode: Escalating to XHigh for lifecycle expansion budgets and replacement runtime handoff across committed-prefix history, atomic rollback, and fresh wake generations. -->
-<!-- Mode: Returning to High after 522 engine unit tests, eight public integration tests, and seven doctests passed lifecycle work admission, replacement ownership, history failure recovery, and single rollback activation. App preservation and routine validation closeout remain. -->
-
-<!-- Mode: Escalating to XHigh for bounded external node-wake registration, coalescing, callback-failure ownership, and passive Sound Card recovery while removing the unbounded arbitrary-edit channel. -->
-<!-- Mode: Returning to High after 520 engine tests, three public consumer tests, seven doctests, and 37 null-backend/Sound Card tests passed the bounded wake, clock separation, retry timer, and destroy/undo invariants. Routine loopback fixture and final lint/workspace closeout remain. -->
-
-<!-- Mode: Escalating to XHigh for deferred HTTP graph-edit completion across accepted-prefix failure, structural deferral, and atomic rollback. Scheduled callbacks share a queue while the response cursor currently advances before application. -->
-<!-- Mode: Returning to High after engine completion/discard/rollback/deferral and HTTP graph/callback ownership passed owning suites, strict Clippy, and workspace/test compilation. Remaining P03 external ingress, lifecycle, module/channel, UDP, and generator work stays open. -->
-
-<!-- Mode: Escalating to XHigh for HTTP worker cancellation, bounded reply backpressure, and resource lifetime handoff during saturated shutdown/reconfiguration. -->
-<!-- Mode: Returning to High after bounded-worker lifetime/backpressure and HTTP shutdown/retry/admission/response-limit regressions passed owning suites, strict Clippy, and workspace/test compilation. Reconfiguration semantics and remaining P03 service bounds stay open. -->
-<!-- Mode: Escalating to XHigh for resumable HTTP graph materialization, FIFO completion, and accepted request ownership across reconfiguration and cancellation. -->
-<!-- Mode: Returning to High after HTTP materialization budgets, FIFO callbacks, exact trigger delivery, and alias-index semantics passed app/engine suites, strict Clippy, and workspace/test compilation. Accepted-request reconfiguration ownership remains a separate P03 repair. -->
-<!-- Mode: Escalating to XHigh for graceful HTTP generation handoff, accepted request/completion ownership, and bounded recovery under saturated reconfiguration. -->
-<!-- Mode: Returning to High after HTTP accepted-request handoff, bounded reconfiguration/recovery, native retirement independence, and disable/re-enable passed owning suites, strict Clippy, and workspace/test compilation. Remaining P03 engine/module/lifecycle/generator work stays open. -->
 
 **Evidence:** HTTP stop performs blocking send/join behind requests/retries from module callbacks;
 UDP outbound commands and some other module channels remain unbounded; variable-size pending
